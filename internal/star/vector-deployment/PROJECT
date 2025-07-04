@@ -8,4 +8,14 @@ layout:
 - go.kubebuilder.io/v4
 projectName: landscape-vector-deployment-controller
 repo: github.tools.sap/konfidence/landscape-vector-deployment-controller
+resources:
+- controller: true
+  domain: konfidence.tools.sap
+  group: landscape
+  kind: VectorDeploymentUsage
+  version: v1alpha1
+- domain: konfidence.tools.sap
+  group: landscape
+  kind: VectorDeployment
+  version: v1alpha1
 version: "3"

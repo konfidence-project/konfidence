@@ -1,2 +1,8 @@
 resources:
 - manager.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: controller
+  newName: konfidence.common.repositories.cloud.sap/landscape-vector-deployment-controller
+  newTag: local-build-test3

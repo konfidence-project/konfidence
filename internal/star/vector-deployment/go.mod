@@ -1,11 +1,12 @@
 module github.tools.sap/konfidence/landscape-vector-deployment-controller
 
-go 1.24.0
+go 1.24.4
 
 require (
 	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.36.1
-	k8s.io/apimachinery v0.33.0
+	github.tools.sap/konfidence/crds/api/landscape/v1alpha1 v0.0.0-20250704111008-6b19e743f7ca
+	k8s.io/apimachinery v0.33.2
 	k8s.io/client-go v0.33.0
 	sigs.k8s.io/controller-runtime v0.21.0
 )
@@ -17,7 +18,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
