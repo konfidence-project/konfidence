@@ -18,9 +18,12 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 
 	landscape "github.tools.sap/konfidence/crds/api/landscape/v1alpha1"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -61,12 +64,81 @@ func (r *VectorDeploymentUsageReconciler) Reconcile(ctx context.Context, req ctr
 		// on deleted requests.
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
 	log.Info("Found vector deployment usage")
 
-	// TODO(user): your logic here
+	vds := &landscape.VectorDeploymentList{}
+	if err := r.List(ctx, vds, &client.ListOptions{Namespace: req.Namespace}); err != nil {
+		log.Error(err, "Unable to list vector deployments")
+		return ctrl.Result{}, err
+	}
+	log.Info("Listed vector deployments", "count", len(vds.Items))
+
+	var found *landscape.VectorDeployment = nil
+	for _, vd := range vds.Items {
+		if vd.Spec.Vector == vdu.Spec.Vector {
+			found = &vd
+			break
+		}
+	}
+	if found == nil {
+		log.Info("No vector deployment found for the usage", "vector", vdu.Spec.Vector)
+		found = r.constructVectorDeploymentForUsage(vdu)
+		found.OwnerReferences = append(found.OwnerReferences, constructOwnerReference(vdu))
+
+		if err := r.Create(ctx, found); err != nil {
+			return ctrl.Result{}, err
+		}
+		log.Info("Created vector deployment for the usage", "vector", vdu.Spec.Vector, "name", found.Name)
+	} else {
+		log.Info("Found existing vector deployment for the usage", "vector", vdu.Spec.Vector, "name", found.Name)
+		var ownerRef *metav1.OwnerReference = nil
+		for _, ref := range found.OwnerReferences {
+			if ref.UID == vdu.UID {
+				ownerRef = &ref
+				break
+			}
+		}
+		if ownerRef == nil {
+			log.Info("Adding owner reference to existing vector deployment", "vector", vdu.Spec.Vector, "name", found.Name)
+			found.OwnerReferences = append(found.OwnerReferences, constructOwnerReference(vdu))
+			if err := r.Update(ctx, found); err != nil {
+				return ctrl.Result{}, err
+			}
+		} else {
+			log.Info("Vector deployment already has owner reference", "vector", vdu.Spec.Vector, "name", found.Name)
+		}
+	}
 
 	return ctrl.Result{}, nil
+}
+
+func constructOwnerReference(vdu *landscape.VectorDeploymentUsage) metav1.OwnerReference {
+	return metav1.OwnerReference{
+		APIVersion: vdu.APIVersion,
+		Kind:       vdu.Kind,
+		Name:       vdu.Name,
+		UID:        vdu.UID,
+	}
+}
+
+func (r *VectorDeploymentUsageReconciler) constructVectorDeploymentForUsage(vdu *landscape.VectorDeploymentUsage) *landscape.VectorDeployment {
+	h := sha256.New()
+	h.Write([]byte(vdu.Spec.Vector))
+	hash := h.Sum(nil)
+	name := fmt.Sprintf("%x", hash)
+
+	return &landscape.VectorDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+			Name:        name,
+			Namespace:   vdu.Namespace,
+		},
+		Spec: landscape.VectorDeploymentSpec{
+			Vector: vdu.Spec.Vector,
+		},
+		Status: landscape.VectorDeploymentStatus{},
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
