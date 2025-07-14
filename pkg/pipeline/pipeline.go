@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"errors"
-	"reflect"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,9 +38,9 @@ type Pipeline[T Object] struct {
 // New creates a new Pipeline instance for the specified type T.
 func New[T Object](obj T) (*Pipeline[T], error) {
 
-	// Object must not be nil, as it is required for the pipeline to function.
-	if reflect.TypeOf(obj).Kind() != reflect.Ptr {
-		return nil, errors.New("pipeline object is not a pointer, expected a pointer to an Object type")
+	// Nil check
+	if any(obj) == nil {
+		return nil, errors.New("pipeline object is nil, expected a pointer to an Object type")
 	}
 
 	return &Pipeline[T]{

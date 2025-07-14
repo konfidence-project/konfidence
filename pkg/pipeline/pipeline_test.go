@@ -50,6 +50,13 @@ var _ = Describe("Pipeline", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
+	It("should fail to create a pipeline with nil object", func() {
+		p, err := pipeline.New[client.Object](nil)
+		Expect(p).To(BeNil())
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("object is nil"))
+	})
+
 	It("should add steps to the pipeline", func() {
 		p, err := pipeline.New(&obj)
 		Expect(err).NotTo(HaveOccurred())
