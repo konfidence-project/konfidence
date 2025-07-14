@@ -68,7 +68,10 @@ func IsUnknown(obj Getter, t ConditionType) bool {
 // IsSet returns true if the condition of the given type is present and its status is any of True, False, or Unknown.
 func IsSet(obj Getter, t ConditionType) bool {
 	cond := Get(obj, t)
-	return cond != nil && (cond.Status == metav1.ConditionTrue || cond.Status == metav1.ConditionFalse || cond.Status == metav1.ConditionUnknown)
+	return cond != nil &&
+		(cond.Status == metav1.ConditionTrue ||
+			cond.Status == metav1.ConditionFalse ||
+			cond.Status == metav1.ConditionUnknown)
 }
 
 // IsNotSet returns true if the condition of the given type is not present, or its status is False or Unknown.
@@ -77,10 +80,11 @@ func IsNotSet(obj Getter, t ConditionType) bool {
 	return cond == nil || cond.Status == metav1.ConditionFalse || cond.Status == metav1.ConditionUnknown
 }
 
-// IsReady returns true if the condition of the given type is present, its status is True, and its type is ConditionReady.
+// IsReady returns true if the condition of the given type is present,
+// its status is True, and its type is ConditionReady.
 func IsReady(obj Getter, t ConditionType) bool {
 	cond := Get(obj, t)
-	return cond != nil && cond.Status == metav1.ConditionTrue && ConditionType(cond.Type) == ConditionReady
+	return cond != nil && cond.Status == metav1.ConditionTrue && cond.Type == string(ConditionReady)
 }
 
 // GetReason returns the Reason field of the condition of the given type, or an empty string if not present.
@@ -101,7 +105,8 @@ func GetMessage(obj Getter, t ConditionType) string {
 	return ""
 }
 
-// GetLastTransitionTime returns a pointer to the LastTransitionTime of the condition of the given type, or nil if not present.
+// GetLastTransitionTime returns a pointer to the LastTransitionTime of the condition
+// of the given type, or nil if not present.
 func GetLastTransitionTime(obj Getter, t ConditionType) *metav1.Time {
 	if cond := Get(obj, t); cond != nil {
 		return &cond.LastTransitionTime

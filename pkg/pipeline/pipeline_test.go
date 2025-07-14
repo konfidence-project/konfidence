@@ -3,6 +3,8 @@ package pipeline_test
 import (
 	"context"
 	"errors"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.tools.sap/konfidence/pkg/pipeline"
@@ -10,7 +12,6 @@ import (
 	"go.uber.org/mock/gomock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 type testObj struct {
@@ -61,7 +62,7 @@ var _ = Describe("Pipeline", func() {
 			return ctrl.Result{}, nil
 		})
 
-		Expect(len(p.GetSteps())).To(Equal(2))
+		Expect(p.GetSteps()).To(HaveLen(2))
 	})
 
 	Describe("Run", func() {

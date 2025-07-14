@@ -25,7 +25,8 @@ func NewFalseCondition(t ConditionType, reason, message string) *metav1.Conditio
 	return NewCondition(t, metav1.ConditionFalse, reason, message)
 }
 
-// NewUnknownCondition creates a new condition with the specified type, status set to ConditionUnknown, reason, and message.
+// NewUnknownCondition creates a new condition with the specified type, status set to ConditionUnknown,
+// reason, and message.
 func NewUnknownCondition(t ConditionType, reason, message string) *metav1.Condition {
 	return NewCondition(t, metav1.ConditionUnknown, reason, message)
 }

@@ -3,6 +3,7 @@ package ensurefinalizer_test
 import (
 	"context"
 	"errors"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.tools.sap/konfidence/pkg/pipeline/mocks"
@@ -25,7 +26,7 @@ func (t *TestObject) GetObjectKind() schema.ObjectKind {
 
 func (t *TestObject) DeepCopyObject() runtime.Object {
 	return &TestObject{
-		ObjectMeta: *t.ObjectMeta.DeepCopy(),
+		ObjectMeta: *t.DeepCopy(),
 	}
 }
 

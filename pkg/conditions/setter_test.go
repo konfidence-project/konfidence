@@ -1,12 +1,13 @@
 package conditions
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.tools.sap/konfidence/pkg/conditions/mocks"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 var _ = Describe("Set", func() {
@@ -103,7 +104,15 @@ var _ = Describe("Delete", func() {
 	})
 })
 
-var _ = Describe("MarkTrue", func() {
+func setupMockSetter(ctrl *gomock.Controller) (*mocks.MockSetter, *metav1.Condition) {
+	mockSetter := mocks.NewMockSetter(ctrl)
+	condition := &metav1.Condition{
+		Type: "TestType",
+	}
+	return mockSetter, condition
+}
+
+var _ = Describe("Condition Markers", func() {
 	var (
 		ctrl       *gomock.Controller
 		mockSetter *mocks.MockSetter
@@ -112,10 +121,7 @@ var _ = Describe("MarkTrue", func() {
 
 	BeforeEach(func() {
 		ctrl = gomock.NewController(GinkgoT())
-		mockSetter = mocks.NewMockSetter(ctrl)
-		condition = &metav1.Condition{
-			Type: "TestType",
-		}
+		mockSetter, condition = setupMockSetter(ctrl)
 	})
 
 	AfterEach(func() {
@@ -131,26 +137,6 @@ var _ = Describe("MarkTrue", func() {
 
 		Expect(condition.Status).To(Equal(metav1.ConditionTrue))
 	})
-})
-
-var _ = Describe("MarkFalse", func() {
-	var (
-		ctrl       *gomock.Controller
-		mockSetter *mocks.MockSetter
-		condition  *metav1.Condition
-	)
-
-	BeforeEach(func() {
-		ctrl = gomock.NewController(GinkgoT())
-		mockSetter = mocks.NewMockSetter(ctrl)
-		condition = &metav1.Condition{
-			Type: "TestType",
-		}
-	})
-
-	AfterEach(func() {
-		ctrl.Finish()
-	})
 
 	It("should mark the condition as false", func() {
 		mockSetter.EXPECT().GetConditions().Return(nil).Times(1)
@@ -160,26 +146,6 @@ var _ = Describe("MarkFalse", func() {
 		MarkFalse(mockSetter, condition)
 
 		Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-	})
-})
-
-var _ = Describe("MarkUnknown", func() {
-	var (
-		ctrl       *gomock.Controller
-		mockSetter *mocks.MockSetter
-		condition  *metav1.Condition
-	)
-
-	BeforeEach(func() {
-		ctrl = gomock.NewController(GinkgoT())
-		mockSetter = mocks.NewMockSetter(ctrl)
-		condition = &metav1.Condition{
-			Type: "TestType",
-		}
-	})
-
-	AfterEach(func() {
-		ctrl.Finish()
 	})
 
 	It("should mark the condition as unknown", func() {
