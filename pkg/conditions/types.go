@@ -1,11 +1,14 @@
 package conditions
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
 // Getter is an interface that combines client.Object and v1alpha1.ConditionGetter.
 // It is used to access Kubernetes objects that support reading conditions.
 type Getter interface {
-	metav1.Object
+	client.Object
 	GetConditions() []*metav1.Condition
 }
 

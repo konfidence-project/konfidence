@@ -11,6 +11,11 @@ type (
 		client.Client
 	}
 
+	// SubResourceWriter wraps the controller-runtime client.SubResourceWriter interface, to make it easier to mock in tests.
+	SubResourceWriter interface {
+		client.SubResourceWriter
+	}
+
 	// Object is a wrapper around the controller-runtime client.Object interface.
 	Object interface {
 		client.Object

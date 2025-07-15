@@ -2,19 +2,19 @@ package ensurefinalizer
 
 import (
 	"context"
-
-	pipeline "github.tools.sap/konfidence/pkg/pipeline"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type Step[T pipeline.Object] struct {
+type Object = client.Object
+
+type Step[T Object] struct {
 	finalizerName string
 }
 
-func New[T pipeline.Object](finalizerName string) *Step[T] {
+func New[T Object](finalizerName string) *Step[T] {
 	return &Step[T]{
 		finalizerName: finalizerName,
 	}

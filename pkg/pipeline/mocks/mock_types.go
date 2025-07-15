@@ -265,6 +265,87 @@ func (mr *MockClientMockRecorder) Update(ctx, obj any, opts ...any) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockClient)(nil).Update), varargs...)
 }
 
+// MockSubResourceWriter is a mock of SubResourceWriter interface.
+type MockSubResourceWriter struct {
+	ctrl     *gomock.Controller
+	recorder *MockSubResourceWriterMockRecorder
+	isgomock struct{}
+}
+
+// MockSubResourceWriterMockRecorder is the mock recorder for MockSubResourceWriter.
+type MockSubResourceWriterMockRecorder struct {
+	mock *MockSubResourceWriter
+}
+
+// NewMockSubResourceWriter creates a new mock instance.
+func NewMockSubResourceWriter(ctrl *gomock.Controller) *MockSubResourceWriter {
+	mock := &MockSubResourceWriter{ctrl: ctrl}
+	mock.recorder = &MockSubResourceWriterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSubResourceWriter) EXPECT() *MockSubResourceWriterMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockSubResourceWriter) Create(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceCreateOption) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, obj, subResource}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Create", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockSubResourceWriterMockRecorder) Create(ctx, obj, subResource any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, obj, subResource}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockSubResourceWriter)(nil).Create), varargs...)
+}
+
+// Patch mocks base method.
+func (m *MockSubResourceWriter) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, obj, patch}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Patch", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Patch indicates an expected call of Patch.
+func (mr *MockSubResourceWriterMockRecorder) Patch(ctx, obj, patch any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, obj, patch}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Patch", reflect.TypeOf((*MockSubResourceWriter)(nil).Patch), varargs...)
+}
+
+// Update mocks base method.
+func (m *MockSubResourceWriter) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, obj}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Update", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockSubResourceWriterMockRecorder) Update(ctx, obj any, opts ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, obj}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockSubResourceWriter)(nil).Update), varargs...)
+}
+
 // MockObject is a mock of Object interface.
 type MockObject struct {
 	ctrl     *gomock.Controller

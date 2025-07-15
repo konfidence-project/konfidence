@@ -14,6 +14,8 @@ import (
 
 	gomock "go.uber.org/mock/gomock"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 )
 
@@ -39,6 +41,20 @@ func NewMockGetter(ctrl *gomock.Controller) *MockGetter {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockGetter) EXPECT() *MockGetterMockRecorder {
 	return m.recorder
+}
+
+// DeepCopyObject mocks base method.
+func (m *MockGetter) DeepCopyObject() runtime.Object {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeepCopyObject")
+	ret0, _ := ret[0].(runtime.Object)
+	return ret0
+}
+
+// DeepCopyObject indicates an expected call of DeepCopyObject.
+func (mr *MockGetterMockRecorder) DeepCopyObject() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeepCopyObject", reflect.TypeOf((*MockGetter)(nil).DeepCopyObject))
 }
 
 // GetAnnotations mocks base method.
@@ -207,6 +223,20 @@ func (m *MockGetter) GetNamespace() string {
 func (mr *MockGetterMockRecorder) GetNamespace() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockGetter)(nil).GetNamespace))
+}
+
+// GetObjectKind mocks base method.
+func (m *MockGetter) GetObjectKind() schema.ObjectKind {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetObjectKind")
+	ret0, _ := ret[0].(schema.ObjectKind)
+	return ret0
+}
+
+// GetObjectKind indicates an expected call of GetObjectKind.
+func (mr *MockGetterMockRecorder) GetObjectKind() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObjectKind", reflect.TypeOf((*MockGetter)(nil).GetObjectKind))
 }
 
 // GetOwnerReferences mocks base method.
@@ -469,6 +499,20 @@ func (m *MockSetter) EXPECT() *MockSetterMockRecorder {
 	return m.recorder
 }
 
+// DeepCopyObject mocks base method.
+func (m *MockSetter) DeepCopyObject() runtime.Object {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeepCopyObject")
+	ret0, _ := ret[0].(runtime.Object)
+	return ret0
+}
+
+// DeepCopyObject indicates an expected call of DeepCopyObject.
+func (mr *MockSetterMockRecorder) DeepCopyObject() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeepCopyObject", reflect.TypeOf((*MockSetter)(nil).DeepCopyObject))
+}
+
 // GetAnnotations mocks base method.
 func (m *MockSetter) GetAnnotations() map[string]string {
 	m.ctrl.T.Helper()
@@ -635,6 +679,20 @@ func (m *MockSetter) GetNamespace() string {
 func (mr *MockSetterMockRecorder) GetNamespace() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockSetter)(nil).GetNamespace))
+}
+
+// GetObjectKind mocks base method.
+func (m *MockSetter) GetObjectKind() schema.ObjectKind {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetObjectKind")
+	ret0, _ := ret[0].(schema.ObjectKind)
+	return ret0
+}
+
+// GetObjectKind indicates an expected call of GetObjectKind.
+func (mr *MockSetterMockRecorder) GetObjectKind() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObjectKind", reflect.TypeOf((*MockSetter)(nil).GetObjectKind))
 }
 
 // GetOwnerReferences mocks base method.
