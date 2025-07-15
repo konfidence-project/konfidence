@@ -27,12 +27,19 @@ package stagecontroller
 
 import (
 	"context"
+	"github.tools.sap/konfidence/pkg/conditions"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	"fmt"
 	"github.tools.sap/konfidence/pkg/pipeline"
 	"github.tools.sap/konfidence/pkg/steps/ensurefinalizer"
+	"github.tools.sap/konfidence/pkg/steps/setcondition"
 	ctrl "sigs.k8s.io/controller-runtime"
+)
+
+const (
+	MyCustomCondition conditions.ConditionType = "MyCustomCondition"
 )
 
 // Usual reconciler loop for a Kubernetes controller
@@ -48,6 +55,13 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// Add pipeline steps to handle the Stage resource lifecycle
 	p.AddStep(
+
+		// Set a ready condition to false at the beginning of the reconciliation
+		setcondition.New[*v1alpha1.Stage](
+			v1.ConditionFalse,
+			setcondition.WithReason("ReconcileInProgress"),
+			setcondition.WithMessage("Reconciliation is in progress"),
+		),
 
 		// Ensure finalizer is present before proceeding with deletion or creation
 		// This is a tested reusable step!
@@ -81,6 +95,17 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 		// Add your reusable step here
 		NewMyReusableStep[*v1alpha1.Stage](),
+
+		// Set a ready condition on the resource
+		setcondition.New[*v1alpha1.Stage](),
+
+		// Set a custom condition on the resource
+		setcondition.New[*v1alpha1.Stage](
+			v1.ConditionTrue,
+			setcondition.WithConditionType(MyCustomCondition),
+			setcondition.WithReason("ReconcileInProgress"),
+			setcondition.WithMessage("Reconciliation is in progress"),
+		),
 	)
 
 	// Run the pipeline with the provided context, client, and request
