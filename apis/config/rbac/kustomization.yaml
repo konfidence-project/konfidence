@@ -1,0 +1,18 @@
+resources:
+# For each CRD, "Editor" and "Viewer" roles are scaffolded by
+# default, aiding admins in cluster management. Those roles are
+# not used by the Project itself. You can comment the following lines
+# if you do not want those helpers be installed with your Project.
+- common_ocmcomponentversionoci_editor_role.yaml
+- common_ocmcomponentversionoci_viewer_role.yaml
+- landscape_vectorassignment_editor_role.yaml
+- landscape_vectorassignment_viewer_role.yaml
+- landscape_vectordeployment_editor_role.yaml
+- landscape_vectordeployment_viewer_role.yaml
+- landscape_artifactdeployment_editor_role.yaml
+- landscape_artifactdeployment_viewer_role.yaml
+- landscape_vectordeploymentusage_editor_role.yaml
+- landscape_vectordeploymentusage_viewer_role.yaml
+- common_stage_editor_role.yaml
+- common_stage_viewer_role.yaml
+

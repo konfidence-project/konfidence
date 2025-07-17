@@ -1,0 +1,12 @@
+apiVersion: landscape.konfidence.tools.sap/v1alpha1
+kind: VectorDeploymentUsage
+metadata:
+  labels:
+    app.kubernetes.io/name: crds
+    app.kubernetes.io/managed-by: kustomize
+  name: vectordeploymentusage-stage-dev
+spec:
+  vectorRef:
+    apiGroup: common.konfidence.tools.sap
+    name: github.tools.sap/example/vector-0.0.1
+    kind: OCMComponentVersionOCI
