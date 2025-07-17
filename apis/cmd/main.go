@@ -35,8 +35,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	commonv1alpha1 "github.com/konfidence-project/crds/api/common/v1alpha1"
-	landscapev1alpha1 "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	common "github.com/konfidence-project/crds/api/common/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -48,8 +48,8 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(commonv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(landscapev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(common.AddToScheme(scheme))
+	utilruntime.Must(landscape.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

@@ -1,11 +1,11 @@
 module github.com/konfidence-project/crds
 
-go 1.24.4
+go 1.24.5
 
 require (
-	github.com/konfidence-project/crds/api/common v0.0.0-20250717124534-2b0b5ac16cc4
-	github.com/konfidence-project/crds/api/landscape v0.0.0-20250717124534-2b0b5ac16cc4
-	k8s.io/apimachinery v0.33.2
+	github.com/konfidence-project/crds/api/common v0.0.0-20250717132425-6d4a98c108e7
+	github.com/konfidence-project/crds/api/landscape v0.0.0-20250717132425-6d4a98c108e7
+	k8s.io/apimachinery v0.33.3
 	k8s.io/client-go v0.33.0
 	sigs.k8s.io/controller-runtime v0.21.0
 )
@@ -63,7 +63,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
-	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
@@ -82,7 +81,7 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.33.1 // indirect
+	k8s.io/api v0.33.3 // indirect
 	k8s.io/apiextensions-apiserver v0.33.0 // indirect
 	k8s.io/apiserver v0.33.0 // indirect
 	k8s.io/component-base v0.33.0 // indirect

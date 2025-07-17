@@ -64,9 +64,8 @@ spec:
                     type: object
                     x-kubernetes-map-type: atomic
                   url:
-                    description: |-
-                      URL specifies the URL of the OCI registry in which the ComponentVersion is stored.
-                      MUST NOT CONTAIN THE SCHEME.
+                    description: URL specifies the URL of the OCI registry in which
+                      the ComponentVersion is stored.
                     type: string
                 required:
                 - url
