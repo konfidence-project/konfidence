@@ -1,0 +1,23 @@
+# permissions for end users to view stages.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: crds
+    app.kubernetes.io/managed-by: kustomize
+  name: common-stage-viewer-role
+rules:
+- apiGroups:
+  - common.konfidence.tools.sap
+  resources:
+  - stages
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - common.konfidence.tools.sap
+  resources:
+  - stages/status
+  verbs:
+  - get

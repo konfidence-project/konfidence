@@ -1,14 +1,51 @@
 [![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/crds)](https://api.reuse.software/info/github.com/konfidence-project/crds)
 
-# crds
+# Konfidence CRDs
 
 ## About this project
 
-This repository provides a set of Custom Resource Definitions (CRDs) which are required to run Konfidence. It is built using the Kubebuilder framework.
+This repository provides a set of Custom Resource Definitions (CRDs) which are required to run Konfidence.
+It is built using the Kubebuilder framework.
 
 ## Requirements and Setup
 
-*Insert a short description what is required to get your project running...*
+### Prerequisites
+- go version v1.22.0+
+- docker version 17.03+.
+- kubectl version v1.11.3+.
+- Access to a Kubernetes v1.11.3+ cluster.
+
+### Install the CRDs
+**Install the CRDs into the cluster:**
+
+```sh
+make install
+```
+
+> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
+privileges or be logged in as admin.
+
+**Create instances of your solution**
+You can apply the samples (examples) from the config/sample:
+
+```sh
+kubectl apply -k config/samples/
+```
+
+>**NOTE**: Ensure that the samples has default values to test it out.
+
+### To Uninstall
+**Delete the instances (CRs) from the cluster:**
+
+```sh
+kubectl delete -k config/samples/
+```
+
+**Delete the APIs(CRDs) from the cluster:**
+
+```sh
+make uninstall
+```
 
 ## Support, Feedback, Contributing
 
