@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - landscape.konfidence.tools.sap
+  resources:
+  - vectordeployments
+  - vectordeploymentusages
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - landscape.konfidence.tools.sap
+  resources:
+  - vectordeploymentusages/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - landscape.konfidence.tools.sap
+  resources:
+  - vectordeploymentusages/status
+  verbs:
+  - get
+  - patch
+  - update
