@@ -7,6 +7,8 @@ rules:
 - apiGroups:
   - landscape.konfidence.tools.sap
   resources:
+  - artifactdeployments
+  - vectorassignments
   - vectordeployments
   - vectordeploymentusages
   verbs:
@@ -20,12 +22,14 @@ rules:
 - apiGroups:
   - landscape.konfidence.tools.sap
   resources:
+  - vectordeployments/finalizers
   - vectordeploymentusages/finalizers
   verbs:
   - update
 - apiGroups:
   - landscape.konfidence.tools.sap
   resources:
+  - vectordeployments/status
   - vectordeploymentusages/status
   verbs:
   - get

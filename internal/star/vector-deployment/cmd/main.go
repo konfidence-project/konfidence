@@ -19,9 +19,10 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"os"
 	"path/filepath"
+
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -206,6 +207,13 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorDeploymentUsage")
+		os.Exit(1)
+	}
+	if err := (&controller.VectorDeploymentReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "VectorDeployment")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

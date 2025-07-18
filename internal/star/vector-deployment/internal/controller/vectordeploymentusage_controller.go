@@ -75,22 +75,22 @@ func (r *VectorDeploymentUsageReconciler) Reconcile(ctx context.Context, req ctr
 
 	var found *landscape.VectorDeployment = nil
 	for _, vd := range vds.Items {
-		if vd.Spec.Vector == vdu.Spec.Vector {
+		if vd.Spec.VectorRef == vdu.Spec.VectorRef {
 			found = &vd
 			break
 		}
 	}
 	if found == nil {
-		log.Info("No vector deployment found for the usage", "vector", vdu.Spec.Vector)
+		log.Info("No vector deployment found for the usage", "vector", vdu.Spec.VectorRef)
 		found = r.constructVectorDeploymentForUsage(vdu)
 		found.OwnerReferences = append(found.OwnerReferences, constructOwnerReference(vdu))
 
 		if err := r.Create(ctx, found); err != nil {
 			return ctrl.Result{}, err
 		}
-		log.Info("Created vector deployment for the usage", "vector", vdu.Spec.Vector, "name", found.Name)
+		log.Info("Created vector deployment for the usage", "vector", vdu.Spec.VectorRef, "name", found.Name)
 	} else {
-		log.Info("Found existing vector deployment for the usage", "vector", vdu.Spec.Vector, "name", found.Name)
+		log.Info("Found existing vector deployment for the usage", "vector", vdu.Spec.VectorRef, "name", found.Name)
 		var ownerRef *metav1.OwnerReference = nil
 		for _, ref := range found.OwnerReferences {
 			if ref.UID == vdu.UID {
@@ -99,13 +99,13 @@ func (r *VectorDeploymentUsageReconciler) Reconcile(ctx context.Context, req ctr
 			}
 		}
 		if ownerRef == nil {
-			log.Info("Adding owner reference to existing vector deployment", "vector", vdu.Spec.Vector, "name", found.Name)
+			log.Info("Adding owner reference to existing vector deployment", "vector", vdu.Spec.VectorRef, "name", found.Name)
 			found.OwnerReferences = append(found.OwnerReferences, constructOwnerReference(vdu))
 			if err := r.Update(ctx, found); err != nil {
 				return ctrl.Result{}, err
 			}
 		} else {
-			log.Info("Vector deployment already has owner reference", "vector", vdu.Spec.Vector, "name", found.Name)
+			log.Info("Vector deployment already has owner reference", "vector", vdu.Spec.VectorRef, "name", found.Name)
 		}
 	}
 
@@ -123,7 +123,7 @@ func constructOwnerReference(vdu *landscape.VectorDeploymentUsage) metav1.OwnerR
 
 func (r *VectorDeploymentUsageReconciler) constructVectorDeploymentForUsage(vdu *landscape.VectorDeploymentUsage) *landscape.VectorDeployment {
 	h := sha256.New()
-	h.Write([]byte(vdu.Spec.Vector))
+	h.Write([]byte(vdu.Spec.VectorRef.Name)) //FIXME
 	hash := h.Sum(nil)
 	name := fmt.Sprintf("%x", hash)
 
@@ -135,7 +135,7 @@ func (r *VectorDeploymentUsageReconciler) constructVectorDeploymentForUsage(vdu 
 			Namespace:   vdu.Namespace,
 		},
 		Spec: landscape.VectorDeploymentSpec{
-			Vector: vdu.Spec.Vector,
+			VectorRef: vdu.Spec.VectorRef,
 		},
 		Status: landscape.VectorDeploymentStatus{},
 	}
