@@ -2,8 +2,8 @@ package setcondition
 
 import (
 	"context"
-	"github.tools.sap/konfidence/pkg/conditions"
-	"github.tools.sap/konfidence/pkg/funcopts"
+	"github.com/konfidence-project/pkg/conditions"
+	"github.com/konfidence-project/pkg/funcopts"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

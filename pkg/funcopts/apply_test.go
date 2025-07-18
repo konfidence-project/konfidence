@@ -2,9 +2,9 @@ package funcopts_test
 
 import (
 	"errors"
+	"github.com/konfidence-project/pkg/funcopts"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.tools.sap/konfidence/pkg/funcopts"
 )
 
 type (

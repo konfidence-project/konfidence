@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/konfidence-project/pkg/pipeline"
+	"github.com/konfidence-project/pkg/pipeline/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.tools.sap/konfidence/pkg/pipeline"
-	"github.tools.sap/konfidence/pkg/pipeline/mocks"
 	"go.uber.org/mock/gomock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

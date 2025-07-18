@@ -3,9 +3,9 @@ package conditions
 import (
 	"time"
 
+	"github.com/konfidence-project/pkg/conditions/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.tools.sap/konfidence/pkg/conditions/mocks"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

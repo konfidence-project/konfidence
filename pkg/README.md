@@ -17,7 +17,7 @@ The pkg repository contains commonly used libraries for Kubernetes controllers. 
 To use the libraries in your project, add them as a dependency:
 
 ```bash
-go get github.tools.sap/konfidence/pkg
+go get github.com/konfidence-project/pkg
 ```
 
 ## Usage
@@ -31,14 +31,14 @@ package stagecontroller
 
 import (
 	"context"
-	"github.tools.sap/konfidence/pkg/conditions"
+	"github.com/konfidence-project/pkg/conditions"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	"fmt"
-	"github.tools.sap/konfidence/pkg/pipeline"
-	"github.tools.sap/konfidence/pkg/steps/ensurefinalizer"
-	"github.tools.sap/konfidence/pkg/steps/setcondition"
+	"github.com/konfidence-project/pkg/pipeline"
+	"github.com/konfidence-project/pkg/steps/ensurefinalizer"
+	"github.com/konfidence-project/pkg/steps/setcondition"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 

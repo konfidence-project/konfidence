@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/konfidence-project/pkg/pipeline/mocks"
+	"github.com/konfidence-project/pkg/steps/setcondition"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.tools.sap/konfidence/pkg/pipeline/mocks"
-	"github.tools.sap/konfidence/pkg/steps/setcondition"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

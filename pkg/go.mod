@@ -1,4 +1,4 @@
-module github.tools.sap/konfidence/pkg
+module github.com/konfidence-project/pkg
 
 go 1.24.5
 
