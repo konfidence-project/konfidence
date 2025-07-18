@@ -14,8 +14,13 @@ resources:
   group: landscape
   kind: VectorDeploymentUsage
   version: v1alpha1
-- domain: konfidence.tools.sap
+- controller: true
+  domain: konfidence.tools.sap
   group: landscape
   kind: VectorDeployment
+  version: v1alpha1
+- domain: konfidence.tools.sap
+  group: landscape
+  kind: ArtifactDeployment
   version: v1alpha1
 version: "3"
