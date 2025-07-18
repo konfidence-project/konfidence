@@ -76,8 +76,18 @@ spec:
                 - name
                 - provider
                 type: object
-              type:
-                type: string
+              manifest:
+                properties:
+                  allowReuse:
+                    type: boolean
+                  type:
+                    type: string
+                required:
+                - allowReuse
+                - type
+                type: object
+            required:
+            - manifest
             type: object
           status:
             description: ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.

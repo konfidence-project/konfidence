@@ -29,8 +29,8 @@ const (
 
 // ArtifactDeploymentSpec defines the desired state of ArtifactDeployment.
 type ArtifactDeploymentSpec struct {
-	Type      string       `json:"type,omitempty"`
-	Component OCMComponent `json:"component,omitempty"`
+	Manifest  ArtifactManifest `json:"manifest"`
+	Component OCMComponent     `json:"component,omitempty"`
 }
 
 type OCMComponent struct {
@@ -70,6 +70,11 @@ type ArtifactDeployment struct {
 
 	Spec   ArtifactDeploymentSpec   `json:"spec,omitempty"`
 	Status ArtifactDeploymentStatus `json:"status,omitempty"`
+}
+
+type ArtifactManifest struct {
+	Type       string `json:"type"`
+	AllowReuse bool   `json:"allowReuse"`
 }
 
 // +kubebuilder:object:root=true
