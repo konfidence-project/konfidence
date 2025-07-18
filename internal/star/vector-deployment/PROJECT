@@ -7,7 +7,7 @@ domain: konfidence.tools.sap
 layout:
 - go.kubebuilder.io/v4
 projectName: landscape-vector-deployment-controller
-repo: github.tools.sap/konfidence/landscape-vector-deployment-controller
+repo: github.com/konfidence-project/landscape-vector-deployment-controller
 resources:
 - controller: true
   domain: konfidence.tools.sap

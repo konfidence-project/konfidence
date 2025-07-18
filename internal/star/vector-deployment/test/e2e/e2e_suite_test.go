@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.tools.sap/konfidence/landscape-vector-deployment-controller/test/utils"
+	"github.com/konfidence-project/landscape-vector-deployment-controller/test/utils"
 )
 
 var (
