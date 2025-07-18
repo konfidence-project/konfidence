@@ -19,7 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	landscape "github.tools.sap/konfidence/crds/api/landscape/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"os"
 	"path/filepath"
 
@@ -38,7 +38,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.tools.sap/konfidence/landscape-vector-deployment-controller/internal/controller"
+	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 
