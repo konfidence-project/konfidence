@@ -44,29 +44,12 @@ spec:
           spec:
             description: VectorDeploymentUsageSpec defines the desired state of VectorDeploymentUsage.
             properties:
-              vectorRef:
-                description: VectorRef points to the OCM component version that contains
+              vector:
+                description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
-                properties:
-                  apiGroup:
-                    description: |-
-                      APIGroup is the group for the resource being referenced.
-                      If APIGroup is not specified, the specified Kind must be in the core API group.
-                      For any other third-party types, APIGroup is required.
-                    type: string
-                  kind:
-                    description: Kind is the type of resource being referenced
-                    type: string
-                  name:
-                    description: Name is the name of resource being referenced
-                    type: string
-                required:
-                - kind
-                - name
-                type: object
-                x-kubernetes-map-type: atomic
+                type: string
             required:
-            - vectorRef
+            - vector
             type: object
           status:
             description: VectorDeploymentUsageStatus defines the observed state of

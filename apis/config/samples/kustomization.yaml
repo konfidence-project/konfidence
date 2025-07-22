@@ -1,7 +1,6 @@
 ## Append samples of your project ##
 resources:
 - common_v1alpha1_stage_dev.yaml
-- common_v1alpha1_ocmcomponentversionoci.yaml
 - landscape_v1alpha1_vectordeploymentusage.yaml
 - landscape_v1alpha1_vectordeployment.yaml
 - landscape_v1alpha1_vectorassignment.yaml

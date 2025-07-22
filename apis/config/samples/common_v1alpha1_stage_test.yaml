@@ -7,9 +7,7 @@ metadata:
   name: stage-test
 spec:
   name: test
-  vectorRef:
-    apiGroup: common.konfidence.tools.sap
-    name: github.tools.sap/example/vector-0.0.1
-    kind: OCMComponentVersionOCI
+  vector: https://registry.kdenv.lab/ocm/vector//common.konfidence.tools.sap/example/vector:0.0.1
+
 
 

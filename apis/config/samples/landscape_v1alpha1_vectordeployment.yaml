@@ -4,9 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: crds
     app.kubernetes.io/managed-by: kustomize
-  name: github.tools.sap-example-vector-0.0.1
+  name: common.konfidence.tools.sap.example.vector-0.0.1
 spec:
-  vectorRef:
-    apiGroup: common.konfidence.tools.sap
-    name: github.tools.sap/example/vector-0.0.1
-    kind: OCMComponentVersionOCI
+  vector: https://registry.kdenv.lab/ocm/vector//common.konfidence.tools.sap/example/vector:0.0.1
+

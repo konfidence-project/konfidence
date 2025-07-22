@@ -31,8 +31,8 @@ const (
 
 // VectorDeploymentUsageSpec defines the desired state of VectorDeploymentUsage.
 type VectorDeploymentUsageSpec struct {
-	// VectorRef points to the OCM component version that contains the deployment vector for this stage.
-	VectorRef corev1.TypedLocalObjectReference `json:"vectorRef"`
+	// Vector points to the OCM component version that contains the deployment vector for this stage.
+	Vector string `json:"vector"`
 }
 
 // VectorDeploymentUsageStatus defines the observed state of VectorDeploymentUsage.

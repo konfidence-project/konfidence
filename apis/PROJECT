@@ -49,12 +49,4 @@ resources:
   kind: VectorAssignment
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1
   version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  domain: konfidence.tools.sap
-  group: common
-  kind: OCMComponentVersionOCI
-  path: github.com/konfidence-project/crds/api/common/v1alpha1
-  version: v1alpha1
 version: "3"
