@@ -52,16 +52,16 @@ type StageSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 
-	// VectorRef points to the OCM component version that contains the deployment vector for this stage.
-	VectorRef corev1.TypedLocalObjectReference `json:"vectorRef"`
+	// Vector points to the OCM component version that contains the deployment vector for this stage.
+	Vector string `json:"vector"`
 }
 
 // StageStatus defines the observed state of Stage.
 type StageStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	VectorHistory             []corev1.TypedObjectReference `json:"vectorHistory,omitempty"`
-	LatestVectorDeploymentRef corev1.TypedObjectReference   `json:"latestVectorDeploymentRef,omitempty"`
+	VectorHistory             []string                    `json:"vectorHistory,omitempty"`
+	LatestVectorDeploymentRef corev1.TypedObjectReference `json:"latestVectorDeploymentRef,omitempty"`
 }
 
 // +kubebuilder:object:root=true

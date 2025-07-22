@@ -3,7 +3,6 @@
 # It should be run by config/default
 resources:
 - bases/common.konfidence.tools.sap_stages.yaml
-- bases/common.konfidence.tools.sap_ocmcomponentversionocis.yaml
 - bases/landscape.konfidence.tools.sap_vectordeploymentusages.yaml
 - bases/landscape.konfidence.tools.sap_artifactdeployments.yaml
 - bases/landscape.konfidence.tools.sap_vectordeployments.yaml

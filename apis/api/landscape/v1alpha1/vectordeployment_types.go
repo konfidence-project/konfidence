@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,8 +42,8 @@ const (
 
 // VectorDeploymentSpec defines the desired state of VectorDeployment.
 type VectorDeploymentSpec struct {
-	// VectorRef points to the OCM component version that contains the deployment vector for this stage.
-	VectorRef corev1.TypedLocalObjectReference `json:"vectorRef"`
+	// Vector points to the OCM component version that contains the deployment vector for this stage.
+	Vector string `json:"vector"`
 }
 
 // VectorDeploymentStatus defines the observed state of VectorDeployment.
