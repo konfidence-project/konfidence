@@ -23,21 +23,20 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/rand"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // StageReconciler reconciles a Stage object
@@ -77,27 +76,8 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	// check if the referenced vector exists
-	if err := checkVector(r, ctx, stage); err != nil {
-		log.Error(err, "Unable to fetch referenced vector")
-
-		meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{Type: common.FetchFailedCondition,
-			Status: metav1.ConditionTrue, Reason: common.FetchFailedCondition,
-			Message: fmt.Sprintf("Fetching Vector Reference %s failed", stage.Spec.VectorRef.Name)})
-
-		if updateErr := r.Status().Update(ctx, stage); updateErr != nil {
-			log.Error(updateErr, "Failed to update stage status")
-			return ctrl.Result{}, fmt.Errorf("%w; %w", err, updateErr)
-		}
-
-		return ctrl.Result{RequeueAfter: retryInterval}, err
-	}
-
-	// remove fetch failed error condition
-	meta.RemoveStatusCondition(&stage.Status.Conditions, common.FetchFailedCondition)
-
-	if err := r.Status().Update(ctx, stage); err != nil {
-		log.Error(err, "Failed to update stage status")
+	adaptedVectorName, err := adaptVectorName(stage.Spec.Vector)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -110,7 +90,7 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// check if a vectorDeploymentUsage exists with a vector matching the stage vector
 	index := slices.IndexFunc(vectorDeploymentUsages.Items, func(usage landscape.VectorDeploymentUsage) bool {
-		return usage.Spec.VectorRef.Name == stage.Spec.VectorRef.Name
+		return usage.Spec.Vector == stage.Spec.Vector
 	})
 
 	var vectorDeploymentUsage *landscape.VectorDeploymentUsage
@@ -135,11 +115,6 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	} else {
 		log.V(1).Info("Found existing vectorDeploymentUsage at index", "index", index)
 		vectorDeploymentUsage = &vectorDeploymentUsages.Items[index]
-
-		// check that deploymentUsage has the correct kind
-		if common.OCMComponentVersionOCIKind != vectorDeploymentUsage.Spec.VectorRef.Kind {
-			return ctrl.Result{}, fmt.Errorf("VectorDeploymentUsage has invalid kind for vector reference")
-		}
 	}
 
 	oldVectorDeployments := map[string]bool{}
@@ -152,20 +127,25 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 
 		// only delete vectorDeploymentUsages that do not reference the current stage vector
-		if usage.Spec.VectorRef.Name != stage.Spec.VectorRef.Name {
+		if usage.Spec.Vector != stage.Spec.Vector {
 			// has the vectorDeployment already been processed?
-			if !oldVectorDeployments[usage.Spec.VectorRef.Name] {
+			if !oldVectorDeployments[usage.Spec.Vector] {
+				adaptedVectorName, err := adaptVectorName(usage.Spec.Vector)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+
 				// check if there is a vectorDeployment for an old stageVector
 				vectorDeployment := &landscape.VectorDeployment{}
 				if err := r.Get(ctx, types.NamespacedName{
 					Namespace: stage.Namespace,
-					Name:      adaptVectorReferenceName(usage.Spec.VectorRef.Name),
+					Name:      adaptedVectorName,
 				}, vectorDeployment); err != nil {
 					if errors.IsNotFound(err) {
 						// mark vectorDeployment as processed
-						oldVectorDeployments[usage.Spec.VectorRef.Name] = true
+						oldVectorDeployments[usage.Spec.Vector] = true
 					} else {
-						log.Error(err, "Unable to get old vectorDeployment got vectorDeploymentUsage", "vectorDeploymentUsage", usage)
+						log.Error(err, "Unable to get old vectorDeployment for vectorDeploymentUsage", "vectorDeploymentUsage", usage)
 						return ctrl.Result{}, err
 					}
 				}
@@ -192,7 +172,7 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				}
 
 				// mark vectorDeployment as processed
-				oldVectorDeployments[usage.Spec.VectorRef.Name] = true
+				oldVectorDeployments[usage.Spec.Vector] = true
 			}
 
 			if err := r.Delete(ctx, &usage, client.PropagationPolicy(metav1.DeletePropagationBackground)); client.IgnoreNotFound(err) != nil {
@@ -205,9 +185,9 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// check if a vectorDeployment exists matching the stage vector
 	vectorDeployment := &landscape.VectorDeployment{}
-	err := r.Get(ctx, types.NamespacedName{
+	err = r.Get(ctx, types.NamespacedName{
 		Namespace: stage.Namespace,
-		Name:      adaptVectorReferenceName(stage.Spec.VectorRef.Name),
+		Name:      adaptedVectorName,
 	}, vectorDeployment)
 
 	if err != nil {
@@ -247,18 +227,15 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	log.V(1).Info("Found existing vectorDeployment")
 
-	// check that the vectorRef of the vectorDeployment matches the stage vectorRef
-	if !hasMatchingVectorReference(stage, vectorDeployment) {
-		err = fmt.Errorf("VectorDeploymentUsage has invalid kind for vector reference")
-		log.Error(err, err.Error())
-		return ctrl.Result{}, err
-	}
-
 	// get latest vectorDeployment
 	err = r.Get(ctx, types.NamespacedName{
 		Namespace: stage.Namespace,
-		Name:      adaptVectorReferenceName(stage.Spec.VectorRef.Name),
+		Name:      adaptedVectorName,
 	}, vectorDeployment)
+
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	log.V(1).Info("Set stage owner for vectorDeployment")
 
@@ -285,8 +262,12 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	// get latest vectorDeployment
 	err = r.Get(ctx, types.NamespacedName{
 		Namespace: stage.Namespace,
-		Name:      adaptVectorReferenceName(stage.Spec.VectorRef.Name),
+		Name:      adaptedVectorName,
 	}, vectorDeployment)
+
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	// check if vectorDeployment is marked as deployed
 	if meta.FindStatusCondition(vectorDeployment.Status.Conditions, landscape.VectorDeployedCondition) != nil {
@@ -375,7 +356,7 @@ func constructVectorDeploymentUsageForStage(r *StageReconciler, stage *common.St
 			Namespace: stage.Namespace,
 		},
 		Spec: landscape.VectorDeploymentUsageSpec{
-			VectorRef: *stage.Spec.VectorRef.DeepCopy(),
+			Vector: stage.Spec.Vector,
 		},
 	}
 
@@ -388,13 +369,18 @@ func constructVectorDeploymentUsageForStage(r *StageReconciler, stage *common.St
 }
 
 func constructVectorDeployment(r *StageReconciler, stage *common.Stage, vectorDeploymentUsage *landscape.VectorDeploymentUsage) (*landscape.VectorDeployment, error) {
+	adaptedVectorName, err := adaptVectorName(stage.Spec.Vector)
+	if err != nil {
+		return nil, err
+	}
+
 	vectorDeployment := &landscape.VectorDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      adaptVectorReferenceName(stage.Spec.VectorRef.Name),
+			Name:      adaptedVectorName,
 			Namespace: stage.Namespace,
 		},
 		Spec: landscape.VectorDeploymentSpec{
-			VectorRef: *stage.Spec.VectorRef.DeepCopy(),
+			Vector: stage.Spec.Vector,
 		},
 	}
 
@@ -411,28 +397,24 @@ func constructVectorDeployment(r *StageReconciler, stage *common.Stage, vectorDe
 	return vectorDeployment, nil
 }
 
-func hasMatchingVectorReference(stage *common.Stage, vectorDeployment *landscape.VectorDeployment) bool {
-	return stage.Spec.VectorRef.Name == vectorDeployment.Spec.VectorRef.Name && common.OCMComponentVersionOCIKind == vectorDeployment.Spec.VectorRef.Kind
-}
-
-func checkVector(r *StageReconciler, ctx context.Context, stage *common.Stage) error {
-	switch vectorKind := stage.Spec.VectorRef.Kind; vectorKind {
-	case common.OCMComponentVersionOCIKind:
-		vector := &common.OCMComponentVersionOCI{}
-		if err := r.Get(ctx, types.NamespacedName{
-			Namespace: stage.Namespace,
-			Name:      adaptVectorReferenceName(stage.Spec.VectorRef.Name),
-		}, vector); err != nil {
-			return fmt.Errorf("unable to fetch vector: %w", err)
-		}
-
-		return nil
-	default:
-		return fmt.Errorf("stage vector reference has an invalid kind: %s", vectorKind)
-	}
-}
-
 // make vector name usable as kubernetes resource name
-func adaptVectorReferenceName(vectorName string) string {
-	return strings.Replace(vectorName, "/", "-", -1)
+func adaptVectorName(vector string) (string, error) {
+	trimmedVector := strings.TrimSpace(strings.ToLower(vector))
+
+	// TODO validate defined vector format
+	if len(trimmedVector) < 4 {
+		return "", fmt.Errorf("unable to parse vector: %s", vector)
+	}
+
+	// get index of separator
+	separatorIdx := strings.LastIndex(trimmedVector, "//")
+
+	if separatorIdx == -1 || separatorIdx == len(vector)-2 {
+		return "", fmt.Errorf("unable to parse vector: %s", vector)
+	}
+
+	componentVersion := trimmedVector[separatorIdx+2:]
+	adaptedVector := strings.ReplaceAll(componentVersion, "/", ".")
+	adaptedVector = strings.ReplaceAll(adaptedVector, ":", "-")
+	return adaptedVector, nil
 }
