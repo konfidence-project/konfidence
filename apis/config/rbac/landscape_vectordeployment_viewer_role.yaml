@@ -8,7 +8,7 @@ metadata:
   name: landscape-vectordeployment-viewer-role
 rules:
 - apiGroups:
-  - landscape.konfidence.tools.sap
+  - landscape.konfidence.cloud
   resources:
   - vectordeployments
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - landscape.konfidence.tools.sap
+  - landscape.konfidence.cloud
   resources:
   - vectordeployments/status
   verbs:

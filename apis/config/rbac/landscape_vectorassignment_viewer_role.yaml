@@ -8,7 +8,7 @@ metadata:
   name: landscape-vectorassignment-viewer-role
 rules:
 - apiGroups:
-  - landscape.konfidence.tools.sap
+  - landscape.konfidence.cloud
   resources:
   - vectorassignments
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - landscape.konfidence.tools.sap
+  - landscape.konfidence.cloud
   resources:
   - vectorassignments/status
   verbs:

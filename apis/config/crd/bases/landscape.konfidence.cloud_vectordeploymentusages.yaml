@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: vectordeploymentusages.landscape.konfidence.tools.sap
+  name: vectordeploymentusages.landscape.konfidence.cloud
 spec:
-  group: landscape.konfidence.tools.sap
+  group: landscape.konfidence.cloud
   names:
     kind: VectorDeploymentUsage
     listKind: VectorDeploymentUsageList
