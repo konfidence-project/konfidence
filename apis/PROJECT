@@ -2,7 +2,7 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
-domain: konfidence.tools.sap
+domain: konfidence.cloud
 layout:
 - go.kubebuilder.io/v4
 multigroup: true
@@ -12,7 +12,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: konfidence.tools.sap
+  domain: konfidence.cloud
   group: common
   kind: Stage
   path: github.com/konfidence-project/crds/api/common/v1alpha1
@@ -20,7 +20,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: konfidence.tools.sap
+  domain: konfidence.cloud
   group: landscape
   kind: VectorDeploymentUsage
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1
@@ -28,7 +28,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: konfidence.tools.sap
+  domain: konfidence.cloud
   group: landscape
   kind: ArtifactDeployment
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1
@@ -36,7 +36,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: konfidence.tools.sap
+  domain: konfidence.cloud
   group: landscape
   kind: VectorDeployment
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1
@@ -44,7 +44,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: konfidence.tools.sap
+  domain: konfidence.cloud
   group: landscape
   kind: VectorAssignment
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1
