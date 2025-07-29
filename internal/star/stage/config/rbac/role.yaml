@@ -8,6 +8,7 @@ rules:
   - common.konfidence.tools.sap
   resources:
   - stages
+  - stageversions
   verbs:
   - create
   - delete
@@ -20,6 +21,7 @@ rules:
   - common.konfidence.tools.sap
   resources:
   - stages/status
+  - stageversions/status
   verbs:
   - get
   - patch
@@ -27,8 +29,8 @@ rules:
 - apiGroups:
   - landscape.konfidence.tools.sap
   resources:
+  - stageversions
   - vectordeployment
-  - vectordeploymentusages
   verbs:
   - create
   - delete
@@ -40,8 +42,8 @@ rules:
 - apiGroups:
   - landscape.konfidence.tools.sap
   resources:
+  - stageversions/status
   - vectordeployment/status
-  - vectordeploymentusages/status
   verbs:
   - get
   - patch
