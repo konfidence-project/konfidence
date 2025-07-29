@@ -13,4 +13,7 @@ resources:
 - landscape_vectordeploymentusage_viewer_role.yaml
 - common_stage_editor_role.yaml
 - common_stage_viewer_role.yaml
-
+- landscape_stageversionusage_editor_role.yaml
+- landscape_stageversionusage_viewer_role.yaml
+- landscape_stageversion_editor_role.yaml
+- landscape_stageversion_viewer_role.yaml
