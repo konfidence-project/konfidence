@@ -4,4 +4,6 @@ resources:
 - landscape_v1alpha1_vectordeploymentusage.yaml
 - landscape_v1alpha1_vectordeployment.yaml
 - landscape_v1alpha1_vectorassignment.yaml
+- landscape_v1alpha1_stageversion.yaml
+- landscape_v1alpha1_stageversionusage.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

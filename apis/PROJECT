@@ -49,4 +49,20 @@ resources:
   kind: VectorAssignment
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: konfidence.tools.sap
+  group: landscape
+  kind: StageVersion
+  path: github.com/konfidence-project/crds/api/landscape/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: konfidence.tools.sap
+  group: landscape
+  kind: StageVersionUsage
+  path: github.com/konfidence-project/crds/api/landscape/v1alpha1
+  version: v1alpha1
 version: "3"
