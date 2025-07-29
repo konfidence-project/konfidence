@@ -23,6 +23,18 @@ import (
 const (
 	StageVersionKind = "StageVersion"
 
+	// FetchFailedCondition indicates an fetch failure of another resource.
+	FetchFailedCondition string = "FetchFailed"
+
+	// VectorDeploymentCreatedCondition indicates that the VectorDeployment resource has been created successfully.
+	VectorDeploymentCreatedCondition string = "VectorDeploymentCreated"
+
+	// VectorMigratedCondition indicates that the migration tasks for the vector have been completed successfully.
+	VectorMigratedCondition = "VectorMigrated"
+
+	// VectorActivatedCondition indicates that the vector has been activated in the stage.
+	VectorActivatedCondition = "VectorActivated"
+
 	// StageVersionReady indicates that the stage version is ready for use.
 	StageVersionReady = "Ready"
 )
