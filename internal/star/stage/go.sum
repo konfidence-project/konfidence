@@ -79,8 +79,16 @@ github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zt
 github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
 github.com/konfidence-project/crds/api/common v0.0.0-20250722074456-483cfa9cb613 h1:fmiNbf8YptKcsiIKITNiocG7j9TUlN4lA3bWseXwIOM=
 github.com/konfidence-project/crds/api/common v0.0.0-20250722074456-483cfa9cb613/go.mod h1:Hd27tV70JNwwVv4mMJpQ0cLAjaG/kvg8TPkA0QdWkMw=
+github.com/konfidence-project/crds/api/common v0.0.0-20250729080744-9dec86d5cbc8 h1:1+2eXbnQOonDSsFJOoQW1EtCL5E2cpkKWDIJnBxnQ1U=
+github.com/konfidence-project/crds/api/common v0.0.0-20250729080744-9dec86d5cbc8/go.mod h1:Hd27tV70JNwwVv4mMJpQ0cLAjaG/kvg8TPkA0QdWkMw=
 github.com/konfidence-project/crds/api/landscape v0.0.0-20250722074456-483cfa9cb613 h1:S770/Iem0JN5mcTHdBBHYPUD1ECjNMkxxYMRhfMpvY0=
 github.com/konfidence-project/crds/api/landscape v0.0.0-20250722074456-483cfa9cb613/go.mod h1:Awk5z8/71C2s7VUtjA7DxZ5LWdjzLMwqK9rpYC0s8k0=
+github.com/konfidence-project/crds/api/landscape v0.0.0-20250729080744-9dec86d5cbc8 h1:Ksfw9AafHEkzjYKKuVLZ+ogTNv1Utj6+pT5sE3vmlE4=
+github.com/konfidence-project/crds/api/landscape v0.0.0-20250729080744-9dec86d5cbc8/go.mod h1:Awk5z8/71C2s7VUtjA7DxZ5LWdjzLMwqK9rpYC0s8k0=
+github.com/konfidence-project/crds/api/landscape v0.0.0-20250729082938-a1ec0d582e4d h1:u2aLgAnXzxMLPMyeWCkteBbWGL+iSa1fTVA3+DEYdZk=
+github.com/konfidence-project/crds/api/landscape v0.0.0-20250729082938-a1ec0d582e4d/go.mod h1:Awk5z8/71C2s7VUtjA7DxZ5LWdjzLMwqK9rpYC0s8k0=
+github.com/konfidence-project/crds/api/landscape v0.0.0-20250729131955-d8c4f7ad8291 h1:QfiLAhnFvgBjt5cystM04z6gXN+Hj3qRlKqAnjPGOAU=
+github.com/konfidence-project/crds/api/landscape v0.0.0-20250729131955-d8c4f7ad8291/go.mod h1:Awk5z8/71C2s7VUtjA7DxZ5LWdjzLMwqK9rpYC0s8k0=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
