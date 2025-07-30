@@ -22,7 +22,7 @@ import (
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	testUtil "github.com/konfidence-project/landscape-stage-controller/internal/util"
+	testutil "github.com/konfidence-project/landscape-stage-controller/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,7 +35,6 @@ var _ = Describe("Stage Controller", func() {
 		StageDev          = "stage-dev"
 		StageDevSpecName  = "dev"
 		StageDev2SpecName = "dev2"
-		StageTest         = "stage-test"
 		StageVersionUsage = "stage-dev-usage"
 		Namespace         = "default"
 		Vector001         = "https://registry.kdenv.lab/ocm/vector//common.konfidence.tools.sap/example/vector:0.0.1"
@@ -44,21 +43,19 @@ var _ = Describe("Stage Controller", func() {
 	)
 
 	BeforeEach(func() {
-		testUtil.CleanupStage(k8sClient, StageDev, Namespace)
-		testUtil.CleanupStage(k8sClient, StageTest, Namespace)
-		testUtil.CleanupStageVersionUsage(k8sClient, StageVersionUsage, Namespace)
+		testutil.CleanupStage(k8sClient, StageDev, Namespace)
+		testutil.CleanupStageVersionUsage(k8sClient, StageVersionUsage, Namespace)
 	})
 
 	AfterEach(func() {
-		testUtil.CleanupStage(k8sClient, StageDev, Namespace)
-		testUtil.CleanupStage(k8sClient, StageTest, Namespace)
-		testUtil.CleanupStageVersionUsage(k8sClient, StageVersionUsage, Namespace)
+		testutil.CleanupStage(k8sClient, StageDev, Namespace)
+		testutil.CleanupStageVersionUsage(k8sClient, StageVersionUsage, Namespace)
 	})
 
 	Context("When reconciling a stage", func() {
 		It("should successfully reconcile the stage", func() {
 			ctx := context.Background()
-			testUtil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
 
 			// check that the stage has been created and has valid properties
 			stage := &common.Stage{}
@@ -83,7 +80,7 @@ var _ = Describe("Stage Controller", func() {
 		})
 		It("should delete old stageVersion if after a stage update the stage owner reference is the last one remaining", func() {
 			ctx := context.Background()
-			testUtil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
 
 			// check that the stage has been created and has valid properties
 			stage := &common.Stage{}
@@ -128,9 +125,9 @@ var _ = Describe("Stage Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 		})
-		It("should not delete old stageVersion if after a stage update the stageVersion has multiple remaining owner references", func() {
+		It("should not delete old stageVersion if the stageVersion has multiple owner references", func() {
 			ctx := context.Background()
-			testUtil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
 
 			// check that the stage has been created and has valid properties
 			stage := &common.Stage{}
@@ -152,9 +149,10 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
 			}, timeout, interval).Should(Succeed())
 
+			// create a stageVersionUsage
 			oldUid := stageVersions.Items[0].UID
 			stageVersionName := stageVersions.Items[0].Name
-			testUtil.CreateStageVersionUsage(ctx, k8sClient, StageVersionUsage, Namespace)
+			testutil.CreateStageVersionUsage(ctx, k8sClient, StageVersionUsage, Namespace)
 
 			// check that the stageVersionUsage has been created and has valid properties
 			stageVersionUsage := &landscape.StageVersionUsage{}
@@ -164,6 +162,7 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionUsage))
 			}, timeout, interval).Should(Succeed())
 
+			// set stageVersionUsage as owner of the stageVersion
 			stageVersion := &landscape.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: stageVersionName, Namespace: Namespace}
 			Eventually(func(g Gomega) {
@@ -172,7 +171,7 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(k8sClient.Update(ctx, stageVersion)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			// set usage owner reference
+			// check that the stageVersion now has two owner references, one for the stage and one for the usage
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
 				g.Expect(len(stageVersions.Items)).To(Equal(1))
@@ -185,7 +184,7 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[1].Name).To(Equal(StageVersionUsage))
 			}, timeout, interval).Should(Succeed())
 
-			// update stage spec name
+			// update the stage spec name, this changes the stage object generation value
 			stage.Spec.Name = StageDev2SpecName
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Update(ctx, stage)).To(Succeed())
@@ -194,6 +193,7 @@ var _ = Describe("Stage Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// check that the old stageVersion has not been deleted and has one remaining owner reference
+			// the stage reference should have been removed and added to the new stageVersion object
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
 				g.Expect(len(stageVersions.Items)).To(Equal(2))
@@ -225,7 +225,7 @@ var _ = Describe("Stage Controller", func() {
 	Context("When deleting a stage", func() {
 		It("should delete stageVersion if no other owners exist", func() {
 			ctx := context.Background()
-			testUtil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
 
 			// check that the stage has been created and has valid properties
 			stage := &common.Stage{}
@@ -236,9 +236,9 @@ var _ = Describe("Stage Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// delete the stage
-			testUtil.DeleteStage(ctx, k8sClient, stage)
+			testutil.DeleteStage(ctx, k8sClient, stage)
 
-			// check that stageVersion has been deleted
+			// check that the stageVersion has been deleted
 			stageVersions := &landscape.StageVersionList{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
