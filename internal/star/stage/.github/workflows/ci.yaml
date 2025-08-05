@@ -1,0 +1,19 @@
+name: Kubebuilder CI
+on: push
+jobs:
+
+  lint:
+    name: Lint
+    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@main
+    secrets: 
+      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+  test:
+    name: Test
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@main
+    secrets: 
+      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+  test-e2e:
+    name: Test E2E
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-e2e.yaml@main
+    secrets: 
+      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
