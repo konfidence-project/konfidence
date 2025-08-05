@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"time"
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
@@ -39,10 +38,6 @@ type StageReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
-
-const (
-	stageRetryInterval = 30 * time.Second
-)
 
 // +kubebuilder:rbac:groups=common.konfidence.tools.sap,resources=stages,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=common.konfidence.tools.sap,resources=stages/status,verbs=get;update;patch

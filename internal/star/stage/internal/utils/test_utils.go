@@ -1,3 +1,4 @@
+//nolint:staticcheck // ST1001: allow dot-import for test utils using Gomega
 package utils
 
 import (

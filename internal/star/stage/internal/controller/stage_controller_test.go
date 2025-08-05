@@ -69,10 +69,10 @@ var _ = Describe("Stage Controller", func() {
 			stageVersions := &landscape.StageVersionList{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(len(stageVersions.Items)).To(Equal(1))
+				g.Expect(stageVersions.Items).To(HaveLen(1))
 				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
-				g.Expect(len(stageVersions.Items[0].GetOwnerReferences())).To(Equal(1))
+				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
 			}, timeout, interval).Should(Succeed())
@@ -94,10 +94,10 @@ var _ = Describe("Stage Controller", func() {
 			stageVersions := &landscape.StageVersionList{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(len(stageVersions.Items)).To(Equal(1))
+				g.Expect(stageVersions.Items).To(HaveLen(1))
 				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
-				g.Expect(len(stageVersions.Items[0].GetOwnerReferences())).To(Equal(1))
+				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
 			}, timeout, interval).Should(Succeed())
@@ -115,11 +115,11 @@ var _ = Describe("Stage Controller", func() {
 			// check that the old stageVersion has been deleted and a new one has been created instead
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(len(stageVersions.Items)).To(Equal(1))
+				g.Expect(stageVersions.Items).To(HaveLen(1))
 				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
 				g.Expect(stageVersions.Items[0].UID).To(Not(Equal(oldUid)))
-				g.Expect(len(stageVersions.Items[0].GetOwnerReferences())).To(Equal(1))
+				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
 			}, timeout, interval).Should(Succeed())
@@ -141,10 +141,10 @@ var _ = Describe("Stage Controller", func() {
 			stageVersions := &landscape.StageVersionList{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(len(stageVersions.Items)).To(Equal(1))
+				g.Expect(stageVersions.Items).To(HaveLen(1))
 				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
-				g.Expect(len(stageVersions.Items[0].GetOwnerReferences())).To(Equal(1))
+				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
 			}, timeout, interval).Should(Succeed())
@@ -174,10 +174,10 @@ var _ = Describe("Stage Controller", func() {
 			// check that the stageVersion now has two owner references, one for the stage and one for the usage
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(len(stageVersions.Items)).To(Equal(1))
+				g.Expect(stageVersions.Items).To(HaveLen(1))
 				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
-				g.Expect(len(stageVersions.Items[0].GetOwnerReferences())).To(Equal(2))
+				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(2))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()[1].Kind).To(Equal(landscape.StageVersionUsageKind))
@@ -196,7 +196,7 @@ var _ = Describe("Stage Controller", func() {
 			// the stage reference should have been removed and added to the new stageVersion object
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(len(stageVersions.Items)).To(Equal(2))
+				g.Expect(stageVersions.Items).To(HaveLen(2))
 
 				var oldStageVersion landscape.StageVersion
 				var newStageVersion landscape.StageVersion
@@ -211,12 +211,12 @@ var _ = Describe("Stage Controller", func() {
 
 				g.Expect(oldStageVersion.Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(oldStageVersion.Spec.StageGeneration).To(Equal(stage.Generation - 1))
-				g.Expect(len(oldStageVersion.GetOwnerReferences())).To(Equal(1))
+				g.Expect(oldStageVersion.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(oldStageVersion.GetOwnerReferences()[0].Kind).To(Equal(landscape.StageVersionUsageKind))
 				g.Expect(oldStageVersion.GetOwnerReferences()[0].Name).To(Equal(StageVersionUsage))
 				g.Expect(newStageVersion.Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(newStageVersion.Spec.StageGeneration).To(Equal(stage.Generation))
-				g.Expect(len(newStageVersion.GetOwnerReferences())).To(Equal(1))
+				g.Expect(newStageVersion.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(newStageVersion.GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
 				g.Expect(newStageVersion.GetOwnerReferences()[0].Name).To(Equal(StageDev))
 			}, timeout, interval).Should(Succeed())
@@ -242,7 +242,7 @@ var _ = Describe("Stage Controller", func() {
 			stageVersions := &landscape.StageVersionList{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(len(stageVersions.Items)).To(BeZero())
+				g.Expect(stageVersions.Items).To(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 		})
 	})
