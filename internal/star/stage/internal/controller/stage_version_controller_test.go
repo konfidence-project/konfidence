@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
@@ -63,7 +62,7 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
-				g.Expect(len(stageVersion.Status.Conditions)).To(Equal(1))
+				g.Expect(stageVersion.Status.Conditions).To(HaveLen(1))
 				g.Expect(stageVersion.Status.Conditions[0].Reason).To(Equal(landscape.VectorDeploymentCreatedCondition))
 				g.Expect(stageVersion.Status.Conditions[0].Type).To(Equal(landscape.VectorDeploymentCreatedCondition))
 				g.Expect(stageVersion.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
@@ -75,7 +74,7 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersion.Spec.Vector))
-				g.Expect(len(vectorDeployment.GetOwnerReferences())).To(Equal(1))
+				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.ContainsReference(vectorDeployment.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
@@ -83,7 +82,7 @@ var _ = Describe("StageVersion Controller", func() {
 			// mark vectorDeployment as deployed
 			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.VectorDeployedCondition,
 				Status: metav1.ConditionTrue, Reason: landscape.VectorDeployedCondition,
-				Message: fmt.Sprintf("Vector has been successfully deployed")})
+				Message: "Vector has been successfully deployed"})
 
 			Expect(k8sClient.Status().Update(ctx, vectorDeployment)).To(Succeed())
 
@@ -91,7 +90,7 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
-				g.Expect(len(stageVersion.Status.Conditions)).To(Equal(2))
+				g.Expect(stageVersion.Status.Conditions).To(HaveLen(2))
 				g.Expect(stageVersion.Status.Conditions[1].Reason).To(Equal(landscape.StageVersionReady))
 				g.Expect(stageVersion.Status.Conditions[1].Type).To(Equal(landscape.StageVersionReady))
 				g.Expect(stageVersion.Status.Conditions[1].Status).To(Equal(metav1.ConditionTrue))
@@ -107,7 +106,7 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionDevLookupKey, stageVersionDev)).To(Succeed())
 				g.Expect(stageVersionDev.Name).To(Equal(StageVersionDev))
-				g.Expect(len(stageVersionDev.Status.Conditions)).To(Equal(1))
+				g.Expect(stageVersionDev.Status.Conditions).To(HaveLen(1))
 				g.Expect(stageVersionDev.Status.Conditions[0].Reason).To(Equal(landscape.VectorDeploymentCreatedCondition))
 				g.Expect(stageVersionDev.Status.Conditions[0].Type).To(Equal(landscape.VectorDeploymentCreatedCondition))
 				g.Expect(stageVersionDev.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
@@ -122,7 +121,7 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionTestLookupKey, stageVersionTest)).To(Succeed())
 				g.Expect(stageVersionTest.Name).To(Equal(StageVersionDev))
-				g.Expect(len(stageVersionTest.Status.Conditions)).To(Equal(1))
+				g.Expect(stageVersionTest.Status.Conditions).To(HaveLen(1))
 				g.Expect(stageVersionTest.Status.Conditions[0].Reason).To(Equal(landscape.VectorDeploymentCreatedCondition))
 				g.Expect(stageVersionTest.Status.Conditions[0].Type).To(Equal(landscape.VectorDeploymentCreatedCondition))
 				g.Expect(stageVersionTest.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
@@ -134,7 +133,7 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersionDev.Spec.Vector))
-				g.Expect(len(vectorDeployment.GetOwnerReferences())).To(Equal(2))
+				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(2))
 				g.Expect(testutil.ContainsReference(vectorDeployment.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
 				g.Expect(testutil.ContainsReference(vectorDeployment.GetOwnerReferences(), StageVersionTest, landscape.StageVersionKind)).To(BeTrue())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
@@ -154,7 +153,7 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
-				g.Expect(len(stageVersion.Status.Conditions)).To(Equal(1))
+				g.Expect(stageVersion.Status.Conditions).To(HaveLen(1))
 				g.Expect(stageVersion.Status.Conditions[0].Reason).To(Equal(landscape.VectorDeploymentCreatedCondition))
 				g.Expect(stageVersion.Status.Conditions[0].Type).To(Equal(landscape.VectorDeploymentCreatedCondition))
 				g.Expect(stageVersion.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
@@ -166,7 +165,7 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersion.Spec.Vector))
-				g.Expect(len(vectorDeployment.GetOwnerReferences())).To(Equal(1))
+				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.ContainsReference(vectorDeployment.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
