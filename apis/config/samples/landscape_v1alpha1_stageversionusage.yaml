@@ -1,4 +1,4 @@
-apiVersion: landscape.konfidence.tools.sap/v1alpha1
+apiVersion: landscape.konfidence.cloud/v1alpha1
 kind: StageVersionUsage
 metadata:
   labels:
