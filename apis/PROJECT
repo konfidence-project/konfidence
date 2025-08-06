@@ -52,7 +52,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: konfidence.tools.sap
+  domain: konfidence.cloud
   group: landscape
   kind: StageVersion
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1
@@ -60,7 +60,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: konfidence.tools.sap
+  domain: konfidence.cloud
   group: landscape
   kind: StageVersionUsage
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1

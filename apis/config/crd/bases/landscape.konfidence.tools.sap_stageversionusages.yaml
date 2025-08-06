@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: stageversionusages.landscape.konfidence.tools.sap
+  name: stageversionusages.landscape.konfidence.cloud
 spec:
-  group: landscape.konfidence.tools.sap
+  group: landscape.konfidence.cloud
   names:
     kind: StageVersionUsage
     listKind: StageVersionUsageList

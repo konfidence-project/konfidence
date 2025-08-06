@@ -7,8 +7,8 @@ resources:
 - bases/landscape.konfidence.cloud_artifactdeployments.yaml
 - bases/landscape.konfidence.cloud_vectordeployments.yaml
 - bases/landscape.konfidence.cloud_vectorassignments.yaml
-- bases/landscape.konfidence.tools.sap_stageversions.yaml
-- bases/landscape.konfidence.tools.sap_stageversionusages.yaml
+- bases/landscape.konfidence.cloud_stageversions.yaml
+- bases/landscape.konfidence.cloud_stageversionusages.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
