@@ -39,10 +39,10 @@ var _ = Describe("Stage Controller", func() {
 		StageTest         = "stage-test"
 		StageTestSpecName = "test"
 		Namespace         = "default"
-		Vector001         = "https://registry.kdenv.lab/ocm/vector//common.konfidence.tools.sap/example/vector:0.0.1"
-		VectorName001     = "common.konfidence.tools.sap.example.vector-0.0.1"
-		Vector002         = "https://registry.kdenv.lab/ocm/vector//common.konfidence.tools.sap/example/vector:0.0.2"
-		VectorName002     = "common.konfidence.tools.sap.example.vector-0.0.2"
+		Vector001         = "https://registry.kdenv.lab/ocm/vector//common.konfidence.konfidence.cloud/example/vector:0.0.1"
+		VectorName001     = "common.konfidence.konfidence.cloud.example.vector-0.0.1"
+		Vector002         = "https://registry.kdenv.lab/ocm/vector//common.konfidence.konfidence.cloud/example/vector:0.0.2"
+		VectorName002     = "common.konfidence.konfidence.cloud.example.vector-0.0.2"
 		timeout           = time.Second * 10
 		interval          = time.Millisecond * 250
 	)
@@ -382,7 +382,7 @@ var _ = Describe("Stage Controller", func() {
 func createStage(ctx context.Context, k8sClient client.Client, name string, namespace string, specName string, vectorName string) {
 	stage := &common.Stage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "common.konfidence.tools.sap/v1alpha1",
+			APIVersion: "common.konfidence.cloud/v1alpha1",
 			Kind:       "Stage",
 		},
 		ObjectMeta: metav1.ObjectMeta{

@@ -4,5 +4,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: registry.kdenv.lab/landscape-stage-controller
+  newName: registry.konfidence.cloud/landscape-stage-controller
   newTag: dev

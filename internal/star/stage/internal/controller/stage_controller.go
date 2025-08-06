@@ -49,12 +49,12 @@ const (
 	retryInterval = 30 * time.Second
 )
 
-// +kubebuilder:rbac:groups=common.konfidence.tools.sap,resources=stages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=common.konfidence.tools.sap,resources=stages/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=landscape.konfidence.tools.sap,resources=vectordeploymentusages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=landscape.konfidence.tools.sap,resources=vectordeploymentusages/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=landscape.konfidence.tools.sap,resources=vectordeployment,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=landscape.konfidence.tools.sap,resources=vectordeployment/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeploymentusages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeploymentusages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployment,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployment/status,verbs=get;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
