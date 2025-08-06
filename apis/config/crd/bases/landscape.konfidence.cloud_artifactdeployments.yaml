@@ -4,20 +4,25 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: vectordeployments.landscape.konfidence.tools.sap
+  name: artifactdeployments.landscape.konfidence.cloud
 spec:
-  group: landscape.konfidence.tools.sap
+  group: landscape.konfidence.cloud
   names:
-    kind: VectorDeployment
-    listKind: VectorDeploymentList
-    plural: vectordeployments
-    singular: vectordeployment
+    kind: ArtifactDeployment
+    listKind: ArtifactDeploymentList
+    plural: artifactdeployments
+    singular: artifactdeployment
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VectorDeployment is the Schema for the vectordeployments API.
+        description: ArtifactDeployment is the Schema for the artifactdeployments
+          API.
         properties:
           apiVersion:
             description: |-
@@ -37,17 +42,55 @@ spec:
           metadata:
             type: object
           spec:
-            description: VectorDeploymentSpec defines the desired state of VectorDeployment.
+            description: ArtifactDeploymentSpec defines the desired state of ArtifactDeployment.
             properties:
-              vector:
-                description: Vector points to the OCM component version that contains
-                  the deployment vector for this stage.
-                type: string
+              component:
+                properties:
+                  creationTime:
+                    type: string
+                  name:
+                    type: string
+                  provider:
+                    type: string
+                  resources:
+                    items:
+                      properties:
+                        image:
+                          type: string
+                        name:
+                          type: string
+                        type:
+                          type: string
+                        version:
+                          type: string
+                      required:
+                      - image
+                      - name
+                      - type
+                      - version
+                      type: object
+                    type: array
+                  version:
+                    type: string
+                required:
+                - name
+                - provider
+                type: object
+              manifest:
+                properties:
+                  allowReuse:
+                    type: boolean
+                  type:
+                    type: string
+                required:
+                - allowReuse
+                - type
+                type: object
             required:
-            - vector
+            - manifest
             type: object
           status:
-            description: VectorDeploymentStatus defines the observed state of VectorDeployment.
+            description: ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.
             properties:
               conditions:
                 items:
@@ -105,6 +148,13 @@ spec:
                   - type
                   type: object
                 type: array
+              deploymentResult:
+                properties:
+                  url:
+                    type: string
+                required:
+                - url
+                type: object
             type: object
         type: object
     served: true

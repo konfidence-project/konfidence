@@ -1,4 +1,4 @@
-apiVersion: landscape.konfidence.tools.sap/v1alpha1
+apiVersion: landscape.konfidence.cloud/v1alpha1
 kind: VectorDeploymentUsage
 metadata:
   labels:
@@ -6,5 +6,5 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: vectordeploymentusage-stage-dev
 spec:
-  vector: https://registry.kdenv.lab/ocm/vector//common.konfidence.tools.sap/example/vector:0.0.1
+  vector: https://registry.konfidence.cloud/ocm/vector//common.konfidence.cloud/example/vector:0.0.1
 
