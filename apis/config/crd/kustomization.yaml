@@ -2,13 +2,13 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/common.konfidence.tools.sap_stages.yaml
-- bases/landscape.konfidence.tools.sap_vectordeploymentusages.yaml
-- bases/landscape.konfidence.tools.sap_artifactdeployments.yaml
-- bases/landscape.konfidence.tools.sap_vectordeployments.yaml
-- bases/landscape.konfidence.tools.sap_vectorassignments.yaml
-- bases/landscape.konfidence.tools.sap_stageversions.yaml
-- bases/landscape.konfidence.tools.sap_stageversionusages.yaml
+- bases/common.konfidence.cloud_stages.yaml
+- bases/landscape.konfidence.cloud_vectordeploymentusages.yaml
+- bases/landscape.konfidence.cloud_artifactdeployments.yaml
+- bases/landscape.konfidence.cloud_vectordeployments.yaml
+- bases/landscape.konfidence.cloud_vectorassignments.yaml
+- bases/landscape.konfidence.cloud_stageversions.yaml
+- bases/landscape.konfidence.cloud_stageversionusages.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

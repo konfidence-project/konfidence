@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: stages.common.konfidence.tools.sap
+  name: stages.common.konfidence.cloud
 spec:
-  group: common.konfidence.tools.sap
+  group: common.konfidence.cloud
   names:
     kind: Stage
     listKind: StageList

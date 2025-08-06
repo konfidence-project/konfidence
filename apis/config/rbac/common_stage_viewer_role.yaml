@@ -8,7 +8,7 @@ metadata:
   name: common-stage-viewer-role
 rules:
 - apiGroups:
-  - common.konfidence.tools.sap
+  - common.konfidence.cloud
   resources:
   - stages
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - common.konfidence.tools.sap
+  - common.konfidence.cloud
   resources:
   - stages/status
   verbs:

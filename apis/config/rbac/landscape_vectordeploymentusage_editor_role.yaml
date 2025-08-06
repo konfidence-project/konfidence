@@ -8,7 +8,7 @@ metadata:
   name: landscape-vectordeploymentusage-editor-role
 rules:
 - apiGroups:
-  - landscape.konfidence.tools.sap
+  - landscape.konfidence.cloud
   resources:
   - vectordeploymentusages
   verbs:
@@ -20,7 +20,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - landscape.konfidence.tools.sap
+  - landscape.konfidence.cloud
   resources:
   - vectordeploymentusages/status
   verbs:

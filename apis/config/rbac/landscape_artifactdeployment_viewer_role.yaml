@@ -8,7 +8,7 @@ metadata:
   name: landscape-artifactdeployment-viewer-role
 rules:
 - apiGroups:
-  - landscape.konfidence.tools.sap
+  - landscape.konfidence.cloud
   resources:
   - artifactdeployments
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - landscape.konfidence.tools.sap
+  - landscape.konfidence.cloud
   resources:
   - artifactdeployments/status
   verbs:
