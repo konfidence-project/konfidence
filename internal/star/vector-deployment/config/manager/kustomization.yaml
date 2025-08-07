@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: konfidence.common.repositories.cloud.sap/landscape-vector-deployment-controller
-  newTag: local-build-test-1752854998
+  newTag: local-build-test-1754578029

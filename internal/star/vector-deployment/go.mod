@@ -3,9 +3,10 @@ module github.com/konfidence-project/landscape-vector-deployment-controller
 go 1.24.5
 
 require (
-	github.com/konfidence-project/crds/api/landscape v0.0.0-20250718152851-3174cbbfcd63
+	github.com/konfidence-project/crds/api/landscape v0.0.0-20250806125728-29fb6441fc5b
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
+	github.com/pkg/errors v0.9.1
 	k8s.io/api v0.33.3
 	k8s.io/apimachinery v0.33.3
 	k8s.io/client-go v0.33.2
@@ -241,7 +242,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pjbgf/sha1cd v0.3.2 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.63.0 // indirect
