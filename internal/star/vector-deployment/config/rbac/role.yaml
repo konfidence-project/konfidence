@@ -10,7 +10,6 @@ rules:
   - artifactdeployments
   - vectorassignments
   - vectordeployments
-  - vectordeploymentusages
   verbs:
   - create
   - delete
@@ -23,14 +22,12 @@ rules:
   - landscape.konfidence.cloud
   resources:
   - vectordeployments/finalizers
-  - vectordeploymentusages/finalizers
   verbs:
   - update
 - apiGroups:
   - landscape.konfidence.cloud
   resources:
   - vectordeployments/status
-  - vectordeploymentusages/status
   verbs:
   - get
   - patch

@@ -20,16 +20,20 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"ocm.software/ocm/api/ocm"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+
+	"github.com/pkg/errors"
+	"ocm.software/ocm/api/ocm/extensions/repositories/ocireg"
+	"ocm.software/ocm/api/tech/oci/identity"
 )
 
 // VectorDeploymentReconciler reconciles a VectorDeployment object
@@ -69,9 +73,11 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	log.Info("Found vector deployment")
-	artifacts, err := getArtifactsFromVector(vd.Spec.VectorRef)
+
+	//TODO write vector in status
+	_, artifacts, err := fetchVectorOcm(vd.Spec.Vector)
 	if err != nil {
-		log.Error(err, "Failed to get artifacts from vector")
+		log.Error(err, "Failed to fetch vector OCM")
 		return ctrl.Result{}, err
 	}
 
@@ -91,13 +97,13 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				}
 			}
 			if ownerRef == nil {
-				log.Info("Adding owner reference to existing artifact deployment", "vector", vd.Spec.VectorRef, "name", found.Name)
+				log.Info("Adding owner reference to existing artifact deployment", "vector", vd.Spec.Vector, "name", found.Name)
 				found.OwnerReferences = append(found.OwnerReferences, constructVectorDeploymentOwnerReference(vd))
 				if err := r.Update(ctx, found); err != nil {
 					return ctrl.Result{}, err
 				}
 			} else {
-				log.Info("Vector deployment already has owner reference", "vector", vd.Spec.VectorRef, "name", found.Name)
+				log.Info("Vector deployment already has owner reference", "vector", vd.Spec.Vector, "name", found.Name)
 			}
 
 		} else {
@@ -116,6 +122,15 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 
+	meta.SetStatusCondition(&vd.Status.Conditions, metav1.Condition{Type: landscape.ArtifactDeploymentsCreatedCondition,
+		Status: metav1.ConditionTrue, Reason: landscape.ArtifactDeploymentsCreatedCondition,
+		Message: fmt.Sprintf("Successfully created Artifact deployments for vector deployment %s", vd.Name)})
+
+	if err := r.Status().Update(ctx, vd); err != nil {
+		log.Error(err, "Failed to update vector deployment status")
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -129,12 +144,26 @@ func constructVectorDeploymentOwnerReference(vdu *landscape.VectorDeployment) me
 	}
 }
 
-func constructArtifactDeployment(name string, namespace string, artifact landscape.OCMComponent) (*landscape.ArtifactDeployment, error) {
+func constructArtifactDeployment(name string, namespace string, artifact ocm.ComponentVersionAccess) (*landscape.ArtifactDeployment, error) {
 	manifest, err := findArtifactManifestFromOCM(artifact)
 	if err != nil {
 		// Log the error and return nil or handle it as needed
-		logf.Log.Error(err, "Failed to find artifact type for component", "component", artifact.Name)
+		logf.Log.Error(err, "Failed to find artifact type for component", "component", artifact.GetName())
 		return nil, err
+	}
+
+	artifactSpec := landscape.OCMComponent{
+		Name:     artifact.GetName(),
+		Version:  artifact.GetVersion(),
+		Provider: string(artifact.GetProvider().Name),
+	}
+	for _, ref := range artifact.GetResources() {
+		artifactSpec.Resources = append(artifactSpec.Resources, landscape.OCMResource{
+			Name:    ref.Meta().Name,
+			Type:    ref.Meta().Type,
+			Version: ref.Meta().Version,
+			Image:   "some-image", //FIXME, should be replaced with actual image logic
+		})
 	}
 
 	return &landscape.ArtifactDeployment{
@@ -144,24 +173,24 @@ func constructArtifactDeployment(name string, namespace string, artifact landsca
 		},
 		Spec: landscape.ArtifactDeploymentSpec{
 			Manifest:  *manifest,
-			Component: artifact,
+			Component: artifactSpec,
 		},
 	}, nil
 }
 
-func findArtifactManifestFromOCM(artifact landscape.OCMComponent) (*landscape.ArtifactManifest, error) {
-	var found *landscape.OCMResource = nil
-	for _, r := range artifact.Resources {
-		if r.Type == "cloud.konfidence.artifact.manifest" {
+func findArtifactManifestFromOCM(artifact ocm.ComponentVersionAccess) (*landscape.ArtifactManifest, error) {
+	var found *ocm.ResourceAccess = nil
+	for _, r := range artifact.GetResources() {
+		if r.Meta().Type == "cloud.konfidence.artifact.manifest" {
 			if found != nil {
-				return nil, fmt.Errorf("multiple artifact manifests found for component %s", artifact.Name)
+				return nil, fmt.Errorf("multiple artifact manifests found for component %s", artifact.GetName())
 			}
 			found = &r
 		}
 	}
 
 	if found == nil {
-		return nil, fmt.Errorf("no artifact manifest found for component %s", artifact.Name)
+		return nil, fmt.Errorf("no artifact manifest found for component %s", artifact.GetName())
 	}
 
 	// TODO ocm magic to get actual value
@@ -171,53 +200,65 @@ func findArtifactManifestFromOCM(artifact landscape.OCMComponent) (*landscape.Ar
 	}, nil
 }
 
-func constructArtifactDeploymentName(artifact landscape.OCMComponent) string {
+func constructArtifactDeploymentName(artifact ocm.ComponentVersionAccess) string {
 	h := sha256.New()
-	h.Write([]byte(artifact.Name))
-	h.Write([]byte(artifact.Version))
+	h.Write([]byte(artifact.GetName()))
+	h.Write([]byte(artifact.GetVersion()))
 	hash := h.Sum(nil)
 	return fmt.Sprintf("%x", hash)
 }
 
-func getArtifactsFromVector(ref v1.TypedLocalObjectReference) ([]landscape.OCMComponent, error) {
-	return []landscape.OCMComponent{
-		{
-			Name:    "example-service-a",
-			Version: "1.0.0",
-			Resources: []landscape.OCMResource{
-				{
-					Name:    "konfidence-manifest",
-					Type:    "cloud.konfidence.artifact.manifest",
-					Image:   "todo",
-					Version: "1.0.0",
-				},
-				{
-					Name:    "example-resource",
-					Type:    "example-type",
-					Image:   "example-image",
-					Version: "1.0.0",
-				},
-			},
-		},
-		{
-			Name:    "example-service-b",
-			Version: "1.0.0",
-			Resources: []landscape.OCMResource{
-				{
-					Name:    "konfidence-manifest",
-					Type:    "cloud.konfidence.artifact.manifest",
-					Image:   "todo",
-					Version: "1.0.0",
-				},
-				{
-					Name:    "example-resource",
-					Type:    "example-type",
-					Image:   "example-image",
-					Version: "1.0.0",
-				},
-			},
-		},
-	}, nil
+func fetchVectorOcm(ref string) (*ocm.ComponentVersionAccess, []ocm.ComponentVersionAccess, error) {
+	ocmRef, err := parseComponentVersionUrl(ref)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to parse vector reference %q", ref)
+	}
+
+	ctx := ocm.DefaultContext()
+	creds := identity.SimpleCredentials("d060274", "some-token")
+
+	spec := ocireg.NewRepositorySpec(ocmRef.UniformRepositorySpec.String())
+	repo, err := ctx.RepositoryForSpec(spec, creds)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "cannot setup repository")
+	}
+	defer repo.Close()
+
+	vectorOcm, err := fetchOcmComponentVersionFromRepo(repo, ocmRef.Component, *ocmRef.Version)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to fetch component version %q from repository %q", ocmRef.Component, ocmRef.UniformRepositorySpec.String())
+	}
+
+	artifacts := make([]ocm.ComponentVersionAccess, 0)
+	for _, ref := range (*vectorOcm).GetReferences() {
+		artifactOcm, err := fetchOcmComponentVersionFromRepo(repo, ref.GetComponentName(), ref.GetVersion())
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to fetch artifact component version %q from repository %q", ref.GetComponentName(), ocmRef.UniformRepositorySpec.String())
+		}
+		artifacts = append(artifacts, *artifactOcm)
+	}
+
+	return vectorOcm, artifacts, nil
+}
+
+func parseComponentVersionUrl(ref string) (ocm.RefSpec, error) {
+	ocmRef, err := ocm.ParseRef(ref)
+	if err != nil {
+		return ocm.RefSpec{}, errors.Wrapf(err, "invalid vector reference %q", ref)
+	}
+	if !ocmRef.IsVersion() {
+		return ocm.RefSpec{}, errors.Errorf("vector reference %q is not a version", ref)
+	}
+	return ocmRef, nil
+}
+
+func fetchOcmComponentVersionFromRepo(repo ocm.Repository, component string, version string) (*ocm.ComponentVersionAccess, error) {
+	cv, err := repo.LookupComponentVersion(component, version)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot lookup component version")
+	}
+
+	return &cv, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

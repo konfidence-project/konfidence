@@ -453,6 +453,8 @@ github.com/klauspost/pgzip v1.2.6 h1:8RXeL5crjEUFnR2/Sn6GJNWtSQ3Dk8pq4CL3jvdDyjU
 github.com/klauspost/pgzip v1.2.6/go.mod h1:Ch1tH69qFZu15pkjo5kYi6mth2Zzwzt50oCQKQE9RUs=
 github.com/konfidence-project/crds/api/landscape v0.0.0-20250718152851-3174cbbfcd63 h1:dljMvAwYvKVqlroWy5PGHJBlnSgBfL7UPptAdUBlzcY=
 github.com/konfidence-project/crds/api/landscape v0.0.0-20250718152851-3174cbbfcd63/go.mod h1:Awk5z8/71C2s7VUtjA7DxZ5LWdjzLMwqK9rpYC0s8k0=
+github.com/konfidence-project/crds/api/landscape v0.0.0-20250806125728-29fb6441fc5b h1:n7xORUO9UMR8Eosp8HaRqFJqA5mFnC2+pBLkNfBa7m0=
+github.com/konfidence-project/crds/api/landscape v0.0.0-20250806125728-29fb6441fc5b/go.mod h1:Awk5z8/71C2s7VUtjA7DxZ5LWdjzLMwqK9rpYC0s8k0=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
