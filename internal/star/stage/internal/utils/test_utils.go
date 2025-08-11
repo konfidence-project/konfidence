@@ -16,7 +16,7 @@ import (
 func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, specName string, vectorName string) {
 	stage := &common.Stage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "common.konfidence.tools.sap/v1alpha1",
+			APIVersion: "common.konfidence.cloud/v1alpha1",
 			Kind:       "Stage",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -62,7 +62,7 @@ func CleanupStage(k8sClient client.Client, stageName string, namespace string) {
 func CreateStageVersion(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
 	stageVersion := &landscape.StageVersion{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.tools.sap/v1alpha1",
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
 			Kind:       "StageVersion",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -118,7 +118,7 @@ func ContainsReference(references []metav1.OwnerReference, name string, kind str
 func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name string, namespace string) {
 	usage := &landscape.StageVersionUsage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.tools.sap/v1alpha1",
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
 			Kind:       "StageVersionUsage",
 		},
 		ObjectMeta: metav1.ObjectMeta{

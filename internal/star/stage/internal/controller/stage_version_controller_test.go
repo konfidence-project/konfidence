@@ -35,8 +35,8 @@ var _ = Describe("StageVersion Controller", func() {
 		StageVersionDev  = "stage-version-dev"
 		StageVersionTest = "stage-version-test"
 		Namespace        = "default"
-		Vector001        = "https://registry.kdenv.lab/ocm/vector//common.konfidence.tools.sap/example/vector:0.0.1"
-		VectorName001    = "common.konfidence.tools.sap.example.vector-0.0.1"
+		Vector001        = "https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1"
+		VectorName001    = "common.konfidence.cloud.example.vector-0.0.1"
 		timeout          = time.Second * 10
 		interval         = time.Millisecond * 250
 	)
