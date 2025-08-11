@@ -8,6 +8,7 @@ rules:
   - common.konfidence.cloud
   resources:
   - stages
+  - stageversions
   verbs:
   - create
   - delete
@@ -20,6 +21,7 @@ rules:
   - common.konfidence.cloud
   resources:
   - stages/status
+  - stageversions/status
   verbs:
   - get
   - patch
@@ -27,8 +29,8 @@ rules:
 - apiGroups:
   - landscape.konfidence.cloud
   resources:
+  - stageversions
   - vectordeployment
-  - vectordeploymentusages
   verbs:
   - create
   - delete
@@ -40,8 +42,8 @@ rules:
 - apiGroups:
   - landscape.konfidence.cloud
   resources:
+  - stageversions/status
   - vectordeployment/status
-  - vectordeploymentusages/status
   verbs:
   - get
   - patch
