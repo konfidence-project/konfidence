@@ -183,7 +183,6 @@ func constructStageVersionForStage(r *StageReconciler, stage *common.Stage) (*la
 		},
 	}
 
-	// TODO set stage as owner or controller reference(?)
 	if err := ctrl.SetControllerReference(stage, stageVersion, r.Scheme); err != nil {
 		return nil, err
 	}
