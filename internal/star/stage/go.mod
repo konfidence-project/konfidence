@@ -3,8 +3,8 @@ module github.com/konfidence-project/landscape-stage-controller
 go 1.24.5
 
 require (
-	github.com/konfidence-project/crds/api/common v0.0.0-20250722074456-483cfa9cb613
-	github.com/konfidence-project/crds/api/landscape v0.0.0-20250722074456-483cfa9cb613
+	github.com/konfidence-project/crds/api/common v0.0.0-20250807082952-64310786b634
+	github.com/konfidence-project/crds/api/landscape v0.0.0-20250807082952-64310786b634
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
 	k8s.io/apimachinery v0.33.3
