@@ -3,15 +3,15 @@
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
 cliVersion: 4.6.0
-domain: konfidence.tools.sap
+domain: konfidence.cloud
 layout:
 - go.kubebuilder.io/v4
 projectName: landscape-stage-controller
 repo: github.com/konfidence-project/landscape-stage-controller
 resources:
 - controller: true
-  domain: konfidence.tools.sap
-  group: common.konfidence.tools.sap
+  domain: konfidence.cloud
+  group: common.konfidence.cloud
   kind: Stage
   version: v1alpha1
 version: "3"
