@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -48,7 +49,9 @@ type VectorDeploymentSpec struct {
 
 // VectorDeploymentStatus defines the observed state of VectorDeployment.
 type VectorDeploymentStatus struct {
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	ResolvedVectorOcm            string                                 `json:"resolvedVectorOcm,omitempty"`
+	ResultingArtifactDeployments map[string]corev1.TypedObjectReference `json:"resultingArtifactDeployments,omitempty"`
+	Conditions                   []metav1.Condition                     `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
