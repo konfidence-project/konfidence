@@ -197,6 +197,17 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		log.V(1).Info("Found existing vectorMigration")
 
+		// get stageVersion
+		stageVersion := &landscape.StageVersion{}
+		if err := r.Get(ctx, req.NamespacedName, stageVersion); err != nil {
+			if errors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			} else {
+				log.Error(err, "Unable to fetch stageVersion")
+				return ctrl.Result{}, err
+			}
+		}
+
 		// mark the stage version as ready
 		meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady,
 			Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady,
@@ -219,12 +230,9 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *StageVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&landscape.StageVersion{}).
+		Owns(&landscape.VectorMigration{}).
 		Watches(
 			&landscape.VectorDeployment{},
-			handler.EnqueueRequestsFromMapFunc(reconcileStageVersionOwner),
-		).
-		Watches(
-			&landscape.VectorMigration{},
 			handler.EnqueueRequestsFromMapFunc(reconcileStageVersionOwner),
 		).
 		Named("stageVersion").
@@ -260,10 +268,13 @@ func constructVectorMigration(r *StageVersionReconciler, stageVersion *landscape
 			Name:      getVectorMigrationName(stageVersion),
 			Namespace: stageVersion.Namespace,
 		},
+		Spec: landscape.VectorMigrationSpec{
+			Vector: stageVersion.Spec.Vector,
+		},
 	}
 
-	// set stageVersion as owner
-	if err := controllerutil.SetOwnerReference(stageVersion, vectorMigration, r.Scheme); err != nil {
+	// set stageVersion as controller
+	if err := controllerutil.SetControllerReference(stageVersion, vectorMigration, r.Scheme); err != nil {
 		return nil, err
 	}
 	return vectorMigration, nil
