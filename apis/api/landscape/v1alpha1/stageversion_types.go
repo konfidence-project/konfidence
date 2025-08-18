@@ -31,7 +31,7 @@ const (
 
 	// VectorMigrationCreatedCondition indicates that the VectorMigration resource has been created successfully.
 	VectorMigrationCreatedCondition string = "VectorMigrationCreated"
-	
+
 	// VectorMigratedCondition indicates that the migration tasks for the vector have been completed successfully.
 	VectorMigratedCondition = "VectorMigrated"
 
