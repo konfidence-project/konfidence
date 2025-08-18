@@ -1,0 +1,20 @@
+# specify a schema to validate the configuration and get auto-completion in your editor
+# yaml-language-server: $schema=https://ocm.software/schemas/configuration-schema.yaml
+components:
+- name: dwc.tools.sap/dwc-project/vector/dev-eu10
+  version: 0.1.0
+  provider:                 
+    name: dwc.tools.sap
+  labels:
+    - name: dwc.tools.sap/dwc-vector-id
+      value: 01904be8-bae3-ae70-e4d6-78af41d7e0a2
+      version: v1  
+  componentReferences:      
+  - componentName: dwc.tools.sap/dwc-project/service1
+    name: service1
+    version: 0.0.1
+  - name: service2
+    version: 0.2.0
+    componentName: dwc.tools.sap/dwc-project/service2
+  sources: []
+  resources: []

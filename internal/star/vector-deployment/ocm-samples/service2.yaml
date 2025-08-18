@@ -1,0 +1,23 @@
+# specify a schema to validate the configuration and get auto-completion in your editor
+# yaml-language-server: $schema=https://ocm.software/schemas/configuration-schema.yaml
+components:
+- name: dwc.tools.sap/dwc-project/service2
+  version: 0.2.0            
+  provider:                 
+    name: dwc.tools.sap
+  sources: []
+  resources:
+  - name: service2-image
+    version: 0.2.0
+    relation: external
+    type: ociImage
+    access:
+      type: ociArtifact
+      imageReference: konfidence.common.repositories.cloud.sap/ocm-test/artifacts/service2:0.2.0   
+  - name: konfidence-manifest
+    version: 0.0.1
+    relation: external
+    type: cloud.konfidence.artifact.manifest
+    access:
+      type: ociArtifact
+      imageReference: konfidence.common.repositories.cloud.sap/ocm-test/artifacts/service2:0.2.0   
