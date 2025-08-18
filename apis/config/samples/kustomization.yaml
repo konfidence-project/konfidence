@@ -6,4 +6,5 @@ resources:
 - landscape_v1alpha1_vectorassignment.yaml
 - landscape_v1alpha1_stageversion.yaml
 - landscape_v1alpha1_stageversionusage.yaml
+- landscape_v1alpha1_vectormigration.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
