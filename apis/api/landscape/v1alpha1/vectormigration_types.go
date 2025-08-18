@@ -25,6 +25,8 @@ import (
 
 // VectorMigrationSpec defines the desired state of VectorMigration
 type VectorMigrationSpec struct {
+	// Vector points to the OCM component version that contains the deployment vector for this stage.
+	Vector string `json:"vector"`
 }
 
 // VectorMigrationStatus defines the observed state of VectorMigration.
