@@ -90,6 +90,18 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, errors.Wrapf(err, "failed to handle vector download for vector deployment %s", vd.Name)
 	}
 
+	err = r.handleArtifactDeployments(ctx, vd, descriptor, ocmRef, log)
+	if err != nil {
+		log.Error(err, "Failed to handle artifact deployments")
+		return ctrl.Result{}, errors.Wrapf(err, "failed to handle artifact deployments for vector deployment %s", vd.Name)
+	}
+
+	return ctrl.Result{}, nil
+}
+
+//TODO aggregate status of artifact deployments
+
+func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Context, vd *landscape.VectorDeployment, descriptor compdesc.ComponentSpec, ocmRef ocm.RefSpec, log logr.Logger) error {
 	vd.Status.ResultingArtifactDeployments = make(map[string]corev1.TypedObjectReference)
 	//TODO parallelize and handle partial failures
 	for _, artifactRef := range descriptor.References {
@@ -104,14 +116,14 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 		artifact, err := fetchOcm(artifactOcmRef)
 		if err != nil {
-			return ctrl.Result{}, errors.Wrapf(err, "failed to fetch artifact component version %q from repository %q", artifactRef.GetComponentName(), ocmRef.UniformRepositorySpec.String())
+			return errors.Wrapf(err, "failed to fetch artifact component version %q from repository %q", artifactRef.GetComponentName(), ocmRef.UniformRepositorySpec.String())
 		}
 
 		name := constructArtifactDeploymentName(*artifact) //TODO figure out naming when reuse is disabled
-		var ad landscape.ArtifactDeployment = landscape.ArtifactDeployment{}
+		ad := landscape.ArtifactDeployment{}
 		if err = r.Get(ctx, types.NamespacedName{Namespace: vd.Namespace, Name: name}, &ad); client.IgnoreNotFound(err) != nil {
 			log.Error(err, "Failed to get ArtifactDeployment", "name", name)
-			return ctrl.Result{}, err
+			return err
 		}
 		if apierrors.IsNotFound(err) && ad.Spec.Manifest.AllowReuse {
 			var ownerRef *metav1.OwnerReference = nil
@@ -125,7 +137,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				log.Info("Adding owner reference to existing artifact deployment", "vector", vd.Spec.Vector, "name", ad.Name)
 				ad.OwnerReferences = append(ad.OwnerReferences, constructVectorDeploymentOwnerReference(vd))
 				if err := r.Update(ctx, &ad); err != nil {
-					return ctrl.Result{}, err
+					return err
 				}
 			} else {
 				log.Info("Vector deployment already has owner reference", "vector", vd.Spec.Vector, "name", ad.Name)
@@ -135,20 +147,20 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			ad, err = constructArtifactDeployment(name, vd.Namespace, *artifact)
 			if err != nil {
 				log.Error(err, "Failed to construct ArtifactDeployment", "name", name)
-				return ctrl.Result{}, err
+				return err
 			}
 			ad.OwnerReferences = append(ad.OwnerReferences, constructVectorDeploymentOwnerReference(vd))
 
 			if err := r.Create(ctx, &ad); err != nil {
 				log.Error(err, "Failed to create ArtifactDeployment", "name", name)
-				return ctrl.Result{}, err
+				return err
 			}
 			log.Info("Created ArtifactDeployment", "name", name)
 		}
 
 		// Add the artifact deployment to the map
 		vd.Status.ResultingArtifactDeployments[artifactRef.GetName()] = corev1.TypedObjectReference{
-			APIGroup:  &ad.APIVersion, // TODO: difference between APIGroup and APIVersion?
+			APIGroup:  &ad.APIVersion, // FIXME: difference between APIGroup and APIVersion?
 			Kind:      ad.Kind,
 			Namespace: &ad.Namespace,
 			Name:      ad.Name,
@@ -161,10 +173,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	if err := r.Status().Update(ctx, vd); err != nil {
 		log.Error(err, "Failed to update vector deployment status")
-		return ctrl.Result{}, err
+		return err
 	}
-
-	return ctrl.Result{}, nil
+	return nil
 }
 
 func (r *VectorDeploymentReconciler) handleVectorDownload(ctx context.Context, vd *landscape.VectorDeployment, ocmRef ocm.RefSpec, log logr.Logger) (compdesc.ComponentSpec, error) {
@@ -276,7 +287,7 @@ func constructArtifactDeploymentName(artifact ocm.ComponentVersionAccess) string
 
 func fetchOcm(ref ocm.RefSpec) (*ocm.ComponentVersionAccess, error) {
 	ctx := ocm.DefaultContext()
-	creds := identity.SimpleCredentials("d060274", "some-token")
+	creds := identity.SimpleCredentials("d060274", "<some-token>")
 
 	spec := ocireg.NewRepositorySpec(ref.UniformRepositorySpec.String())
 	repo, err := ctx.RepositoryForSpec(spec, creds)
