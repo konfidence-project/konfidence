@@ -92,8 +92,9 @@ var _ = Describe("StageVersion Controller", func() {
 			vectorMigrationLookupKey := types.NamespacedName{Name: StageVersionDevMigration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
-				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
+				g.Expect(vectorMigration.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.ContainsReference(vectorMigration.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
+				g.Expect(vectorMigration.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 
 			// check that the stageVersion has status vectorMigrationCreated and ready
@@ -233,8 +234,9 @@ var _ = Describe("StageVersion Controller", func() {
 			vectorMigrationLookupKey := types.NamespacedName{Name: StageVersionDevMigration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
-				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
+				g.Expect(vectorMigration.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.ContainsReference(vectorMigration.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
+				g.Expect(vectorMigration.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 
 			// delete the stageVersion
