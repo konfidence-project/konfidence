@@ -73,4 +73,12 @@ resources:
   kind: VectorMigration
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: konfidence.cloud
+  group: landscape
+  kind: TaskExecution
+  path: github.com/konfidence-project/crds/api/landscape/v1alpha1
+  version: v1alpha1
 version: "3"

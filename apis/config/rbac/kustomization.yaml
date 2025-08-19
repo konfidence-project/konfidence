@@ -19,3 +19,5 @@ resources:
 - landscape_stageversion_viewer_role.yaml
 - landscape_vectormigration_editor_role.yaml
 - landscape_vectormigration_viewer_role.yaml
+- landscape_taskexecution_editor_role.yaml
+- landscape_taskexecution_viewer_role.yaml
