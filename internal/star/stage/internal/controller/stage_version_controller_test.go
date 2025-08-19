@@ -95,6 +95,7 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(vectorMigration.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.ContainsReference(vectorMigration.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
 				g.Expect(vectorMigration.Spec.Vector).To(Equal(Vector001))
+				g.Expect(vectorMigration.Spec.StageVersion).To(Equal(StageVersionDev))
 			}, timeout, interval).Should(Succeed())
 
 			// check that the stageVersion has status vectorMigrationCreated and ready
@@ -237,6 +238,7 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(vectorMigration.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.ContainsReference(vectorMigration.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
 				g.Expect(vectorMigration.Spec.Vector).To(Equal(Vector001))
+				g.Expect(vectorMigration.Spec.StageVersion).To(Equal(StageVersionDev))
 			}, timeout, interval).Should(Succeed())
 
 			// delete the stageVersion

@@ -269,7 +269,8 @@ func constructVectorMigration(r *StageVersionReconciler, stageVersion *landscape
 			Namespace: stageVersion.Namespace,
 		},
 		Spec: landscape.VectorMigrationSpec{
-			Vector: stageVersion.Spec.Vector,
+			Vector:       stageVersion.Spec.Vector,
+			StageVersion: stageVersion.Name,
 		},
 	}
 
