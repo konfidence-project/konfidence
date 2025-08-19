@@ -39,11 +39,14 @@ spec:
           spec:
             description: spec defines the desired state of VectorMigration
             properties:
+              stageVersion:
+                type: string
               vector:
                 description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
                 type: string
             required:
+            - stageVersion
             - vector
             type: object
           status:

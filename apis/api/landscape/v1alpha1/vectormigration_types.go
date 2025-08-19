@@ -29,6 +29,8 @@ const (
 
 // VectorMigrationSpec defines the desired state of VectorMigration
 type VectorMigrationSpec struct {
+	StageVersion string `json:"stageVersion"`
+
 	// Vector points to the OCM component version that contains the deployment vector for this stage.
 	Vector string `json:"vector"`
 }
