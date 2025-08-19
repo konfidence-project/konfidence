@@ -21,52 +21,50 @@ import (
 )
 
 const (
-	VectorMigrationKind = "VectorMigration"
+	TaskExecutionKind = "TaskExecution"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// VectorMigrationSpec defines the desired state of VectorMigration
-type VectorMigrationSpec struct {
-	// Vector points to the OCM component version that contains the deployment vector for this stage.
-	Vector string `json:"vector"`
+// TaskExecutionSpec defines the desired state of TaskExecution
+type TaskExecutionSpec struct {
 }
 
-// VectorMigrationStatus defines the observed state of VectorMigration.
-type VectorMigrationStatus struct {
+// TaskExecutionStatus defines the observed state of TaskExecution.
+type TaskExecutionStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// VectorMigration is the Schema for the vectormigrations API
-type VectorMigration struct {
+// TaskExecution is the Schema for the taskexecutions API
+type TaskExecution struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// metadata is a standard object metadata
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty,omitzero"`
 
-	// spec defines the desired state of VectorMigration
+	// spec defines the desired state of TaskExecution
 	// +required
-	Spec VectorMigrationSpec `json:"spec"`
+	Spec TaskExecutionSpec `json:"spec"`
 
-	// status defines the observed state of VectorMigration
+	// status defines the observed state of TaskExecution
 	// +optional
-	Status VectorMigrationStatus `json:"status,omitempty,omitzero"`
+	Status TaskExecutionStatus `json:"status,omitempty,omitzero"`
 }
 
 // +kubebuilder:object:root=true
 
-// VectorMigrationList contains a list of VectorMigration
-type VectorMigrationList struct {
+// TaskExecutionList contains a list of TaskExecution
+type TaskExecutionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []VectorMigration `json:"items"`
+	Items           []TaskExecution `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&VectorMigration{}, &VectorMigrationList{})
+	SchemeBuilder.Register(&TaskExecution{}, &TaskExecutionList{})
 }
