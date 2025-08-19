@@ -23,8 +23,12 @@ import (
 const (
 	ArtifactDeploymentKind = "ArtifactDeployment"
 
-	// ArtifactDeploymentReadyCondition indicates that the artifact deployment is ready.
-	ArtifactDeploymentReadyCondition = "ArtifactDeploymentReady"
+	// ArtifactFetchedCondition indicates that the deployer was able to successfully download the artifact.
+	ArtifactFetchedCondition = "ArtifactFetched"
+	// ArtifactDeployedCondition indicates that the deployer was able to successfully deploy the artifact.
+	ArtifactDeployedCondition = "ArtifactDeployed"
+	// AppHealthyCondition indicates that the health check of the application was successful.
+	AppHealthyCondition = "AppHealthy"
 )
 
 // ArtifactDeploymentSpec defines the desired state of ArtifactDeployment.
@@ -51,8 +55,15 @@ type OCMResource struct {
 
 // ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.
 type ArtifactDeploymentStatus struct {
-	DeploymentResult *DeploymentResult  `json:"deploymentResult,omitempty"`
-	Conditions       []metav1.Condition `json:"conditions,omitempty"`
+	// ObservedGeneration is the last observed generation.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// Conditions holds the conditions for the ArtifactDeployment.
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	DeploymentResult *DeploymentResult `json:"deploymentResult,omitempty"`
 }
 
 type DeploymentResult struct {
@@ -61,7 +72,9 @@ type DeploymentResult struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
+// +kubebuilder:printcolumn:name="Fetched",type="string",JSONPath=".status.conditions[?(@.type==\"ArtifactFetched\")].status",description=""
+// +kubebuilder:printcolumn:name="Deployed",type="string",JSONPath=".status.conditions[?(@.type==\"ArtifactDeployed\")].status",description=""
+// +kubebuilder:printcolumn:name="Healthy",type="string",JSONPath=".status.conditions[?(@.type==\"AppHealthy\")].message",description=""
 
 // ArtifactDeployment is the Schema for the artifactdeployments API.
 type ArtifactDeployment struct {
