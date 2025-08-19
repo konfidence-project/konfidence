@@ -15,8 +15,14 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.type
-      name: Type
+    - jsonPath: .status.conditions[?(@.type=="ArtifactFetched")].status
+      name: Fetched
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="ArtifactDeployed")].status
+      name: Deployed
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="AppHealthy")].message
+      name: Healthy
       type: string
     name: v1alpha1
     schema:
@@ -93,6 +99,7 @@ spec:
             description: ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.
             properties:
               conditions:
+                description: Conditions holds the conditions for the ArtifactDeployment.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -155,6 +162,10 @@ spec:
                 required:
                 - url
                 type: object
+              observedGeneration:
+                description: ObservedGeneration is the last observed generation.
+                format: int64
+                type: integer
             type: object
         type: object
     served: true
