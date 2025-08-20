@@ -144,7 +144,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 			}
 
 		} else {
-			ad, err = constructArtifactDeployment(name, vd.Namespace, *artifact)
+			ad, err = constructArtifactDeployment(name, vd.Namespace, artifactOcmRef, *artifact)
 			if err != nil {
 				log.Error(err, "Failed to construct ArtifactDeployment", "name", name)
 				return err
@@ -221,7 +221,7 @@ func constructVectorDeploymentOwnerReference(vdu *landscape.VectorDeployment) me
 	}
 }
 
-func constructArtifactDeployment(name string, namespace string, artifact ocm.ComponentVersionAccess) (landscape.ArtifactDeployment, error) {
+func constructArtifactDeployment(name string, namespace string, ref ocm.RefSpec, artifact ocm.ComponentVersionAccess) (landscape.ArtifactDeployment, error) {
 	manifest, err := findArtifactManifestFromOCM(artifact)
 	if err != nil {
 		// Log the error and return nil or handle it as needed
@@ -229,18 +229,9 @@ func constructArtifactDeployment(name string, namespace string, artifact ocm.Com
 		return landscape.ArtifactDeployment{}, err
 	}
 
-	artifactSpec := landscape.OCMComponent{
-		Name:     artifact.GetName(),
-		Version:  artifact.GetVersion(),
-		Provider: string(artifact.GetProvider().Name),
-	}
-	for _, ref := range artifact.GetResources() {
-		artifactSpec.Resources = append(artifactSpec.Resources, landscape.OCMResource{
-			Name:    ref.Meta().Name,
-			Type:    ref.Meta().Type,
-			Version: ref.Meta().Version,
-			Image:   "some-image", //FIXME, should be replaced with actual image logic
-		})
+	artifactOcmJson, err := json.Marshal(artifact.GetDescriptor().ComponentSpec)
+	if err != nil {
+		return landscape.ArtifactDeployment{}, err
 	}
 
 	return landscape.ArtifactDeployment{
@@ -249,8 +240,9 @@ func constructArtifactDeployment(name string, namespace string, artifact ocm.Com
 			Namespace: namespace,
 		},
 		Spec: landscape.ArtifactDeploymentSpec{
-			Manifest:  *manifest,
-			Component: artifactSpec,
+			Manifest:       *manifest,
+			ArtifactOcmRef: ref.Reference(),
+			ArtifactOcm:    string(artifactOcmJson),
 		},
 	}, nil
 }
