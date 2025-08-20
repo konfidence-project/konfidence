@@ -1,0 +1,46 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - common.konfidence.cloud
+  resources:
+  - stageversionusages
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - common.konfidence.cloud
+  resources:
+  - stageversionusages/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - landscape.konfidence.cloud
+  resources:
+  - vectormigrations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - landscape.konfidence.cloud
+  resources:
+  - vectormigrations/status
+  verbs:
+  - get
+  - patch
+  - update
