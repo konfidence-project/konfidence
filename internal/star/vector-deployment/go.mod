@@ -3,7 +3,7 @@ module github.com/konfidence-project/landscape-vector-deployment-controller
 go 1.24.5
 
 require (
-	github.com/konfidence-project/crds/api/landscape v0.0.0-20250812154626-84f0ae65aed7
+	github.com/konfidence-project/crds/api/landscape v0.0.0-20250820112136-401f4b37ad89
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
 	github.com/pkg/errors v0.9.1
