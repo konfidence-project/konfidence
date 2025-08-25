@@ -64,10 +64,31 @@ spec:
                 - allowReuse
                 - type
                 type: object
+              taskManifests:
+                items:
+                  properties:
+                    dependsOn:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                    spec:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - dependsOn
+                  - name
+                  - spec
+                  - type
+                  type: object
+                type: array
             required:
             - artifactOcm
             - artifactOcmRef
             - manifest
+            - taskManifests
             type: object
           status:
             description: ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.
