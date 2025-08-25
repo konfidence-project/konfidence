@@ -34,6 +34,7 @@ const (
 // ArtifactDeploymentSpec defines the desired state of ArtifactDeployment.
 type ArtifactDeploymentSpec struct {
 	Manifest       ArtifactManifest `json:"manifest"`
+	TaskManifests  []TaskManifest   `json:"taskManifests"`
 	ArtifactOcmRef string           `json:"artifactOcmRef"`
 	ArtifactOcm    string           `json:"artifactOcm"`
 }
@@ -73,6 +74,13 @@ type ArtifactDeployment struct {
 type ArtifactManifest struct {
 	Type       string `json:"type"`
 	AllowReuse bool   `json:"allowReuse"`
+}
+
+type TaskManifest struct {
+	Name      string   `json:"name"`
+	Type      string   `json:"type"`
+	DependsOn []string `json:"dependsOn"`
+	Spec      string   `json:"spec"`
 }
 
 // +kubebuilder:object:root=true
