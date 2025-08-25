@@ -38,6 +38,22 @@ spec:
             type: object
           spec:
             description: spec defines the desired state of TaskExecution
+            properties:
+              dependsOn:
+                items:
+                  type: string
+                type: array
+              name:
+                type: string
+              spec:
+                type: string
+              type:
+                type: string
+            required:
+            - dependsOn
+            - name
+            - spec
+            - type
             type: object
           status:
             description: status defines the observed state of TaskExecution

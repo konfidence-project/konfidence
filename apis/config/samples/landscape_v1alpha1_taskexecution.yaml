@@ -6,4 +6,24 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: taskexecution-sample
 spec:
-  
+  name: "service2-task-1"
+  type: "k8s-job"
+  dependsOn: [ ],
+  spec: "{
+    \"template\": {
+      \"spec\": {
+        \"containers\": [
+          {
+            \"name\": \"service1-task-1-container\",
+            \"image\": \"registry.kdenv.lab/docker/sample-project/service1-task-1:0.0.1\",
+            \"command\": [
+              \"echo\",
+              \"I am task 1 of service 1\"
+            ]
+          }
+        ]
+      },
+      \"restartPolicy\": \"Never\"
+    },
+    \"backoffLimit\": 4
+  }"

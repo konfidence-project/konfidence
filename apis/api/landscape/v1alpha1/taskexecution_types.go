@@ -22,6 +22,18 @@ import (
 
 const (
 	TaskExecutionKind = "TaskExecution"
+
+	// TaskPending indicates that the task has been created and wait for Execution Controller to be executed.
+	TaskPending = "TaskPending"
+
+	// TaskInProgress indicates that the task has been started.
+	TaskInProgress = "TaskInProgress"
+
+	// TaskFailed indicates that the task execution results in errors.
+	TaskFailed = "TaskFailed"
+
+	// TaskSucceeded indicates that the task execution was successful.
+	TaskSucceeded = "TaskSucceeded"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -29,6 +41,10 @@ const (
 
 // TaskExecutionSpec defines the desired state of TaskExecution
 type TaskExecutionSpec struct {
+	Name      string   `json:"name"`
+	Type      string   `json:"type"`
+	DependsOn []string `json:"dependsOn"`
+	Spec      string   `json:"spec"`
 }
 
 // TaskExecutionStatus defines the observed state of TaskExecution.
