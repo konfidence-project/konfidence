@@ -22,6 +22,11 @@ import (
 
 const (
 	VectorMigrationKind = "VectorMigration"
+
+	// VectorMigrationFailed indicates that the vectorMigration failed.
+	VectorMigrationFailed = "VectorMigrationFailed"
+	// VectorMigrationSucceeded indicates that the vectorMigration reconciled successfully.
+	VectorMigrationSucceeded = "VectorMigrationSucceeded"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
