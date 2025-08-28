@@ -50,7 +50,6 @@ spec:
               type:
                 type: string
             required:
-            - dependsOn
             - name
             - spec
             - type
