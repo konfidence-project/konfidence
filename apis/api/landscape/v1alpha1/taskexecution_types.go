@@ -43,7 +43,7 @@ const (
 type TaskExecutionSpec struct {
 	Name      string   `json:"name"`
 	Type      string   `json:"type"`
-	DependsOn []string `json:"dependsOn"`
+	DependsOn []string `json:"dependsOn,omitempty"`
 	Spec      string   `json:"spec"`
 }
 
