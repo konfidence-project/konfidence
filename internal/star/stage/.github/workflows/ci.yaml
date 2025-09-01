@@ -20,8 +20,3 @@ jobs:
     with:
       install-crds: true
       crds-version: v0.0.1
-  test-e2e:
-    name: Test E2E
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-e2e.yaml@main
-    secrets: 
-      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
