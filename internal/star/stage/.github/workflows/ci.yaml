@@ -24,7 +24,7 @@ jobs:
     name: Build and Release Container Image
     # Only run on main branch or pull requests
     if:  github.event_name == 'pull_request'
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build@main
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build.yaml@main
     with:
       push: false
     secrets: 
