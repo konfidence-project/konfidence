@@ -1,5 +1,10 @@
 name: Kubebuilder CI
-on: push
+on: 
+  push:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 jobs:
 
   lint:
