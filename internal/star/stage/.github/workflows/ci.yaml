@@ -9,9 +9,12 @@ jobs:
       konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
   test:
     name: Test
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@main
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-kind-integration-test.yaml.yaml@main
     secrets: 
       konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+    with:
+      install-crds: true
+      crds-version: v0.0.1
   test-e2e:
     name: Test E2E
     uses: konfidence-project/.github/.github/workflows/kubebuilder-e2e.yaml@main
