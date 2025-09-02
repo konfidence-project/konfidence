@@ -74,7 +74,10 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersion.Spec.Vector))
 				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(testutil.ContainsReference(vectorDeployment.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
+				g.Expect(testutil.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: landscape.StageVersionKind,
+					Name: StageVersionDev,
+				})).To(BeTrue())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 
@@ -91,7 +94,10 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 				g.Expect(vectorMigration.GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(testutil.ContainsReference(vectorMigration.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
+				g.Expect(testutil.HasOwnerReference(vectorMigration.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: landscape.StageVersionKind,
+					Name: StageVersionDev,
+				})).To(BeTrue())
 				g.Expect(vectorMigration.Spec.Vector).To(Equal(Vector001))
 				g.Expect(vectorMigration.Spec.StageVersion).To(Equal(StageVersionDev))
 			}, timeout, interval).Should(Succeed())
@@ -139,8 +145,14 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersionDev.Spec.Vector))
 				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(2))
-				g.Expect(testutil.ContainsReference(vectorDeployment.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
-				g.Expect(testutil.ContainsReference(vectorDeployment.GetOwnerReferences(), StageVersionTest, landscape.StageVersionKind)).To(BeTrue())
+				g.Expect(testutil.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: landscape.StageVersionKind,
+					Name: StageVersionDev,
+				})).To(BeTrue())
+				g.Expect(testutil.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: landscape.StageVersionKind,
+					Name: StageVersionTest,
+				})).To(BeTrue())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 		})
@@ -169,7 +181,10 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersion.Spec.Vector))
 				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(testutil.ContainsReference(vectorDeployment.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
+				g.Expect(testutil.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: landscape.StageVersionKind,
+					Name: StageVersionDev,
+				})).To(BeTrue())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 
@@ -205,7 +220,10 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersion.Spec.Vector))
 				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(testutil.ContainsReference(vectorDeployment.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
+				g.Expect(testutil.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: landscape.StageVersionKind,
+					Name: StageVersionDev,
+				})).To(BeTrue())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 
@@ -222,7 +240,10 @@ var _ = Describe("StageVersion Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 				g.Expect(vectorMigration.GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(testutil.ContainsReference(vectorMigration.GetOwnerReferences(), StageVersionDev, landscape.StageVersionKind)).To(BeTrue())
+				g.Expect(testutil.HasOwnerReference(vectorMigration.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: landscape.StageVersionKind,
+					Name: StageVersionDev,
+				})).To(BeTrue())
 				g.Expect(vectorMigration.Spec.Vector).To(Equal(Vector001))
 				g.Expect(vectorMigration.Spec.StageVersion).To(Equal(StageVersionDev))
 			}, timeout, interval).Should(Succeed())
