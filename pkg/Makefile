@@ -14,7 +14,7 @@ SHELL = /usr/bin/env bash -o pipefail
 all: generate lint test
 
 .PHONY: $(MOCKGEN) generate
-generate: ## Generate code.
+generate: mockgen ## Generate code.
 	go generate -v ./...
 
 .PHONY: fmt
@@ -26,7 +26,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: generate fmt vet
+test: generate ginkgo fmt vet
 	$(GINKGO) -v -r
 
 .PHONY: golangci-lint lint
@@ -48,9 +48,9 @@ GINKGO ?= $(GOBIN)/ginkgo
 GINKGO_VERSION ?= latest
 
 .PHONY: ginkgo
-mockgen: $(GINKGO) ## Download mockgen locally if necessary.
+ginkgo: $(GINKGO) ## Download ginkgo locally if necessary.
 $(GINKGO):
-	$(call go-install-tool,$(MOCKGEN),go.uber.org/mock/mockgen,$(MOCKGEN_VERSION))
+	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo,$(GINKGO_VERSION))
 
 MOCKGEN ?= $(GOBIN)/mockgen
 MOCKGEN_VERSION ?= latest
