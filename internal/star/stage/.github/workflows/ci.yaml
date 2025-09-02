@@ -25,8 +25,7 @@ jobs:
     # Only run on main branch or pull requests
     if:  github.event_name == 'pull_request'
     uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build.yaml@main
-    with:
-      push: false
+
     secrets: 
       konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
     permissions:
