@@ -25,6 +25,7 @@ import (
 	testutil "github.com/konfidence-project/landscape-stage-controller/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -73,8 +74,10 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
+				g.Expect(testutil.HasOwnerReference(stageVersions.Items[0].GetOwnerReferences(), metav1.OwnerReference{
+					Kind: common.StageKind,
+					Name: StageDev,
+				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 		})
@@ -98,8 +101,10 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
+				g.Expect(testutil.HasOwnerReference(stageVersions.Items[0].GetOwnerReferences(), metav1.OwnerReference{
+					Kind: common.StageKind,
+					Name: StageDev,
+				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			oldUid := stageVersions.Items[0].UID
@@ -120,8 +125,10 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
 				g.Expect(stageVersions.Items[0].UID).To(Not(Equal(oldUid)))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
+				g.Expect(testutil.HasOwnerReference(stageVersions.Items[0].GetOwnerReferences(), metav1.OwnerReference{
+					Kind: common.StageKind,
+					Name: StageDev,
+				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 		})
@@ -145,8 +152,10 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
+				g.Expect(testutil.HasOwnerReference(stageVersions.Items[0].GetOwnerReferences(), metav1.OwnerReference{
+					Kind: common.StageKind,
+					Name: StageDev,
+				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// create a stageVersionUsage
@@ -178,10 +187,14 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
 				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(2))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[0].Name).To(Equal(StageDev))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[1].Kind).To(Equal(landscape.StageVersionUsageKind))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()[1].Name).To(Equal(StageVersionUsage))
+				g.Expect(testutil.HasOwnerReference(stageVersions.Items[0].GetOwnerReferences(), metav1.OwnerReference{
+					Kind: common.StageKind,
+					Name: StageDev,
+				})).To(BeTrue())
+				g.Expect(testutil.HasOwnerReference(stageVersions.Items[0].GetOwnerReferences(), metav1.OwnerReference{
+					Kind: landscape.StageVersionUsageKind,
+					Name: StageVersionUsage,
+				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// update the stage spec name, this changes the stage object generation value
@@ -212,13 +225,17 @@ var _ = Describe("Stage Controller", func() {
 				g.Expect(oldStageVersion.Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(oldStageVersion.Spec.StageGeneration).To(Equal(stage.Generation - 1))
 				g.Expect(oldStageVersion.GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(oldStageVersion.GetOwnerReferences()[0].Kind).To(Equal(landscape.StageVersionUsageKind))
-				g.Expect(oldStageVersion.GetOwnerReferences()[0].Name).To(Equal(StageVersionUsage))
+				g.Expect(testutil.HasOwnerReference(oldStageVersion.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: landscape.StageVersionUsageKind,
+					Name: StageVersionUsage,
+				})).To(BeTrue())
 				g.Expect(newStageVersion.Spec.Vector).To(Equal(stage.Spec.Vector))
 				g.Expect(newStageVersion.Spec.StageGeneration).To(Equal(stage.Generation))
 				g.Expect(newStageVersion.GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(newStageVersion.GetOwnerReferences()[0].Kind).To(Equal(common.StageKind))
-				g.Expect(newStageVersion.GetOwnerReferences()[0].Name).To(Equal(StageDev))
+				g.Expect(testutil.HasOwnerReference(newStageVersion.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: common.StageKind,
+					Name: StageDev,
+				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 	})

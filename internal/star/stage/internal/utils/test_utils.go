@@ -157,3 +157,13 @@ func CleanupStageVersionUsage(k8sClient client.Client, stageVersionUsageName str
 		DeleteStageVersionUsage(ctx, k8sClient, stageVersionUsage)
 	}
 }
+
+func HasOwnerReference(ownerReferences []metav1.OwnerReference, ref metav1.OwnerReference) bool {
+	for _, ownerReference := range ownerReferences {
+		if ownerReference.Kind == ref.Kind && ownerReference.Name == ref.Name {
+			return true
+		}
+	}
+
+	return false
+}
