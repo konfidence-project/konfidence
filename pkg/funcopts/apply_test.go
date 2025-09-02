@@ -2,6 +2,7 @@ package funcopts_test
 
 import (
 	"errors"
+
 	"github.com/konfidence-project/pkg/funcopts"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -51,9 +52,7 @@ var _ = Describe("Apply functional options", func() {
 type (
 	OptionWithError func(instance *TestInstanceWithErr) error
 
-	TestInstanceWithErr struct {
-		value bool
-	}
+	TestInstanceWithErr struct{}
 )
 
 func WithError(err error) OptionWithError {
