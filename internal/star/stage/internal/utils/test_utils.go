@@ -105,16 +105,6 @@ func CleanupStageVersion(k8sClient client.Client, stageVersionName string, names
 	}
 }
 
-func ContainsReference(references []metav1.OwnerReference, name string, kind string) bool {
-	for _, ref := range references {
-		if ref.Kind == kind && ref.Name == name {
-			return true
-		}
-	}
-
-	return false
-}
-
 func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name string, namespace string) {
 	usage := &landscape.StageVersionUsage{
 		TypeMeta: metav1.TypeMeta{
