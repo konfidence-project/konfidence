@@ -64,9 +64,7 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersion.Status.Conditions).To(HaveLen(1))
-				g.Expect(stageVersion.Status.Conditions[0].Reason).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersion.Status.Conditions[0].Type).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersion.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, landscape.VectorDeploymentCreatedCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// check that the vectorDeployment has been created and has valid properties
@@ -103,12 +101,8 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersion.Status.Conditions).To(HaveLen(3))
-				g.Expect(stageVersion.Status.Conditions[1].Reason).To(Equal(landscape.VectorMigrationCreatedCondition))
-				g.Expect(stageVersion.Status.Conditions[1].Type).To(Equal(landscape.VectorMigrationCreatedCondition))
-				g.Expect(stageVersion.Status.Conditions[1].Status).To(Equal(metav1.ConditionTrue))
-				g.Expect(stageVersion.Status.Conditions[2].Reason).To(Equal(landscape.StageVersionReady))
-				g.Expect(stageVersion.Status.Conditions[2].Type).To(Equal(landscape.StageVersionReady))
-				g.Expect(stageVersion.Status.Conditions[2].Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, landscape.VectorMigrationCreatedCondition)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, landscape.StageVersionReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 		It("should re-use a vectorDeployment if another stageVersion references the same vector", func() {
@@ -122,9 +116,7 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionDevLookupKey, stageVersionDev)).To(Succeed())
 				g.Expect(stageVersionDev.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersionDev.Status.Conditions).To(HaveLen(1))
-				g.Expect(stageVersionDev.Status.Conditions[0].Reason).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersionDev.Status.Conditions[0].Type).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersionDev.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(meta.IsStatusConditionTrue(stageVersionDev.Status.Conditions, landscape.VectorDeploymentCreatedCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// create another stageVersion that references the same vector
@@ -137,9 +129,7 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionTestLookupKey, stageVersionTest)).To(Succeed())
 				g.Expect(stageVersionTest.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersionTest.Status.Conditions).To(HaveLen(1))
-				g.Expect(stageVersionTest.Status.Conditions[0].Reason).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersionTest.Status.Conditions[0].Type).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersionTest.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(meta.IsStatusConditionTrue(stageVersionTest.Status.Conditions, landscape.VectorDeploymentCreatedCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// check that the vectorDeployment has been created and has both stageVersions set as owner references
@@ -169,9 +159,7 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersion.Status.Conditions).To(HaveLen(1))
-				g.Expect(stageVersion.Status.Conditions[0].Reason).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersion.Status.Conditions[0].Type).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersion.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, landscape.VectorDeploymentCreatedCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// check that the vectorDeployment has been created and has valid properties
@@ -207,9 +195,7 @@ var _ = Describe("StageVersion Controller", func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersion.Status.Conditions).To(HaveLen(1))
-				g.Expect(stageVersion.Status.Conditions[0].Reason).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersion.Status.Conditions[0].Type).To(Equal(landscape.VectorDeploymentCreatedCondition))
-				g.Expect(stageVersion.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, landscape.VectorDeploymentCreatedCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// check that the vectorDeployment has been created and has valid properties

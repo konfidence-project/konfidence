@@ -154,76 +154,75 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// check if vectorDeployment is marked as deployed
-	if meta.FindStatusCondition(vectorDeployment.Status.Conditions, landscape.VectorDeployedCondition) != nil {
-		// check if a vectorMigration for this stageVersion already exists
-		vectorMigration := &landscape.VectorMigration{}
-		err = r.Get(ctx, types.NamespacedName{
-			Namespace: stageVersion.Namespace,
-			Name:      getVectorMigrationName(stageVersion),
-		}, vectorMigration)
-
-		if err != nil {
-			if errors.IsNotFound(err) {
-				log.V(1).Info("No matching vectorMigration found. Creating a new one...")
-
-				// create new vectorMigration
-				vectorMigration, err = constructVectorMigration(r, stageVersion)
-				if err != nil {
-					log.Error(err, "Unable to construct vectorMigration from template")
-					return ctrl.Result{}, err
-				}
-
-				if err := r.Create(ctx, vectorMigration); err != nil {
-					log.Error(err, "Unable to create vectorMigration", "vectorMigration", vectorMigration)
-					return ctrl.Result{}, err
-				}
-
-				log.V(1).Info("Created vectorMigration", "vectorMigration", vectorMigration)
-
-				// update status to VectorMigrationCreated
-				meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationCreatedCondition,
-					Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationCreatedCondition,
-					Message: fmt.Sprintf("Successfully created vectorMigration %s for stageVersion %s", vectorMigration.Name, stageVersion.Name)})
-
-				if err := r.Status().Update(ctx, stageVersion); err != nil {
-					log.Error(err, "Failed to update stageVersion status")
-					return ctrl.Result{}, err
-				}
-			} else {
-				log.Error(err, "Unable to fetch vectorMigration")
-				return ctrl.Result{}, err
-			}
-		}
-
-		log.V(1).Info("Found existing vectorMigration")
-
-		// get stageVersion
-		stageVersion := &landscape.StageVersion{}
-		if err := r.Get(ctx, req.NamespacedName, stageVersion); err != nil {
-			if errors.IsNotFound(err) {
-				return ctrl.Result{}, nil
-			} else {
-				log.Error(err, "Unable to fetch stageVersion")
-				return ctrl.Result{}, err
-			}
-		}
-
-		// mark the stage version as ready
-		meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady,
-			Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady,
-			Message: fmt.Sprintf("StageVersion %s reconciled successfully", stageVersion.Name)})
-
-		if err := r.Status().Update(ctx, stageVersion); err != nil {
-			log.Error(err, "Failed to update stageVersion status")
-			return ctrl.Result{}, err
-		}
-
-		log.Info("StageVersion reconciled")
-		return ctrl.Result{}, nil
-	} else {
+	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, landscape.VectorDeployedCondition) {
 		// retry after some time
 		return ctrl.Result{RequeueAfter: stageVersionRetryInterval}, nil
 	}
+
+	// check if a vectorMigration for this stageVersion already exists
+	vectorMigration := &landscape.VectorMigration{}
+	err = r.Get(ctx, types.NamespacedName{
+		Namespace: stageVersion.Namespace,
+		Name:      getVectorMigrationName(stageVersion),
+	}, vectorMigration)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.V(1).Info("No matching vectorMigration found. Creating a new one...")
+
+			// create new vectorMigration
+			vectorMigration, err = constructVectorMigration(r, stageVersion)
+			if err != nil {
+				log.Error(err, "Unable to construct vectorMigration from template")
+				return ctrl.Result{}, err
+			}
+
+			if err := r.Create(ctx, vectorMigration); err != nil {
+				log.Error(err, "Unable to create vectorMigration", "vectorMigration", vectorMigration)
+				return ctrl.Result{}, err
+			}
+
+			log.V(1).Info("Created vectorMigration", "vectorMigration", vectorMigration)
+
+			// update status to VectorMigrationCreated
+			meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationCreatedCondition,
+				Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationCreatedCondition,
+				Message: fmt.Sprintf("Successfully created vectorMigration %s for stageVersion %s", vectorMigration.Name, stageVersion.Name)})
+
+			if err := r.Status().Update(ctx, stageVersion); err != nil {
+				log.Error(err, "Failed to update stageVersion status")
+				return ctrl.Result{}, err
+			}
+		} else {
+			log.Error(err, "Unable to fetch vectorMigration")
+			return ctrl.Result{}, err
+		}
+	}
+
+	log.V(1).Info("Found existing vectorMigration")
+
+	// get stageVersion
+	if err := r.Get(ctx, req.NamespacedName, stageVersion); err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		} else {
+			log.Error(err, "Unable to fetch stageVersion")
+			return ctrl.Result{}, err
+		}
+	}
+
+	// mark the stage version as ready
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady,
+		Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady,
+		Message: fmt.Sprintf("StageVersion %s reconciled successfully", stageVersion.Name)})
+
+	if err := r.Status().Update(ctx, stageVersion); err != nil {
+		log.Error(err, "Failed to update stageVersion status")
+		return ctrl.Result{}, err
+	}
+
+	log.Info("StageVersion reconciled")
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
