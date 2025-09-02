@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,10 +40,6 @@ type StageVersionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
-
-const (
-	stageVersionRetryInterval = 30 * time.Second
-)
 
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
@@ -155,8 +150,8 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// check if vectorDeployment is marked as deployed
 	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, landscape.VectorDeployedCondition) {
-		// retry after some time
-		return ctrl.Result{RequeueAfter: stageVersionRetryInterval}, nil
+		// wait for vectorDeployment status change notification
+		return ctrl.Result{}, nil
 	}
 
 	// check if a vectorMigration for this stageVersion already exists
