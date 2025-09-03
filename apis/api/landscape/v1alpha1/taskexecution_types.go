@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -41,10 +42,10 @@ const (
 
 // TaskExecutionSpec defines the desired state of TaskExecution
 type TaskExecutionSpec struct {
-	Name      string   `json:"name"`
-	Type      string   `json:"type"`
-	DependsOn []string `json:"dependsOn,omitempty"`
-	Spec      string   `json:"spec"`
+	Name      string               `json:"name"`
+	Type      string               `json:"type"`
+	DependsOn []string             `json:"dependsOn,omitempty"`
+	Spec      runtime.RawExtension `json:"spec"`
 }
 
 // TaskExecutionStatus defines the observed state of TaskExecution.
