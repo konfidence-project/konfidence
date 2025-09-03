@@ -3,10 +3,10 @@ module github.com/konfidence-project/landscape-stage-controller
 go 1.24.5
 
 require (
-	github.com/konfidence-project/crds/api/common v0.0.0-20250807082952-64310786b634
-	github.com/konfidence-project/crds/api/landscape v0.0.0-20250819113757-59c7c592d350
+	github.com/konfidence-project/crds/api/common v0.0.1
+	github.com/konfidence-project/crds/api/landscape v0.0.1
 	github.com/onsi/ginkgo/v2 v2.23.4
-	github.com/onsi/gomega v1.37.0
+	github.com/onsi/gomega v1.38.0
 	k8s.io/apimachinery v0.33.3
 	k8s.io/client-go v0.33.3
 	sigs.k8s.io/controller-runtime v0.21.0
@@ -37,7 +37,7 @@ require (
 	github.com/google/cel-go v0.23.2 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/pprof v0.0.0-20250403155104-27863c87afa6 // indirect
+	github.com/google/pprof v0.0.0-20250630185457-6e76a2b096b5 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
