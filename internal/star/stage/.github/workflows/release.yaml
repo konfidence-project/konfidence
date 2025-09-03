@@ -1,12 +1,15 @@
-name: Kubebuilder CI
-on: 
-  push:
-  workflow_dispatch:
-  pull_request:
-    branches:
-      - main
-jobs:
+name: Release
 
+on:
+  push: 
+    branches: [main]    
+
+# Prevent duplicate runs: cancel in-progress runs when new commits are pushed
+concurrency:
+  group: ${{ github.head_ref }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
   lint:
     name: Lint
     uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@main
@@ -20,11 +23,11 @@ jobs:
     with:
       install-crds: true
       crds-version: v0.0.1
+
   build-and-release:
     name: Build and Release Container Image
     # Only run on main branch or pull requests
-    if:  github.event_name == 'pull_request'
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build.yaml@main
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@main
 
     secrets: 
       konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
