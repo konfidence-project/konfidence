@@ -5,28 +5,11 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - common.konfidence.cloud
-  resources:
-  - stageversionusages
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - common.konfidence.cloud
-  resources:
-  - stageversionusages/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - landscape.konfidence.cloud
   resources:
+  - artifactdeployments
+  - stageversionusages
+  - taskexecutions
   - vectormigrations
   verbs:
   - create
@@ -39,6 +22,9 @@ rules:
 - apiGroups:
   - landscape.konfidence.cloud
   resources:
+  - artifactdeployments/status
+  - stageversionusages/status
+  - taskexecutions/status
   - vectormigrations/status
   verbs:
   - get

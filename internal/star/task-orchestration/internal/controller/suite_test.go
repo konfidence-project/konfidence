@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -60,6 +61,9 @@ var _ = BeforeSuite(func() {
 
 	var err error
 	err = landscape.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = common.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	By("bootstrapping test environment")

@@ -6,6 +6,6 @@ cliVersion: 4.7.1
 domain: konfidence.cloud
 layout:
 - go.kubebuilder.io/v4
-projectName: landscape-task-control
+projectName: landscape-task-orchestration-controller
 repo: github.com/konfidence-project/landscape-task-orchestration-controller
 version: "3"
