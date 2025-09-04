@@ -4,25 +4,38 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/json"
+	"ocm.software/ocm/api/oci"
 	"ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/extensions/repositories/ocireg"
 	"ocm.software/ocm/api/ocm/ocmutils/check"
 	"ocm.software/ocm/api/tech/oci/identity"
 	common "ocm.software/ocm/api/utils/misc"
+	"os"
 )
 
 func main() {
 	ctx := ocm.DefaultContext()
-	//credctx := ctx.CredentialsContext()
-	creds := identity.SimpleCredentials("d060274", "<some-token>")
+	credctx := ctx.CredentialsContext()
 
-	//result, err := oci.GetConsumerIdForRef("konfidence.common.repositories.cloud.sap/ocm-test/ocm/vector")
-	//if err != nil {
-	//	panic(errors.Wrapf(err, "invalid consumer"))
-	//}
-	//credctx.SetCredentialsForConsumer(result, creds)
+	creds := identity.SimpleCredentials("d060274", os.Getenv("repo_token"))
+
+	consumerId, err := oci.GetConsumerIdForRef("konfidence.common.repositories.cloud.sap")
+	if err != nil {
+		panic(errors.Wrapf(err, "invalid consumer"))
+	}
+	credctx.SetCredentialsForConsumer(consumerId, creds)
 
 	spec := ocireg.NewRepositorySpec("konfidence.common.repositories.cloud.sap/ocm-test/ocm/vector")
+
+	consumerId, err = oci.GetConsumerIdForRef("foo.bar")
+	if err != nil {
+		panic(errors.Wrapf(err, "invalid consumer"))
+	}
+	foo, err := credctx.GetCredentialsForConsumer(consumerId)
+	if err != nil {
+		panic(errors.Wrapf(err, "cannot get consumer"))
+	}
+	println(foo)
 
 	repo, err := ctx.RepositoryForSpec(spec, creds)
 	if err != nil {
@@ -48,10 +61,25 @@ func main() {
 	}
 	println(string(marshal))
 
-	version, err := repo.LookupComponentVersion("dwc.tools.sap/dwc-project/vector/dev-eu10", "0.1.0")
+	version, err := repo.LookupComponentVersion("dwc.tools.sap/dwc-project/service1", "0.0.1")
 	err = describeVersion(version)
 	if err != nil {
 		panic(errors.Wrapf(err, "cannot describe version"))
+	}
+
+	for _, access := range version.GetResources() {
+		if access.Meta().Type != "cloud.konfidence.artifact.manifest" {
+			continue
+		}
+		method, err := access.AccessMethod()
+		if err != nil {
+			panic(errors.Wrapf(err, "cannot get access method for resource %s", access.Meta().GetName()))
+		}
+		get, err := method.Get()
+		if err != nil {
+			panic(errors.Wrapf(err, "cannot get content for resource %s", access.Meta().GetName()))
+		}
+		fmt.Println(string(get))
 	}
 
 	//
