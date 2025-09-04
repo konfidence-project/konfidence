@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -27,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/compdesc"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -229,8 +229,13 @@ func constructVectorDeploymentOwnerReference(vdu *landscape.VectorDeployment) me
 func constructArtifactDeployment(name string, namespace string, ref ocm.RefSpec, artifact ocm.ComponentVersionAccess) (landscape.ArtifactDeployment, error) {
 	manifest, err := findArtifactManifestFromOCM(artifact)
 	if err != nil {
-		// Log the error and return nil or handle it as needed
 		logf.Log.Error(err, "Failed to find artifact type for component", "component", artifact.GetName())
+		return landscape.ArtifactDeployment{}, err
+	}
+
+	taskManifests, err := findArtifactTaskManifestsFromOCM(artifact)
+	if err != nil {
+		logf.Log.Error(err, "An error occurred fetching task manifests", "component", artifact.GetName())
 		return landscape.ArtifactDeployment{}, err
 	}
 
@@ -246,7 +251,7 @@ func constructArtifactDeployment(name string, namespace string, ref ocm.RefSpec,
 		},
 		Spec: landscape.ArtifactDeploymentSpec{
 			Manifest:       manifest,
-			TaskManifests:  []landscape.TaskManifest{},
+			TaskManifests:  taskManifests,
 			ArtifactOcmRef: ref.Reference(),
 			ArtifactOcm:    string(artifactOcmJson),
 		},
@@ -278,12 +283,39 @@ func findArtifactManifestFromOCM(artifact ocm.ComponentVersionAccess) (landscape
 	}
 
 	var manifest landscape.ArtifactManifest
-	err = yaml.Unmarshal(manifestData, &manifest)
+	err = json.Unmarshal(manifestData, &manifest)
 	if err != nil {
 		return landscape.ArtifactManifest{}, errors.Wrapf(err, "failed to unmarshal manifest data for resource %s in component %s", (*found).Meta().Name, artifact.GetName())
 	}
 
 	return manifest, nil
+}
+
+func findArtifactTaskManifestsFromOCM(artifact ocm.ComponentVersionAccess) ([]landscape.TaskManifest, error) {
+	var taskManifests = make([]landscape.TaskManifest, 0)
+
+	for _, artifactResource := range artifact.GetResources() {
+		if artifactResource.Meta().Type == "cloud.konfidence.artifact.task.manifest" {
+			am, errArtifactResource := artifactResource.AccessMethod()
+			if errArtifactResource != nil {
+				logf.Log.Error(errArtifactResource, "An error occurred retrieving the AccessMethod of the artifact componentVersion", "component", artifact.GetName())
+				return []landscape.TaskManifest{}, errArtifactResource
+			}
+			rawJson, errGet := am.Get()
+			if errGet != nil {
+				logf.Log.Error(errGet, "An error occurred getting the content of the artifact componentVersion", "component", artifact.GetName())
+				return []landscape.TaskManifest{}, errGet
+			}
+			taskManifest := landscape.TaskManifest{}
+			err := json.Unmarshal(rawJson, &taskManifest)
+			if err != nil {
+				return []landscape.TaskManifest{}, fmt.Errorf("manifest could not be parsed into json. component: %s", artifact.GetName())
+			}
+			taskManifests = append(taskManifests, taskManifest)
+		}
+	}
+
+	return taskManifests, nil
 }
 
 func constructArtifactDeploymentName(artifact ocm.ComponentVersionAccess) string {
