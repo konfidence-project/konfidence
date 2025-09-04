@@ -3,8 +3,10 @@ module github.com/konfidence-project/landscape-vector-deployment-controller
 go 1.24.5
 
 require (
+	github.com/docker/cli v28.3.2+incompatible
 	github.com/go-logr/logr v1.4.3
-	github.com/konfidence-project/crds/api/landscape v0.0.2-0.20250901093817-15fa732df64b
+	github.com/konfidence-project/crds/api/landscape v0.0.2-0.20250904070850-6e94c275c00a
+	github.com/mandelsoft/goutils v0.0.0-20241005173814-114fa825bbdc
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
 	github.com/pkg/errors v0.9.1
@@ -123,7 +125,6 @@ require (
 	github.com/digitorus/timestamp v0.0.0-20231217203849-220c5c2851b7 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/cli v28.3.2+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker v28.3.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
@@ -218,7 +219,6 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mandelsoft/filepath v0.0.0-20240223090642-3e2777258aa3 // indirect
-	github.com/mandelsoft/goutils v0.0.0-20241005173814-114fa825bbdc // indirect
 	github.com/mandelsoft/logging v0.0.0-20240618075559-fdca28a87b0a // indirect
 	github.com/mandelsoft/vfs v0.4.4 // indirect
 	github.com/marstr/guid v1.1.0 // indirect

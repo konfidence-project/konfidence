@@ -1375,10 +1375,10 @@ github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYW
 github.com/klauspost/cpuid/v2 v2.0.9/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
 github.com/klauspost/pgzip v1.2.6 h1:8RXeL5crjEUFnR2/Sn6GJNWtSQ3Dk8pq4CL3jvdDyjU=
 github.com/klauspost/pgzip v1.2.6/go.mod h1:Ch1tH69qFZu15pkjo5kYi6mth2Zzwzt50oCQKQE9RUs=
-github.com/konfidence-project/crds/api/landscape v0.0.0-20250820112136-401f4b37ad89 h1:do2hLkMWZxARYQ1GA5OBLXkgw6qGyrmBDswkciXEsbY=
-github.com/konfidence-project/crds/api/landscape v0.0.0-20250820112136-401f4b37ad89/go.mod h1:lG77Oy8iF5+dAHIMonur4n2YG5y7Dw0WW6KvNhfe/3s=
 github.com/konfidence-project/crds/api/landscape v0.0.2-0.20250901093817-15fa732df64b h1:QhIQJ2gw3VvCSb/HD0CcCnv7v6X24NDTgb+HCUD5WIY=
 github.com/konfidence-project/crds/api/landscape v0.0.2-0.20250901093817-15fa732df64b/go.mod h1:8bcJNEvUk5KMMwxSecijlBgaY7rkXiPKHBXjjbMQFZ0=
+github.com/konfidence-project/crds/api/landscape v0.0.2-0.20250904070850-6e94c275c00a h1:e2KFTg2Y6o56XizesN9Vlk2crH5DxRH/Ic0snHmzDZA=
+github.com/konfidence-project/crds/api/landscape v0.0.2-0.20250904070850-6e94c275c00a/go.mod h1:8bcJNEvUk5KMMwxSecijlBgaY7rkXiPKHBXjjbMQFZ0=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
