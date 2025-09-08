@@ -11,8 +11,9 @@ components:
     type: helmChart
     version: 6.9.1
     access:
-      type: ociArtifact
-      imageReference: ghcr.io/stefanprodan/charts/podinfo:6.9.1
+      type: helm
+      helmChart: podinfo:6.9.1
+      helmRepository: https://stefanprodan.github.io/podinfo
   - name: sample-service-1-image
     version: 0.0.1
     relation: external
