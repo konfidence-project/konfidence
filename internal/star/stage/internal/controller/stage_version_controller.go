@@ -43,8 +43,10 @@ type StageVersionReconciler struct {
 
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployment,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployment/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectormigrations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectormigrations/status,verbs=get;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
