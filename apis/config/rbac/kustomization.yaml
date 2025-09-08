@@ -21,3 +21,6 @@ resources:
 - landscape_vectormigration_viewer_role.yaml
 - landscape_taskexecution_editor_role.yaml
 - landscape_taskexecution_viewer_role.yaml
+- landscape_vectoractivation_editor_role.yaml
+- landscape_vectoractivation_viewer_role.yaml
+
