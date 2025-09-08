@@ -8,4 +8,5 @@ resources:
 - landscape_v1alpha1_stageversionusage.yaml
 - landscape_v1alpha1_vectormigration.yaml
 - landscape_v1alpha1_taskexecution.yaml
+- landscape_v1alpha1_vectoractivation.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

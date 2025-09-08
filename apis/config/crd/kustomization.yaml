@@ -11,6 +11,7 @@ resources:
 - bases/landscape.konfidence.cloud_stageversionusages.yaml
 - bases/landscape.konfidence.cloud_vectormigrations.yaml
 - bases/landscape.konfidence.cloud_taskexecutions.yaml
+- bases/landscape.konfidence.cloud_vectoractivations.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
