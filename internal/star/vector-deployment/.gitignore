@@ -29,4 +29,4 @@ go.work.sum
 .DS_Store
 
 # Build files of utils for local testing
-local-scripts/ocm-transfer
+ocm-samples/ocm-transfer

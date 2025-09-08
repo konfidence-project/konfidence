@@ -1,12 +1,20 @@
-#!/bin/sh
+#!/bin/bash
+set -e
 
-docker pull alpine:3.22.1
-docker pull stefanprodan/podinfo:6.9.1
+# Get the root of the git repository
+REPO_ROOT=$(git rev-parse --show-toplevel)
 
-ocm add componentversions --create --file ocm-transfer/artdeployser1 ../ocm-samples/sample-service-1.yaml
-ocm add componentversions --create --file ocm-transfer/artdeployser2 ../ocm-samples/sample-service-2.yaml
-ocm add componentversions --create --file ocm-transfer/vector1 ../ocm-samples/vector.yaml
+# Pull docker images
+docker pull --quiet alpine:3.22.1
+docker pull --quiet stefanprodan/podinfo:6.9.1
 
-ocm transfer ctf ./ocm-transfer/artdeployser1 https://registry.kdenv.lab/sample-project --overwrite
-ocm transfer ctf ./ocm-transfer/artdeployser2 https://registry.kdenv.lab/sample-project --overwrite
-ocm transfer ctf ./ocm-transfer/vector1 https://registry.kdenv.lab/sample-project --overwrite
+# Add component versions
+mkdir -p "$REPO_ROOT/ocm-samples/ocm-transfer"
+ocm add componentversions --create --file "$REPO_ROOT/ocm-samples/ocm-transfer/artifact-1" "$REPO_ROOT/ocm-samples/sample-service-1.yaml"
+ocm add componentversions --create --file "$REPO_ROOT/ocm-samples/ocm-transfer/artifact-2" "$REPO_ROOT/ocm-samples/sample-service-2.yaml"
+ocm add componentversions --create --file "$REPO_ROOT/ocm-samples/ocm-transfer/vector1" "$REPO_ROOT/ocm-samples/vector.yaml"
+
+# Transfer CTFs to OCI registry
+ocm transfer ctf "$REPO_ROOT/ocm-samples/ocm-transfer/artifact-1" https://registry.kdenv.lab/sample-project --overwrite
+ocm transfer ctf "$REPO_ROOT/ocm-samples/ocm-transfer/artifact-2" https://registry.kdenv.lab/sample-project --overwrite
+ocm transfer ctf "$REPO_ROOT/ocm-samples/ocm-transfer/vector1" https://registry.kdenv.lab/sample-project --overwrite
