@@ -5,6 +5,7 @@ metadata:
     control-plane: controller-manager
     app.kubernetes.io/name: landscape-vector-deployment-controller
     app.kubernetes.io/managed-by: kustomize
+    pod-security.kubernetes.io/enforce: privileged
   name: system
 ---
 apiVersion: apps/v1
@@ -50,27 +51,29 @@ spec:
       #             operator: In
       #             values:
       #               - linux
-      securityContext:
-        # Projects are configured by default to adhere to the "restricted" Pod Security Standards.
-        # This ensures that deployments meet the highest security requirements for Kubernetes.
-        # For more details, see: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
       containers:
       - command:
-        - /manager
+          - sh
+          - -c
+          - |
+            cp /etc/ssl/certs/extra/ca.crt /usr/local/share/ca-certificates/ca.crt
+            update-ca-certificates
+            /manager
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
         image: controller:latest
+        imagePullPolicy: Always
         name: manager
         ports: []
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - "ALL"
+              - "ALL"
+          runAsNonRoot: false
+          seccompProfile:
+            type: RuntimeDefault
         livenessProbe:
           httpGet:
             path: /healthz
@@ -92,7 +95,12 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        volumeMounts: []
-      volumes: []
+        volumeMounts:
+          - name: ca-tls
+            mountPath: /etc/ssl/certs/extra
+      volumes:
+        - name: ca-tls
+          secret:
+            secretName: ca-tls-secret
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
