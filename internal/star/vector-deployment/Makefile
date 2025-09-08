@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= registry.konfidence.cloud/landscape-vector-deployment-controller:dev
+IMG ?= registry.kdenv.lab/landscape-vector-deployment-controller:dev
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -228,3 +228,7 @@ mv $(1) $(1)-$(3) ;\
 } ;\
 ln -sf $(1)-$(3) $(1)
 endef
+
+.PHONY: sample-ocm
+sample-ocm: ## Create sample ComponentVersions and push to local OCM repository
+	./local-scripts/add-sample-componentversions-to-oci-registry.sh
