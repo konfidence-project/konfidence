@@ -30,7 +30,8 @@ rules:
   - landscape.konfidence.cloud
   resources:
   - stageversions
-  - vectordeployment
+  - vectordeployments
+  - vectormigrations
   verbs:
   - create
   - delete
@@ -43,7 +44,8 @@ rules:
   - landscape.konfidence.cloud
   resources:
   - stageversions/status
-  - vectordeployment/status
+  - vectordeployments/status
+  - vectormigrations/status
   verbs:
   - get
   - patch
