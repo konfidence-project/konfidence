@@ -22,7 +22,7 @@ jobs:
       konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
     with:
       install-crds: true
-      crds-version: v0.0.1
+      crds-version: 6f560b268fa798ee96457551578fe84e90ae2acf
   build-and-release:
     name: Build and Release Container Image
     # Only run on main branch or pull requests
