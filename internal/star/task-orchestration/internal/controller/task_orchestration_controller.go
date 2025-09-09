@@ -302,20 +302,20 @@ func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(ctx context
 
 	artifactDeployments := make(map[string]landscape.ArtifactDeployment)
 	numberOfTasks := 0
-	for name, deploymentReference := range vectorDeployment.Status.ResultingArtifactDeployments {
+	for _, deploymentReference := range vectorDeployment.Status.ResultingArtifactDeployments {
 		if landscape.ArtifactDeploymentKind != deploymentReference.Kind {
 			err := fmt.Errorf("unable to parse artifactDeployment. Invalid kind: %s", deploymentReference.Kind)
 			return nil, err
 		}
 
 		// get artifactDeployment
-		artifactDeployment, err := r.getArtifactDeployment(ctx, vectorMigration, name)
+		artifactDeployment, err := r.getArtifactDeployment(ctx, vectorMigration, deploymentReference.Name)
 		if err != nil {
 			log.Error(err, "Unable to fetch artifactDeployment")
 			return nil, err
 		}
 
-		artifactDeployments[name] = *artifactDeployment
+		artifactDeployments[deploymentReference.Name] = *artifactDeployment
 		numberOfTasks = numberOfTasks + len(artifactDeployment.Spec.TaskManifests)
 	}
 
