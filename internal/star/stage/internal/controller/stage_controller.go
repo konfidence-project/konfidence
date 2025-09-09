@@ -23,14 +23,15 @@ import (
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // StageReconciler reconciles a Stage object
@@ -56,12 +57,7 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	// get stage
 	stage := &common.Stage{}
 	if err := r.Get(ctx, req.NamespacedName, stage); err != nil {
-		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		} else {
-			log.Error(err, "Unable to fetch stage")
-			return ctrl.Result{}, err
-		}
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// get all stageVersions that are owned by this stage
@@ -164,7 +160,7 @@ func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&common.Stage{}).
+		For(&common.Stage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&landscape.StageVersion{}).
 		Named("stage").
 		Complete(r)
