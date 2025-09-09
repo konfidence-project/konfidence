@@ -3,6 +3,6 @@ resources:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-  - name: controller
-    newName: registry.konfidence.cloud/landscape-task-orchestration-controller
-    newTag: dev
+- name: controller
+  newName: registry.kdenv.lab/landscape-task-orchestration-controller
+  newTag: dev
