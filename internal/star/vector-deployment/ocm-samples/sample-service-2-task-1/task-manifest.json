@@ -5,6 +5,7 @@
   "spec": {
     "template": {
       "spec": {
+        "restartPolicy": "Never",
         "containers": [
           {
             "name": "sample-service-2-task-1-container",
@@ -15,8 +16,7 @@
             ]
           }
         ]
-      },
-      "restartPolicy": "Never"
+      }
     },
     "backoffLimit": 4
   }
