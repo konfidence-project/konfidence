@@ -8,8 +8,10 @@ rules:
   - landscape.konfidence.cloud
   resources:
   - artifactdeployments
+  - stageversions
   - stageversionusages
   - taskexecutions
+  - vectordeployments
   - vectormigrations
   verbs:
   - create
@@ -23,8 +25,10 @@ rules:
   - landscape.konfidence.cloud
   resources:
   - artifactdeployments/status
+  - stageversions/status
   - stageversionusages/status
   - taskexecutions/status
+  - vectordeployments/status
   - vectormigrations/status
   verbs:
   - get
