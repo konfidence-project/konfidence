@@ -31,6 +31,7 @@ import (
 	"ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/compdesc"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -108,6 +109,8 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 // TODO aggregate status of artifact deployments
 func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Context, ocmCtx ocm.Context, vd *landscape.VectorDeployment, descriptor compdesc.ComponentSpec, ocmRef ocm.RefSpec, log logr.Logger) error {
 	vd.Status.ResultingArtifactDeployments = make(map[string]corev1.TypedObjectReference)
+	allReady := true
+
 	//TODO parallelize and handle partial failures
 	for _, artifactRef := range descriptor.References {
 		version := artifactRef.GetVersion()
@@ -123,14 +126,21 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 		if err != nil {
 			return errors.Wrapf(err, "failed to fetch artifact component version %q from repository %q", artifactRef.GetComponentName(), ocmRef.UniformRepositorySpec.String())
 		}
+		manifest, err := findArtifactManifestFromOCM(*artifact)
+		if err != nil {
+			// Log the error and return nil or handle it as needed
+			logf.Log.Error(err, "Failed to find artifact type for component", "component", (*artifact).GetName())
+			return err
+		}
 
-		name := constructArtifactDeploymentName(*artifact) //TODO figure out naming when reuse is disabled
+		name := constructArtifactDeploymentName(*artifact, vd, manifest.AllowReuse)
 		ad := landscape.ArtifactDeployment{}
 		if err = r.Get(ctx, types.NamespacedName{Namespace: vd.Namespace, Name: name}, &ad); client.IgnoreNotFound(err) != nil {
 			log.Error(err, "Failed to get ArtifactDeployment", "name", name)
 			return err
 		}
-		if !apierrors.IsNotFound(err) && ad.Spec.Manifest.AllowReuse {
+
+		if !apierrors.IsNotFound(err) {
 			var ownerRef *metav1.OwnerReference = nil
 			for _, ref := range ad.OwnerReferences {
 				if ref.UID == vd.UID {
@@ -149,7 +159,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 			}
 
 		} else {
-			ad, err = constructArtifactDeployment(name, vd.Namespace, artifactOcmRef, *artifact)
+			ad, err = constructArtifactDeployment(name, vd.Namespace, artifactOcmRef, *artifact, manifest)
 			if err != nil {
 				log.Error(err, "Failed to construct ArtifactDeployment", "name", name)
 				return err
@@ -170,11 +180,20 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 			Namespace: &ad.Namespace,
 			Name:      ad.Name,
 		}
+		if !meta.IsStatusConditionTrue(ad.Status.Conditions, landscape.ArtifactDeployedCondition) {
+			allReady = false
+		}
 	}
 
 	meta.SetStatusCondition(&vd.Status.Conditions, metav1.Condition{Type: landscape.ArtifactDeploymentsCreatedCondition,
 		Status: metav1.ConditionTrue, Reason: landscape.ArtifactDeploymentsCreatedCondition,
 		Message: fmt.Sprintf("Successfully created Artifact deployments for vector deployment %s", vd.Name)})
+
+	if allReady {
+		meta.SetStatusCondition(&vd.Status.Conditions, metav1.Condition{Type: landscape.VectorDeployedCondition,
+			Status: metav1.ConditionTrue, Reason: landscape.VectorDeployedCondition,
+			Message: fmt.Sprintf("All artifacts of vector deployment %s are deployed", vd.Name)})
+	}
 
 	if err := r.Status().Update(ctx, vd); err != nil {
 		log.Error(err, "Failed to update vector deployment status")
@@ -226,21 +245,15 @@ func constructVectorDeploymentOwnerReference(vdu *landscape.VectorDeployment) me
 	}
 }
 
-func constructArtifactDeployment(name string, namespace string, ref ocm.RefSpec, artifact ocm.ComponentVersionAccess) (landscape.ArtifactDeployment, error) {
-	manifest, err := findArtifactManifestFromOCM(artifact)
+func constructArtifactDeployment(name string, namespace string, ref ocm.RefSpec, artifact ocm.ComponentVersionAccess, manifest landscape.ArtifactManifest) (landscape.ArtifactDeployment, error) {
+	artifactOcmJson, err := json.Marshal(artifact.GetDescriptor().ComponentSpec)
 	if err != nil {
-		logf.Log.Error(err, "Failed to find artifact type for component", "component", artifact.GetName())
 		return landscape.ArtifactDeployment{}, err
 	}
 
 	taskManifests, err := findArtifactTaskManifestsFromOCM(artifact)
 	if err != nil {
 		logf.Log.Error(err, "An error occurred fetching task manifests", "component", artifact.GetName())
-		return landscape.ArtifactDeployment{}, err
-	}
-
-	artifactOcmJson, err := json.Marshal(artifact.GetDescriptor().ComponentSpec)
-	if err != nil {
 		return landscape.ArtifactDeployment{}, err
 	}
 
@@ -318,10 +331,16 @@ func findArtifactTaskManifestsFromOCM(artifact ocm.ComponentVersionAccess) ([]la
 	return taskManifests, nil
 }
 
-func constructArtifactDeploymentName(artifact ocm.ComponentVersionAccess) string {
+func constructArtifactDeploymentName(artifact ocm.ComponentVersionAccess, vd *landscape.VectorDeployment, reuse bool) string {
 	h := sha256.New()
 	h.Write([]byte(artifact.GetName()))
 	h.Write([]byte(artifact.GetVersion()))
+
+	if !reuse {
+		// makes the name unique to this vector deployment -> no reuse
+		h.Write([]byte(vd.UID))
+	}
+
 	hash := h.Sum(nil)
 	return fmt.Sprintf("%x", hash)
 }
@@ -333,7 +352,7 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// For().
 		Named("vectordeployment").
 		For(&landscape.VectorDeployment{}).
-		Owns(&landscape.ArtifactDeployment{}).
-		Owns(&landscape.VectorAssignment{}).
+		Owns(&landscape.ArtifactDeployment{}, builder.MatchEveryOwner).
+		Owns(&landscape.VectorAssignment{}, builder.MatchEveryOwner).
 		Complete(r)
 }
