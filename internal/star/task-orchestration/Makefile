@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= registry.konfidence.cloud/landscape-task-orchestration-controller:dev
+IMG ?= registry.kdenv.lab/landscape-task-orchestration-controller:dev
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
