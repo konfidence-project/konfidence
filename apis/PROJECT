@@ -89,4 +89,12 @@ resources:
   kind: VectorActivation
   path: github.com/konfidence-project/crds/api/landscape/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: konfidence.cloud
+  group: landscape
+  kind: ActivationExecution
+  path: github.com/konfidence-project/crds/api/landscape/v1alpha1
+  version: v1alpha1
 version: "3"
