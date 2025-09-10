@@ -25,8 +25,12 @@ const (
 
 	// VectorActivationFailed indicates that the vectorActivation failed.
 	VectorActivationFailed = "VectorActivationFailed"
+
 	// VectorActivationSucceeded indicates that the vectorActivation reconciled successfully.
 	VectorActivationSucceeded = "VectorActivationSucceeded"
+
+	// VectorActivationSkipped indicates that the vectorActivation was skipped.
+	VectorActivationSkipped = "VectorActivationSkipped"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -34,6 +38,10 @@ const (
 
 // VectorActivationSpec defines the desired state of VectorActivation
 type VectorActivationSpec struct {
+	StageVersion string `json:"stageVersion"`
+
+	// Vector points to the OCM component version that contains the deployment vector for this stage.
+	Vector string `json:"vector"`
 }
 
 // VectorActivationStatus defines the observed state of VectorActivation.
