@@ -23,6 +23,7 @@ import (
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-task-orchestration-controller/internal/graph"
+	e "github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -86,19 +87,19 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// get stageVersion
 	stageVersion := &landscape.StageVersion{}
 	if err := r.Get(ctx, types.NamespacedName{Name: vectorMigration.Spec.StageVersion, Namespace: req.Namespace}, stageVersion); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.Wrap(err, "Could not get stage version")
 	}
 
 	if meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded) {
 		// get all taskExecutions for this vectorMigration
 		taskExecutions, err := r.getTaskExecutions(ctx, req)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, e.Wrap(err, "Could not get task executions")
 		}
 
 		// and delete tasks if necessary
 		if err := r.deleteTaskExecutions(ctx, taskExecutions); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, e.Wrap(err, "Failed to delete task executions")
 		}
 
 		// check if stageVersionUsage still exists and should be deleted
@@ -108,8 +109,7 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 
 		if err := r.Delete(ctx, stageVersionUsage); err != nil {
-			log.Error(err, "Unable to delete stageVersionUsage for vectorMigration", "stageVersionUsage", stageVersionUsage)
-			return ctrl.Result{}, err
+			return ctrl.Result{}, e.Wrap(err, "Unable to delete stageVersionUsage for vectorMigration")
 		}
 
 		log.Info("VectorMigration reconciled after resource cleanup")
@@ -125,33 +125,28 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// get vectorDeployment
 	vectorDeployment, err := r.getVectorDeployment(ctx, vectorMigration)
 	if err != nil {
-		log.Error(err, "Unable to fetch vectorDeployment")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.Wrap(err, "Unable to fetch vectorDeployment")
 	}
 
 	// get all tasks
 	tasks, err := r.getArtifactDeploymentsAndTasks(ctx, vectorDeployment, vectorMigration)
 	if err != nil {
-		log.Error(err, "Unable to fetch artifactDeployments and tasks")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.Wrap(err, "Unable to fetch artifactDeployments and tasks")
 	}
 
 	// sort tasks
 	_, layers, err := graph.SortTasks(tasks)
 	if err != nil {
-		log.Error(err, "Unable to sort task dependency graph")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.Wrap(err, "Unable to sort task dependency graph")
 	}
 
 	// map taskExecutions by name
 	mappedTasks, err := r.mapTasks(ctx, req)
 	if err != nil {
-		log.Error(err, "Mapping taskExecutions failed")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.Wrap(err, "Mapping taskExecutions failed")
 	}
 
 	if mappedTasks.taskFailed {
-		log.Info("Reconciling VectorMigration failed")
 		// if at least one of the tasks failed mark vectorMigration as failed
 		if err := r.updateVectorMigrationStatus(ctx, req, metav1.Condition{Type: landscape.VectorMigrationFailed,
 			Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationFailed,
@@ -159,16 +154,14 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			return ctrl.Result{}, err
 		}
 
-		err := fmt.Errorf("reconciling VectorMigration failed")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.New("Reconciling VectorMigration failed")
 	}
 
 	// process all layers
 	for _, layer := range layers {
 		status, err := r.processTaskLayer(ctx, vectorMigration, layer, mappedTasks.taskExecutionsByName, mappedTasks.successfulTaskExecutionsByName)
 		if err != nil {
-			log.Error(err, "Failed to process tasks")
-			return ctrl.Result{}, err
+			return ctrl.Result{}, e.Wrap(err, "Failed to process tasks")
 		}
 
 		if status == layerPending {
@@ -184,20 +177,19 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if err := r.updateVectorMigrationStatus(ctx, req, metav1.Condition{Type: landscape.VectorMigrationSucceeded,
 		Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationSucceeded,
 		Message: fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name)}); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.Wrap(err, "Failed to update vectorMigration status")
 	}
 
 	log.Info("Cleaning up resources...")
 
 	// delete taskExecutions
 	if err := r.deleteTaskExecutions(ctx, maps.Values(mappedTasks.taskExecutionsByName)); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.Wrap(err, "Unable to delete taskExecutions")
 	}
 
 	// delete stageVersionUsage
 	if err := r.Delete(ctx, stageVersionUsage); err != nil {
-		log.Error(err, "Unable to delete stageVersionUsage for vectorMigration", "stageVersionUsage", stageVersionUsage)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.Wrap(err, "Unable to delete stageVersionUsage for vectorMigration")
 	}
 
 	log.Info("VectorMigration reconciled")
@@ -230,25 +222,19 @@ func (r *TaskOrchestrationReconciler) getArtifactDeployment(ctx context.Context,
 }
 
 func (r *TaskOrchestrationReconciler) getTaskExecutions(ctx context.Context, req ctrl.Request) ([]landscape.TaskExecution, error) {
-	log := logf.FromContext(ctx)
-
 	// get all taskExecutions that are owned by this vectorMigration
 	taskExecutions := &landscape.TaskExecutionList{}
 	if err := r.List(ctx, taskExecutions, client.InNamespace(req.Namespace), client.MatchingFields{vectorMigrationOwnerKey: req.Name}); err != nil {
-		log.Error(err, "Unable to list taskExecutions")
-		return nil, err
+		return nil, e.Wrap(err, "Unable to list taskExecutions")
 	}
 
 	return taskExecutions.Items, nil
 }
 
 func (r *TaskOrchestrationReconciler) deleteTaskExecutions(ctx context.Context, taskExecutions []landscape.TaskExecution) error {
-	log := logf.FromContext(ctx)
-
 	for _, taskExecution := range taskExecutions {
 		if err := r.Delete(ctx, &taskExecution); err != nil {
-			log.Error(err, "Unable to delete taskExecution for vectorMigration", "taskExecution", taskExecution)
-			return err
+			return e.Wrap(err, "Unable to delete taskExecution for vectorMigration")
 		}
 	}
 
@@ -260,21 +246,18 @@ func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(ctx context.C
 	stageVersionUsage := &landscape.StageVersionUsage{}
 	err := r.Get(ctx, types.NamespacedName{Name: getStageVersionUsageName(stageVersion), Namespace: req.Namespace}, stageVersionUsage)
 	if err != nil && !errors.IsNotFound(err) {
-		log.Error(err, "Unable to fetch stageVersionUsage")
-		return nil, err
+		return nil, e.Wrap(err, "Unable to fetch stageVersionUsage")
 	}
 
 	if err != nil && errors.IsNotFound(err) {
 		// create new stageVersionUsage
 		stageVersionUsage, err = constructStageVersionUsage(r, vectorMigration, stageVersion)
 		if err != nil {
-			log.Error(err, "Unable to construct vectorDeployment from template")
-			return nil, err
+			return nil, e.Wrap(err, "Unable to construct vectorDeployment from template")
 		}
 
 		if err := r.Create(ctx, stageVersionUsage); err != nil {
-			log.Error(err, "Unable to create stageVersionUsage", "stageVersionUsage", stageVersionUsage)
-			return nil, err
+			return nil, e.Wrap(err, "Unable to create stageVersionUsage")
 		}
 
 		log.V(1).Info("Created stageVersionUsage", "stageVersionUsage", stageVersionUsage)
@@ -282,13 +265,11 @@ func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(ctx context.C
 
 		// set stageVersionUsage as owner of the stageVersion
 		if err := controllerutil.SetOwnerReference(stageVersionUsage, stageVersion, r.Scheme); err != nil {
-			log.Error(err, "Failed to add stageVersionUsage ownerRef to stageVersion")
-			return nil, err
+			return nil, e.Wrap(err, "Unable to add stageVersionUsage ownerRef to stageVersion")
 		}
 
 		if err := r.Update(ctx, stageVersion); err != nil {
-			log.Error(err, "Failed to update stageVersion owner references")
-			return nil, err
+			return nil, e.Wrap(err, "Failed to update stageVersion owner references")
 		}
 
 		log.Info("Successfully set stageVersionUsage as owner of stageVersion")
@@ -298,21 +279,17 @@ func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(ctx context.C
 }
 
 func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(ctx context.Context, vectorDeployment *landscape.VectorDeployment, vectorMigration *landscape.VectorMigration) ([]landscape.TaskManifest, error) {
-	log := logf.FromContext(ctx)
-
 	artifactDeployments := make(map[string]landscape.ArtifactDeployment)
 	numberOfTasks := 0
 	for _, deploymentReference := range vectorDeployment.Status.ResultingArtifactDeployments {
 		if landscape.ArtifactDeploymentKind != deploymentReference.Kind {
-			err := fmt.Errorf("unable to parse artifactDeployment. Invalid kind: %s", deploymentReference.Kind)
-			return nil, err
+			return nil, e.Errorf("Unable to parse artifactDeployment. Invalid kind: %s", deploymentReference.Kind)
 		}
 
 		// get artifactDeployment
 		artifactDeployment, err := r.getArtifactDeployment(ctx, vectorMigration, deploymentReference.Name)
 		if err != nil {
-			log.Error(err, "Unable to fetch artifactDeployment")
-			return nil, err
+			return nil, e.Wrap(err, "Unable to fetch artifactDeployment")
 		}
 
 		artifactDeployments[deploymentReference.Name] = *artifactDeployment
@@ -356,7 +333,6 @@ func (r *TaskOrchestrationReconciler) mapTasks(ctx context.Context, req ctrl.Req
 }
 
 func (r *TaskOrchestrationReconciler) processTaskLayer(ctx context.Context, vectorMigration *landscape.VectorMigration, layer []landscape.TaskManifest, taskExecutionsByName map[string]landscape.TaskExecution, successfulTaskExecutionsByName map[string]bool) (int, error) {
-	log := logf.FromContext(ctx)
 	status := layerPending
 	succeeded := 0
 
@@ -367,13 +343,11 @@ func (r *TaskOrchestrationReconciler) processTaskLayer(ctx context.Context, vect
 				taskExecution, err := constructTaskExecution(r, vectorMigration, task, vectorMigration.Namespace)
 
 				if err != nil {
-					log.Error(err, "Unable to construct taskExecution from template")
-					return status, err
+					return status, e.Wrap(err, "Unable to construct taskExecution from template")
 				}
 
 				if err := r.Create(ctx, taskExecution); err != nil {
-					log.Error(err, "Unable to create taskExecution", "taskExecution", taskExecution)
-					return status, err
+					return status, e.Wrap(err, "Unable to create taskExecution")
 				}
 			}
 		}
@@ -398,18 +372,15 @@ var (
 )
 
 func (r *TaskOrchestrationReconciler) updateVectorMigrationStatus(ctx context.Context, req ctrl.Request, condition metav1.Condition) error {
-	log := logf.FromContext(ctx)
 	vectorMigration := &landscape.VectorMigration{}
 	if err := r.Get(ctx, req.NamespacedName, vectorMigration); err != nil {
-		log.Error(err, "Unable to fetch vectorMigration")
-		return err
+		return e.Wrap(err, "Unable to fetch vectorMigration")
 	}
 
 	meta.SetStatusCondition(&vectorMigration.Status.Conditions, condition)
 
 	if err := r.Status().Update(ctx, vectorMigration); err != nil {
-		log.Error(err, "Failed to update vectorMigration status")
-		return err
+		return e.Wrap(err, "Unable to update vectorMigration status")
 	}
 
 	return nil
@@ -432,7 +403,7 @@ func (r *TaskOrchestrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// and if so, return it
 		return []string{owner.Name}
 	}); err != nil {
-		return err
+		return e.Wrap(err, "Unable to create index for owner reference of task execution")
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -452,7 +423,7 @@ func constructStageVersionUsage(r *TaskOrchestrationReconciler, vectorMigration 
 
 	// set vectorMigration as owner of the stageVersionUsage
 	if err := controllerutil.SetOwnerReference(vectorMigration, stageVersionUsage, r.Scheme); err != nil {
-		return nil, err
+		return nil, e.Wrap(err, "Unable to set owner reference for stage version usage")
 	}
 
 	return stageVersionUsage, nil
@@ -469,7 +440,7 @@ func constructTaskExecution(r *TaskOrchestrationReconciler, vectorMigration *lan
 
 	// set vectorMigration as controller
 	if err := ctrl.SetControllerReference(vectorMigration, taskExecution, r.Scheme); err != nil {
-		return nil, err
+		return nil, e.Wrap(err, "Unable to set controller reference for taskExecution")
 	}
 	return taskExecution, nil
 }
@@ -484,14 +455,14 @@ func adaptVectorName(vector string) (string, error) {
 
 	// TODO validate defined vector format
 	if len(trimmedVector) < 4 {
-		return "", fmt.Errorf("unable to parse vector: %s", vector)
+		return "", e.Errorf("unable to parse vector: %s", vector)
 	}
 
 	// get index of separator
 	separatorIdx := strings.LastIndex(trimmedVector, "//")
 
 	if separatorIdx == -1 || separatorIdx == len(vector)-2 {
-		return "", fmt.Errorf("unable to parse vector: %s", vector)
+		return "", e.Errorf("unable to parse vector: %s", vector)
 	}
 
 	componentVersion := trimmedVector[separatorIdx+2:]
