@@ -23,6 +23,7 @@ import (
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	e "github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -63,8 +64,7 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	// get all stageVersions that are owned by this stage
 	stageVersions := &landscape.StageVersionList{}
 	if err := r.List(ctx, stageVersions, client.InNamespace(req.Namespace), client.MatchingFields{stageVersionOwnerKey: req.Name}); err != nil {
-		log.Error(err, "Unable to list stageVersions")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, e.Wrap(err, "Unable to list stageVersions")
 	}
 
 	// check if a stageVersion exists with a vector matching the stage vector and the current stage generation
@@ -79,13 +79,11 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		// create new stageVersion
 		stageVersion, err := constructStageVersionForStage(r, stage)
 		if err != nil {
-			log.Error(err, "Unable to construct stageVersion from template")
-			return ctrl.Result{}, err
+			return ctrl.Result{}, e.Wrap(err, "Unable to construct stageVersion from template")
 		}
 
 		if err := r.Create(ctx, stageVersion); err != nil {
-			log.Error(err, "Unable to create stageVersion for stage", "stageVersion", stageVersion)
-			return ctrl.Result{}, err
+			return ctrl.Result{}, e.Wrap(err, "Unable to create stageVersion for stage")
 		}
 
 		log.V(1).Info("Created stageVersion for stage", "stageVersion", stageVersion)
@@ -102,8 +100,7 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		// check if the stageVersion still has an owner references to the stage
 		exists, err := controllerutil.HasOwnerReference(stageVersion.GetOwnerReferences(), stage, r.Scheme)
 		if err != nil {
-			log.Error(err, "Unable to check owner references of stageVersion", "stageVersion", stageVersion)
-			return ctrl.Result{}, err
+			return ctrl.Result{}, e.Wrap(err, "Unable to check owner references of stageVersion")
 		}
 
 		if exists {
@@ -112,19 +109,16 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				log.V(1).Info("Removing old stageVersion because this stage owner reference is the last one remaining")
 
 				if err := r.Delete(ctx, &stageVersion); err != nil {
-					log.Error(err, "Unable to delete old stageVersion for stage", "stageVersion", stageVersion)
-					return ctrl.Result{}, err
+					return ctrl.Result{}, e.Wrap(err, "Unable to delete old stageVersion for stage")
 				}
 			} else {
 				// remove stage owner ref for this stage
 				if err = controllerutil.RemoveOwnerReference(stage, &stageVersion, r.Scheme); err != nil {
-					log.Error(err, "Unable to remove stage owner reference of stageVersion", "stageVersion", stageVersion)
-					return ctrl.Result{}, err
+					return ctrl.Result{}, e.Wrap(err, "Unable to remove stage owner reference of stageVersion")
 				}
 
 				if err = r.Update(ctx, &stageVersion); err != nil {
-					log.Error(err, "Failed to update stageVersion", "stageVersion", stageVersion)
-					return ctrl.Result{}, err
+					return ctrl.Result{}, e.Wrap(err, "Failed to update stageVersion")
 				}
 			}
 		}
@@ -156,7 +150,7 @@ func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// and if so, return it
 		return []string{owner.Name}
 	}); err != nil {
-		return err
+		return e.Wrap(err, "Unable to setup stage reconciler with manager")
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -180,7 +174,7 @@ func constructStageVersionForStage(r *StageReconciler, stage *common.Stage) (*la
 	}
 
 	if err := ctrl.SetControllerReference(stage, stageVersion, r.Scheme); err != nil {
-		return nil, err
+		return nil, e.Wrap(err, "Unable to set controller reference for stage version")
 	}
 
 	return stageVersion, nil
