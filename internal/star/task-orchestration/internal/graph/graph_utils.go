@@ -2,9 +2,8 @@
 package graph
 
 import (
-	"fmt"
-
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	e "github.com/pkg/errors"
 )
 
 func createAdjacencyList(tasks []landscape.TaskManifest) map[string][]landscape.TaskManifest {
@@ -46,7 +45,7 @@ func SortTasks(tasks []landscape.TaskManifest) ([]landscape.TaskManifest, [][]la
 	}
 
 	if len(queue) < 1 {
-		err := fmt.Errorf("task dependency graph contains no root nodes")
+		err := e.Errorf("task dependency graph contains no root nodes")
 		return nil, nil, err
 	}
 
@@ -74,7 +73,7 @@ func SortTasks(tasks []landscape.TaskManifest) ([]landscape.TaskManifest, [][]la
 	}
 
 	if len(result) != len(tasks) {
-		err := fmt.Errorf("task dependency graph contains a cycle")
+		err := e.Errorf("task dependency graph contains a cycle")
 		return nil, nil, err
 	}
 
