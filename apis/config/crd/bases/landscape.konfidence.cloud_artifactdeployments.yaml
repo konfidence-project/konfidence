@@ -50,10 +50,33 @@ spec:
           spec:
             description: ArtifactDeploymentSpec defines the desired state of ArtifactDeployment.
             properties:
-              artifactOcm:
-                type: string
-              artifactOcmRef:
-                type: string
+              component:
+                properties:
+                  name:
+                    type: string
+                  resources:
+                    items:
+                      properties:
+                        image:
+                          type: string
+                        name:
+                          type: string
+                        type:
+                          type: string
+                        version:
+                          type: string
+                      required:
+                      - image
+                      - name
+                      - type
+                      - version
+                      type: object
+                    type: array
+                  version:
+                    type: string
+                required:
+                - name
+                type: object
               manifest:
                 properties:
                   allowReuse:
@@ -85,8 +108,6 @@ spec:
                   type: object
                 type: array
             required:
-            - artifactOcm
-            - artifactOcmRef
             - manifest
             - taskManifests
             type: object
