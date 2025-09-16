@@ -34,10 +34,23 @@ const (
 
 // ArtifactDeploymentSpec defines the desired state of ArtifactDeployment.
 type ArtifactDeploymentSpec struct {
-	Manifest       ArtifactManifest `json:"manifest"`
-	TaskManifests  []TaskManifest   `json:"taskManifests"`
-	ArtifactOcmRef string           `json:"artifactOcmRef"`
-	ArtifactOcm    string           `json:"artifactOcm"`
+	Manifest      ArtifactManifest `json:"manifest"`
+	TaskManifests []TaskManifest   `json:"taskManifests"`
+	Component     OCMComponent     `json:"component,omitempty"`
+}
+
+type OCMComponent struct {
+	Name    string `json:"name"`
+	Version string `json:"version,omitempty"`
+
+	Resources []OCMResource `json:"resources,omitempty"`
+}
+
+type OCMResource struct {
+	Name    string `json:"name"`
+	Image   string `json:"image"`
+	Version string `json:"version"`
+	Type    string `json:"type"`
 }
 
 // ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.
