@@ -2,8 +2,9 @@
 package graph
 
 import (
+	"errors"
+
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	e "github.com/pkg/errors"
 )
 
 func createAdjacencyList(tasks []landscape.TaskManifest) map[string][]landscape.TaskManifest {
@@ -45,8 +46,7 @@ func SortTasks(tasks []landscape.TaskManifest) ([]landscape.TaskManifest, [][]la
 	}
 
 	if len(queue) < 1 {
-		err := e.Errorf("task dependency graph contains no root nodes")
-		return nil, nil, err
+		return nil, nil, errors.New("task dependency graph contains no root nodes")
 	}
 
 	layerMap := map[int][]landscape.TaskManifest{0: queue}
@@ -73,8 +73,7 @@ func SortTasks(tasks []landscape.TaskManifest) ([]landscape.TaskManifest, [][]la
 	}
 
 	if len(result) != len(tasks) {
-		err := e.Errorf("task dependency graph contains a cycle")
-		return nil, nil, err
+		return nil, nil, errors.New("task dependency graph contains a cycle")
 	}
 
 	// copy layers in ordered list
