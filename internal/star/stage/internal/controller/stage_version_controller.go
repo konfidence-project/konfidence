@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	e "github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,12 +95,12 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// set stageVersion as owner
 	if err := controllerutil.SetOwnerReference(stageVersion, vectorDeployment, r.Scheme); err != nil {
-		return ctrl.Result{}, e.Wrap(err, "Failed to add stageVersion ownerRef to vectorDeployment")
+		return ctrl.Result{}, fmt.Errorf("failed to add stageVersion ownerRef to vectorDeployment: %w", err)
 	}
 
 	log.V(1).Info("Update owner references")
 	if err := r.Update(ctx, vectorDeployment); err != nil {
-		return ctrl.Result{}, e.Wrap(err, "Failed to update vectorDeployment owner references")
+		return ctrl.Result{}, fmt.Errorf("failed to update vectorDeployment owner references: %w", err)
 	}
 
 	// get latest vectorDeployment
@@ -182,7 +181,7 @@ func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context
 	}, vectorDeployment)
 
 	if err != nil && !errors.IsNotFound(err) {
-		return nil, e.Wrap(err, "Unable to fetch vectorDeployment")
+		return nil, fmt.Errorf("unable to fetch vectorDeployment: %w", err)
 	}
 
 	if err != nil && errors.IsNotFound(err) {
@@ -191,11 +190,11 @@ func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context
 		// create new vectorDeployment
 		vectorDeployment, err = constructVectorDeployment(r, stageVersion)
 		if err != nil {
-			return nil, e.Wrap(err, "Unable to construct vectorDeployment from template")
+			return nil, fmt.Errorf("unable to construct vectorDeployment from template: %w", err)
 		}
 
 		if err := r.Create(ctx, vectorDeployment); err != nil {
-			return nil, e.Wrap(err, "Unable to create vectorDeployment")
+			return nil, fmt.Errorf("unable to create vectorDeployment: %w", err)
 		}
 
 		log.V(1).Info("Created vectorDeployment", "vectorDeployment", vectorDeployment)
@@ -213,7 +212,7 @@ func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context,
 	}, vectorMigration)
 
 	if err != nil && !errors.IsNotFound(err) {
-		return nil, e.Wrap(err, "Unable to fetch vectorMigration")
+		return nil, fmt.Errorf("unable to fetch vectorMigration: %w", err)
 	}
 
 	if err != nil && errors.IsNotFound(err) {
@@ -222,11 +221,11 @@ func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context,
 		// create new vectorMigration
 		vectorMigration, err = constructVectorMigration(r, stageVersion)
 		if err != nil {
-			return nil, e.Wrap(err, "Unable to construct vectorMigration from template")
+			return nil, fmt.Errorf("unable to construct vectorMigration from template: %w", err)
 		}
 
 		if err := r.Create(ctx, vectorMigration); err != nil {
-			return nil, e.Wrap(err, "Unable to create vectorMigration")
+			return nil, fmt.Errorf("unable to create vectorMigration: %w", err)
 		}
 
 		log.V(1).Info("Created vectorMigration", "vectorMigration", vectorMigration)
@@ -244,7 +243,7 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context
 	}, vectorActivation)
 
 	if err != nil && !errors.IsNotFound(err) {
-		return nil, e.Wrap(err, "Unable to fetch vectorActivation")
+		return nil, fmt.Errorf("unable to fetch vectorActivation: %w", err)
 	}
 
 	if err != nil && errors.IsNotFound(err) {
@@ -253,11 +252,11 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context
 		// create new vectorActivation
 		vectorActivation, err = constructVectorActivation(r, stageVersion)
 		if err != nil {
-			return nil, e.Wrap(err, "Unable to construct vectorActivation from template")
+			return nil, fmt.Errorf("unable to construct vectorActivation from template: %w", err)
 		}
 
 		if err := r.Create(ctx, vectorActivation); err != nil {
-			return nil, e.Wrap(err, "Unable to create vectorActivation")
+			return nil, fmt.Errorf("unable to create vectorActivation: %w", err)
 		}
 
 		log.V(1).Info("Created vectorActivation", "vectorActivation", vectorActivation)
@@ -275,7 +274,7 @@ func (r *StageVersionReconciler) setStageVersionStatusTrue(ctx context.Context, 
 	if !meta.IsStatusConditionTrue(stageVersion.Status.Conditions, status) {
 		meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: status, Status: metav1.ConditionTrue, Reason: status, Message: message})
 		if err := r.Status().Update(ctx, stageVersion); err != nil {
-			return e.Wrap(err, "Failed to update stageVersion status")
+			return fmt.Errorf("failed to update stageVersion status: %w", err)
 		}
 	}
 
@@ -300,7 +299,7 @@ func constructVectorDeployment(r *StageVersionReconciler, stageVersion *landscap
 
 	// set stageVersion as owner
 	if err := controllerutil.SetOwnerReference(stageVersion, vectorDeployment, r.Scheme); err != nil {
-		return nil, e.Wrap(err, "Unable to set owner reference for vector deployment")
+		return nil, fmt.Errorf("unable to set owner reference for vector deployment: %w", err)
 	}
 	return vectorDeployment, nil
 }
@@ -319,7 +318,7 @@ func constructVectorMigration(r *StageVersionReconciler, stageVersion *landscape
 
 	// set stageVersion as controller
 	if err := controllerutil.SetControllerReference(stageVersion, vectorMigration, r.Scheme); err != nil {
-		return nil, e.Wrap(err, "Unable to set controller reference for vector migration")
+		return nil, fmt.Errorf("unable to set controller reference for vector migration: %w", err)
 	}
 	return vectorMigration, nil
 }
@@ -335,7 +334,7 @@ func constructVectorActivation(r *StageVersionReconciler, stageVersion *landscap
 
 	// set stageVersion as controller
 	if err := controllerutil.SetControllerReference(stageVersion, vectorActivation, r.Scheme); err != nil {
-		return nil, e.Wrap(err, "Unable to set controller reference for vector activation")
+		return nil, fmt.Errorf("unable to set controller reference for vector activation: %w", err)
 	}
 	return vectorActivation, nil
 }
@@ -346,14 +345,14 @@ func adaptVectorName(vector string) (string, error) {
 
 	// TODO validate defined vector format
 	if len(trimmedVector) < 4 {
-		return "", e.Errorf("unable to parse vector: %s", vector)
+		return "", fmt.Errorf("unable to parse vector: %s", vector)
 	}
 
 	// get index of separator
 	separatorIdx := strings.LastIndex(trimmedVector, "//")
 
 	if separatorIdx == -1 || separatorIdx == len(vector)-2 {
-		return "", e.Errorf("unable to parse vector: %s", vector)
+		return "", fmt.Errorf("unable to parse vector: %s", vector)
 	}
 
 	componentVersion := trimmedVector[separatorIdx+2:]
