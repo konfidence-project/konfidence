@@ -9,11 +9,11 @@ on:
 jobs:
   lint:
     name: Lint
-    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@fix/ci-code-review-issues
+    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v1
     secrets: inherit
   test:
     name: Test
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@fix/ci-code-review-issues
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@v1
     secrets: inherit
     with:
       with-kind-cluster: true
@@ -23,7 +23,7 @@ jobs:
     name: Build Container Image
     # Only run on main branch or pull requests
     if:  github.event_name == 'pull_request'
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@fix/ci-code-review-issues
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@v1
     secrets: inherit
     with: 
       push: false
