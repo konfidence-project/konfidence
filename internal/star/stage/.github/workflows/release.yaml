@@ -4,25 +4,21 @@ on:
   push: 
     branches: [main]    
 
-# Prevent duplicate runs: cancel in-progress runs when new commits are pushed
-concurrency:
-  group: ${{ github.head_ref }}-${{ github.ref_name }}
-  cancel-in-progress: true
+
 
 jobs:
   lint:
     name: Lint
-    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@main
-    secrets: 
-      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@fix/ci-code-review-issues
+    secrets: inherit
   test:
-    name: Test
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-kind-integration-test.yaml@main
-    secrets: 
-      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
-    with:
-      install-crds: true
-      crds-version: 6f560b268fa798ee96457551578fe84e90ae2acf
+      name: Test
+      uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@fix/ci-code-review-issues
+      secrets: inherit
+      with:
+        with-kind-cluster: true
+        install-crds: true
+        crds-version: 6f560b268fa798ee96457551578fe84e90ae2acf
 
   build-and-release:
     needs:
@@ -30,10 +26,8 @@ jobs:
       - test
     name: Build and Release Container Image
     # Only run on main branch or pull requests
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@main
-
-    secrets: 
-      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@fix/ci-code-review-issues
+    secrets: inherit
     permissions:
       contents: write
       issues: write

@@ -1,36 +1,33 @@
 name: Kubebuilder CI
 on: 
   push:
-    branches:
-      - "*"
-      - "!main"
-  workflow_dispatch:
+    branches-ignore:
+      - main
   pull_request:
     branches:
       - main
 jobs:
-
   lint:
     name: Lint
-    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@main
-    secrets: 
-      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@fix/ci-code-review-issues
+    secrets: inherit
   test:
     name: Test
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-kind-integration-test.yaml@main
-    secrets: 
-      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@fix/ci-code-review-issues
+    secrets: inherit
     with:
+      with-kind-cluster: true
       install-crds: true
       crds-version: 6f560b268fa798ee96457551578fe84e90ae2acf
   build-and-release:
-    name: Build and Release Container Image
+    name: Build Container Image
     # Only run on main branch or pull requests
     if:  github.event_name == 'pull_request'
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build.yaml@main
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@fix/ci-code-review-issues
+    secrets: inherit
+    with: 
+      push: false
 
-    secrets: 
-      konfidence-project-repo-access-private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
     permissions:
       contents: write
       issues: write
