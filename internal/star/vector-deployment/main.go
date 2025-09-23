@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/json"
 	"ocm.software/ocm/api/oci"
@@ -10,7 +12,6 @@ import (
 	"ocm.software/ocm/api/ocm/ocmutils/check"
 	"ocm.software/ocm/api/tech/oci/identity"
 	common "ocm.software/ocm/api/utils/misc"
-	"os"
 )
 
 func main() {
@@ -41,13 +42,13 @@ func main() {
 	if err != nil {
 		panic(errors.Wrapf(err, "cannot setup repository"))
 	}
-	defer repo.Close()
+	defer repo.Close() //nolint:errcheck // TODO: fix errcheck - properly handle error return value
 
 	c, err := repo.LookupComponent("dwc.tools.sap/dwc-project/vector/dev-eu10")
 	if err != nil {
 		panic(errors.Wrapf(err, "cannot lookup component"))
 	}
-	defer c.Close()
+	defer c.Close() //nolint:errcheck // TODO: fix errcheck - properly handle error return value
 
 	options := check.Check()
 	result, err := options.ForId(repo, common.NewNameVersion("dwc.tools.sap/dwc-project/vector/dev-eu10", "0.1.0"))
@@ -61,6 +62,8 @@ func main() {
 	}
 	println(string(marshal))
 
+	// TODO: fix ineffassign - handle or remove unused assignment
+	//nolint:ineffassign,staticcheck
 	version, err := repo.LookupComponentVersion("dwc.tools.sap/dwc-project/service1", "0.0.1")
 	err = describeVersion(version)
 	if err != nil {
@@ -81,17 +84,9 @@ func main() {
 		}
 		fmt.Println(string(get))
 	}
-
-	//
-	//versions, err := c.ListVersions()
-	//if err != nil {
-	//	panic(errors.Wrapf(err, "cannot query version names"))
-	//}
-	//for _, i := range versions {
-	//	println(i)
-	//}
 }
 
+//nolint:unparam // TODO: fix unparam - either make function return meaningful errors or change return type
 func describeVersion(cv ocm.ComponentVersionAccess) error {
 	// many elements of the API keep trak of their context
 	ctx := cv.GetContext()

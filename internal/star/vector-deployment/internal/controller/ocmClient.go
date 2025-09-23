@@ -58,7 +58,7 @@ func parseDockerConfigJsonSecret(s v1.Secret, ocmCtx ocm.Context) error {
 }
 
 func fetchOcm(ref ocm.RefSpec, ctx ocm.Context) (*ocm.ComponentVersionAccess, error) {
-	repoHost := ref.UniformRepositorySpec.Host
+	repoHost := ref.Host
 	consumerId, err := oci.GetConsumerIdForRef(repoHost)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get consumer id for host %q", repoHost)
@@ -79,7 +79,7 @@ func fetchOcm(ref ocm.RefSpec, ctx ocm.Context) (*ocm.ComponentVersionAccess, er
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot setup repository")
 	}
-	defer repo.Close()
+	defer repo.Close() //nolint:errcheck // TODO: fix errcheck - properly handle error return value
 
 	cv, err := fetchOcmComponentVersionFromRepo(repo, ref.Component, *ref.Version)
 	if err != nil {

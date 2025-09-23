@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push: 
+    branches: [main]    
+
+jobs:
+  lint:
+    name: Lint
+    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v1
+    secrets: inherit
+  test:
+      name: Test
+      uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@v1
+      secrets: inherit
+      with:
+        with-kind-cluster: false
+        install-crds: false
+
+  build-and-release:
+    needs:
+      - lint
+      - test
+    name: Build and Release Container Image
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@v1
+    secrets: inherit
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      packages: write
+      attestations: write
+      id-token: write

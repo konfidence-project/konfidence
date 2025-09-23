@@ -85,7 +85,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, errors.Wrapf(err, "failed to parse vector reference %q", vd.Spec.Vector)
 	}
 
-	//TODO better handling for oci context and credentials
+	// TODO better handling for oci context and credentials
 	ocmCtx, err := initOcmContext(r.Client, ctx)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -111,7 +111,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 	vd.Status.ResultingArtifactDeployments = make(map[string]corev1.TypedObjectReference)
 	allReady := true
 
-	//TODO parallelize and handle partial failures
+	// TODO parallelize and handle partial failures
 	for _, artifactRef := range descriptor.References {
 		version := artifactRef.GetVersion()
 		// create a new ocm reference for the artifact component version with the same repository as the vector
