@@ -16,9 +16,9 @@ jobs:
     uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@v1
     secrets: inherit
     with:
-      with-kind-cluster: true
-      install-crds: true
-      crds-version: 6f560b268fa798ee96457551578fe84e90ae2acf
+      with-kind-cluster: false
+      install-crds: false
+      before-tests: make generate-test-crds
   build-and-release:
     name: Build Container Image
     # Only run on main branch or pull requests

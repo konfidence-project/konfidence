@@ -148,6 +148,87 @@ func CleanupStageVersionUsage(k8sClient client.Client, stageVersionUsageName str
 	}
 }
 
+func GetVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.VectorDeployment {
+	vectorDeployment := &landscape.VectorDeployment{}
+	vectorDeploymentLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
+	err := k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)
+
+	if opt && err != nil && errors.IsNotFound(err) {
+		return nil
+	}
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch vectorDeployment: %s", name)
+	return vectorDeployment
+}
+
+func DeleteVectorDeployment(ctx context.Context, k8sClient client.Client, vectorDeployment *landscape.VectorDeployment) {
+	err := k8sClient.Delete(ctx, vectorDeployment)
+	Expect(err).ToNot(HaveOccurred(), "Failed to delete vectorDeployment: %s", vectorDeployment.Name)
+}
+
+func CleanupVectorDeployment(k8sClient client.Client, vectorDeploymentName string, namespace string) {
+	ctx := context.Background()
+	vectorDeployment := GetVectorDeployment(ctx, k8sClient, vectorDeploymentName, namespace, true)
+
+	if vectorDeployment != nil {
+		DeleteVectorDeployment(ctx, k8sClient, vectorDeployment)
+	}
+}
+
+func GetVectorMigration(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.VectorMigration {
+	vectorMigration := &landscape.VectorMigration{}
+	vectorMigrationLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
+	err := k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)
+
+	if opt && err != nil && errors.IsNotFound(err) {
+		return nil
+	}
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch vectorMigration: %s", name)
+	return vectorMigration
+}
+
+func DeleteVectorMigration(ctx context.Context, k8sClient client.Client, vectorMigration *landscape.VectorMigration) {
+	err := k8sClient.Delete(ctx, vectorMigration)
+	Expect(err).ToNot(HaveOccurred(), "Failed to delete vectorMigration: %s", vectorMigration.Name)
+}
+
+func CleanupVectorMigration(k8sClient client.Client, vectorMigrationName string, namespace string) {
+	ctx := context.Background()
+	vectorMigration := GetVectorMigration(ctx, k8sClient, vectorMigrationName, namespace, true)
+
+	if vectorMigration != nil {
+		DeleteVectorMigration(ctx, k8sClient, vectorMigration)
+	}
+}
+
+func GetVectorActivation(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.VectorActivation {
+	vectorActivation := &landscape.VectorActivation{}
+	vectorActivationLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
+	err := k8sClient.Get(ctx, vectorActivationLookupKey, vectorActivation)
+
+	if opt && err != nil && errors.IsNotFound(err) {
+		return nil
+	}
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch vectorActivation: %s", name)
+	return vectorActivation
+}
+
+func DeleteVectorActivation(ctx context.Context, k8sClient client.Client, vectorActivation *landscape.VectorActivation) {
+	err := k8sClient.Delete(ctx, vectorActivation)
+	Expect(err).ToNot(HaveOccurred(), "Failed to delete vectorActivation: %s", vectorActivation.Name)
+}
+
+func CleanupVectorActivation(k8sClient client.Client, vectorActivationName string, namespace string) {
+	ctx := context.Background()
+	vectorActivation := GetVectorActivation(ctx, k8sClient, vectorActivationName, namespace, true)
+
+	if vectorActivation != nil {
+		DeleteVectorActivation(ctx, k8sClient, vectorActivation)
+	}
+}
+
 func HasOwnerReference(ownerReferences []metav1.OwnerReference, ref metav1.OwnerReference) bool {
 	for _, ownerReference := range ownerReferences {
 		if ownerReference.Kind == ref.Kind && ownerReference.Name == ref.Name {
