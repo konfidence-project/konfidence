@@ -49,6 +49,11 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+.PHONY: generate-test-crds
+generate-test-crds:
+	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/landscape/..." output:crd:artifacts:config=test/data/crds/landscape
+	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/common/..." output:crd:artifacts:config=test/data/crds/common
+
 .PHONY: fmt
 fmt: ## Run go fmt against code.
 	go fmt ./...
