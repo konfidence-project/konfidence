@@ -68,7 +68,8 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		UseExistingCluster: &[]bool{true}[0],
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "landscape"), filepath.Join("..", "..", "test", "data", "crds", "common")},
+		ErrorIfCRDPathMissing: true,
 	}
 
 	// Retrieve the first found binary directory to allow running tests from IDEs

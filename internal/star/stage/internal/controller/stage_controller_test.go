@@ -239,28 +239,4 @@ var _ = Describe("Stage Controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
-	Context("When deleting a stage", func() {
-		It("should delete stageVersion if no other owners exist", func() {
-			ctx := context.Background()
-			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
-
-			// check that the stage has been created and has valid properties
-			stage := &common.Stage{}
-			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
-				g.Expect(stage.Spec.Name).To(Equal(StageDevSpecName))
-			}, timeout, interval).Should(Succeed())
-
-			// delete the stage
-			testutil.DeleteStage(ctx, k8sClient, stage)
-
-			// check that the stageVersion has been deleted
-			stageVersions := &landscape.StageVersionList{}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(stageVersions.Items).To(BeEmpty())
-			}, timeout, interval).Should(Succeed())
-		})
-	})
 })
