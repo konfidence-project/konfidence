@@ -30,3 +30,6 @@ go.work.sum
 
 # Build files of utils for local testing
 ocm-samples/ocm-transfer
+
+# generated files like CRDs for testing
+test/data/generated/
