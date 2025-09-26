@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller"
+	"github.com/konfidence-project/landscape-vector-deployment-controller/pkg/ocm"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -202,10 +203,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	ocmContextProvider := ocm.NewOCMContextProvider(mgr.GetClient())
+	ocmAdapter := ocm.NewOcmAdapter(ocmContextProvider)
 	if err := (&controller.VectorDeploymentReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		OcmAdapter: ocmAdapter,
+	}).SetupWithManager(mgr, "vectordeployment"); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorDeployment")
 		os.Exit(1)
 	}
