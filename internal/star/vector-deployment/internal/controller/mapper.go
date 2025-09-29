@@ -1,8 +1,9 @@
 package controller
 
 import (
+	"fmt"
+
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/json"
 	"ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/compdesc"
@@ -17,7 +18,7 @@ func mapVectorDeploymentToDomain(vectorDeployment landscape.VectorDeployment) (*
 	}
 
 	if !ocmRef.IsVersion() {
-		return nil, errors.Errorf("vector reference %q is not a version", vectorDeployment.Spec.Vector)
+		return nil, fmt.Errorf("vector reference %q is not a version", vectorDeployment.Spec.Vector)
 	}
 
 	var artifacts []domain.ArtifactReference
@@ -29,7 +30,7 @@ func mapVectorDeploymentToDomain(vectorDeployment landscape.VectorDeployment) (*
 			// todo: other solutions for returning the error, e.g.
 			// - 1. instead of an error, we could return a domain error and fetch the component spec from OCM again
 			// - 2. adapter could log a warning and set a "" for ComponentSpec, the Reconciler will fetch it from OCM again
-			return nil, errors.Wrapf(err, "failed to unmarshal component spec")
+			return nil, fmt.Errorf("failed to unmarshal component spec %w", err)
 		}
 
 		artifacts = make([]domain.ArtifactReference, len(cs.References))
@@ -57,7 +58,7 @@ func mapVectorDeploymentToDomain(vectorDeployment landscape.VectorDeployment) (*
 func parseComponentVersionUrl(ref string) (*ocm.RefSpec, error) {
 	ocmRef, err := ocm.ParseRef(ref)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid vector reference %q", ref)
+		return nil, fmt.Errorf("invalid vector reference %q: %w", ref, err)
 	}
 	return &ocmRef, nil
 }

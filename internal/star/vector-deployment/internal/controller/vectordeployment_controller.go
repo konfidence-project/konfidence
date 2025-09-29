@@ -34,7 +34,6 @@ import (
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 
-	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller/domain"
@@ -77,7 +76,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	vector, err := mapVectorDeploymentToDomain(*vd)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to map vector deployment %s to domain", vd.Name)
+		return ctrl.Result{}, fmt.Errorf("failed to map vector deployment %s to domain: %w", vd.Name, err)
 	}
 
 	// if vector.ComponentSpec is empty then fetch Vector from OCI Repository
@@ -85,7 +84,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		// 1. Fetch vector from OCI repository
 		fetchedVector, err := r.OcmAdapter.GetVectorByReference(ctx, vector.Reference)
 		if err != nil {
-			return ctrl.Result{}, errors.Wrapf(err, "failed to fetch vector OCM for vector deployment %s", vd.Name)
+			return ctrl.Result{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vd.Name, err)
 		}
 		// 2. update vector.ComponentSpec and vector.Artifacts
 		vector.ComponentSpec = fetchedVector.ComponentSpec
@@ -105,15 +104,15 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		)
 
 		// 4. update status in k8s
+		// todo: use patch instead of update to avoid conflicts and multiple retries
 		if err := r.Status().Update(ctx, vd); err != nil {
-			log.Error(err, "Failed to update vector deployment status")
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to update VectorDeployment status of %s: %w", vd.Name, err)
 		}
 	}
 
 	err = r.handleArtifactDeployments(ctx, *vector, vd, log)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to handle artifact deployments for vector deployment %s", vd.Name)
+		return ctrl.Result{}, fmt.Errorf("failed to handle artifact deployments for vector deployment %s : %w", vd.Name, err)
 	}
 
 	return ctrl.Result{}, nil
@@ -129,7 +128,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 		// fetch the artifact component version from OCI
 		artifactManifest, err := r.OcmAdapter.GetArtifactManifestByReference(ctx, vector.Reference.OciRegistryUrl, artifact)
 		if err != nil {
-			return errors.Wrapf(err, "failed to fetch artifact component version %q from repository %q", artifact.ComponentName, vector.Reference.OciRegistryUrl)
+			return fmt.Errorf("failed to fetch artifact component version %q from repository %q: %w", artifact.ComponentName, vector.Reference.OciRegistryUrl, err)
 		}
 
 		var deploymentName string
@@ -146,7 +145,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 		if err != nil {
 			// if error is not NotFound then return error
 			if !apierrors.IsNotFound(err) {
-				return errors.Wrapf(err, "failed to get artifact deployment %q", deploymentName)
+				return fmt.Errorf("failed to get artifact deployment %q: %w", deploymentName, err)
 			}
 			log.Info("ArtifactDeployment not found, create new one", "name", deploymentName)
 
@@ -167,8 +166,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 			}
 
 			if err := r.Create(ctx, &artifactDeployment); err != nil {
-				log.Error(err, "Failed to create ArtifactDeployment", "name", deploymentName)
-				return err
+				return fmt.Errorf("failed to ArtifactDeployment resource %s: %w", deploymentName, err)
 			}
 			log.Info("Created ArtifactDeployment", "name", deploymentName)
 
@@ -221,8 +219,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 	// update status in k8s
 	// todo: use patch instead of update to avoid conflicts and multiple retries
 	if err := r.Status().Update(ctx, vd); err != nil {
-		log.Error(err, "Failed to update vector deployment status")
-		return err
+		return fmt.Errorf("failed to update VectorDeployment status of %s: %w", vd.Name, err)
 	}
 
 	return nil
