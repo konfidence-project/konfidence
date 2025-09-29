@@ -154,9 +154,10 @@ func CreateArtifactDeployment(ctx context.Context, k8sClient client.Client, name
 				Type:       "image",
 				AllowReuse: true,
 			},
-			TaskManifests:  taskManifest,
-			ArtifactOcmRef: "ocmRef",
-			ArtifactOcm:    "ocm",
+			TaskManifests: taskManifest,
+			Component: landscape.OCMComponent{
+				Name: "service",
+			},
 		},
 	}
 

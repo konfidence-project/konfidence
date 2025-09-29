@@ -50,7 +50,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: generate-test-crds
-generate-test-crds:
+generate-test-crds: controller-gen
 	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/landscape/..." output:crd:artifacts:config=test/data/crds/landscape
 	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/common/..." output:crd:artifacts:config=test/data/crds/common
 
