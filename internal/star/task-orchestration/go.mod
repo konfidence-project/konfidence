@@ -3,8 +3,8 @@ module github.com/konfidence-project/landscape-task-orchestration-controller
 go 1.24.5
 
 require (
-	github.com/konfidence-project/crds/api/common v0.0.2-0.20250828121324-66b1aca0bb5b
-	github.com/konfidence-project/crds/api/landscape v0.0.2-0.20250903084109-2401d570573c
+	github.com/konfidence-project/crds/api/common v0.0.2-0.20250918180601-e029cc38e492
+	github.com/konfidence-project/crds/api/landscape v0.0.2-0.20250918180601-e029cc38e492
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
