@@ -3,9 +3,9 @@ package ocm
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	utilErrors "github.com/mandelsoft/goutils/errors"
-	"github.com/pkg/errors"
 	"ocm.software/ocm/api/oci"
 	"ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/extensions/repositories/ocireg"
@@ -36,13 +36,13 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 
 	ocmCtx, err := a.provider.GetOCMContext(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get OCM context")
+		return nil, fmt.Errorf("failed to get OCM context, %w", err)
 	}
 
 	// fetch component version access from OCM
 	componentVersionAccess, err := fetchComponentVersionAccess(ocmCtx, *ocmRef)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to fetch artifact OCM for reference %q", ocmRef)
+		return nil, fmt.Errorf("failed to fetch artifact OCM for reference %q: %w", ocmRef, err)
 	}
 
 	artifactSpec := componentVersionAccess.GetDescriptor().ComponentSpec
@@ -58,11 +58,11 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 		if resource.Meta().Type == "cloud.konfidence.artifact.manifest" {
 			accessMethod, err := resource.AccessMethod()
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to access method for resource %s in component %s", resource.Meta().Name, ocmRef)
+				return nil, fmt.Errorf("failed to access method for resource %s in component %s: %w", resource.Meta().Name, ocmRef, err)
 			}
 			data, err := accessMethod.Get()
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get manifest data for resource %s in component %s", resource.Meta().Name, ocmRef)
+				return nil, fmt.Errorf("failed to get manifest data for resource %s in component %s: %w", resource.Meta().Name, ocmRef, err)
 			}
 
 			// map raw JSON data to ArtifactManifest struct
@@ -72,7 +72,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 			}
 			err = json.Unmarshal(data, &artifactManifestDto)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to unmarshal manifest data for resource %s in component %s", resource.Meta().Name, ocmRef)
+				return nil, fmt.Errorf("failed to unmarshal manifest data for resource %s in component %s: %w", resource.Meta().Name, ocmRef, err)
 			}
 
 			artifactManifest = &domain.ArtifactManifest{
@@ -95,7 +95,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 			}
 			err = json.Unmarshal(data, &taskManifestDto)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to unmarshal task manifest data for resource %s in component %s", resource.Meta().Name, ocmRef)
+				return nil, fmt.Errorf("failed to unmarshal task manifest data for resource %s in component %s: %w", resource.Meta().Name, ocmRef, err)
 			}
 
 			// map to domain.TaskManifest
@@ -109,7 +109,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 	}
 
 	if artifactManifest == nil {
-		return nil, errors.Errorf("no artifact manifest found in component %s", ocmRef)
+		return nil, fmt.Errorf("no artifact manifest found in component %s", ocmRef)
 	}
 
 	artifactManifest.Tasks = taskManifests
@@ -126,24 +126,24 @@ func (a Adapter) GetVectorByReference(ctx context.Context, vectorReference domai
 
 	ocmCtx, err := a.provider.GetOCMContext(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get OCM context")
+		return nil, fmt.Errorf("failed to get OCM context %w", err)
 	}
 
 	// 2. fetch component version access from OCM
 	componentVersionAccess, err := fetchComponentVersionAccess(ocmCtx, *ocmRef)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to fetch vector OCM for reference %q", vectorReference)
+		return nil, fmt.Errorf("failed to fetch vector OCM for reference %q: %w", vectorReference, err)
 	}
 
 	descriptor := componentVersionAccess.GetDescriptor()
 	if descriptor == nil {
-		return nil, errors.Errorf("no component descriptor for component %q version %q", ocmRef.Component, *ocmRef.Version)
+		return nil, fmt.Errorf("no component descriptor for component %q version %q", ocmRef.Component, *ocmRef.Version)
 	}
 
 	// 4. marshal component spec to JSON string
 	componentSpec, err := json.Marshal(descriptor.ComponentSpec)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal component spec for component %q version %q", ocmRef.Component, *ocmRef.Version)
+		return nil, fmt.Errorf("failed to marshal component spec for component %q version %q: %w", ocmRef.Component, *ocmRef.Version, err)
 	}
 
 	// 5. map to domain.Vector
@@ -166,7 +166,7 @@ func (a Adapter) GetVectorByReference(ctx context.Context, vectorReference domai
 func parseComponentVersionUrl(ref string) (*ocm.RefSpec, error) {
 	ocmRef, err := ocm.ParseRef(ref)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid reference %q", ref)
+		return nil, fmt.Errorf("invalid reference %q: %w", ref, err)
 	}
 	return &ocmRef, nil
 }
@@ -177,18 +177,18 @@ func connectToOciRepository(ctx ocm.Context, ref ocm.RefSpec) (ocm.Repository, e
 
 	consumerId, err := oci.GetConsumerIdForRef(ref.Host)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get consumer ID for OCI host %q", ref.Host)
+		return nil, fmt.Errorf("failed to get consumer ID for OCI host %q: %w", ref.Host, err)
 	}
 	credentials, err := ctx.CredentialsContext().GetCredentialsForConsumer(consumerId)
 	if err != nil && !utilErrors.IsErrUnknownKind(err, "consumer") {
-		return nil, errors.Wrapf(err, "failed to get credentials for consumer %q", consumerId.String())
+		return nil, fmt.Errorf("failed to get credentials for consumer %q: %w", consumerId.String(), err)
 	}
 
 	spec := ocireg.NewRepositorySpec(ref.UniformRepositorySpec.String())
 
 	repo, err := ctx.RepositoryForSpec(spec, credentials)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot setup repository")
+		return nil, fmt.Errorf("cannot setup repository: %w", err)
 	}
 	return repo, nil
 }
@@ -204,7 +204,7 @@ func fetchComponentVersionAccess(ctx ocm.Context, ref ocm.RefSpec) (ocm.Componen
 	// 2. fetch component version access from repository
 	componentVersionAccess, err := repo.LookupComponentVersion(ref.Component, *ref.Version)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to fetch component version %q from repository %q", ref.Component, ref.UniformRepositorySpec.String())
+		return nil, fmt.Errorf("failed to fetch component version %q from repository %q: %w", ref.Component, ref.UniformRepositorySpec.String(), err)
 	}
 
 	return componentVersionAccess, nil

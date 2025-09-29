@@ -2,9 +2,9 @@ package ocm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/docker/cli/cli/config/configfile"
-	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/json"
 	"ocm.software/ocm/api/oci"
@@ -39,7 +39,7 @@ func (p *Provider) GetOCMContext(ctx context.Context) (ocm.Context, error) {
 
 	secretList := v1.SecretList{}
 	if err := p.kubeClient.List(ctx, &secretList, client.InNamespace(konfidenceNamespace)); err != nil {
-		return nil, errors.Wrapf(err, "failed to list secrets in namespace %q", konfidenceNamespace)
+		return nil, fmt.Errorf("failed to list secrets in namespace %q: %w", konfidenceNamespace, err)
 	}
 	for _, secret := range secretList.Items {
 		if secret.Type != v1.SecretTypeDockerConfigJson {
@@ -47,7 +47,7 @@ func (p *Provider) GetOCMContext(ctx context.Context) (ocm.Context, error) {
 		}
 		err := parseDockerConfigJsonSecret(secret, ocmCtx)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse secret %q", secret.Name)
+			return nil, fmt.Errorf("failed to parse secret %q: %w", secret.Name, err)
 		}
 	}
 
@@ -57,18 +57,18 @@ func (p *Provider) GetOCMContext(ctx context.Context) (ocm.Context, error) {
 func parseDockerConfigJsonSecret(s v1.Secret, ocmCtx ocm.Context) error {
 	dockerConfigJson, ok := s.Data[v1.DockerConfigJsonKey]
 	if !ok {
-		return errors.Errorf("secret %q does not contain key %q", s.Name, v1.DockerConfigJsonKey)
+		return fmt.Errorf("secret %q does not contain key %q", s.Name, v1.DockerConfigJsonKey)
 	}
 	var dockerConfig configfile.ConfigFile
 	if err := json.Unmarshal(dockerConfigJson, &dockerConfig); err != nil {
-		return errors.Wrapf(err, "failed to unmarshal docker config json from secret %q", s.Name)
+		return fmt.Errorf("failed to unmarshal docker config json from secret %q: %w", s.Name, err)
 	}
 	for registry, authConfig := range dockerConfig.AuthConfigs {
 		creds := identity.SimpleCredentials(authConfig.Username, authConfig.Password)
 
 		consumerId, err := oci.GetConsumerIdForRef(registry)
 		if err != nil {
-			panic(errors.Wrapf(err, "invalid consumer"))
+			return fmt.Errorf("invalid consumer %w", err)
 		}
 		ocmCtx.CredentialsContext().SetCredentialsForConsumer(consumerId, creds)
 	}
