@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: landscape-stage-controller
     app.kubernetes.io/managed-by: kustomize
-  name: leader-election-role
+  name: landscape-stage-controller-leader-election-role
 rules:
 - apiGroups:
   - ""
