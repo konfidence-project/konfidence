@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	util "github.com/konfidence-project/landscape-stage-controller/internal/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,7 +60,7 @@ type StageVersionReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
-	log.Info("Reconciling stageVersion")
+	log.Info("Reconcile stageVersion started...")
 
 	// get stageVersion
 	stageVersion := &landscape.StageVersion{}
@@ -67,95 +68,20 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// get a k8s conform vector name
-	adaptedVectorName, err := adaptVectorName(stageVersion.Spec.Vector)
-	if err != nil {
-		return ctrl.Result{}, err
+	patch := client.MergeFrom(stageVersion.DeepCopy())
+	err := r.reconcileStageVersion(ctx, stageVersion)
+	if patchError := r.Client.Status().Patch(ctx, stageVersion, patch); patchError != nil {
+		patchErrorMessage := "unable to update stageVersion status"
+
+		if err != nil {
+			reconcileError := fmt.Errorf("an error occurred while reconciling stageVersion: %w", err)
+			return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
+		}
+
+		return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
 	}
 
-	// check if a vectorDeployment exists matching the stage vector
-	vectorDeployment, err := r.getOrCreateVectorDeployment(ctx, stageVersion, adaptedVectorName)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// set vectorDeploymentCreated status
-	if err = r.setStageVersionStatusTrue(ctx, req, landscape.VectorDeploymentCreatedCondition, fmt.Sprintf("Successfully created VectorDeployment %s for stageVersion %s", vectorDeployment.Name, stageVersion.Name)); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	log.V(1).Info("Found existing vectorDeployment")
-
-	// get latest vectorDeployment
-	if err = r.Get(ctx, types.NamespacedName{Namespace: stageVersion.Namespace, Name: adaptedVectorName}, vectorDeployment); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	log.V(1).Info("Set stageVersion owner for vectorDeployment")
-
-	// set stageVersion as owner
-	if err := controllerutil.SetOwnerReference(stageVersion, vectorDeployment, r.Scheme); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to add stageVersion ownerRef to vectorDeployment: %w", err)
-	}
-
-	log.V(1).Info("Update owner references")
-	if err := r.Update(ctx, vectorDeployment); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to update vectorDeployment owner references: %w", err)
-	}
-
-	// get latest vectorDeployment
-	if err = r.Get(ctx, types.NamespacedName{Namespace: stageVersion.Namespace, Name: adaptedVectorName}, vectorDeployment); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// check if vectorDeployment is marked as deployed
-	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, landscape.VectorDeployedCondition) {
-		// wait for vectorDeployment status change notification
-		return ctrl.Result{}, nil
-	}
-
-	// check if a vectorMigration exists matching the stage vector
-	vectorMigration, err := r.getOrCreateVectorMigration(ctx, stageVersion)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// set vectorMigrationCreated status
-	if err = r.setStageVersionStatusTrue(ctx, req, landscape.VectorMigrationCreatedCondition, fmt.Sprintf("Successfully created vectorMigration %s for stageVersion %s", vectorMigration.Name, stageVersion.Name)); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	log.V(1).Info("Found existing vectorMigration")
-
-	// check if vectorMigration is marked as successful
-	if !meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded) {
-		// wait for vectorMigration status change notification
-		return ctrl.Result{}, nil
-	}
-
-	// set vectorMigrated status
-	if err = r.setStageVersionStatusTrue(ctx, req, landscape.VectorMigratedCondition, fmt.Sprintf("VectorMigration %s successful for stageVersion %s", vectorMigration.Name, stageVersion.Name)); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	// check if a vectorActivation exists matching the stage vector
-	vectorActivation, err := r.getOrCreateVectorActivation(ctx, stageVersion)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// set vectorActivationCreated status
-	if err = r.setStageVersionStatusTrue(ctx, req, landscape.VectorActivationCreatedCondition, fmt.Sprintf("Successfully created vectorActivation %s for stageVersion %s", vectorActivation.Name, stageVersion.Name)); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	// set stageVersionReady status
-	if err = r.setStageVersionStatusTrue(ctx, req, landscape.StageVersionReady, fmt.Sprintf("StageVersion %s reconciled successfully", stageVersion.Name)); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	log.Info("StageVersion reconciled")
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -172,6 +98,87 @@ func (r *StageVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stageVersion *landscape.StageVersion) error {
+	log := logf.FromContext(ctx)
+	log.Info("Reconciling stageVersion")
+
+	// get a k8s conform vector name
+	adaptedVectorName, err := adaptVectorName(stageVersion.Spec.Vector)
+	if err != nil {
+		return err
+	}
+
+	// check if a vectorDeployment exists matching the stage vector
+	vectorDeployment, err := r.getOrCreateVectorDeployment(ctx, stageVersion, adaptedVectorName)
+	if err != nil {
+		return err
+	}
+
+	// set vectorDeploymentCreated status
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorDeploymentCreatedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorDeploymentCreatedCondition, Message: fmt.Sprintf("Successfully created VectorDeployment %s for stageVersion %s", vectorDeployment.Name, stageVersion.Name)})
+
+	// get latest vectorDeployment
+	if err = r.Get(ctx, types.NamespacedName{Namespace: stageVersion.Namespace, Name: adaptedVectorName}, vectorDeployment); err != nil {
+		return err
+	}
+
+	log.V(1).Info("Set stageVersion owner for vectorDeployment")
+
+	// set stageVersion as owner
+	if err := controllerutil.SetOwnerReference(stageVersion, vectorDeployment, r.Scheme); err != nil {
+		return fmt.Errorf("failed to add stageVersion ownerRef to vectorDeployment: %w", err)
+	}
+
+	log.V(1).Info("Update owner references")
+	if err := r.Update(ctx, vectorDeployment); err != nil {
+		return fmt.Errorf("failed to update vectorDeployment owner references: %w", err)
+	}
+
+	// get latest vectorDeployment
+	if err = r.Get(ctx, types.NamespacedName{Namespace: stageVersion.Namespace, Name: adaptedVectorName}, vectorDeployment); err != nil {
+		return err
+	}
+
+	// check if vectorDeployment is marked as deployed
+	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, landscape.VectorDeployedCondition) {
+		// wait for vectorDeployment status change notification
+		return nil
+	}
+
+	// check if a vectorMigration exists matching the stage vector
+	vectorMigration, err := r.getOrCreateVectorMigration(ctx, stageVersion)
+	if err != nil {
+		return err
+	}
+
+	// set vectorMigrationCreated status
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationCreatedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationCreatedCondition, Message: fmt.Sprintf("Successfully created vectorMigration %s for stageVersion %s", vectorMigration.Name, stageVersion.Name)})
+
+	// check if vectorMigration is marked as successful
+	if !meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded) {
+		// wait for vectorMigration status change notification
+		return nil
+	}
+
+	// set vectorMigrated status
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorMigratedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorMigratedCondition, Message: fmt.Sprintf("VectorMigration %s successful for stageVersion %s", vectorMigration.Name, stageVersion.Name)})
+
+	// check if a vectorActivation exists matching the stage vector
+	vectorActivation, err := r.getOrCreateVectorActivation(ctx, stageVersion)
+	if err != nil {
+		return err
+	}
+
+	// set vectorActivationCreated status
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorActivationCreatedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorActivationCreatedCondition, Message: fmt.Sprintf("Successfully created vectorActivation %s for stageVersion %s", vectorActivation.Name, stageVersion.Name)})
+
+	// set stageVersionReady status
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady, Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady, Message: fmt.Sprintf("StageVersion %s reconciled successfully", stageVersion.Name)})
+
+	log.Info("StageVersion reconciled")
+	return nil
+}
+
 func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context, stageVersion *landscape.StageVersion, adaptedVectorName string) (*landscape.VectorDeployment, error) {
 	log := logf.FromContext(ctx)
 	vectorDeployment := &landscape.VectorDeployment{}
@@ -183,12 +190,11 @@ func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context
 	if err != nil && !errors.IsNotFound(err) {
 		return nil, fmt.Errorf("unable to fetch vectorDeployment: %w", err)
 	}
-
 	if err != nil && errors.IsNotFound(err) {
-		log.V(1).Info("No matching vectorDeployment found. Creating a new one...")
+		log.Info("No matching vectorDeployment found. Creating a new one...")
 
 		// create new vectorDeployment
-		vectorDeployment, err = constructVectorDeployment(r, stageVersion)
+		vectorDeployment, err = r.constructVectorDeployment(stageVersion)
 		if err != nil {
 			return nil, fmt.Errorf("unable to construct vectorDeployment from template: %w", err)
 		}
@@ -197,7 +203,12 @@ func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context
 			return nil, fmt.Errorf("unable to create vectorDeployment: %w", err)
 		}
 
-		log.V(1).Info("Created vectorDeployment", "vectorDeployment", vectorDeployment)
+		log.Info("Created vectorDeployment", "vectorDeployment", vectorDeployment)
+	}
+
+	// check if vectorDeployment has stageVersion owner ref
+	if err := util.VerifyOwnerReference(ctx, r, stageVersion, vectorDeployment, r.Scheme, false); err != nil {
+		return nil, fmt.Errorf("unable to check vectorDeployment owner references: %w", err)
 	}
 
 	return vectorDeployment, nil
@@ -219,7 +230,7 @@ func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context,
 		log.V(1).Info("No matching vectorMigration found. Creating a new one...")
 
 		// create new vectorMigration
-		vectorMigration, err = constructVectorMigration(r, stageVersion)
+		vectorMigration, err = r.constructVectorMigration(stageVersion)
 		if err != nil {
 			return nil, fmt.Errorf("unable to construct vectorMigration from template: %w", err)
 		}
@@ -229,6 +240,11 @@ func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context,
 		}
 
 		log.V(1).Info("Created vectorMigration", "vectorMigration", vectorMigration)
+	}
+
+	// check if vectorMigration has stageVersion controller ref
+	if err := util.VerifyOwnerReference(ctx, r, stageVersion, vectorMigration, r.Scheme, true); err != nil {
+		return nil, fmt.Errorf("unable to check vectorMigration owner references: %w", err)
 	}
 
 	return vectorMigration, nil
@@ -250,7 +266,7 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context
 		log.V(1).Info("No matching vectorActivation found. Creating a new one...")
 
 		// create new vectorActivation
-		vectorActivation, err = constructVectorActivation(r, stageVersion)
+		vectorActivation, err = r.constructVectorActivation(stageVersion)
 		if err != nil {
 			return nil, fmt.Errorf("unable to construct vectorActivation from template: %w", err)
 		}
@@ -262,26 +278,15 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context
 		log.V(1).Info("Created vectorActivation", "vectorActivation", vectorActivation)
 	}
 
+	// check if vectorActivation has stageVersion controller ref
+	if err := util.VerifyOwnerReference(ctx, r, stageVersion, vectorActivation, r.Scheme, true); err != nil {
+		return nil, fmt.Errorf("unable to check vectorActivation owner references: %w", err)
+	}
+
 	return vectorActivation, nil
 }
 
-func (r *StageVersionReconciler) setStageVersionStatusTrue(ctx context.Context, req ctrl.Request, status string, message string) error {
-	stageVersion := &landscape.StageVersion{}
-	if err := r.Get(ctx, req.NamespacedName, stageVersion); err != nil {
-		return err
-	}
-
-	if !meta.IsStatusConditionTrue(stageVersion.Status.Conditions, status) {
-		meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: status, Status: metav1.ConditionTrue, Reason: status, Message: message})
-		if err := r.Status().Update(ctx, stageVersion); err != nil {
-			return fmt.Errorf("failed to update stageVersion status: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func constructVectorDeployment(r *StageVersionReconciler, stageVersion *landscape.StageVersion) (*landscape.VectorDeployment, error) {
+func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *landscape.StageVersion) (*landscape.VectorDeployment, error) {
 	adaptedVectorName, err := adaptVectorName(stageVersion.Spec.Vector)
 	if err != nil {
 		return nil, err
@@ -301,10 +306,11 @@ func constructVectorDeployment(r *StageVersionReconciler, stageVersion *landscap
 	if err := controllerutil.SetOwnerReference(stageVersion, vectorDeployment, r.Scheme); err != nil {
 		return nil, fmt.Errorf("unable to set owner reference for vector deployment: %w", err)
 	}
+
 	return vectorDeployment, nil
 }
 
-func constructVectorMigration(r *StageVersionReconciler, stageVersion *landscape.StageVersion) (*landscape.VectorMigration, error) {
+func (r *StageVersionReconciler) constructVectorMigration(stageVersion *landscape.StageVersion) (*landscape.VectorMigration, error) {
 	vectorMigration := &landscape.VectorMigration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      getVectorMigrationName(stageVersion),
@@ -323,7 +329,7 @@ func constructVectorMigration(r *StageVersionReconciler, stageVersion *landscape
 	return vectorMigration, nil
 }
 
-func constructVectorActivation(r *StageVersionReconciler, stageVersion *landscape.StageVersion) (*landscape.VectorActivation, error) {
+func (r *StageVersionReconciler) constructVectorActivation(stageVersion *landscape.StageVersion) (*landscape.VectorActivation, error) {
 	vectorActivation := &landscape.VectorActivation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      getVectorActivationName(stageVersion),

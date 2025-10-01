@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -52,7 +53,7 @@ type StageReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
-	log.Info("Reconciling stage")
+	log.Info("Reconcile stage started...")
 
 	// get stage
 	stage := &common.Stage{}
@@ -60,71 +61,7 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// get all stageVersions that are owned by this stage
-	stageVersions := &landscape.StageVersionList{}
-	if err := r.List(ctx, stageVersions, client.InNamespace(req.Namespace), client.MatchingFields{stageVersionOwnerKey: req.Name}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to list stageVersions: %w", err)
-	}
-
-	// check if a stageVersion exists with a vector matching the stage vector and the current stage generation
-	index := slices.IndexFunc(stageVersions.Items, func(version landscape.StageVersion) bool {
-		return version.Spec.Vector == stage.Spec.Vector && version.Spec.StageGeneration == stage.Generation
-	})
-
-	// create it if it does not exist
-	if index < 0 {
-		log.V(1).Info("No matching stageVersion found. Creating a new one...")
-
-		// create new stageVersion
-		stageVersion, err := constructStageVersionForStage(r, stage)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to construct stageVersion from template: %w", err)
-		}
-
-		if err := r.Create(ctx, stageVersion); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to create stageVersion for stage: %w", err)
-		}
-
-		log.V(1).Info("Created stageVersion for stage", "stageVersion", stageVersion)
-	} else {
-		log.V(1).Info("Found existing stageVersion at index", "index", index)
-	}
-
-	for i, stageVersion := range stageVersions.Items {
-		if i == index {
-			// skip existing one if available
-			continue
-		}
-
-		// check if the stageVersion still has an owner references to the stage
-		exists, err := controllerutil.HasOwnerReference(stageVersion.GetOwnerReferences(), stage, r.Scheme)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to check owner references of stageVersion: %w", err)
-		}
-
-		if exists {
-			// delete stageVersion if the stage owner ref is the last one remaining
-			if len(stageVersion.GetOwnerReferences()) == 1 {
-				log.V(1).Info("Removing old stageVersion because this stage owner reference is the last one remaining")
-
-				if err := r.Delete(ctx, &stageVersion); err != nil {
-					return ctrl.Result{}, fmt.Errorf("unable to delete old stageVersion for stage: %w", err)
-				}
-			} else {
-				// remove stage owner ref for this stage
-				if err = controllerutil.RemoveOwnerReference(stage, &stageVersion, r.Scheme); err != nil {
-					return ctrl.Result{}, fmt.Errorf("nable to remove stage owner reference of stageVersion: %w", err)
-				}
-
-				if err = r.Update(ctx, &stageVersion); err != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to update stageVersion: %w", err)
-				}
-			}
-		}
-	}
-
-	log.Info("Stage reconciled")
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, r.reconcileStage(ctx, req, stage)
 }
 
 var (
@@ -152,14 +89,106 @@ func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return fmt.Errorf("unable to create index for owner reference of stage version: %w", err)
 	}
 
+	noUpdatePredicate := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return false
+		},
+
+		// Allow create events
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+
+		// Allow delete events
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+
+		// Allow generic events (e.g., external triggers)
+		GenericFunc: func(e event.GenericEvent) bool {
+			return true
+		},
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&common.Stage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&landscape.StageVersion{}).
+		Owns(&landscape.StageVersion{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
 		Named("stage").
 		Complete(r)
 }
 
-func constructStageVersionForStage(r *StageReconciler, stage *common.Stage) (*landscape.StageVersion, error) {
+func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, stage *common.Stage) error {
+	log := logf.FromContext(ctx)
+	log.Info("Reconciling stage")
+
+	// get all stageVersions that are owned by this stage
+	stageVersions := &landscape.StageVersionList{}
+	if err := r.List(ctx, stageVersions, client.InNamespace(req.Namespace), client.MatchingFields{stageVersionOwnerKey: req.Name}); err != nil {
+		return fmt.Errorf("unable to list stageVersions: %w", err)
+	}
+
+	// check if a stageVersion exists with a vector matching the stage vector and the current stage generation
+	index := slices.IndexFunc(stageVersions.Items, func(version landscape.StageVersion) bool {
+		return version.Spec.Vector == stage.Spec.Vector && version.Spec.StageGeneration == stage.Generation
+	})
+
+	// create it if it does not exist
+	if index < 0 {
+		log.Info("No matching stageVersion found. Creating a new one...")
+
+		// create new stageVersion
+		stageVersion, err := r.constructStageVersionForStage(stage)
+		if err != nil {
+			return fmt.Errorf("unable to construct stageVersion from template: %w", err)
+		}
+
+		if err := r.Create(ctx, stageVersion); err != nil {
+			return fmt.Errorf("unable to create stageVersion for stage: %w", err)
+		}
+
+		log.Info("Created stageVersion for stage", "stageVersion", stageVersion)
+	} else {
+		log.V(1).Info("Found existing stageVersion at index", "index", index)
+	}
+
+	for i, stageVersion := range stageVersions.Items {
+		if i == index {
+			// skip existing one if available
+			continue
+		}
+
+		// check if the stageVersion still has an owner references to the stage
+		exists, err := controllerutil.HasOwnerReference(stageVersion.GetOwnerReferences(), stage, r.Scheme)
+		if err != nil {
+			return fmt.Errorf("unable to check owner references of stageVersion: %w", err)
+		}
+
+		if exists {
+			// delete stageVersion if the stage owner ref is the last one remaining
+			if len(stageVersion.GetOwnerReferences()) == 1 {
+				log.Info("Removing old stageVersion because this stage owner reference is the last one remaining")
+
+				if err := r.Delete(ctx, &stageVersion); err != nil {
+					return fmt.Errorf("unable to delete old stageVersion for stage: %w", err)
+				}
+			} else {
+				// remove stage owner ref for this stage
+				if err = controllerutil.RemoveOwnerReference(stage, &stageVersion, r.Scheme); err != nil {
+					return fmt.Errorf("nable to remove stage owner reference of stageVersion: %w", err)
+				}
+
+				if err = r.Update(ctx, &stageVersion); err != nil {
+					return fmt.Errorf("failed to update stageVersion: %w", err)
+				}
+			}
+		}
+	}
+
+	log.Info("Stage reconciled")
+	return nil
+}
+
+func (r *StageReconciler) constructStageVersionForStage(stage *common.Stage) (*landscape.StageVersion, error) {
 	name := fmt.Sprintf("%s-%s-%s", "stage-version", stage.Name, rand.String(8))
 	stageVersion := &landscape.StageVersion{
 		ObjectMeta: metav1.ObjectMeta{
