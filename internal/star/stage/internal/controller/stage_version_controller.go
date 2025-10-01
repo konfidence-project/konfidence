@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
@@ -68,17 +69,21 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	patch := client.MergeFrom(stageVersion.DeepCopy())
+	originalStageVersion := stageVersion.DeepCopy()
+	patch := client.MergeFrom(originalStageVersion)
 	err := r.reconcileStageVersion(ctx, stageVersion)
-	if patchError := r.Client.Status().Patch(ctx, stageVersion, patch); patchError != nil {
-		patchErrorMessage := "unable to update stageVersion status"
 
-		if err != nil {
-			reconcileError := fmt.Errorf("an error occurred while reconciling stageVersion: %w", err)
-			return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
+	if !reflect.DeepEqual(stageVersion.Status, originalStageVersion.Status) {
+		if patchError := r.Client.Status().Patch(ctx, stageVersion, patch); patchError != nil {
+			patchErrorMessage := "unable to update stageVersion status"
+
+			if err != nil {
+				reconcileError := fmt.Errorf("an error occurred while reconciling stageVersion: %w", err)
+				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
+			}
+
+			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
 		}
-
-		return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
 	}
 
 	return ctrl.Result{}, err
@@ -116,28 +121,6 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 
 	// set vectorDeploymentCreated status
 	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorDeploymentCreatedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorDeploymentCreatedCondition, Message: fmt.Sprintf("Successfully created VectorDeployment %s for stageVersion %s", vectorDeployment.Name, stageVersion.Name)})
-
-	// get latest vectorDeployment
-	if err = r.Get(ctx, types.NamespacedName{Namespace: stageVersion.Namespace, Name: adaptedVectorName}, vectorDeployment); err != nil {
-		return err
-	}
-
-	log.V(1).Info("Set stageVersion owner for vectorDeployment")
-
-	// set stageVersion as owner
-	if err := controllerutil.SetOwnerReference(stageVersion, vectorDeployment, r.Scheme); err != nil {
-		return fmt.Errorf("failed to add stageVersion ownerRef to vectorDeployment: %w", err)
-	}
-
-	log.V(1).Info("Update owner references")
-	if err := r.Update(ctx, vectorDeployment); err != nil {
-		return fmt.Errorf("failed to update vectorDeployment owner references: %w", err)
-	}
-
-	// get latest vectorDeployment
-	if err = r.Get(ctx, types.NamespacedName{Namespace: stageVersion.Namespace, Name: adaptedVectorName}, vectorDeployment); err != nil {
-		return err
-	}
 
 	// check if vectorDeployment is marked as deployed
 	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, landscape.VectorDeployedCondition) {
