@@ -32,11 +32,19 @@ type VectorReference struct {
 
 // ArtifactManifest represents the manifest of an artefact.
 type ArtifactManifest struct {
-	Type           string
-	AllowReuse     bool
-	OciRegistryUrl string
-	ComponentSpec  string
-	Tasks          []TaskManifest
+	Name       string
+	Version    string
+	Type       string
+	AllowReuse bool
+	Tasks      []TaskManifest
+	Resources  []OCMResource
+}
+
+type OCMResource struct {
+	Name    string
+	Image   string
+	Version string
+	Type    string
 }
 
 type TaskManifest struct {

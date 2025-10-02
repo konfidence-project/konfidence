@@ -8,6 +8,9 @@ import (
 	utilErrors "github.com/mandelsoft/goutils/errors"
 	"ocm.software/ocm/api/oci"
 	"ocm.software/ocm/api/ocm"
+	"ocm.software/ocm/api/ocm/extensions/accessmethods/helm"
+	"ocm.software/ocm/api/ocm/extensions/accessmethods/localblob"
+	"ocm.software/ocm/api/ocm/extensions/accessmethods/ociartifact"
 	"ocm.software/ocm/api/ocm/extensions/repositories/ocireg"
 
 	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller/domain"
@@ -45,15 +48,11 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 		return nil, fmt.Errorf("failed to fetch artifact OCM for reference %q: %w", ocmRef, err)
 	}
 
-	artifactSpec := componentVersionAccess.GetDescriptor().ComponentSpec
-	specJson, err := json.Marshal(artifactSpec)
-	if err != nil {
-		return nil, err
-	}
-
 	// get artifactManifest and the associated task manifests from component version access
 	var artifactManifest *domain.ArtifactManifest
 	var taskManifests []domain.TaskManifest
+	artifactResources := make([]domain.OCMResource, 0, len(componentVersionAccess.GetResources()))
+
 	for _, resource := range componentVersionAccess.GetResources() {
 		if resource.Meta().Type == "cloud.konfidence.artifact.manifest" {
 			accessMethod, err := resource.AccessMethod()
@@ -76,11 +75,11 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 			}
 
 			artifactManifest = &domain.ArtifactManifest{
-				Type:           artifactManifestDto.Type,
-				AllowReuse:     artifactManifestDto.AllowReuse,
-				OciRegistryUrl: ocmRef.String(),
-				ComponentSpec:  string(specJson),
-				Tasks:          nil,
+				Name:       ocmRef.Component,
+				Version:    *ocmRef.Version,
+				Type:       artifactManifestDto.Type,
+				AllowReuse: artifactManifestDto.AllowReuse,
+				Tasks:      nil,
 			}
 		}
 
@@ -106,6 +105,36 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 				Spec:      string(taskManifestDto.Spec),
 			})
 		}
+
+		resourceAccess, err := resource.Access()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get access for resource %s in component %s: %w", resource.Meta().Name, artifactName.ComponentName, err)
+		}
+
+		genericAccessSpec, err := ocmCtx.AccessSpecForSpec(resourceAccess)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get effective access spec for resource %s in component %s: %w", resource.Meta().Name, artifactName.ComponentName, err)
+		}
+
+		var image string
+		switch accessSpec := genericAccessSpec.(type) {
+		case *helm.AccessSpec:
+			image = accessSpec.HelmRepository
+		case *ociartifact.AccessSpec:
+			image = accessSpec.ImageReference
+		case *localblob.AccessSpec:
+			// skipping localblob resources, because those are our own manifests
+			continue
+		default:
+			return nil, fmt.Errorf("resource access type %q is not supported", resource.Meta().GetType())
+		}
+
+		artifactResources = append(artifactResources, domain.OCMResource{
+			Name:    resource.Meta().Name,
+			Image:   image,
+			Version: resource.Meta().Version,
+			Type:    resource.Meta().Type,
+		})
 	}
 
 	if artifactManifest == nil {
@@ -113,6 +142,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 	}
 
 	artifactManifest.Tasks = taskManifests
+	artifactManifest.Resources = artifactResources
 
 	return artifactManifest, nil
 }
