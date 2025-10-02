@@ -4,12 +4,11 @@ metadata:
   labels:
     app.kubernetes.io/name: landscape-task-orchestration-controller
     app.kubernetes.io/managed-by: kustomize
-  name: leader-election-rolebinding
+  name: landscape-task-orchestration-controller-leader-election-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: leader-election-role
+  name: landscape-task-orchestration-controller-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: controller-manager
-  namespace: system
+  name: landscape-task-orchestration-controller

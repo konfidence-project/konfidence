@@ -23,7 +23,6 @@ jobs:
       - lint
       - test
     name: Build and Release Container Image
-    # Only run on main branch or pull requests
     uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@v1
     secrets: inherit
     permissions:

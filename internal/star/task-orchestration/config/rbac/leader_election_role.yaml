@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: landscape-task-orchestration-controller
     app.kubernetes.io/managed-by: kustomize
-  name: leader-election-role
+  name: landscape-task-orchestration-controller-leader-election-role
 rules:
 - apiGroups:
   - ""
