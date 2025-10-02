@@ -4,12 +4,12 @@ metadata:
   labels:
     app.kubernetes.io/name: landscape-vector-deployment-controller
     app.kubernetes.io/managed-by: kustomize
-  name: leader-election-rolebinding
+  name: landscape-vector-deployment-controller-leader-election-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: leader-election-role
+  name: landscape-vector-deployment-controller-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: controller-manager
-  namespace: system
+  name: landscape-vector-deployment-controller
+  namespace: konfidence-system
