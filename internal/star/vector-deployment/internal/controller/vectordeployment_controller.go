@@ -151,6 +151,8 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 
 			// map task manifests from domain.TaskManifest to landscape.TaskManifest
 			taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
+			artifactResources := mapArtifactResourcesToLandscape(artifactManifest.Resources)
+
 			artifactDeployment.ObjectMeta = ctrl.ObjectMeta{
 				Name:      deploymentName,
 				Namespace: vd.Namespace,
@@ -160,9 +162,12 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 					Type:       artifactManifest.Type,
 					AllowReuse: artifactManifest.AllowReuse,
 				},
-				TaskManifests:  taskManifests,
-				ArtifactOcmRef: artifactManifest.OciRegistryUrl,
-				ArtifactOcm:    artifactManifest.ComponentSpec,
+				TaskManifests: taskManifests,
+				Component: landscape.OCMComponent{
+					Name:      artifactManifest.Type,
+					Version:   artifactManifest.Version,
+					Resources: artifactResources,
+				},
 			}
 
 			if err := r.Create(ctx, &artifactDeployment); err != nil {
@@ -236,6 +241,19 @@ func mapTaskManifestsToLandscape(taskManifests []domain.TaskManifest) []landscap
 		}
 	}
 	return landscapeTaskManifests
+}
+
+func mapArtifactResourcesToLandscape(resources []domain.OCMResource) []landscape.OCMResource {
+	landscapeResources := make([]landscape.OCMResource, 0, len(resources))
+	for _, resource := range resources {
+		landscapeResources = append(landscapeResources, landscape.OCMResource{
+			Name:    resource.Name,
+			Image:   resource.Image,
+			Version: resource.Version,
+			Type:    resource.Type,
+		})
+	}
+	return landscapeResources
 }
 
 // TODO factor out owner reference construction to a common place

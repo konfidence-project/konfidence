@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -112,10 +113,8 @@ var _ = Describe("VectorDeployment Controller", func() {
 		// when: GetArtifactManifestByReference is called on the ocmAdapter mock
 		// then: mock should be called with a vector reference and an artifact reference, and return a ArtifactManifest
 		artifactManifest := domain.ArtifactManifest{
-			Type:           "cloud.konfidence.flux.helm",
-			AllowReuse:     true,
-			OciRegistryUrl: "registry.kdenv.lab/sample-project//github.com/konfidence-project/sample-service-1:0.0.1",
-			ComponentSpec:  "{\"name\":\"github.com/konfidence-project/sample-service-1\",\"version\":\"0.0.1\",\"provider\":{\"name\":\"konfidence-project\"},\"creationTime\":\"2025-09-22T06:32:37Z\",\"repositoryContexts\":[{\"baseUrl\":\"https://registry.kdenv.lab\",\"componentNameMapping\":\"urlPath\",\"subPath\":\"sample-project\",\"type\":\"OCIRegistry\"}],\"sources\":[],\"componentReferences\":[],\"resources\":[{\"name\":\"sample-service-1-helm-chart\",\"version\":\"6.9.1\",\"type\":\"helmChart\",\"relation\":\"external\",\"digest\":{\"hashAlgorithm\":\"SHA-256\",\"normalisationAlgorithm\":\"genericBlobDigest/v1\",\"value\":\"6d082dc0d4e90fbb525c0c1fc8a52d5279581750b8888688b07ce00f96d947e8\"},\"access\":{\"helmChart\":\"podinfo:6.9.1\",\"helmRepository\":\"https://stefanprodan.github.io/podinfo\",\"type\":\"helm\"}},{\"name\":\"sample-service-1-image\",\"version\":\"0.0.1\",\"type\":\"ociImage\",\"relation\":\"external\",\"digest\":{\"hashAlgorithm\":\"SHA-256\",\"normalisationAlgorithm\":\"ociArtifactDigest/v1\",\"value\":\"262578cde928d5c9eba3bce079976444f624c13ed0afb741d90d5423877496cb\"},\"access\":{\"imageReference\":\"stefanprodan/podinfo:6.9.1\",\"type\":\"ociArtifact\"}},{\"name\":\"konfidence-manifest\",\"version\":\"0.0.1\",\"type\":\"cloud.konfidence.artifact.manifest\",\"relation\":\"local\",\"digest\":{\"hashAlgorithm\":\"SHA-256\",\"normalisationAlgorithm\":\"genericBlobDigest/v1\",\"value\":\"7052d8b081b4158cb6832dc9cb91f0feb7faf23ee8d25704f8fef28ce6f3d7ea\"},\"access\":{\"localReference\":\"sha256:7052d8b081b4158cb6832dc9cb91f0feb7faf23ee8d25704f8fef28ce6f3d7ea\",\"mediaType\":\"application/octet-stream\",\"type\":\"localBlob\"}},{\"name\":\"sample-service-1-task-1-manifest\",\"version\":\"0.0.1\",\"type\":\"cloud.konfidence.artifact.task.manifest\",\"relation\":\"local\",\"digest\":{\"hashAlgorithm\":\"SHA-256\",\"normalisationAlgorithm\":\"genericBlobDigest/v1\",\"value\":\"f6b421d7e0bbc5f9a2b756f065e25413e6bfc9946099deee8b58f29cfa6ac4b6\"},\"access\":{\"localReference\":\"sha256:f6b421d7e0bbc5f9a2b756f065e25413e6bfc9946099deee8b58f29cfa6ac4b6\",\"mediaType\":\"application/octet-stream\",\"type\":\"localBlob\"}},{\"name\":\"sample-service-1-task-1\",\"version\":\"0.0.1\",\"type\":\"ociImage\",\"relation\":\"external\",\"digest\":{\"hashAlgorithm\":\"SHA-256\",\"normalisationAlgorithm\":\"ociArtifactDigest/v1\",\"value\":\"4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1\"},\"access\":{\"imageReference\":\"alpine:3.22.1\",\"type\":\"ociArtifact\"}},{\"name\":\"sample-service-1-task-2-manifest\",\"version\":\"0.0.1\",\"type\":\"cloud.konfidence.artifact.task.manifest\",\"relation\":\"local\",\"digest\":{\"hashAlgorithm\":\"SHA-256\",\"normalisationAlgorithm\":\"genericBlobDigest/v1\",\"value\":\"7ec3dbf60da751c33cb749d9ff7d615d3c58636b8e0516e1830ba802d83ce40b\"},\"access\":{\"localReference\":\"sha256:7ec3dbf60da751c33cb749d9ff7d615d3c58636b8e0516e1830ba802d83ce40b\",\"mediaType\":\"application/octet-stream\",\"type\":\"localBlob\"}},{\"name\":\"sample-service-1-task-2\",\"version\":\"0.0.1\",\"type\":\"cloud.konfidence.artifact.task\",\"relation\":\"external\",\"digest\":{\"hashAlgorithm\":\"SHA-256\",\"normalisationAlgorithm\":\"ociArtifactDigest/v1\",\"value\":\"4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1\"},\"access\":{\"imageReference\":\"alpine:3.22.1\",\"type\":\"ociArtifact\"}}]}",
+			Type:       "cloud.konfidence.flux.helm",
+			AllowReuse: true,
 			Tasks: []domain.TaskManifest{
 				{
 					Name:      "sample-service-1-task-1",
@@ -128,6 +127,36 @@ var _ = Describe("VectorDeployment Controller", func() {
 					Type:      "k8s-job",
 					DependsOn: nil,
 					Spec:      "{\"template\":{\"spec\":{\"restartPolicy\":\"Never\",\"containers\":[{\"name\":\"sample-service-1-task-2-container\",\"image\":\"alpine:3.22.1\",\"command\":[\"echo\",\"I am task 2 of service 1\"]}]}},\"backoffLimit\":4}",
+				},
+			},
+			Resources: []domain.OCMResource{
+				{
+					Name: "sample-service-1-helm-chart",
+					Type: "helmChart",
+				},
+				{
+					Name: "sample-service-1-image",
+					Type: "ociImage",
+				},
+				{
+					Name: "konfidence-manifest",
+					Type: "cloud.konfidence.artifact.manifest",
+				},
+				{
+					Name: "sample-service-1-task-1-manifest",
+					Type: "cloud.konfidence.artifact.task.manifest",
+				},
+				{
+					Name: "sample-service-1-task-1",
+					Type: "ociImage",
+				},
+				{
+					Name: "sample-service-1-task-2-manifest",
+					Type: "cloud.konfidence.artifact.task.manifest",
+				},
+				{
+					Name: "sample-service-1-task-2",
+					Type: "ociImage",
 				},
 			},
 		}
@@ -157,50 +186,24 @@ var _ = Describe("VectorDeployment Controller", func() {
 
 		// THEN: Verify that the reconciler processed the resource and updated
 
-		By("Verifying ResolvedVectorOcm was set")
+		By("Verifying ResolvedVectorOcm and status conditions were set")
 		actualVectorDeployment := &landscape.VectorDeployment{}
-		gomega.Eventually(func() bool {
-			err := k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)
-			if err != nil {
-				return false
-			}
-			return actualVectorDeployment.Status.ResolvedVectorOcm != ""
-		}, timeout, interval).Should(gomega.BeTrue(), "VectorDeployment should be processed automatically")
-
-		By("Verifying VectorDownloadedCondition was set to True")
-		gomega.Eventually(func() bool {
-			err := k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)
-			if err != nil {
-				return false
-			}
-			for _, condition := range actualVectorDeployment.Status.Conditions {
-				if condition.Type == landscape.VectorDownloadedCondition && condition.Status == metav1.ConditionTrue {
-					return true
-				}
-			}
-			return false
-		}, timeout, interval).Should(gomega.BeTrue(), "VectorDownloadedCondition should be True")
-
-		By("Verifying ArtifactDeploymentsCreatedCondition was set")
-		gomega.Eventually(func() bool {
-			err := k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)
-			if err != nil {
-				return false
-			}
-			for _, condition := range actualVectorDeployment.Status.Conditions {
-				if condition.Type == landscape.ArtifactDeploymentsCreatedCondition && condition.Status == metav1.ConditionTrue {
-					return true
-				}
-			}
-			return false
-		}, timeout, interval).Should(gomega.BeTrue(), "ArtifactDeploymentsCreatedCondition should be True")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
+			g.Expect(actualVectorDeployment.Status.ResolvedVectorOcm).To(gomega.Not(gomega.BeEmpty()))
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, landscape.VectorDownloadedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, landscape.ArtifactDeploymentsCreatedCondition)).To(gomega.BeTrue())
+		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying ArtifactDeployment was created")
-		gomega.Eventually(func() bool {
-			artifactDeploymentList := &landscape.ArtifactDeploymentList{}
-			err = k8sClient.List(ctx, artifactDeploymentList, client.InNamespace(testNamespace))
-			return err == nil && len(artifactDeploymentList.Items) == 1
-		}, timeout, interval).Should(gomega.BeTrue(), "Should have created exactly one ArtifactDeployment")
+		artifactDeploymentList := &landscape.ArtifactDeploymentList{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.List(ctx, artifactDeploymentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
+			g.Expect(artifactDeploymentList.Items).To(gomega.HaveLen(1))
+
+			artifactDeployment := artifactDeploymentList.Items[0]
+			g.Expect(artifactDeployment.Spec.Component.Resources).To(gomega.HaveLen(7))
+		}, timeout, interval).Should(gomega.Succeed())
 	})
 
 })
