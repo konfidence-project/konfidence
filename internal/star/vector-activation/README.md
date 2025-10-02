@@ -4,11 +4,59 @@
 
 ## About this project
 
-The Vector Activation Controller  ...
+The Vector Activation Controller
 
 ## Requirements and Setup
 
-*Insert a short description what is required to get your project running...*
+### Private Repository Dependencies
+The  vector activation CRD is located in a separate (private) [repository](https://github.com/konfidence-project/crds). Make sure you have setup the ```GOPRIVATE``` env variable in order to access other project-konfidence repositories (```export GOPRIVATE=github.com/konfidence-project/*```). Alternatively, you can also [setup a work.go](https://go.dev/doc/tutorial/workspaces) file to manage dependencies locally. 
+
+### Run locally 
+
+Make sure you have a cluster running locally. You can create a kind cluster with ``` make setup-test-e2e ```. 
+
+
+To install the crds, navigate to the location of the crds module and run:
+
+```
+make install
+```
+
+Run the controller locally: 
+
+```
+make run
+```
+
+### Debug locally
+With the setup above, just attach a debugger to the go process. This should be supported by your ide. 
+
+Apply a sample CR: 
+
+```
+kubectl apply -f path-to-cr-sample
+```
+
+Inspect the cluster: 
+
+```
+kubectl get vectoractivation 
+kubectl describe vectoractivation my-cr-instance
+```
+
+Delete the CR: 
+
+```
+kubectl delete vectoractivation my-cr-instance
+```
+
+### Unit Tests
+You can run the tests with:
+
+```
+make test
+```
+
 
 ## Support, Feedback, Contributing
 
