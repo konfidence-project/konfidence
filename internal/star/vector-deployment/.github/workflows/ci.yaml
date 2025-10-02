@@ -1,8 +1,5 @@
 name: Kubebuilder CI
-on: 
-  push:
-    branches-ignore:
-      - main
+on:
   pull_request:
     branches:
       - main
