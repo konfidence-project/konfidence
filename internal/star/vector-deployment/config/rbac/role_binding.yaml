@@ -4,29 +4,12 @@ metadata:
   labels:
     app.kubernetes.io/name: landscape-vector-deployment-controller
     app.kubernetes.io/managed-by: kustomize
-  name: manager-rolebinding
+  name: landscape-vector-deployment-manager
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: manager-role
+  name: landscape-vector-deployment-manager
 subjects:
 - kind: ServiceAccount
-  name: controller-manager
-  namespace: system
-#---
-#apiVersion: rbac.authorization.k8s.io/v1
-#kind: RoleBinding
-#metadata:
-#  labels:
-#    app.kubernetes.io/name: landscape-vector-deployment-controller
-#    app.kubernetes.io/managed-by: kustomize
-#  name: manager-rolebinding
-#  namespace: konfidence-system
-#roleRef:
-#  apiGroup: rbac.authorization.k8s.io
-#  kind: Role
-#  name: manager-role
-#subjects:
-#  - kind: ServiceAccount
-#    name: controller-manager
-#    namespace: system
+  name: landscape-vector-deployment-controller
+  namespace: konfidence-system
