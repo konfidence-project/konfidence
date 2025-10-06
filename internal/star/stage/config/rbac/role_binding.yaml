@@ -12,4 +12,3 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: landscape-stage-controller
-  namespace: konfidence-system
