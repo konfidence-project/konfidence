@@ -3,7 +3,3 @@ kind: Kustomization
 resources:
 - deployment.yaml
 - ../rbac
-images:
-- name: controller
-  newName: registry.kdenv.lab/landscape-vector-deployment-controller
-  newTag: dev

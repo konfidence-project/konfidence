@@ -12,4 +12,3 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: landscape-vector-deployment-controller
-  namespace: konfidence-system
