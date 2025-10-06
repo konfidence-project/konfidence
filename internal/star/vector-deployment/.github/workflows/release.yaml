@@ -16,6 +16,7 @@ jobs:
       with:
         with-kind-cluster: false
         install-crds: false
+        before-tests: make generate-test-crds
 
   build-and-release:
     needs:

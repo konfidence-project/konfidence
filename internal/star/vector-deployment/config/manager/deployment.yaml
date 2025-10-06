@@ -3,7 +3,6 @@ kind: Deployment
 metadata:
   name: landscape-vector-deployment-controller
   labels:
-    control-plane: controller-manager
     app.kubernetes.io/name: landscape-vector-deployment-controller
     app.kubernetes.io/managed-by: kustomize
 spec:

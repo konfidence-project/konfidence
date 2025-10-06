@@ -15,10 +15,9 @@ jobs:
     with:
       with-kind-cluster: false
       install-crds: false
+      before-tests: make generate-test-crds
   build-and-release:
     name: Build Container Image
-    # Only run on main branch or pull requests
-    if:  github.event_name == 'pull_request'
     uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@v1
     secrets: inherit
     with: 
