@@ -46,7 +46,6 @@ var (
 	testEnv   *envtest.Environment
 	cfg       *rest.Config
 	k8sClient client.Client
-	//reconcileScheme *runtime.Scheme
 )
 
 func TestControllers(t *testing.T) {

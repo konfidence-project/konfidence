@@ -76,7 +76,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	//TODO: add payload to execution CR
 	activationExecution := &landscape.ActivationExecution{ObjectMeta: metav1.ObjectMeta{Name: vectorActivation.Name + "-execution", Namespace: req.Namespace}, Spec: landscape.ActivationExecutionSpec{Type: "gateway-api-http-route", Name: "example"}}
 	if err := r.Create(ctx, activationExecution); err != nil {
-		return ctrl.Result{}, fmt.Errorf("Failed to create ActivationExecution: %w ", err)
+		return ctrl.Result{}, fmt.Errorf("failed to create ActivationExecution: %w ", err)
 	}
 
 	log.Info("Finished processing ActivationExecution")
@@ -89,11 +89,11 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// update status if activationExecution succeeded
 	if meta.IsStatusConditionTrue(activationExecution.Status.Conditions, landscape.ActivationExecutionSucceeded) {
-		if err := r.updateVectorActivationStatus(ctx, req, metav1.Condition{Type: landscape.VectorActivationSucceeded, Status: metav1.ConditionTrue, Reason: landscape.VectorActivationSucceeded, Message: fmt.Sprintf("sucessfully reconciled VectorActivation %s", vectorActivation.Name)}); err != nil {
+		if err := r.updateVectorActivationStatus(ctx, req, metav1.Condition{Type: landscape.VectorActivationSucceeded, Status: metav1.ConditionTrue, Reason: landscape.VectorActivationSucceeded, Message: fmt.Sprintf("successfully reconciled VectorActivation %s", vectorActivation.Name)}); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to update VectorActivation status: %w ", err)
 		}
 		if err := r.Status().Update(ctx, vectorActivation); err != nil {
-			return ctrl.Result{}, fmt.Errorf("Failed to update VectorActivation status: %w ", err)
+			return ctrl.Result{}, fmt.Errorf("failed to update VectorActivation status: %w ", err)
 		}
 		log.Info("VectorActivation succeeded")
 	}
