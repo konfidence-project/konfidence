@@ -73,7 +73,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// TODO: requeue and wait if lease is held by another process
 
-	//TODO: add payload to execution CR
+	// TODO: add payload to execution CR
 	activationExecution := &landscape.ActivationExecution{ObjectMeta: metav1.ObjectMeta{Name: vectorActivation.Name + "-execution", Namespace: req.Namespace}, Spec: landscape.ActivationExecutionSpec{Type: "gateway-api-http-route", Name: "example"}}
 	if err := r.Create(ctx, activationExecution); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create ActivationExecution: %w ", err)
