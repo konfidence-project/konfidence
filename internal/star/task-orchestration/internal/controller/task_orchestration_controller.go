@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
@@ -87,17 +88,21 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return r.cleanupVectorMigration(ctx, req, vectorMigration)
 	}
 
-	patch := client.MergeFrom(vectorMigration.DeepCopy())
+	originalVectorMigration := vectorMigration.DeepCopy()
+	patch := client.MergeFrom(originalVectorMigration)
 	err := r.reconcileVectorMigration(ctx, req, vectorMigration)
-	if patchError := r.Client.Status().Patch(ctx, vectorMigration, patch); patchError != nil {
-		patchErrorMessage := "unable to update vectorMigration status"
 
-		if err != nil {
-			reconcileError := fmt.Errorf("an error occurred while reconciling vectorMigration: %w", err)
-			return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
+	if !reflect.DeepEqual(vectorMigration.Status, originalVectorMigration.Status) {
+		if patchError := r.Client.Status().Patch(ctx, vectorMigration, patch); patchError != nil {
+			patchErrorMessage := "unable to update vectorMigration status"
+
+			if err != nil {
+				reconcileError := fmt.Errorf("an error occurred while reconciling vectorMigration: %w", err)
+				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
+			}
+
+			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
 		}
-
-		return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
 	}
 
 	return ctrl.Result{}, err
