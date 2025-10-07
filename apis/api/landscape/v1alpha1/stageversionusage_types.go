@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	// StageVersionUsageKind is the kind for StageVersionUsage resources.
 	StageVersionUsageKind = "StageVersionUsage"
 )
 

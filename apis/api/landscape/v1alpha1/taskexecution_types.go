@@ -22,6 +22,7 @@ import (
 )
 
 const (
+	// TaskExecutionKind is the kind for TaskExecution resources.
 	TaskExecutionKind = "TaskExecution"
 
 	// TaskPending indicates that the task has been created and wait for Execution Controller to be executed.

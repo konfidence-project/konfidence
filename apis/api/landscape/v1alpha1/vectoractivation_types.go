@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	// VectorActivationKind is the kind for VectorActivation resources.
 	VectorActivationKind = "VectorActivation"
 
 	// VectorActivationFailed indicates that the vectorActivation failed.

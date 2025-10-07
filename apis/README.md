@@ -5,46 +5,91 @@
 ## About this project
 
 This repository provides a set of Custom Resource Definitions (CRDs) which are required to run Konfidence.
-It is built using the Kubebuilder framework.
+It is built using the Kubebuilder framework and make use of the `controller-gen` CLI.
 
-## Requirements and Setup
-
-### Prerequisites
-- go version v1.22.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
-
-### Install the CRDs
-**Install the CRDs into the cluster:**
-
-```sh
-make install
+### Module Structure
+```
+api/
+├── common/v1alpha1/     # Common CRDs (Stage)
+└── landscape/v1alpha1/  # Landscape CRDs (Deployment, Execution, Vector management)
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+### API Documentation
+- [Common APIs](api/common/docs/README.md) - Stage definitions
+- [Landscape APIs](api/landscape/docs/README.md) - Deployment and execution resources
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
 
-```sh
-kubectl apply -k config/samples/
+## How to use
+
+### Installation
+
+Apply the CRDs to your Kubernetes cluster using kustomize:
+```bash
+kubectl apply -f api/common/config/release
+kubectl apply -f api/landscape/config/release
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+### Integration with Kubebuilder Projects
 
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
+To use these CRDs in your Kubebuilder controller project, first add the dependencies:
 
-```sh
-kubectl delete -k config/samples/
+```bash
+go get github.com/konfidence-project/crds/api/common
+go get github.com/konfidence-project/crds/api/landscape
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+Then you can run controller-gen directly:
 
-```sh
-make uninstall
+```bash
+# Generate Konfidence Common CRDs
+controller-gen crd paths="github.com/konfidence-project/crds/api/common/..." output:crd:artifacts:config=config/crd/common
+
+# Generate Konfidence Landscape CRDs
+controller-gen crd paths="github.com/konfidence-project/crds/api/landscape/..." output:crd:artifacts:config=config/crd/landscape
+```
+
+Or add the following target to your Makefile:
+
+```makefile
+.PHONY: manifests
+manifests: controller-gen ## Generate ClusterRole and CustomResourceDefinition objects.
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/common/..." output:crd:artifacts:config=config/crd/common
+	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/landscape/..." output:crd:artifacts:config=config/crd/landscape
+```
+
+This will:
+- Generate your project's own CRDs and RBAC in `config/crd/bases/`
+- Generate Konfidence Common CRDs in `config/crd/common/`
+- Generate Konfidence Landscape CRDs in `config/crd/landscape/`
+
+Then reference them in your `config/default/kustomization.yaml`:
+```yaml
+resources:
+- ../crd/bases
+- ../crd/common
+- ../crd/landscape
+```
+
+### Development
+
+#### Generate CRDs and code
+```bash
+make all          # Generate manifests, code, format, lint, validate, and docs
+make manifests    # Generate CRD manifests only
+make generate     # Generate Go code (deepcopy, etc.)
+```
+
+#### Validation and quality
+```bash
+make fmt          # Format Go code
+make vet          # Run go vet
+make lint         # Run golangci-lint
+```
+
+#### Documentation
+```bash
+make docs         # Generate CRD reference documentation
 ```
 
 ## Support, Feedback, Contributing

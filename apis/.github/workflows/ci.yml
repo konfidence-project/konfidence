@@ -1,0 +1,149 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  detect-modules:
+    name: Detect Go Modules
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Find modules by their go.mod files
+        id: set-matrix
+        run: |
+          MODULES=$(find . -name "go.mod" -not -path "./vendor/*" -exec dirname {} \; | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix=${MODULES}" >> $GITHUB_OUTPUT
+          echo "Found modules: ${MODULES}"
+
+  build-test:
+    name: Build & Test
+    needs: detect-modules
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect-modules.outputs.matrix) }}
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes
+        id: changes
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            ${{ matrix.module }}/**
+            .github/workflows/**
+            .crd-ref-docs.config.yaml
+            .golangci.yml
+            Makefile
+            common.mk
+
+      - name: Should build
+        id: should-build
+        run: |
+          if [[ "${{ steps.changes.outputs.any_changed }}" == "true" ]]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+            echo "✅ Building module ${{ matrix.module }}"
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+            echo "⏭️ Skipping module ${{ matrix.module }} - no changes"
+          fi
+
+      - name: Setup Go
+        if: steps.should-build.outputs.run == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '~1.24'
+          cache-dependency-path: '${{ matrix.module }}/go.sum'
+
+      - name: Download dependencies
+        if: steps.should-build.outputs.run == 'true'
+        working-directory: ${{ matrix.module }}
+        run: go mod download
+
+      - name: Verify generated files are up-to-date
+        if: steps.should-build.outputs.run == 'true'
+        working-directory: ${{ matrix.module }}
+        run: |
+          echo "🔍 Checking if generated files are up-to-date..."
+
+          # Use Makefile targets
+          if make -n generate >/dev/null 2>&1; then
+            make generate
+          fi
+          if make -n manifests >/dev/null 2>&1; then
+            make manifests
+          fi
+          if make -n docs >/dev/null 2>&1; then
+            go install github.com/elastic/crd-ref-docs@latest
+            make docs
+          fi
+
+          # Check if any files changed
+          if ! git diff --quiet; then
+            echo "❌ Generated files are outdated!"
+            echo "Please run: cd ${{ matrix.module }} && make generate && make manifests"
+            echo ""
+            echo "Changed files:"
+            git diff --name-only
+            echo ""
+            echo "Diff:"
+            git diff
+            exit 1
+          else
+            echo "✅ All generated files are up-to-date"
+          fi
+
+      - name: Format check (make fmt)
+        if: steps.should-build.outputs.run == 'true'
+        working-directory: ${{ matrix.module }}
+        run: |
+          make fmt
+          # Verify no changes after fmt
+          if ! git diff --quiet; then
+            echo "❌ Code is not formatted properly. Run 'make fmt' to fix:"
+            git diff --name-only
+            exit 1
+          fi
+          echo "✅ Code is properly formatted"
+
+      - name: Run go vet (make vet)
+        if: steps.should-build.outputs.run == 'true'
+        working-directory: ${{ matrix.module }}
+        run: make vet
+
+      - name: Lint (make lint)
+        if: steps.should-build.outputs.run == 'true'
+        working-directory: ${{ matrix.module }}
+        run: make lint
+
+      - name: Setup GitHub Repo Access
+        uses: konfidence-project/.github/.github/actions/github-repo-access@v1
+        with:
+          private-key: ${{secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+
+      - name: Execute semantic release
+        if: steps.should-build.outputs.run == 'true' && github.ref == 'refs/heads/main'
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          working_directory: ${{ matrix.module }}
+          extra_plugins: |
+            @semantic-release/commit-analyzer 
+            @semantic-release/release-notes-generator 
+            conventional-changelog-conventionalcommits
+        env:
+          GITHUB_TOKEN: ${{ env.GH_TOKEN }}

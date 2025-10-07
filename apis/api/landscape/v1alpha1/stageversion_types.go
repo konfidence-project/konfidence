@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	// StageVersionKind is the kind for StageVersion resources.
 	StageVersionKind = "StageVersion"
 
 	// FetchFailedCondition indicates an fetch failure of another resource.

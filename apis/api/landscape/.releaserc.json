@@ -1,0 +1,105 @@
+{
+  "tagFormat": "api/landscape/v${version}",
+  "branches": [
+    "main"
+  ],
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          {
+            "breaking": true,
+            "release": "major"
+          },
+          {
+            "type": "feat",
+            "release": "minor"
+          },
+          {
+            "type": "fix",
+            "release": "patch"
+          },
+          {
+            "revert": true,
+            "release": "patch"
+          },
+          {
+            "type": "perf",
+            "release": "patch"
+          },
+          {
+            "type": "chore",
+            "scope": "deps",
+            "release": "patch"
+          },
+          {
+            "type": "chore",
+            "scope": "security",
+            "release": "patch"
+          }
+        ],
+        "parserOpts": {
+          "noteKeywords": [
+            "BREAKING CHANGE",
+            "BREAKING CHANGES"
+          ]
+        }
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits",
+        "presetConfig": {
+          "types": [
+            {
+              "type": "feat",
+              "section": "Features"
+            },
+            {
+              "type": "fix",
+              "section": "Bug Fixes"
+            },
+            {
+              "type": "perf",
+              "section": "Performance Improvements"
+            },
+            {
+              "type": "chore",
+              "section": "Maintenance"
+            },
+            {
+              "type": "docs",
+              "section": "Documentation",
+              "hidden": true
+            },
+            {
+              "type": "style",
+              "section": "Code Style",
+              "hidden": true
+            },
+            {
+              "type": "refactor",
+              "section": "Code Refactoring",
+              "hidden": true
+            },
+            {
+              "type": "build",
+              "section": "Build System",
+              "hidden": true
+            },
+            {
+              "type": "ci",
+              "section": "CI/CD",
+              "hidden": true
+            }
+          ]
+        }
+      }
+    ]
+  ]
+}
+
+

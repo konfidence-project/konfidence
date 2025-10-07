@@ -22,6 +22,7 @@ import (
 )
 
 const (
+	// StageKind is kind of the Stage resource.
 	StageKind = "Stage"
 
 	// TODO use condition resolvers to automatically set these conditions based on their relationships?

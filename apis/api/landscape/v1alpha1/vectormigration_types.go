@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	// VectorMigrationKind is the kind for VectorMigration resources.
 	VectorMigrationKind = "VectorMigration"
 
 	// VectorMigrationFailed indicates that the vectorMigration failed.
