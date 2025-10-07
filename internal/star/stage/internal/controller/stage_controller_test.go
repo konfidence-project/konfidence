@@ -45,11 +45,13 @@ var _ = Describe("Stage Controller", func() {
 
 	BeforeEach(func() {
 		testutil.CleanupStage(k8sClient, StageDev, Namespace)
+		testutil.CleanupStageVersions(k8sClient)
 		testutil.CleanupStageVersionUsage(k8sClient, StageVersionUsage, Namespace)
 	})
 
 	AfterEach(func() {
 		testutil.CleanupStage(k8sClient, StageDev, Namespace)
+		testutil.CleanupStageVersions(k8sClient)
 		testutil.CleanupStageVersionUsage(k8sClient, StageVersionUsage, Namespace)
 	})
 
