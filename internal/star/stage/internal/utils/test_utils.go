@@ -96,6 +96,22 @@ func DeleteStageVersion(ctx context.Context, k8sClient client.Client, stageVersi
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete stageVersion: %s", stageVersion.Name)
 }
 
+func GetStageVersions(ctx context.Context, k8sClient client.Client) *landscape.StageVersionList {
+	stageVersions := &landscape.StageVersionList{}
+	err := k8sClient.List(ctx, stageVersions)
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch stageVersions")
+	return stageVersions
+}
+func CleanupStageVersions(k8sClient client.Client) {
+	ctx := context.Background()
+	stageVersions := GetStageVersions(ctx, k8sClient)
+
+	for _, stageVersion := range stageVersions.Items {
+		DeleteStageVersion(ctx, k8sClient, &stageVersion)
+	}
+}
+
 func CleanupStageVersion(k8sClient client.Client, stageVersionName string, namespace string) {
 	ctx := context.Background()
 	stageVersion := GetStageVersion(ctx, k8sClient, stageVersionName, namespace, true)
