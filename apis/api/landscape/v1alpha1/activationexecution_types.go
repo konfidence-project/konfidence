@@ -22,6 +22,7 @@ import (
 )
 
 const (
+	// ActivationExecutionKind is the kind for ActivationExecution resources.
 	ActivationExecutionKind = "ActivationExecution"
 
 	// ActivationExecutionPending indicates that the execution has been created and wait for Execution Controller to be executed.

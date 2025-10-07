@@ -22,6 +22,7 @@ import (
 )
 
 const (
+	// ArtifactDeploymentKind is the kind for ArtifactDeployment resources.
 	ArtifactDeploymentKind = "ArtifactDeployment"
 
 	// ArtifactFetchedCondition indicates that the deployer was able to successfully download the artifact.
@@ -39,6 +40,7 @@ type ArtifactDeploymentSpec struct {
 	Component     OCMComponent     `json:"component,omitempty"`
 }
 
+// OCMComponent is a wrapper around the OCM ComponentVersion.
 type OCMComponent struct {
 	Name    string `json:"name"`
 	Version string `json:"version,omitempty"`
@@ -46,6 +48,7 @@ type OCMComponent struct {
 	Resources []OCMResource `json:"resources,omitempty"`
 }
 
+// OCMResource represent a single resource in an OCM ComponentVersion.
 type OCMResource struct {
 	Name    string `json:"name"`
 	Image   string `json:"image"`
@@ -66,6 +69,7 @@ type ArtifactDeploymentStatus struct {
 	DeploymentResult *DeploymentResult `json:"deploymentResult,omitempty"`
 }
 
+// DeploymentResult contains the result of an artifact deployment.
 type DeploymentResult struct {
 	URL string `json:"url"`
 }
@@ -85,11 +89,13 @@ type ArtifactDeployment struct {
 	Status ArtifactDeploymentStatus `json:"status,omitempty"`
 }
 
+// ArtifactManifest defines the manifest for an artifact.
 type ArtifactManifest struct {
 	Type       string `json:"type"`
 	AllowReuse bool   `json:"allowReuse"`
 }
 
+// TaskManifest defines the manifest for a task.
 type TaskManifest struct {
 	Name      string               `json:"name"`
 	Type      string               `json:"type"`
