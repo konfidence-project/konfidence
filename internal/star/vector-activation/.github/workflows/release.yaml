@@ -10,12 +10,13 @@ jobs:
     uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v1
     secrets: inherit
   test:
-    name: Test
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@v1
-    secrets: inherit
-    with:
-      with-kind-cluster: false
-      install-crds: false
+      name: Test
+      uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@v1
+      secrets: inherit
+      with:
+        with-kind-cluster: false
+        install-crds: false
+        before-tests: make generate-test-crds
 
   build-and-release:
     needs:

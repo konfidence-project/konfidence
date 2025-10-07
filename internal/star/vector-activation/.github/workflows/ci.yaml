@@ -1,18 +1,13 @@
 name: Kubebuilder CI
-on: 
-  push:
-    branches-ignore:
-      - main # For commit on main branches, the release workflow will run
+on:
   pull_request:
     branches:
       - main
-
 jobs:
   lint:
     name: Lint
     uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v1
     secrets: inherit
-
   test:
     name: Test
     uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@v1
@@ -20,13 +15,13 @@ jobs:
     with:
       with-kind-cluster: false
       install-crds: false
+      before-tests: make generate-test-crds
   build-and-release:
     name: Build Container Image
-    if: github.event_name == 'pull_request'
     uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@v1
     secrets: inherit
     with: 
-      push: false  # Don't push the built container image in CI 
+      push: false
 
     permissions:
       contents: write
