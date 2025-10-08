@@ -93,6 +93,9 @@ jobs:
           if make -n manifests >/dev/null 2>&1; then
             make manifests
           fi
+          if make -n schemas >/dev/null 2>&1; then
+            make schemas
+          fi
           if make -n docs >/dev/null 2>&1; then
             go install github.com/elastic/crd-ref-docs@latest
             make docs
@@ -112,6 +115,12 @@ jobs:
           else
             echo "✅ All generated files are up-to-date"
           fi
+
+      - name: Verify sample resources
+        if: steps.should-build.outputs.run == 'true'
+        working-directory: ${{ matrix.module }}
+        run: |
+          make validate
 
       - name: Format check (make fmt)
         if: steps.should-build.outputs.run == 'true'
