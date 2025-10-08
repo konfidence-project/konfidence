@@ -62,6 +62,11 @@ jobs:
             echo "run=false" >> $GITHUB_OUTPUT
             echo "⏭️ Skipping module ${{ matrix.module }} - no changes"
           fi
+          
+      - name: Setup Hermit
+        uses: cashapp/activate-hermit@v1
+        with:
+          cache: "true"
 
       - name: Setup Go
         if: steps.should-build.outputs.run == 'true'
