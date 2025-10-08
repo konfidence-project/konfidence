@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -30,7 +31,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 
@@ -68,15 +71,18 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	log.Info("Reconciling VectorDeployment")
 
 	// get vector deployment usage
-	vd := &landscape.VectorDeployment{}
-	if err := r.Get(ctx, req.NamespacedName, vd); err != nil {
+	vectorDeployment := &landscape.VectorDeployment{}
+	if err := r.Get(ctx, req.NamespacedName, vectorDeployment); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	log.Info("Found vector deployment")
 
-	vector, err := mapVectorDeploymentToDomain(*vd)
+	originalVectorDeployment := vectorDeployment.DeepCopy()
+	patch := client.MergeFrom(originalVectorDeployment)
+
+	vector, err := mapVectorDeploymentToDomain(*vectorDeployment)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to map vector deployment %s to domain: %w", vd.Name, err)
+		return ctrl.Result{}, fmt.Errorf("failed to map vector deployment %s to domain: %w", vectorDeployment.Name, err)
 	}
 
 	// if vector.ComponentSpec is empty then fetch Vector from OCI Repository
@@ -84,43 +90,46 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		// 1. Fetch vector from OCI repository
 		fetchedVector, err := r.OcmAdapter.GetVectorByReference(ctx, vector.Reference)
 		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vd.Name, err)
+			return ctrl.Result{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vectorDeployment.Name, err)
 		}
 		// 2. update vector.ComponentSpec and vector.Artifacts
 		vector.ComponentSpec = fetchedVector.ComponentSpec
 		vector.Artifacts = fetchedVector.Artifacts
 
 		// 3. update vd.Status.ResolvedVectorOcm with json marshalled ComponentSpec
-		vd.Status.ResolvedVectorOcm = fetchedVector.ComponentSpec
+		vectorDeployment.Status.ResolvedVectorOcm = fetchedVector.ComponentSpec
 
 		// 4. update status condition VectorDownloadedCondition to True
 		meta.SetStatusCondition(
-			&vd.Status.Conditions,
+			&vectorDeployment.Status.Conditions,
 			metav1.Condition{
 				Type:   landscape.VectorDownloadedCondition,
 				Status: metav1.ConditionTrue, Reason: landscape.VectorDownloadedCondition,
 				Message: fmt.Sprintf("Successfully downloaded vector %s from OCM repository %s", fetchedVector.Reference.Component, fetchedVector.Reference.OciRegistryUrl),
 			},
 		)
+	}
 
-		// 4. update status in k8s
-		// todo: use patch instead of update to avoid conflicts and multiple retries
-		if err := r.Status().Update(ctx, vd); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to update VectorDeployment status of %s: %w", vd.Name, err)
+	err = r.handleArtifactDeployments(ctx, *vector, vectorDeployment, log)
+	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
+		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
+			patchErrorMessage := "unable to update vectorDeployment status"
+
+			if err != nil {
+				reconcileError := fmt.Errorf("failed to handle artifact deployments for vector deployment %s : %w", vectorDeployment.Name, err)
+				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
+			}
+
+			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
 		}
 	}
 
-	err = r.handleArtifactDeployments(ctx, *vector, vd, log)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to handle artifact deployments for vector deployment %s : %w", vd.Name, err)
-	}
-
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, err
 }
 
 // todo: remove vd *landscape.VectorDeployment from function signature
-func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Context, vector domain.Vector, vd *landscape.VectorDeployment, log logr.Logger) error {
-	vd.Status.ResultingArtifactDeployments = make(map[string]corev1.TypedObjectReference)
+func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Context, vector domain.Vector, vectorDeployment *landscape.VectorDeployment, log logr.Logger) error {
+	vectorDeployment.Status.ResultingArtifactDeployments = make(map[string]corev1.TypedObjectReference)
 	allReady := true
 
 	// TODO parallelize and handle partial failures
@@ -135,69 +144,53 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 		if artifactManifest.AllowReuse {
 			deploymentName = constructArtifactDeploymentName(artifact.ComponentName, artifact.Version, nil)
 		} else {
-			uid := string(vd.UID)
+			uid := string(vectorDeployment.UID)
 			deploymentName = constructArtifactDeploymentName(artifact.ComponentName, artifact.Version, &uid)
 		}
 
 		// fetch existing artifact deployment from k8s api
-		artifactDeployment := landscape.ArtifactDeployment{}
-		err = r.Get(ctx, types.NamespacedName{Namespace: vd.Namespace, Name: deploymentName}, &artifactDeployment)
+		artifactDeployment := &landscape.ArtifactDeployment{}
+		err = r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: deploymentName}, artifactDeployment)
 		if err != nil {
 			// if error is not NotFound then return error
 			if !apierrors.IsNotFound(err) {
 				return fmt.Errorf("failed to get artifact deployment %q: %w", deploymentName, err)
 			}
+
 			log.Info("ArtifactDeployment not found, create new one", "name", deploymentName)
-
-			// map task manifests from domain.TaskManifest to landscape.TaskManifest
-			taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
-			artifactResources := mapArtifactResourcesToLandscape(artifactManifest.Resources)
-
-			artifactDeployment.ObjectMeta = ctrl.ObjectMeta{
-				Name:      deploymentName,
-				Namespace: vd.Namespace,
-			}
-			artifactDeployment.Spec = landscape.ArtifactDeploymentSpec{
-				Manifest: landscape.ArtifactManifest{
-					Type:       artifactManifest.Type,
-					AllowReuse: artifactManifest.AllowReuse,
-				},
-				TaskManifests: taskManifests,
-				Component: landscape.OCMComponent{
-					Name:      artifactManifest.Type,
-					Version:   artifactManifest.Version,
-					Resources: artifactResources,
-				},
-			}
-
-			if err := r.Create(ctx, &artifactDeployment); err != nil {
+			artifactDeployment = r.constructArtifactDeployment(artifactManifest, vectorDeployment, deploymentName)
+			if err := r.Create(ctx, artifactDeployment); err != nil {
 				return fmt.Errorf("failed to ArtifactDeployment resource %s: %w", deploymentName, err)
 			}
-			log.Info("Created ArtifactDeployment", "name", deploymentName)
 
+			log.Info("Created ArtifactDeployment", "name", deploymentName)
 		} else {
 			log.Info("ArtifactDeployment found, update existing one", "name", deploymentName)
 			if artifactManifest.AllowReuse {
 				var ownerRef *metav1.OwnerReference = nil
 				for _, ref := range artifactDeployment.OwnerReferences {
-					if ref.UID == vd.UID {
+					if ref.UID == vectorDeployment.UID {
 						ownerRef = &ref
 						break
 					}
 				}
+
 				if ownerRef == nil {
-					log.Info("Adding owner reference to existing artifact deployment", "vector", vd.Spec.Vector, "name", artifactDeployment.Name)
-					artifactDeployment.OwnerReferences = append(artifactDeployment.OwnerReferences, constructVectorDeploymentOwnerReference(vd))
-					if err := r.Update(ctx, &artifactDeployment); err != nil {
+					log.Info("Adding owner reference to existing artifact deployment", "vector", vectorDeployment.Spec.Vector, "name", artifactDeployment.Name)
+					if err := controllerutil.SetOwnerReference(vectorDeployment, artifactDeployment, r.Scheme); err != nil {
+						return fmt.Errorf("unable to add vectorDeployment owner reference to artifactDeployment: %w", err)
+					}
+
+					if err := r.Update(ctx, artifactDeployment); err != nil {
 						return err
 					}
 				} else {
-					log.Info("Vector deployment already has owner reference", "vector", vd.Spec.Vector, "name", artifactDeployment.Name)
+					log.Info("Vector deployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", artifactDeployment.Name)
 				}
 			}
 		}
 		// Update the artifact deployment to the status map of the VectorDeployment
-		vd.Status.ResultingArtifactDeployments[artifact.ComponentName] = corev1.TypedObjectReference{
+		vectorDeployment.Status.ResultingArtifactDeployments[artifact.ComponentName] = corev1.TypedObjectReference{
 			APIGroup:  &artifactDeployment.APIVersion, // FIXME: difference between APIGroup and APIVersion?
 			Kind:      artifactDeployment.Kind,
 			Namespace: &artifactDeployment.Namespace,
@@ -211,20 +204,14 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 	} // end for loop
 
 	// set status condition ArtifactDeploymentsCreatedCondition to created
-	meta.SetStatusCondition(&vd.Status.Conditions, metav1.Condition{Type: landscape.ArtifactDeploymentsCreatedCondition,
+	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.ArtifactDeploymentsCreatedCondition,
 		Status: metav1.ConditionTrue, Reason: landscape.ArtifactDeploymentsCreatedCondition,
-		Message: fmt.Sprintf("Successfully created Artifact deployments for vector deployment %s", vd.Name)})
+		Message: fmt.Sprintf("Successfully created Artifact deployments for vector deployment %s", vectorDeployment.Name)})
 
 	if allReady {
-		meta.SetStatusCondition(&vd.Status.Conditions, metav1.Condition{Type: landscape.VectorDeployedCondition,
+		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.VectorDeployedCondition,
 			Status: metav1.ConditionTrue, Reason: landscape.VectorDeployedCondition,
-			Message: fmt.Sprintf("All artifacts of vector deployment %s are deployed", vd.Name)})
-	}
-
-	// update status in k8s
-	// todo: use patch instead of update to avoid conflicts and multiple retries
-	if err := r.Status().Update(ctx, vd); err != nil {
-		return fmt.Errorf("failed to update VectorDeployment status of %s: %w", vd.Name, err)
+			Message: fmt.Sprintf("All artifacts of vector deployment %s are deployed", vectorDeployment.Name)})
 	}
 
 	return nil
@@ -256,16 +243,6 @@ func mapArtifactResourcesToLandscape(resources []domain.OCMResource) []landscape
 	return landscapeResources
 }
 
-// TODO factor out owner reference construction to a common place
-func constructVectorDeploymentOwnerReference(vdu *landscape.VectorDeployment) metav1.OwnerReference {
-	return metav1.OwnerReference{
-		APIVersion: vdu.APIVersion,
-		Kind:       vdu.Kind,
-		Name:       vdu.Name,
-		UID:        vdu.UID,
-	}
-}
-
 func constructArtifactDeploymentName(artifactName, artifactVersion string, uid *string) string {
 	h := sha256.New()
 	h.Write([]byte(artifactName))
@@ -283,11 +260,33 @@ func constructArtifactDeploymentName(artifactName, artifactVersion string, uid *
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controllerName string) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		// Uncomment the following line adding a pointer to an instance of the controlled resource as an argument
-		// For().
-		Named(controllerName).
-		For(&landscape.VectorDeployment{}).
+		For(&landscape.VectorDeployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&landscape.ArtifactDeployment{}, builder.MatchEveryOwner).
 		Owns(&landscape.VectorAssignment{}, builder.MatchEveryOwner).
+		Named(controllerName).
 		Complete(r)
+}
+
+func (r *VectorDeploymentReconciler) constructArtifactDeployment(artifactManifest *domain.ArtifactManifest, vectorDeployment *landscape.VectorDeployment, deploymentName string) *landscape.ArtifactDeployment {
+	// map task manifests from domain.TaskManifest to landscape.TaskManifest
+	taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
+	artifactResources := mapArtifactResourcesToLandscape(artifactManifest.Resources)
+	return &landscape.ArtifactDeployment{
+		ObjectMeta: ctrl.ObjectMeta{
+			Name:      deploymentName,
+			Namespace: vectorDeployment.Namespace,
+		},
+		Spec: landscape.ArtifactDeploymentSpec{
+			Manifest: landscape.ArtifactManifest{
+				Type:       artifactManifest.Type,
+				AllowReuse: artifactManifest.AllowReuse,
+			},
+			TaskManifests: taskManifests,
+			Component: landscape.OCMComponent{
+				Name:      artifactManifest.Type,
+				Version:   artifactManifest.Version,
+				Resources: artifactResources,
+			},
+		},
+	}
 }
