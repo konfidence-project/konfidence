@@ -75,3 +75,23 @@ docs: ## Generate CRD reference documentation for all API versions
 .PHONY: build
 build: manifests generate fmt vet ## Build module
 	go build -v ./...
+
+##@ Validations
+
+CRD_DIR := ./config/bases/crd
+SCHEMA_DIR := ./config/schemas
+
+.PHONY: schemas
+schemas: ## Extract JSON schemas for each CRD version
+	@mkdir -p $(SCHEMA_DIR)
+	@for crd in $(CRD_DIR)/*.yaml; do \
+		crd_kind=$$(yq ".spec.names.kind" $$crd | tr '[:upper:]' '[:lower:]'); \
+		crd_group="$$(yq ".spec.group" $$crd)"; \
+		for ver in $$(yq -r '.spec.versions[].name' $$crd); do \
+			yq -o=json ".spec.versions[] | select(.name == \"$$ver\") | .schema.openAPIV3Schema" $$crd > "$(SCHEMA_DIR)/$${crd_group}_$${crd_kind}_$${ver}.json"; \
+		done; \
+	done
+
+.PHONY: validate
+validate: schemas ## Validate sample resources against their JSON schemas
+	 @kubeconform -summary -schema-location default -schema-location "$(SCHEMA_DIR)/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" ./config/samples

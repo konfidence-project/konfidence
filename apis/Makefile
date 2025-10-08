@@ -6,8 +6,8 @@
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
-# Get all modules from go.work
 MODULES := $(shell find . -name "go.mod" -not -path "./vendor/*" -exec dirname {} \;)
+REPO_ROOT := $(shell git rev-parse --show-toplevel)
 
 # Generic template for module targets
 define make_target
@@ -42,6 +42,8 @@ $(eval $(call make_target,generate,Generate code across all modules))
 $(eval $(call make_target,manifests,Generate manifests across all modules))
 $(eval $(call make_target,build,Build all modules))
 $(eval $(call make_target,docs,Generate CRD documentation across all modules))
+$(eval $(call make_target,schemas,Extract JSON schemas for each CRD version))
+$(eval $(call make_target,validate,Validate sample resources against their JSON schemas))
 
 ##@ Utilities
 
