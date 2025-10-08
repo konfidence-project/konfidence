@@ -6,4 +6,5 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: vectoractivation-sample
 spec:
-  # TODO(user): Add fields here
+  stageVersion: some-stage-version
+  vector: https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1
