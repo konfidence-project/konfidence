@@ -18,6 +18,17 @@ api/
 - [Common APIs](api/common/docs/README.md) - Stage definitions
 - [Landscape APIs](api/landscape/docs/README.md) - Deployment and execution resources
 
+## Development
+
+### How to update CRDs
+
+1. Implement your changes in the Go types of your module, e.g. `api/common/v1alpha1/stage_types.go`.
+Make sure to follow the [kubebuilder conventions](https://book.kubebuilder.io/reference/markers/crd-validation.html) for defining CRD fields validation.
+Always add a comment to each field/struct to describe its purpose and to generate meaningful documentation.
+2. Update the examples for the CRDs that you changed, e.g. `api/common/v1alpha1/config/samples/stage.yaml`.
+3. Run `make all` to update the generated code and run schema validations.
+4. Commit and push your changes.
+
 
 ## How to use
 

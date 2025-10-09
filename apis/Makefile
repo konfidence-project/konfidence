@@ -30,7 +30,7 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: all
-all: manifests generate fmt vet lint docs ## Run all checks across all modules
+all: manifests generate fmt vet lint docs schemas validate ## Run all code generators and checks across all modules
 
 # Generate all standard targets
 $(eval $(call make_target,fmt,Run go fmt across all modules))
