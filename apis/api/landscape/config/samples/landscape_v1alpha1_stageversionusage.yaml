@@ -5,4 +5,7 @@ metadata:
     app.kubernetes.io/name: crds
     app.kubernetes.io/managed-by: kustomize
   name: stageversionusage-sample
-spec: {}
+spec:
+  reason: Target usage for stage 'stage-dev'
+  stageVersionRef:
+    name: stageversion-dev-475124

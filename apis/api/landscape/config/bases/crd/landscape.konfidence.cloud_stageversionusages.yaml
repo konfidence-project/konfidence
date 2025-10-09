@@ -38,6 +38,23 @@ spec:
             type: object
           spec:
             description: spec defines the desired state of StageVersionUsage
+            properties:
+              reason:
+                description: Reason is human-readable description of why this StageVersion
+                  is in use, e.g. "executing vector migrations", "latest vector for
+                  stage xyz",
+                type: string
+              stageVersionRef:
+                description: StageVersionRef references a stageVersion
+                properties:
+                  name:
+                    description: Name is the name of the stageVersion
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - stageVersionRef
             type: object
           status:
             description: status defines the observed state of StageVersionUsage

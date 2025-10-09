@@ -298,6 +298,22 @@ StageVersionList contains a list of StageVersion
 | `items` _[StageVersion](#stageversion) array_ |  |  |  |
 
 
+#### StageVersionRef
+
+
+
+StageVersionRef references a stageVersion
+
+
+
+_Appears in:_
+- [StageVersionUsageSpec](#stageversionusagespec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name is the name of the stageVersion |  |  |
+
+
 #### StageVersionSpec
 
 
@@ -384,6 +400,10 @@ StageVersionUsageSpec defines the desired state of StageVersionUsage
 _Appears in:_
 - [StageVersionUsage](#stageversionusage)
 
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `reason` _string_ | Reason is human-readable description of why this StageVersion is in use, e.g. "executing vector migrations", "latest vector for stage xyz", |  |  |
+| `stageVersionRef` _[StageVersionRef](#stageversionref)_ | StageVersionRef references a stageVersion |  |  |
 
 
 #### StageVersionUsageStatus

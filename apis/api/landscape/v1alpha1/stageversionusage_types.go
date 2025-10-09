@@ -30,6 +30,18 @@ const (
 
 // StageVersionUsageSpec defines the desired state of StageVersionUsage
 type StageVersionUsageSpec struct {
+	// Reason is human-readable description of why this StageVersion is in use, e.g. "executing vector migrations", "latest vector for stage xyz",
+	// +optional
+	Reason string `json:"reason,omitempty"`
+
+	// StageVersionRef references a stageVersion
+	StageVersionRef StageVersionRef `json:"stageVersionRef"`
+}
+
+// StageVersionRef references a stageVersion
+type StageVersionRef struct {
+	// Name is the name of the stageVersion
+	Name string `json:"name"`
 }
 
 // StageVersionUsageStatus defines the observed state of StageVersionUsage.
