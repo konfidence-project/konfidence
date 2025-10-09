@@ -7,6 +7,7 @@ rules:
 - apiGroups:
   - landscape.konfidence.cloud
   resources:
+  - activationexecutions
   - vectoractivations
   verbs:
   - create
@@ -19,12 +20,7 @@ rules:
 - apiGroups:
   - landscape.konfidence.cloud
   resources:
-  - vectoractivations/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - landscape.konfidence.cloud
-  resources:
+  - activationexecutions/status
   - vectoractivations/status
   verbs:
   - get
