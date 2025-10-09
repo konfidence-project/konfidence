@@ -39,7 +39,8 @@ type VectorActivationReconciler struct {
 
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectoractivations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectoractivations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectoractivations/finalizers,verbs=update
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=activationexecutions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=activationexecutions/status,verbs=get;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
