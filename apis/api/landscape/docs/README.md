@@ -404,6 +404,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `reason` _string_ | Reason is human-readable description of why this StageVersion is in use, e.g. "executing vector migrations", "latest vector for stage xyz", |  |  |
 | `stageVersionRef` _[StageVersionRef](#stageversionref)_ | StageVersionRef references a stageVersion |  |  |
+| `stageVersionSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#labelselector-v1-meta)_ | StageVersionSelector is a label selector to find a StageVersion when name is not provided. |  |  |
 
 
 #### StageVersionUsageStatus

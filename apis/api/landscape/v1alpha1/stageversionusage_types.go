@@ -28,6 +28,8 @@ const (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// +kubebuilder:validation:ExactlyOneOf=stageVersionRef;stageVersionSelector
+
 // StageVersionUsageSpec defines the desired state of StageVersionUsage
 type StageVersionUsageSpec struct {
 	// Reason is human-readable description of why this StageVersion is in use, e.g. "executing vector migrations", "latest vector for stage xyz",
@@ -35,7 +37,12 @@ type StageVersionUsageSpec struct {
 	Reason string `json:"reason,omitempty"`
 
 	// StageVersionRef references a stageVersion
-	StageVersionRef StageVersionRef `json:"stageVersionRef"`
+	// +optional
+	StageVersionRef StageVersionRef `json:"stageVersionRef,omitempty"`
+
+	// StageVersionSelector is a label selector to find a StageVersion when name is not provided.
+	// +optional
+	StageVersionSelector *metav1.LabelSelector `json:"stageVersionSelector,omitempty"`
 }
 
 // StageVersionRef references a stageVersion
