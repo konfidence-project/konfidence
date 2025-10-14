@@ -23,6 +23,9 @@ import (
 const (
 	// StageVersionUsageKind is the kind for StageVersionUsage resources.
 	StageVersionUsageKind = "StageVersionUsage"
+
+	// StageVersionNotFound indicates that the referenced stage version does not exist.
+	StageVersionNotFound = "StageVersionNotFound"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -53,8 +56,7 @@ type StageVersionRef struct {
 
 // StageVersionUsageStatus defines the observed state of StageVersionUsage.
 type StageVersionUsageStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true

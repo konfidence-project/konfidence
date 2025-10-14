@@ -418,6 +418,9 @@ StageVersionUsageStatus defines the observed state of StageVersionUsage.
 _Appears in:_
 - [StageVersionUsage](#stageversionusage)
 
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
 
 
 #### TaskExecution
