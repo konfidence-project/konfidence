@@ -40,6 +40,10 @@ manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefin
 generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	controller-gen object:headerFile="$(REPO_ROOT)/hack/boilerplate.go.txt" paths="./..."
 
+.PHONY: install
+install: generate manifests ## Install CRDs into the K8s cluster specified in kubeconfig
+	kubectl apply -f config/release/install.yaml
+
 .PHONY: fmt
 fmt: ## Run go fmt against code.
 	go fmt ./...
