@@ -40,6 +40,7 @@ $(eval $(call make_target,lint-fix,Run golangci-lint with fixes across all modul
 $(eval $(call make_target,test,Run tests across all modules))
 $(eval $(call make_target,generate,Generate code across all modules))
 $(eval $(call make_target,manifests,Generate manifests across all modules))
+$(eval $(call make_target,install,Install CRDs into the K8s cluster specified in kubeconfig))
 $(eval $(call make_target,build,Build all modules))
 $(eval $(call make_target,docs,Generate CRD documentation across all modules))
 $(eval $(call make_target,schemas,Extract JSON schemas for each CRD version))
