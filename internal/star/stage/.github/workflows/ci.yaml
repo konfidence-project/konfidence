@@ -1,28 +1,17 @@
 name: Kubebuilder CI
-on:
+on: 
+  push:
+    branches-ignore:
+      - main
   pull_request:
     branches:
       - main
-jobs:
-  lint:
-    name: Lint
-    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v1
-    secrets: inherit
-  test:
-    name: Test
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-test.yaml@v1
-    secrets: inherit
-    with:
-      with-kind-cluster: false
-      install-crds: false
-      before-tests: make generate-test-crds
-  build-and-release:
-    name: Build Container Image
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-container-build-and-release.yaml@v1
-    secrets: inherit
-    with: 
-      push: false
 
+jobs:
+  ci:
+    name: CI
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-ci-pipeline.yaml@v2
+    secrets: inherit
     permissions:
       contents: write
       issues: write
@@ -30,3 +19,5 @@ jobs:
       packages: write
       attestations: write
       id-token: write
+    with:
+      before-tests: make generate-test-crds
