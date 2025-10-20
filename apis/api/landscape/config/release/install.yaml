@@ -604,6 +604,12 @@ spec:
                   - type
                   type: object
                 type: array
+              resolvedStageVersions:
+                description: ResolvedStageVersions contains the names of all resolved
+                  stageVersion resources specified by either stageVersionRef or StageVersionSelector
+                items:
+                  type: string
+                type: array
             type: object
         required:
         - spec
