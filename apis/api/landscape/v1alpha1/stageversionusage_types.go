@@ -57,6 +57,9 @@ type StageVersionRef struct {
 // StageVersionUsageStatus defines the observed state of StageVersionUsage.
 type StageVersionUsageStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// ResolvedStageVersions contains the names of all resolved stageVersion resources specified by either stageVersionRef or StageVersionSelector
+	ResolvedStageVersions []string `json:"resolvedStageVersions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
