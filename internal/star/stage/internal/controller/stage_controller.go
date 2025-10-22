@@ -19,10 +19,12 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"slices"
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	util "github.com/konfidence-project/landscape-stage-controller/internal/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -62,6 +64,215 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	return ctrl.Result{}, r.reconcileStage(ctx, req, stage)
+}
+
+func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, stage *common.Stage) error {
+	log := logf.FromContext(ctx)
+	log.Info("Reconciling stage")
+
+	_, err := r.getOrCreateTargetStageVersionUsage(ctx, req, stage)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.getOrCreateStageVersion(ctx, req, stage)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Stage reconciled")
+	return nil
+}
+
+func (r *StageReconciler) getOrCreateTargetStageVersionUsage(ctx context.Context, req ctrl.Request, stage *common.Stage) (*landscape.StageVersionUsage, error) {
+	log := logf.FromContext(ctx)
+
+	stageVersionUsages := &landscape.StageVersionUsageList{}
+	if err := r.List(ctx, stageVersionUsages, client.InNamespace(req.Namespace), client.MatchingLabels(getTargetStageVersionUsageLabels(stage))); err != nil {
+		return nil, fmt.Errorf("unable to list current target stageVersionUsages: %w", err)
+	}
+
+	if len(stageVersionUsages.Items) == 0 {
+		log.Info("No matching target stageVersionUsage found. Creating a new one...")
+
+		// create new stageVersionUsage
+		stageVersionUsage, err := r.constructStageVersionUsage(stage)
+		if err != nil {
+			return nil, fmt.Errorf("unable to construct target stageVersionUsage from template: %w", err)
+		}
+
+		if err := r.Create(ctx, stageVersionUsage); err != nil {
+			return nil, fmt.Errorf("unable to create target stageVersionUsage: %w", err)
+		}
+
+		log.Info("Created target stageVersionUsage", "stageVersionUsage", stageVersionUsage)
+		return stageVersionUsage, nil
+	}
+
+	// found one or more matching target stageVersionUsages
+	// we just use the first one found
+	stageVersionUsage := &stageVersionUsages.Items[0]
+	log.Info("Found existing target stageVersionUsage", "stageVersionUsage", stageVersionUsage)
+
+	// update the target usage with the current spec
+	if err := r.updateTargetStageVersionUsage(ctx, stageVersionUsage, stage); err != nil {
+		return nil, fmt.Errorf("unable to update target stageVersionUsage specs: %w", err)
+	}
+
+	if len(stageVersionUsages.Items) > 1 {
+		log.Info("Deleting obsolete target stageVersionUsages")
+
+		// delete all other (potentially manually) created target stageVersionUsages
+		for _, stageVersionUsage := range stageVersionUsages.Items[1:] {
+			if err := r.Delete(ctx, &stageVersionUsage); err != nil {
+				return nil, fmt.Errorf("unable to delete obsolete target stageVersionUsage: %w", err)
+			}
+		}
+	}
+
+	return stageVersionUsage, nil
+}
+
+func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, req ctrl.Request, stage *common.Stage) (*landscape.StageVersion, error) {
+	log := logf.FromContext(ctx)
+
+	// get all stageVersions that are owned by this stage
+	stageVersions := &landscape.StageVersionList{}
+	if err := r.List(ctx, stageVersions, client.InNamespace(req.Namespace), client.MatchingFields{stageVersionOwnerKey: req.Name}); err != nil {
+		return nil, fmt.Errorf("unable to list stageVersions: %w", err)
+	}
+
+	// check if a stageVersion exists with a vector matching the stage vector and the current stage generation
+	index := slices.IndexFunc(stageVersions.Items, func(version landscape.StageVersion) bool {
+		return version.Spec.Vector == stage.Spec.Vector && version.Spec.StageGeneration == stage.Generation
+	})
+
+	// create it if it does not exist
+	if index < 0 {
+		log.Info("No matching stageVersion found. Creating a new one...")
+
+		// create new stageVersion
+		stageVersion, err := r.constructStageVersion(stage)
+		if err != nil {
+			return nil, fmt.Errorf("unable to construct stageVersion from template: %w", err)
+		}
+
+		if err := r.Create(ctx, stageVersion); err != nil {
+			return nil, fmt.Errorf("unable to create stageVersion for stage: %w", err)
+		}
+
+		log.Info("Created stageVersion for stage", "stageVersion", stageVersion)
+		return stageVersion, nil
+	} else {
+		log.V(1).Info("Found existing stageVersion at index", "index", index)
+		return &stageVersions.Items[index], nil
+	}
+}
+
+func (r *StageReconciler) constructStageVersion(stage *common.Stage) (*landscape.StageVersion, error) {
+	name := fmt.Sprintf("%s-%s-%s", "stage-version", stage.Name, rand.String(8))
+	stageVersionLabels, err := getStageVersionLabels(stage)
+	if err != nil {
+		return nil, err
+	}
+
+	stageVersion := &landscape.StageVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: stage.Namespace,
+			Labels:    stageVersionLabels,
+		},
+		Spec: landscape.StageVersionSpec{
+			Vector:          stage.Spec.Vector,
+			StageGeneration: stage.Generation,
+		},
+	}
+
+	if err := ctrl.SetControllerReference(stage, stageVersion, r.Scheme); err != nil {
+		return nil, fmt.Errorf("unable to set controller reference for stageVersion: %w", err)
+	}
+
+	return stageVersion, nil
+}
+
+func (r *StageReconciler) constructStageVersionUsage(stage *common.Stage) (*landscape.StageVersionUsage, error) {
+	name := fmt.Sprintf("%s-target-usage-%s", stage.Name, rand.String(8))
+	stageVersionLabels, err := getStageVersionLabels(stage)
+	if err != nil {
+		return nil, err
+	}
+
+	stageVersionUsage := &landscape.StageVersionUsage{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: stage.Namespace,
+			Labels:    getTargetStageVersionUsageLabels(stage),
+		},
+		Spec: landscape.StageVersionUsageSpec{
+			Reason: StageVersionUsageTargetType,
+			StageVersionSelector: &metav1.LabelSelector{
+				MatchLabels: stageVersionLabels,
+			},
+		},
+	}
+
+	if err := controllerutil.SetControllerReference(stage, stageVersionUsage, r.Scheme); err != nil {
+		return nil, fmt.Errorf("unable to set controller reference for stageVersionUsage: %w", err)
+	}
+
+	return stageVersionUsage, nil
+}
+
+func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, stageVersionUsage *landscape.StageVersionUsage, stage *common.Stage) error {
+	stageVersionLabels, err := getStageVersionLabels(stage)
+	if err != nil {
+		return err
+	}
+
+	originalStageVersionUsage := stageVersionUsage.DeepCopy()
+	patch := client.MergeFrom(originalStageVersionUsage)
+
+	stageVersionUsage.Labels = getTargetStageVersionUsageLabels(stage)
+	stageVersionUsage.Spec.Reason = StageVersionUsageTargetType
+	stageVersionUsage.Spec.StageVersionRef = nil
+	stageVersionUsage.Spec.StageVersionSelector = &metav1.LabelSelector{
+		MatchLabels: stageVersionLabels,
+	}
+
+	// remove all owner references
+	stageVersionUsage.OwnerReferences = []metav1.OwnerReference{}
+
+	// and set stage controller reference
+	if err := controllerutil.SetControllerReference(stage, stageVersionUsage, r.Scheme); err != nil {
+		return fmt.Errorf("unable to set controller reference for stageVersionUsage: %w", err)
+	}
+
+	if !reflect.DeepEqual(stageVersionUsage, originalStageVersionUsage) {
+		if err := r.Patch(ctx, stageVersionUsage, patch); err != nil {
+			return fmt.Errorf("unable to patch target stageVersionUsage: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func getStageVersionLabels(stage *common.Stage) (map[string]string, error) {
+	// TODO label and key value must have a max length of 63, cut vector name to last 63?
+	adaptedVectorName, err := util.AdaptVectorName(stage.Spec.Vector)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]string{
+		StageNameLabel:       stage.Name,
+		VectorReferenceLabel: adaptedVectorName,
+	}, nil
+}
+
+func getTargetStageVersionUsageLabels(stage *common.Stage) map[string]string {
+	return map[string]string{
+		StageVersionUsageTarget: stage.Name,
+	}
 }
 
 var (
@@ -113,97 +324,7 @@ func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&common.Stage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&landscape.StageVersion{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
+		Owns(&landscape.StageVersionUsage{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
 		Named("stage").
 		Complete(r)
-}
-
-func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, stage *common.Stage) error {
-	log := logf.FromContext(ctx)
-	log.Info("Reconciling stage")
-
-	// get all stageVersions that are owned by this stage
-	stageVersions := &landscape.StageVersionList{}
-	if err := r.List(ctx, stageVersions, client.InNamespace(req.Namespace), client.MatchingFields{stageVersionOwnerKey: req.Name}); err != nil {
-		return fmt.Errorf("unable to list stageVersions: %w", err)
-	}
-
-	// check if a stageVersion exists with a vector matching the stage vector and the current stage generation
-	index := slices.IndexFunc(stageVersions.Items, func(version landscape.StageVersion) bool {
-		return version.Spec.Vector == stage.Spec.Vector && version.Spec.StageGeneration == stage.Generation
-	})
-
-	// create it if it does not exist
-	if index < 0 {
-		log.Info("No matching stageVersion found. Creating a new one...")
-
-		// create new stageVersion
-		stageVersion, err := r.constructStageVersionForStage(stage)
-		if err != nil {
-			return fmt.Errorf("unable to construct stageVersion from template: %w", err)
-		}
-
-		if err := r.Create(ctx, stageVersion); err != nil {
-			return fmt.Errorf("unable to create stageVersion for stage: %w", err)
-		}
-
-		log.Info("Created stageVersion for stage", "stageVersion", stageVersion)
-	} else {
-		log.V(1).Info("Found existing stageVersion at index", "index", index)
-	}
-
-	for i, stageVersion := range stageVersions.Items {
-		if i == index {
-			// skip existing one if available
-			continue
-		}
-
-		// check if the stageVersion still has an owner references to the stage
-		exists, err := controllerutil.HasOwnerReference(stageVersion.GetOwnerReferences(), stage, r.Scheme)
-		if err != nil {
-			return fmt.Errorf("unable to check owner references of stageVersion: %w", err)
-		}
-
-		if exists {
-			// delete stageVersion if the stage owner ref is the last one remaining
-			if len(stageVersion.GetOwnerReferences()) == 1 {
-				log.Info("Removing old stageVersion because this stage owner reference is the last one remaining")
-
-				if err := r.Delete(ctx, &stageVersion); err != nil {
-					return fmt.Errorf("unable to delete old stageVersion for stage: %w", err)
-				}
-			} else {
-				// remove stage owner ref for this stage
-				if err = controllerutil.RemoveOwnerReference(stage, &stageVersion, r.Scheme); err != nil {
-					return fmt.Errorf("nable to remove stage owner reference of stageVersion: %w", err)
-				}
-
-				if err = r.Update(ctx, &stageVersion); err != nil {
-					return fmt.Errorf("failed to update stageVersion: %w", err)
-				}
-			}
-		}
-	}
-
-	log.Info("Stage reconciled")
-	return nil
-}
-
-func (r *StageReconciler) constructStageVersionForStage(stage *common.Stage) (*landscape.StageVersion, error) {
-	name := fmt.Sprintf("%s-%s-%s", "stage-version", stage.Name, rand.String(8))
-	stageVersion := &landscape.StageVersion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: stage.Namespace,
-		},
-		Spec: landscape.StageVersionSpec{
-			Vector:          stage.Spec.Vector,
-			StageGeneration: stage.Generation,
-		},
-	}
-
-	if err := ctrl.SetControllerReference(stage, stageVersion, r.Scheme); err != nil {
-		return nil, fmt.Errorf("unable to set controller reference for stage version: %w", err)
-	}
-
-	return stageVersion, nil
 }

@@ -67,6 +67,16 @@ github.com/konfidence-project/crds/api/common v0.1.2 h1:gGJ48vZiOnjnFePHG2iZoFgi
 github.com/konfidence-project/crds/api/common v0.1.2/go.mod h1:mowIsVaZQnPHizSJx5qpggkL8kdHgh3eyYGwJPjGAwc=
 github.com/konfidence-project/crds/api/landscape v0.1.3 h1:4S0QZtSE3+bZlKgytlS9PTxZPgIdTMS6sdgh9YNYAoA=
 github.com/konfidence-project/crds/api/landscape v0.1.3/go.mod h1:3GtQ6+wPtEvb73R0/NGL5pnHD1bmKLQXESYKbPbgJU8=
+github.com/konfidence-project/crds/api/landscape v0.2.0 h1:630iAvdvimDwD95x7IwJ2USR5xeuNL8TkTZsAyNgyoY=
+github.com/konfidence-project/crds/api/landscape v0.2.0/go.mod h1:3GtQ6+wPtEvb73R0/NGL5pnHD1bmKLQXESYKbPbgJU8=
+github.com/konfidence-project/crds/api/landscape v0.3.0 h1:XlsL4octbm4SQ23INsCozYpVnbJMFkI5NlfPhd0xQRo=
+github.com/konfidence-project/crds/api/landscape v0.3.0/go.mod h1:3GtQ6+wPtEvb73R0/NGL5pnHD1bmKLQXESYKbPbgJU8=
+github.com/konfidence-project/crds/api/landscape v0.3.1 h1:q9ptj1YBIwER+CW/E+HywJi4iLpTR5JO2B8uIaeK7mE=
+github.com/konfidence-project/crds/api/landscape v0.3.1/go.mod h1:3GtQ6+wPtEvb73R0/NGL5pnHD1bmKLQXESYKbPbgJU8=
+github.com/konfidence-project/crds/api/landscape v0.4.0 h1:ZQm8emw5xbojdHpN0q7fMaVoIdYRdczl6898jlQcIxM=
+github.com/konfidence-project/crds/api/landscape v0.4.0/go.mod h1:3GtQ6+wPtEvb73R0/NGL5pnHD1bmKLQXESYKbPbgJU8=
+github.com/konfidence-project/crds/api/landscape v0.5.0 h1:WuWdIYa7XrJ6Z8a7C4yom/TEfKbj+n9BTgk5NqG4opY=
+github.com/konfidence-project/crds/api/landscape v0.5.0/go.mod h1:3GtQ6+wPtEvb73R0/NGL5pnHD1bmKLQXESYKbPbgJU8=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=

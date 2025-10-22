@@ -59,6 +59,23 @@ func CleanupStage(k8sClient client.Client, stageName string, namespace string) {
 	}
 }
 
+func GetStages(ctx context.Context, k8sClient client.Client) *common.StageList {
+	stages := &common.StageList{}
+	err := k8sClient.List(ctx, stages)
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch stages")
+	return stages
+}
+
+func CleanupStages(k8sClient client.Client) {
+	ctx := context.Background()
+	stages := GetStages(ctx, k8sClient)
+
+	for _, stage := range stages.Items {
+		DeleteStage(ctx, k8sClient, &stage)
+	}
+}
+
 func CreateStageVersion(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
 	stageVersion := &landscape.StageVersion{
 		TypeMeta: metav1.TypeMeta{
@@ -68,6 +85,29 @@ func CreateStageVersion(ctx context.Context, k8sClient client.Client, name strin
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+		},
+		Spec: landscape.StageVersionSpec{
+			Vector:          vectorName,
+			StageGeneration: 1,
+		},
+	}
+
+	Expect(k8sClient.Create(ctx, stageVersion)).To(Succeed())
+}
+
+func CreateStageVersionWithLabels(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string, stageName string, adaptedVectorName string) {
+	stageVersion := &landscape.StageVersion{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			Kind:       "StageVersion",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				StageNameLabel:       stageName,
+				VectorReferenceLabel: adaptedVectorName,
+			},
 		},
 		Spec: landscape.StageVersionSpec{
 			Vector:          vectorName,
@@ -121,7 +161,7 @@ func CleanupStageVersion(k8sClient client.Client, stageVersionName string, names
 	}
 }
 
-func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name string, namespace string) {
+func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name string, namespace string, stageVersionName string) {
 	usage := &landscape.StageVersionUsage{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "landscape.konfidence.cloud/v1alpha1",
@@ -131,7 +171,40 @@ func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name 
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: landscape.StageVersionUsageSpec{},
+		Spec: landscape.StageVersionUsageSpec{
+			StageVersionRef: &landscape.StageVersionRef{
+				Name: stageVersionName,
+			},
+		},
+	}
+
+	Expect(k8sClient.Create(ctx, usage)).To(Succeed())
+}
+
+func CreateStageVersionUsageWithSelector(ctx context.Context, k8sClient client.Client, name string, namespace string, stageName string, adaptedVectorName string, isTarget bool) {
+	usage := &landscape.StageVersionUsage{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			Kind:       "StageVersionUsage",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: landscape.StageVersionUsageSpec{
+			StageVersionSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					StageNameLabel:       stageName,
+					VectorReferenceLabel: adaptedVectorName,
+				},
+			},
+		},
+	}
+
+	if isTarget {
+		usage.SetLabels(map[string]string{
+			StageVersionUsageTarget: stageName,
+		})
 	}
 
 	Expect(k8sClient.Create(ctx, usage)).To(Succeed())
@@ -164,6 +237,23 @@ func CleanupStageVersionUsage(k8sClient client.Client, stageVersionUsageName str
 	}
 }
 
+func GetStageVersionUsages(ctx context.Context, k8sClient client.Client) *landscape.StageVersionUsageList {
+	stageVersionUsages := &landscape.StageVersionUsageList{}
+	err := k8sClient.List(ctx, stageVersionUsages)
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch stageVersionUsages")
+	return stageVersionUsages
+}
+
+func CleanupStageVersionUsages(k8sClient client.Client) {
+	ctx := context.Background()
+	stageVersionUsages := GetStageVersionUsages(ctx, k8sClient)
+
+	for _, stageVersionUsage := range stageVersionUsages.Items {
+		DeleteStageVersionUsage(ctx, k8sClient, &stageVersionUsage)
+	}
+}
+
 func GetVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.VectorDeployment {
 	vectorDeployment := &landscape.VectorDeployment{}
 	vectorDeploymentLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
@@ -188,6 +278,23 @@ func CleanupVectorDeployment(k8sClient client.Client, vectorDeploymentName strin
 
 	if vectorDeployment != nil {
 		DeleteVectorDeployment(ctx, k8sClient, vectorDeployment)
+	}
+}
+
+func GetVectorDeployments(ctx context.Context, k8sClient client.Client) *landscape.VectorDeploymentList {
+	vectorDeployments := &landscape.VectorDeploymentList{}
+	err := k8sClient.List(ctx, vectorDeployments)
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch vectorDeployments")
+	return vectorDeployments
+}
+
+func CleanupVectorDeployments(k8sClient client.Client) {
+	ctx := context.Background()
+	vectorDeployments := GetVectorDeployments(ctx, k8sClient)
+
+	for _, vectorDeployment := range vectorDeployments.Items {
+		DeleteVectorDeployment(ctx, k8sClient, &vectorDeployment)
 	}
 }
 
@@ -218,6 +325,23 @@ func CleanupVectorMigration(k8sClient client.Client, vectorMigrationName string,
 	}
 }
 
+func GetVectorMigrations(ctx context.Context, k8sClient client.Client) *landscape.VectorMigrationList {
+	vectorMigrations := &landscape.VectorMigrationList{}
+	err := k8sClient.List(ctx, vectorMigrations)
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch vectorMigrations")
+	return vectorMigrations
+}
+
+func CleanupVectorMigrations(k8sClient client.Client) {
+	ctx := context.Background()
+	vectorMigrations := GetVectorMigrations(ctx, k8sClient)
+
+	for _, vectorMigration := range vectorMigrations.Items {
+		DeleteVectorMigration(ctx, k8sClient, &vectorMigration)
+	}
+}
+
 func GetVectorActivation(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.VectorActivation {
 	vectorActivation := &landscape.VectorActivation{}
 	vectorActivationLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
@@ -243,6 +367,32 @@ func CleanupVectorActivation(k8sClient client.Client, vectorActivationName strin
 	if vectorActivation != nil {
 		DeleteVectorActivation(ctx, k8sClient, vectorActivation)
 	}
+}
+
+func GetVectorActivations(ctx context.Context, k8sClient client.Client) *landscape.VectorActivationList {
+	vectorActivations := &landscape.VectorActivationList{}
+	err := k8sClient.List(ctx, vectorActivations)
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch vectorActivations")
+	return vectorActivations
+}
+
+func CleanupVectorActivations(k8sClient client.Client) {
+	ctx := context.Background()
+	vectorActivations := GetVectorActivations(ctx, k8sClient)
+
+	for _, vectorActivation := range vectorActivations.Items {
+		DeleteVectorActivation(ctx, k8sClient, &vectorActivation)
+	}
+}
+
+func CleanupResources(k8sClient client.Client) {
+	CleanupStageVersionUsages(k8sClient)
+	CleanupStages(k8sClient)
+	CleanupStageVersions(k8sClient)
+	CleanupVectorDeployments(k8sClient)
+	CleanupVectorMigrations(k8sClient)
+	CleanupVectorActivations(k8sClient)
 }
 
 func HasOwnerReference(ownerReferences []metav1.OwnerReference, ref metav1.OwnerReference) bool {

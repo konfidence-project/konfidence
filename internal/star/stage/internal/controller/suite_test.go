@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package controller_test
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -95,13 +96,19 @@ var _ = BeforeSuite(func() {
 
 	reconcileScheme = k8sManager.GetScheme()
 
-	err = (&StageReconciler{
+	err = (&controller.StageReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&StageVersionReconciler{
+	err = (&controller.StageVersionReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&controller.StageVersionUsageReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)
