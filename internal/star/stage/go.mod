@@ -4,7 +4,7 @@ go 1.24.5
 
 require (
 	github.com/konfidence-project/crds/api/common v0.1.2
-	github.com/konfidence-project/crds/api/landscape v0.1.3
+	github.com/konfidence-project/crds/api/landscape v0.5.0
 	github.com/onsi/ginkgo/v2 v2.26.0
 	github.com/onsi/gomega v1.38.2
 	k8s.io/apimachinery v0.34.1

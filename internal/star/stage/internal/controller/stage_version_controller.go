@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	util "github.com/konfidence-project/landscape-stage-controller/internal/utils"
@@ -108,7 +107,7 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	log.Info("Reconciling stageVersion")
 
 	// get a k8s conform vector name
-	adaptedVectorName, err := adaptVectorName(stageVersion.Spec.Vector)
+	adaptedVectorName, err := util.AdaptVectorName(stageVersion.Spec.Vector)
 	if err != nil {
 		return err
 	}
@@ -270,7 +269,7 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context
 }
 
 func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *landscape.StageVersion) (*landscape.VectorDeployment, error) {
-	adaptedVectorName, err := adaptVectorName(stageVersion.Spec.Vector)
+	adaptedVectorName, err := util.AdaptVectorName(stageVersion.Spec.Vector)
 	if err != nil {
 		return nil, err
 	}
@@ -326,28 +325,6 @@ func (r *StageVersionReconciler) constructVectorActivation(stageVersion *landsca
 		return nil, fmt.Errorf("unable to set controller reference for vector activation: %w", err)
 	}
 	return vectorActivation, nil
-}
-
-// make vector name usable as kubernetes resource name
-func adaptVectorName(vector string) (string, error) {
-	trimmedVector := strings.TrimSpace(strings.ToLower(vector))
-
-	// TODO validate defined vector format
-	if len(trimmedVector) < 4 {
-		return "", fmt.Errorf("unable to parse vector: %s", vector)
-	}
-
-	// get index of separator
-	separatorIdx := strings.LastIndex(trimmedVector, "//")
-
-	if separatorIdx == -1 || separatorIdx == len(vector)-2 {
-		return "", fmt.Errorf("unable to parse vector: %s", vector)
-	}
-
-	componentVersion := trimmedVector[separatorIdx+2:]
-	adaptedVector := strings.ReplaceAll(componentVersion, "/", ".")
-	adaptedVector = strings.ReplaceAll(adaptedVector, ":", "-")
-	return adaptedVector, nil
 }
 
 func reconcileStageVersionOwner(ctx context.Context, obj client.Object) []reconcile.Request {

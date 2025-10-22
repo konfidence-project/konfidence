@@ -30,6 +30,7 @@ rules:
   - landscape.konfidence.cloud
   resources:
   - stageversions
+  - stageversionusages
   - vectoractivations
   - vectordeployments
   - vectormigrations
@@ -45,6 +46,7 @@ rules:
   - landscape.konfidence.cloud
   resources:
   - stageversions/status
+  - stageversionusages/status
   - vectoractivations/status
   - vectordeployments/status
   - vectormigrations/status

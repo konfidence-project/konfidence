@@ -19,10 +19,12 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
+	"github.com/konfidence-project/landscape-stage-controller/internal/gc"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -88,6 +90,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := (&controller.StageVersionUsageReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StageVersionUsage")
+		os.Exit(1)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -99,8 +109,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	signalContext := ctrl.SetupSignalHandler()
+	garbageCollector := &gc.StageVersionGarbageCollector{
+		Client:   mgr.GetClient(),
+		Interval: 15 * time.Second,
+	}
+
+	setupLog.Info("Starting stageVersion garbage collector")
+	go func() {
+		if err := garbageCollector.Start(signalContext); err != nil {
+			setupLog.Error(err, "An error occurred while starting/running the stageVersion garbage collector")
+		}
+	}()
+
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(signalContext); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

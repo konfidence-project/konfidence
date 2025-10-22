@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package controller_test
 
 import (
 	"context"
@@ -43,19 +43,11 @@ var _ = Describe("StageVersion Controller", func() {
 	)
 
 	BeforeEach(func() {
-		testutil.CleanupStageVersion(k8sClient, StageVersionDev, Namespace)
-		testutil.CleanupStageVersion(k8sClient, StageVersionTest, Namespace)
-		testutil.CleanupVectorDeployment(k8sClient, VectorName001, Namespace)
-		testutil.CleanupVectorMigration(k8sClient, StageVersionDevMigration, Namespace)
-		testutil.CleanupVectorActivation(k8sClient, StageVersionDevActivation, Namespace)
+		testutil.CleanupResources(k8sClient)
 	})
 
 	AfterEach(func() {
-		testutil.CleanupStageVersion(k8sClient, StageVersionDev, Namespace)
-		testutil.CleanupStageVersion(k8sClient, StageVersionTest, Namespace)
-		testutil.CleanupVectorDeployment(k8sClient, VectorName001, Namespace)
-		testutil.CleanupVectorMigration(k8sClient, StageVersionDevMigration, Namespace)
-		testutil.CleanupVectorActivation(k8sClient, StageVersionDevActivation, Namespace)
+		testutil.CleanupResources(k8sClient)
 	})
 
 	Context("When reconciling a stageVersion", func() {
