@@ -428,6 +428,12 @@ func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration
 			Name:      getStageVersionUsageName(vectorMigration.Spec.StageVersion),
 			Namespace: vectorMigration.Namespace,
 		},
+		Spec: landscape.StageVersionUsageSpec{
+			Reason: "VectorMigration",
+			StageVersionRef: &landscape.StageVersionRef{
+				Name: vectorMigration.Spec.StageVersion,
+			},
+		},
 	}
 
 	// set vectorMigration as owner of the stageVersionUsage
@@ -484,7 +490,7 @@ func (r *TaskOrchestrationReconciler) cleanupVectorMigration(ctx context.Context
 }
 
 func getStageVersionUsageName(stageVersionName string) string {
-	return fmt.Sprintf("%s-%s", stageVersionName, "usage")
+	return fmt.Sprintf("%s-%s", stageVersionName, "migration-usage")
 }
 
 // TODO same method as in stage controller, move to separate common library
