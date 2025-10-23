@@ -39,7 +39,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 		StageDev            = "stage-dev"
 		StageVersion        = "stage-version-stage-dev"
 		VectorMigration     = "stage-version-stage-dev-migration"
-		StageVersionUsage   = "stage-version-stage-dev-usage"
+		StageVersionUsage   = "stage-version-stage-dev-migration-usage"
 		ArtifactDeployment1 = "artifact-deployment-1"
 		ArtifactDeployment2 = "artifact-deployment-2"
 		Namespace           = "default"
@@ -229,6 +229,8 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.GetOwnerReferences()).To(HaveLen(1))
+				g.Expect(stageVersionUsage.Spec.StageVersionRef).ToNot(BeNil())
+				g.Expect(stageVersionUsage.Spec.StageVersionRef.Name).To(Equal(StageVersion))
 				g.Expect(testutil.HasOwnerReference(stageVersionUsage.GetOwnerReferences(), metav1.OwnerReference{
 					Kind: landscape.VectorMigrationKind,
 					Name: VectorMigration,
