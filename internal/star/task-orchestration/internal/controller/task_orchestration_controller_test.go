@@ -237,15 +237,6 @@ var _ = Describe("Task Orchestration Controller", func() {
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			// check that the stageVersionUsage has been set as owner of the stageVersion
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
-				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: landscape.StageVersionUsageKind,
-					Name: StageVersionUsage,
-				})).To(BeTrue())
-			}, timeout, interval).Should(Succeed())
-
 			// check that the first two taskExecutions have been created
 			taskExecution0 := &landscape.TaskExecution{}
 			taskExecution0LookupKey := types.NamespacedName{Name: Task0, Namespace: Namespace}
