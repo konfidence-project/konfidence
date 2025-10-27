@@ -272,33 +272,6 @@ func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(ctx context.C
 		}
 	}
 
-	// get stageVersion
-	stageVersion := &landscape.StageVersion{}
-	if err := r.Get(ctx, types.NamespacedName{Name: vectorMigration.Spec.StageVersion, Namespace: req.Namespace}, stageVersion); err != nil {
-		return nil, fmt.Errorf("could not get stageVersion: %w", err)
-	}
-
-	hasRef, err = controllerutil.HasOwnerReference(stageVersion.OwnerReferences, stageVersionUsage, r.Scheme)
-	if err != nil {
-		return nil, fmt.Errorf("unable to check stageVersion owner reference: %w", err)
-	}
-
-	if hasRef {
-		return stageVersionUsage, nil
-	}
-
-	log.Info("Set stageVersionUsage owner for stageVersion")
-
-	// set stageVersionUsage as owner of the stageVersion
-	if err := controllerutil.SetOwnerReference(stageVersionUsage, stageVersion, r.Scheme); err != nil {
-		return nil, fmt.Errorf("unable to add stageVersionUsage ownerRef to stageVersion: %w", err)
-	}
-
-	if err := r.Update(ctx, stageVersion); err != nil {
-		return nil, fmt.Errorf("failed to update stageVersion owner references: %w", err)
-	}
-
-	log.Info("Successfully set stageVersionUsage as owner of stageVersion")
 	return stageVersionUsage, nil
 }
 
