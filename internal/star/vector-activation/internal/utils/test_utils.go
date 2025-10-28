@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 
+	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	gomega "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -128,4 +129,64 @@ func CleanupActivationExecution(k8sClient client.Client, executionName string, n
 func DeleteActivationExecution(ctx context.Context, k8sClient client.Client, activationExecution *landscape.ActivationExecution) {
 	err := k8sClient.Delete(ctx, activationExecution)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred(), "Failed to delete activation execution: %s", activationExecution.Name)
+}
+
+func UpdateStageVersion(ctx context.Context, k8sClient client.Client, stageVersion *landscape.StageVersion) {
+	err := k8sClient.Update(ctx, stageVersion)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred(), "Failed to update stageVersion: %s", stageVersion.Name)
+}
+
+func HasOwnerReference(ownerReferences []metav1.OwnerReference, ref metav1.OwnerReference) bool {
+	for _, ownerReference := range ownerReferences {
+		if ownerReference.Kind == ref.Kind && ownerReference.Name == ref.Name {
+			return true
+		}
+	}
+	return false
+}
+
+func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, specName string, vectorName string) {
+	stage := &common.Stage{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "common.konfidence.cloud/v1alpha1",
+			Kind:       "Stage",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: common.StageSpec{
+			Name:   specName,
+			Vector: vectorName,
+		},
+	}
+
+	gomega.Expect(k8sClient.Create(ctx, stage)).To(gomega.Succeed())
+}
+
+func GetStage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *common.Stage {
+	stage := &common.Stage{}
+	stageLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
+	err := k8sClient.Get(ctx, stageLookupKey, stage)
+
+	if opt && err != nil && errors.IsNotFound(err) {
+		return nil
+	}
+
+	gomega.Expect(err).ToNot(gomega.HaveOccurred(), "Failed to fetch stage: %s", name)
+	return stage
+}
+
+func DeleteStage(ctx context.Context, k8sClient client.Client, stage *common.Stage) {
+	err := k8sClient.Delete(ctx, stage)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred(), "Failed to delete stage: %s", stage.Name)
+}
+
+func CleanupStage(k8sClient client.Client, stageName string, namespace string) {
+	ctx := context.Background()
+	stage := GetStage(ctx, k8sClient, stageName, namespace, true)
+
+	if stage != nil {
+		DeleteStage(ctx, k8sClient, stage)
+	}
 }
