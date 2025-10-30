@@ -21,28 +21,47 @@ import (
 	"time"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
 	testutil "github.com/konfidence-project/landscape-stage-controller/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("StageVersionUsage Controller", func() {
+var _ = Describe("StageVersionUsage Controller", Ordered, func() {
+	var (
+		k8sClient client.Client
+		cancel    context.CancelFunc
+	)
+
+	BeforeAll(func() {
+		k8sClient, cancel = StartTestManagerWithReconciler(func(mgr ctrl.Manager) error {
+			return (&controller.StageVersionUsageReconciler{
+				Client: mgr.GetClient(),
+				Scheme: mgr.GetScheme(),
+			}).SetupWithManager(mgr)
+		},
+		)
+	})
+
+	AfterAll(func() {
+		cancel()
+	})
+
 	const (
-		StageVersionTest           = "stage-version-test"
-		StageVersionTestUsage      = "stage-version-usage-test-usage"
-		StageVersionTestMigration  = "stage-version-test-migration"
-		StageVersionTest2          = "stage-version-test-2"
-		StageVersionTest2Migration = "stage-version-test-2-migration"
-		Namespace                  = "default"
-		StageDev                   = "stage-dev"
-		Vector001                  = "https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1"
-		VectorName001              = "common.konfidence.cloud.example.vector-0.0.1"
-		timeout                    = time.Second * 10
-		interval                   = time.Millisecond * 250
+		StageVersionTest      = "stage-version-test"
+		StageVersionTest2     = "stage-version-test-2"
+		StageVersionTestUsage = "stage-version-usage-test-usage"
+		Namespace             = "default"
+		StageDev              = "stage-dev"
+		Vector001             = "https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1"
+		VectorName001         = "common.konfidence.cloud.example.vector-0.0.1"
+		timeout               = time.Second * 10
+		interval              = time.Millisecond * 250
 	)
 
 	BeforeEach(func() {
@@ -79,34 +98,12 @@ var _ = Describe("StageVersionUsage Controller", func() {
 				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionReady)).To(BeFalse())
 			}, timeout, interval).Should(Succeed())
 
-			// check that the vectorDeployment has been created
-			vectorDeployment := &landscape.VectorDeployment{}
-			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
-				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
-			}, timeout, interval).Should(Succeed())
+			// mark stageVersion as ready
+			meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady,
+				Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady,
+				Message: "StageVersion is ready"})
 
-			// mark vectorDeployment as deployed
-			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.VectorDeployedCondition,
-				Status: metav1.ConditionTrue, Reason: landscape.VectorDeployedCondition,
-				Message: "Vector has been successfully deployed"})
-
-			Expect(k8sClient.Status().Update(ctx, vectorDeployment)).To(Succeed())
-
-			// check that the vectorMigration has been created
-			vectorMigration := &landscape.VectorMigration{}
-			vectorMigrationLookupKey := types.NamespacedName{Name: StageVersionTestMigration, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
-			}, timeout, interval).Should(Succeed())
-
-			// mark vectorMigration as successful
-			meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationSucceeded,
-				Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationSucceeded,
-				Message: "VectorMigration succeeded"})
-
-			Expect(k8sClient.Status().Update(ctx, vectorMigration)).To(Succeed())
+			Expect(k8sClient.Status().Update(ctx, stageVersion)).To(Succeed())
 
 			// check that stageVersionUsage has condition StageVersionReady set to true
 			Eventually(func(g Gomega) {
@@ -192,7 +189,7 @@ var _ = Describe("StageVersionUsage Controller", func() {
 				g.Expect(stageVersion2.Name).To(Equal(StageVersionTest2))
 			}, timeout, interval).Should(Succeed())
 
-			// check that both stageVersions have been resolved and that the usage is marked as ready
+			// check that both stageVersions have been resolved and that the usage is marked as not ready
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
@@ -202,54 +199,28 @@ var _ = Describe("StageVersionUsage Controller", func() {
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[1]).To(Equal(StageVersionTest2))
 			}, timeout, interval).Should(Succeed())
 
-			// check that the vectorDeployment has been created
-			vectorDeployment := &landscape.VectorDeployment{}
-			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
+			// mark stageVersion1 as ready
+			meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady,
+				Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady,
+				Message: "StageVersion is ready"})
+
+			Expect(k8sClient.Status().Update(ctx, stageVersion)).To(Succeed())
+
+			// check that the usage is still not ready
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
-				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
+				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
+				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
+				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			Eventually(func(g Gomega) {
-				g.Expect(retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err := k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)
-					if err != nil {
-						return err
-					}
+			// mark stageVersion2 as ready
+			meta.SetStatusCondition(&stageVersion2.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady,
+				Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady,
+				Message: "StageVersion is ready"})
 
-					// mark vectorDeployment as deployed
-					meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.VectorDeployedCondition,
-						Status: metav1.ConditionTrue, Reason: landscape.VectorDeployedCondition,
-						Message: "Vector has been successfully deployed"})
+			Expect(k8sClient.Status().Update(ctx, stageVersion2)).To(Succeed())
 
-					return k8sClient.Status().Update(ctx, vectorDeployment)
-				})).To(Succeed())
-			}, timeout, interval).Should(Succeed())
-
-			// check that both vectorMigrations have been created
-			vectorMigration := &landscape.VectorMigration{}
-			vectorMigrationLookupKey := types.NamespacedName{Name: StageVersionTestMigration, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
-			}, timeout, interval).Should(Succeed())
-
-			vectorMigration2 := &landscape.VectorMigration{}
-			vectorMigrationLookupKey2 := types.NamespacedName{Name: StageVersionTest2Migration, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey2, vectorMigration2)).To(Succeed())
-			}, timeout, interval).Should(Succeed())
-
-			// mark vectorMigrations as successful
-			meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationSucceeded,
-				Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationSucceeded,
-				Message: "VectorMigration succeeded"})
-			Expect(k8sClient.Status().Update(ctx, vectorMigration)).To(Succeed())
-			meta.SetStatusCondition(&vectorMigration2.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationSucceeded,
-				Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationSucceeded,
-				Message: "VectorMigration succeeded"})
-			Expect(k8sClient.Status().Update(ctx, vectorMigration2)).To(Succeed())
-
-			// check that usage has been marked as ready
+			// check that now the usage has been marked as ready
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
