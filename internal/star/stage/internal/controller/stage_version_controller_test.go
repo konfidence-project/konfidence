@@ -21,15 +21,37 @@ import (
 	"time"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
 	testutil "github.com/konfidence-project/landscape-stage-controller/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("StageVersion Controller", func() {
+var _ = Describe("StageVersion Controller", Ordered, func() {
+	var (
+		k8sClient client.Client
+		cancel    context.CancelFunc
+	)
+
+	BeforeAll(func() {
+		k8sClient, cancel = StartTestManagerWithReconciler(func(mgr ctrl.Manager) error {
+			return (&controller.StageVersionReconciler{
+				Client: mgr.GetClient(),
+				Scheme: mgr.GetScheme(),
+			}).SetupWithManager(mgr)
+		},
+		)
+	})
+
+	AfterAll(func() {
+		cancel()
+	})
+
 	const (
 		StageVersionDev           = "stage-version-dev"
 		StageVersionTest          = "stage-version-test"

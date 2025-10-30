@@ -28,10 +28,30 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Stage Controller", func() {
+var _ = Describe("Stage Controller", Ordered, func() {
+	var (
+		k8sClient client.Client
+		cancel    context.CancelFunc
+	)
+
+	BeforeAll(func() {
+		k8sClient, cancel = StartTestManagerWithReconciler(func(mgr ctrl.Manager) error {
+			return (&controller.StageReconciler{
+				Client: mgr.GetClient(),
+				Scheme: mgr.GetScheme(),
+			}).SetupWithManager(mgr)
+		},
+		)
+	})
+
+	AfterAll(func() {
+		cancel()
+	})
+
 	const (
 		StageDev                    = "stage-dev"
 		StageDevSpecName            = "dev"
