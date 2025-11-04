@@ -1,8 +1,5 @@
 name: Kubebuilder CI
-on: 
-  push:
-    branches-ignore:
-      - main
+on:
   pull_request:
     branches:
       - main
@@ -10,7 +7,7 @@ on:
 jobs:
   ci:
     name: CI
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-ci-pipeline.yaml@v2
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-ci-pipeline.yaml@v3
     secrets: inherit
     permissions:
       contents: write
