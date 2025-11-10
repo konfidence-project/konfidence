@@ -4,8 +4,16 @@
 *.dll
 *.so
 *.dylib
-bin/*
 Dockerfile.cross
+
+# Do ignore things like bin/k8s/
+bin/*/
+
+# Do not ignore hermit binary and pkg files in bin/
+!bin/hermit
+!bin/.hermit/
+!bin/*.pkg
+!bin/.*pkg
 
 # Test binary, built with `go test -c`
 *.test
