@@ -147,7 +147,7 @@ uninstall: hermit manifests ## Uninstall CRDs from the K8s cluster specified in 
 
 .PHONY: deploy
 deploy: hermit manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/default && $(KUSTOMIZE) edit set image konfidence-project/landscape-vector-deployment-controller=${REGISTRY}/landscape-stage-controller:${TAG}
+	cd config/default && $(KUSTOMIZE) edit set image konfidence-project/landscape-vector-deployment-controller=${REGISTRY}/landscape-vector-deployment-controller:${TAG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
