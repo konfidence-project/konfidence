@@ -18,15 +18,12 @@ spec:
         app.kubernetes.io/name: landscape-vector-deployment-controller
         app.kubernetes.io/managed-by: kustomize
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-      - command:
-          - sh
-          - -c
-          - |
-            cp /etc/ssl/certs/extra/ca.crt /usr/local/share/ca-certificates/ca.crt
-            update-ca-certificates
-            /manager
-        args:
+      - args:
           - --leader-elect
           - --health-probe-bind-address=:8081
         image: konfidence-project/landscape-vector-deployment-controller:latest
@@ -37,10 +34,7 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - "ALL"
-          runAsNonRoot: false
-          seccompProfile:
-            type: RuntimeDefault
+            - "ALL"
         livenessProbe:
           httpGet:
             path: /healthz
@@ -59,12 +53,7 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        volumeMounts:
-          - name: ca-tls
-            mountPath: /etc/ssl/certs/extra
-      volumes:
-        - name: ca-tls
-          secret:
-            secretName: ca-tls-secret
+        volumeMounts: []
+      volumes: []
       serviceAccountName: landscape-vector-deployment-controller
       terminationGracePeriodSeconds: 10
