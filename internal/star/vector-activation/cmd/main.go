@@ -23,6 +23,7 @@ import (
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-vector-activation-controller/internal/controller"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -55,6 +56,11 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	opts := zap.Options{
 		Development: true,
+		EncoderConfigOptions: []zap.EncoderConfigOption{
+			func(ec *zapcore.EncoderConfig) {
+				ec.EncodeLevel = zapcore.CapitalColorLevelEncoder // add colors explicitly
+			},
+		},
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()

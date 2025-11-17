@@ -5,7 +5,7 @@ import (
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	gomega "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
