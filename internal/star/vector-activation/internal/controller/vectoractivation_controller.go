@@ -24,6 +24,7 @@ import (
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	leaseLock "github.com/konfidence-project/landscape-vector-activation-controller/internal/lock"
+	"github.com/konfidence-project/landscape-vector-activation-controller/internal/usages"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,14 +39,11 @@ import (
 // VectorActivationReconciler reconciles a VectorActivation object
 type VectorActivationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Config *rest.Config
+	Scheme       *runtime.Scheme
+	Config       *rest.Config
+	ClientSet    *kubernetes.Clientset
+	ControllerID string
 }
-
-var (
-	clientSet    *kubernetes.Clientset
-	controllerID string
-)
 
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectoractivations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectoractivations/status,verbs=get;update;patch
@@ -92,7 +90,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, landscape.VectorActivationSucceeded) {
-		return r.cleanupVectorActivation(ctx, req, vectorActivation)
+		return r.cleanupVectorActivation(ctx, req, vectorActivation, stage.Name)
 	}
 
 	acquired, err := r.acquireLease(ctx, req, vectorActivation, stage)
@@ -105,27 +103,61 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 	log.Info("Lease acquired", "acquired", acquired)
 
+	activeStageVersionUsage, err := usages.GetCurrentActiveUsage(ctx, r.Client, stage)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get current active usage: %w", err)
+	}
+
+	if activeStageVersionUsage != nil {
+		isNewer, err := usages.IsNewerThanCurrentActiveUsage(ctx, r.Client, stageVersion, activeStageVersionUsage)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to compare stage versions: %w", err)
+		}
+		if !isNewer {
+			log.Info("activation belongs to older stage version than currently active one, skipping")
+			// TODO: update status to skipped and release lease
+
+			return ctrl.Result{}, nil
+		}
+	}
+
+	activationUsage, err := usages.CreateOrUpdateActivationUsage(ctx, r.Client, stage, stageVersion, vectorActivation)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// TODO: handle executions here
+
+	if err := usages.CreateOrUpdateActiveUsage(ctx, r.Client, activeStageVersionUsage, stage, stageVersion); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err = usages.DeleteActivationUsage(ctx, r.Client, activationUsage); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.patchVectorActivationStatus(ctx, req, metav1.Condition{Type: landscape.VectorActivationSucceeded, Status: metav1.ConditionTrue, Reason: landscape.VectorActivationSucceeded, Message: fmt.Sprintf("successfully reconciled VectorActivation %s", vectorActivation.Name)}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update VectorActivation status: %w", err)
 	}
+	log.Info("VectorActivation reconciled successfully, set status to succeeded")
 
 	return ctrl.Result{}, nil
 }
 
 func (r *VectorActivationReconciler) acquireLease(ctx context.Context, req ctrl.Request, vectorActivation *landscape.VectorActivation, stage *common.Stage) (bool, error) {
-	controllerID = os.Getenv("POD_NAME")
-	clientSet = kubernetes.NewForConfigOrDie(r.Config)
 	ownerRef := metav1.OwnerReference{
 		APIVersion: vectorActivation.APIVersion,
 		Kind:       vectorActivation.Kind,
 		Name:       vectorActivation.Name,
 		UID:        vectorActivation.UID,
 	}
-	return leaseLock.AcquireResourceLease(ctx, clientSet, string(vectorActivation.UID), req.Namespace, controllerID, landscape.VectorActivationKind, stage.Name, ownerRef)
+	return leaseLock.AcquireResourceLease(ctx, r.ClientSet, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stage.Name, ownerRef)
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.ControllerID = os.Getenv("POD_NAME")
+	r.ClientSet = kubernetes.NewForConfigOrDie(r.Config)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&landscape.VectorActivation{}).
 		Named("vectoractivation").
@@ -142,13 +174,12 @@ func (r *VectorActivationReconciler) patchVectorActivationStatus(ctx context.Con
 	return r.Status().Patch(ctx, vectorActivation, client.MergeFrom(oldState))
 }
 
-func (r *VectorActivationReconciler) cleanupVectorActivation(ctx context.Context, req ctrl.Request, activation *landscape.VectorActivation) (ctrl.Result, error) {
+func (r *VectorActivationReconciler) cleanupVectorActivation(ctx context.Context, req ctrl.Request, activation *landscape.VectorActivation, stageName string) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("cleanup vector activation")
 
-	// TODO: cleanup usages
 	log.Info("release lease for vector activation")
-	if err := leaseLock.ReleaseResourceLease(ctx, clientSet, req.Name, req.Namespace, controllerID, landscape.VectorActivationKind, activation.Spec.StageVersion); err != nil {
+	if err := leaseLock.ReleaseResourceLease(ctx, r.ClientSet, string(activation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stageName); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to release lease: %w", err)
 	}
 

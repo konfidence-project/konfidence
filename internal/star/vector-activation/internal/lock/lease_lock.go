@@ -61,9 +61,9 @@ func AcquireResourceLease(ctx context.Context, client kubernetes.Interface, reso
 
 }
 
-func ReleaseResourceLease(ctx context.Context, client kubernetes.Interface, resourceName string, namespace string, controllerID string, resourceType string, stageName string) error {
+func ReleaseResourceLease(ctx context.Context, client kubernetes.Interface, resourceId string, namespace string, controllerID string, resourceType string, stageName string) error {
 	leaseName := getLeaseName(resourceType, stageName)
-	holderIdentity := getHolderIdentity(controllerID, resourceName)
+	holderIdentity := getHolderIdentity(controllerID, resourceId)
 	lease, err := client.CoordinationV1().Leases(namespace).Get(ctx, leaseName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {

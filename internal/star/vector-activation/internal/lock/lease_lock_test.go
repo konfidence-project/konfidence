@@ -6,6 +6,7 @@ import (
 	"time"
 
 	. "github.com/konfidence-project/landscape-vector-activation-controller/internal/lock/mocks"
+	. "github.com/konfidence-project/landscape-vector-activation-controller/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
