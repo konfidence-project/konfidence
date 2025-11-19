@@ -24,14 +24,17 @@ const (
 	// VectorActivationKind is the kind for VectorActivation resources.
 	VectorActivationKind = "VectorActivation"
 
-	// VectorActivationFailed indicates that the vectorActivation failed.
-	VectorActivationFailed = "VectorActivationFailed"
+	// ActivationFailed indicates that the vectorActivation failed.
+	ActivationFailed = "Failed"
 
-	// VectorActivationSucceeded indicates that the vectorActivation reconciled successfully.
-	VectorActivationSucceeded = "VectorActivationSucceeded"
+	// ActivationSucceeded indicates that the vectorActivation reconciled successfully.
+	ActivationSucceeded = "Succeeded"
 
-	// VectorActivationSkipped indicates that the vectorActivation was skipped.
-	VectorActivationSkipped = "VectorActivationSkipped"
+	// ActivationSkipped indicates that the vectorActivation was skipped.
+	ActivationSkipped = "Skipped"
+
+	// ActivationInProgress indicates that the vectorActivation is in progress.
+	ActivationInProgress = "InProgress"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!

@@ -1,5 +1,5 @@
 {
-  "description": "ActivationExecution is the Schema for the activationexecutions API",
+  "description": "ActivationTaskRegistration is the Schema for the activationtaskregistrations API",
   "properties": {
     "apiVersion": {
       "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
@@ -13,30 +13,40 @@
       "type": "object"
     },
     "spec": {
-      "description": "spec defines the desired state of ActivationExecution",
+      "description": "spec defines the desired state of ActivationTaskRegistration",
       "properties": {
-        "name": {
-          "type": "string"
+        "precedes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "spec": {
           "type": "object",
           "x-kubernetes-preserve-unknown-fields": true
         },
+        "succeeds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "type": {
+          "description": "INSERT ADDITIONAL SPEC FIELDS - desired state of cluster\nImportant: Run \"make\" to regenerate code after modifying this file\nThe following markers will use OpenAPI v3 schema to validate the value\nMore info: https://book.kubebuilder.io/reference/markers/crd-validation.html",
           "type": "string"
         }
       },
       "required": [
-        "name",
         "spec",
         "type"
       ],
       "type": "object"
     },
     "status": {
-      "description": "status defines the observed state of ActivationExecution",
+      "description": "status defines the observed state of ActivationTaskRegistration",
       "properties": {
         "conditions": {
+          "description": "conditions represent the current state of the ActivationTaskRegistration resource.\nEach condition has a unique type and reflects the status of a specific aspect of the resource.\n\nStandard condition types include:\n- \"Available\": the resource is fully functional\n- \"Progressing\": the resource is being created or updated\n- \"Degraded\": the resource failed to reach or maintain its desired state\n\nThe status of each condition is one of True, False, or Unknown.",
           "items": {
             "description": "Condition contains details for one aspect of the current state of this API Resource.",
             "properties": {
@@ -88,7 +98,11 @@
             ],
             "type": "object"
           },
-          "type": "array"
+          "type": "array",
+          "x-kubernetes-list-map-keys": [
+            "type"
+          ],
+          "x-kubernetes-list-type": "map"
         }
       },
       "type": "object"

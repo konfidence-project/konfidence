@@ -9,8 +9,10 @@
 Package v1alpha1 contains API Schema definitions for the landscape v1alpha1 API group.
 
 ### Resource Types
-- [ActivationExecution](#activationexecution)
-- [ActivationExecutionList](#activationexecutionlist)
+- [ActivationTaskExecution](#activationtaskexecution)
+- [ActivationTaskExecutionList](#activationtaskexecutionlist)
+- [ActivationTaskRegistration](#activationtaskregistration)
+- [ActivationTaskRegistrationList](#activationtaskregistrationlist)
 - [ArtifactDeployment](#artifactdeployment)
 - [ArtifactDeploymentList](#artifactdeploymentlist)
 - [StageVersion](#stageversion)
@@ -30,33 +32,33 @@ Package v1alpha1 contains API Schema definitions for the landscape v1alpha1 API 
 
 
 
-#### ActivationExecution
+#### ActivationTaskExecution
 
 
 
-ActivationExecution is the Schema for the activationexecutions API
+ActivationTaskExecution is the Schema for the ActivationTaskExecutions API
 
 
 
 _Appears in:_
-- [ActivationExecutionList](#activationexecutionlist)
+- [ActivationTaskExecutionList](#activationtaskexecutionlist)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `landscape.konfidence.cloud/v1alpha1` | | |
-| `kind` _string_ | `ActivationExecution` | | |
+| `kind` _string_ | `ActivationTaskExecution` | | |
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[ActivationExecutionSpec](#activationexecutionspec)_ | spec defines the desired state of ActivationExecution |  |  |
-| `status` _[ActivationExecutionStatus](#activationexecutionstatus)_ | status defines the observed state of ActivationExecution |  |  |
+| `spec` _[ActivationTaskExecutionSpec](#activationtaskexecutionspec)_ | spec defines the desired state of ActivationTaskExecution |  |  |
+| `status` _[ActivationTaskExecutionStatus](#activationtaskexecutionstatus)_ | status defines the observed state of ActivationTaskExecution |  |  |
 
 
-#### ActivationExecutionList
+#### ActivationTaskExecutionList
 
 
 
-ActivationExecutionList contains a list of ActivationExecution
+ActivationTaskExecutionList contains a list of ActivationTaskExecution
 
 
 
@@ -65,45 +67,121 @@ ActivationExecutionList contains a list of ActivationExecution
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `landscape.konfidence.cloud/v1alpha1` | | |
-| `kind` _string_ | `ActivationExecutionList` | | |
+| `kind` _string_ | `ActivationTaskExecutionList` | | |
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
 | `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[ActivationExecution](#activationexecution) array_ |  |  |  |
+| `items` _[ActivationTaskExecution](#activationtaskexecution) array_ |  |  |  |
 
 
-#### ActivationExecutionSpec
+#### ActivationTaskExecutionSpec
 
 
 
-ActivationExecutionSpec defines the desired state of ActivationExecution
+ActivationTaskExecutionSpec defines the desired state of ActivationTaskExecution
 
 
 
 _Appears in:_
-- [ActivationExecution](#activationexecution)
+- [ActivationTaskExecution](#activationtaskexecution)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ |  |  |  |
 | `type` _string_ |  |  |  |
 | `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ |  |  |  |
 
 
-#### ActivationExecutionStatus
+#### ActivationTaskExecutionStatus
 
 
 
-ActivationExecutionStatus defines the observed state of ActivationExecution.
+ActivationTaskExecutionStatus defines the observed state of ActivationTaskExecution.
 
 
 
 _Appears in:_
-- [ActivationExecution](#activationexecution)
+- [ActivationTaskExecution](#activationtaskexecution)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+
+
+#### ActivationTaskRegistration
+
+
+
+ActivationTaskRegistration is the Schema for the activationtaskregistrations API
+
+
+
+_Appears in:_
+- [ActivationTaskRegistrationList](#activationtaskregistrationlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `landscape.konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `ActivationTaskRegistration` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[ActivationTaskRegistrationSpec](#activationtaskregistrationspec)_ | spec defines the desired state of ActivationTaskRegistration |  |  |
+| `status` _[ActivationTaskRegistrationStatus](#activationtaskregistrationstatus)_ | status defines the observed state of ActivationTaskRegistration |  |  |
+
+
+#### ActivationTaskRegistrationList
+
+
+
+ActivationTaskRegistrationList contains a list of ActivationTaskRegistration
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `landscape.konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `ActivationTaskRegistrationList` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  |  |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[ActivationTaskRegistration](#activationtaskregistration) array_ |  |  |  |
+
+
+#### ActivationTaskRegistrationSpec
+
+
+
+ActivationTaskRegistrationSpec defines the desired state of ActivationTaskRegistration
+
+
+
+_Appears in:_
+- [ActivationTaskRegistration](#activationtaskregistration)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `type` _string_ | INSERT ADDITIONAL SPEC FIELDS - desired state of cluster<br />Important: Run "make" to regenerate code after modifying this file<br />The following markers will use OpenAPI v3 schema to validate the value<br />More info: https://book.kubebuilder.io/reference/markers/crd-validation.html |  |  |
+| `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ |  |  |  |
+| `succeeds` _string array_ |  |  |  |
+| `precedes` _string array_ |  |  |  |
+
+
+#### ActivationTaskRegistrationStatus
+
+
+
+ActivationTaskRegistrationStatus defines the observed state of ActivationTaskRegistration.
+
+
+
+_Appears in:_
+- [ActivationTaskRegistration](#activationtaskregistration)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | conditions represent the current state of the ActivationTaskRegistration resource.<br />Each condition has a unique type and reflects the status of a specific aspect of the resource.<br />Standard condition types include:<br />- "Available": the resource is fully functional<br />- "Progressing": the resource is being created or updated<br />- "Degraded": the resource failed to reach or maintain its desired state<br />The status of each condition is one of True, False, or Unknown. |  |  |
 
 
 #### ArtifactDeployment
