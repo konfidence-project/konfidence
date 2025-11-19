@@ -1,12 +1,11 @@
 apiVersion: landscape.konfidence.cloud/v1alpha1
-kind: ActivationExecution
+kind: ActivationTaskExecution
 metadata:
   labels:
     app.kubernetes.io/name: crds
     app.kubernetes.io/managed-by: kustomize
-  name: activationexecution-sample
+  name: activationtaskexecution-sample
 spec:
-  name: my-activation-execution
   type: k8s-job
   spec: {
     "template": "refine-me"

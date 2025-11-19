@@ -5,6 +5,12 @@ metadata:
     app.kubernetes.io/name: crds
     app.kubernetes.io/managed-by: kustomize
   name: vectoractivation-sample
+  ownerReferences:
+    - apiVersion: landscape.konfidence.cloud/v1alpha1
+      kind: StageVersion
+      name: <OWNER-NAME> # TODO: add stage version name here
+      uid: <OWNER-UID>‚ # TODO: add stage version uid here
 spec:
-  stageVersion: some-stage-version
+  # TODO: clarify if stageVersion is required here since it is also in OwnerReferences
+  stageVersion: <STAGE-VERSION-NAME> # TODO: add stage version name here
   vector: https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1

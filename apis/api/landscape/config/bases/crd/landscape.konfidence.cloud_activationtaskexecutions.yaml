@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: activationexecutions.landscape.konfidence.cloud
+  name: activationtaskexecutions.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
   names:
-    kind: ActivationExecution
-    listKind: ActivationExecutionList
-    plural: activationexecutions
-    singular: activationexecution
+    kind: ActivationTaskExecution
+    listKind: ActivationTaskExecutionList
+    plural: activationtaskexecutions
+    singular: activationtaskexecution
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ActivationExecution is the Schema for the activationexecutions
+        description: ActivationTaskExecution is the Schema for the ActivationTaskExecutions
           API
         properties:
           apiVersion:
@@ -38,22 +38,19 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of ActivationExecution
+            description: spec defines the desired state of ActivationTaskExecution
             properties:
-              name:
-                type: string
               spec:
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
               type:
                 type: string
             required:
-            - name
             - spec
             - type
             type: object
           status:
-            description: status defines the observed state of ActivationExecution
+            description: status defines the observed state of ActivationTaskExecution
             properties:
               conditions:
                 items:
