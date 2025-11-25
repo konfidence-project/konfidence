@@ -1,6 +1,7 @@
 package ocm
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,9 +9,6 @@ import (
 	utilErrors "github.com/mandelsoft/goutils/errors"
 	"ocm.software/ocm/api/oci"
 	"ocm.software/ocm/api/ocm"
-	"ocm.software/ocm/api/ocm/extensions/accessmethods/helm"
-	"ocm.software/ocm/api/ocm/extensions/accessmethods/localblob"
-	"ocm.software/ocm/api/ocm/extensions/accessmethods/ociartifact"
 	"ocm.software/ocm/api/ocm/extensions/repositories/ocireg"
 
 	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller/domain"
@@ -81,8 +79,9 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 				AllowReuse: artifactManifestDto.AllowReuse,
 				Tasks:      nil,
 			}
-		}
 
+			continue
+		}
 		if resource.Meta().Type == "cloud.konfidence.artifact.task.manifest" {
 			accessMethod, _ := resource.AccessMethod()
 			data, _ := accessMethod.Get()
@@ -104,6 +103,8 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 				DependsOn: taskManifestDto.DependsOn,
 				Spec:      string(taskManifestDto.Spec),
 			})
+
+			continue
 		}
 
 		resourceAccess, err := resource.Access()
@@ -116,23 +117,15 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 			return nil, fmt.Errorf("failed to get effective access spec for resource %s in component %s: %w", resource.Meta().Name, artifactName.ComponentName, err)
 		}
 
-		var image string
-		switch accessSpec := genericAccessSpec.(type) {
-		case *helm.AccessSpec:
-			image = accessSpec.HelmRepository
-		case *ociartifact.AccessSpec:
-			image = accessSpec.ImageReference
-		case *localblob.AccessSpec:
-			// skipping localblob resources, because those are our own manifests
-			continue
-		default:
-			return nil, fmt.Errorf("resource access type %q is not supported", resource.Meta().GetType())
+		var buf bytes.Buffer
+		err = json.NewEncoder(&buf).Encode(genericAccessSpec)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode generic access spec for resource %s in component %s: %w", resource.Meta().Name, artifactName.ComponentName, err)
 		}
 
 		artifactResources = append(artifactResources, domain.OCMResource{
 			Name:    resource.Meta().Name,
-			Image:   image,
-			Version: resource.Meta().Version,
+			Content: buf.Bytes(),
 			Type:    resource.Meta().Type,
 		})
 	}
