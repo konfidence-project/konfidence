@@ -44,7 +44,7 @@ func mapVectorDeploymentToDomain(vectorDeployment landscape.VectorDeployment) (*
 
 	vector := domain.Vector{
 		Reference: domain.VectorReference{
-			OciRegistryUrl: vectorDeployment.Spec.Vector,
+			OciRegistryUrl: vectorDeployment.Spec.Vector, // FIXME: this should be the registry URL only, not the full ref
 			Component:      ocmRef.Component,
 			Version:        *ocmRef.Version,
 		},

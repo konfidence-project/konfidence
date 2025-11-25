@@ -42,8 +42,7 @@ type ArtifactManifest struct {
 
 type OCMResource struct {
 	Name    string
-	Image   string
-	Version string
+	Content []byte
 	Type    string
 }
 
