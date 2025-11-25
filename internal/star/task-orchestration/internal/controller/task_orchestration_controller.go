@@ -279,10 +279,6 @@ func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(ctx context
 	artifactDeployments := make(map[string]landscape.ArtifactDeployment)
 	numberOfTasks := 0
 	for _, deploymentReference := range vectorDeployment.Status.ResultingArtifactDeployments {
-		if landscape.ArtifactDeploymentKind != deploymentReference.Kind {
-			return nil, fmt.Errorf("unable to parse artifactDeployment. Invalid kind: %s", deploymentReference.Kind)
-		}
-
 		// get artifactDeployment
 		artifactDeployment, err := r.getArtifactDeployment(ctx, vectorMigration, deploymentReference.Name)
 		if err != nil {
@@ -403,7 +399,7 @@ func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration
 		},
 		Spec: landscape.StageVersionUsageSpec{
 			Reason: "VectorMigration",
-			StageVersionRef: &landscape.StageVersionRef{
+			StageVersionRef: &landscape.StageVersionReference{
 				Name: vectorMigration.Spec.StageVersion,
 			},
 		},

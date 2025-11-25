@@ -25,7 +25,6 @@ import (
 	testutil "github.com/konfidence-project/landscape-task-orchestration-controller/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -193,14 +192,12 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// update vector status and add artifactDeployment References
-			artifactDeploymentRefs := make(map[string]v1.TypedObjectReference)
-			artifactDeploymentRefs[ArtifactDeployment1] = v1.TypedObjectReference{
+			artifactDeploymentRefs := make(map[string]landscape.LocalArtifactDeploymentReference)
+			artifactDeploymentRefs[ArtifactDeployment1] = landscape.LocalArtifactDeploymentReference{
 				Name: ArtifactDeployment1,
-				Kind: "ArtifactDeployment",
 			}
-			artifactDeploymentRefs[ArtifactDeployment2] = v1.TypedObjectReference{
+			artifactDeploymentRefs[ArtifactDeployment2] = landscape.LocalArtifactDeploymentReference{
 				Name: ArtifactDeployment2,
-				Kind: "ArtifactDeployment",
 			}
 			vectorDeployment.Status.ResultingArtifactDeployments = artifactDeploymentRefs
 			testutil.UpdateVectorDeploymentStatus(ctx, k8sClient, vectorDeployment)
@@ -411,10 +408,9 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// update vector status and add artifactDeployment References
-			artifactDeploymentRefs := make(map[string]v1.TypedObjectReference)
-			artifactDeploymentRefs[ArtifactDeployment1] = v1.TypedObjectReference{
+			artifactDeploymentRefs := make(map[string]landscape.LocalArtifactDeploymentReference)
+			artifactDeploymentRefs[ArtifactDeployment1] = landscape.LocalArtifactDeploymentReference{
 				Name: ArtifactDeployment1,
-				Kind: "ArtifactDeployment",
 			}
 			vectorDeployment.Status.ResultingArtifactDeployments = artifactDeploymentRefs
 			testutil.UpdateVectorDeploymentStatus(ctx, k8sClient, vectorDeployment)
