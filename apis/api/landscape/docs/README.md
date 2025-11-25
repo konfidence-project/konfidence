@@ -230,7 +230,9 @@ ArtifactDeploymentList contains a list of ArtifactDeployment.
 
 
 
-ArtifactDeploymentSpec defines the desired state of ArtifactDeployment.
+ArtifactDeploymentSpec defines the desired state of an ArtifactDeployment. It describes the artifact to be deployed,
+optional post-deployment tasks, and optional metadata derived from an OCM ComponentVersion. A deployer interprets
+the specification according to the artifact type in Manifest.Type.
 
 
 
@@ -239,9 +241,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `manifest` _[ArtifactManifest](#artifactmanifest)_ |  |  |  |
-| `taskManifests` _[TaskManifest](#taskmanifest) array_ |  |  |  |
-| `component` _[OCMComponent](#ocmcomponent)_ |  |  |  |
+| `manifest` _[ArtifactManifest](#artifactmanifest)_ | Manifest contains information about the artifact itself and the deployer implementation responsible for handling it. |  |  |
+| `taskManifests` _[TaskManifest](#taskmanifest) array_ | TaskManifests describes optional post-deployment tasks (commonly used for vector migrations such as database<br />schema updates). Tasks are executed after the artifact has been deployed and may form a dependency graph via<br />DependsOn. |  |  |
+| `component` _[OCMComponent](#ocmcomponent)_ | Component contains OCM metadata associated with the artifact. This is a simplified mapping of the OCM ComponentVersion. |  |  |
 
 
 #### ArtifactDeploymentStatus
@@ -258,48 +260,104 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `observedGeneration` _integer_ | ObservedGeneration is the last observed generation. |  |  |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions holds the conditions for the ArtifactDeployment. |  |  |
-| `deploymentResult` _[DeploymentResult](#deploymentresult)_ |  |  |  |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions describes the state of the deployment lifecycle. The following conditions are expected:<br />  - ArtifactFetched: the artifact was successfully retrieved<br />  - ArtifactDeployed: the artifact was successfully deployed<br />  - AppHealthy: the deployer reports the workload as healthy<br />Conditions progress in a linear order:<br />ArtifactFetched -> ArtifactDeployed -> AppHealthy |  |  |
+| `deploymentResult` _[DeploymentResult](#deploymentresult) array_ | DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as<br />computed DNS names, service endpoints, generated configuration, or other workload-specific details.<br />Results should be treated as immutable for a given generation and may be consumed by later stages of a vector<br />rollout (e.g., routing configuration).<br />Each result must have a unique Name. |  |  |
 
 
 #### ArtifactManifest
 
 
 
-ArtifactManifest defines the manifest for an artifact.
+ArtifactManifest describes the content of the artifact, thus it determines the deployer implementation responsible
+for handling it.
 
 
 
 _Appears in:_
 - [ArtifactDeploymentSpec](#artifactdeploymentspec)
+- [VectorAssignmentSpec](#vectorassignmentspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _string_ |  |  |  |
-| `allowReuse` _boolean_ |  |  |  |
+| `type` _string_ | Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",<br />"cloud.konfidence.flux.kustomize", or any custom deployer type). Deployers implement their own interpretation<br />of the artifact's contents. |  |  |
+| `allowReuse` _boolean_ | AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.<br />Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific<br />runtime context. |  |  |
 
 
 #### DeploymentResult
 
 
 
-DeploymentResult contains the result of an artifact deployment.
+DeploymentResult contains a single output produced by a deployer. These results are used to transport information
+from the deployer to later phases of the vector lifecycle.
 
 
 
 _Appears in:_
 - [ArtifactDeploymentStatus](#artifactdeploymentstatus)
+- [VectorDeploymentStatus](#vectordeploymentstatus)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `url` _string_ |  |  |  |
+| `name` _string_ | Name is a unique identifier for the result within an ArtifactDeploymentStatus. |  |  |
+| `type` _string_ | Type describes the structure contained in Spec. Each deployer may define multiple result types. |  |  |
+| `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains deployer-specific structured data. Its format is determined by the Type field. |  |  |
+
+
+#### LocalArtifactDeploymentReference
+
+
+
+LocalArtifactDeploymentReference holds a reference to an ArtifactDeployment in the same namespace.
+
+
+
+_Appears in:_
+- [VectorAssignmentSpec](#vectorassignmentspec)
+- [VectorDeploymentStatus](#vectordeploymentstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name	is the name of the ArtifactDeployment. Required. |  |  |
+
+
+#### LocalVectorAssignmentReference
+
+
+
+LocalVectorAssignmentReference holds a reference to a VectorAssignment in the same namespace.
+
+
+
+_Appears in:_
+- [VectorDeploymentStatus](#vectordeploymentstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name	is the name of the VectorAssignment. Required. |  |  |
+
+
+#### LocalVectorDeploymentReference
+
+
+
+LocalVectorDeploymentReference holds a reference to a VectorDeployment in the same namespace.
+
+
+
+_Appears in:_
+- [VectorAssignmentSpec](#vectorassignmentspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name	is the name of the VectorDeployment. Required. |  |  |
 
 
 #### OCMComponent
 
 
 
-OCMComponent is a wrapper around the OCM ComponentVersion.
+OCMComponent is a wrapper around the OCM ComponentVersion. It can be used to attach additional metadata to an
+ArtifactDeployment. The component may include one or more OCM resources.
 
 
 
@@ -308,16 +366,17 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ |  |  |  |
-| `version` _string_ |  |  |  |
-| `resources` _[OCMResource](#ocmresource) array_ |  |  |  |
+| `name` _string_ | Name is the OCM ComponentVersion name. |  |  |
+| `version` _string_ | Version is the OCM ComponentVersion version. |  |  |
+| `resources` _[OCMResource](#ocmresource) array_ | Resources contains OCM resources belonging to this component. The structure is intentionally generic to support<br />the requirements of deployers targeting different runtimes. |  |  |
 
 
 #### OCMResource
 
 
 
-OCMResource represent a single resource in an OCM ComponentVersion.
+OCMResource represents a single resource of an OCM ComponentVersion. The content and type are deployer-specific and
+opaque to the API.
 
 
 
@@ -326,10 +385,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ |  |  |  |
-| `image` _string_ |  |  |  |
-| `version` _string_ |  |  |  |
-| `type` _string_ |  |  |  |
+| `name` _string_ | Name is the resource name. |  |  |
+| `content` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Content holds raw resource data, typically an embedded manifest, file, or<br />binary payload. |  |  |
+| `type` _string_ | Type describes the resource type, following OCM conventions. |  |  |
 
 
 #### StageVersion
@@ -374,11 +432,11 @@ StageVersionList contains a list of StageVersion
 | `items` _[StageVersion](#stageversion) array_ |  |  |  |
 
 
-#### StageVersionRef
+#### StageVersionReference
 
 
 
-StageVersionRef references a stageVersion
+StageVersionReference holds a reference to a StageVersion in the same namespace.
 
 
 
@@ -387,7 +445,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is the name of the stageVersion |  |  |
+| `name` _string_ | Name is the name of the StageVersion. Required. |  |  |
 
 
 #### StageVersionSpec
@@ -479,7 +537,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `reason` _string_ | Reason is human-readable description of why this StageVersion is in use, e.g. "executing vector migrations", "latest vector for stage xyz", |  |  |
-| `stageVersionRef` _[StageVersionRef](#stageversionref)_ | StageVersionRef references a stageVersion |  |  |
+| `stageVersionRef` _[StageVersionReference](#stageversionreference)_ | StageVersionRef references a stageVersion |  |  |
 | `stageVersionSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#labelselector-v1-meta)_ | StageVersionSelector is a label selector to find a StageVersion when name is not provided. |  |  |
 
 
@@ -581,7 +639,15 @@ _Appears in:_
 
 
 
-TaskManifest defines the manifest for a task.
+TaskManifest defines a post-deployment task that is executed after the artifact has been deployed. Tasks are
+commonly used for vector migrations (such as database schema changes) but may represent any post-deployment action.
+
+Tasks form a directed acyclic graph (DAG) at the *vector level* rather than only within a single ArtifactDeployment.
+A task may depend on tasks belonging to other microservices or artifacts in the same VectorDeployment. These
+cross-artifact dependencies allow defining a globally ordered migration or transformation workflow.
+
+The controller responsible for the task type interprets the Spec field and performs the execution once all declared
+dependencies have completed successfully.
 
 
 
@@ -590,10 +656,10 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ |  |  |  |
-| `type` _string_ |  |  |  |
-| `dependsOn` _string array_ |  |  |  |
-| `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ |  |  |  |
+| `name` _string_ | Name uniquely identifies this task within the entire vector. This name may be referenced by other tasks across<br />different artifacts. |  |  |
+| `type` _string_ | Type specifies the task controller or execution runtime (e.g. "k8s-job", or any custom task runtime). Different<br />task types correspond to different task controllers, each interpreting the Spec field according to their own semantics. |  |  |
+| `dependsOn` _string array_ | DependsOn lists names of other tasks that must complete before this task may run. Dependencies may reference<br />tasks within the same artifact or any other artifact that participates in the same VectorDeployment, allowing the<br />formation of a vector-wide DAG. |  |  |
+| `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains task-specific configuration. The structure depends on the task Type and is interpreted by the<br />corresponding task controller. |  |  |
 
 
 #### VectorActivation
@@ -677,6 +743,10 @@ _Appears in:_
 
 VectorAssignment is the Schema for the vectorassignments API.
 
+A VectorAssignment represents a single binding between a VectorDeployment and an ArtifactDeployment. It enables
+an n:m mapping where a single artifact may be reused across multiple vectors. These objects are automatically
+managed by the vector-deployment-controller and reconciled by deployers to apply vector-specific configuration.
+
 
 
 _Appears in:_
@@ -717,26 +787,51 @@ VectorAssignmentList contains a list of VectorAssignment.
 
 
 
-VectorAssignmentSpec defines the desired state of VectorAssignment.
+VectorAssignmentSpec defines the desired state of a VectorAssignment.
+
+A VectorAssignment represents one logical binding between a VectorDeployment and an ArtifactDeployment. Since a
+single artifact may be reused across multiple vectors, an n:m relationship exists between vectors and artifacts.
+VectorAssignment creates a concrete instance of that relationship.
+
+VectorAssignment resources are created automatically during vector rollouts and are typically not authored by users.
+Deployer implementations reconcile the VectorAssignment to perform vector-specific configuration based on the
+artifact selected for this vector.
+
+The VectorAssignmentSpec is immutable. If an artifact is replaced or added to a different vector, the old
+VectorAssignment is deleted and a new one created.
 
 
 
 _Appears in:_
 - [VectorAssignment](#vectorassignment)
 
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `manifest` _[ArtifactManifest](#artifactmanifest)_ | Manifest contains the ArtifactManifest describing the artifact to be assigned to the vector. This duplicates the<br />manifest stored in the ArtifactDeployment for efficiency: deployers often need to filter or select assignments<br />by artifact type, and embedding the manifest avoids repeated API lookups. |  |  |
+| `artifactDeploymentRef` _[LocalArtifactDeploymentReference](#localartifactdeploymentreference)_ | ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The<br />referenced artifact must exist in the same namespace as this VectorAssignment. |  |  |
+| `vectorDeploymentRef` _[LocalVectorDeploymentReference](#localvectordeploymentreference)_ | VectorDeploymentRef references the VectorDeployment that this artifact is assigned to. This creates the explicit<br />mapping "artifact X belongs to vector Y". |  |  |
 
 
 #### VectorAssignmentStatus
 
 
 
-VectorAssignmentStatus defines the observed state of VectorAssignment.
+VectorAssignmentStatus defines the observed state of a VectorAssignment.
+
+A VectorAssignment progresses through a simple lifecycle driven by the deployer:
+
+ 1. VectorAssignment is created by the vector-deployment-controller.
+ 2. deployer reconciles it and configures vector-specific integration
+ 3. VectorAssignedCondition is set to True
 
 
 
 _Appears in:_
 - [VectorAssignment](#vectorassignment)
 
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions describes the latest observed state of the assignment. The primary condition is<br />VectorAssignedCondition, which becomes True once the deployer has finished processing the VectorAssignment. |  |  |
 
 
 #### VectorDeployment
@@ -744,6 +839,8 @@ _Appears in:_
 
 
 VectorDeployment is the Schema for the vectordeployments API.
+
+VectorDeployment represents the deployment of an immutable vector of artifacts into a specific environment or stage.
 
 
 
@@ -785,7 +882,14 @@ VectorDeploymentList contains a list of VectorDeployment.
 
 
 
-VectorDeploymentSpec defines the desired state of VectorDeployment.
+VectorDeploymentSpec defines the desired state of a VectorDeployment.
+
+A VectorDeployment references a deployment vector stored as an OCM ComponentVersion in an OCI registry. The vector
+describes a complete, immutable set of artifacts and versions that should be deployed as a unit.
+
+The value must always be a fully qualified OCI URL and must resolve to a valid OCM ComponentVersion. The
+VectorDeployment spec is intended to be immutable. Any substantive change should result in a new VectorDeployment
+instance rather than updating an existing one.
 
 
 
@@ -794,14 +898,22 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  |  |
+| `vector` _string_ | Vector is a fully qualified URL pointing to an OCM ComponentVersion stored in an OCI registry. The referenced<br />component contains the deployment vector, which includes the complete list of artifacts and their versions. |  |  |
 
 
 #### VectorDeploymentStatus
 
 
 
-VectorDeploymentStatus defines the observed state of VectorDeployment.
+VectorDeploymentStatus represents the observed state of a VectorDeployment as it progresses through the
+deployment lifecycle.
+
+The lifecycle consists of:
+ 1. Pulling the vector from the OCI registry and parsing its contents -> VectorDownloadedCondition
+ 2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition
+ 3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition
+ 4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition
+ 5. Marking the vector as ready for use -> VectorReadyCondition
 
 
 
@@ -810,9 +922,11 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `resolvedVectorOcm` _string_ |  |  |  |
-| `resultingArtifactDeployments` _object (keys:string, values:[TypedObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#typedobjectreference-v1-core))_ |  |  |  |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions represents the current set of status conditions for this vector<br />deployment. These conditions track progress through the lifecycle stages. |  |  |
+| `resolvedVectorOcm` _string_ | ResolvedVectorOcm contains the fully materialized content of the OCM ComponentVersion after it has been<br />downloaded and resolved from the OCI registry. Unlike the Spec.Vector value, which is only a reference (URL),<br />this field stores the actual resolved vector content as provided by OCM, including all artifacts and metadata.<br />It is not a reference but the inlined representation of the component version at reconciliation time. |  |  |
+| `resultingArtifactDeployments` _object (keys:string, values:[LocalArtifactDeploymentReference](#localartifactdeploymentreference))_ | ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The<br />map key is the component name of the artifact as defined inside the vector. Keys remain stable across<br />reconciliations and re-creations. |  |  |
+| `resultingVectorAssignments` _object (keys:string, values:[LocalVectorAssignmentReference](#localvectorassignmentreference))_ | ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are<br />not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of<br />assignments.<br />The map key is the component name of the artifact. Keys are stable across reconcilations. |  |  |
+| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults exposes an aggregated view of the deployment results produced<br />by all underlying ArtifactDeployments. The map key is composed of the component<br />name and the individual result name, ensuring uniqueness. |  |  |
 
 
 #### VectorMigration

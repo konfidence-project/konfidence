@@ -48,7 +48,7 @@ spec:
                 description: StageVersionRef references a stageVersion
                 properties:
                   name:
-                    description: Name is the name of the stageVersion
+                    description: Name is the name of the StageVersion. Required.
                     type: string
                 required:
                 - name
