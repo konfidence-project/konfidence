@@ -13,42 +13,45 @@
       "type": "object"
     },
     "spec": {
-      "description": "ArtifactDeploymentSpec defines the desired state of ArtifactDeployment.",
+      "description": "ArtifactDeploymentSpec defines the desired state of an ArtifactDeployment. It describes the artifact to be deployed,\noptional post-deployment tasks, and optional metadata derived from an OCM ComponentVersion. A deployer interprets\nthe specification according to the artifact type in Manifest.Type.",
       "properties": {
         "component": {
-          "description": "OCMComponent is a wrapper around the OCM ComponentVersion.",
+          "description": "Component contains OCM metadata associated with the artifact. This is a simplified mapping of the OCM ComponentVersion.",
           "properties": {
             "name": {
+              "description": "Name is the OCM ComponentVersion name.",
               "type": "string"
             },
             "resources": {
+              "description": "Resources contains OCM resources belonging to this component. The structure is intentionally generic to support\nthe requirements of deployers targeting different runtimes.",
               "items": {
-                "description": "OCMResource represent a single resource in an OCM ComponentVersion.",
+                "description": "OCMResource represents a single resource of an OCM ComponentVersion. The content and type are deployer-specific and\nopaque to the API.",
                 "properties": {
-                  "image": {
-                    "type": "string"
+                  "content": {
+                    "description": "Content holds raw resource data, typically an embedded manifest, file, or\nbinary payload.",
+                    "type": "object",
+                    "x-kubernetes-preserve-unknown-fields": true
                   },
                   "name": {
+                    "description": "Name is the resource name.",
                     "type": "string"
                   },
                   "type": {
-                    "type": "string"
-                  },
-                  "version": {
+                    "description": "Type describes the resource type, following OCM conventions.",
                     "type": "string"
                   }
                 },
                 "required": [
-                  "image",
+                  "content",
                   "name",
-                  "type",
-                  "version"
+                  "type"
                 ],
                 "type": "object"
               },
               "type": "array"
             },
             "version": {
+              "description": "Version is the OCM ComponentVersion version.",
               "type": "string"
             }
           },
@@ -58,12 +61,14 @@
           "type": "object"
         },
         "manifest": {
-          "description": "ArtifactManifest defines the manifest for an artifact.",
+          "description": "Manifest contains information about the artifact itself and the deployer implementation responsible for handling it.",
           "properties": {
             "allowReuse": {
+              "description": "AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.\nReuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific\nruntime context.",
               "type": "boolean"
             },
             "type": {
+              "description": "Type specifies the deployer that should handle this artifact (e.g., \"cloud.konfidence.flux.helm\",\n\"cloud.konfidence.flux.kustomize\", or any custom deployer type). Deployers implement their own interpretation\nof the artifact's contents.",
               "type": "string"
             }
           },
@@ -74,23 +79,28 @@
           "type": "object"
         },
         "taskManifests": {
+          "description": "TaskManifests describes optional post-deployment tasks (commonly used for vector migrations such as database\nschema updates). Tasks are executed after the artifact has been deployed and may form a dependency graph via\nDependsOn.",
           "items": {
-            "description": "TaskManifest defines the manifest for a task.",
+            "description": "TaskManifest defines a post-deployment task that is executed after the artifact has been deployed. Tasks are\ncommonly used for vector migrations (such as database schema changes) but may represent any post-deployment action.\n\nTasks form a directed acyclic graph (DAG) at the *vector level* rather than only within a single ArtifactDeployment.\nA task may depend on tasks belonging to other microservices or artifacts in the same VectorDeployment. These\ncross-artifact dependencies allow defining a globally ordered migration or transformation workflow.\n\nThe controller responsible for the task type interprets the Spec field and performs the execution once all declared\ndependencies have completed successfully.",
             "properties": {
               "dependsOn": {
+                "description": "DependsOn lists names of other tasks that must complete before this task may run. Dependencies may reference\ntasks within the same artifact or any other artifact that participates in the same VectorDeployment, allowing the\nformation of a vector-wide DAG.",
                 "items": {
                   "type": "string"
                 },
                 "type": "array"
               },
               "name": {
+                "description": "Name uniquely identifies this task within the entire vector. This name may be referenced by other tasks across\ndifferent artifacts.",
                 "type": "string"
               },
               "spec": {
+                "description": "Spec contains task-specific configuration. The structure depends on the task Type and is interpreted by the\ncorresponding task controller.",
                 "type": "object",
                 "x-kubernetes-preserve-unknown-fields": true
               },
               "type": {
+                "description": "Type specifies the task controller or execution runtime (e.g. \"k8s-job\", or any custom task runtime). Different\ntask types correspond to different task controllers, each interpreting the Spec field according to their own semantics.",
                 "type": "string"
               }
             },
@@ -114,7 +124,7 @@
       "description": "ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.",
       "properties": {
         "conditions": {
-          "description": "Conditions holds the conditions for the ArtifactDeployment.",
+          "description": "Conditions describes the state of the deployment lifecycle. The following conditions are expected:\n\n  - ArtifactFetched: the artifact was successfully retrieved\n  - ArtifactDeployed: the artifact was successfully deployed\n  - AppHealthy: the deployer reports the workload as healthy\n\nConditions progress in a linear order:\nArtifactFetched -> ArtifactDeployed -> AppHealthy",
           "items": {
             "description": "Condition contains details for one aspect of the current state of this API Resource.",
             "properties": {
@@ -169,16 +179,32 @@
           "type": "array"
         },
         "deploymentResult": {
-          "description": "DeploymentResult contains the result of an artifact deployment.",
-          "properties": {
-            "url": {
-              "type": "string"
-            }
+          "description": "DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as\ncomputed DNS names, service endpoints, generated configuration, or other workload-specific details.\n\nResults should be treated as immutable for a given generation and may be consumed by later stages of a vector\nrollout (e.g., routing configuration).\n\nEach result must have a unique Name.",
+          "items": {
+            "description": "DeploymentResult contains a single output produced by a deployer. These results are used to transport information\nfrom the deployer to later phases of the vector lifecycle.",
+            "properties": {
+              "name": {
+                "description": "Name is a unique identifier for the result within an ArtifactDeploymentStatus.",
+                "type": "string"
+              },
+              "spec": {
+                "description": "Spec contains deployer-specific structured data. Its format is determined by the Type field.",
+                "type": "object",
+                "x-kubernetes-preserve-unknown-fields": true
+              },
+              "type": {
+                "description": "Type describes the structure contained in Spec. Each deployer may define multiple result types.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "spec",
+              "type"
+            ],
+            "type": "object"
           },
-          "required": [
-            "url"
-          ],
-          "type": "object"
+          "type": "array"
         },
         "observedGeneration": {
           "description": "ObservedGeneration is the last observed generation.",

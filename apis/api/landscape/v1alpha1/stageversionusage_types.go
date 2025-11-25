@@ -41,17 +41,11 @@ type StageVersionUsageSpec struct {
 
 	// StageVersionRef references a stageVersion
 	// +optional
-	StageVersionRef *StageVersionRef `json:"stageVersionRef,omitempty"`
+	StageVersionRef *StageVersionReference `json:"stageVersionRef,omitempty"`
 
 	// StageVersionSelector is a label selector to find a StageVersion when name is not provided.
 	// +optional
 	StageVersionSelector *metav1.LabelSelector `json:"stageVersionSelector,omitempty"`
-}
-
-// StageVersionRef references a stageVersion
-type StageVersionRef struct {
-	// Name is the name of the stageVersion
-	Name string `json:"name"`
 }
 
 // StageVersionUsageStatus defines the observed state of StageVersionUsage.

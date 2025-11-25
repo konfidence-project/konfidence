@@ -17,7 +17,10 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VectorDeployment is the Schema for the vectordeployments API.
+        description: |-
+          VectorDeployment is the Schema for the vectordeployments API.
+
+          VectorDeployment represents the deployment of an immutable vector of artifacts into a specific environment or stage.
         properties:
           apiVersion:
             description: |-
@@ -37,19 +40,40 @@ spec:
           metadata:
             type: object
           spec:
-            description: VectorDeploymentSpec defines the desired state of VectorDeployment.
+            description: |-
+              VectorDeploymentSpec defines the desired state of a VectorDeployment.
+
+              A VectorDeployment references a deployment vector stored as an OCM ComponentVersion in an OCI registry. The vector
+              describes a complete, immutable set of artifacts and versions that should be deployed as a unit.
+
+              The value must always be a fully qualified OCI URL and must resolve to a valid OCM ComponentVersion. The
+              VectorDeployment spec is intended to be immutable. Any substantive change should result in a new VectorDeployment
+              instance rather than updating an existing one.
             properties:
               vector:
-                description: Vector points to the OCM component version that contains
-                  the deployment vector for this stage.
+                description: |-
+                  Vector is a fully qualified URL pointing to an OCM ComponentVersion stored in an OCI registry. The referenced
+                  component contains the deployment vector, which includes the complete list of artifacts and their versions.
                 type: string
             required:
             - vector
             type: object
           status:
-            description: VectorDeploymentStatus defines the observed state of VectorDeployment.
+            description: |-
+              VectorDeploymentStatus represents the observed state of a VectorDeployment as it progresses through the
+              deployment lifecycle.
+
+              The lifecycle consists of:
+               1. Pulling the vector from the OCI registry and parsing its contents -> VectorDownloadedCondition
+               2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition
+               3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition
+               4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition
+               5. Marking the vector as ready for use -> VectorReadyCondition
             properties:
               conditions:
+                description: |-
+                  Conditions represents the current set of status conditions for this vector
+                  deployment. These conditions track progress through the lifecycle stages.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -105,35 +129,75 @@ spec:
                   - type
                   type: object
                 type: array
+              deploymentResults:
+                additionalProperties:
+                  description: |-
+                    DeploymentResult contains a single output produced by a deployer. These results are used to transport information
+                    from the deployer to later phases of the vector lifecycle.
+                  properties:
+                    name:
+                      description: Name is a unique identifier for the result within
+                        an ArtifactDeploymentStatus.
+                      type: string
+                    spec:
+                      description: Spec contains deployer-specific structured data.
+                        Its format is determined by the Type field.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type:
+                      description: Type describes the structure contained in Spec.
+                        Each deployer may define multiple result types.
+                      type: string
+                  required:
+                  - name
+                  - spec
+                  - type
+                  type: object
+                description: |-
+                  DeploymentResults exposes an aggregated view of the deployment results produced
+                  by all underlying ArtifactDeployments. The map key is composed of the component
+                  name and the individual result name, ensuring uniqueness.
+                type: object
               resolvedVectorOcm:
+                description: |-
+                  ResolvedVectorOcm contains the fully materialized content of the OCM ComponentVersion after it has been
+                  downloaded and resolved from the OCI registry. Unlike the Spec.Vector value, which is only a reference (URL),
+                  this field stores the actual resolved vector content as provided by OCM, including all artifacts and metadata.
+                  It is not a reference but the inlined representation of the component version at reconciliation time.
                 type: string
               resultingArtifactDeployments:
                 additionalProperties:
-                  description: TypedObjectReference contains enough information to
-                    let you locate the typed referenced object
+                  description: LocalArtifactDeploymentReference holds a reference
+                    to an ArtifactDeployment in the same namespace.
                   properties:
-                    apiGroup:
-                      description: |-
-                        APIGroup is the group for the resource being referenced.
-                        If APIGroup is not specified, the specified Kind must be in the core API group.
-                        For any other third-party types, APIGroup is required.
-                      type: string
-                    kind:
-                      description: Kind is the type of resource being referenced
-                      type: string
                     name:
-                      description: Name is the name of resource being referenced
-                      type: string
-                    namespace:
-                      description: |-
-                        Namespace is the namespace of resource being referenced
-                        Note that when a namespace is specified, a gateway.networking.k8s.io/ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details.
-                        (Alpha) This field requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
+                      description: "Name\tis the name of the ArtifactDeployment. Required."
                       type: string
                   required:
-                  - kind
                   - name
                   type: object
+                description: |-
+                  ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The
+                  map key is the component name of the artifact as defined inside the vector. Keys remain stable across
+                  reconciliations and re-creations.
+                type: object
+              resultingVectorAssignments:
+                additionalProperties:
+                  description: LocalVectorAssignmentReference holds a reference to
+                    a VectorAssignment in the same namespace.
+                  properties:
+                    name:
+                      description: "Name\tis the name of the VectorAssignment. Required."
+                      type: string
+                  required:
+                  - name
+                  type: object
+                description: |-
+                  ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are
+                  not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of
+                  assignments.
+
+                  The map key is the component name of the artifact. Keys are stable across reconcilations.
                 type: object
             type: object
         type: object

@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -41,23 +40,65 @@ const (
 	VectorReadyCondition = "VectorReady"
 )
 
-// VectorDeploymentSpec defines the desired state of VectorDeployment.
+// VectorDeploymentSpec defines the desired state of a VectorDeployment.
+//
+// A VectorDeployment references a deployment vector stored as an OCM ComponentVersion in an OCI registry. The vector
+// describes a complete, immutable set of artifacts and versions that should be deployed as a unit.
+//
+// The value must always be a fully qualified OCI URL and must resolve to a valid OCM ComponentVersion. The
+// VectorDeployment spec is intended to be immutable. Any substantive change should result in a new VectorDeployment
+// instance rather than updating an existing one.
 type VectorDeploymentSpec struct {
-	// Vector points to the OCM component version that contains the deployment vector for this stage.
+	// Vector is a fully qualified URL pointing to an OCM ComponentVersion stored in an OCI registry. The referenced
+	// component contains the deployment vector, which includes the complete list of artifacts and their versions.
 	Vector string `json:"vector"`
 }
 
-// VectorDeploymentStatus defines the observed state of VectorDeployment.
+// VectorDeploymentStatus represents the observed state of a VectorDeployment as it progresses through the
+// deployment lifecycle.
+//
+// The lifecycle consists of:
+//  1. Pulling the vector from the OCI registry and parsing its contents -> VectorDownloadedCondition
+//  2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition
+//  3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition
+//  4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition
+//  5. Marking the vector as ready for use -> VectorReadyCondition
 type VectorDeploymentStatus struct {
-	ResolvedVectorOcm            string                                 `json:"resolvedVectorOcm,omitempty"`
-	ResultingArtifactDeployments map[string]corev1.TypedObjectReference `json:"resultingArtifactDeployments,omitempty"`
-	Conditions                   []metav1.Condition                     `json:"conditions,omitempty"`
+
+	// Conditions represents the current set of status conditions for this vector
+	// deployment. These conditions track progress through the lifecycle stages.
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// ResolvedVectorOcm contains the fully materialized content of the OCM ComponentVersion after it has been
+	// downloaded and resolved from the OCI registry. Unlike the Spec.Vector value, which is only a reference (URL),
+	// this field stores the actual resolved vector content as provided by OCM, including all artifacts and metadata.
+	// It is not a reference but the inlined representation of the component version at reconciliation time.
+	ResolvedVectorOcm string `json:"resolvedVectorOcm,omitempty"`
+
+	// ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The
+	// map key is the component name of the artifact as defined inside the vector. Keys remain stable across
+	// reconciliations and re-creations.
+	ResultingArtifactDeployments map[string]LocalArtifactDeploymentReference `json:"resultingArtifactDeployments,omitempty"`
+
+	// ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are
+	// not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of
+	// assignments.
+	//
+	// The map key is the component name of the artifact. Keys are stable across reconcilations.
+	ResultingVectorAssignments map[string]LocalVectorAssignmentReference `json:"resultingVectorAssignments,omitempty"`
+
+	// DeploymentResults exposes an aggregated view of the deployment results produced
+	// by all underlying ArtifactDeployments. The map key is composed of the component
+	// name and the individual result name, ensuring uniqueness.
+	DeploymentResults map[string]DeploymentResult `json:"deploymentResults,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
 // VectorDeployment is the Schema for the vectordeployments API.
+//
+// VectorDeployment represents the deployment of an immutable vector of artifacts into a specific environment or stage.
 type VectorDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
