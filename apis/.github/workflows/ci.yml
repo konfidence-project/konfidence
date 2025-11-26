@@ -14,7 +14,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Find modules by their go.mod files
         id: set-matrix
@@ -36,7 +36,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -67,13 +67,6 @@ jobs:
         uses: cashapp/activate-hermit@v1
         with:
           cache: "true"
-
-      - name: Setup Go
-        if: steps.should-build.outputs.run == 'true'
-        uses: actions/setup-go@v6
-        with:
-          go-version: '~1.24'
-          cache-dependency-path: '${{ matrix.module }}/go.sum'
 
       - name: Download dependencies
         if: steps.should-build.outputs.run == 'true'
@@ -146,7 +139,7 @@ jobs:
         run: make lint
 
       - name: Setup GitHub Repo Access
-        uses: konfidence-project/.github/.github/actions/github-repo-access@v1
+        uses: konfidence-project/.github/.github/actions/github-repo-access@v3
         with:
           private-key: ${{secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
 
