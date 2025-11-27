@@ -7,7 +7,7 @@ on:
 jobs:
   release:
     name: Release
-    uses: konfidence-project/.github/.github/workflows/kubebuilder-release-pipeline.yaml@v2
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-release-pipeline.yaml@v3
     secrets: inherit
     permissions:
       contents: write
