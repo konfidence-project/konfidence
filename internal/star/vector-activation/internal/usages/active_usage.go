@@ -72,7 +72,7 @@ func CreateActiveUsage(ctx context.Context, c client.Client, stage *common.Stage
 		},
 		Spec: landscape.StageVersionUsageSpec{
 			Reason:          StageVersionUsageActiveType,
-			StageVersionRef: &landscape.StageVersionRef{Name: stageVersion.Name},
+			StageVersionRef: &landscape.StageVersionReference{Name: stageVersion.Name},
 		},
 	}
 	if err := controllerutil.SetControllerReference(stage, newActiveStageVersionUsage, c.Scheme()); err != nil {
