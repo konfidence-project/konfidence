@@ -172,7 +172,7 @@ func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name 
 			Namespace: namespace,
 		},
 		Spec: landscape.StageVersionUsageSpec{
-			StageVersionRef: &landscape.StageVersionRef{
+			StageVersionRef: &landscape.StageVersionReference{
 				Name: stageVersionName,
 			},
 		},
