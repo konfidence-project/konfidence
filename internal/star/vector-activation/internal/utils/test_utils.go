@@ -105,32 +105,6 @@ func CleanupStageVersion(k8sClient client.Client, stageVersionName string, names
 	}
 }
 
-func GetActivationExecution(ctx context.Context, k8sClient client.Client, name string, namespace string) *landscape.ActivationExecution {
-	activationExecution := &landscape.ActivationExecution{}
-	activationExecutionLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
-	err := k8sClient.Get(ctx, activationExecutionLookupKey, activationExecution)
-
-	if err != nil && errors.IsNotFound(err) {
-		return nil
-	}
-	gomega.Expect(err).ToNot(gomega.HaveOccurred(), "Failed to fetch activation execution: %s", name)
-	return activationExecution
-}
-
-func CleanupActivationExecution(k8sClient client.Client, executionName string, namespace string) {
-	ctx := context.Background()
-	activationExecution := GetActivationExecution(ctx, k8sClient, executionName, namespace)
-
-	if activationExecution != nil {
-		DeleteActivationExecution(ctx, k8sClient, activationExecution)
-	}
-}
-
-func DeleteActivationExecution(ctx context.Context, k8sClient client.Client, activationExecution *landscape.ActivationExecution) {
-	err := k8sClient.Delete(ctx, activationExecution)
-	gomega.Expect(err).ToNot(gomega.HaveOccurred(), "Failed to delete activation execution: %s", activationExecution.Name)
-}
-
 func UpdateStageVersion(ctx context.Context, k8sClient client.Client, stageVersion *landscape.StageVersion) {
 	err := k8sClient.Update(ctx, stageVersion)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred(), "Failed to update stageVersion: %s", stageVersion.Name)

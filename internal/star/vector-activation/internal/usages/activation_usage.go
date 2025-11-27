@@ -31,7 +31,7 @@ func CreateOrUpdateActivationUsage(ctx context.Context, c client.Client, stage *
 		},
 		Spec: landscape.StageVersionUsageSpec{
 			Reason:          StageVersionUsageActivationType,
-			StageVersionRef: &landscape.StageVersionRef{Name: stageVersion.Name},
+			StageVersionRef: &landscape.StageVersionReference{Name: stageVersion.Name},
 		},
 	}
 	if err := c.Create(ctx, stageVersionUsage); err != nil {

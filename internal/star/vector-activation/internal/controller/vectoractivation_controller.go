@@ -89,7 +89,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, fmt.Errorf("could not get stage: %w", err)
 	}
 
-	if meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, landscape.VectorActivationSucceeded) {
+	if meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, landscape.ActivationSucceeded) {
 		return r.cleanupVectorActivation(ctx, req, vectorActivation, stage.Name)
 	}
 
@@ -136,7 +136,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	if err := r.patchVectorActivationStatus(ctx, req, metav1.Condition{Type: landscape.VectorActivationSucceeded, Status: metav1.ConditionTrue, Reason: landscape.VectorActivationSucceeded, Message: fmt.Sprintf("successfully reconciled VectorActivation %s", vectorActivation.Name)}); err != nil {
+	if err := r.patchVectorActivationStatus(ctx, req, metav1.Condition{Type: landscape.ActivationSucceeded, Status: metav1.ConditionTrue, Reason: landscape.ActivationSucceeded, Message: fmt.Sprintf("successfully reconciled VectorActivation %s", vectorActivation.Name)}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update VectorActivation status: %w", err)
 	}
 	log.Info("VectorActivation reconciled successfully, set status to succeeded")

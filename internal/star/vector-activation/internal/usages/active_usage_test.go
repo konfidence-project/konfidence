@@ -126,7 +126,7 @@ var _ = Describe("active usage tests", func() {
 					Namespace: "default",
 				},
 				Spec: landscape.StageVersionUsageSpec{
-					StageVersionRef: &landscape.StageVersionRef{Name: "active-stage-version"},
+					StageVersionRef: &landscape.StageVersionReference{Name: "active-stage-version"},
 				},
 			}
 			activeStageVersion := &landscape.StageVersion{Spec: landscape.StageVersionSpec{
