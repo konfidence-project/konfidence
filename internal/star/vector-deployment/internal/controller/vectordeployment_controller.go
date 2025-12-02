@@ -235,12 +235,13 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 		}
 
 		// state management for VectorDeployedCondition
-		if meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, landscape.ArtifactDeployedCondition) {
+		if meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, landscape.DeploymentResultCreatedCondition) {
 			// collect deployment results
 			for _, result := range artifactDeployment.Status.DeploymentResults {
 				vectorDeployment.Status.DeploymentResults[artifact.ComponentName+"/"+result.Name] = result
 			}
-		} else {
+		}
+		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, landscape.ArtifactDeploymentReadyCondition) {
 			allReady = false
 		}
 	}
