@@ -33,6 +33,12 @@ const (
 
 	// AppHealthyCondition indicates that the health check of the application was successful.
 	AppHealthyCondition = "AppHealthy"
+
+	// DeploymentResultCreatedCondition indicates that the fetching the DeploymentResult from the cluster was successful.
+	DeploymentResultCreatedCondition = "DeploymentResultCreated"
+
+	// ArtifactDeploymentReadyCondition indicates that the resource was successfully reconciled.
+	ArtifactDeploymentReadyCondition = "Ready"
 )
 
 // ArtifactDeploymentSpec defines the desired state of an ArtifactDeployment. It describes the artifact to be deployed,
