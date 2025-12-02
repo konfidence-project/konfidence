@@ -199,6 +199,17 @@ var _ = Describe("VectorDeployment Controller", func() {
 			Reason: landscape.ArtifactDeployedCondition,
 			Status: metav1.ConditionTrue,
 		})
+		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+			Type:   landscape.DeploymentResultCreatedCondition,
+			Reason: landscape.DeploymentResultCreatedCondition,
+			Status: metav1.ConditionTrue,
+		})
+		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+			Type:   landscape.ArtifactDeploymentReadyCondition,
+			Reason: landscape.ArtifactDeploymentReadyCondition,
+			Status: metav1.ConditionTrue,
+		})
+
 		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
 
 		By("Verifying VectorDeployment.status.deploymentResults and VectorDeployed condition is set")
