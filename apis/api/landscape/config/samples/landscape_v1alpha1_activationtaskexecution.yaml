@@ -10,3 +10,10 @@ spec:
   spec: {
     "template": "refine-me"
   }
+  httpRouteConfigs:
+    - httpRouteName: "example-http-route"
+      gatewayName: "example-gateway"
+      hostName: "example-host"
+      vectorId: "vector-123"
+      serviceName: "example-service"
+      port: 80
