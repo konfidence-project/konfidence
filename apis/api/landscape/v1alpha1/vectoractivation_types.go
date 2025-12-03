@@ -42,10 +42,14 @@ const (
 
 // VectorActivationSpec defines the desired state of VectorActivation
 type VectorActivationSpec struct {
+	Stage string `json:"stage"`
+
 	StageVersion string `json:"stageVersion"`
 
 	// Vector points to the OCM component version that contains the deployment vector for this stage.
 	Vector string `json:"vector"`
+
+	VectorDeployment string `json:"vectorDeployment"`
 }
 
 // VectorActivationStatus defines the observed state of VectorActivation.

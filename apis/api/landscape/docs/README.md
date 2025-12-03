@@ -717,8 +717,10 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
+| `stage` _string_ |  |  |  |
 | `stageVersion` _string_ |  |  |  |
 | `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  |  |
+| `vectorDeployment` _string_ |  |  |  |
 
 
 #### VectorActivationStatus

@@ -1006,15 +1006,21 @@ spec:
           spec:
             description: spec defines the desired state of VectorActivation
             properties:
+              stage:
+                type: string
               stageVersion:
                 type: string
               vector:
                 description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
                 type: string
+              vectorDeployment:
+                type: string
             required:
+            - stage
             - stageVersion
             - vector
+            - vectorDeployment
             type: object
           status:
             description: status defines the observed state of VectorActivation
