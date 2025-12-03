@@ -75,7 +75,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 	Context("When reconciling a stageVersionUsage", func() {
 		It("should successfully reconcile the stageVersionUsage", func() {
 			ctx := context.Background()
-			testutil.CreateStageVersion(ctx, k8sClient, StageVersionTest, Namespace, Vector001)
+			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionTest, Namespace, Vector001, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
 			stageVersion := &landscape.StageVersion{}
@@ -127,7 +127,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionNotFound)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			testutil.CreateStageVersion(ctx, k8sClient, StageVersionTest, Namespace, Vector001)
+			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionTest, Namespace, Vector001, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
 			stageVersion := &landscape.StageVersion{}
