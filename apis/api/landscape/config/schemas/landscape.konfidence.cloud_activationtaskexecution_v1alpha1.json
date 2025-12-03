@@ -15,6 +15,43 @@
     "spec": {
       "description": "spec defines the desired state of ActivationTaskExecution",
       "properties": {
+        "httpRouteConfigs": {
+          "description": "HTTPRouteConfigs is a temporary field that contains a list of httpRoute configurations",
+          "items": {
+            "description": "HTTPRouteConfig defines necessary configuration parameters to construct GatewayAPI httpRoute resources",
+            "properties": {
+              "gatewayName": {
+                "type": "string"
+              },
+              "hostName": {
+                "type": "string"
+              },
+              "httpRouteName": {
+                "type": "string"
+              },
+              "port": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "serviceName": {
+                "type": "string"
+              },
+              "vectorId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "gatewayName",
+              "hostName",
+              "httpRouteName",
+              "port",
+              "serviceName",
+              "vectorId"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
         "spec": {
           "type": "object",
           "x-kubernetes-preserve-unknown-fields": true
