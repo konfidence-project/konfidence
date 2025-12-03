@@ -53,6 +53,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 	})
 
 	const (
+		StageDev                  = "stage-dev"
 		StageVersionDev           = "stage-version-dev"
 		StageVersionTest          = "stage-version-test"
 		Namespace                 = "default"
@@ -75,7 +76,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 	Context("When reconciling a stageVersion", func() {
 		It("should successfully reconcile the stageVersion", func() {
 			ctx := context.Background()
-			testutil.CreateStageVersion(ctx, k8sClient, StageVersionDev, Namespace, Vector001)
+			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionDev, Namespace, Vector001, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
 			stageVersion := &landscape.StageVersion{}
@@ -142,8 +143,12 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			vectorActivationLookupKey := types.NamespacedName{Name: StageVersionDevActivation, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorActivationLookupKey, vectorActivation)).To(Succeed())
-				g.Expect(vectorMigration.GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(testutil.HasOwnerReference(vectorMigration.GetOwnerReferences(), metav1.OwnerReference{
+				g.Expect(vectorActivation.Spec.Stage).To(Equal(StageDev))
+				g.Expect(vectorActivation.Spec.StageVersion).To(Equal(StageVersionDev))
+				g.Expect(vectorActivation.Spec.Vector).To(Equal(Vector001))
+				g.Expect(vectorActivation.Spec.VectorDeployment).To(Equal(VectorName001))
+				g.Expect(vectorActivation.GetOwnerReferences()).To(HaveLen(1))
+				g.Expect(testutil.HasOwnerReference(vectorActivation.GetOwnerReferences(), metav1.OwnerReference{
 					Kind: landscape.StageVersionKind,
 					Name: StageVersionDev,
 				})).To(BeTrue())
@@ -161,7 +166,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 		})
 		It("should re-use a vectorDeployment if another stageVersion references the same vector", func() {
 			ctx := context.Background()
-			testutil.CreateStageVersion(ctx, k8sClient, StageVersionDev, Namespace, Vector001)
+			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionDev, Namespace, Vector001, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
 			stageVersionDev := &landscape.StageVersion{}
@@ -174,7 +179,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// create another stageVersion that references the same vector
-			testutil.CreateStageVersion(ctx, k8sClient, StageVersionTest, Namespace, Vector001)
+			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionTest, Namespace, Vector001, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
 			stageVersionTest := &landscape.StageVersion{}

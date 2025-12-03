@@ -106,6 +106,11 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageVersion")
 
+	stageName, ok := stageVersion.Labels[StageNameLabel]
+	if !ok {
+		return fmt.Errorf("StageName label %s not found in stageVersion", StageNameLabel)
+	}
+
 	// get a k8s conform vector name
 	adaptedVectorName, err := util.AdaptVectorName(stageVersion.Spec.Vector)
 	if err != nil {
@@ -146,7 +151,7 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorMigratedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorMigratedCondition, Message: fmt.Sprintf("VectorMigration %s successful for stageVersion %s", vectorMigration.Name, stageVersion.Name)})
 
 	// check if a vectorActivation exists matching the stage vector
-	vectorActivation, err := r.getOrCreateVectorActivation(ctx, stageVersion)
+	vectorActivation, err := r.getOrCreateVectorActivation(ctx, stageVersion, stageName, vectorDeployment)
 	if err != nil {
 		return err
 	}
@@ -232,7 +237,7 @@ func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context,
 	return vectorMigration, nil
 }
 
-func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context, stageVersion *landscape.StageVersion) (*landscape.VectorActivation, error) {
+func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context, stageVersion *landscape.StageVersion, stageName string, vectorDeployment *landscape.VectorDeployment) (*landscape.VectorActivation, error) {
 	log := logf.FromContext(ctx)
 	vectorActivation := &landscape.VectorActivation{}
 	err := r.Get(ctx, types.NamespacedName{
@@ -248,7 +253,7 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context
 		log.V(1).Info("No matching vectorActivation found. Creating a new one...")
 
 		// create new vectorActivation
-		vectorActivation, err = r.constructVectorActivation(stageVersion)
+		vectorActivation, err = r.constructVectorActivation(stageVersion, stageName, vectorDeployment)
 		if err != nil {
 			return nil, fmt.Errorf("unable to construct vectorActivation from template: %w", err)
 		}
@@ -311,13 +316,18 @@ func (r *StageVersionReconciler) constructVectorMigration(stageVersion *landscap
 	return vectorMigration, nil
 }
 
-func (r *StageVersionReconciler) constructVectorActivation(stageVersion *landscape.StageVersion) (*landscape.VectorActivation, error) {
+func (r *StageVersionReconciler) constructVectorActivation(stageVersion *landscape.StageVersion, stageName string, vectorDeployment *landscape.VectorDeployment) (*landscape.VectorActivation, error) {
 	vectorActivation := &landscape.VectorActivation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      getVectorActivationName(stageVersion),
 			Namespace: stageVersion.Namespace,
 		},
-		Spec: landscape.VectorActivationSpec{},
+		Spec: landscape.VectorActivationSpec{
+			Stage:            stageName,
+			StageVersion:     stageVersion.Name,
+			Vector:           stageVersion.Spec.Vector,
+			VectorDeployment: vectorDeployment.Name,
+		},
 	}
 
 	// set stageVersion as controller

@@ -76,7 +76,7 @@ func CleanupStages(k8sClient client.Client) {
 	}
 }
 
-func CreateStageVersion(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
+func CreateStageVersion(ctx context.Context, k8sClient client.Client, stageName, name string, namespace string, vectorName string, adaptedVectorName string) {
 	stageVersion := &landscape.StageVersion{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "landscape.konfidence.cloud/v1alpha1",
@@ -85,6 +85,10 @@ func CreateStageVersion(ctx context.Context, k8sClient client.Client, name strin
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Labels: map[string]string{
+				StageNameLabel:       stageName,
+				VectorReferenceLabel: adaptedVectorName,
+			},
 		},
 		Spec: landscape.StageVersionSpec{
 			Vector:          vectorName,
