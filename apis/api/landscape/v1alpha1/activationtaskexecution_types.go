@@ -53,9 +53,11 @@ type HTTPRouteConfig struct {
 
 // ActivationTaskExecutionSpec defines the desired state of ActivationTaskExecution
 type ActivationTaskExecutionSpec struct {
-	Type             string               `json:"type"`
-	Spec             runtime.RawExtension `json:"spec"`
-	VectorActivation string               `json:"vectorActivation"`
+	Type string               `json:"type"`
+	Spec runtime.RawExtension `json:"spec"`
+
+	// VectorActivation is a temporary field that contains the name of the associated vectorActivation
+	VectorActivation string `json:"vectorActivation"`
 
 	// HTTPRouteConfigs is a temporary field that contains a list of httpRoute configurations
 	HTTPRouteConfigs []HTTPRouteConfig `json:"httpRouteConfigs,omitempty"`
