@@ -58,11 +58,15 @@
         },
         "type": {
           "type": "string"
+        },
+        "vectorActivation": {
+          "type": "string"
         }
       },
       "required": [
         "spec",
-        "type"
+        "type",
+        "vectorActivation"
       ],
       "type": "object"
     },

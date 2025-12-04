@@ -74,9 +74,12 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
               type:
                 type: string
+              vectorActivation:
+                type: string
             required:
             - spec
             - type
+            - vectorActivation
             type: object
           status:
             description: status defines the observed state of ActivationTaskExecution

@@ -89,6 +89,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `type` _string_ |  |  |  |
 | `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ |  |  |  |
+| `vectorActivation` _string_ |  |  |  |
 | `httpRouteConfigs` _[HTTPRouteConfig](#httprouteconfig) array_ | HTTPRouteConfigs is a temporary field that contains a list of httpRoute configurations |  |  |
 
 
