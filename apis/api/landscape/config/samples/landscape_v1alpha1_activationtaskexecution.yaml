@@ -10,6 +10,7 @@ spec:
   spec: {
     "template": "refine-me"
   }
+  vectorActivation: "activation-1"
   httpRouteConfigs:
     - httpRouteName: "example-http-route"
       gatewayName: "example-gateway"
