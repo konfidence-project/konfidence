@@ -24,9 +24,9 @@ import (
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/coordination/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -41,11 +41,12 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	ctx       context.Context
-	cancel    context.CancelFunc
-	testEnv   *envtest.Environment
-	cfg       *rest.Config
-	k8sClient client.Client
+	ctx        context.Context
+	cancel     context.CancelFunc
+	testEnv    *envtest.Environment
+	cfg        *rest.Config
+	k8sClient  client.Client
+	k8sManager ctrl.Manager
 )
 
 func TestControllers(t *testing.T) {
@@ -58,11 +59,9 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	var err error
-	err = landscape.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = common.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	Expect(landscape.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(common.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(v1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -80,21 +79,35 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	// create client
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
-
 	// create manager
-	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
+	Expect(err).ToNot(HaveOccurred())
+	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					&landscape.ActivationTaskRegistration{},
+					&landscape.StageVersion{},
+					&common.Stage{},
+					&landscape.StageVersionUsage{},
+					&landscape.ActivationTaskExecution{},
+				},
+			},
+		},
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	k8sClient = k8sManager.GetClient()
+	// TODO: clarify if it would be preferred to use a separate (uncached) client for the test and the managers client for the controller
+	// k8sClient, err = client.New(cfg, client.Options{Scheme: k8sManager.GetScheme()})
+	// Expect(err).NotTo(HaveOccurred())
+	// Expect(k8sClient).NotTo(BeNil())
+
 	err = (&VectorActivationReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
-		Config: cfg,
+		Client:       k8sManager.GetClient(),
+		Scheme:       k8sManager.GetScheme(),
+		Config:       cfg,
+		ControllerID: "vector-activation-controller-test",
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -103,6 +116,9 @@ var _ = BeforeSuite(func() {
 		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
+
+	// Ensure cache sync before tests that use cached client
+	Expect(k8sManager.GetCache().WaitForCacheSync(ctx)).To(BeTrue())
 })
 
 var _ = AfterSuite(func() {

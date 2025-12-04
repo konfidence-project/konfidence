@@ -1,4 +1,4 @@
-package usages
+package usage
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package usages
+package activation
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
-func TestUsages(t *testing.T) {
+func TestUsage(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
-	ginkgo.RunSpecs(t, "Usages Suite")
+	ginkgo.RunSpecs(t, "Activation Test Suite")
 }
