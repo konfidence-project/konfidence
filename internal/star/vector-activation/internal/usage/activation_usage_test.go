@@ -1,4 +1,4 @@
-package usages
+package usage
 
 import (
 	"context"
@@ -9,19 +9,16 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 var _ = Describe("active usage tests", func() {
 	var (
-		ctx          context.Context
-		mockCtrl     *gomock.Controller
-		clientMock   *MockClient
-		stage        *common.Stage
-		stageVersion *landscape.StageVersion
-		activation   *landscape.VectorActivation
+		ctx        context.Context
+		mockCtrl   *gomock.Controller
+		clientMock *MockClient
+		stage      *common.Stage
+		activation *landscape.VectorActivation
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
@@ -34,40 +31,26 @@ var _ = Describe("active usage tests", func() {
 				UID:       "12345",
 			},
 		}
-		stageVersion = &landscape.StageVersion{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "stage-version-test",
-				Namespace: "default",
+		activation = &landscape.VectorActivation{
+			Spec: landscape.VectorActivationSpec{
+				StageVersion: "stage-version-test",
 			},
 		}
-		activation = &landscape.VectorActivation{}
 	})
 
 	Context("Activation Usage", func() {
 		It("should create activation usage and no error", func() {
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
-			expectedName := "stage-version-test-activation-usage"
 
-			usage, err := CreateOrUpdateActivationUsage(ctx, clientMock, stage, stageVersion, activation)
+			usage, err := CreateActivationUsage(ctx, clientMock, stage, activation)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(usage).NotTo(BeNil())
-			Expect(usage.Name).To(Equal(expectedName))
+			Expect(usage.Name).To(ContainSubstring("activation-"))
 			Expect(usage.Labels[ActivationStageVersionUsage]).To(Equal(stage.Name))
 			Expect(usage.Spec.Reason).To(Equal(StageVersionUsageActivationType))
+			Expect(usage.Spec.StageVersionRef.Name).To(Equal(activation.Spec.StageVersion))
 			Expect(usage.OwnerReferences).To(HaveLen(1))
-		})
-
-		It("should update activation usage if it already exists", func() {
-			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(
-				apierrors.NewAlreadyExists(schema.GroupResource{Group: "landscape.konfidence.io", Resource: "stageversionusages"}, "stage-version-test-activation-usage"),
-			)
-			clientMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)
-
-			usage, err := CreateOrUpdateActivationUsage(ctx, clientMock, stage, stageVersion, activation)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(usage).NotTo(BeNil())
-
 		})
 
 		It("should delete", func() {

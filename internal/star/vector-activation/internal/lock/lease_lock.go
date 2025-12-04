@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -15,10 +16,11 @@ import (
 
 const DefaultLeaseTTL = 30 * time.Second
 
-func AcquireResourceLease(ctx context.Context, client kubernetes.Interface, resourceId string, namespace string, controllerID string, resourceType string, stageName string, ownerRef metav1.OwnerReference) (bool, error) {
+func AcquireResourceLease(ctx context.Context, c client.Client, resourceId string, namespace string, controllerID string, resourceType string, stageName string, ownerRef metav1.OwnerReference) (bool, error) {
 	leaseName := getLeaseName(resourceType, stageName)
-	lease, err := client.CoordinationV1().Leases(namespace).Get(ctx, leaseName, metav1.GetOptions{})
 	holderIdentity := getHolderIdentity(controllerID, resourceId)
+	lease, err := getLease(ctx, c, leaseName, namespace)
+
 	now := time.Now()
 
 	if err != nil {
@@ -37,8 +39,7 @@ func AcquireResourceLease(ctx context.Context, client kubernetes.Interface, reso
 					RenewTime:            &metav1.MicroTime{Time: now},
 				},
 			}
-			_, err := client.CoordinationV1().Leases(namespace).Create(ctx, lease, metav1.CreateOptions{})
-			if err != nil {
+			if err := c.Create(ctx, lease); err != nil {
 				return false, fmt.Errorf("failed to create lease: %w", err)
 			}
 			return true, nil
@@ -51,8 +52,7 @@ func AcquireResourceLease(ctx context.Context, client kubernetes.Interface, reso
 		lease.Spec.HolderIdentity = &holderIdentity
 		lease.Spec.RenewTime = &metav1.MicroTime{Time: now}
 		lease.Spec.AcquireTime = &metav1.MicroTime{Time: now}
-		_, err := client.CoordinationV1().Leases(namespace).Update(ctx, lease, metav1.UpdateOptions{})
-		if err != nil {
+		if err := c.Update(ctx, lease); err != nil {
 			return false, fmt.Errorf("failed to update lease: %w", err)
 		}
 		return true, nil
@@ -61,10 +61,10 @@ func AcquireResourceLease(ctx context.Context, client kubernetes.Interface, reso
 
 }
 
-func ReleaseResourceLease(ctx context.Context, client kubernetes.Interface, resourceId string, namespace string, controllerID string, resourceType string, stageName string) error {
+func ReleaseResourceLease(ctx context.Context, c client.Client, resourceId string, namespace string, controllerID string, resourceType string, stageName string) error {
 	leaseName := getLeaseName(resourceType, stageName)
 	holderIdentity := getHolderIdentity(controllerID, resourceId)
-	lease, err := client.CoordinationV1().Leases(namespace).Get(ctx, leaseName, metav1.GetOptions{})
+	lease, err := getLease(ctx, c, leaseName, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -76,12 +76,17 @@ func ReleaseResourceLease(ctx context.Context, client kubernetes.Interface, reso
 		lease.Spec.HolderIdentity = nil
 		lease.Spec.RenewTime = nil
 		lease.Spec.AcquireTime = nil
-		_, err := client.CoordinationV1().Leases(namespace).Update(ctx, lease, metav1.UpdateOptions{})
-		if err != nil {
+		if err := c.Update(ctx, lease); err != nil {
 			return fmt.Errorf("failed to release lease: %w", err)
 		}
 	}
 	return nil
+}
+
+func getLease(ctx context.Context, c client.Client, leaseName string, namespace string) (*coordinationv1.Lease, error) {
+	lease := &coordinationv1.Lease{}
+	err := c.Get(ctx, types.NamespacedName{Name: leaseName, Namespace: namespace}, lease)
+	return lease, err
 }
 
 func getLeaseName(resourceType string, stageName string) string {
