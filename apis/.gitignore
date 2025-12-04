@@ -4,7 +4,6 @@
 *.dll
 *.so
 *.dylib
-bin/*
 Dockerfile.cross
 
 # Test binary, built with `go test -c`
@@ -27,6 +26,3 @@ go.work.sum
 *.swo
 *~
 .backup
-
-# Tool binaries
-.bin/
