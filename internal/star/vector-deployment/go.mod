@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/konfidence-project/crds/api/landscape v0.10.0
 	github.com/mandelsoft/goutils v0.0.0-20241005173814-114fa825bbdc
-	github.com/onsi/ginkgo/v2 v2.27.2
+	github.com/onsi/ginkgo/v2 v2.27.3
 	github.com/onsi/gomega v1.38.2
 	go.uber.org/mock v0.6.0
 	k8s.io/api v0.34.2
