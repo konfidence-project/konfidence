@@ -6,7 +6,7 @@ require (
 	github.com/konfidence-project/crds/api/common v0.4.1
 	github.com/konfidence-project/crds/api/landscape v0.11.0
 	github.com/onsi/ginkgo/v2 v2.27.3
-	github.com/onsi/gomega v1.38.2
+	github.com/onsi/gomega v1.38.3
 	k8s.io/apimachinery v0.34.2
 	k8s.io/client-go v0.34.2
 	sigs.k8s.io/controller-runtime v0.22.4
