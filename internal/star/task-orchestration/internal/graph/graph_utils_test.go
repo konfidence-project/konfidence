@@ -178,5 +178,14 @@ var _ = Describe("Graph utility functions", func() {
 			_, _, err := SortTasks(tasks)
 			Expect(err).To(MatchError("task dependency graph contains a cycle"))
 		})
+		It("should fail when task list is nil", func() {
+			_, _, err := SortTasks(nil)
+			Expect(err).To(MatchError("task list is empty"))
+		})
+		It("should fail when task list is empty", func() {
+			tasks := []landscape.TaskManifest{}
+			_, _, err := SortTasks(tasks)
+			Expect(err).To(MatchError("task list is empty"))
+		})
 	})
 })

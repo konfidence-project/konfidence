@@ -130,6 +130,23 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 		return fmt.Errorf("unable to fetch artifactDeployments and tasks: %w", err)
 	}
 
+	if len(tasks) == 0 {
+		log.Info("No migration tasks found")
+
+		// mark vectorMigration as successful if no tasks exist
+		meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationSucceeded,
+			Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationSucceeded,
+			Message: fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name)})
+
+		// delete stageVersionUsage
+		if err := r.Delete(ctx, stageVersionUsage); err != nil {
+			return fmt.Errorf("unable to delete stageVersionUsage for vectorMigration: %w", err)
+		}
+
+		log.Info("VectorMigration reconciled")
+		return nil
+	}
+
 	// sort tasks
 	_, layers, err := graph.SortTasks(tasks)
 	if err != nil {
@@ -287,6 +304,10 @@ func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(ctx context
 
 		artifactDeployments[deploymentReference.Name] = *artifactDeployment
 		numberOfTasks = numberOfTasks + len(artifactDeployment.Spec.TaskManifests)
+	}
+
+	if numberOfTasks == 0 {
+		return nil, nil
 	}
 
 	// get all task manifests from deployments
