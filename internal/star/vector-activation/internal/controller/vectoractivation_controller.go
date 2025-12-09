@@ -200,19 +200,8 @@ func (r *VectorActivationReconciler) LoadActivationContextData(ctx context.Conte
 		return nil, nil, nil, fmt.Errorf("could not get stage version: %w", err)
 	}
 
-	var stageOwnerRef *metav1.OwnerReference
-	for _, owner := range stageVersion.OwnerReferences {
-		if owner.Kind == common.StageKind && owner.APIVersion == common.GroupVersion.String() {
-			stageOwnerRef = &owner
-			break
-		}
-	}
-	if stageOwnerRef == nil {
-		return nil, nil, nil, fmt.Errorf("stage version %s does not have a stage owner reference", stageVersion.Name)
-	}
-
 	stage := &common.Stage{}
-	if err := r.Get(ctx, types.NamespacedName{Name: stageOwnerRef.Name, Namespace: req.Namespace}, stage); err != nil {
+	if err := r.Get(ctx, types.NamespacedName{Name: vectorActivation.Spec.Stage, Namespace: req.Namespace}, stage); err != nil {
 		return nil, nil, nil, fmt.Errorf("could not get stage: %w", err)
 	}
 

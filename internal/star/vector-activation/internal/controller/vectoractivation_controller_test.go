@@ -45,6 +45,7 @@ const (
 	RegistrationName     = "registration-1"
 	RegistrationType     = "registration-type-1"
 	Namespace            = "default"
+	VectorDeploymentName = "vector-deployment-1"
 	timeout              = time.Second * 10
 	interval             = time.Millisecond * 150
 )
@@ -190,8 +191,10 @@ func CreateVectorActivation() *landscape.VectorActivation {
 			Namespace: Namespace,
 		},
 		Spec: landscape.VectorActivationSpec{
-			Vector:       Vector001,
-			StageVersion: StageVersionName,
+			Vector:           Vector001,
+			StageVersion:     StageVersionName,
+			Stage:            StageName,
+			VectorDeployment: VectorDeploymentName,
 		},
 	}
 	Eventually(func(g Gomega) {
