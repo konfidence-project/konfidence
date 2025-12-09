@@ -132,14 +132,9 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	err = activation.EnsureExecutionsForRegistrations(ctx, r.Client, req.Namespace, registrationList, vectorActivation)
+	executionsInActivation, err := activation.EnsureExecutionsForRegistrations(ctx, r.Client, req.Namespace, registrationList, vectorActivation)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("could not create executions: %w", err)
-	}
-
-	executionsInActivation, err := activation.ListExecutions(ctx, r.Client, req.Namespace, vectorActivation)
-	if err != nil {
-		return ctrl.Result{}, err
 	}
 
 	allExecutionsSucceeded, err := r.checkExecutionsStatusAndPatchOnFailure(ctx, req, executionsInActivation, log)

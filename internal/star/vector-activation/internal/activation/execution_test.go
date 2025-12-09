@@ -87,38 +87,6 @@ var _ = Describe("activation task execution tests", func() {
 		})
 	})
 
-	Context("ListExecutions", func() {
-		It("should return all executions for activation", func() {
-			expectedLabels := client.MatchingLabels{
-				"activation": vectorActivation.Name,
-			}
-
-			clientMock.EXPECT().List(ctx, gomock.Any(), client.InNamespace(namespace), expectedLabels).
-				DoAndReturn(func(_ context.Context, list interface{}, _ ...interface{}) error {
-					execList := list.(*landscape.ActivationTaskExecutionList)
-					execList.Items = append(execList.Items,
-						landscape.ActivationTaskExecution{ObjectMeta: metav1.ObjectMeta{Name: "execution-1"}},
-						landscape.ActivationTaskExecution{ObjectMeta: metav1.ObjectMeta{Name: "execution-2"}},
-					)
-					return nil
-				})
-
-			result, err := ListExecutions(ctx, clientMock, namespace, vectorActivation)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).ToNot(BeNil())
-			Expect(result.Items).To(HaveLen(2))
-		})
-
-		It("should return error when ListExecutions fails", func() {
-			clientMock.EXPECT().List(ctx, gomock.Any(), gomock.Any(), gomock.Any()).
-				Return(errors.New("list error"))
-
-			result, err := ListExecutions(ctx, clientMock, namespace, vectorActivation)
-			Expect(err).To(HaveOccurred())
-			Expect(result).To(BeNil())
-		})
-	})
-
 	Context("CreateExecution", func() {
 		It("should create execution successfully", func() {
 			clientMock.EXPECT().Create(ctx, gomock.Any()).
@@ -173,8 +141,9 @@ var _ = Describe("activation task execution tests", func() {
 				})
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 
-			err := EnsureExecutionsForRegistrations(ctx, clientMock, namespace, registrationList, vectorActivation)
+			executionList, err := EnsureExecutionsForRegistrations(ctx, clientMock, namespace, registrationList, vectorActivation)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(executionList.Items).ToNot(BeEmpty())
 		})
 
 		It("should skip creating execution if one already exists", func() {
@@ -189,7 +158,7 @@ var _ = Describe("activation task execution tests", func() {
 					return nil
 				})
 
-			err := EnsureExecutionsForRegistrations(ctx, clientMock, namespace, registrationList, vectorActivation)
+			_, err := EnsureExecutionsForRegistrations(ctx, clientMock, namespace, registrationList, vectorActivation)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -201,7 +170,7 @@ var _ = Describe("activation task execution tests", func() {
 			clientMock.EXPECT().List(ctx, gomock.Any(), gomock.Any(), gomock.Any()).
 				Return(errors.New("list error"))
 
-			err := EnsureExecutionsForRegistrations(ctx, clientMock, namespace, registrationList, vectorActivation)
+			_, err := EnsureExecutionsForRegistrations(ctx, clientMock, namespace, registrationList, vectorActivation)
 			Expect(err).To(HaveOccurred())
 		})
 
@@ -213,7 +182,7 @@ var _ = Describe("activation task execution tests", func() {
 			clientMock.EXPECT().List(ctx, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(errors.New("create error"))
 
-			err := EnsureExecutionsForRegistrations(ctx, clientMock, namespace, registrationList, vectorActivation)
+			_, err := EnsureExecutionsForRegistrations(ctx, clientMock, namespace, registrationList, vectorActivation)
 			Expect(err).To(HaveOccurred())
 		})
 	})
