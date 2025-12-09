@@ -386,7 +386,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 				},
 			}
 
-			// create ArtifactDeployments
+			// create ArtifactDeployment
 			testutil.CreateArtifactDeployment(ctx, k8sClient, ArtifactDeployment1, Namespace, artifactDeploymentTasks)
 
 			artifactDeployment1 := &landscape.ArtifactDeployment{}
@@ -443,11 +443,105 @@ var _ = Describe("Task Orchestration Controller", func() {
 			// mark task0 as failed
 			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, landscape.TaskFailed)
 
-			// vectorMigration should be marked successful
+			// vectorMigration should be marked as failed
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 				g.Expect(vectorMigration.Status.Conditions).To(HaveLen(1))
 				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationFailed)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should successfully reconcile the vectorMigration if no migration tasks exist", func() {
+			ctx := context.Background()
+
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDev, Vector001)
+
+			// check that the stage has been created and has valid properties
+			stage := &common.Stage{}
+			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001)
+
+			// check that the stageVersion has been created and has valid properties
+			stageVersion := &landscape.StageVersion{}
+			stageVersionLookupKey := types.NamespacedName{Name: StageVersion, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
+				g.Expect(stageVersion.Spec.Vector).To(Equal(Vector001))
+				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(int64(1)))
+			}, timeout, interval).Should(Succeed())
+
+			// set stage as owner
+			Expect(controllerutil.SetOwnerReference(stage, stageVersion, k8sClient.Scheme())).To(Succeed())
+			testutil.UpdateStageVersion(ctx, k8sClient, stageVersion)
+
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
+				g.Expect(stageVersion.Spec.Vector).To(Equal(Vector001))
+				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(int64(1)))
+				g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
+				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
+					Kind: common.StageKind,
+					Name: StageDev,
+				})).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			// create ArtifactDeployment
+			tasks := []landscape.TaskManifest{}
+			testutil.CreateArtifactDeployment(ctx, k8sClient, ArtifactDeployment1, Namespace, tasks)
+
+			artifactDeployment1 := &landscape.ArtifactDeployment{}
+			artifactDeployment1LookupKey := types.NamespacedName{Name: ArtifactDeployment1, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, artifactDeployment1LookupKey, artifactDeployment1)).To(Succeed())
+				g.Expect(artifactDeployment1.Spec.TaskManifests).To(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			// create vectorDeployment
+			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001)
+
+			vectorDeployment := &landscape.VectorDeployment{}
+			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
+			// check that the vectorDeployment has been created and has valid properties
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
+				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
+			}, timeout, interval).Should(Succeed())
+
+			// update vector status and add artifactDeployment References
+			artifactDeploymentRefs := make(map[string]landscape.LocalArtifactDeploymentReference)
+			artifactDeploymentRefs[ArtifactDeployment1] = landscape.LocalArtifactDeploymentReference{
+				Name: ArtifactDeployment1,
+			}
+			vectorDeployment.Status.ResultingArtifactDeployments = artifactDeploymentRefs
+			testutil.UpdateVectorDeploymentStatus(ctx, k8sClient, vectorDeployment)
+
+			// check that the status has been updated
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
+				g.Expect(vectorDeployment.Status.ResultingArtifactDeployments).To(HaveLen(1))
+			}, timeout, interval).Should(Succeed())
+
+			// create the vectorMigration
+			testutil.CreateVectorMigration(ctx, k8sClient, VectorMigration, Namespace, StageVersion, Vector001)
+
+			// check that the vectorMigration has been created and has valid properties
+			vectorMigration := &landscape.VectorMigration{}
+			vectorMigrationLookupKey := types.NamespacedName{Name: VectorMigration, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
+				g.Expect(vectorMigration.Spec.StageVersion).To(Equal(StageVersion))
+				g.Expect(vectorMigration.Spec.Vector).To(Equal(Vector001))
+			}, timeout, interval).Should(Succeed())
+
+			// vectorMigration should be marked successful
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
+				g.Expect(vectorMigration.Status.Conditions).To(HaveLen(1))
+				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 	})

@@ -26,6 +26,10 @@ func createAdjacencyList(tasks []landscape.TaskManifest) map[string][]landscape.
 
 // SortTasks implements topological sort of the task dependency graph with Kahn's algorithm see https://en.wikipedia.org/wiki/Topological_sorting
 func SortTasks(tasks []landscape.TaskManifest) ([]landscape.TaskManifest, [][]landscape.TaskManifest, error) {
+	if len(tasks) == 0 {
+		return nil, nil, errors.New("task list is empty")
+	}
+
 	// create adjacency list
 	adjacencyList := createAdjacencyList(tasks)
 
