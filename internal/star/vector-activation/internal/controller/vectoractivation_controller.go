@@ -113,7 +113,6 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	// TODO: filter by stage?
 	registrationList, err := activation.GetRegistrations(ctx, r.Client, req.Namespace)
 	if err != nil {
 		return ctrl.Result{}, err
