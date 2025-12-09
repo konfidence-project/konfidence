@@ -90,7 +90,6 @@ _Appears in:_
 | `type` _string_ |  |  |  |
 | `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ |  |  |  |
 | `vectorActivation` _string_ | VectorActivation is a temporary field that contains the name of the associated vectorActivation |  |  |
-| `httpRouteConfigs` _[HTTPRouteConfig](#httprouteconfig) array_ | HTTPRouteConfigs is a temporary field that contains a list of httpRoute configurations |  |  |
 
 
 #### ActivationTaskExecutionStatus
@@ -303,27 +302,6 @@ _Appears in:_
 | `name` _string_ | Name is a unique identifier for the result within an ArtifactDeploymentStatus. |  |  |
 | `type` _string_ | Type describes the structure contained in Spec. Each deployer may define multiple result types. |  |  |
 | `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains deployer-specific structured data. Its format is determined by the Type field. |  |  |
-
-
-#### HTTPRouteConfig
-
-
-
-HTTPRouteConfig defines necessary configuration parameters to construct GatewayAPI httpRoute resources
-
-
-
-_Appears in:_
-- [ActivationTaskExecutionSpec](#activationtaskexecutionspec)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `httpRouteName` _string_ |  |  |  |
-| `gatewayName` _string_ |  |  |  |
-| `hostName` _string_ |  |  |  |
-| `vectorId` _string_ |  |  |  |
-| `serviceName` _string_ |  |  |  |
-| `port` _integer_ |  |  |  |
 
 
 #### LocalArtifactDeploymentReference
