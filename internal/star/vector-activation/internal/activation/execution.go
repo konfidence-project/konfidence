@@ -24,15 +24,6 @@ func ListExecutionsForRegistration(ctx context.Context, c client.Client, namespa
 	return executionList, nil
 }
 
-// ListExecutions gets all executions of this activation
-func ListExecutions(ctx context.Context, c client.Client, namespace string, vectorActivation *landscape.VectorActivation) (*landscape.ActivationTaskExecutionList, error) {
-	executionsInActivation := &landscape.ActivationTaskExecutionList{}
-	if err := c.List(ctx, executionsInActivation, client.InNamespace(namespace), client.MatchingLabels{"activation": vectorActivation.Name}); err != nil {
-		return nil, fmt.Errorf("failed to list all executions in activation: %w", err)
-	}
-	return executionsInActivation, nil
-}
-
 // CreateExecution creates an ActivationTaskExecution for the given registration
 func CreateExecution(ctx context.Context, c client.Client, namespace string, vectorActivation *landscape.VectorActivation, registration landscape.ActivationTaskRegistration) (*landscape.ActivationTaskExecution, error) {
 	log := logf.FromContext(ctx)
@@ -68,19 +59,21 @@ func CreateExecution(ctx context.Context, c client.Client, namespace string, vec
 }
 
 // EnsureExecutionsForRegistrations ensures that for each registration in the list there is an execution created for the given activation
-func EnsureExecutionsForRegistrations(ctx context.Context, c client.Client, namespace string, registrationList *landscape.ActivationTaskRegistrationList, vectorActivation *landscape.VectorActivation) error {
+func EnsureExecutionsForRegistrations(ctx context.Context, c client.Client, namespace string, registrationList *landscape.ActivationTaskRegistrationList, vectorActivation *landscape.VectorActivation) (*landscape.ActivationTaskExecutionList, error) {
+	allExecutions := &landscape.ActivationTaskExecutionList{}
 	for _, registration := range registrationList.Items {
 		executionList, err := ListExecutionsForRegistration(ctx, c, namespace, registration, vectorActivation)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
+		allExecutions.Items = append(allExecutions.Items, executionList.Items...)
 		if len(executionList.Items) == 0 {
-			_, err := CreateExecution(ctx, c, namespace, vectorActivation, registration)
+			newExecution, err := CreateExecution(ctx, c, namespace, vectorActivation, registration)
 			if err != nil {
-				return err
+				return nil, err
 			}
+			allExecutions.Items = append(allExecutions.Items, *newExecution)
 		}
 	}
-	return nil
+	return allExecutions, nil
 }
