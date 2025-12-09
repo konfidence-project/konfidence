@@ -38,7 +38,7 @@ func CreateExecution(ctx context.Context, c client.Client, namespace string, vec
 	log := logf.FromContext(ctx)
 	activationExecution := &landscape.ActivationTaskExecution{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-%s-", vectorActivation.Name, registration.Name),
+			GenerateName: "activation-execution-",
 			Namespace:    namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -55,8 +55,9 @@ func CreateExecution(ctx context.Context, c client.Client, namespace string, vec
 			},
 		},
 		Spec: landscape.ActivationTaskExecutionSpec{
-			Type: registration.Spec.Type,
-			Spec: registration.Spec.Spec,
+			Type:             registration.Spec.Type,
+			VectorActivation: vectorActivation.Name,
+			Spec:             registration.Spec.Spec,
 		},
 	}
 	if err := c.Create(ctx, activationExecution); err != nil {
