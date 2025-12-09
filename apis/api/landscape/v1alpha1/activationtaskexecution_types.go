@@ -41,16 +41,6 @@ const (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// HTTPRouteConfig defines necessary configuration parameters to construct GatewayAPI httpRoute resources
-type HTTPRouteConfig struct {
-	HTTPRouteName string `json:"httpRouteName"`
-	GatewayName   string `json:"gatewayName"`
-	HostName      string `json:"hostName"`
-	VectorID      string `json:"vectorId"`
-	ServiceName   string `json:"serviceName"`
-	Port          int32  `json:"port"`
-}
-
 // ActivationTaskExecutionSpec defines the desired state of ActivationTaskExecution
 type ActivationTaskExecutionSpec struct {
 	Type string               `json:"type"`
@@ -58,9 +48,6 @@ type ActivationTaskExecutionSpec struct {
 
 	// VectorActivation is a temporary field that contains the name of the associated vectorActivation
 	VectorActivation string `json:"vectorActivation"`
-
-	// HTTPRouteConfigs is a temporary field that contains a list of httpRoute configurations
-	HTTPRouteConfigs []HTTPRouteConfig `json:"httpRouteConfigs,omitempty"`
 }
 
 // ActivationTaskExecutionStatus defines the observed state of ActivationTaskExecution.
