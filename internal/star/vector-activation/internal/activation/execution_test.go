@@ -125,6 +125,7 @@ var _ = Describe("activation task execution tests", func() {
 				DoAndReturn(func(_ context.Context, obj interface{}, _ ...interface{}) error {
 					execution := obj.(*landscape.ActivationTaskExecution)
 					Expect(execution.Spec.Type).To(Equal(registration.Spec.Type))
+					Expect(execution.Spec.VectorActivation).To(Equal(vectorActivation.Name))
 					Expect(execution.Labels["registration"]).To(Equal(registration.Name))
 					Expect(execution.Labels["activation"]).To(Equal(vectorActivation.Name))
 					Expect(execution.OwnerReferences).To(HaveLen(1))
