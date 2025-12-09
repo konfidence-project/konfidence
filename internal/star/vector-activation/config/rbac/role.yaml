@@ -5,6 +5,26 @@ metadata:
   name: landscape-vector-activation-manager
 rules:
 - apiGroups:
+  - common.konfidence.cloud
+  resources:
+  - stages
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - common.konfidence.cloud
+  resources:
+  - stages/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - coordination
   resources:
   - leases
@@ -29,7 +49,6 @@ rules:
   resources:
   - activationtaskexecutions
   - activationtaskregistrations
-  - stages
   - stageversions
   - stageversionusages
   - vectoractivations
@@ -46,7 +65,6 @@ rules:
   resources:
   - activationtaskexecutions/status
   - activationtaskregistrations/status
-  - stages/status
   - stageversions/status
   - stageversionusages/status
   - vectoractivations/status
