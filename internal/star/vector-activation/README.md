@@ -16,6 +16,7 @@ The  vector activation CRD is located in a separate (private) [repository](https
 Make sure you have a cluster running locally. You can create a kind cluster with ``` make setup-test-e2e ```. 
 
 
+
 To install the crds, navigate to the location of the crds module and run:
 
 ```
