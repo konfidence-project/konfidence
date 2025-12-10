@@ -13,7 +13,7 @@
       "type": "object"
     },
     "spec": {
-      "description": "spec defines the desired state of StageVersion",
+      "description": "spec defines the desired state of StageVersion and is immutable after it has been set",
       "properties": {
         "stage_generation": {
           "description": "the object generation of the stage that created this stage version",
@@ -31,7 +31,13 @@
         "stage_generation",
         "vector"
       ],
-      "type": "object"
+      "type": "object",
+      "x-kubernetes-validations": [
+        {
+          "message": "StageVersion spec is immutable after it has been set",
+          "rule": "self == oldSelf"
+        }
+      ]
     },
     "status": {
       "description": "status defines the observed state of StageVersion",
@@ -94,8 +100,11 @@
       "type": "object"
     }
   },
-  "required": [
-    "spec"
-  ],
-  "type": "object"
+  "type": "object",
+  "x-kubernetes-validations": [
+    {
+      "message": "Spec is required once set",
+      "rule": "!has(oldSelf.spec) || has(self.spec)"
+    }
+  ]
 }
