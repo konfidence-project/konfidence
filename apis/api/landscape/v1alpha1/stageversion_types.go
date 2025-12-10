@@ -67,6 +67,7 @@ type StageVersionStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
 
 // StageVersion is the Schema for the stageversions API
 type StageVersion struct {
@@ -76,7 +77,9 @@ type StageVersion struct {
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty,omitzero"`
 
-	// spec defines the desired state of StageVersion
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="StageVersion spec is immutable after it has been set"
+	// spec defines the desired state of StageVersion and is immutable after it has been set
 	// +required
 	Spec StageVersionSpec `json:"spec"`
 
