@@ -5,7 +5,7 @@ go 1.24.5
 require (
 	github.com/go-logr/logr v1.4.3
 	github.com/konfidence-project/crds/api/common v0.4.1
-	github.com/konfidence-project/crds/api/landscape v0.11.0
+	github.com/konfidence-project/crds/api/landscape v0.14.0
 	github.com/onsi/ginkgo/v2 v2.27.3
 	github.com/onsi/gomega v1.38.3
 	go.uber.org/mock v0.6.0
