@@ -95,6 +95,7 @@ type VectorDeploymentStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
 
 // VectorDeployment is the Schema for the vectordeployments API.
 //
@@ -103,6 +104,9 @@ type VectorDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="VectorDeployment spec is immutable after it has been set"
+	// Spec defines the desired state of the VectorDeployment and is immutable after it has been set
 	Spec   VectorDeploymentSpec   `json:"spec,omitempty"`
 	Status VectorDeploymentStatus `json:"status,omitempty"`
 }

@@ -13,7 +13,7 @@
       "type": "object"
     },
     "spec": {
-      "description": "VectorAssignmentSpec defines the desired state of a VectorAssignment.\n\nA VectorAssignment represents one logical binding between a VectorDeployment and an ArtifactDeployment. Since a\nsingle artifact may be reused across multiple vectors, an n:m relationship exists between vectors and artifacts.\nVectorAssignment creates a concrete instance of that relationship.\n\nVectorAssignment resources are created automatically during vector rollouts and are typically not authored by users.\nDeployer implementations reconcile the VectorAssignment to perform vector-specific configuration based on the\nartifact selected for this vector.\n\nThe VectorAssignmentSpec is immutable. If an artifact is replaced or added to a different vector, the old\nVectorAssignment is deleted and a new one created.",
+      "description": "Spec defines the desired state of the VectorAssignment and is immutable after it has been set",
       "properties": {
         "artifactDeploymentRef": {
           "description": "ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The\nreferenced artifact must exist in the same namespace as this VectorAssignment.",
@@ -65,7 +65,13 @@
         "manifest",
         "vectorDeploymentRef"
       ],
-      "type": "object"
+      "type": "object",
+      "x-kubernetes-validations": [
+        {
+          "message": "VectorAssignment spec is immutable after it has been set",
+          "rule": "self == oldSelf"
+        }
+      ]
     },
     "status": {
       "description": "VectorAssignmentStatus defines the observed state of a VectorAssignment.\n\nA VectorAssignment progresses through a simple lifecycle driven by the deployer:\n\n 1. VectorAssignment is created by the vector-deployment-controller.\n 2. deployer reconciles it and configures vector-specific integration\n 3. VectorAssignedCondition is set to True",
@@ -129,5 +135,11 @@
       "type": "object"
     }
   },
-  "type": "object"
+  "type": "object",
+  "x-kubernetes-validations": [
+    {
+      "message": "Spec is required once set",
+      "rule": "!has(oldSelf.spec) || has(self.spec)"
+    }
+  ]
 }

@@ -71,6 +71,7 @@ type VectorAssignmentStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
 
 // VectorAssignment is the Schema for the vectorassignments API.
 //
@@ -81,6 +82,9 @@ type VectorAssignment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="VectorAssignment spec is immutable after it has been set"
+	// Spec defines the desired state of the VectorAssignment and is immutable after it has been set
 	Spec   VectorAssignmentSpec   `json:"spec,omitempty"`
 	Status VectorAssignmentStatus `json:"status,omitempty"`
 }

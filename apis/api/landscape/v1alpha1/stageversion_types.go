@@ -79,7 +79,7 @@ type StageVersion struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="StageVersion spec is immutable after it has been set"
-	// spec defines the desired state of StageVersion and is immutable after it has been set
+	// Spec defines the desired state of the StageVersion and is immutable after it has been set
 	// +required
 	Spec StageVersionSpec `json:"spec"`
 

@@ -314,10 +314,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: |-
-              ArtifactDeploymentSpec defines the desired state of an ArtifactDeployment. It describes the artifact to be deployed,
-              optional post-deployment tasks, and optional metadata derived from an OCM ComponentVersion. A deployer interprets
-              the specification according to the artifact type in Manifest.Type.
+            description: Spec defines the desired state of the ArtifactDeployment
+              and is immutable after it has been set
             properties:
               component:
                 description: Component contains OCM metadata associated with the artifact.
@@ -431,6 +429,9 @@ spec:
             - manifest
             - taskManifests
             type: object
+            x-kubernetes-validations:
+            - message: ArtifactDeployment spec is immutable after it has been set
+              rule: self == oldSelf
           status:
             description: ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.
             properties:
@@ -538,6 +539,9 @@ spec:
                 type: integer
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:
@@ -581,8 +585,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of StageVersion and is immutable
-              after it has been set
+            description: Spec defines the desired state of the StageVersion and is
+              immutable after it has been set
             properties:
               stage_generation:
                 description: the object generation of the stage that created this
@@ -1143,19 +1147,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: |-
-              VectorAssignmentSpec defines the desired state of a VectorAssignment.
-
-              A VectorAssignment represents one logical binding between a VectorDeployment and an ArtifactDeployment. Since a
-              single artifact may be reused across multiple vectors, an n:m relationship exists between vectors and artifacts.
-              VectorAssignment creates a concrete instance of that relationship.
-
-              VectorAssignment resources are created automatically during vector rollouts and are typically not authored by users.
-              Deployer implementations reconcile the VectorAssignment to perform vector-specific configuration based on the
-              artifact selected for this vector.
-
-              The VectorAssignmentSpec is immutable. If an artifact is replaced or added to a different vector, the old
-              VectorAssignment is deleted and a new one created.
+            description: Spec defines the desired state of the VectorAssignment and
+              is immutable after it has been set
             properties:
               artifactDeploymentRef:
                 description: |-
@@ -1206,6 +1199,9 @@ spec:
             - manifest
             - vectorDeploymentRef
             type: object
+            x-kubernetes-validations:
+            - message: VectorAssignment spec is immutable after it has been set
+              rule: self == oldSelf
           status:
             description: |-
               VectorAssignmentStatus defines the observed state of a VectorAssignment.
@@ -1277,6 +1273,9 @@ spec:
                 type: array
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:
@@ -1323,15 +1322,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: |-
-              VectorDeploymentSpec defines the desired state of a VectorDeployment.
-
-              A VectorDeployment references a deployment vector stored as an OCM ComponentVersion in an OCI registry. The vector
-              describes a complete, immutable set of artifacts and versions that should be deployed as a unit.
-
-              The value must always be a fully qualified OCI URL and must resolve to a valid OCM ComponentVersion. The
-              VectorDeployment spec is intended to be immutable. Any substantive change should result in a new VectorDeployment
-              instance rather than updating an existing one.
+            description: Spec defines the desired state of the VectorDeployment and
+              is immutable after it has been set
             properties:
               vector:
                 description: |-
@@ -1341,6 +1333,9 @@ spec:
             required:
             - vector
             type: object
+            x-kubernetes-validations:
+            - message: VectorDeployment spec is immutable after it has been set
+              rule: self == oldSelf
           status:
             description: |-
               VectorDeploymentStatus represents the observed state of a VectorDeployment as it progresses through the
@@ -1484,6 +1479,9 @@ spec:
                 type: object
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:

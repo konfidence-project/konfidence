@@ -42,19 +42,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: |-
-              VectorAssignmentSpec defines the desired state of a VectorAssignment.
-
-              A VectorAssignment represents one logical binding between a VectorDeployment and an ArtifactDeployment. Since a
-              single artifact may be reused across multiple vectors, an n:m relationship exists between vectors and artifacts.
-              VectorAssignment creates a concrete instance of that relationship.
-
-              VectorAssignment resources are created automatically during vector rollouts and are typically not authored by users.
-              Deployer implementations reconcile the VectorAssignment to perform vector-specific configuration based on the
-              artifact selected for this vector.
-
-              The VectorAssignmentSpec is immutable. If an artifact is replaced or added to a different vector, the old
-              VectorAssignment is deleted and a new one created.
+            description: Spec defines the desired state of the VectorAssignment and
+              is immutable after it has been set
             properties:
               artifactDeploymentRef:
                 description: |-
@@ -105,6 +94,9 @@ spec:
             - manifest
             - vectorDeploymentRef
             type: object
+            x-kubernetes-validations:
+            - message: VectorAssignment spec is immutable after it has been set
+              rule: self == oldSelf
           status:
             description: |-
               VectorAssignmentStatus defines the observed state of a VectorAssignment.
@@ -176,6 +168,9 @@ spec:
                 type: array
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:
