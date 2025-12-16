@@ -97,6 +97,8 @@ github.com/konfidence-project/crds/api/landscape v0.10.0 h1:MoZ2C7q1H6BtZo0By1P6
 github.com/konfidence-project/crds/api/landscape v0.10.0/go.mod h1:6hqikwmeLOVmV5+EfhRbCigqa1mEu14OYyheEcLZJ+Q=
 github.com/konfidence-project/crds/api/landscape v0.11.0 h1:CLmthIcGbkRbmfTLjpQyxvKfeFWBM/G5Sv7tM9l7Pwc=
 github.com/konfidence-project/crds/api/landscape v0.11.0/go.mod h1:6hqikwmeLOVmV5+EfhRbCigqa1mEu14OYyheEcLZJ+Q=
+github.com/konfidence-project/crds/api/landscape v0.14.0 h1:N6H4rJTXfaWdItpURB3Cso+wZ4IXA1EEbse83VNEan8=
+github.com/konfidence-project/crds/api/landscape v0.14.0/go.mod h1:6hqikwmeLOVmV5+EfhRbCigqa1mEu14OYyheEcLZJ+Q=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
