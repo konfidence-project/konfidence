@@ -13,7 +13,7 @@
       "type": "object"
     },
     "spec": {
-      "description": "VectorDeploymentSpec defines the desired state of a VectorDeployment.\n\nA VectorDeployment references a deployment vector stored as an OCM ComponentVersion in an OCI registry. The vector\ndescribes a complete, immutable set of artifacts and versions that should be deployed as a unit.\n\nThe value must always be a fully qualified OCI URL and must resolve to a valid OCM ComponentVersion. The\nVectorDeployment spec is intended to be immutable. Any substantive change should result in a new VectorDeployment\ninstance rather than updating an existing one.",
+      "description": "Spec defines the desired state of the VectorDeployment and is immutable after it has been set",
       "properties": {
         "vector": {
           "description": "Vector is a fully qualified URL pointing to an OCM ComponentVersion stored in an OCI registry. The referenced\ncomponent contains the deployment vector, which includes the complete list of artifacts and their versions.",
@@ -23,7 +23,13 @@
       "required": [
         "vector"
       ],
-      "type": "object"
+      "type": "object",
+      "x-kubernetes-validations": [
+        {
+          "message": "VectorDeployment spec is immutable after it has been set",
+          "rule": "self == oldSelf"
+        }
+      ]
     },
     "status": {
       "description": "VectorDeploymentStatus represents the observed state of a VectorDeployment as it progresses through the\ndeployment lifecycle.\n\nThe lifecycle consists of:\n 1. Pulling the vector from the OCI registry and parsing its contents -> VectorDownloadedCondition\n 2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition\n 3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition\n 4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition\n 5. Marking the vector as ready for use -> VectorReadyCondition",
@@ -153,5 +159,11 @@
       "type": "object"
     }
   },
-  "type": "object"
+  "type": "object",
+  "x-kubernetes-validations": [
+    {
+      "message": "Spec is required once set",
+      "rule": "!has(oldSelf.spec) || has(self.spec)"
+    }
+  ]
 }

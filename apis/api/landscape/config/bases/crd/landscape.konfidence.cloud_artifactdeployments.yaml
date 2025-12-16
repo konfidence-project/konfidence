@@ -48,10 +48,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: |-
-              ArtifactDeploymentSpec defines the desired state of an ArtifactDeployment. It describes the artifact to be deployed,
-              optional post-deployment tasks, and optional metadata derived from an OCM ComponentVersion. A deployer interprets
-              the specification according to the artifact type in Manifest.Type.
+            description: Spec defines the desired state of the ArtifactDeployment
+              and is immutable after it has been set
             properties:
               component:
                 description: Component contains OCM metadata associated with the artifact.
@@ -165,6 +163,9 @@ spec:
             - manifest
             - taskManifests
             type: object
+            x-kubernetes-validations:
+            - message: ArtifactDeployment spec is immutable after it has been set
+              rule: self == oldSelf
           status:
             description: ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.
             properties:
@@ -272,6 +273,9 @@ spec:
                 type: integer
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:

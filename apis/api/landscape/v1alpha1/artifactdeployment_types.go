@@ -134,12 +134,16 @@ type DeploymentResult struct {
 // +kubebuilder:printcolumn:name="Fetched",type="string",JSONPath=".status.conditions[?(@.type==\"ArtifactFetched\")].status",description=""
 // +kubebuilder:printcolumn:name="Deployed",type="string",JSONPath=".status.conditions[?(@.type==\"ArtifactDeployed\")].status",description=""
 // +kubebuilder:printcolumn:name="Healthy",type="string",JSONPath=".status.conditions[?(@.type==\"AppHealthy\")].message",description=""
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
 
 // ArtifactDeployment is the Schema for the artifactdeployments API.
 type ArtifactDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="ArtifactDeployment spec is immutable after it has been set"
+	// Spec defines the desired state of the ArtifactDeployment and is immutable after it has been set
 	Spec   ArtifactDeploymentSpec   `json:"spec,omitempty"`
 	Status ArtifactDeploymentStatus `json:"status,omitempty"`
 }

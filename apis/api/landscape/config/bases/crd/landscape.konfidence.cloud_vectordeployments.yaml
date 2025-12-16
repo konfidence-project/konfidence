@@ -40,15 +40,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: |-
-              VectorDeploymentSpec defines the desired state of a VectorDeployment.
-
-              A VectorDeployment references a deployment vector stored as an OCM ComponentVersion in an OCI registry. The vector
-              describes a complete, immutable set of artifacts and versions that should be deployed as a unit.
-
-              The value must always be a fully qualified OCI URL and must resolve to a valid OCM ComponentVersion. The
-              VectorDeployment spec is intended to be immutable. Any substantive change should result in a new VectorDeployment
-              instance rather than updating an existing one.
+            description: Spec defines the desired state of the VectorDeployment and
+              is immutable after it has been set
             properties:
               vector:
                 description: |-
@@ -58,6 +51,9 @@ spec:
             required:
             - vector
             type: object
+            x-kubernetes-validations:
+            - message: VectorDeployment spec is immutable after it has been set
+              rule: self == oldSelf
           status:
             description: |-
               VectorDeploymentStatus represents the observed state of a VectorDeployment as it progresses through the
@@ -201,6 +197,9 @@ spec:
                 type: object
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:
