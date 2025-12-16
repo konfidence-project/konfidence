@@ -5,7 +5,7 @@ go 1.25.4
 require (
 	github.com/docker/cli v28.5.2+incompatible
 	github.com/go-logr/logr v1.4.3
-	github.com/konfidence-project/crds/api/landscape v0.11.0
+	github.com/konfidence-project/crds/api/landscape v0.14.0
 	github.com/mandelsoft/goutils v0.0.0-20241005173814-114fa825bbdc
 	github.com/onsi/ginkgo/v2 v2.27.3
 	github.com/onsi/gomega v1.38.3
