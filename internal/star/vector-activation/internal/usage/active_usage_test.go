@@ -18,11 +18,12 @@ import (
 
 var _ = Describe("active usage tests", func() {
 	var (
-		ctx        context.Context
-		mockCtrl   *gomock.Controller
-		clientMock *MockClient
-		stage      *common.Stage
-		scheme     *runtime.Scheme
+		ctx          context.Context
+		mockCtrl     *gomock.Controller
+		clientMock   *MockClient
+		stage        *common.Stage
+		stageVersion *landscape.StageVersion
+		scheme       *runtime.Scheme
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
@@ -37,6 +38,12 @@ var _ = Describe("active usage tests", func() {
 				Name:      "stage-test",
 				Namespace: "default",
 				UID:       "12345",
+			},
+		}
+		stageVersion = &landscape.StageVersion{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "stage-version-test",
+				Namespace: "default",
 			},
 		}
 	})
@@ -79,17 +86,16 @@ var _ = Describe("active usage tests", func() {
 		})
 
 		It("should update active usage", func() {
-			clientMock.EXPECT().Patch(ctx, gomock.Any(), gomock.Any()).Return(nil)
-			clientMock.EXPECT().Scheme().Return(scheme)
+			clientMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)
 			usage := &landscape.StageVersionUsage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "usage-to-update",
 					Namespace: "default",
 				},
 			}
-			err := UpdateActiveUsage(ctx, clientMock, stage, usage)
+			err := UpdateActiveUsage(ctx, clientMock, usage, stageVersion)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(usage.OwnerReferences).ToNot(BeEmpty())
+			Expect(usage.Spec.StageVersionRef).ToNot(BeNil())
 		})
 
 		It("should create or update active usage", func() {
@@ -100,8 +106,7 @@ var _ = Describe("active usage tests", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 
-			clientMock.EXPECT().Patch(ctx, gomock.Any(), gomock.Any()).Return(nil)
-			clientMock.EXPECT().Scheme().Return(scheme)
+			clientMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)
 
 			usage := &landscape.StageVersionUsage{
 				ObjectMeta: metav1.ObjectMeta{
@@ -109,9 +114,10 @@ var _ = Describe("active usage tests", func() {
 					Namespace: "default",
 				},
 			}
-			err = CreateOrUpdateActiveUsage(ctx, clientMock, usage, stage, &landscape.StageVersion{})
+			err = CreateOrUpdateActiveUsage(ctx, clientMock, usage, stage, stageVersion)
 
 			Expect(err).ToNot(HaveOccurred())
+			Expect(usage.Spec.StageVersionRef).ToNot(BeNil())
 		})
 
 		It("is newer than current active usage", func() {

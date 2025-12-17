@@ -43,21 +43,15 @@ func IsNewerThanCurrentActiveUsage(ctx context.Context, c client.Client, stageVe
 	return true, nil
 }
 
-func UpdateActiveUsage(ctx context.Context, c client.Client, stage *common.Stage, stageVersionUsage *landscape.StageVersionUsage) error {
+func UpdateActiveUsage(ctx context.Context, c client.Client, stageVersionUsage *landscape.StageVersionUsage, stageVersion *landscape.StageVersion) error {
 	log := logf.FromContext(ctx)
-	originalUsage := stageVersionUsage.DeepCopy()
-	patch := client.MergeFrom(originalUsage)
 
-	stageVersionUsage.OwnerReferences = []metav1.OwnerReference{}
+	stageVersionUsage.Spec.StageVersionRef = &landscape.StageVersionReference{Name: stageVersion.Name}
 
-	if err := controllerutil.SetControllerReference(stage, stageVersionUsage, c.Scheme()); err != nil {
-		return fmt.Errorf("unable to set controller reference for stageVersionUsage: %w", err)
+	if err := c.Update(ctx, stageVersionUsage); err != nil {
+		return fmt.Errorf("unable to update active stageVersionUsage: %w", err)
 	}
-
-	if err := c.Patch(ctx, stageVersionUsage, patch); err != nil {
-		return fmt.Errorf("unable to patch active stageVersionUsage: %w", err)
-	}
-	log.Info("Patched active stageVersionUsage", "stageVersionUsage", stageVersionUsage)
+	log.Info("Updated active stageVersionUsage to stageVersion", "stageVersion", stageVersion, "stageVersionUsage", stageVersionUsage)
 	return nil
 }
 
@@ -94,7 +88,7 @@ func CreateOrUpdateActiveUsage(ctx context.Context, c client.Client, activeStage
 		}
 		return nil
 	}
-	if err := UpdateActiveUsage(ctx, c, stage, activeStageVersionUsage); err != nil {
+	if err := UpdateActiveUsage(ctx, c, activeStageVersionUsage, stageVersion); err != nil {
 		return fmt.Errorf("failed to update active usage: %w", err)
 	}
 
