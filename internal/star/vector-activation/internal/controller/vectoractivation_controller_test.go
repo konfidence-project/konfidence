@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
@@ -78,9 +77,9 @@ var _ = Describe("VectorActivation Controller", func() {
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: leaseName, Namespace: Namespace}, lease)).To(Succeed())
 				g.Expect(lease).ToNot(BeNil(), "expected Lease to be created for VectorActivationName")
 				g.Expect(lease.OwnerReferences).ToNot(BeEmpty(), "expected lease to have owner references")
-				g.Expect(lease.OwnerReferences[0].UID).To(Equal(vectorActivation.UID))
+				g.Expect(lease.OwnerReferences[0].Name).To(Equal(StageName))
 				g.Expect(lease.Spec.HolderIdentity).ToNot(BeNil(), "expected lease holder identity to be set")
-				g.Expect(*lease.Spec.HolderIdentity).To(Equal(fmt.Sprintf("%s-%s", os.Getenv("POD_NAME"), vectorActivation.UID)))
+				g.Expect(*lease.Spec.HolderIdentity).To(Equal(fmt.Sprintf("%s-%s", ActivationControllerName, vectorActivation.UID)))
 				g.Expect(lease.Namespace).To(Equal(Namespace))
 			}, timeout, interval).Should(Succeed())
 
@@ -199,7 +198,6 @@ func CreateVectorActivation() *landscape.VectorActivation {
 	}
 	Eventually(func(g Gomega) {
 		util.Create(ctx, k8sClient, vectorActivation)
-		Expect(k8sManager.GetCache().WaitForCacheSync(ctx)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
 
 	Eventually(func(g Gomega) {

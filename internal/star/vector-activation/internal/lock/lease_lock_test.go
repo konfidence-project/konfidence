@@ -5,15 +5,17 @@ import (
 	"errors"
 	"time"
 
+	common "github.com/konfidence-project/crds/api/common/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	. "github.com/konfidence-project/landscape-vector-activation-controller/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 var _ = Describe("lease lock", func() {
@@ -29,18 +31,31 @@ var _ = Describe("lease lock", func() {
 		ctx            context.Context
 		mockCtrl       *gomock.Controller
 		clientMock     *MockClient
+		stage          *common.Stage
 		lease          *coordinationv1.Lease
 		now            time.Time
 		controllerId   = "controller-1"
 		holderIdentity = controllerId + "-" + ResourceId
+		scheme         *runtime.Scheme
 	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
 		mockCtrl = gomock.NewController(GinkgoT())
 		clientMock = NewMockClient(mockCtrl)
+
+		scheme = runtime.NewScheme()
+		_ = landscape.AddToScheme(scheme)
+		_ = common.AddToScheme(scheme)
+
 		now = time.Now()
 
+		stage = &common.Stage{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      stageName,
+				Namespace: Namespace,
+			},
+		}
 		lease = &coordinationv1.Lease{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      LeaseName,
@@ -51,6 +66,7 @@ var _ = Describe("lease lock", func() {
 				LeaseDurationSeconds: pointer(int32(DefaultLeaseTTL.Seconds())),
 				AcquireTime:          &metav1.MicroTime{Time: now},
 				RenewTime:            &metav1.MicroTime{Time: now},
+				LeaseTransitions:     pointer(0),
 			},
 		}
 	})
@@ -65,7 +81,7 @@ var _ = Describe("lease lock", func() {
 			})
 
 			clientMock.EXPECT().Update(ctx, gomock.Any())
-			acquired, err := AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, stageName, metav1.OwnerReference{})
+			acquired, err := AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(acquired).To(BeTrue())
@@ -73,9 +89,10 @@ var _ = Describe("lease lock", func() {
 
 		It("creates a lease if not found", func() {
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
+			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 
-			acquired, err := AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, stageName, metav1.OwnerReference{})
+			acquired, err := AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(acquired).To(BeTrue())
@@ -86,15 +103,22 @@ var _ = Describe("lease lock", func() {
 				*l = *lease
 				return nil
 			})
-			acquired, err = AcquireResourceLease(ctx, clientMock, "another-resource", Namespace, controllerId, ResourceType, stageName, metav1.OwnerReference{})
+			acquired, err = AcquireResourceLease(ctx, clientMock, "another-resource", Namespace, controllerId, ResourceType, stage)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(acquired).To(BeFalse())
 
 			// creates lease for different stage
+			newStage := &common.Stage{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "different-stage",
+					Namespace: Namespace,
+				},
+			}
 			clientMock.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
+			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
-			acquired, err = AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, "test-stage", metav1.OwnerReference{})
+			acquired, err = AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, newStage)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(acquired).To(BeTrue())
 		})
@@ -106,7 +130,7 @@ var _ = Describe("lease lock", func() {
 				return nil
 			})
 
-			acquired, err := AcquireResourceLease(context.Background(), clientMock, ResourceId, Namespace, "another-controller", ResourceType, stageName, metav1.OwnerReference{})
+			acquired, err := AcquireResourceLease(context.Background(), clientMock, ResourceId, Namespace, "another-controller", ResourceType, stage)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(acquired).To(BeFalse())
@@ -124,6 +148,7 @@ var _ = Describe("lease lock", func() {
 					LeaseDurationSeconds: pointer(int32(DefaultLeaseTTL.Seconds())),
 					AcquireTime:          &metav1.MicroTime{Time: now},
 					RenewTime:            &metav1.MicroTime{Time: now.Add(-2 * DefaultLeaseTTL)},
+					LeaseTransitions:     pointer(0),
 				},
 			}
 
@@ -134,7 +159,7 @@ var _ = Describe("lease lock", func() {
 			})
 			clientMock.EXPECT().Update(ctx, gomock.Any())
 
-			acquired, err := AcquireResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stageName, metav1.OwnerReference{})
+			acquired, err := AcquireResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(acquired).To(BeTrue())
@@ -149,19 +174,19 @@ var _ = Describe("lease lock", func() {
 			})
 			clientMock.EXPECT().Update(ctx, gomock.Any())
 
-			err := ReleaseResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stageName)
+			err := ReleaseResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("release does nothing on lease not found error and throws other errors", func() {
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
 
-			err := ReleaseResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stageName)
+			err := ReleaseResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
 
 			Expect(err).ToNot(HaveOccurred())
 
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).Return(errors.New("some other error"))
-			err = ReleaseResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stageName)
+			err = ReleaseResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
 			Expect(err).To(HaveOccurred())
 		})
 
