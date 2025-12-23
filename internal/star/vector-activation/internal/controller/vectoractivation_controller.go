@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,7 +47,12 @@ type VectorActivationReconciler struct {
 	Scheme       *runtime.Scheme
 	Config       *rest.Config
 	ControllerID string
+	Recorder     record.EventRecorder
 }
+
+const (
+	ActivationControllerName = "vectoractivation-controller"
+)
 
 type ActivationContext struct {
 	VectorActivation *landscape.VectorActivation
@@ -78,17 +84,16 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	log := logf.FromContext(ctx)
 	log.Info("VectorActivation reconcile started...")
 
-	// TODO: turn the stageVersion in the VectorActivationSpec into a StageVersionRef
 	vectorActivation, stageVersion, stage, err := r.LoadActivationContextData(ctx, req)
 	if err != nil || vectorActivation == nil || stageVersion == nil || stage == nil {
 		return ctrl.Result{}, fmt.Errorf("could not load activation context data: %w", err)
 	}
 
 	if activation.InFinalStatusCondition(vectorActivation) {
-		return r.cleanupVectorActivation(ctx, req, vectorActivation, stage.Name)
+		return r.cleanupVectorActivation(ctx, req, vectorActivation, stage)
 	}
 
-	acquired, err := AcquireLease(ctx, r.Client, r.ControllerID, req.Namespace, vectorActivation, stage)
+	acquired, err := leaseLock.AcquireResourceLease(ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stage)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to acquire lease: %w", err)
 	}
@@ -96,7 +101,8 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		log.Info("Lease not acquired, requeuing")
 		return ctrl.Result{RequeueAfter: leaseLock.DefaultLeaseTTL}, nil
 	}
-	log.Info("Lease acquired", "acquired", acquired)
+	log.Info("Lease acquired")
+	r.Recorder.Event(vectorActivation, "Normal", "LeaseAcquired", fmt.Sprintf("Lease acquired by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
 
 	activeStageVersionUsage, err := usage.GetCurrentActiveUsage(ctx, r.Client, stage)
 	if err != nil {
@@ -136,6 +142,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("could not create executions: %w", err)
 	}
+	r.Recorder.Event(vectorActivation, "Normal", "ExecutionsEnsured", fmt.Sprintf("Ensured %d executions for %d registrations", len(executionsInActivation.Items), len(registrationList.Items)))
 
 	allExecutionsSucceeded, err := r.checkExecutionsStatusAndPatchOnFailure(ctx, req, executionsInActivation, log)
 	if err != nil {
@@ -143,13 +150,16 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if allExecutionsSucceeded {
+		r.Recorder.Event(vectorActivation, "Normal", "ExecutionsSucceeded", fmt.Sprintf("All executions in VectorActivation %s succeeded", vectorActivation.Name))
 		log.Info("all executions in activation succeeded")
 		if err := usage.CreateOrUpdateActiveUsage(ctx, r.Client, activeStageVersionUsage, stage, stageVersion); err != nil {
 			return ctrl.Result{}, err
 		}
+		r.Recorder.Event(vectorActivation, "Normal", "UsagesUpdated", fmt.Sprintf("Active StageVersionUsage updated to %s", stageVersion.Name))
 		if err = usage.DeleteActivationUsage(ctx, r.Client, activationUsage); err != nil {
 			return ctrl.Result{}, err
 		}
+		r.Recorder.Event(vectorActivation, "Normal", "ActivationUsageDeleted", fmt.Sprintf("Activation StageVersionUsage %s deleted", activationUsage.Name))
 		if err := activation.PatchVectorActivationStatus(ctx, r.Client, req.NamespacedName, metav1.Condition{Type: landscape.ActivationSucceeded, Status: metav1.ConditionTrue, Reason: landscape.ActivationSucceeded, Message: fmt.Sprintf("successfully reconciled VectorActivation %s", vectorActivation.Name)}); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -179,16 +189,6 @@ func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(ctx 
 	return allExecutionsSucceeded, nil
 }
 
-func AcquireLease(ctx context.Context, c client.Client, controllerId string, namespace string, vectorActivation *landscape.VectorActivation, stage *common.Stage) (bool, error) {
-	ownerRef := metav1.OwnerReference{
-		APIVersion: vectorActivation.APIVersion,
-		Kind:       vectorActivation.Kind,
-		Name:       vectorActivation.Name,
-		UID:        vectorActivation.UID,
-	}
-	return leaseLock.AcquireResourceLease(ctx, c, string(vectorActivation.UID), namespace, controllerId, landscape.VectorActivationKind, stage.Name, ownerRef)
-}
-
 func (r *VectorActivationReconciler) LoadActivationContextData(ctx context.Context, req ctrl.Request) (*landscape.VectorActivation, *landscape.StageVersion, *common.Stage, error) {
 	vectorActivation := &landscape.VectorActivation{}
 	if err := r.Get(ctx, req.NamespacedName, vectorActivation); err != nil {
@@ -211,6 +211,10 @@ func (r *VectorActivationReconciler) LoadActivationContextData(ctx context.Conte
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.ControllerID = os.Getenv("POD_NAME")
+	if r.ControllerID == "" {
+		r.ControllerID = ActivationControllerName
+	}
+	r.Recorder = mgr.GetEventRecorderFor(ActivationControllerName)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&landscape.VectorActivation{}).
 		Named("vectoractivation").
@@ -224,10 +228,11 @@ func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *VectorActivationReconciler) cleanupVectorActivation(ctx context.Context, req ctrl.Request, vectorActivation *landscape.VectorActivation, stageName string) (ctrl.Result, error) {
+func (r *VectorActivationReconciler) cleanupVectorActivation(ctx context.Context, req ctrl.Request, vectorActivation *landscape.VectorActivation, stage *common.Stage) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
-	log.Info("release lease for vector vectorActivation")
-	if err := leaseLock.ReleaseResourceLease(ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stageName); err != nil {
+	log.Info("release lease for vectorActivation")
+	r.Recorder.Event(vectorActivation, "Normal", "LeaseReleased", fmt.Sprintf("Lease released by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
+	if err := leaseLock.ReleaseResourceLease(ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stage); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to release lease: %w", err)
 	}
 	return ctrl.Result{}, nil
