@@ -14,7 +14,20 @@ spec:
     singular: stageversionusage
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The referenced StageVersion
+      jsonPath: .spec.stageVersionRef.name
+      name: Stage-Version-Ref
+      type: string
+    - description: The label selector for the StageVersion
+      jsonPath: .spec.stageVersionSelector
+      name: Stage-Version-Selector
+      type: string
+    - description: The reason for this StageVersion usage
+      jsonPath: .spec.reason
+      name: Reason
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: StageVersionUsage is the Schema for the stageversionusages API

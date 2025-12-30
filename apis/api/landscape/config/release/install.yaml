@@ -13,7 +13,24 @@ spec:
     singular: activationtaskexecution
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The type of the task execution
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    - description: The associated VectorActivation
+      jsonPath: .spec.vectorActivation
+      name: Vector-Activation
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ActivationTaskExecution is the Schema for the ActivationTaskExecutions
@@ -136,7 +153,12 @@ spec:
     singular: activationtaskregistration
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The type of registered activation task
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ActivationTaskRegistration is the Schema for the activationtaskregistrations
@@ -562,7 +584,16 @@ spec:
     singular: stageversion
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The object generation of the stage
+      jsonPath: .spec.stage_generation
+      name: Stage-Generation
+      type: integer
+    - description: The deployment vector for this stage
+      jsonPath: .spec.vector
+      name: Vector
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: StageVersion is the Schema for the stageversions API
@@ -690,7 +721,20 @@ spec:
     singular: stageversionusage
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The referenced StageVersion
+      jsonPath: .spec.stageVersionRef.name
+      name: Stage-Version-Ref
+      type: string
+    - description: The label selector for the StageVersion
+      jsonPath: .spec.stageVersionSelector
+      name: Stage-Version-Selector
+      type: string
+    - description: The reason for this StageVersion usage
+      jsonPath: .spec.reason
+      name: Reason
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: StageVersionUsage is the Schema for the stageversionusages API
@@ -871,7 +915,20 @@ spec:
     singular: taskexecution
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The type of the task execution
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: TaskExecution is the Schema for the taskexecutions API
@@ -995,7 +1052,24 @@ spec:
     singular: vectoractivation
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The stage of the activation
+      jsonPath: .spec.stage
+      name: Stage
+      type: string
+    - description: The version of the stage
+      jsonPath: .spec.stageVersion
+      name: Stage-Version
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: VectorActivation is the Schema for the vectoractivations API
@@ -1119,7 +1193,16 @@ spec:
     singular: vectorassignment
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The name of the ArtifactDeployment
+      jsonPath: .spec.artifactDeploymentRef.name
+      name: Artifact-Deployment
+      type: string
+    - description: The name of the VectorDeployment
+      jsonPath: .spec.vectorDeploymentRef.name
+      name: Vector-Deployment
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
@@ -1296,7 +1379,24 @@ spec:
     singular: vectordeployment
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The deployment vector
+      jsonPath: .spec.vector
+      name: Vector
+      type: string
+    - description: Indicates if the vector is ready
+      jsonPath: .status.conditions[?(@.type=="VectorReady")].status
+      name: Vector-Ready
+      type: string
+    - description: The reason of the VectorReady condition
+      jsonPath: .status.conditions[?(@.type=="VectorReady")].reason
+      name: Reason
+      type: string
+    - description: The message of the VectorReady condition
+      jsonPath: .status.conditions[?(@.type=="VectorReady")].message
+      name: Message
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
@@ -1502,7 +1602,24 @@ spec:
     singular: vectormigration
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The stage version
+      jsonPath: .spec.stageVersion
+      name: Stage-Version
+      type: string
+    - description: The deployment vector
+      jsonPath: .spec.vector
+      name: Vector
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: VectorMigration is the Schema for the vectormigrations API

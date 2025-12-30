@@ -72,6 +72,8 @@ type VectorAssignmentStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
+// +kubebuilder:printcolumn:name="Artifact-Deployment",type=string,JSONPath=".spec.artifactDeploymentRef.name",description="The name of the ArtifactDeployment"
+// +kubebuilder:printcolumn:name="Vector-Deployment",type=string,JSONPath=".spec.vectorDeploymentRef.name",description="The name of the VectorDeployment"
 
 // VectorAssignment is the Schema for the vectorassignments API.
 //

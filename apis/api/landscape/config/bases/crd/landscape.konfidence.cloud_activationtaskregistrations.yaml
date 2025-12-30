@@ -14,7 +14,12 @@ spec:
     singular: activationtaskregistration
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The type of registered activation task
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ActivationTaskRegistration is the Schema for the activationtaskregistrations

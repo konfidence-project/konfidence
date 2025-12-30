@@ -14,7 +14,24 @@ spec:
     singular: vectormigration
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The stage version
+      jsonPath: .spec.stageVersion
+      name: Stage-Version
+      type: string
+    - description: The deployment vector
+      jsonPath: .spec.vector
+      name: Vector
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: VectorMigration is the Schema for the vectormigrations API

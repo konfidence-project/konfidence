@@ -14,7 +14,24 @@ spec:
     singular: vectoractivation
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The stage of the activation
+      jsonPath: .spec.stage
+      name: Stage
+      type: string
+    - description: The version of the stage
+      jsonPath: .spec.stageVersion
+      name: Stage-Version
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: VectorActivation is the Schema for the vectoractivations API

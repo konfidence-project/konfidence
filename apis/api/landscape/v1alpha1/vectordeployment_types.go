@@ -96,6 +96,10 @@ type VectorDeploymentStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
+// +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=".spec.vector",description="The deployment vector"
+// +kubebuilder:printcolumn:name="Vector-Ready",type=string,JSONPath=".status.conditions[?(@.type==\"VectorReady\")].status",description="Indicates if the vector is ready"
+// +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".status.conditions[?(@.type==\"VectorReady\")].reason",description="The reason of the VectorReady condition"
+// +kubebuilder:printcolumn:name="Message",type=string,JSONPath=".status.conditions[?(@.type==\"VectorReady\")].message",description="The message of the VectorReady condition"
 
 // VectorDeployment is the Schema for the vectordeployments API.
 //

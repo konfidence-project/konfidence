@@ -59,6 +59,10 @@ type ActivationTaskExecutionStatus struct {
 // +kubebuilder:subresource:status
 
 // ActivationTaskExecution is the Schema for the ActivationTaskExecutions API
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=".spec.type",description="The type of the task execution"
+// +kubebuilder:printcolumn:name="Vector-Activation",type=string,JSONPath=".spec.vectorActivation",description="The associated VectorActivation"
+// +kubebuilder:printcolumn:name="Condition",type=string,JSONPath=".status.conditions[-1:].type",description="The latest condition type"
+// +kubebuilder:printcolumn:name="Condition-Status",type=string,JSONPath=".status.conditions[-1:].status",description="The latest condition status"
 type ActivationTaskExecution struct {
 	metav1.TypeMeta `json:",inline"`
 
