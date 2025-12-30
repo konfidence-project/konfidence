@@ -69,7 +69,6 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is the name of the stage. |  | MinLength: 1 <br /> |
 | `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  |  |
 
 

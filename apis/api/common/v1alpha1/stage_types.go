@@ -49,9 +49,6 @@ const (
 
 // StageSpec defines the desired state of Stage.
 type StageSpec struct {
-	// Name is the name of the stage.
-	// +kubebuilder:validation:MinLength=1
-	Name string `json:"name"`
 
 	// Vector points to the OCM component version that contains the deployment vector for this stage.
 	Vector string `json:"vector"`
@@ -67,7 +64,6 @@ type StageStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Name",type=string,JSONPath=`.spec.name`
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=`.spec.vector`
 
 // Stage is the Schema for the stages API.

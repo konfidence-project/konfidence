@@ -6,7 +6,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: stage-test
 spec:
-  name: test
   vector: https://registry.kdenv.lab/sample-project//github.com/konfidence-project/sample-vector:0.3.0
 
 

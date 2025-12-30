@@ -15,9 +15,6 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.name
-      name: Name
-      type: string
     - jsonPath: .spec.vector
       name: Vector
       type: string
@@ -46,16 +43,11 @@ spec:
           spec:
             description: StageSpec defines the desired state of Stage.
             properties:
-              name:
-                description: Name is the name of the stage.
-                minLength: 1
-                type: string
               vector:
                 description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
                 type: string
             required:
-            - name
             - vector
             type: object
           status:
