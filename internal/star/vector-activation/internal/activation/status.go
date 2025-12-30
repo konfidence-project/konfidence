@@ -7,7 +7,6 @@ import (
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -20,25 +19,16 @@ func InFinalStatusCondition(vectorActivation *landscape.VectorActivation) bool {
 		meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, landscape.ActivationSkipped)
 }
 
-func PatchVectorActivationStatus(ctx context.Context, c client.Client, namespacedName types.NamespacedName, condition metav1.Condition) error {
-	vectorActivation := &landscape.VectorActivation{}
-	if err := c.Get(ctx, namespacedName, vectorActivation); err != nil {
-		return fmt.Errorf("unable to fetch vectorActivation: %w", err)
+func UpdateVectorActivationStatus(ctx context.Context, c client.Client, activation *landscape.VectorActivation, condition metav1.Condition) error {
+	if condition.Type == "" || condition.Status == "" {
+		return fmt.Errorf("unable to update vectorActivation status: condition type and status must be set")
 	}
 
-	// check if the condition already exists and is the same
-	existingCondition := meta.FindStatusCondition(vectorActivation.Status.Conditions, condition.Type)
-	if existingCondition != nil && existingCondition.Status == condition.Status &&
-		existingCondition.Reason == condition.Reason &&
-		existingCondition.Message == condition.Message {
-		// No change, skip patch
-		return nil
-	}
+	condition.LastTransitionTime = metav1.Now()
+	activation.Status.Conditions = []metav1.Condition{condition}
 
-	oldState := vectorActivation.DeepCopy()
-	meta.SetStatusCondition(&vectorActivation.Status.Conditions, condition)
-	if err := c.Status().Patch(ctx, vectorActivation, client.MergeFrom(oldState)); err != nil {
-		return fmt.Errorf("unable to patch vectorActivation status: %w", err)
+	if err := c.Status().Update(ctx, activation); err != nil {
+		return fmt.Errorf("unable to update vectorActivation status: %w", err)
 	}
 	return nil
 }

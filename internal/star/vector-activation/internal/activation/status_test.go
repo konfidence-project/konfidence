@@ -10,7 +10,6 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 var _ = Describe("status tests", func() {
@@ -57,73 +56,57 @@ var _ = Describe("status tests", func() {
 		})
 
 		It("returns true if ActivationSkipped", func() {
-			va := &landscape.VectorActivation{
+			vectorActivation := &landscape.VectorActivation{
 				Status: landscape.VectorActivationStatus{
 					Conditions: []metav1.Condition{
 						{Type: landscape.ActivationSkipped, Status: metav1.ConditionTrue},
 					},
 				},
 			}
-			Expect(InFinalStatusCondition(va)).To(BeTrue())
+			Expect(InFinalStatusCondition(vectorActivation)).To(BeTrue())
 		})
 	})
 
-	Context("PatchVectorActivationStatus", func() {
+	Context("UpdateVectorActivationStatus", func() {
 		var (
-			namespacedName types.NamespacedName
-			condition      metav1.Condition
-			va             *landscape.VectorActivation
+			condition        metav1.Condition
+			vectorActivation *landscape.VectorActivation
 		)
 
 		BeforeEach(func() {
-			namespacedName = types.NamespacedName{Name: "va", Namespace: "default"}
 			condition = metav1.Condition{
 				Type:    "Ready",
 				Status:  metav1.ConditionTrue,
 				Reason:  "Test",
 				Message: "Testing",
 			}
-			va = &landscape.VectorActivation{}
+			vectorActivation = &landscape.VectorActivation{}
 		})
 
-		It("returns error if Get fails", func() {
-			clientMock.EXPECT().Get(ctx, namespacedName, gomock.Any()).Return(errors.New("not found"))
-			err := PatchVectorActivationStatus(ctx, clientMock, namespacedName, condition)
-			Expect(err).To(HaveOccurred())
-		})
-
-		It("returns nil if last condition matches", func() {
-			va.Status.Conditions = []metav1.Condition{condition}
-			clientMock.EXPECT().Get(ctx, namespacedName, gomock.Any()).DoAndReturn(
-				func(_ context.Context, _ types.NamespacedName, obj interface{}, _ ...interface{}) error {
-					*obj.(*landscape.VectorActivation) = *va
-					return nil
-				})
-			err := PatchVectorActivationStatus(ctx, clientMock, namespacedName, condition)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		It("patches status if condition is new", func() {
-			clientMock.EXPECT().Get(ctx, namespacedName, gomock.Any()).DoAndReturn(
-				func(_ context.Context, _ types.NamespacedName, obj interface{}, _ ...interface{}) error {
-					*obj.(*landscape.VectorActivation) = *va
-					return nil
-				})
+		It("updates status", func() {
 			clientMock.EXPECT().Status().Return(statusWriterMock)
-			statusWriterMock.EXPECT().Patch(ctx, gomock.Any(), gomock.Any()).Return(nil)
-			err := PatchVectorActivationStatus(ctx, clientMock, namespacedName, condition)
+			statusWriterMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)
+			err := UpdateVectorActivationStatus(ctx, clientMock, vectorActivation, condition)
 			Expect(err).ToNot(HaveOccurred())
+
+			newCondition := metav1.Condition{
+				Type:    "AnotherType",
+				Status:  metav1.ConditionTrue,
+				Reason:  "AnotherTest",
+				Message: "Testing",
+			}
+			clientMock.EXPECT().Status().Return(statusWriterMock)
+			statusWriterMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)
+			err = UpdateVectorActivationStatus(ctx, clientMock, vectorActivation, newCondition)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(vectorActivation.Status.Conditions).To(HaveLen(1))
+			Expect(vectorActivation.Status.Conditions[0].Type).To(Equal(newCondition.Type))
 		})
 
-		It("returns error if Patch fails", func() {
-			clientMock.EXPECT().Get(ctx, namespacedName, gomock.Any()).DoAndReturn(
-				func(_ context.Context, _ types.NamespacedName, obj interface{}, _ ...interface{}) error {
-					*obj.(*landscape.VectorActivation) = *va
-					return nil
-				})
+		It("returns error if update fails", func() {
 			clientMock.EXPECT().Status().Return(statusWriterMock)
-			statusWriterMock.EXPECT().Patch(ctx, gomock.Any(), gomock.Any()).Return(errors.New("patch error"))
-			err := PatchVectorActivationStatus(ctx, clientMock, namespacedName, condition)
+			statusWriterMock.EXPECT().Update(ctx, gomock.Any()).Return(errors.New("update error"))
+			err := UpdateVectorActivationStatus(ctx, clientMock, vectorActivation, condition)
 			Expect(err).To(HaveOccurred())
 		})
 	})
