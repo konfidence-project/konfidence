@@ -58,6 +58,9 @@ type TaskExecutionStatus struct {
 // +kubebuilder:subresource:status
 
 // TaskExecution is the Schema for the taskexecutions API
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=".spec.type",description="The type of the task execution"
+// +kubebuilder:printcolumn:name="Condition",type=string,JSONPath=".status.conditions[-1:].type",description="The latest condition type"
+// +kubebuilder:printcolumn:name="Condition-Status",type=string,JSONPath=".status.conditions[-1:].status",description="The latest condition status"
 type TaskExecution struct {
 	metav1.TypeMeta `json:",inline"`
 

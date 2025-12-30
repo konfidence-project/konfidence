@@ -48,6 +48,10 @@ type VectorMigrationStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Stage-Version",type=string,JSONPath=".spec.stageVersion",description="The stage version"
+// +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=".spec.vector",description="The deployment vector"
+// +kubebuilder:printcolumn:name="Condition",type=string,JSONPath=".status.conditions[-1:].type",description="The latest condition type"
+// +kubebuilder:printcolumn:name="Condition-Status",type=string,JSONPath=".status.conditions[-1:].status",description="The latest condition status"
 
 // VectorMigration is the Schema for the vectormigrations API
 type VectorMigration struct {

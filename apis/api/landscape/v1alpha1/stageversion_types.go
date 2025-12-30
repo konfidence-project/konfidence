@@ -70,6 +70,8 @@ type StageVersionStatus struct {
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
 
 // StageVersion is the Schema for the stageversions API
+// +kubebuilder:printcolumn:name="Stage-Generation",type=integer,JSONPath=".spec.stage_generation",description="The object generation of the stage"
+// +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=".spec.vector",description="The deployment vector for this stage"
 type StageVersion struct {
 	metav1.TypeMeta `json:",inline"`
 

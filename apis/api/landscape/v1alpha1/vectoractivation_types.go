@@ -59,6 +59,10 @@ type VectorActivationStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Stage",type=string,JSONPath=".spec.stage",description="The stage of the activation"
+// +kubebuilder:printcolumn:name="Stage-Version",type=string,JSONPath=".spec.stageVersion",description="The version of the stage"
+// +kubebuilder:printcolumn:name="Condition",type=string,JSONPath=".status.conditions[-1:].type",description="The latest condition type"
+// +kubebuilder:printcolumn:name="Condition-Status",type=string,JSONPath=".status.conditions[-1:].status",description="The latest condition status"
 
 // VectorActivation is the Schema for the vectoractivations API
 type VectorActivation struct {

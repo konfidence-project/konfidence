@@ -14,7 +14,20 @@ spec:
     singular: taskexecution
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The type of the task execution
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: TaskExecution is the Schema for the taskexecutions API

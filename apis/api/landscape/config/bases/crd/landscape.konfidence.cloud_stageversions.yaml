@@ -14,7 +14,16 @@ spec:
     singular: stageversion
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The object generation of the stage
+      jsonPath: .spec.stage_generation
+      name: Stage-Generation
+      type: integer
+    - description: The deployment vector for this stage
+      jsonPath: .spec.vector
+      name: Vector
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: StageVersion is the Schema for the stageversions API

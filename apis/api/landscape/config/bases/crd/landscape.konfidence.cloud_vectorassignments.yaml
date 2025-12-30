@@ -14,7 +14,16 @@ spec:
     singular: vectorassignment
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The name of the ArtifactDeployment
+      jsonPath: .spec.artifactDeploymentRef.name
+      name: Artifact-Deployment
+      type: string
+    - description: The name of the VectorDeployment
+      jsonPath: .spec.vectorDeploymentRef.name
+      name: Vector-Deployment
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-

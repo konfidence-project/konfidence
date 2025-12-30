@@ -14,7 +14,24 @@ spec:
     singular: vectordeployment
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The deployment vector
+      jsonPath: .spec.vector
+      name: Vector
+      type: string
+    - description: Indicates if the vector is ready
+      jsonPath: .status.conditions[?(@.type=="VectorReady")].status
+      name: Vector-Ready
+      type: string
+    - description: The reason of the VectorReady condition
+      jsonPath: .status.conditions[?(@.type=="VectorReady")].reason
+      name: Reason
+      type: string
+    - description: The message of the VectorReady condition
+      jsonPath: .status.conditions[?(@.type=="VectorReady")].message
+      name: Message
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
