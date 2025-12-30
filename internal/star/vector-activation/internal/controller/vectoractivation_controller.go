@@ -117,9 +117,10 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 		if !isNewer {
 			log.Info("activation belongs to older stage version than currently active one, skipping")
-			if err := activation.PatchVectorActivationStatus(ctx, r.Client, req.NamespacedName, metav1.Condition{Type: landscape.ActivationSkipped, Status: metav1.ConditionTrue, Reason: landscape.ActivationSkipped, Message: "found newer activation"}); err != nil {
+			if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{Type: landscape.ActivationSkipped, Status: metav1.ConditionTrue, Reason: landscape.ActivationSkipped, Message: "found newer activation"}); err != nil {
 				return ctrl.Result{}, err
 			}
+			r.Recorder.Event(vectorActivation, "Normal", "ActivationSkipped", fmt.Sprintf("Activation skipped because stage version %s is not newer than currently active stage version %s", stageVersion.Name, activeStageVersionUsage.Spec.StageVersionRef))
 			return ctrl.Result{}, nil
 		}
 	}
@@ -134,9 +135,10 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	if err := activation.PatchVectorActivationStatus(ctx, r.Client, req.NamespacedName, metav1.Condition{Type: landscape.ActivationInProgress, Status: metav1.ConditionTrue, Reason: landscape.ActivationInProgress, Message: "read in registrations, activation is in progress"}); err != nil {
+	if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{Type: landscape.ActivationInProgress, Status: metav1.ConditionTrue, Reason: landscape.ActivationInProgress, Message: "read in registrations, activation is in progress"}); err != nil {
 		return ctrl.Result{}, err
 	}
+	r.Recorder.Event(vectorActivation, "Normal", "ActivationInProgress", fmt.Sprintf("VectorActivation %s is in progress", vectorActivation.Name))
 
 	executionsInActivation, err := activation.EnsureExecutionsForRegistrations(ctx, r.Client, req.Namespace, registrationList, vectorActivation)
 	if err != nil {
@@ -144,7 +146,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 	r.Recorder.Event(vectorActivation, "Normal", "ExecutionsEnsured", fmt.Sprintf("Ensured %d executions for %d registrations", len(executionsInActivation.Items), len(registrationList.Items)))
 
-	allExecutionsSucceeded, err := r.checkExecutionsStatusAndPatchOnFailure(ctx, req, executionsInActivation, log)
+	allExecutionsSucceeded, err := r.checkExecutionsStatusAndPatchOnFailure(ctx, vectorActivation, executionsInActivation, log)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -160,25 +162,30 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, err
 		}
 		r.Recorder.Event(vectorActivation, "Normal", "ActivationUsageDeleted", fmt.Sprintf("Activation StageVersionUsage %s deleted", activationUsage.Name))
-		if err := activation.PatchVectorActivationStatus(ctx, r.Client, req.NamespacedName, metav1.Condition{Type: landscape.ActivationSucceeded, Status: metav1.ConditionTrue, Reason: landscape.ActivationSucceeded, Message: fmt.Sprintf("successfully reconciled VectorActivation %s", vectorActivation.Name)}); err != nil {
+
+		successMessage := fmt.Sprintf("VectorActivation %s reconciled successfully, set status to succeeded", vectorActivation.Name)
+		if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{Type: landscape.ActivationSucceeded, Status: metav1.ConditionTrue, Reason: landscape.ActivationSucceeded, Message: successMessage}); err != nil {
 			return ctrl.Result{}, err
 		}
-		log.Info("VectorActivation reconciled successfully, set status to succeeded")
+
+		r.Recorder.Event(vectorActivation, "Normal", "ActivationSucceeded", successMessage)
+		log.Info(successMessage)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(ctx context.Context, req ctrl.Request, executionsInActivation *landscape.ActivationTaskExecutionList, log logr.Logger) (bool, error) {
+func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(ctx context.Context, vectorActivation *landscape.VectorActivation, executionsInActivation *landscape.ActivationTaskExecutionList, log logr.Logger) (bool, error) {
 	allExecutionsSucceeded := true
 
 	for _, exec := range executionsInActivation.Items {
 		if meta.IsStatusConditionTrue(exec.Status.Conditions, landscape.ActivationTaskExecutionFailed) {
 			msg := fmt.Sprintf("ActivationTaskExecution failed: %s", exec.Name)
 			log.Info(msg)
-			if err := activation.PatchVectorActivationStatus(ctx, r.Client, req.NamespacedName, metav1.Condition{Type: landscape.ActivationFailed, Status: metav1.ConditionTrue, Reason: landscape.ActivationTaskExecutionFailed, Message: msg}); err != nil {
+			if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{Type: landscape.ActivationFailed, Status: metav1.ConditionTrue, Reason: landscape.ActivationTaskExecutionFailed, Message: msg}); err != nil {
 				return false, err
 			}
+			r.Recorder.Event(vectorActivation, "Normal", "ActivationFailed", fmt.Sprintf("VectorActivation %s failed because execution %s failed", vectorActivation.Name, exec.Name))
 			allExecutionsSucceeded = false
 		}
 		if !meta.IsStatusConditionTrue(exec.Status.Conditions, landscape.ActivationTaskExecutionSucceeded) {
@@ -218,6 +225,11 @@ func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&landscape.VectorActivation{}).
 		Named("vectoractivation").
+		WithEventFilter(predicate.Funcs{
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				return false
+			},
+		}).
 		Owns(&landscape.ActivationTaskExecution{},
 			builder.WithPredicates(predicate.Funcs{
 				UpdateFunc:  func(e event.UpdateEvent) bool { return true },
