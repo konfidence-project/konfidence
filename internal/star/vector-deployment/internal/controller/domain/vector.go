@@ -8,8 +8,8 @@ import (
 
 // VectorOcmPort defines a subset of functionalities from the OCM library.
 type VectorOcmPort interface {
-	GetVectorByReference(ctx context.Context, vectorReference VectorReference) (*Vector, error)
-	GetArtifactManifestByReference(ctx context.Context, ociUrl string, artifactName ArtifactReference) (*ArtifactManifest, error)
+	GetVectorByReference(ctx context.Context, namespace string, vectorReference VectorReference) (*Vector, error)
+	GetArtifactManifestByReference(ctx context.Context, namespace string, ociUrl string, artifactName ArtifactReference) (*ArtifactManifest, error)
 }
 
 // Vector represents a domain model for the vector-deployment-controller.

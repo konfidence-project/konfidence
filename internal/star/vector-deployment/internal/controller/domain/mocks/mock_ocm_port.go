@@ -42,31 +42,31 @@ func (m *MockVectorOcmPort) EXPECT() *MockVectorOcmPortMockRecorder {
 }
 
 // GetArtifactManifestByReference mocks base method.
-func (m *MockVectorOcmPort) GetArtifactManifestByReference(ctx context.Context, ociUrl string, artifactName domain.ArtifactReference) (*domain.ArtifactManifest, error) {
+func (m *MockVectorOcmPort) GetArtifactManifestByReference(ctx context.Context, namespace, ociUrl string, artifactName domain.ArtifactReference) (*domain.ArtifactManifest, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetArtifactManifestByReference", ctx, ociUrl, artifactName)
+	ret := m.ctrl.Call(m, "GetArtifactManifestByReference", ctx, namespace, ociUrl, artifactName)
 	ret0, _ := ret[0].(*domain.ArtifactManifest)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetArtifactManifestByReference indicates an expected call of GetArtifactManifestByReference.
-func (mr *MockVectorOcmPortMockRecorder) GetArtifactManifestByReference(ctx, ociUrl, artifactName any) *gomock.Call {
+func (mr *MockVectorOcmPortMockRecorder) GetArtifactManifestByReference(ctx, namespace, ociUrl, artifactName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetArtifactManifestByReference", reflect.TypeOf((*MockVectorOcmPort)(nil).GetArtifactManifestByReference), ctx, ociUrl, artifactName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetArtifactManifestByReference", reflect.TypeOf((*MockVectorOcmPort)(nil).GetArtifactManifestByReference), ctx, namespace, ociUrl, artifactName)
 }
 
 // GetVectorByReference mocks base method.
-func (m *MockVectorOcmPort) GetVectorByReference(ctx context.Context, vectorReference domain.VectorReference) (*domain.Vector, error) {
+func (m *MockVectorOcmPort) GetVectorByReference(ctx context.Context, namespace string, vectorReference domain.VectorReference) (*domain.Vector, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVectorByReference", ctx, vectorReference)
+	ret := m.ctrl.Call(m, "GetVectorByReference", ctx, namespace, vectorReference)
 	ret0, _ := ret[0].(*domain.Vector)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetVectorByReference indicates an expected call of GetVectorByReference.
-func (mr *MockVectorOcmPortMockRecorder) GetVectorByReference(ctx, vectorReference any) *gomock.Call {
+func (mr *MockVectorOcmPortMockRecorder) GetVectorByReference(ctx, namespace, vectorReference any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVectorByReference", reflect.TypeOf((*MockVectorOcmPort)(nil).GetVectorByReference), ctx, vectorReference)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVectorByReference", reflect.TypeOf((*MockVectorOcmPort)(nil).GetVectorByReference), ctx, namespace, vectorReference)
 }

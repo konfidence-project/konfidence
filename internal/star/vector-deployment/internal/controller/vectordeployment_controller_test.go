@@ -101,7 +101,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 			ComponentSpec: "{\"name\":\"github.com/konfidence-project/sample-vector\",\"version\":\"0.3.0\",\"labels\":[{\"name\":\"konfidence-project/sample-vector\",\"value\":\"01904be8-bae3-ae70-e4d6-78af41d7e0a2\",\"version\":\"v1\"}],\"provider\":{\"name\":\"konfidence-project\"},\"creationTime\":\"2025-09-22T06:32:45Z\",\"repositoryContexts\":[{\"baseUrl\":\"https://registry.kdenv.lab\",\"componentNameMapping\":\"urlPath\",\"subPath\":\"sample-project\",\"type\":\"OCIRegistry\"}],\"sources\":[],\"componentReferences\":[{\"name\":\"sample-service-1\",\"version\":\"0.0.1\",\"componentName\":\"github.com/konfidence-project/sample-service-1\"}],\"resources\":[]}",
 			Artifacts:     []domain.ArtifactReference{{Version: "0.0.1", ComponentName: "github.com/konfidence-project/sample-service-1"}},
 		}
-		ocmAdapterMock.EXPECT().GetVectorByReference(gomock.Any(), gomock.Any()).Return(&vector, nil).AnyTimes()
+		ocmAdapterMock.EXPECT().GetVectorByReference(gomock.Any(), gomock.Any(), gomock.Any()).Return(&vector, nil).AnyTimes()
 
 		// when: GetArtifactManifestByReference is called on the ocmAdapter mock
 		// then: mock should be called with a vector reference and an artifact reference, and return a ArtifactManifest
@@ -145,7 +145,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 				},
 			},
 		}
-		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), vectorReference, vector.Artifacts[0]).Return(&artifactManifest, nil).AnyTimes()
+		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), testNamespace, vectorReference, vector.Artifacts[0]).Return(&artifactManifest, nil).AnyTimes()
 
 		// GIVEN: create a VectorDeployment resource
 		vectorDeployment := &landscape.VectorDeployment{

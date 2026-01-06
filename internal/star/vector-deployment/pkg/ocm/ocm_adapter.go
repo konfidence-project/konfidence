@@ -27,7 +27,8 @@ func NewOcmAdapter(provider ContextProvider) Adapter {
 	}
 }
 
-func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl string, artifactName domain.ArtifactReference) (*domain.ArtifactManifest, error) {
+func (a Adapter) GetArtifactManifestByReference(ctx context.Context, namespace string,
+	ociUrl string, artifactName domain.ArtifactReference) (*domain.ArtifactManifest, error) {
 	ocmRef, err := parseComponentVersionUrl(ociUrl)
 	if err != nil {
 		return nil, err
@@ -35,7 +36,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 	ocmRef.Component = artifactName.ComponentName
 	ocmRef.Version = &artifactName.Version
 
-	ocmCtx, err := a.provider.GetOCMContext(ctx)
+	ocmCtx, err := a.provider.GetOCMContext(ctx, namespace, ociUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OCM context, %w", err)
 	}
@@ -140,14 +141,14 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ociUrl stri
 	return artifactManifest, nil
 }
 
-func (a Adapter) GetVectorByReference(ctx context.Context, vectorReference domain.VectorReference) (*domain.Vector, error) {
+func (a Adapter) GetVectorByReference(ctx context.Context, namespace string, vectorReference domain.VectorReference) (*domain.Vector, error) {
 	// 1. map vectorRef to ocm.RefSpec
 	ocmRef, err := parseComponentVersionUrl(vectorReference.OciRegistryUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	ocmCtx, err := a.provider.GetOCMContext(ctx)
+	ocmCtx, err := a.provider.GetOCMContext(ctx, namespace, vectorReference.OciRegistryUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OCM context %w", err)
 	}
@@ -197,7 +198,6 @@ func parseComponentVersionUrl(ref string) (*ocm.RefSpec, error) {
 // connectToOciRepository connects to an OCI repository based on the provided reference.
 // The Caller is responsible for closing the repository!  Call `defer repo.Close()` after a successful call.
 func connectToOciRepository(ctx ocm.Context, ref ocm.RefSpec) (ocm.Repository, error) {
-
 	consumerId, err := oci.GetConsumerIdForRef(ref.Host)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get consumer ID for OCI host %q: %w", ref.Host, err)

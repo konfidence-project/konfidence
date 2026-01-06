@@ -68,8 +68,7 @@ vet: hermit ## Run go vet against code.
 .PHONY: test
 test: hermit manifests generate generate-test-crds fmt vet setup-envtest ## Run tests.
 	@# currently, we use ginkgo for testing, so we run tests via ginkgo CLI
-	@# currently, we only have tests in internal
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./internal/... -ginkgo.v -v
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 	@#KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 	@#The vector-deployment-controller does not have e2e tests yet, a real registry is needed for that
 
