@@ -23,7 +23,7 @@ So there are two options to configure the OCI registry credentials:
 > At the moment the secret has to be of type `kubernetes.io/dockerconfigjson`
 
 #### Example with config map
-1. Create a Secret with the OCI credentials of type `kubernetes.io/dockerconfigjson`. The Secret must be in the same namespace as the vector deployment resource e.g.
+1. Create a Secret with the OCI credentials of type `kubernetes.io/dockerconfigjson`. The Secret must be in the same namespace as the vector deployment resource.
 ```yaml
 apiVersion: v1
 data:
