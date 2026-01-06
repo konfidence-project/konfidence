@@ -21,13 +21,22 @@ import (
 	"strings"
 )
 
-// ResourceName makes a string DNS-1123 compatible (valid K8s resource name)
-func ResourceName(name string) string {
+// DNSLabelName makes a string RFC 1123 DNS Label name compatible (valid K8s resource name)
+func DNSLabelName(name string) string {
+	return sanitizeName(name, `[^a-z0-9-]`, 63)
+}
+
+// DNSSubdomainName makes a string RFC 1123 DNS subdomain name compatible (valid K8s resource name)
+func DNSSubdomainName(name string) string {
+	return sanitizeName(name, `[^a-z0-9-.]`, 253)
+}
+
+func sanitizeName(name string, pattern string, maxLen int) string {
 	// lowercase the name
 	name = strings.ToLower(name)
 
 	// replace any character not allowed with a dash
-	reg := regexp.MustCompile(`[^a-z0-9-]`)
+	reg := regexp.MustCompile(pattern)
 	name = reg.ReplaceAllString(name, "-")
 
 	// trim leading/trailing non-alphanumeric characters
@@ -38,9 +47,9 @@ func ResourceName(name string) string {
 		return (r < 'a' || r > 'z') && (r < '0' || r > '9')
 	})
 
-	// truncate to 63 characters max
-	if len(name) > 63 {
-		name = name[:63]
+	// truncate to maxLen characters max
+	if len(name) > maxLen {
+		name = name[:maxLen]
 	}
 
 	return name
