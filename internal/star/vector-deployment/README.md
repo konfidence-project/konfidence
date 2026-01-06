@@ -8,7 +8,47 @@ The Deployment Controller is responsible for managing the lifecycle of VectorDep
 
 ## Requirements and Setup
 
-*Insert a short description what is required to get your project running...*
+### OCM Authentication Setup
+
+When accessing OCM artifacts the Deployment Controller needs (optional) authentication credentials to access one or more (remote) OCI registries.
+First the controller extracts the domain name from the OCI registry url and then tries to lookup a Secret reference by domain name in a controller specific ConfigMap.
+If a matching reference is found the credentials are extracted from the referenced Secret. If the ConfigMap does not exist or no matching entry has been found
+the controller tries to directly get the Secret by domain name. If this Secret also not exists then no OCI credentials are configured.
+
+So there are two options to configure the OCI registry credentials:
+1. A Deployment Controller specific ConfigMap `vector-deployment-controller-configuration` in the `konfidence-system` namespace that contains one or more Secret references by domain name.
+2. A Secret with the domain as name that exists in the namespace of the vector deployment resource
+
+> **Note:**
+> At the moment the secret has to be of type `kubernetes.io/dockerconfigjson`
+
+#### Example with config map
+1. Create a Secret with the OCI credentials of type `kubernetes.io/dockerconfigjson`. The Secret must be in the same namespace as the vector deployment resource e.g.
+```yaml
+apiVersion: v1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJyZWdpc3RyeS5leGFtcGxlLmNvbSI6eyJ1c2VybmFtZSI6InRlc3QiLCJwYXNzd29yZCI6InRlc3QiLCJlbWFpbCI6InRlc3RAc2FwLmNvbSIsImF1dGgiOiJkR1Z6ZERwMFpYTjAifX19
+kind: Secret
+metadata:
+  creationTimestamp: "2026-01-05T11:36:58Z"
+  name: my-secret-123
+  namespace: default
+  resourceVersion: "1766473"
+  uid: c17e1c74-e10b-4d1f-99a3-0a3da7f4b5a8
+type: kubernetes.io/dockerconfigjson
+```
+
+2. Create the ConfigMap referencing the Secret by domain name. The ConfigMap must be in the `konfidence-system` namespace.
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vector-deployment-controller-configuration
+  namespace: konfidence-system
+data:
+  authenticationSecretRefs: |
+    registry.example.com: my-secret-123
+```
 
 ## Support, Feedback, Contributing
 

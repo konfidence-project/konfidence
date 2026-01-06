@@ -87,7 +87,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// if vector.ComponentSpec is empty then fetch Vector from OCI Repository
 	if vector.ComponentSpec == "" {
 		// 1. Fetch vector from OCI repository
-		fetchedVector, err := r.OcmAdapter.GetVectorByReference(ctx, vector.Reference)
+		fetchedVector, err := r.OcmAdapter.GetVectorByReference(ctx, vectorDeployment.Namespace, vector.Reference)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vectorDeployment.Name, err)
 		}
@@ -175,7 +175,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 	// TODO parallelize and handle partial failures
 	for _, artifact := range vector.Artifacts {
 		// fetch the artifact component version from OCI
-		artifactManifest, err := r.OcmAdapter.GetArtifactManifestByReference(ctx, vector.Reference.OciRegistryUrl, artifact)
+		artifactManifest, err := r.OcmAdapter.GetArtifactManifestByReference(ctx, vectorDeployment.Namespace, vector.Reference.OciRegistryUrl, artifact)
 		if err != nil {
 			return false, fmt.Errorf("failed to fetch artifact component version %q from repository %q: %w", artifact.ComponentName, vector.Reference.OciRegistryUrl, err)
 		}
