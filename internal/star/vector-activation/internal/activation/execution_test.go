@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -21,6 +22,7 @@ var _ = Describe("activation task execution tests", func() {
 		namespace        string
 		registration     landscape.ActivationTaskRegistration
 		vectorActivation *landscape.VectorActivation
+		scheme           *runtime.Scheme
 	)
 
 	BeforeEach(func() {
@@ -28,6 +30,8 @@ var _ = Describe("activation task execution tests", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		clientMock = NewMockClient(mockCtrl)
 		namespace = "default"
+		scheme = runtime.NewScheme()
+		_ = landscape.AddToScheme(scheme)
 
 		registration = landscape.ActivationTaskRegistration{
 			ObjectMeta: metav1.ObjectMeta{
@@ -89,6 +93,7 @@ var _ = Describe("activation task execution tests", func() {
 
 	Context("CreateExecution", func() {
 		It("should create execution successfully", func() {
+			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).
 				DoAndReturn(func(_ context.Context, obj interface{}, _ ...interface{}) error {
 					execution := obj.(*landscape.ActivationTaskExecution)
@@ -107,6 +112,7 @@ var _ = Describe("activation task execution tests", func() {
 		})
 
 		It("should return error when CreateExecution fails", func() {
+			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(errors.New("create error"))
 
 			result, err := CreateExecution(ctx, clientMock, namespace, vectorActivation, registration)
@@ -132,6 +138,7 @@ var _ = Describe("activation task execution tests", func() {
 				DoAndReturn(func(_ context.Context, list interface{}, _ ...interface{}) error {
 					return nil
 				})
+			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 
 			// Second registration has no executions
@@ -139,6 +146,7 @@ var _ = Describe("activation task execution tests", func() {
 				DoAndReturn(func(_ context.Context, list interface{}, _ ...interface{}) error {
 					return nil
 				})
+			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 
 			executionList, err := EnsureExecutionsForRegistrations(ctx, clientMock, namespace, registrationList, vectorActivation)
@@ -178,7 +186,7 @@ var _ = Describe("activation task execution tests", func() {
 			registrationList := &landscape.ActivationTaskRegistrationList{
 				Items: []landscape.ActivationTaskRegistration{registration},
 			}
-
+			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().List(ctx, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(errors.New("create error"))
 
