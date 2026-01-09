@@ -8,8 +8,8 @@ import (
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -21,22 +21,15 @@ func CreateActivationUsage(ctx context.Context, c client.Client, stage *common.S
 			Name:      fmt.Sprintf("activation-usage-%s-%s", stage.Name, activation.Name),
 			Namespace: stage.Namespace,
 			Labels:    map[string]string{ActivationStageVersionUsage: stage.Name},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         activation.APIVersion,
-					Kind:               activation.Kind,
-					Name:               activation.Name,
-					UID:                activation.UID,
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: landscape.StageVersionUsageSpec{
 			Reason:          StageVersionUsageActivationType,
 			StageVersionRef: &landscape.StageVersionReference{Name: activation.Spec.StageVersion},
 		},
 	}
-
+	if err := controllerutil.SetOwnerReference(activation, stageVersionUsage, c.Scheme()); err != nil {
+		return nil, fmt.Errorf("failed to set owner reference on activation stageVersionUsage: %w", err)
+	}
 	if err := c.Create(ctx, stageVersionUsage); err != nil {
 		if errors.IsAlreadyExists(err) {
 			return stageVersionUsage, nil

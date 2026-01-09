@@ -102,11 +102,6 @@ var _ = BeforeSuite(func() {
 	// Setup Recorder
 	recorder := k8sManager.GetEventRecorderFor(ActivationControllerName)
 
-	// TODO: clarify if it would be preferred to use a separate (uncached) client for the test and the managers client for the controller
-	// k8sClient, err = client.New(cfg, client.Options{Scheme: k8sManager.GetScheme()})
-	// Expect(err).NotTo(HaveOccurred())
-	// Expect(k8sClient).NotTo(BeNil())
-
 	err = (&VectorActivationReconciler{
 		Client:       k8sManager.GetClient(),
 		Scheme:       k8sManager.GetScheme(),

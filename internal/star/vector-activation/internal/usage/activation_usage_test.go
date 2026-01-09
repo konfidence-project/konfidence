@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var _ = Describe("active usage tests", func() {
@@ -19,11 +20,14 @@ var _ = Describe("active usage tests", func() {
 		clientMock *MockClient
 		stage      *common.Stage
 		activation *landscape.VectorActivation
+		scheme     *runtime.Scheme
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
 		mockCtrl = gomock.NewController(GinkgoT())
 		clientMock = NewMockClient(mockCtrl)
+		scheme = runtime.NewScheme()
+		_ = landscape.AddToScheme(scheme)
 		stage = &common.Stage{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "stage-test",
@@ -40,6 +44,7 @@ var _ = Describe("active usage tests", func() {
 
 	Context("Activation Usage", func() {
 		It("should create activation usage and no error", func() {
+			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 
 			usage, err := CreateActivationUsage(ctx, clientMock, stage, activation)

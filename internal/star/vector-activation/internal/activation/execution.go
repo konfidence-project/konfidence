@@ -6,8 +6,8 @@ import (
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -31,15 +31,6 @@ func CreateExecution(ctx context.Context, c client.Client, namespace string, vec
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "activation-execution-",
 			Namespace:    namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: vectorActivation.APIVersion,
-					Kind:       vectorActivation.Kind,
-					Name:       vectorActivation.Name,
-					UID:        vectorActivation.UID,
-					Controller: ptr.To(true),
-				},
-			},
 			Labels: map[string]string{
 				"registration": registration.Name,
 				"activation":   vectorActivation.Name,
@@ -50,6 +41,9 @@ func CreateExecution(ctx context.Context, c client.Client, namespace string, vec
 			VectorActivation: vectorActivation.Name,
 			Spec:             registration.Spec.Spec,
 		},
+	}
+	if err := controllerutil.SetControllerReference(vectorActivation, activationExecution, c.Scheme()); err != nil {
+		return nil, fmt.Errorf("failed to set owner reference on activationExecution: %w", err)
 	}
 	if err := c.Create(ctx, activationExecution); err != nil {
 		return nil, fmt.Errorf("failed to create ActivationExecution for registration %s: %w", registration.Name, err)
