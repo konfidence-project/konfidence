@@ -13,7 +13,7 @@ MODULE_NAME ?= $(notdir $(CURDIR))
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 
 .PHONY: all
-all: manifests generate fmt vet lint docs
+all: manifests generate fmt vet lint docs schemas
 
 .PHONY: help
 help: ## Display this help.
