@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"slices"
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	util "github.com/konfidence-project/landscape-stage-controller/internal/utils"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -63,23 +63,43 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	return ctrl.Result{}, r.reconcileStage(ctx, req, stage)
+	originalStage := stage.DeepCopy()
+	patch := client.MergeFrom(originalStage)
+	err := r.reconcileStage(ctx, req, stage)
+
+	if !reflect.DeepEqual(stage.Status, originalStage.Status) {
+		if patchError := r.Client.Status().Patch(ctx, stage, patch); patchError != nil {
+			patchErrorMessage := "unable to update stage status"
+
+			if err != nil {
+				reconcileError := fmt.Errorf("an error occurred while reconciling stage: %w", err)
+				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
+			}
+
+			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
+		}
+	}
+
+	return ctrl.Result{}, err
+
 }
 
 func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, stage *common.Stage) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stage")
+	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{Type: common.StageReady, Status: metav1.ConditionFalse})
 
 	_, err := r.getOrCreateTargetStageVersionUsage(ctx, req, stage)
 	if err != nil {
 		return err
 	}
 
-	_, err = r.getOrCreateStageVersion(ctx, req, stage)
+	_, err = r.getOrCreateStageVersion(ctx, stage)
 	if err != nil {
 		return err
 	}
 
+	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{Type: common.StageReady, Status: metav1.ConditionTrue, Reason: common.StageReady, Message: fmt.Sprintf("Successfully reconciled Stage %s", stage.Name)})
 	log.Info("Stage reconciled")
 	return nil
 }
@@ -133,44 +153,31 @@ func (r *StageReconciler) getOrCreateTargetStageVersionUsage(ctx context.Context
 	return stageVersionUsage, nil
 }
 
-func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, req ctrl.Request, stage *common.Stage) (*landscape.StageVersion, error) {
-	log := logf.FromContext(ctx)
-
-	// get all stageVersions that are owned by this stage
-	stageVersions := &landscape.StageVersionList{}
-	if err := r.List(ctx, stageVersions, client.InNamespace(req.Namespace), client.MatchingFields{stageVersionOwnerKey: req.Name}); err != nil {
-		return nil, fmt.Errorf("unable to list stageVersions: %w", err)
+func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *common.Stage) (*landscape.StageVersion, error) {
+	stageVersion, err := r.constructStageVersion(stage)
+	if err != nil {
+		return nil, fmt.Errorf("unable to construct stageVersion from template: %w", err)
 	}
 
-	// check if a stageVersion exists with a vector matching the stage vector and the current stage generation
-	index := slices.IndexFunc(stageVersions.Items, func(version landscape.StageVersion) bool {
-		return version.Spec.Vector == stage.Spec.Vector && version.Spec.StageGeneration == stage.Generation
-	})
-
-	// create it if it does not exist
-	if index < 0 {
-		log.Info("No matching stageVersion found. Creating a new one...")
-
-		// create new stageVersion
-		stageVersion, err := r.constructStageVersion(stage)
-		if err != nil {
-			return nil, fmt.Errorf("unable to construct stageVersion from template: %w", err)
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, stageVersion, func() error {
+		if err := util.SetOwnerReference(stage, stageVersion, r.Scheme, true); err != nil {
+			return fmt.Errorf("unable to check stageVersion owner reference: %w", err)
 		}
 
-		if err := r.Create(ctx, stageVersion); err != nil {
-			return nil, fmt.Errorf("unable to create stageVersion for stage: %w", err)
-		}
-
-		log.Info("Created stageVersion for stage", "stageVersion", stageVersion)
-		return stageVersion, nil
-	} else {
-		log.V(1).Info("Found existing stageVersion at index", "index", index)
-		return &stageVersions.Items[index], nil
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to create or update stageVersion: %w", err)
 	}
+
+	return stageVersion, nil
 }
 
 func (r *StageReconciler) constructStageVersion(stage *common.Stage) (*landscape.StageVersion, error) {
-	name := fmt.Sprintf("%s-%s-%s", "stage-version", stage.Name, rand.String(8))
+	name, err := getStageVersionName(stage)
+	if err != nil {
+		return nil, err
+	}
+
 	stageVersionLabels, err := getStageVersionLabels(stage)
 	if err != nil {
 		return nil, err
@@ -275,31 +282,18 @@ func getTargetStageVersionUsageLabels(stage *common.Stage) map[string]string {
 	}
 }
 
-var (
-	stageVersionOwnerKey = ".metadata.controller"
-	apiGVStr             = common.GroupVersion.String()
-)
+func getStageVersionName(stage *common.Stage) (string, error) {
+	content := fmt.Sprintf("%s-%s-%d", stage.Name, stage.Spec.Vector, stage.Generation)
+	digest, err := util.ComputeDigest(content)
+	if err != nil {
+		return "", fmt.Errorf("unable to compute digest for stageVersion name: %w", err)
+	}
+
+	return fmt.Sprintf("%s-%s", "stage-version", digest), nil
+}
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &landscape.StageVersion{}, stageVersionOwnerKey, func(rawObj client.Object) []string {
-		// grab the stageVersion object and extract the owner
-		stageVersion := rawObj.(*landscape.StageVersion)
-		owner := metav1.GetControllerOf(stageVersion)
-		if owner == nil {
-			return nil
-		}
-		// make sure it is a stage...
-		if owner.APIVersion != apiGVStr || owner.Kind != "Stage" {
-			return nil
-		}
-
-		// and if so, return it
-		return []string{owner.Name}
-	}); err != nil {
-		return fmt.Errorf("unable to create index for owner reference of stage version: %w", err)
-	}
-
 	noUpdatePredicate := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			return false

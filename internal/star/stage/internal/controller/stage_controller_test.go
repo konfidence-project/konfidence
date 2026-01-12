@@ -26,6 +26,7 @@ import (
 	testutil "github.com/konfidence-project/landscape-stage-controller/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -55,6 +56,8 @@ var _ = Describe("Stage Controller", Ordered, func() {
 	const (
 		StageDev                    = "stage-dev"
 		StageDevSpecName            = "dev"
+		StageVersion                = "stage-version-z3q9efdlno78"
+		StageVersionUpdated         = "stage-version-u67xcg4acsv0"
 		Namespace                   = "default"
 		Vector001                   = "https://registry.kdenv.lab/ocm/vector//common.konfidence.tools.cloud/example/vector:0.0.1"
 		Vector002                   = "https://registry.kdenv.lab/ocm/vector//common.konfidence.tools.cloud/example/vector:0.0.2"
@@ -105,19 +108,48 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// check that the stageVersion has been created and has valid properties
-			stageVersions := &landscape.StageVersionList{}
+			stageVersion := &landscape.StageVersion{}
+			stageVersionLookupKey := types.NamespacedName{Name: StageVersion, Namespace: Namespace}
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(stageVersions.Items).To(HaveLen(1))
-				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(stage.Spec.Vector))
-				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
-				g.Expect(stageVersions.Items[0].Labels[controller.StageNameLabel]).To(Equal(stage.Name))
-				g.Expect(stageVersions.Items[0].Labels[controller.VectorReferenceLabel]).To(Equal(adaptedVectorName))
-				g.Expect(stageVersions.Items[0].GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(testutil.HasOwnerReference(stageVersions.Items[0].GetOwnerReferences(), metav1.OwnerReference{
+				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
+				g.Expect(stageVersion.Spec.Vector).To(Equal(stage.Spec.Vector))
+				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(stage.Generation))
+				g.Expect(stageVersion.Labels[controller.StageNameLabel]).To(Equal(stage.Name))
+				g.Expect(stageVersion.Labels[controller.VectorReferenceLabel]).To(Equal(adaptedVectorName))
+				g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
+				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
 					Kind: common.StageKind,
 					Name: StageDev,
 				})).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+				g.Expect(stage.Spec.Name).To(Equal(StageDevSpecName))
+				g.Expect(meta.IsStatusConditionTrue(stage.Status.Conditions, common.StageReady)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+		})
+		It("should successfully reconcile the stage if stageVersion already exists", func() {
+			ctx := context.Background()
+			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersion, Namespace, Vector001, VectorName001)
+
+			// check that the stageVersion has been created
+			stageVersion := &landscape.StageVersion{}
+			stageVersionLookupKey := types.NamespacedName{Name: StageVersion, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
+
+			// check that the stage has been created and has valid properties
+			stage := &common.Stage{}
+			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+				g.Expect(stage.Spec.Name).To(Equal(StageDevSpecName))
+				g.Expect(meta.IsStatusConditionTrue(stage.Status.Conditions, common.StageReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 		It("should update existing target stageVersionUsage with new stage vector", func() {
@@ -174,17 +206,16 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// check that the new stageVersion has been created and has valid properties
-			stageVersions := &landscape.StageVersionList{}
+			stageVersion := &landscape.StageVersion{}
+			stageVersionLookupKey := types.NamespacedName{Name: StageVersionUpdated, Namespace: Namespace}
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
-				g.Expect(hasStageVersionWithVector(stageVersions.Items, stage.Spec.Vector)).To(Not(Equal(-1)))
-				index := hasStageVersionWithVector(stageVersions.Items, stage.Spec.Vector)
-				g.Expect(stageVersions.Items[index].Spec.Vector).To(Equal(stage.Spec.Vector))
-				g.Expect(stageVersions.Items[index].Spec.StageGeneration).To(Equal(stage.Generation))
-				g.Expect(stageVersions.Items[index].Labels[controller.StageNameLabel]).To(Equal(stage.Name))
-				g.Expect(stageVersions.Items[index].Labels[controller.VectorReferenceLabel]).To(Equal(adaptedVectorName))
-				g.Expect(stageVersions.Items[index].GetOwnerReferences()).To(HaveLen(1))
-				g.Expect(testutil.HasOwnerReference(stageVersions.Items[0].GetOwnerReferences(), metav1.OwnerReference{
+				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
+				g.Expect(stageVersion.Spec.Vector).To(Equal(stage.Spec.Vector))
+				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(stage.Generation))
+				g.Expect(stageVersion.Labels[controller.StageNameLabel]).To(Equal(stage.Name))
+				g.Expect(stageVersion.Labels[controller.VectorReferenceLabel]).To(Equal(adaptedVectorName))
+				g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
+				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
 					Kind: common.StageKind,
 					Name: StageDev,
 				})).To(BeTrue())
@@ -224,13 +255,3 @@ var _ = Describe("Stage Controller", Ordered, func() {
 		})
 	})
 })
-
-func hasStageVersionWithVector(stageVersions []landscape.StageVersion, vector string) int {
-	for index, stageVersion := range stageVersions {
-		if stageVersion.Spec.Vector == vector {
-			return index
-		}
-	}
-
-	return -1
-}
