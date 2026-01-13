@@ -33,12 +33,12 @@ const (
 )
 
 // GetSecretByConfigMap tries to map a domain name to a secret name using a pre-defined configMap
-func GetSecretByConfigMap(ctx context.Context, client client.Client, configMapName string,
+func GetSecretByConfigMap(ctx context.Context, k8sClient client.Client, configMapName string,
 	domainName string) (string, error) {
 	log := logf.FromContext(ctx)
 	configMap := &v1.ConfigMap{}
 	// config map must be in konfidence system namespace
-	err := client.Get(ctx, types.NamespacedName{
+	err := k8sClient.Get(ctx, types.NamespacedName{
 		Namespace: KonfidenceSystemNamespace,
 		Name:      configMapName,
 	}, configMap)
