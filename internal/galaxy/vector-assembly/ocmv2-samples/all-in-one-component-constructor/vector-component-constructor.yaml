@@ -1,0 +1,38 @@
+components:
+  # Sub-Component: Vector Artifact A
+  - name: konfidence.cloud/sample-vector/service1
+    version: "1.5.2"
+    provider:
+      name: konfidence
+    resources:
+      - name: service1-image
+        type: ociImage
+        version: "1.0.0"
+        access:
+          type: ociArtifact
+          imageReference: "docker.io/stefanprodan/podinfo:6.9.4"
+
+  # Sub-Component: Vector Artifact B
+  - name: dwc.tools.sap/dwc-project/dev/service2
+    version: "1.2.0"
+    provider:
+      name: konfidence
+    resources:
+      - name: service2-image
+        type: ociImage
+        version: "1.45.8"
+        access:
+          type: ociArtifact
+          imageReference: "docker.io/stefanprodan/podinfo:latest"
+
+  - name: dwc.tools.sap/dwc-project/dev/service3
+    version: "4.1.0"
+    provider:
+      name: konfidence
+    resources:
+      - name: service2-image
+        type: ociImage
+        version: "1.45.8"
+        access:
+          type: ociArtifact
+          imageReference: "docker.io/stefanprodan/podinfo:latest"

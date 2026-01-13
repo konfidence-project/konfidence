@@ -1,0 +1,13 @@
+apiVersion: global.konfidence.cloud/v1alpha1
+kind: VectorTemplate
+metadata:
+  namespace: default
+  name: sample-app
+spec:
+  reconcileInterval: 10s
+  base: http://localhost:5100//konfidence-project/common-services
+  uploadTarget: http://localhost:5100//konfidence.cloud/sample-vector/sample-app
+  components:
+    - name: http://localhost:5100//konfidence.cloud/sample-vector/service1
+    - name: http://localhost:5100//dwc.tools.sap/dwc-project/dev/service2
+    - name: http://localhost:5100//dwc.tools.sap/dwc-project/dev/service3
