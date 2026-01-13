@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-gcp-vector-assembly-role
+rules:
+- apiGroups:
+  - global.konfidence.cloud
+  resources:
+  - vectortemplates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - global.konfidence.cloud
+  resources:
+  - vectortemplates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - global.konfidence.cloud
+  resources:
+  - vectortemplates/status
+  verbs:
+  - get
+  - patch
+  - update
