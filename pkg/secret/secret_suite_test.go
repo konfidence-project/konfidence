@@ -1,4 +1,4 @@
-package auth_test
+package secret_test
 
 import (
 	"testing"

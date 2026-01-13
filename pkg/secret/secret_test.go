@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package auth
+package secret
 
 import (
 	"context"
 
-	. "github.com/konfidence-project/pkg/auth/mocks"
+	. "github.com/konfidence-project/pkg/secret/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
