@@ -6,12 +6,11 @@ require (
 	github.com/docker/cli v28.5.2+incompatible
 	github.com/go-logr/logr v1.4.3
 	github.com/konfidence-project/crds/api/landscape v0.14.0
-	github.com/konfidence-project/pkg v0.4.0
+	github.com/konfidence-project/pkg v0.6.1
 	github.com/mandelsoft/goutils v0.0.0-20241005173814-114fa825bbdc
 	github.com/onsi/ginkgo/v2 v2.27.3
 	github.com/onsi/gomega v1.38.3
 	go.uber.org/mock v0.6.0
-	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.34.2
 	k8s.io/apimachinery v0.34.2
 	k8s.io/client-go v0.34.2
@@ -367,6 +366,7 @@ require (
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	helm.sh/helm/v3 v3.19.0 // indirect
 	k8s.io/apiextensions-apiserver v0.34.2 // indirect
 	k8s.io/cli-runtime v0.34.1 // indirect

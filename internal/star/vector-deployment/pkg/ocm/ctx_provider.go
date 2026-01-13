@@ -6,10 +6,9 @@ import (
 
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/konfidence-project/pkg/sanitize"
+	secr "github.com/konfidence-project/pkg/secret"
 	"github.com/konfidence-project/pkg/url"
-	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"ocm.software/ocm/api/oci"
@@ -20,9 +19,7 @@ import (
 )
 
 const (
-	DefaultConfigMapName      = "vector-deployment-controller-configuration"
-	AuthConfigMapKey          = "authenticationSecretRefs"
-	KonfidenceSystemNamespace = "konfidence-system"
+	DefaultConfigMapName = "vector-deployment-controller-configuration"
 )
 
 // ContextProvider interface to create an OCM Context
@@ -79,7 +76,7 @@ func (p *Provider) GetCredentials(ctx context.Context, namespace string, registr
 	}
 
 	// first try to get via default configmap
-	secretNameByConfigMap, err := p.getSecretByConfigmap(ctx, domain)
+	secretNameByConfigMap, err := secr.GetSecretByConfigMap(ctx, p.kubeClient, DefaultConfigMapName, domain)
 	if err != nil {
 		return nil, err
 	}
@@ -135,42 +132,4 @@ func parseDockerConfigJsonSecret(s *v1.Secret, ocmCtx ocm.Context) error {
 	}
 
 	return nil
-}
-
-func (p *Provider) getSecretByConfigmap(ctx context.Context, domainName string) (string, error) {
-	log := logf.FromContext(ctx)
-	configMap := &v1.ConfigMap{}
-	// config map must be in konfidence system namespace
-	err := p.kubeClient.Get(ctx, types.NamespacedName{
-		Namespace: KonfidenceSystemNamespace,
-		Name:      DefaultConfigMapName,
-	}, configMap)
-
-	if err != nil && !errors.IsNotFound(err) {
-		return "", err
-	}
-	if err != nil && errors.IsNotFound(err) {
-		return "", nil
-	}
-
-	authConfig, ok := configMap.Data[AuthConfigMapKey]
-	if !ok {
-		log.Info("Could not find any data in ConfigMap with AuthConfigMapKey", "key", AuthConfigMapKey)
-		return "", nil
-	}
-
-	authMap := make(map[string]string)
-	err = yaml.Unmarshal([]byte(authConfig), authMap)
-	if err != nil {
-		log.Info("Error unmarshalling authConfig")
-		return "", nil
-	}
-
-	secret, ok := authMap[domainName]
-	if !ok {
-		log.Info("Could not find a map entry for domain", "domainName", domainName)
-		return "", nil
-	}
-
-	return secret, nil
 }
