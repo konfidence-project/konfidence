@@ -3,11 +3,10 @@ package ocm
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"strings"
 
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/konfidence-project/pkg/sanitize"
+	"github.com/konfidence-project/pkg/url"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -69,7 +68,7 @@ func (p *Provider) GetCredentials(ctx context.Context, namespace string, registr
 
 	// TODO this might not be a plain URL. Check again/possible refactor code
 	// TODO when OCM version 2 has been released
-	domain, err := extractDomain(registryUrl)
+	domain, err := url.ExtractHostname(registryUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract domain from registry url: %w", err)
 	}
@@ -174,19 +173,4 @@ func (p *Provider) getSecretByConfigmap(ctx context.Context, domainName string) 
 	}
 
 	return secret, nil
-}
-
-func extractDomain(rawURL string) (string, error) {
-	if !strings.Contains(rawURL, "://") {
-		rawURL = "//" + rawURL
-	}
-
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return "", err
-	}
-
-	domain := u.Hostname()
-	domain = strings.TrimPrefix(domain, "www.")
-	return domain, nil
 }

@@ -1395,6 +1395,8 @@ github.com/konfidence-project/pkg v0.2.0 h1:fHQXtjiT7zCaMB4rv9+/YZWnBEvJE7JiYGUY
 github.com/konfidence-project/pkg v0.2.0/go.mod h1:vmnAbicak8NVVYrOhqUJcApuDYoC5v1EchnHCxXnzGY=
 github.com/konfidence-project/pkg v0.3.0 h1:6iA8IGBJAI7qxtmAQMFe3nrF3WEsXE1cL/hf/tXqMoM=
 github.com/konfidence-project/pkg v0.3.0/go.mod h1:vmnAbicak8NVVYrOhqUJcApuDYoC5v1EchnHCxXnzGY=
+github.com/konfidence-project/pkg v0.4.0 h1:u0IJ57N3uoFBC0D5WNuanw49o6j2yvJzWD2lzQEbpDk=
+github.com/konfidence-project/pkg v0.4.0/go.mod h1:vmnAbicak8NVVYrOhqUJcApuDYoC5v1EchnHCxXnzGY=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
