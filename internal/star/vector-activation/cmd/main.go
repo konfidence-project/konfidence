@@ -79,9 +79,10 @@ func main() {
 	}
 
 	if err := (&controller.VectorActivationReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Config: ctrl.GetConfigOrDie(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Config:   ctrl.GetConfigOrDie(),
+		Recorder: mgr.GetEventRecorderFor(controller.ActivationControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorActivation")
 		os.Exit(1)
