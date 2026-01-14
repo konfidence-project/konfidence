@@ -31,15 +31,15 @@ test: generate ginkgo fmt vet
 
 .PHONY: golangci-lint lint
 lint: ## Run golangci-lint linter
-	$(GOLANGCI_LINT) run
+	golangci-lint run
 
 .PHONY: golangci-lint lint-fix
 lint-fix: ## Run golangci-lint linter and perform fixes
-	$(GOLANGCI_LINT) run --fix
+	golangci-lint run --fix
 
 .PHONY: golangci-lint lint-config
 lint-config: ## Verify golangci-lint linter configuration
-	$(GOLANGCI_LINT) config verify
+	golangci-lint config verify
 
 #######################
 # Tools
@@ -60,13 +60,6 @@ mockgen: $(MOCKGEN) ## Download mockgen locally if necessary.
 $(MOCKGEN):
 	$(call go-install-tool,$(MOCKGEN),go.uber.org/mock/mockgen,$(MOCKGEN_VERSION))
 
-GOLANGCI_LINT ?= $(GOBIN)/golangci-lint
-GOLANGCI_LINT_VERSION ?= v2.2.2
-
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
-$(GOLANGCI_LINT):
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
