@@ -1393,6 +1393,8 @@ github.com/konfidence-project/crds/api/landscape v0.14.0 h1:N6H4rJTXfaWdItpURB3C
 github.com/konfidence-project/crds/api/landscape v0.14.0/go.mod h1:6hqikwmeLOVmV5+EfhRbCigqa1mEu14OYyheEcLZJ+Q=
 github.com/konfidence-project/pkg v0.6.1 h1:SkDLw3Aab3edkGNJWSi717fYn5EZkQ2pve/J83jw22g=
 github.com/konfidence-project/pkg v0.6.1/go.mod h1:vmnAbicak8NVVYrOhqUJcApuDYoC5v1EchnHCxXnzGY=
+github.com/konfidence-project/pkg v0.6.2 h1:ocPSHL+nTUlE3VyXI38SRnLWi6DeuGxKhEEZM7G3w3U=
+github.com/konfidence-project/pkg v0.6.2/go.mod h1:vmnAbicak8NVVYrOhqUJcApuDYoC5v1EchnHCxXnzGY=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
