@@ -23,7 +23,6 @@ import (
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	util "github.com/konfidence-project/landscape-stage-controller/internal/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -88,20 +87,6 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, err
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *StageVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&landscape.StageVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&landscape.VectorMigration{}).
-		Owns(&landscape.VectorActivation{}).
-		Watches(
-			&landscape.VectorDeployment{},
-			handler.EnqueueRequestsFromMapFunc(reconcileStageVersionOwner),
-		).
-		Named("stageVersion").
-		Complete(r)
-}
-
 func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stageVersion *landscape.StageVersion) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageVersion")
@@ -111,14 +96,8 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 		return fmt.Errorf("StageName label %s not found in stageVersion", StageNameLabel)
 	}
 
-	// get a k8s conform vector name
-	adaptedVectorName, err := util.AdaptVectorName(stageVersion.Spec.Vector)
-	if err != nil {
-		return err
-	}
-
 	// check if a vectorDeployment exists matching the stage vector
-	vectorDeployment, err := r.getOrCreateVectorDeployment(ctx, stageVersion, adaptedVectorName)
+	vectorDeployment, err := r.getOrCreateVectorDeployment(ctx, stageVersion)
 	if err != nil {
 		return err
 	}
@@ -166,108 +145,61 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	return nil
 }
 
-func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context, stageVersion *landscape.StageVersion, adaptedVectorName string) (*landscape.VectorDeployment, error) {
-	log := logf.FromContext(ctx)
-	vectorDeployment := &landscape.VectorDeployment{}
-	err := r.Get(ctx, types.NamespacedName{
-		Namespace: stageVersion.Namespace,
-		Name:      adaptedVectorName,
-	}, vectorDeployment)
-
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("unable to fetch vectorDeployment: %w", err)
-	}
-	if err != nil && errors.IsNotFound(err) {
-		log.Info("No matching vectorDeployment found. Creating a new one...")
-
-		// create new vectorDeployment
-		vectorDeployment, err = r.constructVectorDeployment(stageVersion)
-		if err != nil {
-			return nil, fmt.Errorf("unable to construct vectorDeployment from template: %w", err)
-		}
-
-		if err := r.Create(ctx, vectorDeployment); err != nil {
-			return nil, fmt.Errorf("unable to create vectorDeployment: %w", err)
-		}
-
-		log.Info("Created vectorDeployment", "vectorDeployment", vectorDeployment)
+func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context, stageVersion *landscape.StageVersion) (*landscape.VectorDeployment, error) {
+	vectorDeployment, err := r.constructVectorDeployment(stageVersion)
+	if err != nil {
+		return nil, fmt.Errorf("unable to construct vectorDeployment from template: %w", err)
 	}
 
-	// check if vectorDeployment has stageVersion owner ref
-	if err := util.VerifyOwnerReference(ctx, r, stageVersion, vectorDeployment, r.Scheme, false); err != nil {
-		return nil, fmt.Errorf("unable to check vectorDeployment owner references: %w", err)
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, vectorDeployment, func() error {
+		// check if vectorDeployment has stageVersion owner ref
+		if err := util.SetOwnerReference(stageVersion, vectorDeployment, r.Scheme, false); err != nil {
+			return fmt.Errorf("unable to check vectorDeployment owner reference: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to create or update vectorDeployment: %w", err)
 	}
 
 	return vectorDeployment, nil
 }
 
 func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context, stageVersion *landscape.StageVersion) (*landscape.VectorMigration, error) {
-	log := logf.FromContext(ctx)
-	vectorMigration := &landscape.VectorMigration{}
-	err := r.Get(ctx, types.NamespacedName{
-		Namespace: stageVersion.Namespace,
-		Name:      getVectorMigrationName(stageVersion),
-	}, vectorMigration)
-
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("unable to fetch vectorMigration: %w", err)
+	vectorMigration, err := r.constructVectorMigration(stageVersion)
+	if err != nil {
+		return nil, fmt.Errorf("unable to construct vectorMigration from template: %w", err)
 	}
 
-	if err != nil && errors.IsNotFound(err) {
-		log.V(1).Info("No matching vectorMigration found. Creating a new one...")
-
-		// create new vectorMigration
-		vectorMigration, err = r.constructVectorMigration(stageVersion)
-		if err != nil {
-			return nil, fmt.Errorf("unable to construct vectorMigration from template: %w", err)
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, vectorMigration, func() error {
+		// check if vectorMigration has stageVersion controller ref
+		if err := util.SetOwnerReference(stageVersion, vectorMigration, r.Scheme, true); err != nil {
+			return fmt.Errorf("unable to check vectorMigration owner reference: %w", err)
 		}
 
-		if err := r.Create(ctx, vectorMigration); err != nil {
-			return nil, fmt.Errorf("unable to create vectorMigration: %w", err)
-		}
-
-		log.V(1).Info("Created vectorMigration", "vectorMigration", vectorMigration)
-	}
-
-	// check if vectorMigration has stageVersion controller ref
-	if err := util.VerifyOwnerReference(ctx, r, stageVersion, vectorMigration, r.Scheme, true); err != nil {
-		return nil, fmt.Errorf("unable to check vectorMigration owner references: %w", err)
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to create or update vectorMigration: %w", err)
 	}
 
 	return vectorMigration, nil
 }
 
 func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context, stageVersion *landscape.StageVersion, stageName string, vectorDeployment *landscape.VectorDeployment) (*landscape.VectorActivation, error) {
-	log := logf.FromContext(ctx)
-	vectorActivation := &landscape.VectorActivation{}
-	err := r.Get(ctx, types.NamespacedName{
-		Namespace: stageVersion.Namespace,
-		Name:      getVectorActivationName(stageVersion),
-	}, vectorActivation)
-
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("unable to fetch vectorActivation: %w", err)
+	vectorActivation, err := r.constructVectorActivation(stageVersion, stageName, vectorDeployment)
+	if err != nil {
+		return nil, fmt.Errorf("unable to construct vectorActivation from template: %w", err)
 	}
 
-	if err != nil && errors.IsNotFound(err) {
-		log.V(1).Info("No matching vectorActivation found. Creating a new one...")
-
-		// create new vectorActivation
-		vectorActivation, err = r.constructVectorActivation(stageVersion, stageName, vectorDeployment)
-		if err != nil {
-			return nil, fmt.Errorf("unable to construct vectorActivation from template: %w", err)
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, vectorActivation, func() error {
+		// check if vectorActivation has stageVersion controller ref
+		if err := util.SetOwnerReference(stageVersion, vectorActivation, r.Scheme, true); err != nil {
+			return fmt.Errorf("unable to check vectorActivation owner reference: %w", err)
 		}
 
-		if err := r.Create(ctx, vectorActivation); err != nil {
-			return nil, fmt.Errorf("unable to create vectorActivation: %w", err)
-		}
-
-		log.V(1).Info("Created vectorActivation", "vectorActivation", vectorActivation)
-	}
-
-	// check if vectorActivation has stageVersion controller ref
-	if err := util.VerifyOwnerReference(ctx, r, stageVersion, vectorActivation, r.Scheme, true); err != nil {
-		return nil, fmt.Errorf("unable to check vectorActivation owner references: %w", err)
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to create or update vectorActivation: %w", err)
 	}
 
 	return vectorActivation, nil
@@ -335,6 +267,20 @@ func (r *StageVersionReconciler) constructVectorActivation(stageVersion *landsca
 		return nil, fmt.Errorf("unable to set controller reference for vector activation: %w", err)
 	}
 	return vectorActivation, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *StageVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&landscape.StageVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&landscape.VectorMigration{}).
+		Owns(&landscape.VectorActivation{}).
+		Watches(
+			&landscape.VectorDeployment{},
+			handler.EnqueueRequestsFromMapFunc(reconcileStageVersionOwner),
+		).
+		Named("stageVersion").
+		Complete(r)
 }
 
 func reconcileStageVersionOwner(ctx context.Context, obj client.Object) []reconcile.Request {
