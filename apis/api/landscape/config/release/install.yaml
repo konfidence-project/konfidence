@@ -619,19 +619,30 @@ spec:
             description: Spec defines the desired state of the StageVersion and is
               immutable after it has been set
             properties:
-              stage_generation:
+              stageGeneration:
                 description: the object generation of the stage that created this
                   stage version
                 format: int64
                 minimum: 1
                 type: integer
+              stageRef:
+                description: StageReference holds a reference to a Stage in the same
+                  namespace.
+                properties:
+                  name:
+                    description: Name is the name of the Stage. Required.
+                    type: string
+                required:
+                - name
+                type: object
               vector:
                 description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
                 minLength: 1
                 type: string
             required:
-            - stage_generation
+            - stageGeneration
+            - stageRef
             - vector
             type: object
             x-kubernetes-validations:

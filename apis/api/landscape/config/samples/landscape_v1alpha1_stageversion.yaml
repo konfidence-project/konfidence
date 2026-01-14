@@ -12,4 +12,6 @@ metadata:
       uid: # TODO: add owner uid here after creating Stage resource
 spec:
   vector: https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1
-  stage_generation: 1
+  stageGeneration: 1
+  stageRef:
+    name: stage-dev
