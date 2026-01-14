@@ -391,6 +391,22 @@ _Appears in:_
 | `type` _string_ | Type describes the resource type, following OCM conventions. |  |  |
 
 
+#### StageReference
+
+
+
+StageReference holds a reference to a Stage in the same namespace.
+
+
+
+_Appears in:_
+- [StageVersionSpec](#stageversionspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name is the name of the Stage. Required. |  |  |
+
+
 #### StageVersion
 
 
@@ -463,7 +479,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  | MinLength: 1 <br /> |
-| `stage_generation` _integer_ | the object generation of the stage that created this stage version |  | Minimum: 1 <br /> |
+| `stageGeneration` _integer_ | the object generation of the stage that created this stage version |  | Minimum: 1 <br /> |
+| `stageRef` _[StageReference](#stagereference)_ |  |  |  |
 
 
 #### StageVersionStatus

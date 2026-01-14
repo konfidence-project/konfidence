@@ -1,5 +1,11 @@
 package v1alpha1
 
+// StageReference holds a reference to a Stage in the same namespace.
+type StageReference struct {
+	// Name is the name of the Stage. Required.
+	Name string `json:"name"`
+}
+
 // StageVersionReference holds a reference to a StageVersion in the same namespace.
 type StageVersionReference struct {
 	// Name is the name of the StageVersion. Required.

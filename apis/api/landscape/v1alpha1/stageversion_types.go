@@ -57,7 +57,9 @@ type StageVersionSpec struct {
 
 	// the object generation of the stage that created this stage version
 	// +kubebuilder:validation:Minimum=1
-	StageGeneration int64 `json:"stage_generation"`
+	StageGeneration int64 `json:"stageGeneration"`
+
+	StageRef *StageReference `json:"stageRef"`
 }
 
 // StageVersionStatus defines the observed state of StageVersion.
