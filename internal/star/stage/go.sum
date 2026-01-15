@@ -91,8 +91,8 @@ github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zt
 github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
 github.com/konfidence-project/crds/api/common v0.5.1 h1:SFv8Sll7Xvy6uvz7/2I0ypRW3bjgzWbpRNzVc1XMqn4=
 github.com/konfidence-project/crds/api/common v0.5.1/go.mod h1:VfOTU01vKdoFWTIL2kaTebTWCslXWH1tGu3GIfxZSgM=
-github.com/konfidence-project/crds/api/landscape v0.14.0 h1:N6H4rJTXfaWdItpURB3Cso+wZ4IXA1EEbse83VNEan8=
-github.com/konfidence-project/crds/api/landscape v0.14.0/go.mod h1:6hqikwmeLOVmV5+EfhRbCigqa1mEu14OYyheEcLZJ+Q=
+github.com/konfidence-project/crds/api/landscape v0.15.1 h1:n6aiL/d88SpFhCv1RtAh4XWf6Fo762/+z0/WXiaiOBc=
+github.com/konfidence-project/crds/api/landscape v0.15.1/go.mod h1:6hqikwmeLOVmV5+EfhRbCigqa1mEu14OYyheEcLZJ+Q=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=

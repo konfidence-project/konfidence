@@ -75,16 +75,18 @@ func main() {
 	}
 
 	if err := (&controller.StageReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(controller.StageControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Stage")
 		os.Exit(1)
 	}
 
 	if err := (&controller.StageVersionReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(controller.StageVersionControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StageVersion")
 		os.Exit(1)
@@ -113,6 +115,7 @@ func main() {
 	garbageCollector := &gc.StageVersionGarbageCollector{
 		Client:   mgr.GetClient(),
 		Interval: 15 * time.Second,
+		Recorder: mgr.GetEventRecorderFor(gc.StageVersionGarbageCollectorName),
 	}
 
 	setupLog.Info("Starting stageVersion garbage collector")
