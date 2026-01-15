@@ -24,10 +24,12 @@ import (
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	util "github.com/konfidence-project/landscape-stage-controller/internal/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,10 +39,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
+const StageControllerName = "stage-controller"
+
 // StageReconciler reconciles a Stage object
 type StageReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
@@ -125,7 +130,10 @@ func (r *StageReconciler) getOrCreateTargetStageVersionUsage(ctx context.Context
 			return nil, fmt.Errorf("unable to create target stageVersionUsage: %w", err)
 		}
 
-		log.Info("Created target stageVersionUsage", "stageVersionUsage", stageVersionUsage)
+		msg := fmt.Sprintf("Created target StageVersionUsage %s", stageVersionUsage.Name)
+		r.Recorder.Event(stage, corev1.EventTypeNormal, "StageVersionUsageCreated", msg)
+
+		log.Info(msg)
 		return stageVersionUsage, nil
 	}
 
@@ -147,6 +155,9 @@ func (r *StageReconciler) getOrCreateTargetStageVersionUsage(ctx context.Context
 			if err := r.Delete(ctx, &stageVersionUsage); err != nil {
 				return nil, fmt.Errorf("unable to delete obsolete target stageVersionUsage: %w", err)
 			}
+			msg := fmt.Sprintf("Deleted obsolete target StageVersionUsage %s", stageVersionUsage.Name)
+			r.Recorder.Event(stage, corev1.EventTypeNormal, "StageVersionUsageDeleted", msg)
+			log.Info(msg)
 		}
 	}
 
@@ -154,20 +165,25 @@ func (r *StageReconciler) getOrCreateTargetStageVersionUsage(ctx context.Context
 }
 
 func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *common.Stage) (*landscape.StageVersion, error) {
+	log := logf.FromContext(ctx)
 	stageVersion, err := r.constructStageVersion(stage)
 	if err != nil {
 		return nil, fmt.Errorf("unable to construct stageVersion from template: %w", err)
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, stageVersion, func() error {
+	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, stageVersion, func() error {
 		if err := util.SetOwnerReference(stage, stageVersion, r.Scheme, true); err != nil {
 			return fmt.Errorf("unable to check stageVersion owner reference: %w", err)
 		}
-
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("failed to create or update stageVersion: %w", err)
 	}
+
+	msg := fmt.Sprintf("StageVersion %s for Stage %s: %s", stageVersion.Name, stage.Name, operationResult)
+	r.Recorder.Event(stage, corev1.EventTypeNormal, "StageVersionReconciled", msg)
+	log.Info(msg)
 
 	return stageVersion, nil
 }
@@ -192,6 +208,9 @@ func (r *StageReconciler) constructStageVersion(stage *common.Stage) (*landscape
 		Spec: landscape.StageVersionSpec{
 			Vector:          stage.Spec.Vector,
 			StageGeneration: stage.Generation,
+			StageRef: &landscape.StageReference{
+				Name: stage.Name,
+			},
 		},
 	}
 

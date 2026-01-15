@@ -92,6 +92,9 @@ func CreateStageVersion(ctx context.Context, k8sClient client.Client, stageName,
 		Spec: landscape.StageVersionSpec{
 			Vector:          vectorName,
 			StageGeneration: 1,
+			StageRef: &landscape.StageReference{
+				Name: stageName,
+			},
 		},
 	}
 
@@ -115,6 +118,9 @@ func CreateStageVersionWithLabels(ctx context.Context, k8sClient client.Client, 
 		Spec: landscape.StageVersionSpec{
 			Vector:          vectorName,
 			StageGeneration: 1,
+			StageRef: &landscape.StageReference{
+				Name: stageName,
+			},
 		},
 	}
 

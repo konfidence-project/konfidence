@@ -23,10 +23,12 @@ import (
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	util "github.com/konfidence-project/landscape-stage-controller/internal/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,10 +39,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const StageVersionControllerName = "stage-version-controller"
+
 // StageVersionReconciler reconciles a StageVersion object
 type StageVersionReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
@@ -146,26 +151,32 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 }
 
 func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context, stageVersion *landscape.StageVersion) (*landscape.VectorDeployment, error) {
+	log := logf.FromContext(ctx)
 	vectorDeployment, err := r.constructVectorDeployment(stageVersion)
 	if err != nil {
 		return nil, fmt.Errorf("unable to construct vectorDeployment from template: %w", err)
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, vectorDeployment, func() error {
+	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, vectorDeployment, func() error {
 		// check if vectorDeployment has stageVersion owner ref
 		if err := util.SetOwnerReference(stageVersion, vectorDeployment, r.Scheme, false); err != nil {
 			return fmt.Errorf("unable to check vectorDeployment owner reference: %w", err)
 		}
 
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("failed to create or update vectorDeployment: %w", err)
 	}
+	msg := fmt.Sprintf("VectorDeployment %s for StageVersion %s: %s", vectorDeployment.Name, stageVersion.Name, operationResult)
+	r.Recorder.Event(stageVersion, corev1.EventTypeNormal, "VectorDeploymentReconciled", msg)
+	log.Info(msg)
 
 	return vectorDeployment, nil
 }
 
 func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context, stageVersion *landscape.StageVersion) (*landscape.VectorMigration, error) {
+	log := logf.FromContext(ctx)
 	vectorMigration, err := r.constructVectorMigration(stageVersion)
 	if err != nil {
 		return nil, fmt.Errorf("unable to construct vectorMigration from template: %w", err)
@@ -181,26 +192,33 @@ func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to create or update vectorMigration: %w", err)
 	}
-
+	msg := fmt.Sprintf("Created VectorMigration %s for StageVersion %s", vectorMigration.Name, stageVersion.Name)
+	r.Recorder.Event(stageVersion, corev1.EventTypeNormal, "VectorMigrationCreated", msg)
+	log.V(1).Info(msg)
 	return vectorMigration, nil
 }
 
 func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context, stageVersion *landscape.StageVersion, stageName string, vectorDeployment *landscape.VectorDeployment) (*landscape.VectorActivation, error) {
+	log := logf.FromContext(ctx)
 	vectorActivation, err := r.constructVectorActivation(stageVersion, stageName, vectorDeployment)
 	if err != nil {
 		return nil, fmt.Errorf("unable to construct vectorActivation from template: %w", err)
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, vectorActivation, func() error {
+	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, vectorActivation, func() error {
 		// check if vectorActivation has stageVersion controller ref
 		if err := util.SetOwnerReference(stageVersion, vectorActivation, r.Scheme, true); err != nil {
 			return fmt.Errorf("unable to check vectorActivation owner reference: %w", err)
 		}
 
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("failed to create or update vectorActivation: %w", err)
 	}
+	msg := fmt.Sprintf("VectorActivation %s for StageVersion %s: %s", vectorActivation.Name, stageVersion.Name, operationResult)
+	r.Recorder.Event(stageVersion, corev1.EventTypeNormal, "VectorActivationCreated", msg)
+	log.V(1).Info(msg)
 
 	return vectorActivation, nil
 }

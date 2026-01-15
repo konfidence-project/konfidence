@@ -2,16 +2,24 @@ package gc
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const StageVersionGarbageCollectorName = "stage-version-garbage-collector"
+
 type StageVersionGarbageCollector struct {
 	client.Client
 	Interval time.Duration
+	Recorder record.EventRecorder
 }
 
 func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
@@ -53,10 +61,22 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 			for _, stageVersion := range stageVersions.Items {
 				if !referencedStageVersions[stageVersion.Name] {
 					log.Info("Deleting stage version", "name", stageVersion.Name)
+
+					// read in the referenced stage to write a deletion event to it
+					stage := &common.Stage{}
+					if err := gc.Get(
+						ctx,
+						types.NamespacedName{Namespace: stageVersion.Namespace, Name: stageVersion.Spec.StageRef.Name},
+						stage,
+					); err != nil {
+						log.Error(err, "unable to read referenced Stage", "stageVersion", stageVersion.Name, "stage", stageVersion.Spec.StageRef.Name)
+						continue
+					}
 					if err := gc.Delete(ctx, &stageVersion); err != nil {
 						// we continue trying to delete other stageVersions and only log the error here
 						log.Error(err, "unable to delete stage version", "name", stageVersion.Name)
 					}
+					gc.Recorder.Event(stage, corev1.EventTypeNormal, "StageVersionDeleted", fmt.Sprintf("StageVersion %s has been deleted by the garbage collector", stageVersion.Name))
 				}
 			}
 

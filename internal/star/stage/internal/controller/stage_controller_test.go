@@ -42,8 +42,9 @@ var _ = Describe("Stage Controller", Ordered, func() {
 	BeforeAll(func() {
 		k8sClient, cancel = StartTestManagerWithReconciler(func(mgr ctrl.Manager) error {
 			return (&controller.StageReconciler{
-				Client: mgr.GetClient(),
-				Scheme: mgr.GetScheme(),
+				Client:   mgr.GetClient(),
+				Scheme:   mgr.GetScheme(),
+				Recorder: mgr.GetEventRecorderFor(controller.StageControllerName),
 			}).SetupWithManager(mgr)
 		},
 		)
