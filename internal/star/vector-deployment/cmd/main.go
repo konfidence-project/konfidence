@@ -74,6 +74,7 @@ func main() {
 	if err := (&controller.VectorDeploymentReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor(controller.VectorDeploymentControllerName),
 		OcmAdapter: ocmAdapter,
 	}).SetupWithManager(mgr, "vectordeployment"); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorDeployment")

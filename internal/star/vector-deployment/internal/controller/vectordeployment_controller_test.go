@@ -60,6 +60,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		reconciler = &VectorDeploymentReconciler{
 			Client:     k8sManager.GetClient(),
 			Scheme:     k8sManager.GetScheme(),
+			Recorder:   k8sManager.GetEventRecorderFor(VectorDeploymentControllerName),
 			OcmAdapter: ocmAdapterMock,
 		}
 		err := reconciler.SetupWithManager(k8sManager, controllerName)
