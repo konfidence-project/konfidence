@@ -71,8 +71,9 @@ func main() {
 	}
 
 	if err := (&controller.TaskOrchestrationReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Recoder: mgr.GetEventRecorderFor(controller.TaskOrchestrationControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "TaskOrchestration")
 		os.Exit(1)
