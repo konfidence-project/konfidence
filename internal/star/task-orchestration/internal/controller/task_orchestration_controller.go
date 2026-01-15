@@ -25,11 +25,13 @@ import (
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-task-orchestration-controller/internal/graph"
 	"golang.org/x/exp/maps"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,15 +41,17 @@ import (
 )
 
 const (
-	layerSucceeded          = 0
-	layerPartiallySucceeded = 1
-	layerPending            = 2
+	layerSucceeded                  = 0
+	layerPartiallySucceeded         = 1
+	layerPending                    = 2
+	TaskOrchestrationControllerName = "task-orchestration-controller"
 )
 
 // TaskOrchestrationReconciler reconciles a VectorMigration object
 type TaskOrchestrationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme  *runtime.Scheme
+	Recoder record.EventRecorder
 }
 
 type MapTasksResult struct {
@@ -142,6 +146,7 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 		if err := r.Delete(ctx, stageVersionUsage); err != nil {
 			return fmt.Errorf("unable to delete stageVersionUsage for vectorMigration: %w", err)
 		}
+		r.Recoder.Event(vectorMigration, corev1.EventTypeNormal, "StageVersionUsageDeleted", fmt.Sprintf("Deleted StageVersionUsage %s", stageVersionUsage.Name))
 
 		log.Info("VectorMigration reconciled")
 		return nil
@@ -191,7 +196,7 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 	log.Info("Cleaning up resources...")
 
 	// delete taskExecutions
-	if err := r.deleteTaskExecutions(ctx, maps.Values(mappedTasks.taskExecutionsByName)); err != nil {
+	if err := r.deleteTaskExecutions(ctx, maps.Values(mappedTasks.taskExecutionsByName), vectorMigration); err != nil {
 		return fmt.Errorf("unable to delete taskExecutions: %w", err)
 	}
 
@@ -199,7 +204,7 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 	if err := r.Delete(ctx, stageVersionUsage); err != nil {
 		return fmt.Errorf("unable to delete stageVersionUsage for vectorMigration: %w", err)
 	}
-
+	r.Recoder.Event(vectorMigration, corev1.EventTypeNormal, "StageVersionUsageDeleted", fmt.Sprintf("Deleted StageVersionUsage %s", stageVersionUsage.Name))
 	log.Info("VectorMigration reconciled")
 	return nil
 }
@@ -239,11 +244,12 @@ func (r *TaskOrchestrationReconciler) getTaskExecutions(ctx context.Context, req
 	return taskExecutions.Items, nil
 }
 
-func (r *TaskOrchestrationReconciler) deleteTaskExecutions(ctx context.Context, taskExecutions []landscape.TaskExecution) error {
+func (r *TaskOrchestrationReconciler) deleteTaskExecutions(ctx context.Context, taskExecutions []landscape.TaskExecution, vectorMigration *landscape.VectorMigration) error {
 	for _, taskExecution := range taskExecutions {
 		if err := r.Delete(ctx, &taskExecution); err != nil {
 			return fmt.Errorf("unable to delete taskExecution for vectorMigration: %w", err)
 		}
+		r.Recoder.Event(vectorMigration, corev1.EventTypeNormal, "TaskExecutionDeleted", fmt.Sprintf("Deleted TaskExecution %s", taskExecution.Name))
 	}
 
 	return nil
@@ -266,8 +272,9 @@ func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(ctx context.C
 		if err := r.Create(ctx, stageVersionUsage); err != nil {
 			return nil, fmt.Errorf("unable to create stageVersionUsage: %w", err)
 		}
-
-		log.V(1).Info("Created stageVersionUsage", "stageVersionUsage", stageVersionUsage)
+		msg := fmt.Sprintf("Created StageVersionUsage %s", stageVersionUsage.Name)
+		r.Recoder.Event(vectorMigration, corev1.EventTypeNormal, "StageVersionUsageCreated", msg)
+		log.V(1).Info(msg)
 	}
 
 	// check if stageVersionUsage has vectorMigration owner ref
@@ -363,10 +370,12 @@ func (r *TaskOrchestrationReconciler) processTaskLayer(ctx context.Context, vect
 				if err := r.Create(ctx, taskExecution); err != nil {
 					return status, fmt.Errorf("unable to create taskExecution: %w", err)
 				}
+				r.Recoder.Event(vectorMigration, corev1.EventTypeNormal, "TaskExecutionCreated", fmt.Sprintf("Created TaskExecution %s", taskExecution.Name))
 			}
 		}
 
 		if successfulTaskExecutionsByName[task.Name] {
+			r.Recoder.Event(vectorMigration, corev1.EventTypeNormal, "TaskExecutionSucceeded", fmt.Sprintf("TaskExecution %s succeeded", task.Name))
 			succeeded++
 		}
 	}
@@ -461,7 +470,7 @@ func (r *TaskOrchestrationReconciler) cleanupVectorMigration(ctx context.Context
 	}
 
 	// and delete tasks if necessary
-	if err := r.deleteTaskExecutions(ctx, taskExecutions); err != nil {
+	if err := r.deleteTaskExecutions(ctx, taskExecutions, vectorMigration); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to delete task executions: %w", err)
 	}
 
@@ -474,6 +483,7 @@ func (r *TaskOrchestrationReconciler) cleanupVectorMigration(ctx context.Context
 	if err := r.Delete(ctx, stageVersionUsage); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to delete stageVersionUsage for vectorMigration: %w", err)
 	}
+	r.Recoder.Event(vectorMigration, corev1.EventTypeNormal, "StageVersionUsageDeleted", fmt.Sprintf("Deleted StageVersionUsage %s", stageVersionUsage.Name))
 
 	log.Info("VectorMigration reconciled after resource cleanup")
 	return ctrl.Result{}, nil

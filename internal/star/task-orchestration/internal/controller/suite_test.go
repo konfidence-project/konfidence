@@ -96,8 +96,9 @@ var _ = BeforeSuite(func() {
 	reconcileScheme = k8sManager.GetScheme()
 
 	err = (&TaskOrchestrationReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
+		Client:  k8sManager.GetClient(),
+		Scheme:  k8sManager.GetScheme(),
+		Recoder: k8sManager.GetEventRecorderFor(TaskOrchestrationControllerName),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
