@@ -23,10 +23,13 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,16 +38,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller/domain"
 )
+
+const VectorDeploymentControllerName = "vector-deployment-controller"
 
 // VectorDeploymentReconciler reconciles a VectorDeployment object
 type VectorDeploymentReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
+	Recorder   record.EventRecorder
 	OcmAdapter domain.VectorOcmPort
 }
 
@@ -203,8 +206,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 			if err := r.Create(ctx, artifactDeployment); err != nil {
 				return false, fmt.Errorf("failed to ArtifactDeployment resource %s: %w", deploymentName, err)
 			}
-
-			log.Info("Created ArtifactDeployment", "name", deploymentName)
+			msg := fmt.Sprintf("Created ArtifactDeployment %s for VectorDeployment %s", deploymentName, vectorDeployment.Name)
+			r.Recorder.Event(vectorDeployment, corev1.EventTypeNormal, "ArtifactDeploymentCreated", msg)
+			log.Info(msg)
 		} else {
 			log.Info("ArtifactDeployment found, update existing one", "name", deploymentName)
 		}
@@ -226,6 +230,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 			if err := r.Update(ctx, artifactDeployment); err != nil {
 				return false, fmt.Errorf("failed to set owner reference for ArtifactDeployment %q: %w", artifactDeployment.Name, err)
 			}
+			r.Recorder.Event(vectorDeployment, corev1.EventTypeNormal, "ArtifactDeploymentUpdated", fmt.Sprintf("Updated owner reference for ArtifactDeployment %s", artifactDeployment.Name))
 		} else {
 			log.Info("ArtifactDeployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", artifactDeployment.Name)
 		}
@@ -300,8 +305,9 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 			if err := r.Create(ctx, vectorAssignment); err != nil {
 				return false, fmt.Errorf("failed to create VectorAssignment %q: %w", assignmentName, err)
 			}
-
-			log.Info("Created VectorAssignment", "name", assignmentName)
+			msg := fmt.Sprintf("Created VectorAssignment %s", assignmentName)
+			r.Recorder.Event(vectorDeployment, corev1.EventTypeNormal, "VectorAssignmentCreated", msg)
+			log.Info(msg)
 		} else {
 			log.Info("VectorAssignment found, update existing one", "name", assignmentName)
 		}
@@ -323,6 +329,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 			if err := r.Update(ctx, vectorAssignment); err != nil {
 				return false, fmt.Errorf("failed to set owner reference for VectorAssignment %q: %w", vectorAssignment.Name, err)
 			}
+			r.Recorder.Event(vectorDeployment, corev1.EventTypeNormal, "VectorAssignmentUpdated", fmt.Sprintf("Updated owner reference for VectorAssignment %s", vectorAssignment.Name))
 		} else {
 			log.Info("Vector deployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", vectorAssignment.Name)
 		}
