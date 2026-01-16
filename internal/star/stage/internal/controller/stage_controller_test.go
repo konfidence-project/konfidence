@@ -55,7 +55,6 @@ var _ = Describe("Stage Controller", Ordered, func() {
 
 	const (
 		StageDev                    = "stage-dev"
-		StageDevSpecName            = "dev"
 		StageVersion                = "stage-version-z3q9efdlno78"
 		StageVersionUpdated         = "stage-version-u67xcg4acsv0"
 		Namespace                   = "default"
@@ -78,14 +77,14 @@ var _ = Describe("Stage Controller", Ordered, func() {
 	Context("When reconciling a stage", func() {
 		It("should successfully reconcile the stage", func() {
 			ctx := context.Background()
-			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
 
 			// check that the stage has been created and has valid properties
 			stage := &common.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
-				g.Expect(stage.Spec.Name).To(Equal(StageDevSpecName))
+				g.Expect(stage.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 
 			adaptedVectorName, err := testutil.AdaptVectorName(stage.Spec.Vector)
@@ -106,19 +105,19 @@ var _ = Describe("Stage Controller", Ordered, func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
 			verifyStageReady(ctx, k8sClient, StageDev, Namespace, timeout, interval)
 		})
 		It("should update existing target stageVersionUsage with new stage vector", func() {
 			ctx := context.Background()
-			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
 
 			// check that the stage has been created and has valid properties
 			stage := &common.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
-				g.Expect(stage.Spec.Name).To(Equal(StageDevSpecName))
+				g.Expect(stage.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 
 			adaptedVectorName, err := testutil.AdaptVectorName(stage.Spec.Vector)
@@ -145,14 +144,14 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to get adapted vector name")
 
 			testutil.CreateStageVersionUsageWithSelector(ctx, k8sClient, StageVersionManuallyCreated, Namespace, StageDev, VectorName001, true)
-			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDevSpecName, Vector001)
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
 
 			// check that the stage has been created and has valid properties
 			stage := &common.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
-				g.Expect(stage.Spec.Name).To(Equal(StageDevSpecName))
+				g.Expect(stage.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 
 			// check that only one targetUsage remains and that it has valid properties

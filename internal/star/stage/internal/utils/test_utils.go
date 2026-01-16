@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, specName string, vectorName string) {
+func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
 	stage := &common.Stage{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "common.konfidence.cloud/v1alpha1",
@@ -24,7 +24,6 @@ func CreateStage(ctx context.Context, k8sClient client.Client, name string, name
 			Namespace: namespace,
 		},
 		Spec: common.StageSpec{
-			Name:   specName,
 			Vector: vectorName,
 		},
 	}
