@@ -220,7 +220,6 @@ func SetupResources() {
 				Namespace: Namespace,
 			},
 			Spec: common.StageSpec{
-				Name:   StageName,
 				Vector: Vector001,
 			},
 		}
