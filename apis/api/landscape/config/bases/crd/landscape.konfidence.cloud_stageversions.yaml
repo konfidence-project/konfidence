@@ -15,6 +15,10 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - description: Name of the referenced Stage
+      jsonPath: .spec.stageRef.name
+      name: Stage
+      type: string
     - description: The object generation of the stage
       jsonPath: .spec.stage_generation
       name: Stage-Generation
@@ -23,6 +27,10 @@ spec:
       jsonPath: .spec.vector
       name: Vector
       type: string
+    - description: Time since creation of StageVersion
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -56,8 +64,8 @@ spec:
                 minimum: 1
                 type: integer
               stageRef:
-                description: StageReference holds a reference to a Stage in the same
-                  namespace.
+                description: stageRef references the Stage this StageVersion belongs
+                  to
                 properties:
                   name:
                     description: Name is the name of the Stage. Required.
