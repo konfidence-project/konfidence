@@ -31,6 +31,11 @@ func DNSSubdomainName(name string) string {
 	return sanitizeName(name, `[^a-z0-9-.]`, 253)
 }
 
+// ResourceName makes a string RFC 1123 DNS subdomain name compatible but only allows dashes and not dots
+func ResourceName(name string) string {
+	return sanitizeName(name, `[^a-z0-9-]`, 253)
+}
+
 func sanitizeName(name string, pattern string, maxLen int) string {
 	// lowercase the name
 	name = strings.ToLower(name)
