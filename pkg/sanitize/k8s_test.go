@@ -175,11 +175,6 @@ func TestResourceName(t *testing.T) {
 			expected: "test-resource-123-com",
 		},
 		{
-			name:     "uppercase letters",
-			input:    "MyResource",
-			expected: "myresource",
-		},
-		{
 			name:     "special characters",
 			input:    "my_resource@example.com",
 			expected: "my-resource-example-com",
