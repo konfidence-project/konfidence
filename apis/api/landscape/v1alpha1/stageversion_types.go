@@ -59,6 +59,8 @@ type StageVersionSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	StageGeneration int64 `json:"stageGeneration"`
 
+	// stageRef references the Stage this StageVersion belongs to
+	// +kubebuilder:validation:required
 	StageRef *StageReference `json:"stageRef"`
 }
 
@@ -72,8 +74,10 @@ type StageVersionStatus struct {
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
 
 // StageVersion is the Schema for the stageversions API
+// +kubebuilder:printcolumn:name="Stage",type=string,JSONPath=".spec.stageRef.name",description="Name of the referenced Stage"
 // +kubebuilder:printcolumn:name="Stage-Generation",type=integer,JSONPath=".spec.stage_generation",description="The object generation of the stage"
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=".spec.vector",description="The deployment vector for this stage"
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Time since creation of StageVersion"
 type StageVersion struct {
 	metav1.TypeMeta `json:",inline"`
 

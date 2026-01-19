@@ -480,7 +480,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  | MinLength: 1 <br /> |
 | `stageGeneration` _integer_ | the object generation of the stage that created this stage version |  | Minimum: 1 <br /> |
-| `stageRef` _[StageReference](#stagereference)_ |  |  |  |
+| `stageRef` _[StageReference](#stagereference)_ | stageRef references the Stage this StageVersion belongs to |  |  |
 
 
 #### StageVersionStatus
