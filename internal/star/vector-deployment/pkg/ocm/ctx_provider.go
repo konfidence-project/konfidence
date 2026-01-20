@@ -84,7 +84,7 @@ func (p *Provider) GetCredentials(ctx context.Context, namespace string, registr
 	secretName := secretNameByConfigMap
 	if secretName == "" {
 		// alternatively try to get secret by domain name
-		secretName = sanitize.DNSSubdomainName(domain)
+		secretName = sanitize.ResourceName(domain)
 	}
 
 	secret := &v1.Secret{}
