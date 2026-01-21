@@ -8,6 +8,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: StageVersion
     listKind: StageVersionList
     plural: stageversions
@@ -20,7 +23,7 @@ spec:
       name: Stage
       type: string
     - description: The object generation of the stage
-      jsonPath: .spec.stage_generation
+      jsonPath: .spec.stageGeneration
       name: Stage-Generation
       type: integer
     - description: The deployment vector for this stage

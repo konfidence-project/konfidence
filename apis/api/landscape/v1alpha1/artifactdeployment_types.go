@@ -129,14 +129,15 @@ type DeploymentResult struct {
 	Spec runtime.RawExtension `json:"spec"`
 }
 
+// ArtifactDeployment is the Schema for the artifactdeployments API.
+//
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:printcolumn:name="Fetched",type="string",JSONPath=".status.conditions[?(@.type==\"ArtifactFetched\")].status",description=""
 // +kubebuilder:printcolumn:name="Deployed",type="string",JSONPath=".status.conditions[?(@.type==\"ArtifactDeployed\")].status",description=""
 // +kubebuilder:printcolumn:name="Healthy",type="string",JSONPath=".status.conditions[?(@.type==\"AppHealthy\")].message",description=""
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
-
-// ArtifactDeployment is the Schema for the artifactdeployments API.
 type ArtifactDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

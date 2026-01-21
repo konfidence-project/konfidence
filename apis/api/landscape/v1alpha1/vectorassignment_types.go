@@ -69,17 +69,18 @@ type VectorAssignmentStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
-// +kubebuilder:printcolumn:name="Artifact-Deployment",type=string,JSONPath=".spec.artifactDeploymentRef.name",description="The name of the ArtifactDeployment"
-// +kubebuilder:printcolumn:name="Vector-Deployment",type=string,JSONPath=".spec.vectorDeploymentRef.name",description="The name of the VectorDeployment"
-
 // VectorAssignment is the Schema for the vectorassignments API.
 //
 // A VectorAssignment represents a single binding between a VectorDeployment and an ArtifactDeployment. It enables
 // an n:m mapping where a single artifact may be reused across multiple vectors. These objects are automatically
 // managed by the vector-deployment-controller and reconciled by deployers to apply vector-specific configuration.
+//
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:categories=konfidence;kden
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
+// +kubebuilder:printcolumn:name="Artifact-Deployment",type=string,JSONPath=".spec.artifactDeploymentRef.name",description="The name of the ArtifactDeployment"
+// +kubebuilder:printcolumn:name="Vector-Deployment",type=string,JSONPath=".spec.vectorDeploymentRef.name",description="The name of the VectorDeployment"
 type VectorAssignment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

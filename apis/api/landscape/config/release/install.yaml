@@ -7,6 +7,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: ActivationTaskExecution
     listKind: ActivationTaskExecutionList
     plural: activationtaskexecutions
@@ -147,6 +150,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: ActivationTaskRegistration
     listKind: ActivationTaskRegistrationList
     plural: activationtaskregistrations
@@ -296,6 +302,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: ArtifactDeployment
     listKind: ArtifactDeploymentList
     plural: artifactdeployments
@@ -578,6 +587,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: StageVersion
     listKind: StageVersionList
     plural: stageversions
@@ -590,7 +602,7 @@ spec:
       name: Stage
       type: string
     - description: The object generation of the stage
-      jsonPath: .spec.stage_generation
+      jsonPath: .spec.stageGeneration
       name: Stage-Generation
       type: integer
     - description: The deployment vector for this stage
@@ -734,6 +746,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: StageVersionUsage
     listKind: StageVersionUsageList
     plural: stageversionusages
@@ -928,6 +943,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: TaskExecution
     listKind: TaskExecutionList
     plural: taskexecutions
@@ -1065,6 +1083,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: VectorActivation
     listKind: VectorActivationList
     plural: vectoractivations
@@ -1206,6 +1227,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: VectorAssignment
     listKind: VectorAssignmentList
     plural: vectorassignments
@@ -1392,6 +1416,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: VectorDeployment
     listKind: VectorDeploymentList
     plural: vectordeployments
@@ -1615,6 +1642,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: VectorMigration
     listKind: VectorMigrationList
     plural: vectormigrations

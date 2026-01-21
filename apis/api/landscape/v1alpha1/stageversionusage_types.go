@@ -56,10 +56,11 @@ type StageVersionUsageStatus struct {
 	ResolvedStageVersions []string `json:"resolvedStageVersions,omitempty"`
 }
 
+// StageVersionUsage is the Schema for the stageversionusages API
+//
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-
-// StageVersionUsage is the Schema for the stageversionusages API
+// +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:printcolumn:name="Stage-Version-Ref",type=string,JSONPath=".spec.stageVersionRef.name",description="The referenced StageVersion"
 // +kubebuilder:printcolumn:name="Stage-Version-Selector",type=string,JSONPath=".spec.stageVersionSelector",description="The label selector for the StageVersion"
 // +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".spec.reason",description="The reason for this StageVersion usage"

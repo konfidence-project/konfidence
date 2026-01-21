@@ -57,14 +57,15 @@ type VectorActivationStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
+// VectorActivation is the Schema for the vectoractivations API
+//
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:printcolumn:name="Stage",type=string,JSONPath=".spec.stage",description="The stage of the activation"
 // +kubebuilder:printcolumn:name="Stage-Version",type=string,JSONPath=".spec.stageVersion",description="The version of the stage"
 // +kubebuilder:printcolumn:name="Condition",type=string,JSONPath=".status.conditions[-1:].type",description="The latest condition type"
 // +kubebuilder:printcolumn:name="Condition-Status",type=string,JSONPath=".status.conditions[-1:].status",description="The latest condition status"
-
-// VectorActivation is the Schema for the vectoractivations API
 type VectorActivation struct {
 	metav1.TypeMeta `json:",inline"`
 

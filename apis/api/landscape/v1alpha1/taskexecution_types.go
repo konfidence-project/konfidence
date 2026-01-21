@@ -54,10 +54,11 @@ type TaskExecutionStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
+// TaskExecution is the Schema for the taskexecutions API
+//
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-
-// TaskExecution is the Schema for the taskexecutions API
+// +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=".spec.type",description="The type of the task execution"
 // +kubebuilder:printcolumn:name="Condition",type=string,JSONPath=".status.conditions[-1:].type",description="The latest condition type"
 // +kubebuilder:printcolumn:name="Condition-Status",type=string,JSONPath=".status.conditions[-1:].status",description="The latest condition status"

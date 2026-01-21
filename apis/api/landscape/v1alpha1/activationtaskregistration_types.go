@@ -59,10 +59,11 @@ type ActivationTaskRegistrationStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
+// ActivationTaskRegistration is the Schema for the activationtaskregistrations API
+//
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-
-// ActivationTaskRegistration is the Schema for the activationtaskregistrations API
+// +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=".spec.type",description="The type of registered activation task"
 type ActivationTaskRegistration struct {
 	metav1.TypeMeta `json:",inline"`

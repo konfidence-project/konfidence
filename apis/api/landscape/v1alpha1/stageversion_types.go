@@ -69,13 +69,14 @@ type StageVersionStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
+// StageVersion is the Schema for the stageversions API
+//
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
-
-// StageVersion is the Schema for the stageversions API
 // +kubebuilder:printcolumn:name="Stage",type=string,JSONPath=".spec.stageRef.name",description="Name of the referenced Stage"
-// +kubebuilder:printcolumn:name="Stage-Generation",type=integer,JSONPath=".spec.stage_generation",description="The object generation of the stage"
+// +kubebuilder:printcolumn:name="Stage-Generation",type=integer,JSONPath=".spec.stageGeneration",description="The object generation of the stage"
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=".spec.vector",description="The deployment vector for this stage"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Time since creation of StageVersion"
 type StageVersion struct {
