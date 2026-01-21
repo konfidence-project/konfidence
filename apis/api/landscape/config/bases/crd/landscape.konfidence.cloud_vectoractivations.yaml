@@ -8,6 +8,9 @@ metadata:
 spec:
   group: landscape.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: VectorActivation
     listKind: VectorActivationList
     plural: vectoractivations

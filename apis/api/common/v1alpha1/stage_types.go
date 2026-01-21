@@ -62,11 +62,12 @@ type StageStatus struct {
 	LatestVectorDeploymentRef corev1.TypedObjectReference `json:"latestVectorDeploymentRef,omitempty"`
 }
 
+// Stage is the Schema for the stages API.
+//
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=`.spec.vector`
-
-// Stage is the Schema for the stages API.
 type Stage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
