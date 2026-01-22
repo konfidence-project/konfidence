@@ -31,7 +31,7 @@ import (
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/ocm"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
 )
 
 const (
