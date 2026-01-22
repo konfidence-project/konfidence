@@ -13,7 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name string, namespace string, vector string) {
+func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name string, namespace string,
+	stageName string, vector string) {
 	stageConfiguration := &global.StageConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "global.konfidence.cloud/v1alpha1",
@@ -24,6 +25,7 @@ func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name
 			Namespace: namespace,
 		},
 		Spec: global.StageConfigurationSpec{
+			Name:   stageName,
 			Vector: vector,
 		},
 	}
@@ -31,7 +33,8 @@ func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name
 	Expect(k8sClient.Create(ctx, stageConfiguration)).To(Succeed())
 }
 
-func GetStageConfiguration(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *global.StageConfiguration {
+func GetStageConfiguration(ctx context.Context, k8sClient client.Client,
+	name string, namespace string, opt bool) *global.StageConfiguration {
 	stageConfiguration := &global.StageConfiguration{}
 	stageConfigurationLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)
@@ -73,4 +76,12 @@ func GetStage(ctx context.Context, k8sClient client.Client, name string, namespa
 
 	Expect(err).ToNot(HaveOccurred(), "Failed to fetch stage: %s", name)
 	return stage
+}
+
+func CleanupResources(ctx context.Context, k8sClient client.Client, namespace string) {
+	err := k8sClient.DeleteAllOf(ctx, &global.StageConfiguration{}, client.InNamespace(namespace))
+	Expect(err).ToNot(HaveOccurred())
+
+	err = k8sClient.DeleteAllOf(ctx, &common.Stage{}, client.InNamespace(namespace))
+	Expect(err).ToNot(HaveOccurred())
 }
