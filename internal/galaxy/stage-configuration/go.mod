@@ -7,6 +7,7 @@ require (
 	github.com/konfidence-project/crds/api/global v0.0.1
 	github.com/onsi/ginkgo/v2 v2.25.3
 	github.com/onsi/gomega v1.38.2
+	go.uber.org/mock v0.6.0
 	k8s.io/apimachinery v0.34.2
 	k8s.io/client-go v0.34.1
 	ocm.software/open-component-model/bindings/go/oci v0.0.26
