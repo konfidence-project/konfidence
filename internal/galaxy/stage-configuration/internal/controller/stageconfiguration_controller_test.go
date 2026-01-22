@@ -23,19 +23,25 @@ import (
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/ocm/mocks"
+	testutil "github.com/konfidence-project/gcp-stage-configuration-controller/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("StageConfiguration Controller", func() {
+var _ = Describe("Stage Configuration Controller", Ordered, func() {
 	const (
-		Vector           = "http://localhost:5100//konfidence.cloud/project/constructed-vector"
-		DefaultNameSpace = "default"
-		timeout          = time.Second * 10
-		interval         = time.Millisecond * 250
+		StageConfiguration = "stage-configuration-dev"
+		StageDev           = "stage-dev"
+		V100               = "1.0.0"
+		V101               = "1.0.1"
+		Vector             = "http://localhost:5100//konfidence.cloud/project/constructed-vector"
+		VectorV100         = "http://localhost:5100//konfidence.cloud/project/constructed-vector" + ":" + V100
+		VectorV101         = "http://localhost:5100//konfidence.cloud/project/constructed-vector" + ":" + V101
+		Namespace          = "default"
+		timeout            = time.Second * 10
+		interval           = time.Millisecond * 250
 	)
 
 	var (
@@ -44,7 +50,7 @@ var _ = Describe("StageConfiguration Controller", func() {
 		mockCtrl      *gomock.Controller
 	)
 
-	BeforeEach(func() {
+	BeforeAll(func() {
 		// mock setup
 		mockCtrl = gomock.NewController(GinkgoT())
 		ocmClientMock = mocks.NewMockClient(mockCtrl)
@@ -58,28 +64,77 @@ var _ = Describe("StageConfiguration Controller", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	AfterEach(func() {
-		ctx := context.Background()
-		managerClient := k8sManager.GetClient()
-
-		// Cleanup Resources
-		err := managerClient.DeleteAllOf(ctx, &global.StageConfiguration{}, client.InNamespace(DefaultNameSpace))
-		Expect(err).ToNot(HaveOccurred())
-
-		err = managerClient.DeleteAllOf(ctx, &common.Stage{}, client.InNamespace(DefaultNameSpace))
-		Expect(err).ToNot(HaveOccurred())
-
+	AfterAll(func() {
 		if mockCtrl != nil {
 			mockCtrl.Finish()
 		}
 	})
 
+	BeforeEach(func() {
+		testutil.CleanupResources(context.Background(), k8sClient, Namespace)
+	})
+
+	AfterEach(func() {
+		testutil.CleanupResources(context.Background(), k8sClient, Namespace)
+	})
+
 	Context("When reconciling a stageConfiguration", func() {
 		It("should successfully create a stage with latest vector version ", func() {
-		
+			ctx := context.Background()
+			ocmClientMock.EXPECT().GetLatestComponentVersion(gomock.Any(), Vector).Return(V100, nil)
+			testutil.CreateStageConfiguration(ctx, k8sClient, StageConfiguration, Namespace, StageDev, Vector)
+
+			// check that the stage configuration has been created and has valid properties
+			stageConfiguration := &global.StageConfiguration{}
+			stageConfigurationLookupKey := types.NamespacedName{Name: StageConfiguration, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
+				g.Expect(stageConfiguration.Spec.Name).To(Equal(StageDev))
+				g.Expect(stageConfiguration.Spec.Vector).To(Equal(Vector))
+			}, timeout, interval).Should(Succeed())
+
+			// check that the stage has been created and has valid properties
+			stage := &common.Stage{}
+			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+				g.Expect(stage.Name).To(Equal(StageDev))
+				g.Expect(stage.Spec.Vector).To(Equal(VectorV100))
+			}, timeout, interval).Should(Succeed())
 		})
 		It("should successfully update an existing stage with latest vector version ", func() {
+			ctx := context.Background()
+			ocmClientMock.EXPECT().GetLatestComponentVersion(gomock.Any(), Vector).Return(V101, nil)
 
+			// create stage with v1.0.0 vector version
+			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, VectorV100)
+
+			// check that the stage has been created and has valid properties
+			stage := &common.Stage{}
+			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+				g.Expect(stage.Name).To(Equal(StageDev))
+				g.Expect(stage.Spec.Vector).To(Equal(VectorV100))
+			}, timeout, interval).Should(Succeed())
+
+			// create stage configuration
+			testutil.CreateStageConfiguration(ctx, k8sClient, StageConfiguration, Namespace, StageDev, Vector)
+
+			// check that the stage configuration has been created and has valid properties
+			stageConfiguration := &global.StageConfiguration{}
+			stageConfigurationLookupKey := types.NamespacedName{Name: StageConfiguration, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
+				g.Expect(stageConfiguration.Spec.Name).To(Equal(StageDev))
+				g.Expect(stageConfiguration.Spec.Vector).To(Equal(Vector))
+			}, timeout, interval).Should(Succeed())
+
+			// check that the stage has been updated with new vector version
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+				g.Expect(stage.Spec.Vector).To(Equal(VectorV101))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 })

@@ -42,11 +42,11 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	ctx       context.Context
-	cancel    context.CancelFunc
-	testEnv   *envtest.Environment
-	cfg       *rest.Config
-	k8sClient client.Client
+	ctx        context.Context
+	cancel     context.CancelFunc
+	testEnv    *envtest.Environment
+	cfg        *rest.Config
+	k8sClient  client.Client
 	k8sManager ctrl.Manager
 )
 
