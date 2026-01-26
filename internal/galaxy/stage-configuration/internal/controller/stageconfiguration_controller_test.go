@@ -59,6 +59,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			Client:    k8sManager.GetClient(),
 			Scheme:    k8sManager.GetScheme(),
 			OCMClient: ocmClientMock,
+			Recorder:  k8sManager.GetEventRecorderFor(StageConfigurationControllerName),
 		}
 		err := reconciler.SetupWithManager(k8sManager)
 		Expect(err).ToNot(HaveOccurred())
