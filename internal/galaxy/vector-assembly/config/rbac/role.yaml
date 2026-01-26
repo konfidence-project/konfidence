@@ -9,19 +9,9 @@ rules:
   resources:
   - vectortemplates
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
-- apiGroups:
-  - global.konfidence.cloud
-  resources:
-  - vectortemplates/finalizers
-  verbs:
-  - update
 - apiGroups:
   - global.konfidence.cloud
   resources:

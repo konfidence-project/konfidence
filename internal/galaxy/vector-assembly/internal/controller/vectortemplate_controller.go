@@ -42,9 +42,8 @@ type VectorTemplateReconciler struct {
 	OcmAdapter domain.VectorOcmPort
 }
 
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectortemplates,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectortemplates/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectortemplates/finalizers,verbs=update
 
 // Reconcile the VectorTemplate object to detect a vector drift and act upon it.
 func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
