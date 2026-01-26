@@ -22,8 +22,10 @@ import (
 	"reflect"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -35,7 +37,8 @@ import (
 )
 
 const (
-	DefaultReconcileInterval = 30 * time.Second
+	DefaultReconcileInterval         = 30 * time.Second
+	StageConfigurationControllerName = "stage-configuration-controller"
 )
 
 // StageConfigurationReconciler reconciles a StageConfiguration object
@@ -43,6 +46,7 @@ type StageConfigurationReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
 	OCMClient ocm.Client
+	Recorder  record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -97,24 +101,29 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	vector := stageConfiguration.Spec.Vector + ":" + latestVersion
 
 	// create or update stage
-	_, err = r.createOrUpdateStage(ctx, stageConfiguration, vector)
+	stage, operationResult, err := r.createOrUpdateStage(ctx, stageConfiguration, vector)
 	if err != nil {
 		return err
 	}
 
-	log.Info("StageConfiguration reconciled")
+	msg := fmt.Sprintf("Stage %s %s with StageConfiguration %s", stage.Name, operationResult, stageConfiguration.Name)
+	r.Recorder.Event(stageConfiguration, v1.EventTypeNormal, "StageConfigurationReconciled", msg)
+	log.Info(msg)
 	return nil
 }
 
-func (r *StageConfigurationReconciler) createOrUpdateStage(ctx context.Context, stageConfiguration *global.StageConfiguration, vector string) (*common.Stage, error) {
+func (r *StageConfigurationReconciler) createOrUpdateStage(ctx context.Context, stageConfiguration *global.StageConfiguration, vector string) (*common.Stage, controllerutil.OperationResult, error) {
 	stage := r.constructStage(stageConfiguration, vector)
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, stage, func() error {
+	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, stage, func() error {
 		stage.Spec.Vector = vector
 		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("failed to create or update stage: %w", err)
+	})
+
+	if err != nil {
+		return nil, operationResult, fmt.Errorf("failed to create or update stage: %w", err)
 	}
-	return stage, nil
+
+	return stage, operationResult, nil
 }
 
 func (r *StageConfigurationReconciler) constructStage(stageConfiguration *global.StageConfiguration, vector string) *common.Stage {
@@ -133,6 +142,6 @@ func (r *StageConfigurationReconciler) constructStage(stageConfiguration *global
 func (r *StageConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&global.StageConfiguration{}).
-		Named("stageConfiguration").
+		Named(StageConfigurationControllerName).
 		Complete(r)
 }
