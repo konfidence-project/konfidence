@@ -7,7 +7,6 @@ import (
 	"hash/fnv"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
 	ocmDescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
@@ -16,7 +15,6 @@ import (
 	"ocm.software/open-component-model/bindings/go/repository"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/retry"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -42,22 +40,19 @@ func (a Adapter) GetLatestArtifactVersions(ctx context.Context, references []dom
 	return artifacts, nil
 }
 
-func (a Adapter) GetLatestArtifactsFromVector(ctx context.Context, vectorRef domain.OcmReference) ([]domain.Artifact, error) {
+func (a Adapter) GetLatestVector(ctx context.Context, vectorRef domain.OcmReference) (domain.Vector, error) {
 	version, err := a.getLatestComponentVersion(ctx, vectorRef)
 	if errors.Is(err, ErrComponentNotFound) {
-		log := logf.FromContext(ctx)
-		log.Info("Vector not found in OCM repository", "vector", vectorRef)
-		return nil, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("unable to get latest ocm component version for vector (%s): %w", vectorRef, err)
+		return domain.Vector{}, errors.Join(domain.ErrVectorNotFound, err)
 	}
-
+	if err != nil {
+		return domain.Vector{}, fmt.Errorf("unable to get latest version for vector ocm component (%s): %w", vectorRef, err)
+	}
 	descriptor, err := a.getDescriptorForVersion(ctx, vectorRef, version)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get descriptor for latest ocm component version (%s) for vector (%s): %w", version, vectorRef, err)
+		return domain.Vector{}, fmt.Errorf("unable to get descriptor for latest ocm component version (%s) for vector (%s): %w", version, vectorRef, err)
 	}
-
-	return mapToDomain(descriptor.Component.References), nil
+	return mapToDomain(version, vectorRef, descriptor.Component.References), nil
 }
 
 func (a Adapter) CreateVector(ctx context.Context, vector domain.Vector) error {
@@ -151,19 +146,23 @@ func (a Adapter) getOcmComponentVersionRepository(reference domain.OcmReference)
 	return repo, nil
 }
 
-func mapToDomain(refs []ocmDescriptor.Reference) []domain.Artifact {
-	artifacts := make([]domain.Artifact, 0, len(refs))
-	for _, ref := range refs {
-		e := domain.Artifact{
+func mapToDomain(version string, vectorRef domain.OcmReference, artifactRefs []ocmDescriptor.Reference) domain.Vector {
+	artifacts := make([]domain.Artifact, 0, len(artifactRefs))
+	for _, ref := range artifactRefs {
+		artifact := domain.Artifact{
 			Version: ref.Version,
 			OcmReference: domain.OcmReference{
 				Component:  ref.Component,
 				Repository: "", // will be removed when repository is configurable
 			},
 		}
-		artifacts = append(artifacts, e)
+		artifacts = append(artifacts, artifact)
 	}
-	return artifacts
+	return domain.Vector{
+		Version:   version,
+		Reference: vectorRef,
+		Artifacts: artifacts,
+	}
 }
 
 func mapToDescriptor(vector domain.Vector) ocmDescriptor.Descriptor {
@@ -178,9 +177,8 @@ func mapToDescriptor(vector domain.Vector) ocmDescriptor.Descriptor {
 		Component: ocmDescriptor.Component{
 			ComponentMeta: ocmDescriptor.ComponentMeta{
 				ObjectMeta: ocmDescriptor.ObjectMeta{
-					Name: vector.Reference.Component,
-					// TODO: use https://github.com/open-component-model/ocm-spec/blob/main/doc/04-extensions/03-storage-backends/oci.md#121-version-aliasing
-					Version: time.Now().UTC().Format("2006.1.2-150405000Z"),
+					Name:    vector.Reference.Component,
+					Version: vector.Version,
 				},
 			},
 			RepositoryContexts: nil,
