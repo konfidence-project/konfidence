@@ -9,23 +9,25 @@ import (
 	"ocm.software/open-component-model/bindings/go/runtime"
 )
 
+var ErrVectorNotFound = fmt.Errorf("vector not found in OCM repository")
+
 // VectorOcmPort defines the interface for interacting with the OCM repository for vector operations.
 type VectorOcmPort interface {
 
 	// GetLatestArtifactVersions resolves the versions of the given components in the OCM repository.
 	GetLatestArtifactVersions(ctx context.Context, references []OcmReference) ([]Artifact, error)
 
-	// GetLatestArtifactsFromVector retrieves the latest artifacts by the given vector reference from the OCM repository.
-	GetLatestArtifactsFromVector(ctx context.Context, vectorRef OcmReference) ([]Artifact, error)
+	// GetLatestVector retrieves the latest vector from the OCM repository.
+	GetLatestVector(ctx context.Context, vectorRef OcmReference) (Vector, error)
 
 	// CreateVector creates a new vector in the OCM repository.
 	CreateVector(ctx context.Context, vector Vector) error
 }
 
 type Vector struct {
-	BaseReference *OcmReference
-	Reference     OcmReference
-	Artifacts     []Artifact
+	Version   string
+	Reference OcmReference
+	Artifacts []Artifact
 }
 
 type Artifact struct {

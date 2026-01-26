@@ -79,6 +79,7 @@ func main() {
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
 		OcmAdapter: ocm.NewOcmAdapter(),
+		Recorder:   mgr.GetEventRecorder(controller.VectorAssemblyControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorTemplate")
 		os.Exit(1)
