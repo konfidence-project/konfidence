@@ -20,6 +20,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// VectorTemplateReadyCondition is the ready condition for the VectorTemplate resource.
+	VectorTemplateReadyCondition = "Ready"
+
+	// VectorTemplateVectorCreatedReason indicates that a new vector was created.
+	VectorTemplateVectorCreatedReason = "VectorCreated"
+	// VectorTemplateNoDriftDetectedReason indicates that no drift was detected.
+	VectorTemplateNoDriftDetectedReason = "NoDriftDetected"
+	// VectorTemplateVectorCreationFailedReason indicates that vector creation failed.
+	VectorTemplateVectorCreationFailedReason = "VectorCreationFailed"
+	// VectorTemplateDriftDetectionFailedReason indicates that drift detection failed.
+	VectorTemplateDriftDetectionFailedReason = "DriftDetectionFailed"
+)
+
 // VectorTemplateSpec defines the desired state of VectorTemplate.
 // VectorTemplateSpec defines the components of which a vector is composed.
 // From a VectorTemplate an OCM component is created which contains the latest version of all listed components.
