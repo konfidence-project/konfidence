@@ -1,4 +1,0 @@
-## Append samples of your project ##
-resources:
-- global_v1alpha1_vectortemplate.yaml
-# +kubebuilder:scaffold:manifestskustomizesamples
