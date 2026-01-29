@@ -3,7 +3,7 @@ module github.com/konfidence-project/gcp-vector-assembly-controller
 go 1.25.6
 
 require (
-	github.com/konfidence-project/crds/api/global v0.1.0
+	github.com/konfidence-project/crds/api/global v0.2.0
 	github.com/onsi/ginkgo/v2 v2.27.5
 	github.com/onsi/gomega v1.39.0
 	go.uber.org/mock v0.6.0
