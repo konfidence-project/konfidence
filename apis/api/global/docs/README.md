@@ -112,7 +112,8 @@ _Appears in:_
 
 
 
-VectorTemplate is the Schema for the vectortemplates API
+VectorTemplate represents a template for assembling OCM components into an OCM component
+that represents a vector.
 
 
 

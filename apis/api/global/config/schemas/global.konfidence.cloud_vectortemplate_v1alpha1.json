@@ -1,5 +1,5 @@
 {
-  "description": "VectorTemplate is the Schema for the vectortemplates API",
+  "description": "VectorTemplate represents a template for assembling OCM components into an OCM component\nthat represents a vector.",
   "properties": {
     "apiVersion": {
       "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
