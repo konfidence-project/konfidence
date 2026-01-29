@@ -132,16 +132,38 @@ metadata:
 spec:
   group: global.konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: VectorTemplate
     listKind: VectorTemplateList
     plural: vectortemplates
     singular: vectortemplate
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Indicates if the vector template is ready
+      jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - description: The reason of the Ready condition
+      jsonPath: .status.conditions[?(@.type=="Ready")].reason
+      name: Reason
+      type: string
+    - description: The upload target of the vector template
+      jsonPath: .spec.uploadTarget
+      name: Upload-Target
+      type: string
+    - description: Time since creation of the vector template
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VectorTemplate is the Schema for the vectortemplates API
+        description: |-
+          VectorTemplate represents a template for assembling OCM components into an OCM component
+          that represents a vector.
         properties:
           apiVersion:
             description: |-

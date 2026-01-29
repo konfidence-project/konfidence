@@ -69,8 +69,14 @@ type VectorTemplateStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:categories=konfidence;kden
+// +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description="Indicates if the vector template is ready"
+// +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].reason",description="The reason of the Ready condition"
+// +kubebuilder:printcolumn:name="Upload-Target",type=string,JSONPath=".spec.uploadTarget",description="The upload target of the vector template"
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Time since creation of the vector template"
 
-// VectorTemplate is the Schema for the vectortemplates API
+// VectorTemplate represents a template for assembling OCM components into an OCM component
+// that represents a vector.
 type VectorTemplate struct {
 	metav1.TypeMeta `json:",inline"`
 
