@@ -104,7 +104,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, template *v1alpha1.VectorTemplate) error {
 	log := logf.FromContext(ctx)
 
-	desiredOcmComponents, err := mapComponentsToOCMReferences(template.Spec.Components)
+	ocmComponentsFromComponentList, err := mapComponentsToOCMReferences(template.Spec.Components)
 	if err != nil {
 		err = fmt.Errorf("unable to map vector template components to ocm references: %w", err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -134,7 +134,14 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 		return err
 	}
 
-	desiredArtifacts, err := r.OcmAdapter.GetLatestArtifactVersions(ctx, desiredOcmComponents)
+	var desiredArtifacts []domain.Artifact
+	if template.Spec.Base != nil {
+		if desiredArtifacts, err = r.getArtifactsFromBaseVector(ctx, template, vectorOCMComponent.Component); err != nil {
+			return err
+		}
+	}
+
+	latestArtifactsFromComponentList, err := r.OcmAdapter.GetLatestArtifactVersions(ctx, ocmComponentsFromComponentList)
 	if err != nil {
 		err = fmt.Errorf("unable to get desired artifacts for vector (%s): %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -149,11 +156,13 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 		return err
 	}
 
+	desiredArtifacts = combineBaseArtifactsAndComponentArtifacts(desiredArtifacts, latestArtifactsFromComponentList)
+
 	actualVector, err := r.OcmAdapter.GetLatestVector(ctx, vectorOCMComponent)
 	if errors.Is(err, domain.ErrVectorNotFound) {
 		msg := "Vector not found in OCM repository - creating new vector"
 		r.Recorder.Eventf(template, nil, v1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
-		log.Info(msg)
+		log.Info(msg, "VectorOCMComponent", vectorOCMComponent.Component)
 	} else if err != nil {
 		err = fmt.Errorf("unable to get actual artifacts from vector (%s): %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -180,7 +189,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 			LastTransitionTime: metav1.Now(),
 		})
 		r.Recorder.Eventf(template, nil, v1.EventTypeNormal, v1alpha1.VectorTemplateNoDriftDetectedReason, EventActionDriftDetection, msg)
-		log.Info(msg, "VectorVersion", actualVector.Version)
+		log.Info(msg, "VectorVersion", actualVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
 		return nil
 	}
 
@@ -215,8 +224,64 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 		LastTransitionTime: metav1.Now(),
 	})
 	r.Recorder.Eventf(template, nil, v1.EventTypeNormal, v1alpha1.VectorTemplateVectorCreatedReason, "VectorCreation", msg)
-	log.Info(msg, "VectorVersion", newVector.Version)
+	log.Info(msg, "VectorVersion", newVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
 	return nil
+}
+
+func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(ctx context.Context, template *v1alpha1.VectorTemplate, vectorOCMComponentName string) ([]domain.Artifact, error) {
+	baseVectorOCMComponent, err := domain.NewOcmReference(*template.Spec.Base)
+	if err != nil {
+		err = fmt.Errorf("unable to create ocm reference from vector template base (%s): %w", *template.Spec.Base, err)
+		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Status:             metav1.ConditionUnknown,
+			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Message:            err.Error(),
+			ObservedGeneration: template.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		r.Recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		return nil, err
+	}
+
+	baseVector, err := r.OcmAdapter.GetLatestVector(ctx, baseVectorOCMComponent)
+	if err != nil {
+		err = fmt.Errorf("unable to get artifacts from base vector (%s): %w", baseVectorOCMComponent, err)
+		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Status:             metav1.ConditionUnknown,
+			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Message:            err.Error(),
+			ObservedGeneration: template.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		r.Recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		return nil, err
+	}
+	log := logf.FromContext(ctx)
+	log.Info("Using base vector for vector OCM component", "BaseVectorVersion", baseVector.Version, "BaseVectorOCMComponent", baseVectorOCMComponent.Component, "VectorOCMComponent", vectorOCMComponentName)
+	return baseVector.Artifacts, nil
+}
+
+func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []domain.Artifact) []domain.Artifact {
+	if len(baseArtifacts) == 0 {
+		return componentArtifacts
+	}
+
+	for _, componentArtifact := range componentArtifacts {
+		found := false
+		for i, baseArtifact := range baseArtifacts {
+			if componentArtifact.OcmReference.Component == baseArtifact.OcmReference.Component {
+				baseArtifacts[i] = componentArtifact
+				found = true
+				break
+			}
+		}
+		if !found {
+			baseArtifacts = append(baseArtifacts, componentArtifact)
+		}
+	}
+	return baseArtifacts
 }
 
 func mapComponentsToOCMReferences(components []v1alpha1.Component) ([]domain.OcmReference, error) {
