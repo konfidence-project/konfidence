@@ -1,5 +1,7 @@
 package domain
 
+//go:generate go run go.uber.org/mock/mockgen -source=vector.go -destination=mocks/mock_ocm_port.go -package=mocks
+
 import (
 	"context"
 	"fmt"
