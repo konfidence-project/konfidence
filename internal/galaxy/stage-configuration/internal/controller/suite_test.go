@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	ctrl "sigs.k8s.io/controller-runtime"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -47,7 +48,7 @@ var (
 	testEnv    *envtest.Environment
 	cfg        *rest.Config
 	k8sClient  client.Client
-	k8sManager ctrl.Manager
+	k8sManager mcmanager.Manager
 )
 
 func TestControllers(t *testing.T) {
@@ -90,7 +91,7 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 
 	// create manager
-	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
+	k8sManager, err = mcmanager.New(cfg, nil, ctrl.Options{
 		Scheme: scheme.Scheme,
 	})
 	Expect(err).ToNot(HaveOccurred())

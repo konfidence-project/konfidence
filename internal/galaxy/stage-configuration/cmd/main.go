@@ -20,11 +20,19 @@ import (
 	"flag"
 	"os"
 
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/kcp-dev/multicluster-provider/apiexport"
+	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller"
@@ -34,6 +42,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -43,6 +52,10 @@ var (
 )
 
 func init() {
+	utilruntime.Must(apisv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(apisv1alpha2.AddToScheme(scheme))
+	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(common.AddToScheme(scheme))
 	utilruntime.Must(global.AddToScheme(scheme))
@@ -54,6 +67,10 @@ func init() {
 func main() {
 	var enableLeaderElection bool
 	var probeAddr string
+	var endpointSlice string
+
+	flag.StringVar(&endpointSlice, "endpointslice", "",
+		"Set the APIExportEndpointSlice name to watch")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -65,8 +82,19 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	cfg := ctrl.GetConfigOrDie()
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	var err error
+	var provider multicluster.Provider = nil
+	if endpointSlice != "" {
+		provider, err = pathaware.New(cfg, endpointSlice, apiexport.Options{Scheme: scheme, Log: &setupLog})
+		if err != nil {
+			setupLog.Error(err, "unable to construct cluster provider")
+			os.Exit(1)
+		}
+	}
+
+	mgr, err := mcmanager.New(cfg, provider, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
@@ -78,10 +106,8 @@ func main() {
 	}
 
 	if err := (&controller.StageConfigurationReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
+		Mgr:       mgr,
 		OCMClient: ocm.OCIClient{},
-		Recorder:  mgr.GetEventRecorderFor(controller.StageConfigurationControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StageConfiguration")
 		os.Exit(1)

@@ -1,0 +1,28 @@
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIExport
+metadata:
+  name: api.konfidence.cloud.export
+spec:
+  resources:
+    - group: global.konfidence.cloud
+      name: stageconfigurations
+      schema: v1a.stageconfigurations.global.konfidence.cloud
+      storage:
+        crd: {}
+    - group: common.konfidence.cloud
+      name: stages
+      schema: v1a.stages.common.konfidence.cloud
+      storage:
+        crd: {}      
+  permissionClaims:
+    - group: ""
+      resource: configmaps
+      verbs: ["get", "list", "watch", "create", "update"]
+    - group: ""
+      resource: secrets
+      verbs: ["get", "list", "watch", "create", "update"]  
+    - group: ""
+      resource: events
+      verbs: ["get", "list", "watch", "create", "update"]
+
+      
