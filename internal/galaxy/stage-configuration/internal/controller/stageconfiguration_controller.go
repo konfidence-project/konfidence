@@ -22,18 +22,19 @@ import (
 	"reflect"
 	"time"
 
+	common "github.com/konfidence-project/crds/api/common/v1alpha1"
+	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
 const (
@@ -43,10 +44,8 @@ const (
 
 // StageConfigurationReconciler reconciles a StageConfiguration object
 type StageConfigurationReconciler struct {
-	client.Client
-	Scheme    *runtime.Scheme
+	Mgr       mcmanager.Manager
 	OCMClient ocm.Client
-	Recorder  record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -54,22 +53,31 @@ type StageConfigurationReconciler struct {
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stages/status,verbs=get;update;patch
 
-func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Reconcile stageConfiguration started...")
+	log.Info(fmt.Sprintf("Cluster: %s", req.ClusterName))
+
+	cluster, err := r.Mgr.GetCluster(ctx, req.ClusterName)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get cluster: %w", err)
+	}
+
+	clusterClient := cluster.GetClient()
+	recorder := cluster.GetEventRecorderFor(StageConfigurationControllerName)
 
 	// get stageConfiguration
 	stageConfiguration := &global.StageConfiguration{}
-	if err := r.Get(ctx, req.NamespacedName, stageConfiguration); err != nil {
+	if err := clusterClient.Get(ctx, req.NamespacedName, stageConfiguration); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	originalStageConfiguration := stageConfiguration.DeepCopy()
 	patch := client.MergeFrom(originalStageConfiguration)
-	err := r.reconcileStageConfiguration(ctx, stageConfiguration)
+	err = r.reconcileStageConfiguration(ctx, clusterClient, stageConfiguration, recorder)
 
 	if !reflect.DeepEqual(stageConfiguration.Status, originalStageConfiguration.Status) {
-		if patchError := r.Client.Status().Patch(ctx, stageConfiguration, patch); patchError != nil {
+		if patchError := clusterClient.Status().Patch(ctx, stageConfiguration, patch); patchError != nil {
 			patchErrorMessage := "unable to update stageConfiguration status"
 
 			if err != nil {
@@ -87,7 +95,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 	return ctrl.Result{RequeueAfter: DefaultReconcileInterval}, nil
 }
 
-func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.Context, stageConfiguration *global.StageConfiguration) error {
+func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.Context, clusterClient client.Client, stageConfiguration *global.StageConfiguration, recorder record.EventRecorder) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageConfiguration")
 
@@ -100,21 +108,39 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	// combine vector with latest version
 	vector := stageConfiguration.Spec.Vector + ":" + latestVersion
 
+	// write to cluster or workspace
+	var targetClient client.Client
+	if r.Mgr.GetProvider() == nil {
+		targetClient = clusterClient
+	} else {
+		// if kcp is used a target workspace is mandatory
+		if stageConfiguration.Spec.TargetWorkspace == nil {
+			return fmt.Errorf("no target workspace specified in stageConfiguration")
+		}
+
+		targetCluster, err := r.Mgr.GetCluster(ctx, *stageConfiguration.Spec.TargetWorkspace)
+		if err != nil {
+			return fmt.Errorf("failed to get target cluster for path %s: %w", *stageConfiguration.Spec.TargetWorkspace, err)
+		}
+
+		targetClient = targetCluster.GetClient()
+	}
+
 	// create or update stage
-	stage, operationResult, err := r.createOrUpdateStage(ctx, stageConfiguration, vector)
+	stage, operationResult, err := r.createOrUpdateStage(ctx, targetClient, stageConfiguration, vector)
 	if err != nil {
 		return err
 	}
 
 	msg := fmt.Sprintf("Stage %s %s with StageConfiguration %s", stage.Name, operationResult, stageConfiguration.Name)
-	r.Recorder.Event(stageConfiguration, v1.EventTypeNormal, "StageConfigurationReconciled", msg)
+	recorder.Event(stageConfiguration, v1.EventTypeNormal, "StageConfigurationReconciled", msg)
 	log.Info(msg)
 	return nil
 }
 
-func (r *StageConfigurationReconciler) createOrUpdateStage(ctx context.Context, stageConfiguration *global.StageConfiguration, vector string) (*common.Stage, controllerutil.OperationResult, error) {
+func (r *StageConfigurationReconciler) createOrUpdateStage(ctx context.Context, targetClient client.Client, stageConfiguration *global.StageConfiguration, vector string) (*common.Stage, controllerutil.OperationResult, error) {
 	stage := r.constructStage(stageConfiguration, vector)
-	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, stage, func() error {
+	operationResult, err := controllerutil.CreateOrUpdate(ctx, targetClient, stage, func() error {
 		stage.Spec.Vector = vector
 		return nil
 	})
@@ -122,7 +148,6 @@ func (r *StageConfigurationReconciler) createOrUpdateStage(ctx context.Context, 
 	if err != nil {
 		return nil, operationResult, fmt.Errorf("failed to create or update stage: %w", err)
 	}
-
 	return stage, operationResult, nil
 }
 
@@ -139,8 +164,8 @@ func (r *StageConfigurationReconciler) constructStage(stageConfiguration *global
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StageConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+func (r *StageConfigurationReconciler) SetupWithManager(mgr mcmanager.Manager) error {
+	return mcbuilder.ControllerManagedBy(mgr).
 		For(&global.StageConfiguration{}).
 		Named(StageConfigurationControllerName).
 		Complete(r)
