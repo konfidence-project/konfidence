@@ -2,17 +2,21 @@ package ocm
 
 import (
 	"context"
+	"crypto"
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"log/slog"
 	"strconv"
 	"strings"
 
 	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
+	norm "ocm.software/open-component-model/bindings/go/descriptor/normalisation/json/v4alpha1"
 	ocmDescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci"
 	urlresolver "ocm.software/open-component-model/bindings/go/oci/resolver/url"
 	"ocm.software/open-component-model/bindings/go/repository"
+	"ocm.software/open-component-model/bindings/go/signing"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/retry"
 )
@@ -20,6 +24,11 @@ import (
 var (
 	_                    domain.VectorOcmPort = (*Adapter)(nil)
 	ErrComponentNotFound                      = errors.New("component not found in OCM repository")
+)
+
+var (
+	normalisationAlgorithm = norm.Algorithm
+	hashAlgorithm          = crypto.SHA256.String()
 )
 
 type Adapter struct{}
@@ -31,9 +40,19 @@ func (a Adapter) GetLatestArtifactVersions(ctx context.Context, references []dom
 		if err != nil {
 			return nil, fmt.Errorf("unable to get latest version for ocm component (%s): %w", ref, err)
 		}
+		desc, err := a.getDescriptorForVersion(ctx, ref, version)
+		if err != nil {
+			return nil,
+				fmt.Errorf("unable to get descriptor for latest ocm component version (%s) for component (%s): %w", version, ref, err)
+		}
+		dig, err := signing.GenerateDigest(ctx, desc, slog.Default(), normalisationAlgorithm, hashAlgorithm)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate digest for ocm component (%s): %w", ref, err)
+		}
 		artifact := domain.Artifact{
 			OcmReference: ref,
 			Version:      version,
+			Digest:       dig.Value,
 		}
 		artifacts = append(artifacts, artifact)
 	}
@@ -155,6 +174,7 @@ func mapToDomain(version string, vectorRef domain.OcmReference, artifactRefs []o
 				Component:  ref.Component,
 				Repository: "", // will be removed when repository is configurable
 			},
+			Digest: ref.Digest.Value,
 		}
 		artifacts = append(artifacts, artifact)
 	}
@@ -201,7 +221,11 @@ func mapToReference(artifact domain.Artifact) ocmDescriptor.Reference {
 			},
 		},
 		Component: artifact.OcmReference.Component,
-		Digest:    ocmDescriptor.Digest{}, // todo: calculate proper digest
+		Digest: ocmDescriptor.Digest{
+			HashAlgorithm:          hashAlgorithm,
+			NormalisationAlgorithm: normalisationAlgorithm,
+			Value:                  artifact.Digest,
+		},
 	}
 }
 
