@@ -15,7 +15,6 @@ var ErrVectorNotFound = fmt.Errorf("vector not found in OCM repository")
 
 // VectorOcmPort defines the interface for interacting with the OCM repository for vector operations.
 type VectorOcmPort interface {
-
 	// GetLatestArtifactVersions resolves the versions of the given components in the OCM repository.
 	GetLatestArtifactVersions(ctx context.Context, references []OcmReference) ([]Artifact, error)
 
@@ -35,6 +34,7 @@ type Vector struct {
 type Artifact struct {
 	Version      string
 	OcmReference OcmReference
+	Digest       string
 }
 
 type OcmReference struct {
