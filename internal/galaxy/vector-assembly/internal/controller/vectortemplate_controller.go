@@ -93,8 +93,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	err = errors.Join(err, patchErr)
-	if err != nil {
+	if err = errors.Join(err, patchErr); err != nil {
 		return ctrl.Result{}, err
 	}
 

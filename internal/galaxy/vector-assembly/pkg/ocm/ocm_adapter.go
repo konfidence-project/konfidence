@@ -2,23 +2,20 @@ package ocm
 
 import (
 	"context"
-	"crypto"
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"log/slog"
 	"strconv"
 	"strings"
 
 	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
-	norm "ocm.software/open-component-model/bindings/go/descriptor/normalisation/json/v4alpha1"
 	ocmDescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci"
 	urlresolver "ocm.software/open-component-model/bindings/go/oci/resolver/url"
 	"ocm.software/open-component-model/bindings/go/repository"
-	"ocm.software/open-component-model/bindings/go/signing"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
@@ -26,15 +23,18 @@ var (
 	ErrComponentNotFound                      = errors.New("component not found in OCM repository")
 )
 
-var (
-	normalisationAlgorithm = norm.Algorithm
-	hashAlgorithm          = crypto.SHA256.String()
-)
-
-type Adapter struct{}
+// Adapter is an implementation of the VectorOcmPort interface that interacts with OCM repositories to manage vectors and their associated artifacts.
+type Adapter struct {
+	vectorVerifier, artifactVerifier Verifier
+	vectorSigner                     Signer
+	digester                         Digester
+}
 
 func (a Adapter) GetLatestArtifactVersions(ctx context.Context, references []domain.OcmReference) ([]domain.Artifact, error) {
-	artifacts := make([]domain.Artifact, 0, len(references))
+	if len(references) == 0 {
+		return nil, nil
+	}
+	artifacts, unverifiedDescriptors := make([]domain.Artifact, 0, len(references)), make([]*ocmDescriptor.Descriptor, 0, len(references))
 	for _, ref := range references {
 		version, err := a.getLatestComponentVersion(ctx, ref)
 		if err != nil {
@@ -45,9 +45,10 @@ func (a Adapter) GetLatestArtifactVersions(ctx context.Context, references []dom
 			return nil,
 				fmt.Errorf("unable to get descriptor for latest ocm component version (%s) for component (%s): %w", version, ref, err)
 		}
-		dig, err := signing.GenerateDigest(ctx, desc, slog.Default(), normalisationAlgorithm, hashAlgorithm)
+		unverifiedDescriptors = append(unverifiedDescriptors, desc)
+		dig, err := a.digester.GenerateDigest(ctx, desc)
 		if err != nil {
-			return nil, fmt.Errorf("unable to generate digest for ocm component (%s): %w", ref, err)
+			return nil, fmt.Errorf("unable to generate digest for ocm descriptor for component (%s) version (%s): %w", ref, version, err)
 		}
 		artifact := domain.Artifact{
 			OcmReference: ref,
@@ -55,6 +56,9 @@ func (a Adapter) GetLatestArtifactVersions(ctx context.Context, references []dom
 			Digest:       dig.Value,
 		}
 		artifacts = append(artifacts, artifact)
+	}
+	if err := a.artifactVerifier.Verify(ctx, unverifiedDescriptors...); err != nil {
+		return nil, fmt.Errorf("ocm artifact verification failed for one or more artifacts: %w", err)
 	}
 	return artifacts, nil
 }
@@ -71,18 +75,21 @@ func (a Adapter) GetLatestVector(ctx context.Context, vectorRef domain.OcmRefere
 	if err != nil {
 		return domain.Vector{}, fmt.Errorf("unable to get descriptor for latest ocm component version (%s) for vector (%s): %w", version, vectorRef, err)
 	}
+	if err := a.vectorVerifier.Verify(ctx, descriptor); err != nil {
+		return domain.Vector{}, fmt.Errorf("unable to verify ocm descriptor for vector (%s) version (%s): %w",
+			vectorRef, version, err)
+	}
 	return mapToDomain(version, vectorRef, descriptor.Component.References), nil
 }
 
 func (a Adapter) CreateVector(ctx context.Context, vector domain.Vector) error {
-	// map to descriptor
-	vectorDescriptor := mapToDescriptor(vector)
-
-	err := a.addOcmComponent(ctx, vector.Reference, &vectorDescriptor)
-	if err != nil {
+	vectorDescriptor := mapToDescriptor(vector, a.digester.GetHashAlgorithm().String(), a.digester.GetNormalisationAlgorithm())
+	if err := a.vectorSigner.Sign(ctx, &vectorDescriptor); err != nil {
+		return fmt.Errorf("unable to Sign ocm descriptor for vector (%s): %w", vector.Reference, err)
+	}
+	if err := a.addOcmComponent(ctx, vector.Reference, &vectorDescriptor); err != nil {
 		return fmt.Errorf("unable to add ocm component for vector (%s): %w", vector.Reference, err)
 	}
-
 	return nil
 }
 
@@ -185,10 +192,10 @@ func mapToDomain(version string, vectorRef domain.OcmReference, artifactRefs []o
 	}
 }
 
-func mapToDescriptor(vector domain.Vector) ocmDescriptor.Descriptor {
+func mapToDescriptor(vector domain.Vector, hashAlgo, normAlgo string) ocmDescriptor.Descriptor {
 	latestArtifacts := make([]ocmDescriptor.Reference, 0, len(vector.Artifacts))
 	for _, artifact := range vector.Artifacts {
-		latestArtifacts = append(latestArtifacts, mapToReference(artifact))
+		latestArtifacts = append(latestArtifacts, mapToReference(artifact, hashAlgo, normAlgo))
 	}
 	return ocmDescriptor.Descriptor{
 		Meta: ocmDescriptor.Meta{
@@ -212,7 +219,7 @@ func mapToDescriptor(vector domain.Vector) ocmDescriptor.Descriptor {
 	}
 }
 
-func mapToReference(artifact domain.Artifact) ocmDescriptor.Reference {
+func mapToReference(artifact domain.Artifact, hashAlgo, normAlgo string) ocmDescriptor.Reference {
 	return ocmDescriptor.Reference{
 		ElementMeta: ocmDescriptor.ElementMeta{
 			ObjectMeta: ocmDescriptor.ObjectMeta{
@@ -222,8 +229,8 @@ func mapToReference(artifact domain.Artifact) ocmDescriptor.Reference {
 		},
 		Component: artifact.OcmReference.Component,
 		Digest: ocmDescriptor.Digest{
-			HashAlgorithm:          hashAlgorithm,
-			NormalisationAlgorithm: normalisationAlgorithm,
+			HashAlgorithm:          hashAlgo,
+			NormalisationAlgorithm: normAlgo,
 			Value:                  artifact.Digest,
 		},
 	}
@@ -236,6 +243,30 @@ func createReferenceName(artifact domain.Artifact) string {
 	return strconv.FormatUint(sum, 36)
 }
 
-func NewOcmAdapter() Adapter {
-	return Adapter{}
+// NewAdapter creates a new OCM Adapter with the given options.
+func NewAdapter(options ...AdapterOption) Adapter {
+	a := Adapter{}
+	for _, opt := range options {
+		opt(&a)
+	}
+	applyDefaults(&a)
+	return a
+}
+
+func applyDefaults(a *Adapter) {
+	if a.vectorSigner == nil {
+		ctrl.Log.Info("vector signer not configured - using noop signer")
+		a.vectorSigner = NoopSigner{}
+	}
+	if a.digester == nil {
+		a.digester = newOcmDigester()
+	}
+	if a.vectorVerifier == nil {
+		ctrl.Log.Info("vector verifier not configured - using noop verifier")
+		a.vectorVerifier = NoopVerifier{}
+	}
+	if a.artifactVerifier == nil {
+		ctrl.Log.Info("artifact verifier not configured - using noop verifier")
+		a.artifactVerifier = NoopVerifier{}
+	}
 }

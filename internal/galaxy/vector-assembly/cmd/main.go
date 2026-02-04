@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	"github.com/konfidence-project/crds/api/global/v1alpha1"
 	"github.com/konfidence-project/gcp-vector-assembly-controller/pkg/ocm"
@@ -39,6 +40,11 @@ import (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+)
+
+const (
+	ocmArtifactVerifyEnv   = "OCM_ARTIFACT_VERIFY"
+	ocmVectorSignAndVerify = "OCM_VECTOR_SIGN_AND_VERIFY"
 )
 
 func init() {
@@ -75,10 +81,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	var adapterConfig []ocm.AdapterOption
+	if strings.ToLower(os.Getenv(ocmArtifactVerifyEnv)) != "true" {
+		setupLog.Info("OCM artifact verification is disabled")
+	} else {
+		adapterConfig = append(adapterConfig, ocm.WithDefaultArtifactVerificationAndTrustAnchor(mgr))
+	}
+	if strings.ToLower(os.Getenv(ocmVectorSignAndVerify)) != "true" {
+		setupLog.Info("OCM vector signing and verification is disabled")
+	} else {
+		adapterConfig = append(adapterConfig,
+			ocm.WithDefaultVectorSigning(mgr),
+			ocm.WithDefaultVectorVerificationAndTrustAnchor(mgr))
+	}
+
 	if err := (&controller.VectorTemplateReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
-		OcmAdapter: ocm.NewOcmAdapter(),
+		OcmAdapter: ocm.NewAdapter(adapterConfig...),
 		Recorder:   mgr.GetEventRecorder(controller.VectorAssemblyControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorTemplate")
