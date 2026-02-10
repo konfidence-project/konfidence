@@ -26,6 +26,7 @@ spec:
       - args:
           - --leader-elect
           - --health-probe-bind-address=:8081
+          - --gcp-sync-kubeconfig=/etc/kcp-kubeconfig/kubeconfig
         image: konfidence-project/landscape-stage-controller:latest
         imagePullPolicy: Always
         name: manager
@@ -53,7 +54,13 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        volumeMounts: []
-      volumes: []
-      serviceAccountName: landscape-stage-controller
+        volumeMounts:
+          - name: kcp-kubeconfig
+            mountPath: /etc/kcp-kubeconfig
+            readOnly: true
+      volumes:
+        - name: kcp-kubeconfig
+          secret:
+            secretName: kcp-kubeconfig
+      serviceAccountName:  landscape-stage-controller
       terminationGracePeriodSeconds: 10
