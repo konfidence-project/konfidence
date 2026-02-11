@@ -90,7 +90,6 @@ jobs:
             make schemas
           fi
           if make -n docs >/dev/null 2>&1; then
-            go install github.com/elastic/crd-ref-docs@latest
             make docs
           fi
 

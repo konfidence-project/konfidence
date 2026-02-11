@@ -5,7 +5,7 @@ MODULE_NAME = common
 include ../../common.mk
 
 # Module-specific overrides or additional targets can be added here
-# For example:
+# For example: 
 # .PHONY: custom-target
 # custom-target: ## Custom target for this module
 # 	echo "Running custom target for $(MODULE_NAME)"
