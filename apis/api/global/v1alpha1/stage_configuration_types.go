@@ -32,6 +32,11 @@ type StageConfigurationSpec struct {
 
 	// Vector points to the OCM component that contains the deployment vector for this stage.
 	Vector string `json:"vector"`
+
+	// TargetWorkspace is the target workspace where the associated stage is created or updated
+	// +kubebuilder:validation:Optional
+	// +optional
+	TargetWorkspace *string `json:"targetWorkspace,omitempty"`
 }
 
 // StageConfigurationStatus defines the observed state of StageConfiguration.
