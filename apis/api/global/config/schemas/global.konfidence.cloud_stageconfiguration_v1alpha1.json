@@ -19,6 +19,10 @@
           "description": "Name is the stage name",
           "type": "string"
         },
+        "targetWorkspace": {
+          "description": "TargetWorkspace is the target workspace where the associated stage is created or updated",
+          "type": "string"
+        },
         "vector": {
           "description": "Vector points to the OCM component that contains the deployment vector for this stage.",
           "type": "string"
