@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: activationtaskexecutions.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
@@ -145,7 +145,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: activationtaskregistrations.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
@@ -297,7 +297,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: artifactdeployments.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
@@ -582,7 +582,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: stageversions.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
@@ -741,7 +741,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: stageversionusages.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
@@ -938,7 +938,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: taskexecutions.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
@@ -1078,7 +1078,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: vectoractivations.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
@@ -1222,7 +1222,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: vectorassignments.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
@@ -1411,7 +1411,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: vectordeployments.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
@@ -1637,7 +1637,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: vectormigrations.landscape.konfidence.cloud
 spec:
   group: landscape.konfidence.cloud
