@@ -8,6 +8,7 @@ Dockerfile.cross
 
 # Do ignore things like bin/k8s/
 bin/*/
+bin/manager
 
 # Do not ignore hermit binary and pkg files in bin/
 !bin/hermit
