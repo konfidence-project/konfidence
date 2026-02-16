@@ -68,6 +68,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var endpointSlice string
+	var tempSkipOciRegistry bool
 
 	flag.StringVar(&endpointSlice, "endpointslice", "",
 		"Set the APIExportEndpointSlice name to watch")
@@ -75,6 +76,8 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&tempSkipOciRegistry, "skip-oci", false,
+		"Temporarily skip resolving of OCI vector and use default version instead")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -87,7 +90,11 @@ func main() {
 	var err error
 	var provider multicluster.Provider = nil
 	if endpointSlice != "" {
-		provider, err = pathaware.New(cfg, endpointSlice, apiexport.Options{Scheme: scheme, Log: &setupLog})
+		provider, err = pathaware.New(cfg, endpointSlice, apiexport.Options{
+			Scheme:        scheme,
+			Log:           &setupLog,
+			ObjectToWatch: &apisv1alpha2.APIBinding{},
+		})
 		if err != nil {
 			setupLog.Error(err, "unable to construct cluster provider")
 			os.Exit(1)
@@ -108,6 +115,7 @@ func main() {
 	if err := (&controller.StageConfigurationReconciler{
 		Mgr:       mgr,
 		OCMClient: ocm.OCIClient{},
+		SkipOci:   tempSkipOciRegistry,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StageConfiguration")
 		os.Exit(1)
