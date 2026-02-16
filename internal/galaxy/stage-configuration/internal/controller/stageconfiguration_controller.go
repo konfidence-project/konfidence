@@ -46,6 +46,7 @@ const (
 type StageConfigurationReconciler struct {
 	Mgr       mcmanager.Manager
 	OCMClient ocm.Client
+	SkipOci   bool
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -99,10 +100,15 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageConfiguration")
 
-	// get latest vector version
-	latestVersion, err := r.OCMClient.GetLatestComponentVersion(ctx, stageConfiguration.Spec.Vector)
-	if err != nil {
-		return fmt.Errorf("unable to get latest vector component version %s: %w", stageConfiguration.Spec.Vector, err)
+	latestVersion := "1.0.0"
+	if !r.SkipOci {
+		// get latest vector version
+		version, err := r.OCMClient.GetLatestComponentVersion(ctx, stageConfiguration.Spec.Vector)
+		if err != nil {
+			return fmt.Errorf("unable to get latest vector component version %s: %w", stageConfiguration.Spec.Vector, err)
+		}
+
+		latestVersion = version
 	}
 
 	// combine vector with latest version
