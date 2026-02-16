@@ -31,7 +31,6 @@ Always add a comment to each field/struct to describe its purpose and to generat
 3. Run `make all` to update the generated code and run schema validations.
 4. Commit and push your changes.
 
-
 ## How to use
 
 ### Installation
@@ -111,6 +110,15 @@ make lint         # Run golangci-lint
 #### Documentation
 ```bash
 make docs         # Generate CRD reference documentation
+```
+
+#### Setup Git hooks
+
+We use git hooks to check the conventional-commit formatting at "commit-msg".
+
+```bash
+make install-git-hooks    # install all git hooks with prek
+make uninstall-git-hooks  # uninstall all git hooks with prek
 ```
 
 ## Support, Feedback, Contributing

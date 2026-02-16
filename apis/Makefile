@@ -64,3 +64,24 @@ clean: ## Clean all modules
 	done
 	@rm -rf .bin
 	@echo "clean completed for all modules"
+
+.PHONY: hermit
+hermit: ## Check if Hermit is installed and its environment is activated.
+	@command -v hermit >/dev/null 2>&1 || { \
+		echo "Hermit is not installed. Please install it from https://cashapp.github.io/hermit/"; \
+		exit 1; \
+	}
+	@hermit status >/dev/null 2>&1 || { \
+		echo "Hermit environment is not activated. Run 'source ./bin/activate-hermit' or 'eval \"$$(hermit env)\"'"; \
+		exit 1; \
+	}
+
+.PHONY: install-git-hooks
+install-git-hooks: hermit  ## Install git hooks
+	@echo "Setting up prek (pre-commit) installing git hooks..."
+	prek install
+
+.PHONY: uninstall-git-hooks
+uninstall-git-hooks: hermit  ## Uninstall git hooks
+	@echo "Uninstalling prek (pre-commit) git hooks..."
+	prek uninstall
