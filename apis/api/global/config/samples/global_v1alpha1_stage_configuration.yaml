@@ -10,3 +10,4 @@ spec:
   name: stage-dev
   vector: https://registry.kdenv.lab/sample-project//konfidence-project/constructed-vector
   targetWorkspace: root:project-lcp
+  targetNamespace: dev-eu10
