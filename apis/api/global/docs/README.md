@@ -90,6 +90,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the stage name |  |  |
 | `vector` _string_ | Vector points to the OCM component that contains the deployment vector for this stage. |  |  |
+| `targetNamespace` _string_ | TargetNamespace is the target namespace where the associated stage is created or updated |  |  |
 | `targetWorkspace` _string_ | TargetWorkspace is the target workspace where the associated stage is created or updated |  | Optional: \{\} <br />Optional: \{\} <br /> |
 
 

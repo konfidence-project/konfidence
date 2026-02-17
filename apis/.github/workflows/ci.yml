@@ -62,7 +62,7 @@ jobs:
             echo "run=false" >> $GITHUB_OUTPUT
             echo "⏭️ Skipping module ${{ matrix.module }} - no changes"
           fi
-          
+
       - name: Setup Hermit
         uses: cashapp/activate-hermit@v1
         with:
@@ -96,7 +96,7 @@ jobs:
           # Check if any files changed
           if ! git diff --quiet; then
             echo "❌ Generated files are outdated!"
-            echo "Please run: cd ${{ matrix.module }} && make generate && make manifests"
+            echo "Please run: cd ${{ matrix.module }} && make generate && make manifests && make docs && make schemas"
             echo ""
             echo "Changed files:"
             git diff --name-only

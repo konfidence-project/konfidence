@@ -33,6 +33,9 @@ type StageConfigurationSpec struct {
 	// Vector points to the OCM component that contains the deployment vector for this stage.
 	Vector string `json:"vector"`
 
+	// TargetNamespace is the target namespace where the associated stage is created or updated
+	TargetNamespace string `json:"targetNamespace"`
+
 	// TargetWorkspace is the target workspace where the associated stage is created or updated
 	// +kubebuilder:validation:Optional
 	// +optional

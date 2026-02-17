@@ -50,6 +50,10 @@ spec:
               name:
                 description: Name is the stage name
                 type: string
+              targetNamespace:
+                description: TargetNamespace is the target namespace where the associated
+                  stage is created or updated
+                type: string
               targetWorkspace:
                 description: TargetWorkspace is the target workspace where the associated
                   stage is created or updated
@@ -60,6 +64,7 @@ spec:
                 type: string
             required:
             - name
+            - targetNamespace
             - vector
             type: object
           status:
