@@ -27,6 +27,9 @@ import (
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,6 +49,7 @@ const (
 type StageConfigurationReconciler struct {
 	Mgr       mcmanager.Manager
 	OCMClient ocm.Client
+	Scheme    *runtime.Scheme
 	SkipOci   bool
 }
 
@@ -119,17 +123,49 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	if r.Mgr.GetProvider() == nil {
 		targetClient = clusterClient
 	} else {
+		// if kcp is used a secret ref referencing a kubeconfig is mandatory
+		// TODO rename stageConfig attribute
+		if stageConfiguration.Spec.TargetWorkspace == nil {
+			return fmt.Errorf("no kubeconfig secret ref specified in stageConfiguration")
+		}
+
+		// get secret
+		secret := &v1.Secret{}
+		err := clusterClient.Get(ctx, types.NamespacedName{
+			// TODO what namespace should be used here?
+			Namespace: "default",
+			Name:      *stageConfiguration.Spec.TargetWorkspace,
+		}, secret)
+
 		// if kcp is used a target workspace is mandatory
 		if stageConfiguration.Spec.TargetWorkspace == nil {
 			return fmt.Errorf("no target workspace specified in stageConfiguration")
 		}
 
-		targetCluster, err := r.Mgr.GetCluster(ctx, *stageConfiguration.Spec.TargetWorkspace)
 		if err != nil {
-			return fmt.Errorf("failed to get target cluster for path %s: %w", *stageConfiguration.Spec.TargetWorkspace, err)
+			return fmt.Errorf("could not get target kubeconfig secret: %w", err)
 		}
 
-		targetClient = targetCluster.GetClient()
+		configBytes, ok := secret.Data["config"]
+		if !ok {
+			return fmt.Errorf("secret %q does not contain kubeconfig", secret.Name)
+		}
+
+		config, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
+		if err != nil {
+			return fmt.Errorf("could not parse kubeconfig %w", err)
+		}
+
+		// create a new client from kubeconfig
+		cl, err := client.New(config, client.Options{
+			Scheme: r.Scheme,
+		})
+
+		if err != nil {
+			return fmt.Errorf("could not create target client from kubeconfig %w", err)
+		}
+
+		targetClient = cl
 	}
 
 	// create or update stage

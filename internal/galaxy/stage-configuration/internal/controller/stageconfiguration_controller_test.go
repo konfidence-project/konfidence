@@ -61,6 +61,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 		reconciler = &StageConfigurationReconciler{
 			Mgr:       k8sManager,
 			OCMClient: ocmClientMock,
+			Scheme:    k8sScheme,
 			SkipOci:   false,
 		}
 		err := reconciler.SetupWithManager(k8sManager)

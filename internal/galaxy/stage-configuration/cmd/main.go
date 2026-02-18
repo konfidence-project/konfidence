@@ -20,7 +20,6 @@ import (
 	"flag"
 	"os"
 
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
@@ -90,11 +89,7 @@ func main() {
 	var err error
 	var provider multicluster.Provider = nil
 	if endpointSlice != "" {
-		provider, err = pathaware.New(cfg, endpointSlice, apiexport.Options{
-			Scheme:        scheme,
-			Log:           &setupLog,
-			ObjectToWatch: &apisv1alpha2.APIBinding{},
-		})
+		provider, err = apiexport.New(cfg, endpointSlice, apiexport.Options{Scheme: scheme, Log: &setupLog})
 		if err != nil {
 			setupLog.Error(err, "unable to construct cluster provider")
 			os.Exit(1)
@@ -115,6 +110,7 @@ func main() {
 	if err := (&controller.StageConfigurationReconciler{
 		Mgr:       mgr,
 		OCMClient: ocm.OCIClient{},
+		Scheme:    scheme,
 		SkipOci:   tempSkipOciRegistry,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StageConfiguration")
