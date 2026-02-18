@@ -27,7 +27,7 @@ import (
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -65,7 +65,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 	}
 
 	clusterClient := cluster.GetClient()
-	recorder := cluster.GetEventRecorderFor(StageConfigurationControllerName)
+	recorder := cluster.GetEventRecorder(StageConfigurationControllerName)
 
 	// get stageConfiguration
 	stageConfiguration := &global.StageConfiguration{}
@@ -96,7 +96,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 	return ctrl.Result{RequeueAfter: DefaultReconcileInterval}, nil
 }
 
-func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.Context, clusterClient client.Client, stageConfiguration *global.StageConfiguration, recorder record.EventRecorder) error {
+func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.Context, clusterClient client.Client, stageConfiguration *global.StageConfiguration, recorder events.EventRecorder) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageConfiguration")
 
@@ -139,7 +139,7 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	}
 
 	msg := fmt.Sprintf("Stage %s %s with StageConfiguration %s", stage.Name, operationResult, stageConfiguration.Name)
-	recorder.Event(stageConfiguration, v1.EventTypeNormal, "StageConfigurationReconciled", msg)
+	recorder.Eventf(stageConfiguration, nil, v1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
 	log.Info(msg)
 	return nil
 }
@@ -161,7 +161,7 @@ func (r *StageConfigurationReconciler) constructStage(stageConfiguration *global
 	return &common.Stage{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageConfiguration.Spec.Name,
-			Namespace: stageConfiguration.Namespace,
+			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
 		Spec: common.StageSpec{
 			Vector: vector,

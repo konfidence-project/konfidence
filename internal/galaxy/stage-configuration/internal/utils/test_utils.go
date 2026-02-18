@@ -7,6 +7,7 @@ import (
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -14,7 +15,7 @@ import (
 )
 
 func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name string, namespace string,
-	stageName string, vector string) {
+	targetNamespace string, stageName string, vector string) {
 	stageConfiguration := &global.StageConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "global.konfidence.cloud/v1alpha1",
@@ -25,8 +26,9 @@ func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name
 			Namespace: namespace,
 		},
 		Spec: global.StageConfigurationSpec{
-			Name:   stageName,
-			Vector: vector,
+			Name:            stageName,
+			Vector:          vector,
+			TargetNamespace: targetNamespace,
 		},
 	}
 
@@ -78,10 +80,18 @@ func GetStage(ctx context.Context, k8sClient client.Client, name string, namespa
 	return stage
 }
 
-func CleanupResources(ctx context.Context, k8sClient client.Client, namespace string) {
+func CreateNamespace(ctx context.Context, k8sClient client.Client, namespace string) {
+	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	Expect(k8sClient.Create(ctx, ns)).To(Succeed())
+}
+
+func CleanupResources(ctx context.Context, k8sClient client.Client, namespace string, targetNamespace string) {
 	err := k8sClient.DeleteAllOf(ctx, &global.StageConfiguration{}, client.InNamespace(namespace))
 	Expect(err).ToNot(HaveOccurred())
 
 	err = k8sClient.DeleteAllOf(ctx, &common.Stage{}, client.InNamespace(namespace))
+	Expect(err).ToNot(HaveOccurred())
+
+	err = k8sClient.DeleteAllOf(ctx, &common.Stage{}, client.InNamespace(targetNamespace))
 	Expect(err).ToNot(HaveOccurred())
 }
