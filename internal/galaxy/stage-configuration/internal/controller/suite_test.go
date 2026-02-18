@@ -24,6 +24,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -49,6 +50,7 @@ var (
 	cfg        *rest.Config
 	k8sClient  client.Client
 	k8sManager mcmanager.Manager
+	k8sScheme  *runtime.Scheme
 )
 
 func TestControllers(t *testing.T) {
@@ -66,6 +68,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	err = global.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
+	k8sScheme = scheme.Scheme
 
 	// +kubebuilder:scaffold:scheme
 
