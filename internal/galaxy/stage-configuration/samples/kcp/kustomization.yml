@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
 - ./resources/stage-api-resource-schema.yml
 - ./resources/stageconfiguration-api-resource-schema.yml
-- ./resources/api-export.yml
+- ./resources/stageconfiguration-api-export.yml
 - ./resources/gcp-workspace-type.yml
 - ./resources/workspaces.yml
 

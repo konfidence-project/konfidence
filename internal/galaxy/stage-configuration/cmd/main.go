@@ -108,10 +108,11 @@ func main() {
 	}
 
 	if err := (&controller.StageConfigurationReconciler{
-		Mgr:       mgr,
-		OCMClient: ocm.OCIClient{},
-		Scheme:    scheme,
-		SkipOci:   tempSkipOciRegistry,
+		Mgr:        mgr,
+		OCMClient:  ocm.OCIClient{},
+		Scheme:     scheme,
+		RestConfig: cfg,
+		SkipOci:    tempSkipOciRegistry,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StageConfiguration")
 		os.Exit(1)
