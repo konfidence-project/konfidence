@@ -11,7 +11,7 @@ spec:
     listKind: StageConfigurationList
     plural: stageconfigurations
     singular: stageconfiguration
-  scope: Cluster
+  scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
@@ -43,7 +43,11 @@ spec:
             targetWorkspace:
               description: TargetWorkspace is the target workspace where the associated
                 stage is created or updated
-              type: string  
+              type: string
+            targetNamespace:
+              description: TargetNamespace is the target namespace where the associated
+                stage is created or updated
+              type: string
             vector:
               description: Vector points to the OCM component that contains the
                 deployment vector for this stage.
@@ -51,6 +55,7 @@ spec:
           required:
           - name
           - vector
+          - targetNamespace
           type: object
         status:
           description: StageConfigurationStatus defines the observed state of StageConfiguration.
