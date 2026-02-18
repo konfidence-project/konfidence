@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"regexp"
+	"strings"
 	"time"
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
@@ -28,8 +30,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,14 +44,21 @@ import (
 const (
 	DefaultReconcileInterval         = 30 * time.Second
 	StageConfigurationControllerName = "stage-configuration-controller"
+	ClusterMarker                    = "/clusters/"
+	ClusterPattern                   = "\\/clusters\\/[^/]+$"
+)
+
+var (
+	ClusterRegex = regexp.MustCompile(ClusterPattern)
 )
 
 // StageConfigurationReconciler reconciles a StageConfiguration object
 type StageConfigurationReconciler struct {
-	Mgr       mcmanager.Manager
-	OCMClient ocm.Client
-	Scheme    *runtime.Scheme
-	SkipOci   bool
+	Mgr        mcmanager.Manager
+	OCMClient  ocm.Client
+	Scheme     *runtime.Scheme
+	RestConfig *rest.Config
+	SkipOci    bool
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -123,46 +131,23 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	if r.Mgr.GetProvider() == nil {
 		targetClient = clusterClient
 	} else {
-		// if kcp is used a secret ref referencing a kubeconfig is mandatory
-		// TODO rename stageConfig attribute
-		if stageConfiguration.Spec.TargetWorkspace == nil {
-			return fmt.Errorf("no kubeconfig secret ref specified in stageConfiguration")
-		}
+		// copy the default kubeconfig and change the server url
+		targetCfg := rest.CopyConfig(r.RestConfig)
 
-		// get secret
-		secret := &v1.Secret{}
-		err := clusterClient.Get(ctx, types.NamespacedName{
-			// TODO what namespace should be used here?
-			Namespace: "default",
-			Name:      *stageConfiguration.Spec.TargetWorkspace,
-		}, secret)
-
-		// if kcp is used a target workspace is mandatory
-		if stageConfiguration.Spec.TargetWorkspace == nil {
-			return fmt.Errorf("no target workspace specified in stageConfiguration")
-		}
-
+		targetWorkspaceHost, err := r.getTargetWorkspaceHost(targetCfg.Host, stageConfiguration)
 		if err != nil {
-			return fmt.Errorf("could not get target kubeconfig secret: %w", err)
+			return fmt.Errorf("unable to get target workspace host: %w", err)
 		}
 
-		configBytes, ok := secret.Data["config"]
-		if !ok {
-			return fmt.Errorf("secret %q does not contain kubeconfig", secret.Name)
-		}
+		targetCfg.Host = targetWorkspaceHost
 
-		config, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
-		if err != nil {
-			return fmt.Errorf("could not parse kubeconfig %w", err)
-		}
-
-		// create a new client from kubeconfig
-		cl, err := client.New(config, client.Options{
+		// create a new client for the target cluster
+		cl, err := client.New(targetCfg, client.Options{
 			Scheme: r.Scheme,
 		})
 
 		if err != nil {
-			return fmt.Errorf("could not create target client from kubeconfig %w", err)
+			return fmt.Errorf("could not create target client from rest config %w", err)
 		}
 
 		targetClient = cl
@@ -203,6 +188,24 @@ func (r *StageConfigurationReconciler) constructStage(stageConfiguration *global
 			Vector: vector,
 		},
 	}
+}
+
+func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stageConfiguration *global.StageConfiguration) (string, error) {
+	// if kcp is used the target workspace is mandatory
+	if stageConfiguration.Spec.TargetWorkspace == nil || len(*stageConfiguration.Spec.TargetWorkspace) == 0 {
+		return "", fmt.Errorf("stage configuration does not contain a target workspace")
+	}
+
+	if !ClusterRegex.MatchString(host) {
+		return "", fmt.Errorf("could not match clusters entry at end of config host %s", host)
+	}
+
+	separatorIdx := strings.LastIndex(host, ClusterMarker)
+	if separatorIdx == -1 {
+		return "", fmt.Errorf("missing clusters entry in config host %s", host)
+	}
+
+	return host[:separatorIdx] + ClusterMarker + *stageConfiguration.Spec.TargetWorkspace, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
