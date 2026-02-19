@@ -21,20 +21,14 @@ import (
 	"os"
 	"time"
 
-	sync "github.com/gravitational/sync-controller/controller"
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
 	"github.com/konfidence-project/landscape-stage-controller/internal/gc"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
@@ -57,13 +51,10 @@ func init() {
 func main() {
 	var enableLeaderElection bool
 	var probeAddr string
-	var gcpSyncKubeconfig string
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&gcpSyncKubeconfig, "gcp-sync-kubeconfig", "",
-		"Path to kubeconfig file to sync from the remote (GCP) cluster. If empty, no sync is performed.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -81,51 +72,6 @@ func main() {
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
-	}
-
-	var remoteConfigObj *rest.Config
-	{
-		if gcpSyncKubeconfig != "" {
-			setupLog.Info("Using provided GCP sync kubeconfig for remote cluster", "path", gcpSyncKubeconfig)
-			cfg, err := clientcmd.BuildConfigFromFlags("", gcpSyncKubeconfig)
-			if err != nil {
-				setupLog.Error(err, "unable to build remote config from kubeconfig", "path", gcpSyncKubeconfig)
-				os.Exit(1)
-			}
-			remoteConfigObj = cfg
-			remoteCluster, err := cluster.New(remoteConfigObj, func(options *cluster.Options) {
-				options.Scheme = scheme
-			})
-			if err != nil {
-				setupLog.Error(err, "unable to create remote cluster")
-				os.Exit(1)
-			}
-			if err := mgr.Add(remoteCluster); err != nil {
-				setupLog.Error(err, "unable to add remote cluster to manager")
-				os.Exit(1)
-			}
-
-			if err := (&sync.Reconciler{
-				Client:                 mgr.GetClient(),
-				RemoteClient:           remoteCluster.GetClient(),
-				RemoteCache:            remoteCluster.GetCache(),
-				Scheme:                 mgr.GetScheme(),
-				Resource:               &common.Stage{},
-				RemoteResourceSuffix:   "",
-				LocalNamespaceSuffix:   "",
-				NamespacePrefix:        "",
-				LocalSecretNames:       []string{},
-				LocalPropagationPolicy: client.PropagationPolicy(metav1.DeletePropagationForeground),
-				ConcurrentReconciles:   1,
-			}).SetupWithManager(mgr); err != nil {
-				setupLog.Error(err, "unable to create controller", "controller", "sync-controller")
-				os.Exit(1)
-			}
-
-			setupLog.Info("setup of sync-controller finished")
-		} else {
-			setupLog.Info("No GCP sync kubeconfig provided; skipping setup of sync-controller and remote cluster")
-		}
 	}
 
 	if err := (&controller.StageReconciler{
