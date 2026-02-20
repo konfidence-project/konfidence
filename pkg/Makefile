@@ -10,6 +10,9 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# Add Hermit bin directory to PATH for all make targets
+export PATH := $(shell pwd)/bin:$(PATH)
+
 .PHONY: all
 all: generate lint test
 
@@ -76,3 +79,26 @@ mv $(1) $(1)-$(3) ;\
 } ;\
 ln -sf $(1)-$(3) $(1)
 endef
+
+##@ Git Hooks
+
+.PHONY: hermit
+hermit: ## Check if Hermit is installed and its environment is activated.
+	@command -v hermit >/dev/null 2>&1 || { \
+		echo "Hermit is not installed. Please install it from https://cashapp.github.io/hermit/"; \
+		exit 1; \
+	}
+	@hermit status >/dev/null 2>&1 || { \
+		echo "Hermit environment is not activated. Run 'source ./bin/activate-hermit' or 'eval \"$$(hermit env)\"'"; \
+		exit 1; \
+	}
+
+.PHONY: install-git-hooks
+install-git-hooks: hermit  ## Install git hooks
+	@echo "Setting up prek (pre-commit) installing git hooks..."
+	prek install
+
+.PHONY: uninstall-git-hooks
+uninstall-git-hooks: hermit  ## Uninstall git hooks
+	@echo "Uninstalling prek (pre-commit) git hooks..."
+	prek uninstall
