@@ -8,6 +8,15 @@ The Vector Activation Controller
 
 ## Requirements and Setup
 
+### Setup Git hooks
+
+We use git hooks to check the conventional-commit formatting at "commit-msg".
+
+```bash
+make install-git-hooks    # install all git hooks with prek
+make uninstall-git-hooks  # uninstall all git hooks with prek
+```
+
 ### Private Repository Dependencies
 The  vector activation CRD is located in a separate (private) [repository](https://github.com/konfidence-project/crds). Make sure you have setup the ```GOPRIVATE``` env variable in order to access other project-konfidence repositories (```export GOPRIVATE=github.com/konfidence-project/*```). Alternatively, you can also [setup a work.go](https://go.dev/doc/tutorial/workspaces) file to manage dependencies locally. 
 
