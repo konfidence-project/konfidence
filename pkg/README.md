@@ -20,6 +20,15 @@ go get github.com/konfidence-project/pkg
 
 ## Development
 
+### Setup Git hooks
+
+We use git hooks to check the conventional-commit formatting at "commit-msg".
+
+```bash
+make install-git-hooks    # install all git hooks with prek
+make uninstall-git-hooks  # uninstall all git hooks with prek
+```
+
 ### Prerequisites
 
 - Go 1.20+
