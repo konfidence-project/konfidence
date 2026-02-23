@@ -50,6 +50,15 @@ data:
     registry.example.com: my-secret-123
 ```
 
+### Setup Git hooks
+
+We use git hooks to check the conventional-commit formatting at "commit-msg".
+
+```bash
+make install-git-hooks    # install all git hooks with prek
+make uninstall-git-hooks  # uninstall all git hooks with prek
+```
+
 ## Support, Feedback, Contributing
 
 This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://github.com/konfidence-project/<your-project>/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, as well as additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md).
