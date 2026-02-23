@@ -22,7 +22,14 @@ In case you are the maintainer of a new konfidence-project open source project, 
 
 ## Requirements and Setup
 
-*Insert a short description what is required to get your project running...*
+### Setup Git hooks
+
+We use git hooks to check the conventional-commit formatting at "commit-msg".
+
+```bash
+make install-git-hooks    # install all git hooks with prek
+make uninstall-git-hooks  # uninstall all git hooks with prek
+```
 
 ## Support, Feedback, Contributing
 
