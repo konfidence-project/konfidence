@@ -11,6 +11,8 @@ Package v1alpha1 contains API Schema definitions for the global v1alpha1 API gro
 ### Resource Types
 - [StageConfiguration](#stageconfiguration)
 - [StageConfigurationList](#stageconfigurationlist)
+- [VectorPromotion](#vectorpromotion)
+- [VectorPromotionList](#vectorpromotionlist)
 - [VectorTemplate](#vectortemplate)
 - [VectorTemplateList](#vectortemplatelist)
 
@@ -104,6 +106,77 @@ StageConfigurationStatus defines the observed state of StageConfiguration.
 
 _Appears in:_
 - [StageConfiguration](#stageconfiguration)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+
+
+#### VectorPromotion
+
+
+
+VectorPromotion is the Schema for the vectorPromotions API.
+
+
+
+_Appears in:_
+- [VectorPromotionList](#vectorpromotionlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `global.konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `VectorPromotion` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[VectorPromotionSpec](#vectorpromotionspec)_ |  |  |  |
+| `status` _[VectorPromotionStatus](#vectorpromotionstatus)_ |  |  |  |
+
+
+#### VectorPromotionList
+
+
+
+VectorPromotionList contains a list of VectorPromotion.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `global.konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `VectorPromotionList` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[VectorPromotion](#vectorpromotion) array_ |  |  |  |
+
+
+#### VectorPromotionSpec
+
+
+
+VectorPromotionSpec defines the desired state of VectorPromotion.
+
+
+
+_Appears in:_
+- [VectorPromotion](#vectorpromotion)
+
+
+
+#### VectorPromotionStatus
+
+
+
+VectorPromotionStatus defines the observed state of VectorPromotion.
+
+
+
+_Appears in:_
+- [VectorPromotion](#vectorpromotion)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
