@@ -40,17 +40,17 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
-// GetLatestComponentVersion mocks base method.
-func (m *MockClient) GetLatestComponentVersion(arg0 context.Context, arg1 string) (string, error) {
+// GetLatestVectorVersion mocks base method.
+func (m *MockClient) GetLatestVectorVersion(ctx context.Context, registryAndComponent string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLatestComponentVersion", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetLatestVectorVersion", ctx, registryAndComponent)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLatestComponentVersion indicates an expected call of GetLatestComponentVersion.
-func (mr *MockClientMockRecorder) GetLatestComponentVersion(arg0, arg1 any) *gomock.Call {
+// GetLatestVectorVersion indicates an expected call of GetLatestVectorVersion.
+func (mr *MockClientMockRecorder) GetLatestVectorVersion(ctx, registryAndComponent any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestComponentVersion", reflect.TypeOf((*MockClient)(nil).GetLatestComponentVersion), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestVectorVersion", reflect.TypeOf((*MockClient)(nil).GetLatestVectorVersion), ctx, registryAndComponent)
 }

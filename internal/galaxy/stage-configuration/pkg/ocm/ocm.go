@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/konfidence-project/pkg/ocm/crypto"
+	ocmDescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci"
 	urlresolver "ocm.software/open-component-model/bindings/go/oci/resolver/url"
 	"ocm.software/open-component-model/bindings/go/repository"
@@ -15,13 +17,34 @@ import (
 )
 
 type Client interface {
-	GetLatestComponentVersion(context.Context, string) (string, error)
+	GetLatestVectorVersion(ctx context.Context, registryAndComponent string) (string, error)
 }
 
 type OCIClient struct {
+	VectorVerifier crypto.Verifier
 }
 
-func (OCIClient) GetLatestComponentVersion(ctx context.Context, registryAndComponent string) (string, error) {
+func (o OCIClient) GetLatestVectorVersion(ctx context.Context, registryAndComponent string) (string, error) {
+	version, err := getLatestComponentVersion(ctx, registryAndComponent)
+	if err != nil {
+		return "", fmt.Errorf("unable to get latest version for vector ocm component (%s): %w", registryAndComponent, err)
+	}
+
+	descriptor, err := getDescriptorForVersion(ctx, registryAndComponent, version)
+	if err != nil {
+		return "", fmt.Errorf("unable to get descriptor for latest ocm component version (%s) for vector (%s): %w",
+			version, registryAndComponent, err)
+	}
+
+	if err := o.VectorVerifier.Verify(ctx, descriptor); err != nil {
+		return "", fmt.Errorf("unable to verify ocm descriptor for vector (%s) version (%s): %w",
+			registryAndComponent, version, err)
+	}
+
+	return version, nil
+}
+
+func getLatestComponentVersion(ctx context.Context, registryAndComponent string) (string, error) {
 	repo, err := getOCMRepository(registryAndComponent)
 	if err != nil {
 		return "", fmt.Errorf("unable to get ocm component version repository for %s: %w", registryAndComponent, err)
@@ -44,6 +67,26 @@ func (OCIClient) GetLatestComponentVersion(ctx context.Context, registryAndCompo
 	}
 
 	return componentVersions[0], nil
+}
+
+func getDescriptorForVersion(ctx context.Context, registryAndComponent string,
+	version string) (*ocmDescriptor.Descriptor, error) {
+	repo, err := getOCMRepository(registryAndComponent)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get ocm component version repository: %w", err)
+	}
+
+	component, err := getOCMComponent(registryAndComponent)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get ocm component from %s: %w", registryAndComponent, err)
+	}
+
+	componentVersionDescriptor, err := repo.GetComponentVersion(ctx, component, version)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get ocm component version descriptor for component %s version %s: %w",
+			component, version, err)
+	}
+	return componentVersionDescriptor, nil
 }
 
 func getOCMRepository(registryAndComponent string) (repository.ComponentVersionRepository, error) {
