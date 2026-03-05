@@ -115,7 +115,7 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	latestVersion := "1.0.0"
 	if !r.SkipOci {
 		// get latest vector version
-		version, err := r.OCMClient.GetLatestComponentVersion(ctx, stageConfiguration.Spec.Vector)
+		version, err := r.OCMClient.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
 		if err != nil {
 			return fmt.Errorf("unable to get latest vector component version %s: %w", stageConfiguration.Spec.Vector, err)
 		}

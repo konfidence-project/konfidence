@@ -18,9 +18,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
+	"github.com/konfidence-project/pkg/ocm/crypto"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -43,6 +47,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	// +kubebuilder:scaffold:imports
+)
+
+const (
+	OcmVectorVerifyEnv                       = "OCM_VECTOR_VERIFY"
+	VerifierTrustAnchorConfigMapNameEnv      = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAME"
+	VerifierTrustAnchorConfigMapNamespaceEnv = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAMESPACE"
 )
 
 var (
@@ -107,9 +117,39 @@ func main() {
 		os.Exit(1)
 	}
 
+	context := ctrl.SetupSignalHandler()
+	var vectorVerifier crypto.Verifier
+	if strings.ToLower(os.Getenv(OcmVectorVerifyEnv)) != "true" {
+		setupLog.Info("ocm artifact verification is disabled")
+		vectorVerifier = crypto.NoopVerifier{}
+	} else {
+		configMapName, namespace := os.Getenv(VerifierTrustAnchorConfigMapNameEnv),
+			os.Getenv(VerifierTrustAnchorConfigMapNamespaceEnv)
+		if configMapName == "" || namespace == "" {
+			setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", VerifierTrustAnchorConfigMapNameEnv,
+				VerifierTrustAnchorConfigMapNamespaceEnv), "")
+			os.Exit(1)
+		}
+
+		provider := crypto.NewConfigMapTrustAnchorProvider(types.NamespacedName{Name: configMapName, Namespace: namespace})
+		if err = provider.SetupWithManager(context, mgr.GetLocalManager()); err != nil {
+			setupLog.Error(err, "unable to set up config map trust anchor provider")
+			os.Exit(1)
+		}
+
+		rsaVerifier, err := crypto.NewRSAVerifier([]string{crypto.VectorAssemblySignature},
+			crypto.WithCredentialProvider(provider))
+		if err != nil {
+			setupLog.Error(err, "Could not initialize RSA signature verifier")
+			os.Exit(1)
+		}
+
+		vectorVerifier = rsaVerifier
+	}
+
 	if err := (&controller.StageConfigurationReconciler{
 		Mgr:        mgr,
-		OCMClient:  ocm.OCIClient{},
+		OCMClient:  ocm.OCIClient{VectorVerifier: vectorVerifier},
 		Scheme:     scheme,
 		RestConfig: cfg,
 		SkipOci:    tempSkipOciRegistry,
@@ -129,7 +169,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(context); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

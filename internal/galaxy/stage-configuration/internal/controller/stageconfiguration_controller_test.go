@@ -85,7 +85,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 	Context("When reconciling a stageConfiguration", func() {
 		It("should successfully create a stage with latest vector version ", func() {
 			ctx := context.Background()
-			ocmClientMock.EXPECT().GetLatestComponentVersion(gomock.Any(), Vector).Return(V100, nil)
+			ocmClientMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V100, nil)
 			// create target namespace
 			// note: since test env cannot delete namespaces the target namespace is created once in the first test
 			testutil.CreateNamespace(ctx, k8sClient, TargetNamespace)
@@ -121,7 +121,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 		})
 		It("should successfully update an existing stage with latest vector version ", func() {
 			ctx := context.Background()
-			ocmClientMock.EXPECT().GetLatestComponentVersion(gomock.Any(), Vector).Return(V101, nil)
+			ocmClientMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V101, nil)
 
 			// create stage with v1.0.0 vector version
 			testutil.CreateStage(ctx, k8sClient, StageDev, TargetNamespace, VectorV100)
