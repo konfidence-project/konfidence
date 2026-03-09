@@ -78,7 +78,11 @@ func (p *SecretSigningCredentialsProvider) SetupWithManager(ctx context.Context,
 	if err := p.ingest(data); err != nil {
 		return fmt.Errorf("ingest secret %q: %w", p.secret, err)
 	}
-	if err := startCredentialInformer[*v1.Secret](ctx, mgr, p.log, p.done, p.refresh); err != nil {
+	inf, err := mgr.GetCache().GetInformer(ctx, &v1.Secret{})
+	if err != nil {
+		return fmt.Errorf("get informer for secret: %w", err)
+	}
+	if err := startCredentialInformer(ctx, inf, p.log, p.done, p.refresh); err != nil {
 		return fmt.Errorf("start informer for secret %q: %w", p.secret, err)
 	}
 	return nil
