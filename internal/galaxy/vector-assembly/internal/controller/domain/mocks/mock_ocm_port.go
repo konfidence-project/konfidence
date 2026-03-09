@@ -15,6 +15,8 @@ import (
 
 	domain "github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
 	gomock "go.uber.org/mock/gomock"
+	compref "ocm.software/open-component-model/bindings/go/oci/compref"
+	runtime "ocm.software/open-component-model/bindings/go/runtime"
 )
 
 // MockVectorOcmPort is a mock of VectorOcmPort interface.
@@ -42,21 +44,21 @@ func (m *MockVectorOcmPort) EXPECT() *MockVectorOcmPortMockRecorder {
 }
 
 // CreateVector mocks base method.
-func (m *MockVectorOcmPort) CreateVector(ctx context.Context, vector domain.Vector) error {
+func (m *MockVectorOcmPort) CreateVector(ctx context.Context, repoSpec runtime.Typed, vector domain.Vector) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateVector", ctx, vector)
+	ret := m.ctrl.Call(m, "CreateVector", ctx, repoSpec, vector)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateVector indicates an expected call of CreateVector.
-func (mr *MockVectorOcmPortMockRecorder) CreateVector(ctx, vector any) *gomock.Call {
+func (mr *MockVectorOcmPortMockRecorder) CreateVector(ctx, repoSpec, vector any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateVector", reflect.TypeOf((*MockVectorOcmPort)(nil).CreateVector), ctx, vector)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateVector", reflect.TypeOf((*MockVectorOcmPort)(nil).CreateVector), ctx, repoSpec, vector)
 }
 
 // GetLatestArtifactVersions mocks base method.
-func (m *MockVectorOcmPort) GetLatestArtifactVersions(ctx context.Context, references []domain.OcmReference) ([]domain.Artifact, error) {
+func (m *MockVectorOcmPort) GetLatestArtifactVersions(ctx context.Context, references []compref.Ref) ([]domain.Artifact, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLatestArtifactVersions", ctx, references)
 	ret0, _ := ret[0].([]domain.Artifact)
@@ -71,7 +73,7 @@ func (mr *MockVectorOcmPortMockRecorder) GetLatestArtifactVersions(ctx, referenc
 }
 
 // GetLatestVector mocks base method.
-func (m *MockVectorOcmPort) GetLatestVector(ctx context.Context, vectorRef domain.OcmReference) (domain.Vector, error) {
+func (m *MockVectorOcmPort) GetLatestVector(ctx context.Context, vectorRef compref.Ref) (domain.Vector, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLatestVector", ctx, vectorRef)
 	ret0, _ := ret[0].(domain.Vector)

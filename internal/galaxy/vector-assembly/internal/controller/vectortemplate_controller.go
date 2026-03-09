@@ -23,12 +23,14 @@ import (
 	"reflect"
 	"time"
 
+	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,6 +51,8 @@ const (
 	EventActionDriftDetection = "DriftDetection"
 	EventActionVectorCreation = "VectorCreation"
 )
+
+var ErrVersionInReference = fmt.Errorf("version in component reference is not allowed in VectorTemplate")
 
 // VectorTemplateReconciler reconciles a VectorTemplate object
 type VectorTemplateReconciler struct {
@@ -118,7 +122,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 		return err
 	}
 
-	vectorOCMComponent, err := domain.NewOcmReference(template.Spec.UploadTarget)
+	vectorOCMComponent, err := parseAndValidateReference(template.Spec.UploadTarget)
 	if err != nil {
 		err = fmt.Errorf("unable to create ocm reference from vector template upload target (%s): %w", template.Spec.UploadTarget, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -131,6 +135,17 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 		})
 		r.Recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
+	}
+	if vectorOCMComponent.Version != "" {
+		err = fmt.Errorf("version in upload target is not allowed for vector template (%s): %w", template.Name, err)
+		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Status:             metav1.ConditionUnknown,
+			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Message:            err.Error(),
+			ObservedGeneration: template.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
 	}
 
 	var desiredArtifacts []domain.Artifact
@@ -157,8 +172,8 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 
 	desiredArtifacts = combineBaseArtifactsAndComponentArtifacts(desiredArtifacts, latestArtifactsFromComponentList)
 
-	actualVector, err := r.OcmAdapter.GetLatestVector(ctx, vectorOCMComponent)
-	if errors.Is(err, domain.ErrVectorNotFound) {
+	actualVector, err := r.OcmAdapter.GetLatestVector(ctx, *vectorOCMComponent)
+	if errors.Is(err, pkgOcm.ErrNotFound) {
 		msg := "Vector not found in OCM repository - creating new vector"
 		r.Recorder.Eventf(template, nil, v1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
 		log.Info(msg, "VectorOCMComponent", vectorOCMComponent.Component)
@@ -195,10 +210,10 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 	newVector := domain.Vector{
 		// TODO: use https://github.com/open-component-model/ocm-spec/blob/main/doc/04-extensions/03-storage-backends/oci.md#121-version-aliasing
 		Version:   time.Now().UTC().Format("2006.1.2-150405000Z"),
-		Reference: vectorOCMComponent,
+		Name:      vectorOCMComponent.Component,
 		Artifacts: desiredArtifacts,
 	}
-	err = r.OcmAdapter.CreateVector(ctx, newVector)
+	err = r.OcmAdapter.CreateVector(ctx, vectorOCMComponent.Repository, newVector)
 	if err != nil {
 		err = fmt.Errorf("unable to create new vector (%s) on drift: %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -228,7 +243,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 }
 
 func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(ctx context.Context, template *v1alpha1.VectorTemplate, vectorOCMComponentName string) ([]domain.Artifact, error) {
-	baseVectorOCMComponent, err := domain.NewOcmReference(*template.Spec.Base)
+	baseVectorOCMComponent, err := parseAndValidateReference(*template.Spec.Base)
 	if err != nil {
 		err = fmt.Errorf("unable to create ocm reference from vector template base (%s): %w", *template.Spec.Base, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -243,7 +258,7 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(ctx context.Contex
 		return nil, err
 	}
 
-	baseVector, err := r.OcmAdapter.GetLatestVector(ctx, baseVectorOCMComponent)
+	baseVector, err := r.OcmAdapter.GetLatestVector(ctx, *baseVectorOCMComponent)
 	if err != nil {
 		err = fmt.Errorf("unable to get artifacts from base vector (%s): %w", baseVectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -270,7 +285,7 @@ func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts
 	for _, componentArtifact := range componentArtifacts {
 		found := false
 		for i, baseArtifact := range baseArtifacts {
-			if componentArtifact.OcmReference.Component == baseArtifact.OcmReference.Component {
+			if componentArtifact.Name == baseArtifact.Name {
 				baseArtifacts[i] = componentArtifact
 				found = true
 				break
@@ -283,15 +298,15 @@ func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts
 	return baseArtifacts
 }
 
-func mapComponentsToOCMReferences(components []v1alpha1.Component) ([]domain.OcmReference, error) {
-	ocmRefs := make([]domain.OcmReference, 0, len(components))
+func mapComponentsToOCMReferences(components []v1alpha1.Component) ([]compref.Ref, error) {
+	ocmRefs := make([]compref.Ref, 0, len(components))
 	for _, component := range components {
-		componentOcmRef, err := domain.NewOcmReference(component.Name)
+		componentOcmRef, err := parseAndValidateReference(component.Name)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create ocm reference from vector template component (%s): %w",
 				component.Name, err)
 		}
-		ocmRefs = append(ocmRefs, componentOcmRef)
+		ocmRefs = append(ocmRefs, *componentOcmRef)
 	}
 	return ocmRefs, nil
 }
@@ -309,4 +324,15 @@ func (r *VectorTemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.VectorTemplate{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named("vectortemplate").
 		Complete(r)
+}
+
+func parseAndValidateReference(reference string) (*compref.Ref, error) {
+	parsedRef, err := compref.Parse(reference)
+	if err != nil {
+		return nil, err
+	}
+	if parsedRef.Version != "" {
+		return nil, ErrVersionInReference
+	}
+	return parsedRef, nil
 }

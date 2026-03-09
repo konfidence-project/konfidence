@@ -1,0 +1,10 @@
+apiVersion: global.konfidence.cloud/v1alpha1
+kind: VectorTemplate
+metadata:
+  namespace: default
+  name: base-app
+spec:
+  reconcileInterval: 10s
+  uploadTarget: http://localhost:5100//konfidence.cloud/constructed-vectors/base-vector
+  components:
+    - name: http://localhost:5100//konfidence.cloud/services/service1

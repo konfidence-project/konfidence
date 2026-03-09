@@ -6,5 +6,6 @@ services:
       - "5100:5100"
     volumes:
       - ./zot-data:/var/lib/registry
+      - ./htpasswd:/etc/zot/htpasswd:ro  # user: "user", password: "password"
       - ./zot-config.json:/etc/zot/config.json
     restart: unless-stopped
