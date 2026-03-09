@@ -24,34 +24,22 @@ var _ = Describe("HasDrift", func() {
 		desiredArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
-				OcmReference: OcmReference{
-					Component:  "component-a",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-a",
 			},
 			{
 				Version: "1.52.0",
-				OcmReference: OcmReference{
-					Component:  "component-b",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-b",
 			},
 		}
 
 		actualArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
-				OcmReference: OcmReference{
-					Component:  "component-a",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-a",
 			},
 			{
 				Version: "1.52.0",
-				OcmReference: OcmReference{
-					Component:  "component-b",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-b",
 			},
 		}
 		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeFalse())
@@ -61,33 +49,21 @@ var _ = Describe("HasDrift", func() {
 		desiredArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
-				OcmReference: OcmReference{
-					Component:  "component-a",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-a",
 			},
 			{
 				Version: "1.52.0",
-				OcmReference: OcmReference{
-					Component:  "component-b",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-b",
 			},
 		}
 		actualArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
-				OcmReference: OcmReference{
-					Component:  "component-a",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-a",
 			},
 			{
 				Version: "1.60.5",
-				OcmReference: OcmReference{
-					Component:  "component-b",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-b",
 			},
 		}
 		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeTrue())
@@ -97,34 +73,22 @@ var _ = Describe("HasDrift", func() {
 		desiredArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
-				OcmReference: OcmReference{
-					Component:  "component-a",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-a",
 			},
 			{
 				Version: "1.52.0",
-				OcmReference: OcmReference{
-					Component:  "component-b",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-b",
 			},
 		}
 
 		actualArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
-				OcmReference: OcmReference{
-					Component:  "component-a",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-a",
 			},
 			{
 				Version: "2.0.0",
-				OcmReference: OcmReference{
-					Component:  "component-c",
-					Repository: "http://localhost:5100",
-				},
+				Name:    "component-c",
 			},
 		}
 		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeTrue())

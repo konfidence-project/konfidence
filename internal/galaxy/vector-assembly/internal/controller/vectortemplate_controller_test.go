@@ -22,11 +22,14 @@ import (
 
 	"github.com/aws/smithy-go/ptr"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	"github.com/konfidence-project/pkg/ocm/repository"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
+	"ocm.software/open-component-model/bindings/go/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -82,30 +85,20 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 
 		// when: GetLatestArtifactVersions is called
 		// then: return latestComponentVersions stored in registry
-		ocmComponentsFromComponentList := []domain.OcmReference{
-			{
-				Component:  "dwc.tools.sap/dwc-project/dev/service1",
-				Repository: "localhost:5100",
-			},
-			{
-				Component:  "dwc.tools.sap/dwc-project/dev/service2",
-				Repository: "localhost:5100",
-			},
+		component1, _ := compref.Parse("http://localhost:5100//dwc.tools.sap/dwc-project/dev/service1")
+		component2, _ := compref.Parse("http://localhost:5100//dwc.tools.sap/dwc-project/dev/service2")
+		ocmComponentsFromComponentList := []compref.Ref{
+			*component1,
+			*component2,
 		}
 		latestComponentVersions := []domain.Artifact{
 			{
 				Version: "1.2.0",
-				OcmReference: domain.OcmReference{
-					Component:  "dwc.tools.sap/dwc-project/dev/service1",
-					Repository: "localhost:5100",
-				},
+				Name:    "dwc.tools.sap/dwc-project/dev/service1",
 			},
 			{
 				Version: "3.1.0", // this indicates a new version is available for service2
-				OcmReference: domain.OcmReference{
-					Component:  "dwc.tools.sap/dwc-project/dev/service2",
-					Repository: "localhost:5100",
-				},
+				Name:    "dwc.tools.sap/dwc-project/dev/service2",
 			},
 		}
 		ocmAdapterMock.EXPECT().GetLatestArtifactVersions(gomock.Any(), ocmComponentsFromComponentList).Return(latestComponentVersions, nil).Times(1)
@@ -114,24 +107,15 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 		// then: return an latest vector stored in registry
 		latestVector := domain.Vector{
 			Version: "2026.1.30-083712000Z",
-			Reference: domain.OcmReference{
-				Component:  "konfidence.cloud/sample-vector/sample-app",
-				Repository: "localhost:5100",
-			},
+			Name:    "konfidence.cloud/sample-vector/sample-app",
 			Artifacts: []domain.Artifact{
 				{
 					Version: "1.2.0",
-					OcmReference: domain.OcmReference{
-						Component:  "dwc.tools.sap/dwc-project/dev/service1",
-						Repository: "localhost:5100",
-					},
+					Name:    "dwc.tools.sap/dwc-project/dev/service1",
 				},
 				{
 					Version: "2.99.0", // older version for service2
-					OcmReference: domain.OcmReference{
-						Component:  "dwc.tools.sap/dwc-project/dev/service2",
-						Repository: "localhost:5100",
-					},
+					Name:    "dwc.tools.sap/dwc-project/dev/service2",
 				},
 			},
 		}
@@ -141,30 +125,22 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 		// then: expect it to be called with updated vector containing new version for service2
 		expectedUpdatedVector := domain.Vector{
 			Version: "NOT-TESTABLE", // version can't be verified, because it's generated based on current timestamp
-			Reference: domain.OcmReference{
-				Component:  "konfidence.cloud/sample-vector/sample-app",
-				Repository: "localhost:5100",
-			},
+			Name:    "konfidence.cloud/sample-vector/sample-app",
 			Artifacts: []domain.Artifact{
 				{
 					Version: "1.2.0",
-					OcmReference: domain.OcmReference{
-						Component:  "dwc.tools.sap/dwc-project/dev/service1",
-						Repository: "localhost:5100",
-					},
+					Name:    "dwc.tools.sap/dwc-project/dev/service1",
 				},
 				{
 					Version: "3.1.0", // updated version for service2
-					OcmReference: domain.OcmReference{
-						Component:  "dwc.tools.sap/dwc-project/dev/service2",
-						Repository: "localhost:5100",
-					},
+					Name:    "dwc.tools.sap/dwc-project/dev/service2",
 				},
 			},
 		}
-		ocmAdapterMock.EXPECT().CreateVector(gomock.Any(), gomock.AssignableToTypeOf(domain.Vector{})).
-			DoAndReturn(func(ctx context.Context, v domain.Vector) error {
-				gomega.Expect(v.Reference).To(gomega.Equal(expectedUpdatedVector.Reference))
+		// todo: pass 2nd arg as repoSpec.
+		ocmAdapterMock.EXPECT().CreateVector(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(domain.Vector{})).
+			DoAndReturn(func(ctx context.Context, repoSpec runtime.Typed, v domain.Vector) error {
+				gomega.Expect(v.Name).To(gomega.Equal(expectedUpdatedVector.Name))
 				gomega.Expect(v.Artifacts).To(gomega.Equal(expectedUpdatedVector.Artifacts))
 				return nil
 			}).
@@ -198,95 +174,67 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 
 		// when: GetLatestVector is called for the base vector
 		// then: return an latest base vector stored in registry
-		baseVectorOcmReference := domain.OcmReference{
-			Component:  "konfidence.project/common-services",
-			Repository: "localhost:5100",
-		}
+		baseVectorOcmReference, _ := compref.Parse("http://localhost:5100//konfidence.project/common-services")
 		baseVector := domain.Vector{
-			Version:   "2026.1.15-101112000Z",
-			Reference: baseVectorOcmReference,
+			Version: "2026.1.15-101112000Z",
+			Name:    "konfidence.project/common-services",
 			Artifacts: []domain.Artifact{
 				{
 					Version: "0.9.0",
-					OcmReference: domain.OcmReference{
-						Component:  "dwc.tools.sap/dwc-project/dev/service3", // service from base vector
-						Repository: "localhost:5100",
-					},
+					Name:    "dwc.tools.sap/dwc-project/dev/service3", // service from base vector
 				},
 			},
 		}
-		ocmAdapterMock.EXPECT().GetLatestVector(gomock.Any(), baseVectorOcmReference).Return(baseVector, nil).Times(1)
+		ocmAdapterMock.EXPECT().GetLatestVector(gomock.Any(), *baseVectorOcmReference).Return(baseVector, nil).Times(1)
 
 		// when: GetLatestArtifactVersions is called
 		// then: return predefined latest versions for components
-		ocmComponentsFromComponentList := []domain.OcmReference{
-			{
-				Component:  "dwc.tools.sap/dwc-project/dev/service1",
-				Repository: "localhost:5100",
-			},
-			{
-				Component:  "dwc.tools.sap/dwc-project/dev/service2",
-				Repository: "localhost:5100",
-			},
+		component1, _ := compref.Parse("http://localhost:5100//dwc.tools.sap/dwc-project/dev/service1")
+		component2, _ := compref.Parse("http://localhost:5100//dwc.tools.sap/dwc-project/dev/service2")
+		ocmComponentsFromComponentList := []compref.Ref{
+			*component1,
+			*component2,
 		}
 		latestComponentVersions := []domain.Artifact{
 			{
 				Version: "1.2.0",
-				OcmReference: domain.OcmReference{
-					Component:  "dwc.tools.sap/dwc-project/dev/service1",
-					Repository: "localhost:5100",
-				},
+				Name:    "dwc.tools.sap/dwc-project/dev/service1",
 			},
 			{
 				Version: "3.1.0",
-				OcmReference: domain.OcmReference{
-					Component:  "dwc.tools.sap/dwc-project/dev/service2",
-					Repository: "localhost:5100",
-				},
+				Name:    "dwc.tools.sap/dwc-project/dev/service2",
 			},
 		}
 		ocmAdapterMock.EXPECT().GetLatestArtifactVersions(gomock.Any(), ocmComponentsFromComponentList).Return(latestComponentVersions, nil).Times(1)
 
 		// when: GetLatestVector is called
-		// then: return an error indicating that the vector does not exist
+		// then: return an ErrNotFound indicating that the vector does not exist
 		ocmAdapterMock.EXPECT().GetLatestVector(gomock.Any(), gomock.Any()).
-			Return(domain.Vector{}, domain.ErrVectorNotFound).Times(1)
+			Return(domain.Vector{}, repository.ErrNotFound).Times(1)
 
 		// when: CreateVector is called
 		// then: expect it to be called to create the new vector
 		expectedUpdatedVector := domain.Vector{
 			Version: "NOT-TESTABLE", // version can't be verified, because it's generated based on current timestamp
-			Reference: domain.OcmReference{
-				Component:  "konfidence.cloud/sample-vector/sample-app",
-				Repository: "localhost:5100",
-			},
+			Name:    "konfidence.cloud/sample-vector/sample-app",
 			Artifacts: []domain.Artifact{
 				{
 					Version: "0.9.0",
-					OcmReference: domain.OcmReference{
-						Component:  "dwc.tools.sap/dwc-project/dev/service3", // service 3 from base vector
-						Repository: "localhost:5100",
-					},
+					Name:    "dwc.tools.sap/dwc-project/dev/service3", // service 3 from base vector
 				},
 				{
 					Version: "1.2.0",
-					OcmReference: domain.OcmReference{
-						Component:  "dwc.tools.sap/dwc-project/dev/service1",
-						Repository: "localhost:5100",
-					},
+					Name:    "dwc.tools.sap/dwc-project/dev/service1",
 				},
 				{
 					Version: "3.1.0", // updated version for service2
-					OcmReference: domain.OcmReference{
-						Component:  "dwc.tools.sap/dwc-project/dev/service2",
-						Repository: "localhost:5100",
-					},
+					Name:    "dwc.tools.sap/dwc-project/dev/service2",
 				},
 			},
 		}
-		ocmAdapterMock.EXPECT().CreateVector(gomock.Any(), gomock.AssignableToTypeOf(domain.Vector{})).
-			DoAndReturn(func(ctx context.Context, v domain.Vector) error {
-				gomega.Expect(v.Reference).To(gomega.Equal(expectedUpdatedVector.Reference))
+		ocmAdapterMock.EXPECT().CreateVector(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(domain.Vector{})).
+			DoAndReturn(func(ctx context.Context, repoSpec runtime.Typed, v domain.Vector) error {
+				gomega.Expect(v.Name).To(gomega.Equal(expectedUpdatedVector.Name))
 				gomega.Expect(v.Artifacts).To(gomega.Equal(expectedUpdatedVector.Artifacts))
 				return nil
 			}).

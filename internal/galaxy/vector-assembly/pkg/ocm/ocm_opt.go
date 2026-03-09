@@ -1,9 +1,13 @@
 package ocm
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/konfidence-project/pkg/ocm/crypto"
+	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
+	v1 "k8s.io/api/core/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // AdapterOption is a functional option for configuring the Adapter.
@@ -84,5 +88,22 @@ func WithDefaultVectorSigning(provider *crypto.SecretSigningCredentialsProvider)
 			panic(fmt.Sprintf("unable to set up default ocm vector signing: %v", err))
 		}
 		a.vectorSigner = s
+	}
+}
+
+// WithOcmClient sets the OCM client used to interact with OCM repositories.
+// It will use the provided k8s Secret to access OCI registries.
+// If the secret is nil, then the OCM client will be built without credentials and use a noop credential resolver.
+// If setup fails this option will panic.
+func WithOcmClient(ctx context.Context, secret *v1.Secret) AdapterOption {
+	return func(a *Adapter) {
+		ocmClient, err := pkgOcm.NewOciClientBuilder().
+			WithLogger(ctrl.Log).
+			WithDockerConfigJsonSecret(secret).
+			Build(ctx)
+		if err != nil {
+			panic(fmt.Sprintf("unable to create ocm client: %v", err))
+		}
+		a.ocmClient = ocmClient
 	}
 }

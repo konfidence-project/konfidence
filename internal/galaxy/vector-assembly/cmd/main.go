@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -24,9 +25,13 @@ import (
 	"strings"
 
 	"github.com/konfidence-project/crds/api/global/v1alpha1"
-	"github.com/konfidence-project/gcp-vector-assembly-controller/pkg/ocm"
 	"github.com/konfidence-project/pkg/ocm/crypto"
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/konfidence-project/gcp-vector-assembly-controller/pkg/ocm"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -139,6 +144,15 @@ func main() {
 		}
 	}
 
+	// read secret from a k8s secret.
+	// todo: in future, we want configure the credentials for accessing OCI registries in a controller-specific configuration.
+	secret, err := loadSecret(ctx, mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to load registry credentials secret")
+		os.Exit(1)
+	}
+	adapterConfig = append(adapterConfig, ocm.WithOcmClient(ctx, secret))
+
 	if err := (&controller.VectorTemplateReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
@@ -164,4 +178,22 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+// loadSecret loads the registry credentials secret from the k8s cluster.
+// returns nil if the secret is not found.
+func loadSecret(ctx context.Context, mgr manager.Manager) (*v1.Secret, error) {
+	const secretName = "registry-credentials"
+	const secretNamespace = "konfidence-system"
+
+	secret := &v1.Secret{}
+	err := mgr.GetAPIReader().Get(ctx, types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret)
+	if apierrors.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret %s/%s: %w", secretNamespace, secretName, err)
+	}
+
+	return secret, nil
 }
