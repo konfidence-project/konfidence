@@ -79,7 +79,11 @@ func (p *ConfigMapTrustAnchorProvider) SetupWithManager(ctx context.Context, mgr
 	if err := p.ingest(data); err != nil {
 		return fmt.Errorf("ingest configmap %q: %w", p.cfg, err)
 	}
-	if err := startCredentialInformer[*v1.ConfigMap](ctx, mgr, p.log, p.done, p.refresh); err != nil {
+	inf, err := mgr.GetCache().GetInformer(ctx, &v1.ConfigMap{})
+	if err != nil {
+		return fmt.Errorf("get informer for configmap %q: %w", p.cfg, err)
+	}
+	if err := startCredentialInformer(ctx, inf, p.log, p.done, p.refresh); err != nil {
 		return fmt.Errorf("start informer for configmap %q: %w", p.cfg, err)
 	}
 	return nil

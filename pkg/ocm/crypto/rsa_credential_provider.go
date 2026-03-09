@@ -6,8 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/tools/cache"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	informer "sigs.k8s.io/controller-runtime/pkg/cache"
 )
 
 var (
@@ -22,21 +21,16 @@ type RSACredentialProvider interface {
 	Get(ctx context.Context) (map[string]string, error)
 }
 
-// startCredentialInformer sets up a Kubernetes informer for credential providers.
+// startCredentialInformer configures a Kubernetes informer for credential providers.
 // It watches for changes to the specified resource type and calls refresh on updates.
 // When the context is cancelled, it stops the informer and signals done.
-func startCredentialInformer[T client.Object](
+func startCredentialInformer(
 	ctx context.Context,
-	mgr ctrl.Manager,
+	inf informer.Informer,
 	log logr.Logger,
 	done chan struct{},
 	refresh func(obj any),
 ) error {
-	var zero T
-	inf, err := mgr.GetCache().GetInformer(ctx, zero)
-	if err != nil {
-		return fmt.Errorf("get %T informer: %w", zero, err)
-	}
 	registration, err := inf.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    func(obj interface{}) { refresh(obj) },
 		UpdateFunc: func(oldObj, newObj interface{}) { refresh(newObj) },
