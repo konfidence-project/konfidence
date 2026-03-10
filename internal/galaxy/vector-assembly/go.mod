@@ -4,20 +4,19 @@ go 1.25.6
 
 require (
 	github.com/aws/smithy-go v1.24.0
+	github.com/go-logr/logr v1.4.3
 	github.com/konfidence-project/crds/api/global v0.2.0
+	github.com/konfidence-project/pkg v0.9.1
 	github.com/onsi/ginkgo/v2 v2.27.5
 	github.com/onsi/gomega v1.39.0
 	go.uber.org/mock v0.6.0
 	k8s.io/api v0.35.0
 	k8s.io/apimachinery v0.35.0
 	k8s.io/client-go v0.35.0
-	ocm.software/open-component-model/bindings/go/descriptor/normalisation v0.0.0-20260202154605-53223b130df9
-	ocm.software/open-component-model/bindings/go/descriptor/runtime v0.0.0-20260203092920-c2c570fef6e9
+	ocm.software/open-component-model/bindings/go/descriptor/runtime v0.0.0-20260218124519-37a5ce5ed2a4
 	ocm.software/open-component-model/bindings/go/oci v0.0.27
 	ocm.software/open-component-model/bindings/go/repository v0.0.5
-	ocm.software/open-component-model/bindings/go/rsa v0.0.0-20260204140923-345bf4d0cb4b
-	ocm.software/open-component-model/bindings/go/runtime v0.0.5
-	ocm.software/open-component-model/bindings/go/signing v0.0.0-20260203063703-647f5c0808ab
+	ocm.software/open-component-model/bindings/go/runtime v0.0.6
 	oras.land/oras-go/v2 v2.6.0
 	sigs.k8s.io/controller-runtime v0.23.1
 )
@@ -32,7 +31,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.22.4 // indirect
 	github.com/go-openapi/jsonreference v0.21.4 // indirect
@@ -92,7 +90,10 @@ require (
 	k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4 // indirect
 	k8s.io/utils v0.0.0-20260108192941-914a6e750570 // indirect
 	ocm.software/open-component-model/bindings/go/blob v0.0.11 // indirect
+	ocm.software/open-component-model/bindings/go/descriptor/normalisation v0.0.0-20260218105921-92cb5e362a44 // indirect
 	ocm.software/open-component-model/bindings/go/descriptor/v2 v2.0.1-alpha9 // indirect
+	ocm.software/open-component-model/bindings/go/rsa v0.0.0-20260218124519-37a5ce5ed2a4 // indirect
+	ocm.software/open-component-model/bindings/go/signing v0.0.0-20260218124519-37a5ce5ed2a4 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2-0.20260122202528-d9cc6641c482 // indirect
