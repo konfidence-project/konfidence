@@ -135,7 +135,7 @@ func main() {
 	context := ctrl.SetupSignalHandler()
 	var vectorVerifier crypto.Verifier
 	if strings.ToLower(os.Getenv(OcmVectorVerifyEnv)) != "true" {
-		setupLog.Info("ocm artifact verification is disabled")
+		setupLog.Info("ocm vector verification is disabled")
 		vectorVerifier = crypto.NoopVerifier{}
 	} else {
 		configMapName, namespace := os.Getenv(VerifierTrustAnchorConfigMapNameEnv),
