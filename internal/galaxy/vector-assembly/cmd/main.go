@@ -18,11 +18,15 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/konfidence-project/crds/api/global/v1alpha1"
 	"github.com/konfidence-project/gcp-vector-assembly-controller/pkg/ocm"
+	"github.com/konfidence-project/pkg/ocm/crypto"
+	"k8s.io/apimachinery/pkg/types"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -43,8 +47,12 @@ var (
 )
 
 const (
-	ocmArtifactVerifyEnv   = "OCM_ARTIFACT_VERIFY"
-	ocmVectorSignAndVerify = "OCM_VECTOR_SIGN_AND_VERIFY"
+	OcmArtifactVerifyEnv                     = "OCM_ARTIFACT_VERIFY"
+	OcmVectorSignAndVerifyEnv                = "OCM_VECTOR_SIGN_AND_VERIFY"
+	VerifierTrustAnchorConfigMapNameEnv      = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAME"
+	VerifierTrustAnchorConfigMapNamespaceEnv = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAMESPACE"
+	SigningCredentialSecretNameEnv           = "OCM_RSA_SIGNING_KEY_SECRET_NAME"
+	SigningCredentialSecretNamespaceEnv      = "OCM_RSA_SIGNING_KEY_SECRET_NAMESPACE"
 )
 
 func init() {
@@ -81,18 +89,54 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := ctrl.SetupSignalHandler()
 	var adapterConfig []ocm.AdapterOption
-	if strings.ToLower(os.Getenv(ocmArtifactVerifyEnv)) != "true" {
-		setupLog.Info("OCM artifact verification is disabled")
-	} else {
-		adapterConfig = append(adapterConfig, ocm.WithDefaultArtifactVerificationAndTrustAnchor(mgr))
-	}
-	if strings.ToLower(os.Getenv(ocmVectorSignAndVerify)) != "true" {
-		setupLog.Info("OCM vector signing and verification is disabled")
-	} else {
-		adapterConfig = append(adapterConfig,
-			ocm.WithDefaultVectorSigning(mgr),
-			ocm.WithDefaultVectorVerificationAndTrustAnchor(mgr))
+	verifyArtifact := strings.ToLower(os.Getenv(OcmArtifactVerifyEnv))
+	verifyAndSignVector := strings.ToLower(os.Getenv(OcmVectorSignAndVerifyEnv))
+
+	if verifyArtifact != "" || verifyAndSignVector != "" {
+		configMapName, namespace := os.Getenv(VerifierTrustAnchorConfigMapNameEnv),
+			os.Getenv(VerifierTrustAnchorConfigMapNamespaceEnv)
+		if configMapName == "" || namespace == "" {
+			setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", VerifierTrustAnchorConfigMapNameEnv,
+				VerifierTrustAnchorConfigMapNamespaceEnv), "")
+			os.Exit(1)
+		}
+
+		configMapProvider := crypto.NewConfigMapTrustAnchorProvider(types.NamespacedName{Name: configMapName, Namespace: namespace})
+		if err = configMapProvider.SetupWithManager(ctx, mgr); err != nil {
+			setupLog.Error(err, "unable to set up config map trust anchor provider")
+			os.Exit(1)
+		}
+
+		chk, err := strconv.ParseBool(verifyArtifact)
+		if err == nil && chk {
+			adapterConfig = append(adapterConfig, ocm.WithDefaultArtifactVerification(configMapProvider))
+		} else {
+			setupLog.Info("OCM artifact verification is disabled")
+		}
+
+		chk, err = strconv.ParseBool(verifyAndSignVector)
+		if err == nil && chk {
+			secretName, secretNamespace := os.Getenv(SigningCredentialSecretNameEnv), os.Getenv(SigningCredentialSecretNamespaceEnv)
+			if secretName == "" || secretNamespace == "" {
+				setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", SigningCredentialSecretNameEnv,
+					SigningCredentialSecretNamespaceEnv), "")
+				os.Exit(1)
+			}
+
+			secretProvider := crypto.NewSecretSigningCredentialsProvider(types.NamespacedName{Name: secretName, Namespace: secretNamespace})
+			if err = secretProvider.SetupWithManager(ctx, mgr); err != nil {
+				setupLog.Error(err, "unable to set up secret signing credentials provider")
+				os.Exit(1)
+			}
+
+			adapterConfig = append(adapterConfig,
+				ocm.WithDefaultVectorSigning(secretProvider),
+				ocm.WithDefaultVectorVerification(configMapProvider))
+		} else {
+			setupLog.Info("OCM vector signing and verification is disabled")
+		}
 	}
 
 	if err := (&controller.VectorTemplateReconciler{
@@ -116,7 +160,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

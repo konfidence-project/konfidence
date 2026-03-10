@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
+	"github.com/konfidence-project/pkg/ocm/crypto"
 	ocmDescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci"
 	urlresolver "ocm.software/open-component-model/bindings/go/oci/resolver/url"
@@ -25,9 +26,9 @@ var (
 
 // Adapter is an implementation of the VectorOcmPort interface that interacts with OCM repositories to manage vectors and their associated artifacts.
 type Adapter struct {
-	vectorVerifier, artifactVerifier Verifier
-	vectorSigner                     Signer
-	digester                         Digester
+	vectorVerifier, artifactVerifier crypto.Verifier
+	vectorSigner                     crypto.Signer
+	digester                         crypto.Digester
 }
 
 func (a Adapter) GetLatestArtifactVersions(ctx context.Context, references []domain.OcmReference) ([]domain.Artifact, error) {
@@ -256,17 +257,17 @@ func NewAdapter(options ...AdapterOption) Adapter {
 func applyDefaults(a *Adapter) {
 	if a.vectorSigner == nil {
 		ctrl.Log.Info("vector signer not configured - using noop signer")
-		a.vectorSigner = NoopSigner{}
+		a.vectorSigner = crypto.NoopSigner{}
 	}
 	if a.digester == nil {
-		a.digester = newOcmDigester()
+		a.digester = crypto.NewDefaultDigester(ctrl.Log)
 	}
 	if a.vectorVerifier == nil {
 		ctrl.Log.Info("vector verifier not configured - using noop verifier")
-		a.vectorVerifier = NoopVerifier{}
+		a.vectorVerifier = crypto.NoopVerifier{}
 	}
 	if a.artifactVerifier == nil {
 		ctrl.Log.Info("artifact verifier not configured - using noop verifier")
-		a.artifactVerifier = NoopVerifier{}
+		a.artifactVerifier = crypto.NoopVerifier{}
 	}
 }
