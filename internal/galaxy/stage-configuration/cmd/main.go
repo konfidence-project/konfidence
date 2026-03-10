@@ -25,6 +25,7 @@ import (
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
 	"github.com/konfidence-project/pkg/ocm/crypto"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -53,6 +54,8 @@ const (
 	OcmVectorVerifyEnv                       = "OCM_VECTOR_VERIFY"
 	VerifierTrustAnchorConfigMapNameEnv      = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAME"
 	VerifierTrustAnchorConfigMapNamespaceEnv = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAMESPACE"
+	KubernetesServiceHost                    = "KUBERNETES_SERVICE_HOST"
+	KubernetesServicePort                    = "KUBERNETES_SERVICE_PORT"
 )
 
 var (
@@ -95,6 +98,17 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	cfg := ctrl.GetConfigOrDie()
+	leaderElectionCfg := cfg
+	serviceHost, servicePort := os.Getenv(KubernetesServiceHost), os.Getenv(KubernetesServicePort)
+	if serviceHost != "" && servicePort != "" {
+		inClusterCfg, err := rest.InClusterConfig()
+		if err != nil {
+			setupLog.Error(err, "unable to get in-cluster config for leader election")
+			os.Exit(1)
+		}
+
+		leaderElectionCfg = inClusterCfg
+	}
 
 	var err error
 	var provider multicluster.Provider = nil
@@ -111,6 +125,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "969492ce.konfidence.cloud",
+		LeaderElectionConfig:   leaderElectionCfg,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
