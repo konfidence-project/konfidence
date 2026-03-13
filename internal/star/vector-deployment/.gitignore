@@ -35,9 +35,13 @@ go.work.sum
 *.swo
 *~
 .DS_Store
-
+.zed
 # Build files of utils for local testing
 ocm-samples/ocm-transfer
 
 # generated files like CRDs for testing
 test/data/generated/
+
+
+# local registry data for testing
+*/zot-data/*

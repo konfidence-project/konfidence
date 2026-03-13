@@ -13,5 +13,5 @@ metadata:
   name: common.konfidence.cloud.example.vector-0.3.0
   namespace: sample-project
 spec:
-  vector: https://registry.kdenv.lab/sample-project//github.com/konfidence-project/sample-vector:0.3.0
+  vector: http://localhost:5100/sample-project//github.com/konfidence-project/sample-vector:0.3.0
 

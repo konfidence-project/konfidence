@@ -15,6 +15,6 @@ ocm add componentversions --create --file "$REPO_ROOT/ocm-samples/ocm-transfer/a
 ocm add componentversions --create --file "$REPO_ROOT/ocm-samples/ocm-transfer/vector1" "$REPO_ROOT/ocm-samples/vector.yaml"
 
 # Transfer CTFs to OCI registry
-ocm transfer ctf "$REPO_ROOT/ocm-samples/ocm-transfer/artifact-1" https://registry.kdenv.lab/sample-project --overwrite
-ocm transfer ctf "$REPO_ROOT/ocm-samples/ocm-transfer/artifact-2" https://registry.kdenv.lab/sample-project --overwrite
-ocm transfer ctf "$REPO_ROOT/ocm-samples/ocm-transfer/vector1" https://registry.kdenv.lab/sample-project --overwrite
+ocm transfer ctf "$REPO_ROOT/ocm-samples/ocm-transfer/artifact-1" http://localhost:5100/sample-project --overwrite
+ocm transfer ctf "$REPO_ROOT/ocm-samples/ocm-transfer/artifact-2" http://localhost:5100/sample-project --overwrite
+ocm transfer ctf "$REPO_ROOT/ocm-samples/ocm-transfer/vector1" http://localhost:5100/sample-project --overwrite

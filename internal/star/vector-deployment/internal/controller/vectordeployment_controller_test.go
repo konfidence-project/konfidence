@@ -28,10 +28,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
+	ociv1 "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller/domain"
-	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller/domain/mocks"
 )
 
 var _ = Describe("VectorDeployment Controller", func() {
@@ -47,14 +46,14 @@ var _ = Describe("VectorDeployment Controller", func() {
 
 	var (
 		reconciler     *VectorDeploymentReconciler
-		ocmAdapterMock *mocks.MockVectorOcmPort
+		ocmAdapterMock *MockVectorOcmPort
 		mockCtrl       *gomock.Controller
 	)
 
 	BeforeEach(func() {
 		// Mock setup
 		mockCtrl = gomock.NewController(GinkgoT())
-		ocmAdapterMock = mocks.NewMockVectorOcmPort(mockCtrl)
+		ocmAdapterMock = NewMockVectorOcmPort(mockCtrl)
 
 		// Controller setup
 		reconciler = &VectorDeploymentReconciler{
@@ -91,25 +90,26 @@ var _ = Describe("VectorDeployment Controller", func() {
 
 	It("should successfully reconcile the vector-deployment resource", func() {
 		ctx := context.Background()
-		// when: GetVectorByReference is called on the ocmAdapter mock
-		// then: mock should be called with a vector reference and return a Vector
-		vector := domain.Vector{
-			Reference: domain.VectorReference{
-				OciRegistryUrl: "https://registry.kdenv.lab/sample-project//github.com/konfidence-project/sample-vector:0.3.0",
-				Component:      "github.com/konfidence-project/sample-vector",
-				Version:        "0.3.0",
+		// when: GetVectorDescriptor is called on the ocmAdapter mock
+		// then: mock should be called with a vector reference and return a VectorDescriptor
+		vectorDescriptor := VectorDescriptor{
+			References: []compref.Ref{
+				{
+					Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
+					Component:  "github.com/konfidence-project/sample-service-1",
+					Version:    "0.0.1",
+				},
 			},
-			ComponentSpec: "{\"name\":\"github.com/konfidence-project/sample-vector\",\"version\":\"0.3.0\",\"labels\":[{\"name\":\"konfidence-project/sample-vector\",\"value\":\"01904be8-bae3-ae70-e4d6-78af41d7e0a2\",\"version\":\"v1\"}],\"provider\":{\"name\":\"konfidence-project\"},\"creationTime\":\"2025-09-22T06:32:45Z\",\"repositoryContexts\":[{\"baseUrl\":\"https://registry.kdenv.lab\",\"componentNameMapping\":\"urlPath\",\"subPath\":\"sample-project\",\"type\":\"OCIRegistry\"}],\"sources\":[],\"componentReferences\":[{\"name\":\"sample-service-1\",\"version\":\"0.0.1\",\"componentName\":\"github.com/konfidence-project/sample-service-1\"}],\"resources\":[]}",
-			Artifacts:     []domain.ArtifactReference{{Version: "0.0.1", ComponentName: "github.com/konfidence-project/sample-service-1"}},
+			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector","version":"0.3.0","labels":[{"name":"konfidence-project/sample-vector","value":"01904be8-bae3-ae70-e4d6-78af41d7e0a2","version":"v1"}],"creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project","resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1","componentName":"github.com/konfidence-project/sample-service-1","digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
 		}
-		ocmAdapterMock.EXPECT().GetVectorByReference(gomock.Any(), gomock.Any(), gomock.Any()).Return(&vector, nil).AnyTimes()
+		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(vectorDescriptor, nil).AnyTimes()
 
 		// when: GetArtifactManifestByReference is called on the ocmAdapter mock
 		// then: mock should be called with a vector reference and an artifact reference, and return a ArtifactManifest
-		artifactManifest := domain.ArtifactManifest{
+		artifactManifest := ArtifactManifest{
 			Type:       "cloud.konfidence.flux.helm",
 			AllowReuse: true,
-			Tasks: []domain.TaskManifest{
+			Tasks: []TaskManifest{
 				{
 					Name:      "sample-service-1-task-1",
 					Type:      "k8s-job",
@@ -123,7 +123,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 					Spec:      "{\"template\":{\"spec\":{\"restartPolicy\":\"Never\",\"containers\":[{\"name\":\"sample-service-1-task-2-container\",\"image\":\"alpine:3.22.1\",\"command\":[\"echo\",\"I am task 2 of service 1\"]}]}},\"backoffLimit\":4}",
 				},
 			},
-			Resources: []domain.OCMResource{
+			Resources: []OCMResource{
 				{
 					Name:    "sample-service-1-helm-chart",
 					Type:    "helmChart",
@@ -146,7 +146,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 				},
 			},
 		}
-		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), testNamespace, vectorReference, vector.Artifacts[0]).Return(&artifactManifest, nil).AnyTimes()
+		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).Return(artifactManifest, nil).AnyTimes()
 
 		// GIVEN: create a VectorDeployment resource
 		vectorDeployment := &landscape.VectorDeployment{
@@ -191,9 +191,15 @@ var _ = Describe("VectorDeployment Controller", func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Updating ArtifactDeployment.status")
-		artifactDeployment := &artifactDeploymentList.Items[0]
+		// Re-fetch to get the latest resourceVersion (the controller may have added an owner reference since the list).
+		artifactDeployment := &landscape.ArtifactDeployment{}
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name:      artifactDeploymentList.Items[0].Name,
+			Namespace: testNamespace,
+		}, artifactDeployment)).To(gomega.Succeed())
+
 		artifactDeployment.Status.DeploymentResults = []landscape.DeploymentResult{
-			{Type: "test", Spec: runtime.RawExtension{Raw: []byte("{\"test-deployment-result\": true}")}},
+			{Name: "result-1", Type: "test", Spec: runtime.RawExtension{Raw: []byte("{\"test-deployment-result\": true}")}},
 		}
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
 			Type:   landscape.ArtifactDeployedCondition,
@@ -213,10 +219,15 @@ var _ = Describe("VectorDeployment Controller", func() {
 
 		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
 
-		By("Verifying VectorDeployment.status.deploymentResults and VectorDeployed condition is set")
+		By("Verifying VectorDeployed condition is set")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
 			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, landscape.VectorDeployedCondition)).To(gomega.BeTrue())
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Verifying VectorDeployment.status.deploymentResults is populated")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
 			g.Expect(actualVectorDeployment.Status.DeploymentResults).To(gomega.HaveLen(1))
 		}, timeout, interval).Should(gomega.Succeed())
 

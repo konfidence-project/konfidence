@@ -17,18 +17,24 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"os"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller"
 	"github.com/konfidence-project/landscape-vector-deployment-controller/pkg/ocm"
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -68,9 +74,22 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+	ctx := ctrl.SetupSignalHandler()
 
-	ocmContextProvider := ocm.NewOCMContextProvider(mgr.GetClient())
-	ocmAdapter := ocm.NewOcmAdapter(ocmContextProvider)
+	// read secret from a k8s secret.
+	// todo: in future, we want configure the credentials for accessing OCI registries in a controller-specific configuration.
+	secret, err := loadSecret(ctx, mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to load registry credentials secret")
+		os.Exit(1)
+	}
+
+	ocmAdapter, err := ocm.NewOcmAdapter(ctx, secret)
+
+	if err != nil {
+		setupLog.Error(err, "unable to create OCM adapter")
+		os.Exit(1)
+	}
 	if err := (&controller.VectorDeploymentReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
@@ -92,8 +111,26 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+// loadSecret loads the registry credentials secret from the k8s cluster.
+// returns nil if the secret is not found.
+func loadSecret(ctx context.Context, mgr manager.Manager) (*v1.Secret, error) {
+	const secretName = "registry-credentials"
+	const secretNamespace = "konfidence-system"
+
+	secret := &v1.Secret{}
+	err := mgr.GetAPIReader().Get(ctx, types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret)
+	if apierrors.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret %s/%s: %w", secretNamespace, secretName, err)
+	}
+
+	return secret, nil
 }

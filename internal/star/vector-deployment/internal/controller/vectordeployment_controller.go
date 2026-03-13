@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,7 +39,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller/domain"
 )
 
 const VectorDeploymentControllerName = "vector-deployment-controller"
@@ -48,7 +48,7 @@ type VectorDeploymentReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
 	Recorder   record.EventRecorder
-	OcmAdapter domain.VectorOcmPort
+	OcmAdapter VectorOcmPort
 }
 
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
@@ -69,7 +69,6 @@ type VectorDeploymentReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling VectorDeployment")
 
@@ -83,37 +82,43 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	originalVectorDeployment := vectorDeployment.DeepCopy()
 	patch := client.MergeFrom(originalVectorDeployment)
 
-	vector, err := mapVectorDeploymentToDomain(*vectorDeployment)
+	vectorRef, err := compref.Parse(vectorDeployment.Spec.Vector)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to map vector deployment %s to domain: %w", vectorDeployment.Name, err)
+		return ctrl.Result{}, fmt.Errorf("failed to parse vector reference %s: %w", vectorDeployment.Spec.Vector, err)
 	}
 
-	// if vector.ComponentSpec is empty then fetch Vector from OCI Repository
-	if vector.ComponentSpec == "" {
+	var artifactRefs []compref.Ref
+
+	// if ResolvedVectorOcm is empty then fetch Vector from OCI Repository
+	if vectorDeployment.Status.ResolvedVectorOcm == "" {
 		// 1. Fetch vector from OCI repository
-		fetchedVector, err := r.OcmAdapter.GetVectorByReference(ctx, vectorDeployment.Namespace, vector.Reference)
+		fetchedVectorDescriptor, err := r.OcmAdapter.GetVectorDescriptor(ctx, *vectorRef)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vectorDeployment.Name, err)
 		}
-		// 2. update vector.ComponentSpec and vector.Artifacts
-		vector.ComponentSpec = fetchedVector.ComponentSpec
-		vector.Artifacts = fetchedVector.Artifacts
 
-		// 3. update vd.Status.ResolvedVectorOcm with json marshalled ComponentSpec
-		vectorDeployment.Status.ResolvedVectorOcm = fetchedVector.ComponentSpec
+		// 2. persist descriptor JSON in status and extract artifact refs
+		vectorDeployment.Status.ResolvedVectorOcm = string(fetchedVectorDescriptor.DescriptorJSON)
+		artifactRefs = fetchedVectorDescriptor.References
 
-		// 4. update status condition VectorDownloadedCondition to True
+		// 3. update status condition VectorDownloadedCondition to True
 		meta.SetStatusCondition(
 			&vectorDeployment.Status.Conditions,
 			metav1.Condition{
 				Type:   landscape.VectorDownloadedCondition,
 				Status: metav1.ConditionTrue, Reason: landscape.VectorDownloadedCondition,
-				Message: fmt.Sprintf("Successfully downloaded vector %s from OCM repository %s", fetchedVector.Reference.Component, fetchedVector.Reference.OciRegistryUrl),
+				Message: fmt.Sprintf("Successfully downloaded vector %s from OCM repository", vectorDeployment.Spec.Vector),
 			},
 		)
+	} else {
+		// parse artifact refs from cached status
+		artifactRefs, err = artifactRefsFromStatus(vectorDeployment.Status.ResolvedVectorOcm, *vectorRef)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to parse artifact refs from status for vector deployment %s: %w", vectorDeployment.Name, err)
+		}
 	}
 
-	allDeploymentsReady, err := r.handleArtifactDeployments(ctx, *vector, vectorDeployment, log)
+	allDeploymentsReady, err := r.handleArtifactDeployments(ctx, artifactRefs, vectorDeployment, log)
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 			patchErrorMessage := "unable to update vectorDeployment status"
@@ -127,7 +132,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to handle artifact deployments for vector deployment %s: %w", vectorDeployment.Name, err)
 	}
 	if !allDeploymentsReady {
 		log.Info("waiting for artifact deployments to be ready")
@@ -148,7 +153,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to handle vector assignments for vector deployment %s: %w", vectorDeployment.Name, err)
 	}
 	if !allAssignmentsReady {
 		log.Info("waiting for vector assignments to be ready")
@@ -170,26 +175,30 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return ctrl.Result{}, nil
 }
 
-// todo: remove vd *landscape.VectorDeployment from function signature
-func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Context, vector domain.Vector, vectorDeployment *landscape.VectorDeployment, log logr.Logger) (bool, error) {
-	vectorDeployment.Status.ResultingArtifactDeployments = make(map[string]landscape.LocalArtifactDeploymentReference)
-	vectorDeployment.Status.DeploymentResults = make(map[string]landscape.DeploymentResult)
+func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Context, artifactReferences []compref.Ref, vectorDeployment *landscape.VectorDeployment, log logr.Logger) (bool, error) {
+	// Build fresh maps from scratch so removed artifacts are no longer referenced.
+	// We use nil initially and allocate lazily to avoid spurious status patches when
+	// DeepEqual compares nil (server value after omitempty round-trip) vs. empty map.
+	var (
+		resultingArtifactDeployments = make(map[string]landscape.LocalArtifactDeploymentReference, len(artifactReferences))
+		deploymentResults            = make(map[string]landscape.DeploymentResult)
+	)
 	allReady := true
 
 	// TODO parallelize and handle partial failures
-	for _, artifact := range vector.Artifacts {
+	for _, artifactRef := range artifactReferences {
 		// fetch the artifact component version from OCI
-		artifactManifest, err := r.OcmAdapter.GetArtifactManifestByReference(ctx, vectorDeployment.Namespace, vector.Reference.OciRegistryUrl, artifact)
+		artifactManifest, err := r.OcmAdapter.GetArtifactManifestByReference(ctx, artifactRef)
 		if err != nil {
-			return false, fmt.Errorf("failed to fetch artifact component version %q from repository %q: %w", artifact.ComponentName, vector.Reference.OciRegistryUrl, err)
+			return false, fmt.Errorf("failed to fetch artifact component version for %q: %w", artifactRef.String(), err)
 		}
 
 		var deploymentName string
 		if artifactManifest.AllowReuse {
-			deploymentName = constructArtifactDeploymentName(artifact.ComponentName, artifact.Version, nil)
+			deploymentName = constructArtifactDeploymentName(artifactRef.Component, artifactRef.Version, nil)
 		} else {
 			uid := string(vectorDeployment.UID)
-			deploymentName = constructArtifactDeploymentName(artifact.ComponentName, artifact.Version, &uid)
+			deploymentName = constructArtifactDeploymentName(artifactRef.Component, artifactRef.Version, &uid)
 		}
 
 		// fetch existing artifact deployment from k8s api
@@ -202,9 +211,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 			}
 
 			log.Info("ArtifactDeployment not found, create new one", "name", deploymentName)
-			artifactDeployment = r.constructArtifactDeployment(artifactManifest, vectorDeployment, deploymentName)
+			artifactDeployment = r.constructArtifactDeployment(artifactRef, artifactManifest, vectorDeployment, deploymentName)
 			if err := r.Create(ctx, artifactDeployment); err != nil {
-				return false, fmt.Errorf("failed to ArtifactDeployment resource %s: %w", deploymentName, err)
+				return false, fmt.Errorf("failed to create ArtifactDeployment resource %s: %w", deploymentName, err)
 			}
 			msg := fmt.Sprintf("Created ArtifactDeployment %s for VectorDeployment %s", deploymentName, vectorDeployment.Name)
 			r.Recorder.Event(vectorDeployment, corev1.EventTypeNormal, "ArtifactDeploymentCreated", msg)
@@ -236,7 +245,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 		}
 
 		// Update the artifact deployment to the status map of the VectorDeployment
-		vectorDeployment.Status.ResultingArtifactDeployments[artifact.ComponentName] = landscape.LocalArtifactDeploymentReference{
+		resultingArtifactDeployments[artifactRef.Component] = landscape.LocalArtifactDeploymentReference{
 			Name: artifactDeployment.Name,
 		}
 
@@ -244,12 +253,25 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 		if meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, landscape.DeploymentResultCreatedCondition) {
 			// collect deployment results
 			for _, result := range artifactDeployment.Status.DeploymentResults {
-				vectorDeployment.Status.DeploymentResults[artifact.ComponentName+"/"+result.Name] = result
+				deploymentResults[artifactRef.Component+"/"+result.Name] = result
 			}
 		}
 		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, landscape.ArtifactDeploymentReadyCondition) {
 			allReady = false
 		}
+	}
+
+	// Write local maps back to status. Assign nil when empty so that the
+	// omitempty JSON tag round-trips cleanly and reflect.DeepEqual stays stable.
+	if len(resultingArtifactDeployments) > 0 {
+		vectorDeployment.Status.ResultingArtifactDeployments = resultingArtifactDeployments
+	} else {
+		vectorDeployment.Status.ResultingArtifactDeployments = nil
+	}
+	if len(deploymentResults) > 0 {
+		vectorDeployment.Status.DeploymentResults = deploymentResults
+	} else {
+		vectorDeployment.Status.DeploymentResults = nil
 	}
 
 	// set status condition ArtifactDeploymentsCreatedCondition to created
@@ -267,7 +289,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 }
 
 func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context, vectorDeployment *landscape.VectorDeployment, log logr.Logger) (bool, error) {
-	vectorDeployment.Status.ResultingVectorAssignments = make(map[string]landscape.LocalVectorAssignmentReference)
+	resultingVectorAssignments := make(map[string]landscape.LocalVectorAssignmentReference, len(vectorDeployment.Status.ResultingArtifactDeployments))
 	allReady := true
 
 	for componentName, artifactDeployment := range vectorDeployment.Status.ResultingArtifactDeployments {
@@ -335,7 +357,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 		}
 
 		// Update the artifact assignment to the status map of the VectorDeployment
-		vectorDeployment.Status.ResultingVectorAssignments[componentName] = landscape.LocalVectorAssignmentReference{
+		resultingVectorAssignments[componentName] = landscape.LocalVectorAssignmentReference{
 			Name: vectorAssignment.Name,
 		}
 
@@ -343,6 +365,14 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 		if !meta.IsStatusConditionTrue(vectorAssignment.Status.Conditions, landscape.VectorAssignedCondition) {
 			allReady = false
 		}
+	}
+
+	// Write local map back to status. Assign nil when empty so that the
+	// omitempty JSON tag round-trips cleanly and reflect.DeepEqual stays stable.
+	if len(resultingVectorAssignments) > 0 {
+		vectorDeployment.Status.ResultingVectorAssignments = resultingVectorAssignments
+	} else {
+		vectorDeployment.Status.ResultingVectorAssignments = nil
 	}
 
 	// set status condition ArtifactDeploymentsCreatedCondition to created
@@ -359,7 +389,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 	return allReady, nil
 }
 
-func mapTaskManifestsToLandscape(taskManifests []domain.TaskManifest) []landscape.TaskManifest {
+func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []landscape.TaskManifest {
 	landscapeTaskManifests := make([]landscape.TaskManifest, len(taskManifests))
 	for i, taskManifest := range taskManifests {
 		landscapeTaskManifests[i] = landscape.TaskManifest{
@@ -372,7 +402,7 @@ func mapTaskManifestsToLandscape(taskManifests []domain.TaskManifest) []landscap
 	return landscapeTaskManifests
 }
 
-func mapArtifactResourcesToLandscape(resources []domain.OCMResource) []landscape.OCMResource {
+func mapArtifactResourcesToLandscape(resources []OCMResource) []landscape.OCMResource {
 	landscapeResources := make([]landscape.OCMResource, 0, len(resources))
 	for _, resource := range resources {
 		landscapeResources = append(landscapeResources, landscape.OCMResource{
@@ -408,7 +438,7 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controll
 		Complete(r)
 }
 
-func (r *VectorDeploymentReconciler) constructArtifactDeployment(artifactManifest *domain.ArtifactManifest, vectorDeployment *landscape.VectorDeployment, deploymentName string) *landscape.ArtifactDeployment {
+func (r *VectorDeploymentReconciler) constructArtifactDeployment(ref compref.Ref, artifactManifest ArtifactManifest, vectorDeployment *landscape.VectorDeployment, deploymentName string) *landscape.ArtifactDeployment {
 	// map task manifests from domain.TaskManifest to landscape.TaskManifest
 	taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
 	artifactResources := mapArtifactResourcesToLandscape(artifactManifest.Resources)
@@ -424,8 +454,8 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(artifactManifes
 			},
 			TaskManifests: taskManifests,
 			Component: landscape.OCMComponent{
-				Name:      artifactManifest.Type,
-				Version:   artifactManifest.Version,
+				Name:      ref.Component,
+				Version:   ref.Version,
 				Resources: artifactResources,
 			},
 		},
