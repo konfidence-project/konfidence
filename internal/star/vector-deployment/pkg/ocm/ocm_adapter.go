@@ -1,234 +1,191 @@
 package ocm
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 
-	utilErrors "github.com/mandelsoft/goutils/errors"
-	"ocm.software/ocm/api/oci"
-	"ocm.software/ocm/api/ocm"
-	"ocm.software/ocm/api/ocm/extensions/repositories/ocireg"
+	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
+	v1 "k8s.io/api/core/v1"
+	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
+	ocmRuntime "ocm.software/open-component-model/bindings/go/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller/domain"
+	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller"
 )
 
 // Adapter implements the VectorOcmPort interface.
 type Adapter struct {
-	provider ContextProvider
+	client pkgOcm.Client
 }
 
-var _ domain.VectorOcmPort = (*Adapter)(nil)
+var _ controller.VectorOcmPort = (*Adapter)(nil)
 
-func NewOcmAdapter(provider ContextProvider) Adapter {
-	return Adapter{
-		provider: provider,
+func NewOcmAdapter(ctx context.Context, secret *v1.Secret) (Adapter, error) {
+
+	ocmClient, err := pkgOcm.NewOciClientBuilder().
+		WithLogger(ctrl.Log).
+		WithDockerConfigJsonSecret(secret).
+		Build(ctx)
+
+	if err != nil {
+		return Adapter{}, fmt.Errorf("unable to build ocm client: %w", err)
 	}
+
+	return Adapter{client: ocmClient}, nil
 }
 
-func (a Adapter) GetArtifactManifestByReference(ctx context.Context, namespace string,
-	ociUrl string, artifactName domain.ArtifactReference) (*domain.ArtifactManifest, error) {
-	ocmRef, err := parseComponentVersionUrl(ociUrl)
-	if err != nil {
-		return nil, err
-	}
-	ocmRef.Component = artifactName.ComponentName
-	ocmRef.Version = &artifactName.Version
+// NewAdapterWithClient creates an Adapter using the provided client. Intended for testing.
+func NewAdapterWithClient(client pkgOcm.Client) Adapter {
+	return Adapter{client: client}
+}
 
-	ocmCtx, err := a.provider.GetOCMContext(ctx, namespace, ociUrl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OCM context, %w", err)
-	}
+const (
+	konfidenceResourceTypeArtifactManifest     = "cloud.konfidence.artifact.manifest"
+	konfidenceResourceTypeArtifactTaskManifest = "cloud.konfidence.artifact.task.manifest"
+)
 
-	// fetch component version access from OCM
-	componentVersionAccess, err := fetchComponentVersionAccess(ocmCtx, *ocmRef)
+func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (controller.VectorDescriptor, error) {
+
+	descriptor, err := a.client.Get(ctx, ref)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch artifact OCM for reference %q: %w", ocmRef, err)
+		return controller.VectorDescriptor{},
+			fmt.Errorf("unable to get descriptor for component %q version %q: %w", ref.Component, ref.Version, err)
 	}
 
-	// get artifactManifest and the associated task manifests from component version access
-	var artifactManifest *domain.ArtifactManifest
-	var taskManifests []domain.TaskManifest
-	artifactResources := make([]domain.OCMResource, 0, len(componentVersionAccess.GetResources()))
+	// Convert runtime descriptor to v2 and then marshal to JSON.
+	// descruntime.Descriptor.MarshalJSON() is intentionally unsupported; ConvertToV2 is required.
+	v2Desc, err := descruntime.ConvertToV2(ocmRuntime.NewScheme(), &descriptor)
+	if err != nil {
+		return controller.VectorDescriptor{},
+			fmt.Errorf("failed to convert descriptor to v2 for component %q version %q: %w",
+				descriptor.Component.Name, descriptor.Component.Version, err)
+	}
+	v2DescriptorJSON, err := json.Marshal(v2Desc)
+	if err != nil {
+		return controller.VectorDescriptor{},
+			fmt.Errorf("failed to marshal component spec for component %q version %q: %w",
+				descriptor.Component.Name, descriptor.Component.Version, err)
+	}
 
-	for _, resource := range componentVersionAccess.GetResources() {
-		if resource.Meta().Type == "cloud.konfidence.artifact.manifest" {
-			accessMethod, err := resource.AccessMethod()
+	refs := make([]compref.Ref, len(descriptor.Component.References))
+	for i, componentRef := range descriptor.Component.References {
+		refs[i] = compref.Ref{
+			Repository: ref.Repository,
+			Component:  componentRef.Component,
+			Version:    componentRef.Version,
+		}
+	}
+
+	return controller.VectorDescriptor{
+		References:     refs,
+		DescriptorJSON: v2DescriptorJSON,
+	}, nil
+}
+
+// GetArtifactManifestByReference fetches the artifact manifest for the given artifact reference.
+func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref.Ref) (controller.ArtifactManifest, error) {
+
+	descriptor, err := a.client.Get(ctx, ref)
+	if err != nil {
+		return controller.ArtifactManifest{}, fmt.Errorf("failed to fetch artifact descriptor for %s: %w", ref.String(), err)
+	}
+
+	var konfidenceArtifactManifest *controller.ArtifactManifest
+	var taskManifests []controller.TaskManifest
+	artifactResources := make([]controller.OCMResource, 0, len(descriptor.Component.Resources))
+
+	for i := range descriptor.Component.Resources {
+		resource := &descriptor.Component.Resources[i]
+
+		switch resource.Type {
+		case konfidenceResourceTypeArtifactManifest:
+			data, err := a.getLocalResourceBlob(ctx, ref, resource)
 			if err != nil {
-				return nil, fmt.Errorf("failed to access method for resource %s in component %s: %w", resource.Meta().Name, ocmRef, err)
-			}
-			data, err := accessMethod.Get()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get manifest data for resource %s in component %s: %w", resource.Meta().Name, ocmRef, err)
+				return controller.ArtifactManifest{}, fmt.Errorf("failed to get manifest blob for resource %s in component %s: %w", resource.Name, ref.String(), err)
 			}
 
-			// map raw JSON data to ArtifactManifest struct
-			var artifactManifestDto struct {
+			var konfidenceManifestDto struct {
 				Type       string `json:"type"`
 				AllowReuse bool   `json:"allowReuse"`
 			}
-			err = json.Unmarshal(data, &artifactManifestDto)
+			if err := json.Unmarshal(data, &konfidenceManifestDto); err != nil {
+				return controller.ArtifactManifest{}, fmt.Errorf("failed to unmarshal manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err)
+			}
+
+			konfidenceArtifactManifest = &controller.ArtifactManifest{
+				Type:       konfidenceManifestDto.Type,
+				AllowReuse: konfidenceManifestDto.AllowReuse,
+			}
+
+		case konfidenceResourceTypeArtifactTaskManifest:
+			data, err := a.getLocalResourceBlob(ctx, ref, resource)
 			if err != nil {
-				return nil, fmt.Errorf("failed to unmarshal manifest data for resource %s in component %s: %w", resource.Meta().Name, ocmRef, err)
+				return controller.ArtifactManifest{}, fmt.Errorf("failed to get task manifest blob for resource %s in component %s: %w", resource.Name, ref.String(), err)
 			}
 
-			artifactManifest = &domain.ArtifactManifest{
-				Name:       ocmRef.Component,
-				Version:    *ocmRef.Version,
-				Type:       artifactManifestDto.Type,
-				AllowReuse: artifactManifestDto.AllowReuse,
-				Tasks:      nil,
-			}
-
-			continue
-		}
-		if resource.Meta().Type == "cloud.konfidence.artifact.task.manifest" {
-			accessMethod, _ := resource.AccessMethod()
-			data, _ := accessMethod.Get()
-			var taskManifestDto struct {
+			var konfidenceTaskManifestDto struct {
 				Name      string          `json:"name"`
 				Type      string          `json:"type"`
 				DependsOn []string        `json:"dependsOn"`
 				Spec      json.RawMessage `json:"spec"`
 			}
-			err = json.Unmarshal(data, &taskManifestDto)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unmarshal task manifest data for resource %s in component %s: %w", resource.Meta().Name, ocmRef, err)
+			if err := json.Unmarshal(data, &konfidenceTaskManifestDto); err != nil {
+				return controller.ArtifactManifest{},
+					fmt.Errorf("failed to unmarshal task manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err)
 			}
 
-			// map to domain.TaskManifest
-			taskManifests = append(taskManifests, domain.TaskManifest{
-				Name:      taskManifestDto.Name,
-				Type:      taskManifestDto.Type,
-				DependsOn: taskManifestDto.DependsOn,
-				Spec:      string(taskManifestDto.Spec),
+			taskManifests = append(taskManifests, controller.TaskManifest{
+				Name:      konfidenceTaskManifestDto.Name,
+				Type:      konfidenceTaskManifestDto.Type,
+				DependsOn: konfidenceTaskManifestDto.DependsOn,
+				Spec:      string(konfidenceTaskManifestDto.Spec),
 			})
 
-			continue
-		}
+		default:
+			if resource.Access == nil {
+				return controller.ArtifactManifest{}, fmt.Errorf("missing access spec for resource %s in component %s", resource.Name, ref.String())
+			}
+			data, err := json.Marshal(resource.Access)
+			if err != nil {
+				return controller.ArtifactManifest{}, fmt.Errorf("failed to marshal access spec for resource %s in component %s: %w", resource.Name, ref.String(), err)
+			}
 
-		resourceAccess, err := resource.Access()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get access for resource %s in component %s: %w", resource.Meta().Name, artifactName.ComponentName, err)
+			artifactResources = append(artifactResources, controller.OCMResource{
+				Name:    resource.Name,
+				Type:    resource.Type,
+				Content: data,
+			})
 		}
-
-		genericAccessSpec, err := ocmCtx.AccessSpecForSpec(resourceAccess)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get effective access spec for resource %s in component %s: %w", resource.Meta().Name, artifactName.ComponentName, err)
-		}
-
-		var buf bytes.Buffer
-		err = json.NewEncoder(&buf).Encode(genericAccessSpec)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode generic access spec for resource %s in component %s: %w", resource.Meta().Name, artifactName.ComponentName, err)
-		}
-
-		artifactResources = append(artifactResources, domain.OCMResource{
-			Name:    resource.Meta().Name,
-			Content: buf.Bytes(),
-			Type:    resource.Meta().Type,
-		})
 	}
 
-	if artifactManifest == nil {
-		return nil, fmt.Errorf("no artifact manifest found in component %s", ocmRef)
+	if konfidenceArtifactManifest == nil {
+		return controller.ArtifactManifest{}, fmt.Errorf("no artifact manifest found in component %s", ref.String())
 	}
 
-	artifactManifest.Tasks = taskManifests
-	artifactManifest.Resources = artifactResources
+	konfidenceArtifactManifest.Tasks = taskManifests
+	konfidenceArtifactManifest.Resources = artifactResources
 
-	return artifactManifest, nil
+	return *konfidenceArtifactManifest, nil
 }
 
-func (a Adapter) GetVectorByReference(ctx context.Context, namespace string, vectorReference domain.VectorReference) (*domain.Vector, error) {
-	// 1. map vectorRef to ocm.RefSpec
-	ocmRef, err := parseComponentVersionUrl(vectorReference.OciRegistryUrl)
+// getLocalResourceBlob retrieves the raw bytes of a locally-stored resource blob.
+func (a Adapter) getLocalResourceBlob(ctx context.Context, ref compref.Ref, resource *descruntime.Resource) ([]byte, error) {
+	identity := resource.ToIdentity()
+	b, _, err := a.client.GetLocalResource(ctx, ref, identity)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting local resource for %s identity %v: %w", ref, identity, err)
 	}
-
-	ocmCtx, err := a.provider.GetOCMContext(ctx, namespace, vectorReference.OciRegistryUrl)
+	rc, err := b.ReadCloser()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get OCM context %w", err)
+		return nil, fmt.Errorf("opening blob reader: %w", err)
 	}
-
-	// 2. fetch component version access from OCM
-	componentVersionAccess, err := fetchComponentVersionAccess(ocmCtx, *ocmRef)
+	defer func() { _ = rc.Close() }()
+	data, err := io.ReadAll(rc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch vector OCM for reference %q: %w", vectorReference, err)
+		return nil, fmt.Errorf("reading blob content: %w", err)
 	}
-
-	descriptor := componentVersionAccess.GetDescriptor()
-	if descriptor == nil {
-		return nil, fmt.Errorf("no component descriptor for component %q version %q", ocmRef.Component, *ocmRef.Version)
-	}
-
-	// 4. marshal component spec to JSON string
-	componentSpec, err := json.Marshal(descriptor.ComponentSpec)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal component spec for component %q version %q: %w", ocmRef.Component, *ocmRef.Version, err)
-	}
-
-	// 5. map to domain.Vector
-	vector := domain.Vector{
-		Reference:     vectorReference,
-		ComponentSpec: string(componentSpec),
-		Artifacts:     nil,
-	}
-
-	vector.Artifacts = make([]domain.ArtifactReference, len(descriptor.GetReferences()))
-	for i, componentRef := range descriptor.GetReferences() {
-		vector.Artifacts[i] = domain.ArtifactReference{
-			Version:       componentRef.Version,
-			ComponentName: componentRef.ComponentName,
-		}
-	}
-	return &vector, nil
-}
-
-func parseComponentVersionUrl(ref string) (*ocm.RefSpec, error) {
-	ocmRef, err := ocm.ParseRef(ref)
-	if err != nil {
-		return nil, fmt.Errorf("invalid reference %q: %w", ref, err)
-	}
-	return &ocmRef, nil
-}
-
-// connectToOciRepository connects to an OCI repository based on the provided reference.
-// The Caller is responsible for closing the repository!  Call `defer repo.Close()` after a successful call.
-func connectToOciRepository(ctx ocm.Context, ref ocm.RefSpec) (ocm.Repository, error) {
-	consumerId, err := oci.GetConsumerIdForRef(ref.Host)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get consumer ID for OCI host %q: %w", ref.Host, err)
-	}
-	credentials, err := ctx.CredentialsContext().GetCredentialsForConsumer(consumerId)
-	if err != nil && !utilErrors.IsErrUnknownKind(err, "consumer") {
-		return nil, fmt.Errorf("failed to get credentials for consumer %q: %w", consumerId.String(), err)
-	}
-
-	spec := ocireg.NewRepositorySpec(ref.UniformRepositorySpec.String())
-
-	repo, err := ctx.RepositoryForSpec(spec, credentials)
-	if err != nil {
-		return nil, fmt.Errorf("cannot setup repository: %w", err)
-	}
-	return repo, nil
-}
-
-func fetchComponentVersionAccess(ctx ocm.Context, ref ocm.RefSpec) (ocm.ComponentVersionAccess, error) {
-	// 1. connect to OCI repository
-	repo, err := connectToOciRepository(ctx, ref)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = repo.Close() }()
-
-	// 2. fetch component version access from repository
-	componentVersionAccess, err := repo.LookupComponentVersion(ref.Component, *ref.Version)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch component version %q from repository %q: %w", ref.Component, ref.UniformRepositorySpec.String(), err)
-	}
-
-	return componentVersionAccess, nil
+	return data, nil
 }

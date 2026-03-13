@@ -3,62 +3,26 @@ package controller
 import (
 	"fmt"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/json"
-	"ocm.software/ocm/api/ocm"
-	"ocm.software/ocm/api/ocm/compdesc"
-
-	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller/domain"
+	descv2 "ocm.software/open-component-model/bindings/go/descriptor/v2"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
 )
 
-func mapVectorDeploymentToDomain(vectorDeployment landscape.VectorDeployment) (*domain.Vector, error) {
-	ocmRef, err := parseComponentVersionUrl(vectorDeployment.Spec.Vector)
-	if err != nil {
-		return nil, err
+// artifactRefsFromStatus parses the artifact component references from the cached
+// VectorDescriptor JSON stored in the VectorDeployment status.
+func artifactRefsFromStatus(descriptorJSON string, vectorRef compref.Ref) ([]compref.Ref, error) {
+	var desc descv2.Descriptor
+	if err := json.Unmarshal([]byte(descriptorJSON), &desc); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal component spec: %w", err)
 	}
 
-	if !ocmRef.IsVersion() {
-		return nil, fmt.Errorf("vector reference %q is not a version", vectorDeployment.Spec.Vector)
-	}
-
-	var artifacts []domain.ArtifactReference
-	// validate that the ResolvedVectorOcm is a valid ComponentSpec JSON
-	if vectorDeployment.Status.ResolvedVectorOcm != "" {
-		var cs compdesc.ComponentSpec
-		err = json.Unmarshal([]byte(vectorDeployment.Status.ResolvedVectorOcm), &cs)
-		if err != nil {
-			// todo: other solutions for returning the error, e.g.
-			// - 1. instead of an error, we could return a domain error and fetch the component spec from OCM again
-			// - 2. adapter could log a warning and set a "" for ComponentSpec, the Reconciler will fetch it from OCM again
-			return nil, fmt.Errorf("failed to unmarshal component spec %w", err)
-		}
-
-		artifacts = make([]domain.ArtifactReference, len(cs.References))
-		for i, ref := range cs.References {
-			artifacts[i] = domain.ArtifactReference{
-				Version:       ref.Version,
-				ComponentName: ref.ComponentName,
-			}
+	refs := make([]compref.Ref, len(desc.Component.References))
+	for i, ref := range desc.Component.References {
+		refs[i] = compref.Ref{
+			Repository: vectorRef.Repository,
+			Component:  ref.Component,
+			Version:    ref.Version,
 		}
 	}
-
-	vector := domain.Vector{
-		Reference: domain.VectorReference{
-			OciRegistryUrl: vectorDeployment.Spec.Vector, // FIXME: this should be the registry URL only, not the full ref
-			Component:      ocmRef.Component,
-			Version:        *ocmRef.Version,
-		},
-		ComponentSpec: vectorDeployment.Status.ResolvedVectorOcm,
-		Artifacts:     artifacts,
-	}
-
-	return &vector, nil
-}
-
-func parseComponentVersionUrl(ref string) (*ocm.RefSpec, error) {
-	ocmRef, err := ocm.ParseRef(ref)
-	if err != nil {
-		return nil, fmt.Errorf("invalid vector reference %q: %w", ref, err)
-	}
-	return &ocmRef, nil
+	return refs, nil
 }
