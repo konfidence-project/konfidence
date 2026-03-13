@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"ocm.software/open-component-model/bindings/go/blob"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -86,6 +87,26 @@ func (c OciClient) Get(ctx context.Context, ref compref.Ref) (descruntime.Descri
 			fmt.Errorf("getting component version %s for component %s: %w", version, ref, err)
 	}
 	return *desc, nil
+}
+
+// GetLocalResource retrieves the content and metadata of a locally-stored resource from an
+// OCI registry by component reference and resource identity.
+//
+// This is used for resources whose content is embedded as OCI layers in the component version
+// (e.g. resources with access type "localBlob"), as opposed to externally-referenced resources
+// like helmChart or ociImage whose access specs are merely pointers to external registries.
+func (c OciClient) GetLocalResource(ctx context.Context, ref compref.Ref, identity runtime.Identity) (blob.ReadOnlyBlob, *descruntime.Resource, error) {
+	repo, err := c.getRepo(ctx, ref.Repository)
+	if err != nil {
+		return nil, nil, fmt.Errorf("getting repository for component reference %s: %w", ref, err)
+	}
+	content, resource, err := repo.GetLocalResource(ctx, ref.Component, ref.Version, identity)
+	if errors.Is(err, repository.ErrNotFound) {
+		return nil, nil, fmt.Errorf("%s identity %v: %w", ref, identity, ErrNotFound)
+	} else if err != nil {
+		return nil, nil, fmt.Errorf("getting local resource for %s identity %v: %w", ref, identity, err)
+	}
+	return content, resource, nil
 }
 
 func (c OciClient) getRepo(ctx context.Context, repoSpec runtime.Typed) (repository.ComponentVersionRepository, error) {

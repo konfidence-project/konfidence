@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"ocm.software/open-component-model/bindings/go/blob"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/repository"
@@ -51,6 +52,42 @@ type ReadClient interface {
 	Get(ctx context.Context, ref compref.Ref) (descruntime.Descriptor, error)
 }
 
+// ResourceReadClient defines read-only operations for accessing local resources stored in
+// OCM component versions.
+//
+// A local resource is a resource whose content is stored directly within the OCI layer of
+// the component version (as opposed to resources that are referenced by external access specs
+// such as helmChart or ociImage). Common examples are resources with type
+// "cloud.konfidence.artifact.manifest" or "cloud.konfidence.artifact.task.manifest".
+//
+// Implementations must be safe for concurrent use by multiple goroutines.
+type ResourceReadClient interface {
+	// GetLocalResource retrieves the content and metadata of a local resource identified
+	// by its component reference and resource identity.
+	//
+	// The identity parameter is a map of extra identity attributes that uniquely identify
+	// the resource within the component version (e.g. {"name": "my-resource"}).
+	//
+	// Returns the raw blob content as a ReadOnlyBlob (call ReadCloser() and io.ReadAll to
+	// get the bytes) along with the resource metadata. Returns ErrNotFound if no matching
+	// resource exists.
+	//
+	// Example:
+	//
+	//	identity := runtime.Identity{"name": "my-manifest"}
+	//	b, res, err := client.GetLocalResource(ctx, ref, identity)
+	//	if err != nil {
+	//	    return err
+	//	}
+	//	rc, err := b.ReadCloser()
+	//	if err != nil {
+	//	    return err
+	//	}
+	//	defer rc.Close()
+	//	data, err := io.ReadAll(rc)
+	GetLocalResource(ctx context.Context, ref compref.Ref, identity runtime.Identity) (blob.ReadOnlyBlob, *descruntime.Resource, error)
+}
+
 // WriteClient defines write operations for persisting component descriptors to OCM repositories.
 //
 // Implementations must be safe for concurrent use by multiple goroutines.
@@ -83,12 +120,13 @@ type WriteClient interface {
 	Save(ctx context.Context, repoSpec runtime.Typed, descriptor descruntime.Descriptor) error
 }
 
-// Client combines read and write access to component descriptors in OCM repositories.
+// Client combines read, resource-read, and write access to component descriptors in OCM repositories.
 //
 // Implementations must be safe for concurrent use by multiple goroutines.
 //
 // The primary implementation is OciClient, which works with OCI-compliant registries.
 type Client interface {
 	ReadClient
+	ResourceReadClient
 	WriteClient
 }
