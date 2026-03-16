@@ -11,6 +11,10 @@ import (
 	"ocm.software/open-component-model/bindings/go/runtime"
 )
 
+// Short type aliases to keep long signatures under lll max line length.
+type ReadOnlyBlob = blob.ReadOnlyBlob
+type Resource = descruntime.Resource
+
 var (
 	// ErrComponentAlreadyExists is returned when attempting to save a component descriptor
 	// that already exists in the repository with the same name and version.
@@ -85,7 +89,7 @@ type ResourceReadClient interface {
 	//	}
 	//	defer rc.Close()
 	//	data, err := io.ReadAll(rc)
-	GetLocalResource(ctx context.Context, ref compref.Ref, identity runtime.Identity) (blob.ReadOnlyBlob, *descruntime.Resource, error)
+	GetLocalResource(ctx context.Context, ref compref.Ref, identity runtime.Identity) (ReadOnlyBlob, *Resource, error)
 }
 
 // WriteClient defines write operations for persisting component descriptors to OCM repositories.

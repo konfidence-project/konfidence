@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"ocm.software/open-component-model/bindings/go/blob"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -95,7 +94,11 @@ func (c OciClient) Get(ctx context.Context, ref compref.Ref) (descruntime.Descri
 // This is used for resources whose content is embedded as OCI layers in the component version
 // (e.g. resources with access type "localBlob"), as opposed to externally-referenced resources
 // like helmChart or ociImage whose access specs are merely pointers to external registries.
-func (c OciClient) GetLocalResource(ctx context.Context, ref compref.Ref, identity runtime.Identity) (blob.ReadOnlyBlob, *descruntime.Resource, error) {
+func (c OciClient) GetLocalResource(
+	ctx context.Context,
+	ref compref.Ref,
+	identity runtime.Identity,
+) (ReadOnlyBlob, *Resource, error) {
 	repo, err := c.getRepo(ctx, ref.Repository)
 	if err != nil {
 		return nil, nil, fmt.Errorf("getting repository for component reference %s: %w", ref, err)
