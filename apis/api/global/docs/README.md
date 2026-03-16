@@ -160,7 +160,7 @@ StageSyncList contains a list of StageSync.
 
 
 
-StageSyncSpec defines the desired state of StageSync.
+StageSyncSpec defines the desired state of a StageSync.
 
 
 
@@ -177,7 +177,7 @@ _Appears in:_
 
 
 
-StageSyncStatus defines the observed state of StageSync.
+StageSyncStatus defines the observed state of a StageSync.
 
 
 

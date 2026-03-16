@@ -170,7 +170,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: StageSyncSpec defines the desired state of StageSync.
+            description: StageSyncSpec defines the desired state of a StageSync.
             properties:
               reconcileInterval:
                 description: |-
@@ -186,7 +186,7 @@ spec:
             - stageTemplate
             type: object
           status:
-            description: StageSyncStatus defines the observed state of StageSync.
+            description: StageSyncStatus defines the observed state of a StageSync.
             properties:
               conditions:
                 items:
