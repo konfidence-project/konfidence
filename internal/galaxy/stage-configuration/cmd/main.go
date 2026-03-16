@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -24,8 +25,11 @@ import (
 
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
 	"github.com/konfidence-project/pkg/ocm/crypto"
+	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -40,6 +44,7 @@ import (
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -132,7 +137,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	context := ctrl.SetupSignalHandler()
+	ctx := ctrl.SetupSignalHandler()
 	var vectorVerifier crypto.Verifier
 	if strings.ToLower(os.Getenv(OcmVectorVerifyEnv)) != "true" {
 		setupLog.Info("ocm vector verification is disabled")
@@ -147,7 +152,7 @@ func main() {
 		}
 
 		provider := crypto.NewConfigMapTrustAnchorProvider(types.NamespacedName{Name: configMapName, Namespace: namespace})
-		if err = provider.SetupWithManager(context, mgr.GetLocalManager()); err != nil {
+		if err = provider.SetupWithManager(ctx, mgr.GetLocalManager()); err != nil {
 			setupLog.Error(err, "unable to set up config map trust anchor provider")
 			os.Exit(1)
 		}
@@ -162,9 +167,22 @@ func main() {
 		vectorVerifier = rsaVerifier
 	}
 
+	registryCredentials, err := resolveRegistryCredentials(ctx, mgr.GetLocalManager())
+	if err != nil {
+		setupLog.Error(err, "unable to resolve registry credentials", "controller", "StageConfiguration")
+		os.Exit(1)
+	}
+
+	ocmClient, err := pkgOcm.NewOciClientBuilder().WithLogger(ctrl.Log).
+		WithDockerConfigJsonSecret(registryCredentials).Build(ctx)
+	if err != nil {
+		setupLog.Error(err, "unable to create pkg ocm client", "controller", "StageConfiguration")
+		os.Exit(1)
+	}
+
 	if err := (&controller.StageConfigurationReconciler{
 		Mgr:        mgr,
-		OCMClient:  ocm.OCIClient{VectorVerifier: vectorVerifier},
+		VectorPort: ocm.VectorOCMAdapter{VectorVerifier: vectorVerifier, OcmClient: ocmClient},
 		Scheme:     scheme,
 		RestConfig: cfg,
 		SkipOci:    tempSkipOciRegistry,
@@ -184,8 +202,27 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(context); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+// TODO: the credentials for accessing OCI registries should be configured in a controller-specific configuration.
+// resolveRegistryCredentials loads the registry credentials secret from the k8s cluster.
+// returns nil if the secret is not found.
+func resolveRegistryCredentials(ctx context.Context, mgr manager.Manager) (*v1.Secret, error) {
+	const secretName = "registry-credentials"
+	const secretNamespace = "konfidence-system"
+
+	secret := &v1.Secret{}
+	err := mgr.GetAPIReader().Get(ctx, types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret)
+	if apierrors.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret %s/%s: %w", secretNamespace, secretName, err)
+	}
+
+	return secret, nil
 }

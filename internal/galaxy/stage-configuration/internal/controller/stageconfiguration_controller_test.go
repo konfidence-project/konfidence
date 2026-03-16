@@ -22,9 +22,9 @@ import (
 	"time"
 
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/domain/mocks"
 	testutil "github.com/konfidence-project/gcp-stage-configuration-controller/internal/utils"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm/mocks"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/template"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -51,21 +51,21 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 	)
 
 	var (
-		reconciler    *StageConfigurationReconciler
-		ocmClientMock *mocks.MockClient
-		mockCtrl      *gomock.Controller
+		reconciler     *StageConfigurationReconciler
+		vectorPortMock *mocks.MockVectorPort
+		mockCtrl       *gomock.Controller
 	)
 
 	BeforeAll(func() {
 		// mock setup
 		mockCtrl = gomock.NewController(GinkgoT())
-		ocmClientMock = mocks.NewMockClient(mockCtrl)
+		vectorPortMock = mocks.NewMockVectorPort(mockCtrl)
 
 		reconciler = &StageConfigurationReconciler{
-			Mgr:       k8sManager,
-			OCMClient: ocmClientMock,
-			Scheme:    k8sScheme,
-			SkipOci:   false,
+			Mgr:        k8sManager,
+			VectorPort: vectorPortMock,
+			Scheme:     k8sScheme,
+			SkipOci:    false,
 		}
 		err := reconciler.SetupWithManager(k8sManager)
 		Expect(err).ToNot(HaveOccurred())
@@ -88,7 +88,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 	Context("When reconciling a stageConfiguration", func() {
 		It("should successfully create a stageSync with latest vector version ", func() {
 			ctx := context.Background()
-			ocmClientMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V100, nil)
+			vectorPortMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V100, nil)
 			// create target namespace
 			// note: since test env cannot delete namespaces the target namespace is created once in the first test
 			testutil.CreateNamespace(ctx, k8sClient, TargetNamespace)
@@ -128,7 +128,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 		})
 		It("should successfully update an existing stage with latest vector version ", func() {
 			ctx := context.Background()
-			ocmClientMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V101, nil)
+			vectorPortMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V101, nil)
 
 			// create stageSync with v1.0.0 vector version
 			testutil.CreateStageSync(ctx, k8sClient, StageSyncDev, Namespace, StageConfiguration, TargetNamespace, StageDev, VectorV100)
