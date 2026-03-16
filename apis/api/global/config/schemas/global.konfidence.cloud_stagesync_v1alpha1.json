@@ -13,7 +13,7 @@
       "type": "object"
     },
     "spec": {
-      "description": "StageSyncSpec defines the desired state of StageSync.",
+      "description": "StageSyncSpec defines the desired state of a StageSync.",
       "properties": {
         "reconcileInterval": {
           "description": "ReconcileInterval defines how often the sync controller should reconcile the StageSync resource.\nIf not set, the controller's default reconcile interval will be used.",
@@ -31,7 +31,7 @@
       "type": "object"
     },
     "status": {
-      "description": "StageSyncStatus defines the observed state of StageSync.",
+      "description": "StageSyncStatus defines the observed state of a StageSync.",
       "properties": {
         "conditions": {
           "items": {

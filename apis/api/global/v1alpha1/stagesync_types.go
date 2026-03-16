@@ -51,7 +51,7 @@ const (
 	APIVersionNotSupportedReason = "APIVersionNotSupported"
 )
 
-// StageSyncSpec defines the desired state of StageSync.
+// StageSyncSpec defines the desired state of a StageSync.
 type StageSyncSpec struct {
 	// StageTemplate contains the template of the stage to be created on the LCP cluster.
 	StageTemplate runtime.RawExtension `json:"stageTemplate"`
@@ -62,7 +62,7 @@ type StageSyncSpec struct {
 	ReconcileInterval *metav1.Duration `json:"reconcileInterval,omitempty"`
 }
 
-// StageSyncStatus defines the observed state of StageSync.
+// StageSyncStatus defines the observed state of a StageSync.
 type StageSyncStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
