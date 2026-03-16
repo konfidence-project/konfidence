@@ -18,17 +18,19 @@ package controller
 
 import (
 	"context"
+	"reflect"
 	"time"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	testutil "github.com/konfidence-project/gcp-stage-configuration-controller/internal/utils"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm/mocks"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/template"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -36,6 +38,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 	const (
 		StageConfiguration = "stage-configuration-dev"
 		StageDev           = "stage-dev"
+		StageSyncDev       = "sync-stage-dev"
 		V100               = "1.0.0"
 		V101               = "1.0.1"
 		Vector             = "http://localhost:5100//konfidence.cloud/project/constructed-vector"
@@ -83,7 +86,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 	})
 
 	Context("When reconciling a stageConfiguration", func() {
-		It("should successfully create a stage with latest vector version ", func() {
+		It("should successfully create a stageSync with latest vector version ", func() {
 			ctx := context.Background()
 			ocmClientMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V100, nil)
 			// create target namespace
@@ -97,10 +100,10 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				g.Expect(k8sClient.Get(ctx, nsLookupKey, ns)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			// create stage configuration
+			// create stageConfiguration
 			testutil.CreateStageConfiguration(ctx, k8sClient, StageConfiguration, Namespace, TargetNamespace, StageDev, Vector)
 
-			// check that the stage configuration has been created and has valid properties
+			// check that the stageConfiguration has been created and has valid properties
 			stageConfiguration := &global.StageConfiguration{}
 			stageConfigurationLookupKey := types.NamespacedName{Name: StageConfiguration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
@@ -110,35 +113,42 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				g.Expect(stageConfiguration.Spec.TargetNamespace).To(Equal(TargetNamespace))
 			}, timeout, interval).Should(Succeed())
 
-			// check that the stage has been created and has valid properties
-			stage := &common.Stage{}
-			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: TargetNamespace}
+			stageTemplate := testutil.CreateStageTemplate(*stageConfiguration, VectorV100)
+			var originalTemplate template.StageTemplate
+
+			// check that the stageSync has been created and has valid properties
+			stageSync := &global.StageSync{}
+			stageSyncLookupKey := types.NamespacedName{Name: StageSyncDev, Namespace: TargetNamespace}
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
-				g.Expect(stage.Name).To(Equal(StageDev))
-				g.Expect(stage.Spec.Vector).To(Equal(VectorV100))
+				g.Expect(k8sClient.Get(ctx, stageSyncLookupKey, stageSync)).To(Succeed())
+				g.Expect(stageSync.Name).To(Equal(StageSyncDev))
+				g.Expect(json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &originalTemplate)).To(Succeed())
+				g.Expect(reflect.DeepEqual(stageTemplate, originalTemplate)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 		It("should successfully update an existing stage with latest vector version ", func() {
 			ctx := context.Background()
 			ocmClientMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V101, nil)
 
-			// create stage with v1.0.0 vector version
-			testutil.CreateStage(ctx, k8sClient, StageDev, TargetNamespace, VectorV100)
+			// create stageSync with v1.0.0 vector version
+			testutil.CreateStageSync(ctx, k8sClient, StageSyncDev, Namespace, StageConfiguration, TargetNamespace, StageDev, VectorV100)
 
-			// check that the stage has been created and has valid properties
-			stage := &common.Stage{}
-			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: TargetNamespace}
+			var stageTemplate template.StageTemplate
+
+			// check that the stageSync has been created and has valid properties
+			stageSync := &global.StageSync{}
+			stageSyncLookupKey := types.NamespacedName{Name: StageSyncDev, Namespace: TargetNamespace}
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
-				g.Expect(stage.Name).To(Equal(StageDev))
-				g.Expect(stage.Spec.Vector).To(Equal(VectorV100))
+				g.Expect(k8sClient.Get(ctx, stageSyncLookupKey, stageSync)).To(Succeed())
+				g.Expect(stageSync.Name).To(Equal(StageSyncDev))
+				g.Expect(json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &stageTemplate)).To(Succeed())
+				g.Expect(stageTemplate.Spec.Vector).To(Equal(VectorV100))
 			}, timeout, interval).Should(Succeed())
 
-			// create stage configuration
+			// create stageConfiguration
 			testutil.CreateStageConfiguration(ctx, k8sClient, StageConfiguration, Namespace, TargetNamespace, StageDev, Vector)
 
-			// check that the stage configuration has been created and has valid properties
+			// check that the stageConfiguration has been created and has valid properties
 			stageConfiguration := &global.StageConfiguration{}
 			stageConfigurationLookupKey := types.NamespacedName{Name: StageConfiguration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
@@ -148,10 +158,11 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				g.Expect(stageConfiguration.Spec.TargetNamespace).To(Equal(TargetNamespace))
 			}, timeout, interval).Should(Succeed())
 
-			// check that the stage has been updated with new vector version
+			// check that the stageSync has been updated with new vector version
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
-				g.Expect(stage.Spec.Vector).To(Equal(VectorV101))
+				g.Expect(k8sClient.Get(ctx, stageSyncLookupKey, stageSync)).To(Succeed())
+				g.Expect(json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &stageTemplate)).To(Succeed())
+				g.Expect(stageTemplate.Spec.Vector).To(Equal(VectorV101))
 			}, timeout, interval).Should(Succeed())
 		})
 	})
