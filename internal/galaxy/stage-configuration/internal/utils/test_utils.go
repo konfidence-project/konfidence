@@ -6,11 +6,14 @@ import (
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/template"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -35,49 +38,42 @@ func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name
 	Expect(k8sClient.Create(ctx, stageConfiguration)).To(Succeed())
 }
 
-func GetStageConfiguration(ctx context.Context, k8sClient client.Client,
-	name string, namespace string, opt bool) *global.StageConfiguration {
-	stageConfiguration := &global.StageConfiguration{}
-	stageConfigurationLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
-	err := k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)
-
-	if opt && err != nil && errors.IsNotFound(err) {
-		return nil
+func CreateStageSync(ctx context.Context, k8sClient client.Client, name string, namespace string, stageConfigName string, targetNamespace string, stageName string, vectorName string) {
+	stageConfiguration := global.StageConfiguration{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "global.konfidence.cloud/v1alpha1",
+			Kind:       global.StageConfigurationKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      stageConfigName,
+			Namespace: namespace,
+		},
+		Spec: global.StageConfigurationSpec{
+			Name:            stageName,
+			Vector:          vectorName,
+			TargetNamespace: targetNamespace,
+		},
 	}
 
-	Expect(err).ToNot(HaveOccurred(), "Failed to fetch stageConfiguration: %s", name)
-	return stageConfiguration
-}
+	stageTemplate := CreateStageTemplate(stageConfiguration, vectorName)
+	stageTemplateJSON, err := json.Marshal(stageTemplate)
+	Expect(err).ToNot(HaveOccurred())
 
-func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
-	stage := &common.Stage{
+	stageSync := &global.StageSync{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "common.konfidence.cloud/v1alpha1",
-			Kind:       "Stage",
+			APIVersion: "global.konfidence.cloud/v1alpha1",
+			Kind:       global.StageSyncKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: namespace,
+			Namespace: targetNamespace,
 		},
-		Spec: common.StageSpec{
-			Vector: vectorName,
+		Spec: global.StageSyncSpec{
+			StageTemplate: runtime.RawExtension{Raw: stageTemplateJSON},
 		},
 	}
 
-	Expect(k8sClient.Create(ctx, stage)).To(Succeed())
-}
-
-func GetStage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *common.Stage {
-	stage := &common.Stage{}
-	stageLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
-	err := k8sClient.Get(ctx, stageLookupKey, stage)
-
-	if opt && err != nil && errors.IsNotFound(err) {
-		return nil
-	}
-
-	Expect(err).ToNot(HaveOccurred(), "Failed to fetch stage: %s", name)
-	return stage
+	Expect(k8sClient.Create(ctx, stageSync)).To(Succeed())
 }
 
 func CreateNamespace(ctx context.Context, k8sClient client.Client, namespace string) {
@@ -85,13 +81,33 @@ func CreateNamespace(ctx context.Context, k8sClient client.Client, namespace str
 	Expect(k8sClient.Create(ctx, ns)).To(Succeed())
 }
 
+func CreateStageTemplate(stageConfiguration global.StageConfiguration, vector string) template.StageTemplate {
+	return template.StageTemplate{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       common.StageKind,
+			APIVersion: "common.konfidence.cloud/v1alpha1",
+		},
+		Metadata: types.NamespacedName{
+			Name:      stageConfiguration.Spec.Name,
+			Namespace: stageConfiguration.Spec.TargetNamespace,
+		},
+		Spec: common.StageSpec{
+			Vector: vector,
+		},
+	}
+}
+
 func CleanupResources(ctx context.Context, k8sClient client.Client, namespace string, targetNamespace string) {
 	err := k8sClient.DeleteAllOf(ctx, &global.StageConfiguration{}, client.InNamespace(namespace))
 	Expect(err).ToNot(HaveOccurred())
 
-	err = k8sClient.DeleteAllOf(ctx, &common.Stage{}, client.InNamespace(namespace))
-	Expect(err).ToNot(HaveOccurred())
+	err = k8sClient.DeleteAllOf(ctx, &global.StageSync{}, client.InNamespace(namespace))
+	if !meta.IsNoMatchError(err) {
+		Expect(err).ToNot(HaveOccurred())
+	}
 
-	err = k8sClient.DeleteAllOf(ctx, &common.Stage{}, client.InNamespace(targetNamespace))
-	Expect(err).ToNot(HaveOccurred())
+	err = k8sClient.DeleteAllOf(ctx, &global.StageSync{}, client.InNamespace(targetNamespace))
+	if !meta.IsNoMatchError(err) {
+		Expect(err).ToNot(HaveOccurred())
+	}
 }

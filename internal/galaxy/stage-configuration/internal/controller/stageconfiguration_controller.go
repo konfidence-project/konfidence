@@ -27,9 +27,12 @@ import (
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/template"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -153,34 +156,76 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 		targetClient = cl
 	}
 
-	// create or update stage
-	stage, operationResult, err := r.createOrUpdateStage(ctx, targetClient, stageConfiguration, vector)
+	// create or update stageSync
+	stageSync, operationResult, err := r.createOrUpdateStageSync(ctx, targetClient, stageConfiguration, vector)
 	if err != nil {
 		return err
 	}
 
-	msg := fmt.Sprintf("Stage %s %s with StageConfiguration %s", stage.Name, operationResult, stageConfiguration.Name)
+	msg := fmt.Sprintf("StageSync %s %s with StageConfiguration %s", stageSync.Name, operationResult, stageConfiguration.Name)
 	recorder.Eventf(stageConfiguration, nil, v1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
 	log.Info(msg)
 	return nil
 }
 
-func (r *StageConfigurationReconciler) createOrUpdateStage(ctx context.Context, targetClient client.Client, stageConfiguration *global.StageConfiguration, vector string) (*common.Stage, controllerutil.OperationResult, error) {
-	stage := r.constructStage(stageConfiguration, vector)
-	operationResult, err := controllerutil.CreateOrUpdate(ctx, targetClient, stage, func() error {
-		stage.Spec.Vector = vector
+func (r *StageConfigurationReconciler) createOrUpdateStageSync(ctx context.Context, targetClient client.Client, stageConfiguration *global.StageConfiguration, vector string) (*global.StageSync, controllerutil.OperationResult, error) {
+	stageSync, stageTemplateBytes, err := r.constructStageSync(stageConfiguration, vector)
+	if err != nil {
+		return nil, controllerutil.OperationResultNone, err
+	}
+
+	operationResult, err := controllerutil.CreateOrUpdate(ctx, targetClient, stageSync, func() error {
+		var originalTemplate, stageTemplate template.StageTemplate
+		if err := json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &originalTemplate); err != nil {
+			return err
+		}
+		if err := json.Unmarshal(stageTemplateBytes, &stageTemplate); err != nil {
+			return err
+		}
+
+		if !reflect.DeepEqual(originalTemplate, stageTemplate) {
+			stageSync.Spec.StageTemplate.Raw = stageTemplateBytes
+		}
+
 		return nil
 	})
 
 	if err != nil {
-		return nil, operationResult, fmt.Errorf("failed to create or update stage: %w", err)
+		return nil, operationResult, fmt.Errorf("failed to create or update stageSync: %w", err)
 	}
-	return stage, operationResult, nil
+	return stageSync, operationResult, nil
 }
 
-func (r *StageConfigurationReconciler) constructStage(stageConfiguration *global.StageConfiguration, vector string) *common.Stage {
-	return &common.Stage{
+func (r *StageConfigurationReconciler) constructStageSync(stageConfiguration *global.StageConfiguration, vector string) (*global.StageSync, []byte, error) {
+	stageTemplate := r.constructStageTemplate(stageConfiguration, vector)
+	stageTemplateJSON, err := json.Marshal(stageTemplate)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal stage template: %w", err)
+	}
+
+	// TODO this might lead to naming collisions. to resolve this issue one
+	// TODO could e.g. use a digest that is computed using stage name and tenant
+	stageSyncName := fmt.Sprintf("sync-%s", stageConfiguration.Spec.Name)
+
+	return &global.StageSync{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:      stageSyncName,
+			Namespace: stageConfiguration.Spec.TargetNamespace,
+		},
+		Spec: global.StageSyncSpec{
+			StageTemplate: runtime.RawExtension{Raw: stageTemplateJSON},
+		},
+	}, stageTemplateJSON, nil
+}
+
+func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration *global.StageConfiguration, vector string) *template.StageTemplate {
+	// TODO replace APIVersion with a configured or determined value
+	return &template.StageTemplate{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       common.StageKind,
+			APIVersion: "common.konfidence.cloud/v1alpha1",
+		},
+		Metadata: types.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
