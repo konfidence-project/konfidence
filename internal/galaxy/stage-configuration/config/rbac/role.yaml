@@ -5,6 +5,15 @@ metadata:
   name: gcp-stage-configuration-manager
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - common.konfidence.cloud
   resources:
   - stages

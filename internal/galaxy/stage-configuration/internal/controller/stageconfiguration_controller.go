@@ -26,8 +26,8 @@ import (
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/template"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/domain"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -58,7 +58,7 @@ var (
 // StageConfigurationReconciler reconciles a StageConfiguration object
 type StageConfigurationReconciler struct {
 	Mgr        mcmanager.Manager
-	OCMClient  ocm.Client
+	VectorPort domain.VectorPort
 	Scheme     *runtime.Scheme
 	RestConfig *rest.Config
 	SkipOci    bool
@@ -68,6 +68,8 @@ type StageConfigurationReconciler struct {
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
 func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
@@ -118,7 +120,7 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	latestVersion := "1.0.0"
 	if !r.SkipOci {
 		// get latest vector version
-		version, err := r.OCMClient.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
+		version, err := r.VectorPort.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
 		if err != nil {
 			return fmt.Errorf("unable to get latest vector component version %s: %w", stageConfiguration.Spec.Vector, err)
 		}

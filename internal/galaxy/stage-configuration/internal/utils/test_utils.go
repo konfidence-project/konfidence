@@ -6,7 +6,7 @@ import (
 
 	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/template"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
