@@ -30,8 +30,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
 	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain/mocks"
@@ -56,12 +56,11 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		ocmAdapterMock = mocks.NewMockVectorOcmPort(mockCtrl)
 
-		k8sClient, cancel = StartTestManagerWithReconciler(func(mgr ctrl.Manager) error {
+		k8sClient, cancel = StartTestManagerWithReconciler(func(mgr mcmanager.Manager) error {
 			return (&VectorTemplateReconciler{
-				Client:     mgr.GetClient(),
-				Scheme:     mgr.GetScheme(),
+				Mgr:        mgr,
+				Scheme:     mgr.GetLocalManager().GetScheme(),
 				OcmAdapter: ocmAdapterMock,
-				Recorder:   mgr.GetEventRecorder(VectorAssemblyControllerName),
 			}).SetupWithManager(mgr)
 		})
 	})
