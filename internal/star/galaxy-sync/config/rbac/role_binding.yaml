@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: landscape-gcp-sync-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: landscape-gcp-sync-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: landscape-gcp-sync-manager
+subjects:
+  - kind: ServiceAccount
+    name: landscape-gcp-sync-controller
