@@ -24,12 +24,19 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/konfidence-project/crds/api/global/v1alpha1"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
+	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	"github.com/konfidence-project/pkg/ocm/crypto"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/konfidence-project/gcp-vector-assembly-controller/pkg/ocm"
 
@@ -43,6 +50,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -58,12 +66,18 @@ const (
 	VerifierTrustAnchorConfigMapNamespaceEnv = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAMESPACE"
 	SigningCredentialSecretNameEnv           = "OCM_RSA_SIGNING_KEY_SECRET_NAME"
 	SigningCredentialSecretNamespaceEnv      = "OCM_RSA_SIGNING_KEY_SECRET_NAMESPACE"
+	KubernetesServiceHost                    = "KUBERNETES_SERVICE_HOST"
+	KubernetesServicePort                    = "KUBERNETES_SERVICE_PORT"
+	KcpEndpointSlice                         = "KCP_ENDPOINT_SLICE"
 )
 
 func init() {
+	utilruntime.Must(apisv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(apisv1alpha2.AddToScheme(scheme))
+	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(global.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -82,12 +96,37 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	cfg := ctrl.GetConfigOrDie()
+	leaderElectionCfg := cfg
+	serviceHost, servicePort := os.Getenv(KubernetesServiceHost), os.Getenv(KubernetesServicePort)
+	if serviceHost != "" && servicePort != "" {
+		inClusterCfg, err := rest.InClusterConfig()
+		if err != nil {
+			setupLog.Error(err, "unable to get in-cluster config for leader election")
+			os.Exit(1)
+		}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		leaderElectionCfg = inClusterCfg
+	}
+
+	endpointSlice := os.Getenv(KcpEndpointSlice)
+
+	var err error
+	var provider multicluster.Provider
+	if endpointSlice != "" {
+		provider, err = apiexport.New(cfg, endpointSlice, apiexport.Options{Scheme: scheme, Log: &setupLog})
+		if err != nil {
+			setupLog.Error(err, "unable to construct cluster provider")
+			os.Exit(1)
+		}
+	}
+
+	mgr, err := mcmanager.New(cfg, provider, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "48fb26ce.konfidence.cloud",
+		LeaderElectionConfig:   leaderElectionCfg,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -96,57 +135,64 @@ func main() {
 
 	ctx := ctrl.SetupSignalHandler()
 	var adapterConfig []ocm.AdapterOption
-	verifyArtifact := strings.ToLower(os.Getenv(OcmArtifactVerifyEnv))
-	verifyAndSignVector := strings.ToLower(os.Getenv(OcmVectorSignAndVerifyEnv))
+	verifyArtifactEnv := strings.ToLower(os.Getenv(OcmArtifactVerifyEnv))
+	verifyAndSignVectorEnv := strings.ToLower(os.Getenv(OcmVectorSignAndVerifyEnv))
 
-	if verifyArtifact != "" || verifyAndSignVector != "" {
-		configMapName, namespace := os.Getenv(VerifierTrustAnchorConfigMapNameEnv),
-			os.Getenv(VerifierTrustAnchorConfigMapNamespaceEnv)
-		if configMapName == "" || namespace == "" {
-			setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", VerifierTrustAnchorConfigMapNameEnv,
-				VerifierTrustAnchorConfigMapNamespaceEnv), "")
-			os.Exit(1)
+	if verifyArtifactEnv != "" || verifyAndSignVectorEnv != "" {
+		verifyArtifact, err := strconv.ParseBool(verifyArtifactEnv)
+		if err != nil {
+			verifyArtifact = false
+		}
+		verifyAndSignVector, err := strconv.ParseBool(verifyAndSignVectorEnv)
+		if err != nil {
+			verifyAndSignVector = false
 		}
 
-		configMapProvider := crypto.NewConfigMapTrustAnchorProvider(types.NamespacedName{Name: configMapName, Namespace: namespace})
-		if err = configMapProvider.SetupWithManager(ctx, mgr); err != nil {
-			setupLog.Error(err, "unable to set up config map trust anchor provider")
-			os.Exit(1)
-		}
-
-		chk, err := strconv.ParseBool(verifyArtifact)
-		if err == nil && chk {
-			adapterConfig = append(adapterConfig, ocm.WithDefaultArtifactVerification(configMapProvider))
-		} else {
-			setupLog.Info("OCM artifact verification is disabled")
-		}
-
-		chk, err = strconv.ParseBool(verifyAndSignVector)
-		if err == nil && chk {
-			secretName, secretNamespace := os.Getenv(SigningCredentialSecretNameEnv), os.Getenv(SigningCredentialSecretNamespaceEnv)
-			if secretName == "" || secretNamespace == "" {
-				setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", SigningCredentialSecretNameEnv,
-					SigningCredentialSecretNamespaceEnv), "")
+		if verifyArtifact || verifyAndSignVector {
+			configMapName, namespace := os.Getenv(VerifierTrustAnchorConfigMapNameEnv),
+				os.Getenv(VerifierTrustAnchorConfigMapNamespaceEnv)
+			if configMapName == "" || namespace == "" {
+				setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", VerifierTrustAnchorConfigMapNameEnv,
+					VerifierTrustAnchorConfigMapNamespaceEnv), "")
 				os.Exit(1)
 			}
 
-			secretProvider := crypto.NewSecretSigningCredentialsProvider(types.NamespacedName{Name: secretName, Namespace: secretNamespace})
-			if err = secretProvider.SetupWithManager(ctx, mgr); err != nil {
-				setupLog.Error(err, "unable to set up secret signing credentials provider")
+			configMapProvider := crypto.NewConfigMapTrustAnchorProvider(types.NamespacedName{Name: configMapName, Namespace: namespace})
+			if err = configMapProvider.SetupWithManager(ctx, mgr.GetLocalManager()); err != nil {
+				setupLog.Error(err, "unable to set up config map trust anchor provider")
 				os.Exit(1)
 			}
 
-			adapterConfig = append(adapterConfig,
-				ocm.WithDefaultVectorSigning(secretProvider),
-				ocm.WithDefaultVectorVerification(configMapProvider))
+			if verifyArtifact {
+				adapterConfig = append(adapterConfig, ocm.WithDefaultArtifactVerification(configMapProvider))
+			} else {
+				setupLog.Info("OCM artifact verification is disabled")
+			}
+
+			if verifyAndSignVector {
+				secretName, secretNamespace := os.Getenv(SigningCredentialSecretNameEnv), os.Getenv(SigningCredentialSecretNamespaceEnv)
+				if secretName == "" || secretNamespace == "" {
+					setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", SigningCredentialSecretNameEnv,
+						SigningCredentialSecretNamespaceEnv), "")
+					os.Exit(1)
+				}
+
+				secretProvider := crypto.NewSecretSigningCredentialsProvider(types.NamespacedName{Name: secretName, Namespace: secretNamespace})
+				if err = secretProvider.SetupWithManager(ctx, mgr.GetLocalManager()); err != nil {
+					setupLog.Error(err, "unable to set up secret signing credentials provider")
+					os.Exit(1)
+				}
+
+				adapterConfig = append(adapterConfig,
+					ocm.WithDefaultVectorSigning(secretProvider),
+					ocm.WithDefaultVectorVerification(configMapProvider))
+			}
 		} else {
 			setupLog.Info("OCM vector signing and verification is disabled")
 		}
 	}
 
-	// read secret from a k8s secret.
-	// todo: in future, we want configure the credentials for accessing OCI registries in a controller-specific configuration.
-	secret, err := loadSecret(ctx, mgr)
+	secret, err := resolveRegistryCredentials(ctx, mgr.GetLocalManager())
 	if err != nil {
 		setupLog.Error(err, "unable to load registry credentials secret")
 		os.Exit(1)
@@ -154,10 +200,9 @@ func main() {
 	adapterConfig = append(adapterConfig, ocm.WithOcmClient(ctx, secret))
 
 	if err := (&controller.VectorTemplateReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
+		Mgr:        mgr,
+		Scheme:     scheme,
 		OcmAdapter: ocm.NewAdapter(adapterConfig...),
-		Recorder:   mgr.GetEventRecorder(controller.VectorAssemblyControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorTemplate")
 		os.Exit(1)
@@ -180,9 +225,10 @@ func main() {
 	}
 }
 
-// loadSecret loads the registry credentials secret from the k8s cluster.
+// TODO: the credentials for accessing OCI registries should be configured in a controller-specific configuration.
+// resolveRegistryCredentials loads the registry credentials secret from the k8s cluster.
 // returns nil if the secret is not found.
-func loadSecret(ctx context.Context, mgr manager.Manager) (*v1.Secret, error) {
+func resolveRegistryCredentials(ctx context.Context, mgr manager.Manager) (*v1.Secret, error) {
 	const secretName = "registry-credentials"
 	const secretNamespace = "konfidence-system"
 

@@ -25,8 +25,9 @@ import (
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,22 +38,21 @@ import (
 )
 
 var (
-	ctx       context.Context
-	cancel    context.CancelFunc
-	testEnv   *envtest.Environment
-	cfg       *rest.Config
-	k8sClient client.Client
+	ctx        context.Context
+	cancel     context.CancelFunc
+	testEnv    *envtest.Environment
+	cfg        *rest.Config
+	k8sClient  client.Client
+	k8sManager mcmanager.Manager
 )
 
 func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
-
 	RunSpecs(t, "Controller Suite")
 }
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
-
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	var err error
@@ -81,6 +81,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
+	cancel()
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
@@ -108,17 +109,20 @@ func getFirstFoundEnvTestBinaryDir() string {
 	return ""
 }
 
-func StartTestManagerWithReconciler(setup func(ctrl.Manager) error) (client.Client, context.CancelFunc) {
+func StartTestManagerWithReconciler(setup func(mgr mcmanager.Manager) error) (client.Client, context.CancelFunc) {
 	// set up the k8s manager
-	k8sManager, err := manager.New(cfg, manager.Options{})
+	var err error
+	k8sManager, err = mcmanager.New(cfg, nil, ctrl.Options{
+		Scheme: scheme.Scheme,
+	})
 	Expect(err).ToNot(HaveOccurred())
 
 	// register the globalv1alpha1 scheme
-	err = global.AddToScheme(k8sManager.GetScheme())
+	err = global.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	// set up the k8s client
-	k8sClient, err = client.New(cfg, client.Options{Scheme: k8sManager.GetScheme()})
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
@@ -133,7 +137,7 @@ func StartTestManagerWithReconciler(setup func(ctrl.Manager) error) (client.Clie
 
 	// Wait for cache sync
 	Eventually(func() bool {
-		return k8sManager.GetCache().WaitForCacheSync(ctx)
+		return k8sManager.GetLocalManager().GetCache().WaitForCacheSync(ctx)
 	}).Should(BeTrue())
 
 	return k8sClient, cancel

@@ -5,6 +5,15 @@ metadata:
   name: gcp-vector-assembly-manager
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - global.konfidence.cloud
   resources:
   - vectortemplates

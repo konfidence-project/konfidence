@@ -4,6 +4,8 @@ go 1.25.7
 
 require (
 	github.com/aws/smithy-go v1.24.0
+	github.com/kcp-dev/multicluster-provider v0.5.1
+	github.com/kcp-dev/sdk v0.30.0
 	github.com/konfidence-project/crds/api/global v0.2.0
 	github.com/konfidence-project/pkg v0.10.0
 	github.com/onsi/ginkgo/v2 v2.27.5
@@ -16,6 +18,7 @@ require (
 	ocm.software/open-component-model/bindings/go/oci v0.0.34
 	ocm.software/open-component-model/bindings/go/runtime v0.0.6
 	sigs.k8s.io/controller-runtime v0.23.1
+	sigs.k8s.io/multicluster-runtime v0.23.1
 )
 
 require (
@@ -54,6 +57,8 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.30.0 // indirect
+	github.com/kcp-dev/logicalcluster/v3 v3.0.5 // indirect
 	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
