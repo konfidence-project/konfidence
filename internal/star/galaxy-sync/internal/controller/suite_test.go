@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -44,9 +45,12 @@ import (
 var (
 	ctx             context.Context
 	cancel          context.CancelFunc
-	testEnv         *envtest.Environment
-	cfg             *rest.Config
-	k8sClient       client.Client
+	localTestEnv    *envtest.Environment
+	remoteTestEnv   *envtest.Environment
+	localCfg        *rest.Config
+	remoteCfg       *rest.Config
+	localK8sClient  client.Client
+	remoteK8sClient client.Client
 	reconcileScheme *runtime.Scheme
 )
 
@@ -66,29 +70,63 @@ var _ = BeforeSuite(func() {
 	err = common.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "global")},
+	By("bootstrapping local test environment")
+	localTestEnv = &envtest.Environment{
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "test", "data", "crds", "common"),
+		},
 		ErrorIfCRDPathMissing: true,
 	}
 
 	// Retrieve the first found binary directory to allow running tests from IDEs
 	if getFirstFoundEnvTestBinaryDir() != "" {
-		testEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
+		localTestEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
 	}
 
-	// cfg is defined in this file globally.
-	cfg, err = testEnv.Start()
+	// localCfg is defined in this file globally.
+	localCfg, err = localTestEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
+	Expect(localCfg).NotTo(BeNil())
 
-	// create client
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	// create local client
+	localK8sClient, err = client.New(localCfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
+	Expect(localK8sClient).NotTo(BeNil())
+
+	By("bootstrapping remote test environment")
+	remoteTestEnv = &envtest.Environment{
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "global")},
+		ErrorIfCRDPathMissing: true,
+	}
+
+	if getFirstFoundEnvTestBinaryDir() != "" {
+		remoteTestEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
+	}
+
+	remoteCfg, err = remoteTestEnv.Start()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(remoteCfg).NotTo(BeNil())
+
+	// create remote client
+	remoteK8sClient, err = client.New(remoteCfg, client.Options{Scheme: scheme.Scheme})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(remoteK8sClient).NotTo(BeNil())
+
+	// create remote cache
+	remoteCache, err := cache.New(remoteCfg, cache.Options{Scheme: scheme.Scheme})
+	Expect(err).NotTo(HaveOccurred())
+
+	go func() {
+		defer GinkgoRecover()
+		err = remoteCache.Start(ctx)
+		Expect(err).ToNot(HaveOccurred(), "failed to start remote cache")
+	}()
+
+	// wait for remote cache to sync before wiring it into the reconciler
+	Expect(remoteCache.WaitForCacheSync(ctx)).To(BeTrue())
 
 	// create manager
-	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
+	k8sManager, err := ctrl.NewManager(localCfg, ctrl.Options{
 		Scheme: scheme.Scheme,
 	})
 	Expect(err).ToNot(HaveOccurred())
@@ -97,8 +135,8 @@ var _ = BeforeSuite(func() {
 
 	err = (&StageSyncReconciler{
 		LocalClient:  k8sManager.GetClient(),
-		RemoteClient: nil,
-		RemoteCache:  k8sManager.GetCache(), // TODO: should be remote cache
+		RemoteClient: remoteK8sClient,
+		RemoteCache:  remoteCache,
 		Scheme:       reconcileScheme,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
@@ -111,9 +149,12 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	By("tearing down the test environment")
+	By("tearing down the local test environment")
 	cancel()
-	err := testEnv.Stop()
+	err := localTestEnv.Stop()
+	Expect(err).NotTo(HaveOccurred())
+	By("tearing down the remote test environment")
+	err = remoteTestEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
 
