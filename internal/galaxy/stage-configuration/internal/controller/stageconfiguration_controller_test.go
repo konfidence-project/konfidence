@@ -65,7 +65,6 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			Mgr:        k8sManager,
 			VectorPort: vectorPortMock,
 			Scheme:     k8sScheme,
-			SkipOci:    false,
 		}
 		err := reconciler.SetupWithManager(k8sManager)
 		Expect(err).ToNot(HaveOccurred())

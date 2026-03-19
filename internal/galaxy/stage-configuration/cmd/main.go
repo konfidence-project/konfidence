@@ -61,6 +61,7 @@ const (
 	VerifierTrustAnchorConfigMapNamespaceEnv = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAMESPACE"
 	KubernetesServiceHost                    = "KUBERNETES_SERVICE_HOST"
 	KubernetesServicePort                    = "KUBERNETES_SERVICE_PORT"
+	KcpEndpointSlice                         = "KCP_ENDPOINT_SLICE"
 )
 
 var (
@@ -84,17 +85,11 @@ func init() {
 func main() {
 	var enableLeaderElection bool
 	var probeAddr string
-	var endpointSlice string
-	var tempSkipOciRegistry bool
 
-	flag.StringVar(&endpointSlice, "endpointslice", "",
-		"Set the APIExportEndpointSlice name to watch")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.BoolVar(&tempSkipOciRegistry, "skip-oci", false,
-		"Temporarily skip resolving of OCI vector and use default version instead")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -114,6 +109,8 @@ func main() {
 
 		leaderElectionCfg = inClusterCfg
 	}
+
+	endpointSlice := os.Getenv(KcpEndpointSlice)
 
 	var err error
 	var provider multicluster.Provider = nil
@@ -185,7 +182,6 @@ func main() {
 		VectorPort: ocm.VectorOCMAdapter{VectorVerifier: vectorVerifier, OcmClient: ocmClient},
 		Scheme:     scheme,
 		RestConfig: cfg,
-		SkipOci:    tempSkipOciRegistry,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StageConfiguration")
 		os.Exit(1)
