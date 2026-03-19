@@ -61,7 +61,6 @@ type StageConfigurationReconciler struct {
 	VectorPort domain.VectorPort
 	Scheme     *runtime.Scheme
 	RestConfig *rest.Config
-	SkipOci    bool
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -117,15 +116,10 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageConfiguration")
 
-	latestVersion := "1.0.0"
-	if !r.SkipOci {
-		// get latest vector version
-		version, err := r.VectorPort.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
-		if err != nil {
-			return fmt.Errorf("unable to get latest vector component version %s: %w", stageConfiguration.Spec.Vector, err)
-		}
-
-		latestVersion = version
+	// get latest vector version
+	latestVersion, err := r.VectorPort.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
+	if err != nil {
+		return fmt.Errorf("unable to get latest vector component version %s: %w", stageConfiguration.Spec.Vector, err)
 	}
 
 	// combine vector with latest version
