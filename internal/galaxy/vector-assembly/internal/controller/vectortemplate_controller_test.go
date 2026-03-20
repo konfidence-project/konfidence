@@ -92,12 +92,14 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 		}
 		latestComponentVersions := []domain.Artifact{
 			{
-				Version: "1.2.0",
-				Name:    "dwc.tools.sap/dwc-project/dev/service1",
+				Version:    "1.2.0",
+				Name:       "dwc.tools.sap/dwc-project/dev/service1",
+				SourceRepo: component1.Repository,
 			},
 			{
-				Version: "3.1.0", // this indicates a new version is available for service2
-				Name:    "dwc.tools.sap/dwc-project/dev/service2",
+				Version:    "3.1.0", // this indicates a new version is available for service2
+				Name:       "dwc.tools.sap/dwc-project/dev/service2",
+				SourceRepo: component2.Repository,
 			},
 		}
 		ocmAdapterMock.EXPECT().GetLatestArtifactVersions(gomock.Any(), ocmComponentsFromComponentList).Return(latestComponentVersions, nil).Times(1)
@@ -127,16 +129,17 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 			Name:    "konfidence.cloud/sample-vector/sample-app",
 			Artifacts: []domain.Artifact{
 				{
-					Version: "1.2.0",
-					Name:    "dwc.tools.sap/dwc-project/dev/service1",
+					Version:    "1.2.0",
+					Name:       "dwc.tools.sap/dwc-project/dev/service1",
+					SourceRepo: component1.Repository,
 				},
 				{
-					Version: "3.1.0", // updated version for service2
-					Name:    "dwc.tools.sap/dwc-project/dev/service2",
+					Version:    "3.1.0", // updated version for service2
+					Name:       "dwc.tools.sap/dwc-project/dev/service2",
+					SourceRepo: component2.Repository,
 				},
 			},
 		}
-		// todo: pass 2nd arg as repoSpec.
 		ocmAdapterMock.EXPECT().CreateVector(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(domain.Vector{})).
 			DoAndReturn(func(ctx context.Context, repoSpec runtime.Typed, v domain.Vector) error {
 				gomega.Expect(v.Name).To(gomega.Equal(expectedUpdatedVector.Name))
@@ -168,19 +171,20 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 		}, timeout, interval).Should(gomega.Succeed())
 	})
 
-	It("should reconcile a VectorTemplate CR with a inheritance vector even if the vector does not exist in registry", func() {
+	It("should reconcile a VectorTemplate CR with an inheritance vector even if the vector does not exist in the registry", func() {
 		ctx := context.Background()
 
 		// when: GetLatestVector is called for the base vector
-		// then: return an latest base vector stored in registry
+		// then: return the latest base vector stored in the registry
 		baseVectorOcmReference, _ := compref.Parse("http://localhost:5100//konfidence.project/common-services")
 		baseVector := domain.Vector{
 			Version: "2026.1.15-101112000Z",
 			Name:    "konfidence.project/common-services",
 			Artifacts: []domain.Artifact{
 				{
-					Version: "0.9.0",
-					Name:    "dwc.tools.sap/dwc-project/dev/service3", // service from base vector
+					Version:    "0.9.0",
+					Name:       "dwc.tools.sap/dwc-project/dev/service3", // service from base vector
+					SourceRepo: baseVectorOcmReference.Repository,
 				},
 			},
 		}
@@ -196,19 +200,22 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 		}
 		latestComponentVersions := []domain.Artifact{
 			{
-				Version: "1.2.0",
-				Name:    "dwc.tools.sap/dwc-project/dev/service1",
+				Version:    "1.2.0",
+				Name:       "dwc.tools.sap/dwc-project/dev/service1",
+				SourceRepo: component1.Repository,
 			},
 			{
-				Version: "3.1.0",
-				Name:    "dwc.tools.sap/dwc-project/dev/service2",
+				Version:    "3.1.0",
+				Name:       "dwc.tools.sap/dwc-project/dev/service2",
+				SourceRepo: component2.Repository,
 			},
 		}
 		ocmAdapterMock.EXPECT().GetLatestArtifactVersions(gomock.Any(), ocmComponentsFromComponentList).Return(latestComponentVersions, nil).Times(1)
 
 		// when: GetLatestVector is called
 		// then: return an ErrNotFound indicating that the vector does not exist
-		ocmAdapterMock.EXPECT().GetLatestVector(gomock.Any(), gomock.Any()).
+		vectorOcmReference, _ := compref.Parse("http://localhost:5100//konfidence.cloud/sample-vector/sample-app")
+		ocmAdapterMock.EXPECT().GetLatestVector(gomock.Any(), *vectorOcmReference).
 			Return(domain.Vector{}, repository.ErrNotFound).Times(1)
 
 		// when: CreateVector is called
@@ -218,16 +225,19 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 			Name:    "konfidence.cloud/sample-vector/sample-app",
 			Artifacts: []domain.Artifact{
 				{
-					Version: "0.9.0",
-					Name:    "dwc.tools.sap/dwc-project/dev/service3", // service 3 from base vector
+					Version:    "0.9.0",
+					Name:       "dwc.tools.sap/dwc-project/dev/service3",
+					SourceRepo: baseVectorOcmReference.Repository,
 				},
 				{
-					Version: "1.2.0",
-					Name:    "dwc.tools.sap/dwc-project/dev/service1",
+					Version:    "1.2.0",
+					Name:       "dwc.tools.sap/dwc-project/dev/service1",
+					SourceRepo: component1.Repository,
 				},
 				{
-					Version: "3.1.0", // updated version for service2
-					Name:    "dwc.tools.sap/dwc-project/dev/service2",
+					Version:    "3.1.0",
+					Name:       "dwc.tools.sap/dwc-project/dev/service2",
+					SourceRepo: component2.Repository,
 				},
 			},
 		}

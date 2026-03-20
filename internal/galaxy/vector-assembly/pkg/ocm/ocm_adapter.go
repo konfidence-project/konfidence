@@ -47,9 +47,10 @@ func (a Adapter) GetLatestArtifactVersions(ctx context.Context, references []com
 			return nil, fmt.Errorf("unable to generate digest for ocm descriptor for component (%s) version (%s): %w", ref, desc.Component.Version, err)
 		}
 		artifact := domain.Artifact{
-			Version: desc.Component.Version,
-			Name:    desc.Component.Name,
-			Digest:  dig.Value,
+			Version:    desc.Component.Version,
+			Name:       desc.Component.Name,
+			Digest:     dig.Value,
+			SourceRepo: ref.Repository,
 		}
 		artifacts = append(artifacts, artifact)
 	}
@@ -68,10 +69,14 @@ func (a Adapter) GetLatestVector(ctx context.Context, vectorRef compref.Ref) (do
 		return domain.Vector{}, fmt.Errorf("unable to verify ocm descriptor for vector (%s) version (%s): %w",
 			vectorRef, descriptor.Component.Version, err)
 	}
-	return mapToDomain(descriptor), nil
+	return mapToDomain(descriptor, vectorRef.Repository), nil
 }
 
 func (a Adapter) CreateVector(ctx context.Context, repoSpec runtime.Typed, vector domain.Vector) error {
+	if err := a.copyArtifacts(ctx, vector.Artifacts, repoSpec); err != nil {
+		return fmt.Errorf("unable to copy artifact components to target repository: %w", err)
+	}
+
 	vectorDescriptor := mapToDescriptor(vector, a.digester.GetHashAlgorithm().String(), a.digester.GetNormalisationAlgorithm())
 	if err := a.vectorSigner.Sign(ctx, &vectorDescriptor); err != nil {
 		return fmt.Errorf("unable to Sign ocm descriptor for vector (%s): %w", vector.Name, err)
@@ -87,14 +92,15 @@ func (a Adapter) CreateVector(ctx context.Context, repoSpec runtime.Typed, vecto
 	return nil
 }
 
-func mapToDomain(descriptor ocmDescriptor.Descriptor) domain.Vector {
+func mapToDomain(descriptor ocmDescriptor.Descriptor, vectorRepository runtime.Typed) domain.Vector {
 
 	artifacts := make([]domain.Artifact, 0, len(descriptor.Component.References))
 	for _, ref := range descriptor.Component.References {
 		artifact := domain.Artifact{
-			Version: ref.Version,
-			Name:    ref.Component,
-			Digest:  ref.Digest.Value,
+			Version:    ref.Version,
+			Name:       ref.Component,
+			Digest:     ref.Digest.Value,
+			SourceRepo: vectorRepository,
 		}
 		artifacts = append(artifacts, artifact)
 	}
@@ -154,6 +160,24 @@ func createReferenceName(artifact domain.Artifact) string {
 	_, _ = h.Write([]byte(artifact.Name))
 	sum := h.Sum64()
 	return strconv.FormatUint(sum, 36)
+}
+
+func (a Adapter) copyArtifacts(ctx context.Context, artifacts []domain.Artifact, targetRepoSpec runtime.Typed) error {
+	artifactReferences := make([]compref.Ref, 0, len(artifacts))
+
+	for _, artifact := range artifacts {
+		sourceRef := compref.Ref{
+			Repository: artifact.SourceRepo,
+			Component:  artifact.Name,
+			Version:    artifact.Version,
+		}
+		artifactReferences = append(artifactReferences, sourceRef)
+	}
+
+	if err := a.ocmClient.Copy(ctx, artifactReferences, targetRepoSpec); err != nil {
+		return fmt.Errorf("failed to copy artifacts: %w", err)
+	}
+	return nil
 }
 
 // NewAdapter creates a new OCM Adapter with the given options.

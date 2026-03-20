@@ -28,9 +28,10 @@ type Vector struct {
 }
 
 type Artifact struct {
-	Version string
-	Name    string
-	Digest  string
+	Version    string
+	Name       string
+	Digest     string
+	SourceRepo runtime.Typed
 }
 
 func HasDrift(desired, actual []Artifact) bool {

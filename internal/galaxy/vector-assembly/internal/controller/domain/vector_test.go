@@ -5,6 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	ociv1 "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 )
 
 func TestDomainVector(t *testing.T) {
@@ -92,5 +93,32 @@ var _ = Describe("HasDrift", func() {
 			},
 		}
 		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeTrue())
+	})
+
+	It("no drift when SourceRepo differs but Name and Version match", func() {
+		desiredArtifacts := []Artifact{
+			{
+				Version:    "1.2.3",
+				Name:       "component-a",
+				SourceRepo: &ociv1.Repository{BaseUrl: "http://localhost:5100"},
+			},
+			{
+				Version:    "1.52.0",
+				Name:       "component-b",
+				SourceRepo: &ociv1.Repository{BaseUrl: "http://localhost:5200"},
+			},
+		}
+
+		actualArtifacts := []Artifact{
+			{
+				Version: "1.2.3",
+				Name:    "component-a",
+			},
+			{
+				Version: "1.52.0",
+				Name:    "component-b",
+			},
+		}
+		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeFalse())
 	})
 })
