@@ -1,11 +1,22 @@
 services:
-  zot:
+  zot-source:
     image: ghcr.io/project-zot/zot-linux-arm64:latest
-    container_name: zot-registry
+    container_name: zot-registry-source
     ports:
       - "5100:5100"
     volumes:
       - ./zot-data:/var/lib/registry
       - ./htpasswd:/etc/zot/htpasswd:ro  # user: "user", password: "password"
       - ./zot-config.json:/etc/zot/config.json
+    restart: unless-stopped
+
+  zot-target:
+    image: ghcr.io/project-zot/zot-linux-arm64:latest
+    container_name: zot-registry-target
+    ports:
+      - "5200:5100"
+    volumes:
+      - ./zot-data-target:/var/lib/registry
+      - ./htpasswd:/etc/zot/htpasswd:ro  # user: "user", password: "password"
+      - ./zot-config-target.json:/etc/zot/config.json
     restart: unless-stopped

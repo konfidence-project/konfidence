@@ -11,4 +11,14 @@ configurations:
           - type: Credentials/v1
             properties:
               username: "user"
-              password: "user"
+              password: "password"
+      - identity:
+          type: OCIRepository
+          hostname: localhost
+          port: "5200"
+          scheme: http
+        credentials:
+          - type: Credentials/v1
+            properties:
+              username: "user"
+              password: "password"

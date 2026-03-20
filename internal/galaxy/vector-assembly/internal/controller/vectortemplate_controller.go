@@ -219,6 +219,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 		Name:      vectorOCMComponent.Component,
 		Artifacts: desiredArtifacts,
 	}
+
 	err = r.OcmAdapter.CreateVector(ctx, vectorOCMComponent.Repository, newVector)
 	if err != nil {
 		err = fmt.Errorf("unable to create new vector (%s) on drift: %w", vectorOCMComponent, err)
@@ -280,6 +281,7 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(ctx context.Contex
 	}
 	log := logf.FromContext(ctx)
 	log.Info("Using base vector for vector OCM component", "BaseVectorVersion", baseVector.Version, "BaseVectorOCMComponent", baseVectorOCMComponent.Component, "VectorOCMComponent", vectorOCMComponentName)
+
 	return baseVector.Artifacts, nil
 }
 

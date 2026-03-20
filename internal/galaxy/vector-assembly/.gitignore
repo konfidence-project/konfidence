@@ -45,6 +45,7 @@ ocm-transfer
 configs
 
 */zot-data/*
+*/zot-data-target/*
 
 # generated files like CRDs for testing
 test/data/generated/
