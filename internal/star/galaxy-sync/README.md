@@ -40,8 +40,14 @@ A finalizer (`konfidence.cloud/stage-sync-finalizer`) is added to each `StageSyn
 
 ### Kubeconfig Secret for Remote Cluster (GCP)
 
-The controller reads the kubeconfig for the remote (GCP) cluster from a Kubernetes Secret named `gcp-sync-kubeconfig` in the local cluster.
-The Secret must contain a key named `kubeconfig` with the kubeconfig YAML as its value.
+The controller reads the remote (GCP) cluster kubeconfig from a Secret named `gcp-sync-kubeconfig`, with the kubeconfig YAML stored under the key `kubeconfig`.
+
+The lookup namespace for the secret is resolved from the `CONTROLLER_NAMESPACE` environment variable (injected via the Downward API) and falls back to `default` when not set.
+
+> **Single-cluster mode:** if the Secret is not present, the controller uses the local cluster as both clusters — useful for development and testing.
+
+
+### Secret Creation
 
 Create the Secret from a kubeconfig file:
 
@@ -51,10 +57,13 @@ kubectl create secret generic gcp-sync-kubeconfig \
   --namespace=<controller-namespace>
 ```
 
-The controller resolves the lookup namespace from the `CONTROLLER_NAMESPACE` environment variable, which is automatically injected via the Downward API when deployed with the provided manifests. It falls back to `default` when the variable is not set (e.g. during local development).
+To verify the Secret was created correctly, decode it back to plain text:
 
-> **Single-cluster mode:** if the Secret is not present, the controller uses the local cluster as both the local and the remote cluster. This is useful for development and testing.
-
+```bash
+kubectl get secret gcp-sync-kubeconfig \
+  --namespace=<controller-namespace> \
+  -o jsonpath='{.data.kubeconfig}' | base64 --decode
+```
 
 ### Setup Git hooks
 

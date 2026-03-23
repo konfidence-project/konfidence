@@ -5,6 +5,14 @@ metadata:
   name: landscape-gcp-sync-manager
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - global.konfidence.cloud
   resources:
   - stagesyncs
@@ -24,11 +32,3 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-    - ""
-  resources:
-    - secrets
-  verbs:
-    - get
-    - list
-    - watch
