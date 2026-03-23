@@ -22,16 +22,17 @@ import (
 	"path/filepath"
 	"testing"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
+	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -67,13 +68,13 @@ var _ = BeforeSuite(func() {
 	err = global.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = common.AddToScheme(scheme.Scheme)
+	err = landscape.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	By("bootstrapping local test environment")
 	localTestEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "test", "data", "crds", "common"),
+			filepath.Join("..", "..", "test", "data", "crds", "landscape"),
 		},
 		ErrorIfCRDPathMissing: true,
 	}
@@ -138,6 +139,7 @@ var _ = BeforeSuite(func() {
 		RemoteClient: remoteK8sClient,
 		RemoteCache:  remoteCache,
 		Scheme:       reconcileScheme,
+		Recorder:     events.NewFakeRecorder(32),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

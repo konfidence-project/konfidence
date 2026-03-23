@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/controller"
 	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/remoteconfig"
 	// +kubebuilder:scaffold:imports
@@ -58,7 +58,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(common.AddToScheme(scheme))
+	utilruntime.Must(landscape.AddToScheme(scheme))
 	utilruntime.Must(global.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
@@ -139,10 +139,12 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 	if remoteConfig != nil {
 		// Multi-cluster: build a dedicated cluster for the remote (GCP) side.
 		log.Info("Remote kubeconfig found; running in multi-cluster mode",
-			"secret", fmt.Sprintf("%s/%s", getControllerNamespace(), remoteconfig.SecretName))
+			"kubeconfig-secret", fmt.Sprintf("%s/%s", getControllerNamespace(), remoteconfig.SecretName),
+			"secret-key", remoteconfig.SecretKey,
+			"remote-cluster-server", remoteConfig.Host)
 
-		remoteCluster, err := cluster.New(remoteConfig, func(o *cluster.Options) {
-			o.Scheme = scheme
+		remoteCluster, err := cluster.New(remoteConfig, func(options *cluster.Options) {
+			options.Scheme = scheme
 		})
 		if err != nil {
 			return fmt.Errorf("unable to create remote cluster: %w", err)
@@ -154,7 +156,7 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 		remoteClient = remoteCluster.GetClient()
 		remoteCache = remoteCluster.GetCache()
 	} else {
-		setupLog.Info("No remote kubeconfig Secret found; running in single-cluster mode")
+		log.Info("No remote kubeconfig Secret found; running in single-cluster mode")
 	}
 
 	if err := (&controller.StageSyncReconciler{
@@ -162,6 +164,7 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 		RemoteClient: remoteClient,
 		RemoteCache:  remoteCache,
 		Scheme:       scheme,
+		Recorder:     mgr.GetEventRecorder(controller.StageSyncControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create StageSyncReconciler: %w", err)
 	}

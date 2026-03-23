@@ -19,8 +19,8 @@ package controller
 import (
 	"encoding/json"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +45,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageSyncName, stageSyncNamespace, stageName, stageNamespace, "common.konfidence.cloud/v1alpha1")
+			stageSync = buildStageSync(stageSyncName, stageSyncNamespace, stageName, stageNamespace, "landscape.konfidence.cloud/v1alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -58,7 +58,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				err := localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
 					Namespace: stageNamespace,
-				}, &common.Stage{})
+				}, &landscape.Stage{})
 				g.Expect(client.IgnoreNotFound(err)).To(Succeed())
 				g.Expect(err).To(MatchError(ContainSubstring("not found")))
 			}).Should(Succeed())
@@ -66,7 +66,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		It("should successfully create a stage on the local cluster", func() {
 			By("verifying the Stage is created on the local cluster")
-			createdStage := &common.Stage{}
+			createdStage := &landscape.Stage{}
 			Eventually(func(g Gomega) {
 				g.Expect(localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
@@ -96,6 +96,12 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
 				g.Expect(condition.Reason).To(Equal(global.StageCreationSuccessfulReason))
 			}).Should(Succeed())
+
+			By("verifying the StageSync status reflects the full stage status")
+			Expect(updatedStageSync.Status.StageStatus.Raw).NotTo(BeEmpty())
+			var reflectedStatus landscape.StageStatus
+			Expect(json.Unmarshal(updatedStageSync.Status.StageStatus.Raw, &reflectedStatus)).To(Succeed())
+			Expect(reflectedStatus).To(Equal(createdStage.Status))
 		})
 	})
 
@@ -105,7 +111,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageSyncName, stageSyncNamespace, stageName, nonExistentNamespace, "common.konfidence.cloud/v1alpha1")
+			stageSync = buildStageSync(stageSyncName, stageSyncNamespace, stageName, nonExistentNamespace, "landscape.konfidence.cloud/v1alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -134,7 +140,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageSyncName, stageSyncNamespace, stageName, stageNamespace, "common.konfidence.cloud/v999alpha1")
+			stageSync = buildStageSync(stageSyncName, stageSyncNamespace, stageName, stageNamespace, "landscape.konfidence.cloud/v999alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -161,16 +167,16 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 // buildStageRaw builds a marshalled Stage object with the given name, namespace and apiVersion.
 func buildStageRaw(name, namespace, apiVersion string) []byte {
-	stage := &common.Stage{
+	stage := &landscape.Stage{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: apiVersion,
-			Kind:       common.StageKind,
+			Kind:       landscape.StageKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: common.StageSpec{
+		Spec: landscape.StageSpec{
 			Vector: testStageVector,
 		},
 	}

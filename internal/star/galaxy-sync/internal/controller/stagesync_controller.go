@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,6 +50,7 @@ const (
 	syncControllerFinalizer  = "konfidence.cloud/stage-sync-finalizer"
 	defaultReconcileInterval = 30 * time.Second
 	managedByLabelKey        = "managed-by"
+	StageSyncControllerName  = "stage-sync-controller"
 )
 
 // StageSyncReconciler watches a StageSync object on the remote client (GCP) and creates/updates/deletes a corresponding Stage object on the local cluster (LCP).
@@ -59,10 +61,12 @@ type StageSyncReconciler struct {
 	RemoteClient client.Client
 	RemoteCache  cache.Cache
 	Scheme       *runtime.Scheme
+	Recorder     events.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stagesyncs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stagesyncs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
@@ -81,7 +85,7 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	originalRemoteStageSync := remoteStageSync.DeepCopy()
 	stageTemplate, err := getStageFromTemplate(remoteStageSync.Spec.StageTemplate)
 	if err != nil {
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, "InvalidStageTemplate", err.Error()) // TODO: add constant in stagesync_types.go
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.InvalidStageTemplateReason, err.Error())
 		err = errors.Join(err, patchErr)
 		return ctrl.Result{}, err
 	}
@@ -93,28 +97,31 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// check if the stored and served storage versions contain the one in the StageTemplate
 	versionServed, err := r.isStageVersionServed(ctx, logger, stageTemplate.TypeMeta.GroupVersionKind().Version)
 	if err != nil {
-		err = fmt.Errorf("unable to verify if stage version is served: %w", err)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.StageCrdQueryFailedReason, err.Error())
-		err = errors.Join(err, patchErr)
-		return ctrl.Result{}, err
+		msg := fmt.Sprintf("unable to verify if stage version is served: %s", err)
+		logger.Error(err, msg)
+		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, global.StageCrdQueryFailedReason, "VerifyStageVersion", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.StageCrdQueryFailedReason, msg)
+		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 	if !versionServed {
-		err = fmt.Errorf("expected version %s is not present or not served in Stage CRD", stageTemplate.TypeMeta.GroupVersionKind().Version)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.APIVersionNotSupportedReason, err.Error())
-		err = errors.Join(err, patchErr)
-		return ctrl.Result{}, err
+		msg := fmt.Sprintf("expected version %s is not present or not served in Stage CRD", stageTemplate.TypeMeta.GroupVersionKind().Version)
+		logger.Error(nil, msg)
+		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, global.APIVersionNotSupportedReason, "VerifyStageVersion", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.APIVersionNotSupportedReason, msg)
+		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
 	// check if namespace exists on local
 	if err := r.LocalClient.Get(ctx, client.ObjectKey{Name: stageTemplate.Namespace}, &corev1.Namespace{}); err != nil {
-		err = fmt.Errorf("unable to fetch local namespace %s: %w", req.Namespace, err)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.NamespaceNotFoundReason, err.Error())
-		err = errors.Join(err, patchErr)
-		return ctrl.Result{}, err
+		msg := fmt.Sprintf("unable to fetch local namespace %s: %s", stageTemplate.Namespace, err)
+		logger.Error(err, msg)
+		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, global.NamespaceNotFoundReason, "CheckLocalNamespace", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.NamespaceNotFoundReason, msg)
+		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
 	// fetch local resource
-	localStage := &common.Stage{}
+	localStage := &landscape.Stage{}
 	err = r.LocalClient.Get(ctx, client.ObjectKey{Name: stageTemplate.Name, Namespace: stageTemplate.Namespace}, localStage)
 	if err != nil && !apierrors.IsNotFound(err) {
 		err = fmt.Errorf("unable to fetch local resource: %w", err)
@@ -127,10 +134,11 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// check if existing stage is managed by this StageSync resource
 		namespacedNameString, ok := localStage.GetLabels()[managedByLabelKey]
 		if !ok || namespacedNameString != getLabelValue(req.NamespacedName) {
-			err = fmt.Errorf("stage that is not managed by this StageSync resource already exists with desired name and namespace; expected label '%s: %s'", managedByLabelKey, getLabelValue(req.NamespacedName))
-			patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.ConflictWithUnmanagedStageReason, err.Error())
-			err = errors.Join(err, patchErr)
-			return ctrl.Result{}, err
+			msg := fmt.Sprintf("stage that is not managed by this StageSync resource already exists with desired name and namespace; expected label '%s: %s'", managedByLabelKey, getLabelValue(req.NamespacedName))
+			logger.Error(nil, msg)
+			r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, global.ConflictWithUnmanagedStageReason, "CheckManagedStage", msg)
+			patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.ConflictWithUnmanagedStageReason, msg)
+			return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 		}
 	}
 
@@ -152,23 +160,32 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return nil
 	})
 	if err != nil {
-		err = fmt.Errorf("unable to create or update local resource: %w", err)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.StageCreationFailedReason, err.Error())
-		err = errors.Join(err, patchErr)
-		return ctrl.Result{}, err
+		msg := fmt.Sprintf("unable to create or update local resource: %s", err)
+		logger.Error(err, msg)
+		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, global.StageCreationFailedReason, "CreateOrUpdateStage", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.StageCreationFailedReason, msg)
+		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
-	// reflect status conditions of local on remote resource
-	reflectStageStatusConditionsOnStageSync(localStage, remoteStageSync)
+	// reflect status of local stage on remote resource
+	if err := reflectStageStatusOnStageSync(localStage, remoteStageSync); err != nil {
+		msg := fmt.Sprintf("unable to reflect stage status on StageSync: %s", err)
+		logger.Error(err, msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.StageCreationFailedReason, msg)
+		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
+	}
 
 	// update status of remote resource
-	msg := fmt.Sprintf("reconcile of local stage resource successful, operationsResult: %s", operationResult)
-	logger.Info(msg)
-	patchErr := r.setAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, metav1.ConditionTrue, global.StageCreationSuccessfulReason, msg)
+	reconcileMsg := fmt.Sprintf("reconcile of local stage resource successful, operationResult: %s", operationResult)
+	patchErr := r.setAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, metav1.ConditionTrue, global.StageCreationSuccessfulReason, reconcileMsg)
 	if patchErr != nil {
 		err = fmt.Errorf("unable to patch status of remote resource: %w", patchErr)
 		return ctrl.Result{}, err
 	}
+
+	successMsg := fmt.Sprintf("stage %s/%s reconciled successfully (operation: %s)", localStage.Namespace, localStage.Name, operationResult)
+	logger.Info(successMsg)
+	r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeNormal, global.StageCreationSuccessfulReason, "CreateOrUpdateStage", successMsg)
 
 	return ctrl.Result{RequeueAfter: reconcileInterval.Duration}, nil
 }
@@ -193,7 +210,7 @@ func (r *StageSyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 func (r *StageSyncReconciler) isStageVersionServed(ctx context.Context, logger logr.Logger, expectedVersion string) (bool, error) {
 	crd := &apiextensionsv1.CustomResourceDefinition{}
-	if err := r.LocalClient.Get(ctx, client.ObjectKey{Name: "stages.common.konfidence.cloud"}, crd); err != nil {
+	if err := r.LocalClient.Get(ctx, client.ObjectKey{Name: "stages.landscape.konfidence.cloud"}, crd); err != nil {
 		return false, fmt.Errorf("unable to fetch Stage CRD: %w", err)
 	}
 
@@ -238,7 +255,7 @@ func (r *StageSyncReconciler) getNamespacedNameReconcileRequest(_ context.Contex
 	}}}
 }
 
-func (r *StageSyncReconciler) handleFinalizer(ctx context.Context, stageSync, originalStageSync *global.StageSync, stage *common.Stage, stageFound bool) (bool, error) {
+func (r *StageSyncReconciler) handleFinalizer(ctx context.Context, stageSync, originalStageSync *global.StageSync, stage *landscape.Stage, stageFound bool) (bool, error) {
 	// Check if StageSync is being deleted
 	if stageSync.DeletionTimestamp.IsZero() {
 		// Object is NOT being deleted
@@ -259,11 +276,13 @@ func (r *StageSyncReconciler) handleFinalizer(ctx context.Context, stageSync, or
 		if stageFound {
 			// Delete corresponding local resource if it exists
 			if err := r.LocalClient.Delete(ctx, stage); err != nil {
-				err = fmt.Errorf("unable to delete local resource: %w", err)
-				patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, global.StageDeletionFailedReason, err.Error())
-				err = errors.Join(err, patchErr)
-				return true, err
+				msg := fmt.Sprintf("unable to delete local resource: %s", err)
+				r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, global.StageDeletionFailedReason, "DeleteStage", msg)
+				patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, global.StageDeletionFailedReason, msg)
+				return true, errors.Join(errors.New(msg), patchErr)
 			}
+			successMsg := fmt.Sprintf("stage %s/%s deleted successfully", stage.Namespace, stage.Name)
+			r.Recorder.Eventf(stageSync, nil, corev1.EventTypeNormal, global.StageDeletionFailedReason, "DeleteStage", successMsg)
 		}
 		// Remove finalizer
 		patch := client.MergeFrom(originalStageSync)
@@ -278,16 +297,33 @@ func (r *StageSyncReconciler) handleFinalizer(ctx context.Context, stageSync, or
 	return true, nil
 }
 
-func getStageFromTemplate(stageTemplate runtime.RawExtension) (*common.Stage, error) {
-	stage := &common.Stage{}
+func getStageFromTemplate(stageTemplate runtime.RawExtension) (*landscape.Stage, error) {
+	stage := &landscape.Stage{}
 	if err := json.Unmarshal(stageTemplate.Raw, stage); err != nil {
-		log.Log.Error(err, "unable to unmarshal stage template")
 		return nil, fmt.Errorf("unable to unmarshal stage template: %w", err)
+	}
+	log.Log.V(0).Info("unmarshalled stage template",
+		"apiVersion", stage.APIVersion,
+		"kind", stage.Kind,
+		"name", stage.Name,
+		"namespace", stage.Namespace,
+	)
+	if stage.Name == "" {
+		return nil, fmt.Errorf("stage template is missing metadata.name")
+	}
+	if stage.Namespace == "" {
+		return nil, fmt.Errorf("stage template is missing metadata.namespace")
+	}
+	if stage.APIVersion == "" {
+		return nil, fmt.Errorf("stage template is missing apiVersion")
+	}
+	if stage.Kind == "" {
+		return nil, fmt.Errorf("stage template is missing kind")
 	}
 	return stage, nil
 }
 
-func adjustStageFromTemplate(stage, stageTemplate *common.Stage, namespacedName types.NamespacedName) {
+func adjustStageFromTemplate(stage, stageTemplate *landscape.Stage, namespacedName types.NamespacedName) {
 	stage.SetGroupVersionKind(stageTemplate.GroupVersionKind())
 	stage.SetName(stageTemplate.Name)
 	stage.SetNamespace(stageTemplate.Namespace)
@@ -305,15 +341,11 @@ func getLabelValue(namespacedName types.NamespacedName) string {
 	return strings.ReplaceAll(namespacedName.String(), "/", "_")
 }
 
-func reflectStageStatusConditionsOnStageSync(stage *common.Stage, stageSync *global.StageSync) {
-	for _, condition := range stage.Status.Conditions {
-		meta.SetStatusCondition(&stageSync.Status.Conditions, metav1.Condition{
-			Type:               condition.Type,
-			Status:             condition.Status,
-			Reason:             condition.Reason,
-			Message:            condition.Message,
-			ObservedGeneration: stageSync.Generation,
-			LastTransitionTime: condition.LastTransitionTime,
-		})
+func reflectStageStatusOnStageSync(stage *landscape.Stage, stageSync *global.StageSync) error {
+	raw, err := json.Marshal(stage.Status)
+	if err != nil {
+		return fmt.Errorf("unable to marshal stage status: %w", err)
 	}
+	stageSync.Status.StageStatus = runtime.RawExtension{Raw: raw}
+	return nil
 }
