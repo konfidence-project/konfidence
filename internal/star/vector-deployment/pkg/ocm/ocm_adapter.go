@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/konfidence-project/pkg/ocm/crypto"
 	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
 	v1 "k8s.io/api/core/v1"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
@@ -18,13 +19,13 @@ import (
 
 // Adapter implements the VectorOcmPort interface.
 type Adapter struct {
-	client pkgOcm.Client
+	client                           pkgOcm.Client
+	vectorVerifier, artifactVerifier crypto.Verifier
 }
 
 var _ controller.VectorOcmPort = (*Adapter)(nil)
 
-func NewOcmAdapter(ctx context.Context, secret *v1.Secret) (Adapter, error) {
-
+func NewOcmAdapter(ctx context.Context, secret *v1.Secret, vectorVerifier crypto.Verifier, artifactVerifier crypto.Verifier) (Adapter, error) {
 	ocmClient, err := pkgOcm.NewOciClientBuilder().
 		WithLogger(ctrl.Log).
 		WithDockerConfigJsonSecret(secret).
@@ -34,12 +35,12 @@ func NewOcmAdapter(ctx context.Context, secret *v1.Secret) (Adapter, error) {
 		return Adapter{}, fmt.Errorf("unable to build ocm client: %w", err)
 	}
 
-	return Adapter{client: ocmClient}, nil
+	return Adapter{client: ocmClient, vectorVerifier: vectorVerifier, artifactVerifier: artifactVerifier}, nil
 }
 
 // NewAdapterWithClient creates an Adapter using the provided client. Intended for testing.
 func NewAdapterWithClient(client pkgOcm.Client) Adapter {
-	return Adapter{client: client}
+	return Adapter{client: client, vectorVerifier: crypto.NoopVerifier{}, artifactVerifier: crypto.NoopVerifier{}}
 }
 
 const (
@@ -48,11 +49,15 @@ const (
 )
 
 func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (controller.VectorDescriptor, error) {
-
 	descriptor, err := a.client.Get(ctx, ref)
 	if err != nil {
 		return controller.VectorDescriptor{},
 			fmt.Errorf("unable to get descriptor for component %q version %q: %w", ref.Component, ref.Version, err)
+	}
+
+	if err := a.vectorVerifier.Verify(ctx, &descriptor); err != nil {
+		return controller.VectorDescriptor{}, fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w",
+			ref.String(), err)
 	}
 
 	// Convert runtime descriptor to v2 and then marshal to JSON.
@@ -87,10 +92,14 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 
 // GetArtifactManifestByReference fetches the artifact manifest for the given artifact reference.
 func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref.Ref) (controller.ArtifactManifest, error) {
-
 	descriptor, err := a.client.Get(ctx, ref)
 	if err != nil {
 		return controller.ArtifactManifest{}, fmt.Errorf("failed to fetch artifact descriptor for %s: %w", ref.String(), err)
+	}
+
+	if err := a.artifactVerifier.Verify(ctx, &descriptor); err != nil {
+		return controller.ArtifactManifest{}, fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w",
+			ref.String(), err)
 	}
 
 	var konfidenceArtifactManifest *controller.ArtifactManifest
