@@ -147,7 +147,20 @@ spec:
     singular: stagesync
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Applied status
+      jsonPath: .status.conditions[?(@.type=='Applied')].status
+      name: Applied
+      type: string
+    - description: Ready status
+      jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
+      type: string
+    - description: Age
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: StageSync is the Schema for the stageSyncs API.
@@ -244,6 +257,9 @@ spec:
                   - type
                   type: object
                 type: array
+              stageStatus:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             type: object
         type: object
     served: true
