@@ -31,7 +31,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/events"
@@ -221,7 +220,7 @@ func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration
 			Kind:       common.StageKind,
 			APIVersion: "common.konfidence.cloud/v1alpha1",
 		},
-		Metadata: types.NamespacedName{
+		Metadata: template.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
