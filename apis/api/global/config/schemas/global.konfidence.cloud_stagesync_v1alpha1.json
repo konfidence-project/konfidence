@@ -86,6 +86,10 @@
             "type": "object"
           },
           "type": "array"
+        },
+        "stageStatus": {
+          "type": "object",
+          "x-kubernetes-preserve-unknown-fields": true
         }
       },
       "type": "object"

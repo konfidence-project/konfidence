@@ -64,11 +64,15 @@ type StageSyncSpec struct {
 
 // StageSyncStatus defines the observed state of a StageSync.
 type StageSyncStatus struct {
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions  []metav1.Condition   `json:"conditions,omitempty"`
+	StageStatus runtime.RawExtension `json:"stageStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Applied",type=string,JSONPath=".status.conditions[?(@.type=='Applied')].status",description="Applied status"
+// +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=".status.conditions[?(@.type=='Ready')].status",description="Ready status"
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Age"
 
 // StageSync is the Schema for the stageSyncs API.
 type StageSync struct {
