@@ -138,7 +138,6 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 	var vectorVerifier crypto.Verifier = crypto.NoopVerifier{}
 	verifyVectorEnv := strings.ToLower(os.Getenv(OcmVectorVerifyEnv))
-
 	if verifyVectorEnv != "" {
 		verifyVector, err := strconv.ParseBool(verifyVectorEnv)
 		if err != nil {
