@@ -3,6 +3,7 @@ resources:
  - ./crd/landscape.konfidence.cloud_activationtaskexecutions.yaml
  - ./crd/landscape.konfidence.cloud_activationtaskregistrations.yaml
  - ./crd/landscape.konfidence.cloud_artifactdeployments.yaml
+ - ./crd/landscape.konfidence.cloud_stages.yaml
  - ./crd/landscape.konfidence.cloud_stageversions.yaml
  - ./crd/landscape.konfidence.cloud_stageversionusages.yaml
  - ./crd/landscape.konfidence.cloud_taskexecutions.yaml
