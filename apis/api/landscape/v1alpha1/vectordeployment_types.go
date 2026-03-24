@@ -30,9 +30,6 @@ const (
 	// ArtifactDeploymentsCreatedCondition indicates that all ArtifactDeployment resources have been created successfully.
 	ArtifactDeploymentsCreatedCondition = "ArtifactDeploymentsCreated"
 
-	// VectorDeployedCondition indicates that all artifacts of the vector have been successfully deployed.
-	VectorDeployedCondition = "VectorDeployed"
-
 	// VectorAssignmentsCreatedCondition indicates that all VectorAssignment resources have been created successfully.
 	VectorAssignmentsCreatedCondition = "VectorAssignmentsCreated"
 

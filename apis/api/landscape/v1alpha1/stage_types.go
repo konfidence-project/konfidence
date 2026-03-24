@@ -40,9 +40,6 @@ const (
 	// VectorMigratedCondition indicates that the migration tasks for the vector have been completed successfully.
 	VectorMigratedCondition = "VectorMigrated"
 
-	// VectorActivatedCondition indicates that the vector has been activated in the stage.
-	VectorActivatedCondition = "VectorActivated"
-
 	// StageReady indicates that the stage is ready for use. Same as VectorActivatedCondition.
 	StageReady = "Ready"
 )

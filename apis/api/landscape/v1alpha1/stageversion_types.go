@@ -24,17 +24,8 @@ const (
 	// StageVersionKind is the kind for StageVersion resources.
 	StageVersionKind = "StageVersion"
 
-	// FetchFailedCondition indicates an fetch failure of another resource.
-	FetchFailedCondition string = "FetchFailed"
-
-	// VectorDeploymentCreatedCondition indicates that the VectorDeployment resource has been created successfully.
-	VectorDeploymentCreatedCondition string = "VectorDeploymentCreated"
-
 	// VectorMigrationCreatedCondition indicates that the VectorMigration resource has been created successfully.
 	VectorMigrationCreatedCondition string = "VectorMigrationCreated"
-
-	// VectorMigratedCondition indicates that the migration tasks for the vector have been completed successfully.
-	VectorMigratedCondition = "VectorMigrated"
 
 	// VectorActivationCreatedCondition indicates that the VectorActivation resource has been created successfully.
 	VectorActivationCreatedCondition string = "VectorActivationCreated"
