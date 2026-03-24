@@ -115,8 +115,8 @@ github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zt
 github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
 github.com/konfidence-project/crds/api/common v0.7.0 h1:ayDVFg/0z8cMJuetw61bvIH1rIbBzKcjDhdZLpj1ddQ=
 github.com/konfidence-project/crds/api/common v0.7.0/go.mod h1:8+/MVqg68BBM5N2301VLPmWXL4AnctPYdWA1Igp9L5g=
-github.com/konfidence-project/crds/api/global v0.4.1 h1:VbYkVXmPXtQF9JUWR3C31vsFgzNsQmLzL9Vru5ecWLU=
-github.com/konfidence-project/crds/api/global v0.4.1/go.mod h1:WI2LmaYw/264IMYJ6oiHsRmV9sWoz+Do30kcXif4ui8=
+github.com/konfidence-project/crds/api/global v0.5.0 h1:WuurAFnKEyPoMpxypo2h3RDuhcnPs+gvLohO9BKXgQs=
+github.com/konfidence-project/crds/api/global v0.5.0/go.mod h1:MBPcu7M2MEVPqjUS8hVj5l/2NxngxElVISSQJegRzyg=
 github.com/konfidence-project/pkg v0.10.0 h1:xmmKXRbReGZB/pdRBErIuTJ5GWG4DcwqrTMOV4OxxKQ=
 github.com/konfidence-project/pkg v0.10.0/go.mod h1:lQxYEbo0QFSgb/U3SaCHn8hmwo/qPEtfYFEySnm8C8Q=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
