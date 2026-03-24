@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
@@ -59,9 +60,9 @@ const (
 	OcmVectorVerifyEnv                       = "OCM_VECTOR_VERIFY"
 	VerifierTrustAnchorConfigMapNameEnv      = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAME"
 	VerifierTrustAnchorConfigMapNamespaceEnv = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAMESPACE"
-	KubernetesServiceHost                    = "KUBERNETES_SERVICE_HOST"
-	KubernetesServicePort                    = "KUBERNETES_SERVICE_PORT"
-	KcpEndpointSlice                         = "KCP_ENDPOINT_SLICE"
+	KubernetesServiceHostEnv                 = "KUBERNETES_SERVICE_HOST"
+	KubernetesServicePortEnv                 = "KUBERNETES_SERVICE_PORT"
+	KcpEndpointSliceEnv                      = "KCP_ENDPOINT_SLICE"
 )
 
 var (
@@ -99,7 +100,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	cfg := ctrl.GetConfigOrDie()
 	leaderElectionCfg := cfg
-	serviceHost, servicePort := os.Getenv(KubernetesServiceHost), os.Getenv(KubernetesServicePort)
+	serviceHost, servicePort := os.Getenv(KubernetesServiceHostEnv), os.Getenv(KubernetesServicePortEnv)
 	if serviceHost != "" && servicePort != "" {
 		inClusterCfg, err := rest.InClusterConfig()
 		if err != nil {
@@ -110,7 +111,7 @@ func main() {
 		leaderElectionCfg = inClusterCfg
 	}
 
-	endpointSlice := os.Getenv(KcpEndpointSlice)
+	endpointSlice := os.Getenv(KcpEndpointSliceEnv)
 
 	var err error
 	var provider multicluster.Provider = nil
@@ -135,33 +136,44 @@ func main() {
 	}
 
 	ctx := ctrl.SetupSignalHandler()
-	var vectorVerifier crypto.Verifier
-	if strings.ToLower(os.Getenv(OcmVectorVerifyEnv)) != "true" {
-		setupLog.Info("ocm vector verification is disabled")
-		vectorVerifier = crypto.NoopVerifier{}
-	} else {
-		configMapName, namespace := os.Getenv(VerifierTrustAnchorConfigMapNameEnv),
-			os.Getenv(VerifierTrustAnchorConfigMapNamespaceEnv)
-		if configMapName == "" || namespace == "" {
-			setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", VerifierTrustAnchorConfigMapNameEnv,
-				VerifierTrustAnchorConfigMapNamespaceEnv), "")
-			os.Exit(1)
-		}
+	var vectorVerifier crypto.Verifier = crypto.NoopVerifier{}
+	verifyVectorEnv := strings.ToLower(os.Getenv(OcmVectorVerifyEnv))
 
-		provider := crypto.NewConfigMapTrustAnchorProvider(types.NamespacedName{Name: configMapName, Namespace: namespace})
-		if err = provider.SetupWithManager(ctx, mgr.GetLocalManager()); err != nil {
-			setupLog.Error(err, "unable to set up config map trust anchor provider")
-			os.Exit(1)
-		}
-
-		rsaVerifier, err := crypto.NewRSAVerifier([]string{crypto.VectorAssemblySignature},
-			crypto.WithCredentialProvider(provider))
+	if verifyVectorEnv != "" {
+		verifyVector, err := strconv.ParseBool(verifyVectorEnv)
 		if err != nil {
-			setupLog.Error(err, "Could not initialize RSA signature verifier")
-			os.Exit(1)
+			verifyVector = false
 		}
 
-		vectorVerifier = rsaVerifier
+		if verifyVector {
+			setupLog.Info("OCM vector verification is enabled")
+			configMapName, namespace := os.Getenv(VerifierTrustAnchorConfigMapNameEnv),
+				os.Getenv(VerifierTrustAnchorConfigMapNamespaceEnv)
+			if configMapName == "" || namespace == "" {
+				setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", VerifierTrustAnchorConfigMapNameEnv,
+					VerifierTrustAnchorConfigMapNamespaceEnv), "")
+				os.Exit(1)
+			}
+
+			provider := crypto.NewConfigMapTrustAnchorProvider(types.NamespacedName{Name: configMapName, Namespace: namespace})
+			if err = provider.SetupWithManager(ctx, mgr.GetLocalManager()); err != nil {
+				setupLog.Error(err, "unable to set up config map trust anchor provider")
+				os.Exit(1)
+			}
+
+			rsaVerifier, err := crypto.NewRSAVerifier([]string{crypto.VectorAssemblySignature},
+				crypto.WithCredentialProvider(provider))
+			if err != nil {
+				setupLog.Error(err, "Could not initialize RSA signature verifier")
+				os.Exit(1)
+			}
+
+			vectorVerifier = rsaVerifier
+		} else {
+			setupLog.Info("OCM vector verification is disabled")
+		}
+	} else {
+		setupLog.Info("OCM vector verification is disabled")
 	}
 
 	registryCredentials, err := resolveRegistryCredentials(ctx, mgr.GetLocalManager())
