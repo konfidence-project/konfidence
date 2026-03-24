@@ -67,6 +67,8 @@ type StageStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=".status.conditions[?(@.type=='Ready')].status",description="Ready status"
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Age"
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=`.spec.vector`
 type Stage struct {
 	metav1.TypeMeta   `json:",inline"`
