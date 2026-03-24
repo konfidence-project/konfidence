@@ -146,7 +146,7 @@ var _ = Describe("Vector Assembly Controller", Ordered, func() {
 			Times(1)
 
 		// GIVEN: a VectorTemplate CR
-		vectorTemplate := getDefaultVectorTemplateCR(testNamespace)
+		vectorTemplate := getVectorTemplateCRWithDuplicateComponents(testNamespace)
 
 		// WHEN: creating a VectorTemplate CR will trigger the reconciler automatically
 		err := k8sClient.Create(ctx, vectorTemplate)
@@ -281,6 +281,44 @@ func getDefaultVectorTemplateCR(namespace string) *global.VectorTemplate {
 			UploadTarget: "http://localhost:5100//konfidence.cloud/sample-vector/sample-app",
 			Base:         nil,
 			Components: []global.Component{
+				{
+					Name: "http://localhost:5100//dwc.tools.sap/dwc-project/dev/service1",
+				},
+				{
+					Name: "http://localhost:5100//dwc.tools.sap/dwc-project/dev/service2",
+				},
+			},
+		},
+		Status: global.VectorTemplateStatus{},
+	}
+}
+
+func getVectorTemplateCRWithDuplicateComponents(namespace string) *global.VectorTemplate {
+	return &global.VectorTemplate{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "VectorTemplate",
+			APIVersion: "global.konfidence.cloud/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vector",
+			Namespace: namespace,
+		},
+		Spec: global.VectorTemplateSpec{
+			ReconcileInterval: &metav1.Duration{
+				Duration: time.Second * 30,
+			},
+			UploadTarget: "http://localhost:5100//konfidence.cloud/sample-vector/sample-app",
+			Base:         nil,
+			Components: []global.Component{
+				{
+					Name: "http://localhost:5100//dwc.tools.sap/dwc-project/dev/service1",
+				},
+				{
+					Name: "http://localhost:5100//dwc.tools.sap/dwc-project/dev/service1",
+				},
+				{
+					Name: "http://localhost:5100//dwc.tools.sap/dwc-project/dev/service2",
+				},
 				{
 					Name: "http://localhost:5100//dwc.tools.sap/dwc-project/dev/service1",
 				},

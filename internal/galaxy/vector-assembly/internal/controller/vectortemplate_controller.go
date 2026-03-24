@@ -305,12 +305,24 @@ func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts
 }
 
 func mapComponentsToOCMReferences(components []v1alpha1.Component) ([]compref.Ref, error) {
-	ocmRefs := make([]compref.Ref, 0, len(components))
+	// add component names to map to remove duplicates
+	seen := make(map[string]struct{}, len(components))
+	componentNames := make([]string, 0, len(components))
+
 	for _, component := range components {
-		componentOcmRef, err := parseAndValidateReference(component.Name)
+		if _, ok := seen[component.Name]; ok {
+			continue
+		}
+		seen[component.Name] = struct{}{}
+		componentNames = append(componentNames, component.Name)
+	}
+
+	ocmRefs := make([]compref.Ref, 0, len(componentNames))
+	for _, componentName := range componentNames {
+		componentOcmRef, err := parseAndValidateReference(componentName)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create ocm reference from vector template component (%s): %w",
-				component.Name, err)
+				componentName, err)
 		}
 		ocmRefs = append(ocmRefs, *componentOcmRef)
 	}
