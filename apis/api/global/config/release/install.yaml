@@ -152,10 +152,6 @@ spec:
       jsonPath: .status.conditions[?(@.type=='Applied')].status
       name: Applied
       type: string
-    - description: Ready status
-      jsonPath: .status.conditions[?(@.type=='Ready')].status
-      name: Ready
-      type: string
     - description: Age
       jsonPath: .metadata.creationTimestamp
       name: Age

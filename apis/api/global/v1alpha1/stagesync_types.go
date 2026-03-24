@@ -49,6 +49,8 @@ const (
 	StageCrdQueryFailedReason = "StageCrdQueryFailed"
 	// APIVersionNotSupportedReason indicates that the Stage CRD on the LCP cluster does not support the requested API version.
 	APIVersionNotSupportedReason = "APIVersionNotSupported"
+	// InvalidStageTemplateReason indicates that the stage template defined in the StageSync resource is invalid.
+	InvalidStageTemplateReason = "InvalidStageTemplate"
 )
 
 // StageSyncSpec defines the desired state of a StageSync.
@@ -71,7 +73,6 @@ type StageSyncStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Applied",type=string,JSONPath=".status.conditions[?(@.type=='Applied')].status",description="Applied status"
-// +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=".status.conditions[?(@.type=='Ready')].status",description="Ready status"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Age"
 
 // StageSync is the Schema for the stageSyncs API.
