@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,11 +45,11 @@ const StageVersionControllerName = "stage-version-controller"
 type StageVersionReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Recorder events.EventRecorder
 }
 
-// +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectormigrations,verbs=get;list;watch;create;update;patch;delete
@@ -169,7 +169,7 @@ func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context
 		return nil, fmt.Errorf("failed to create or update vectorDeployment: %w", err)
 	}
 	msg := fmt.Sprintf("VectorDeployment %s for StageVersion %s: %s", vectorDeployment.Name, stageVersion.Name, operationResult)
-	r.Recorder.Event(stageVersion, corev1.EventTypeNormal, "VectorDeploymentReconciled", msg)
+	r.Recorder.Eventf(stageVersion, nil, corev1.EventTypeNormal, "VectorDeploymentReconciled", "VectorDeploymentReconciled", msg)
 	log.Info(msg)
 
 	return vectorDeployment, nil
@@ -193,7 +193,7 @@ func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context,
 		return nil, fmt.Errorf("failed to create or update vectorMigration: %w", err)
 	}
 	msg := fmt.Sprintf("Created VectorMigration %s for StageVersion %s", vectorMigration.Name, stageVersion.Name)
-	r.Recorder.Event(stageVersion, corev1.EventTypeNormal, "VectorMigrationCreated", msg)
+	r.Recorder.Eventf(stageVersion, nil, corev1.EventTypeNormal, "VectorMigrationCreated", "VectorMigrationCreated", msg)
 	log.V(1).Info(msg)
 	return vectorMigration, nil
 }
@@ -217,7 +217,7 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context
 		return nil, fmt.Errorf("failed to create or update vectorActivation: %w", err)
 	}
 	msg := fmt.Sprintf("VectorActivation %s for StageVersion %s: %s", vectorActivation.Name, stageVersion.Name, operationResult)
-	r.Recorder.Event(stageVersion, corev1.EventTypeNormal, "VectorActivationCreated", msg)
+	r.Recorder.Eventf(stageVersion, nil, corev1.EventTypeNormal, "VectorActivationCreated", "VectorActivationCreated", msg)
 	log.V(1).Info(msg)
 
 	return vectorActivation, nil

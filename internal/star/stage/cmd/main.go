@@ -21,7 +21,6 @@ import (
 	"os"
 	"time"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
 	"github.com/konfidence-project/landscape-stage-controller/internal/gc"
@@ -41,7 +40,6 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(common.AddToScheme(scheme))
 	utilruntime.Must(landscape.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
@@ -77,7 +75,7 @@ func main() {
 	if err := (&controller.StageReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(controller.StageControllerName),
+		Recorder: mgr.GetEventRecorder(controller.StageControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Stage")
 		os.Exit(1)
@@ -86,7 +84,7 @@ func main() {
 	if err := (&controller.StageVersionReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(controller.StageVersionControllerName),
+		Recorder: mgr.GetEventRecorder(controller.StageVersionControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StageVersion")
 		os.Exit(1)
@@ -115,7 +113,7 @@ func main() {
 	garbageCollector := &gc.StageVersionGarbageCollector{
 		Client:   mgr.GetClient(),
 		Interval: 15 * time.Second,
-		Recorder: mgr.GetEventRecorderFor(gc.StageVersionGarbageCollectorName),
+		Recorder: mgr.GetEventRecorder(gc.StageVersionGarbageCollectorName),
 	}
 
 	setupLog.Info("Starting stageVersion garbage collector")

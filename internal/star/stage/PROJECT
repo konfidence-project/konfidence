@@ -11,7 +11,7 @@ repo: github.com/konfidence-project/landscape-stage-controller
 resources:
 - controller: true
   domain: konfidence.cloud
-  group: common.konfidence.cloud
+  group: landscape.konfidence.cloud
   kind: Stage
   version: v1alpha1
 version: "3"

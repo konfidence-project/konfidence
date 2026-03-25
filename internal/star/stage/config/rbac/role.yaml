@@ -5,30 +5,9 @@ metadata:
   name: landscape-stage-manager
 rules:
 - apiGroups:
-  - common.konfidence.cloud
-  resources:
-  - stages
-  - stageversions
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - common.konfidence.cloud
-  resources:
-  - stages/status
-  - stageversions/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - landscape.konfidence.cloud
   resources:
+  - stages
   - stageversions
   - stageversionusages
   - vectoractivations
@@ -45,6 +24,7 @@ rules:
 - apiGroups:
   - landscape.konfidence.cloud
   resources:
+  - stages/status
   - stageversions/status
   - stageversionusages/status
   - vectoractivations/status

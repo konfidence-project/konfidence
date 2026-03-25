@@ -43,7 +43,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			return (&controller.StageVersionReconciler{
 				Client:   mgr.GetClient(),
 				Scheme:   mgr.GetScheme(),
-				Recorder: mgr.GetEventRecorderFor(controller.StageVersionControllerName),
+				Recorder: mgr.GetEventRecorder(controller.StageVersionControllerName),
 			}).SetupWithManager(mgr)
 		},
 		)
@@ -58,8 +58,8 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 		StageVersionDev           = "stage-version-dev"
 		StageVersionTest          = "stage-version-test"
 		Namespace                 = "default"
-		Vector001                 = "https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1"
-		VectorName001             = "common.konfidence.cloud.example.vector-0.0.1"
+		Vector001                 = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.cloud/example/vector:0.0.1"
+		VectorName001             = "landscape.konfidence.cloud.example.vector-0.0.1"
 		StageVersionDevMigration  = "stage-version-dev-migration"
 		StageVersionDevActivation = "stage-version-dev-activation"
 		timeout                   = time.Second * 10
