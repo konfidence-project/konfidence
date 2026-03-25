@@ -60,9 +60,9 @@ var _ = Describe("Graph utility functions", func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to sort task dependency graph")
 			Expect(result).To(HaveLen(len(tasks)))
 
-			var sortedTaskNames []string
-			for _, task := range result {
-				sortedTaskNames = append(sortedTaskNames, task.Name)
+			var sortedTaskNames = make([]string, len(result), len(result))
+			for i, task := range result {
+				sortedTaskNames[i] = task.Name
 			}
 
 			expectedTaskNames := []string{Task0, Task1, Task2, Task3, Task4, Task5, Task6}
@@ -113,9 +113,9 @@ var _ = Describe("Graph utility functions", func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to sort task dependency graph")
 			Expect(result).To(HaveLen(len(tasks)))
 
-			var sortedTaskNames []string
-			for _, task := range result {
-				sortedTaskNames = append(sortedTaskNames, task.Name)
+			var sortedTaskNames = make([]string, len(result), len(result))
+			for i, task := range result {
+				sortedTaskNames[i] = task.Name
 			}
 
 			expectedTaskNames := []string{Task0, Task3, Task1, Task4, Task2, Task5}

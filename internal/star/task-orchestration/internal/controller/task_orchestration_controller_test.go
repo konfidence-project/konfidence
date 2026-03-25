@@ -20,7 +20,6 @@ import (
 	"context"
 	"time"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	testutil "github.com/konfidence-project/landscape-task-orchestration-controller/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
@@ -42,8 +41,8 @@ var _ = Describe("Task Orchestration Controller", func() {
 		ArtifactDeployment1 = "artifact-deployment-1"
 		ArtifactDeployment2 = "artifact-deployment-2"
 		Namespace           = "default"
-		Vector001           = "https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1"
-		VectorName001       = "common.konfidence.cloud.example.vector-0.0.1"
+		Vector001           = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.cloud/example/vector:0.0.1"
+		VectorName001       = "landscape.konfidence.cloud.example.vector-0.0.1"
 		Task0               = "task-0"
 		Task1               = "task-1"
 		Task2               = "task-2"
@@ -83,13 +82,13 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDev, Vector001)
 
 			// check that the stage has been created and has valid properties
-			stage := &common.Stage{}
+			stage := &landscape.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001)
+			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001, StageDev)
 
 			// check that the stageVersion has been created and has valid properties
 			stageVersion := &landscape.StageVersion{}
@@ -110,7 +109,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(int64(1)))
 				g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: common.StageKind,
+					Kind: landscape.StageKind,
 					Name: StageDev,
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
@@ -346,13 +345,13 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDev, Vector001)
 
 			// check that the stage has been created and has valid properties
-			stage := &common.Stage{}
+			stage := &landscape.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001)
+			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001, StageDev)
 
 			// check that the stageVersion has been created and has valid properties
 			stageVersion := &landscape.StageVersion{}
@@ -373,7 +372,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(int64(1)))
 				g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: common.StageKind,
+					Kind: landscape.StageKind,
 					Name: StageDev,
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
@@ -457,13 +456,13 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDev, Vector001)
 
 			// check that the stage has been created and has valid properties
-			stage := &common.Stage{}
+			stage := &landscape.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001)
+			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001, StageDev)
 
 			// check that the stageVersion has been created and has valid properties
 			stageVersion := &landscape.StageVersion{}
@@ -484,7 +483,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(int64(1)))
 				g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: common.StageKind,
+					Kind: landscape.StageKind,
 					Name: StageDev,
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
