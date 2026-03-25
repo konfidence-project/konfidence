@@ -37,8 +37,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -57,11 +57,12 @@ const (
 type StageSyncReconciler struct {
 	// LocalClient is the client accessing the LCP
 	LocalClient client.Client
-	// RemoteClient is the client accessing the GCP
-	RemoteClient client.Client
-	RemoteCache  cache.Cache
-	Scheme       *runtime.Scheme
-	Recorder     events.EventRecorder
+	// RemoteCluster is the cluster accessor for the GCP side. Its cache is
+	// managed by the controller-runtime manager, which guarantees it is
+	// started (and synced) before any informers sourced from it.
+	RemoteCluster cluster.Cluster
+	Scheme        *runtime.Scheme
+	Recorder      events.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stagesyncs,verbs=get;list;watch;create;update;patch;delete
@@ -74,7 +75,7 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// fetch remote Resource
 	remoteStageSync := &global.StageSync{}
-	err := r.RemoteClient.Get(ctx, req.NamespacedName, remoteStageSync)
+	err := r.RemoteCluster.GetClient().Get(ctx, req.NamespacedName, remoteStageSync)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -199,7 +200,7 @@ func (r *StageSyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	b := ctrl.NewControllerManagedBy(mgr).
 		WatchesRawSource(
 			source.Kind(
-				r.RemoteCache,
+				r.RemoteCluster.GetCache(),
 				&global.StageSync{},
 				handler.TypedEnqueueRequestsFromMapFunc[*global.StageSync, reconcile.Request](mapStageSyncToRequests),
 			),
@@ -236,7 +237,7 @@ func (r *StageSyncReconciler) setAndPatchStatus(ctx context.Context, stageSync *
 
 	patch := client.MergeFrom(originalStageSync)
 	if !reflect.DeepEqual(stageSync.Status, originalStageSync.Status) {
-		if err := r.RemoteClient.Status().Patch(ctx, stageSync, patch); err != nil {
+		if err := r.RemoteCluster.GetClient().Status().Patch(ctx, stageSync, patch); err != nil {
 			return fmt.Errorf("unable to patch remote resource status: %w", err)
 		}
 	}
@@ -262,7 +263,7 @@ func (r *StageSyncReconciler) handleFinalizer(ctx context.Context, stageSync, or
 		if !controllerutil.ContainsFinalizer(stageSync, syncControllerFinalizer) {
 			patch := client.MergeFrom(originalStageSync)
 			controllerutil.AddFinalizer(stageSync, syncControllerFinalizer)
-			if err := r.RemoteClient.Patch(ctx, stageSync, patch); err != nil {
+			if err := r.RemoteCluster.GetClient().Patch(ctx, stageSync, patch); err != nil {
 				err = fmt.Errorf("unable to add finalizer to remote resource: %w", err)
 				patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, global.AddingFinalizerFailedReason, err.Error())
 				err = errors.Join(err, patchErr)
@@ -287,7 +288,7 @@ func (r *StageSyncReconciler) handleFinalizer(ctx context.Context, stageSync, or
 		// Remove finalizer
 		patch := client.MergeFrom(originalStageSync)
 		controllerutil.RemoveFinalizer(stageSync, syncControllerFinalizer)
-		if err := r.RemoteClient.Patch(ctx, stageSync, patch); err != nil {
+		if err := r.RemoteCluster.GetClient().Patch(ctx, stageSync, patch); err != nil {
 			err = fmt.Errorf("unable to remove finalizer from remote resource: %w", err)
 			patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, global.RemovingFinalizerFailedReason, err.Error())
 			err = errors.Join(err, patchErr)

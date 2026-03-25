@@ -33,8 +33,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/events"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -108,23 +108,10 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(remoteCfg).NotTo(BeNil())
 
-	// create remote client
+	// create remote client (used directly in tests to create/update objects)
 	remoteK8sClient, err = client.New(remoteCfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(remoteK8sClient).NotTo(BeNil())
-
-	// create remote cache
-	remoteCache, err := cache.New(remoteCfg, cache.Options{Scheme: scheme.Scheme})
-	Expect(err).NotTo(HaveOccurred())
-
-	go func() {
-		defer GinkgoRecover()
-		err = remoteCache.Start(ctx)
-		Expect(err).ToNot(HaveOccurred(), "failed to start remote cache")
-	}()
-
-	// wait for remote cache to sync before wiring it into the reconciler
-	Expect(remoteCache.WaitForCacheSync(ctx)).To(BeTrue())
 
 	// create manager
 	k8sManager, err := ctrl.NewManager(localCfg, ctrl.Options{
@@ -132,14 +119,21 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	// build a cluster.Cluster for the remote env and add it to the manager so
+	// its cache is started and synced before the controller's informers run.
+	remoteCluster, err := cluster.New(remoteCfg, func(o *cluster.Options) {
+		o.Scheme = scheme.Scheme
+	})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(k8sManager.Add(remoteCluster)).To(Succeed())
+
 	reconcileScheme = k8sManager.GetScheme()
 
 	err = (&StageSyncReconciler{
-		LocalClient:  k8sManager.GetClient(),
-		RemoteClient: remoteK8sClient,
-		RemoteCache:  remoteCache,
-		Scheme:       reconcileScheme,
-		Recorder:     events.NewFakeRecorder(32),
+		LocalClient:   k8sManager.GetClient(),
+		RemoteCluster: remoteCluster,
+		Scheme:        reconcileScheme,
+		Recorder:      events.NewFakeRecorder(32),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
