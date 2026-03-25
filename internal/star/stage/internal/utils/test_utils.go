@@ -4,7 +4,6 @@ package utils
 import (
 	"context"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -14,16 +13,16 @@ import (
 )
 
 func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
-	stage := &common.Stage{
+	stage := &landscape.Stage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "common.konfidence.cloud/v1alpha1",
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
 			Kind:       "Stage",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: common.StageSpec{
+		Spec: landscape.StageSpec{
 			Vector: vectorName,
 		},
 	}
@@ -31,8 +30,8 @@ func CreateStage(ctx context.Context, k8sClient client.Client, name string, name
 	Expect(k8sClient.Create(ctx, stage)).To(Succeed())
 }
 
-func GetStage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *common.Stage {
-	stage := &common.Stage{}
+func GetStage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.Stage {
+	stage := &landscape.Stage{}
 	stageLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, stageLookupKey, stage)
 
@@ -44,7 +43,7 @@ func GetStage(ctx context.Context, k8sClient client.Client, name string, namespa
 	return stage
 }
 
-func DeleteStage(ctx context.Context, k8sClient client.Client, stage *common.Stage) {
+func DeleteStage(ctx context.Context, k8sClient client.Client, stage *landscape.Stage) {
 	err := k8sClient.Delete(ctx, stage)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete stage: %s", stage.Name)
 }
@@ -58,8 +57,8 @@ func CleanupStage(k8sClient client.Client, stageName string, namespace string) {
 	}
 }
 
-func GetStages(ctx context.Context, k8sClient client.Client) *common.StageList {
-	stages := &common.StageList{}
+func GetStages(ctx context.Context, k8sClient client.Client) *landscape.StageList {
+	stages := &landscape.StageList{}
 	err := k8sClient.List(ctx, stages)
 
 	Expect(err).ToNot(HaveOccurred(), "Failed to fetch stages")

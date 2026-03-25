@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -19,7 +18,7 @@ const StageVersionGarbageCollectorName = "stage-version-garbage-collector"
 type StageVersionGarbageCollector struct {
 	client.Client
 	Interval time.Duration
-	Recorder record.EventRecorder
+	Recorder events.EventRecorder
 }
 
 func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
@@ -63,7 +62,7 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 					log.Info("Deleting stage version", "name", stageVersion.Name)
 
 					// read in the referenced stage to write a deletion event to it
-					stage := &common.Stage{}
+					stage := &landscape.Stage{}
 					if err := gc.Get(
 						ctx,
 						types.NamespacedName{Namespace: stageVersion.Namespace, Name: stageVersion.Spec.StageRef.Name},
@@ -76,7 +75,7 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 						// we continue trying to delete other stageVersions and only log the error here
 						log.Error(err, "unable to delete stage version", "name", stageVersion.Name)
 					}
-					gc.Recorder.Event(stage, corev1.EventTypeNormal, "StageVersionDeleted", fmt.Sprintf("StageVersion %s has been deleted by the garbage collector", stageVersion.Name))
+					gc.Recorder.Eventf(stage, nil, corev1.EventTypeNormal, "StageVersionDeleted", "StageVersionDeleted", fmt.Sprintf("StageVersion %s has been deleted by the garbage collector", stageVersion.Name))
 				}
 			}
 
