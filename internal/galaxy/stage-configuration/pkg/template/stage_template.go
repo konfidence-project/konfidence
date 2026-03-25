@@ -1,15 +1,15 @@
 package template
 
 import (
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // StageTemplate is used to initialize a StageSync object
 type StageTemplate struct {
 	metav1.TypeMeta `json:",inline"`
-	Metadata        NamespacedName   `json:"metadata"`
-	Spec            common.StageSpec `json:"spec"`
+	Metadata        NamespacedName      `json:"metadata"`
+	Spec            landscape.StageSpec `json:"spec"`
 }
 
 type NamespacedName struct {
