@@ -1,0 +1,9 @@
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIBinding
+metadata:
+  name: stagesync.konfidence.cloud.binding
+spec:
+  reference:
+    export:
+      name: stagesync.konfidence.cloud.export
+      path: "root:konfidence-provider"

@@ -4,8 +4,8 @@ package utils
 import (
 	"context"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -83,14 +83,14 @@ func CreateNamespace(ctx context.Context, k8sClient client.Client, namespace str
 func CreateStageTemplate(stageConfiguration global.StageConfiguration, vector string) template.StageTemplate {
 	return template.StageTemplate{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       common.StageKind,
-			APIVersion: "common.konfidence.cloud/v1alpha1",
+			Kind:       landscape.StageKind,
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
 		},
 		Metadata: template.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
-		Spec: common.StageSpec{
+		Spec: landscape.StageSpec{
 			Vector: vector,
 		},
 	}

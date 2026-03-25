@@ -35,8 +35,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -64,7 +64,7 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	var err error
-	err = common.AddToScheme(scheme.Scheme)
+	err = landscape.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = global.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
@@ -74,7 +74,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "global"), filepath.Join("..", "..", "test", "data", "crds", "common")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "global"), filepath.Join("..", "..", "test", "data", "crds", "landscape")},
 		ErrorIfCRDPathMissing: true,
 	}
 

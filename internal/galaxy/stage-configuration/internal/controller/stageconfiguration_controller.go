@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/domain"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
 	v1 "k8s.io/api/core/v1"
@@ -64,8 +64,8 @@ type StageConfigurationReconciler struct {
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=common.konfidence.cloud,resources=stages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stagesyncs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stagesyncs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
@@ -217,14 +217,14 @@ func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration
 	// TODO replace APIVersion with a configured or determined value
 	return &template.StageTemplate{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       common.StageKind,
-			APIVersion: "common.konfidence.cloud/v1alpha1",
+			Kind:       landscape.StageKind,
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
 		},
 		Metadata: template.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
-		Spec: common.StageSpec{
+		Spec: landscape.StageSpec{
 			Vector: vector,
 		},
 	}

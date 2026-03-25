@@ -1,7 +1,7 @@
 apiVersion: apis.kcp.io/v1alpha2
 kind: APIExport
 metadata:
-  name: api.konfidence.cloud.export
+  name: stageconfiguration.konfidence.cloud.export
 spec:
   resources:
     - group: global.konfidence.cloud
@@ -18,6 +18,6 @@ spec:
       verbs: ["get", "list", "watch", "create", "update"]  
     - group: "events.k8s.io"
       resource: events
-      verbs: [ "get", "list", "create", "update", "patch" ]
+      verbs: [ "get", "list", "create", "update", "patch"]
 
       

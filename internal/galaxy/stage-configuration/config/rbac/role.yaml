@@ -14,29 +14,10 @@ rules:
   - list
   - watch
 - apiGroups:
-  - common.konfidence.cloud
-  resources:
-  - stages
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - common.konfidence.cloud
-  resources:
-  - stages/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - global.konfidence.cloud
   resources:
   - stageconfigurations
+  - stagesyncs
   verbs:
   - create
   - delete
@@ -49,6 +30,7 @@ rules:
   - global.konfidence.cloud
   resources:
   - stageconfigurations/status
+  - stagesyncs/status
   verbs:
   - get
   - patch
