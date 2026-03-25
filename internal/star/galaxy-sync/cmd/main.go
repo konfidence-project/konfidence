@@ -24,6 +24,7 @@ import (
 	"github.com/go-logr/logr"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 
@@ -120,10 +121,6 @@ func main() {
 // found the controller falls back to using the local cluster as the remote
 // cluster (single-cluster use-case).
 func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
-	// Default to single-cluster mode: remote == local.
-	remoteClient := mgr.GetClient()
-	remoteCache := mgr.GetCache()
-
 	// Use a direct (non-cached) client so the Secret can be fetched before
 	// the manager's cache is started.
 	directClient, err := client.New(mgr.GetConfig(), client.Options{Scheme: scheme})
@@ -136,6 +133,10 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 		return fmt.Errorf("unable to resolve remote kubeconfig: %w", err)
 	}
 
+	// remoteCluster is the cluster the controller watches StageSync objects on.
+	// Default to the local cluster (single-cluster mode).
+	var remoteCluster cluster.Cluster = mgr
+
 	if remoteConfig != nil {
 		// Multi-cluster: build a dedicated cluster for the remote (GCP) side.
 		log.Info("Remote kubeconfig found; running in multi-cluster mode",
@@ -143,28 +144,34 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 			"secret-key", remoteconfig.SecretKey,
 			"remote-cluster-server", remoteConfig.Host)
 
-		remoteCluster, err := cluster.New(remoteConfig, func(options *cluster.Options) {
+		remoteCluster, err = cluster.New(remoteConfig, func(options *cluster.Options) {
 			options.Scheme = scheme
+			// Restrict the remote cache to only StageSync objects.
+			// The remote cluster is a kcp workspace where StageSync is served
+			// via an APIBinding — restricting the cache prevents discovery
+			// errors caused by trying to watch resource types that are not
+			// available on that workspace.
+			options.Cache.ByObject = map[client.Object]cache.ByObject{
+				&global.StageSync{}: {},
+			}
 		})
 		if err != nil {
 			return fmt.Errorf("unable to create remote cluster: %w", err)
 		}
+		// Adding the cluster to the manager ensures its cache is started and
+		// fully synced before the controller's informers are set up.
 		if err := mgr.Add(remoteCluster); err != nil {
 			return fmt.Errorf("unable to add remote cluster to manager: %w", err)
 		}
-
-		remoteClient = remoteCluster.GetClient()
-		remoteCache = remoteCluster.GetCache()
 	} else {
 		log.Info("No remote kubeconfig Secret found; running in single-cluster mode")
 	}
 
 	if err := (&controller.StageSyncReconciler{
-		LocalClient:  mgr.GetClient(),
-		RemoteClient: remoteClient,
-		RemoteCache:  remoteCache,
-		Scheme:       scheme,
-		Recorder:     mgr.GetEventRecorder(controller.StageSyncControllerName),
+		LocalClient:   mgr.GetClient(),
+		RemoteCluster: remoteCluster,
+		Scheme:        scheme,
+		Recorder:      mgr.GetEventRecorder(controller.StageSyncControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create StageSyncReconciler: %w", err)
 	}
