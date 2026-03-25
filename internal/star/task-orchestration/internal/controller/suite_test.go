@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -63,12 +62,9 @@ var _ = BeforeSuite(func() {
 	err = landscape.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = common.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "landscape"), filepath.Join("..", "..", "test", "data", "crds", "common")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "landscape")},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -96,9 +92,9 @@ var _ = BeforeSuite(func() {
 	reconcileScheme = k8sManager.GetScheme()
 
 	err = (&TaskOrchestrationReconciler{
-		Client:  k8sManager.GetClient(),
-		Scheme:  k8sManager.GetScheme(),
-		Recoder: k8sManager.GetEventRecorderFor(TaskOrchestrationControllerName),
+		Client:   k8sManager.GetClient(),
+		Scheme:   k8sManager.GetScheme(),
+		Recorder: k8sManager.GetEventRecorder(TaskOrchestrationControllerName),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

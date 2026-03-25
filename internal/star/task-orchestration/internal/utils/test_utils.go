@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -18,7 +17,7 @@ import (
 func CreateVectorMigration(ctx context.Context, k8sClient client.Client, name string, namespace string, stageVersionName string, vectorName string) {
 	vectorMigration := &landscape.VectorMigration{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "common.konfidence.cloud/v1alpha1",
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
 			Kind:       "VectorMigration",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -61,7 +60,7 @@ func CleanupVectorMigration(k8sClient client.Client, vectorMigrationName string,
 	}
 }
 
-func CreateStageVersion(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
+func CreateStageVersion(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string, stageName string) {
 	stageVersion := &landscape.StageVersion{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "landscape.konfidence.cloud/v1alpha1",
@@ -74,6 +73,9 @@ func CreateStageVersion(ctx context.Context, k8sClient client.Client, name strin
 		Spec: landscape.StageVersionSpec{
 			Vector:          vectorName,
 			StageGeneration: 1,
+			StageRef: &landscape.StageReference{
+				Name: stageName,
+			},
 		},
 	}
 
@@ -142,7 +144,7 @@ func CleanupStageVersionUsage(k8sClient client.Client, stageVersionUsageName str
 func CreateArtifactDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, taskManifest []landscape.TaskManifest) {
 	artifactDeployment := &landscape.ArtifactDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "common.konfidence.cloud/v1alpha1",
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
 			Kind:       "ArtifactDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -194,7 +196,7 @@ func CleanupArtifactDeployment(k8sClient client.Client, artifactDeploymentName s
 func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, vector string) {
 	vectorDeployment := &landscape.VectorDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "common.konfidence.cloud/v1alpha1",
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
 			Kind:       "VectorDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -251,17 +253,16 @@ func SetTaskExecutionStatus(ctx context.Context, k8sClient client.Client, taskEx
 }
 
 func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, specName string, vectorName string) {
-	stage := &common.Stage{
+	stage := &landscape.Stage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "common.konfidence.cloud/v1alpha1",
+			APIVersion: "landscape.konfidence.cloud/v1alpha1",
 			Kind:       "Stage",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: common.StageSpec{
-			Name:   specName,
+		Spec: landscape.StageSpec{
 			Vector: vectorName,
 		},
 	}
@@ -269,8 +270,8 @@ func CreateStage(ctx context.Context, k8sClient client.Client, name string, name
 	Expect(k8sClient.Create(ctx, stage)).To(Succeed())
 }
 
-func GetStage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *common.Stage {
-	stage := &common.Stage{}
+func GetStage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.Stage {
+	stage := &landscape.Stage{}
 	stageLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, stageLookupKey, stage)
 
@@ -282,7 +283,7 @@ func GetStage(ctx context.Context, k8sClient client.Client, name string, namespa
 	return stage
 }
 
-func DeleteStage(ctx context.Context, k8sClient client.Client, stage *common.Stage) {
+func DeleteStage(ctx context.Context, k8sClient client.Client, stage *landscape.Stage) {
 	err := k8sClient.Delete(ctx, stage)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete stage: %s", stage.Name)
 }
