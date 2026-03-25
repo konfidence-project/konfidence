@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-vector-activation-controller/internal/usage"
 	util "github.com/konfidence-project/landscape-vector-activation-controller/internal/utils/test-utils"
@@ -40,7 +39,7 @@ const (
 	StageName            = "stage-dev"
 	StageVersionName     = "stage-version-12345"
 	VectorActivationName = "activation-12345"
-	Vector001            = "https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1"
+	Vector001            = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.cloud/example/vector:0.0.1"
 	RegistrationName     = "registration-1"
 	RegistrationType     = "registration-type-1"
 	Namespace            = "default"
@@ -55,7 +54,7 @@ var _ = Describe("VectorActivation Controller", func() {
 	})
 
 	AfterEach(func() {
-		util.Delete[*common.Stage](ctx, k8sClient, StageName, Namespace)
+		util.Delete[*landscape.Stage](ctx, k8sClient, StageName, Namespace)
 		util.Delete[*landscape.StageVersion](ctx, k8sClient, StageVersionName, Namespace)
 		util.Delete[*landscape.VectorActivation](ctx, k8sClient, VectorActivationName, Namespace)
 		util.DeleteAll[*v1.Lease, *v1.LeaseList](ctx, k8sClient, client.InNamespace(Namespace))
@@ -210,16 +209,16 @@ func CreateVectorActivation() *landscape.VectorActivation {
 // SetupResources creates Resources that can be expected to be present when an activation gets reconciled (e.g.  Stage and StageVersion)
 func SetupResources() {
 	Eventually(func(g Gomega) {
-		stage := &common.Stage{
+		stage := &landscape.Stage{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "common.konfidence.cloud/v1alpha1",
+				APIVersion: "landscape.konfidence.cloud/v1alpha1",
 				Kind:       "Stage",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      StageName,
 				Namespace: Namespace,
 			},
-			Spec: common.StageSpec{
+			Spec: landscape.StageSpec{
 				Vector: Vector001,
 			},
 		}
@@ -238,6 +237,9 @@ func SetupResources() {
 			Spec: landscape.StageVersionSpec{
 				Vector:          Vector001,
 				StageGeneration: 1,
+				StageRef: &landscape.StageReference{
+					Name: StageName,
+				},
 			},
 		}
 		util.Create(ctx, k8sClient, stageVersion)

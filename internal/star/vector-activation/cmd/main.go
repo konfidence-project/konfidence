@@ -20,7 +20,6 @@ import (
 	"flag"
 	"os"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-vector-activation-controller/internal/controller"
 	"go.uber.org/zap/zapcore"
@@ -40,7 +39,6 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(common.AddToScheme(scheme))
 	utilruntime.Must(landscape.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
@@ -82,7 +80,7 @@ func main() {
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Config:   ctrl.GetConfigOrDie(),
-		Recorder: mgr.GetEventRecorderFor(controller.ActivationControllerName),
+		Recorder: mgr.GetEventRecorder(controller.ActivationControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorActivation")
 		os.Exit(1)

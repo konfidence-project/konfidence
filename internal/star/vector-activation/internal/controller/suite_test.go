@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -60,12 +59,11 @@ var _ = BeforeSuite(func() {
 
 	var err error
 	Expect(landscape.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
-	Expect(common.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(v1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "landscape"), filepath.Join("..", "..", "test", "data", "crds", "common")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "landscape")},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -88,7 +86,7 @@ var _ = BeforeSuite(func() {
 				DisableFor: []client.Object{
 					&landscape.ActivationTaskRegistration{},
 					&landscape.StageVersion{},
-					&common.Stage{},
+					&landscape.Stage{},
 					&landscape.StageVersionUsage{},
 					&landscape.ActivationTaskExecution{},
 				},
@@ -100,7 +98,7 @@ var _ = BeforeSuite(func() {
 	k8sClient = k8sManager.GetClient()
 
 	// Setup Recorder
-	recorder := k8sManager.GetEventRecorderFor(ActivationControllerName)
+	recorder := k8sManager.GetEventRecorder(ActivationControllerName)
 
 	err = (&VectorActivationReconciler{
 		Client:       k8sManager.GetClient(),
