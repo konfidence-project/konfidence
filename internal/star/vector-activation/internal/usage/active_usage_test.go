@@ -3,7 +3,6 @@ package usage
 import (
 	"context"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	. "github.com/konfidence-project/landscape-vector-activation-controller/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
@@ -21,7 +20,7 @@ var _ = Describe("active usage tests", func() {
 		ctx          context.Context
 		mockCtrl     *gomock.Controller
 		clientMock   *MockClient
-		stage        *common.Stage
+		stage        *landscape.Stage
 		stageVersion *landscape.StageVersion
 		scheme       *runtime.Scheme
 	)
@@ -31,9 +30,8 @@ var _ = Describe("active usage tests", func() {
 		clientMock = NewMockClient(mockCtrl)
 		scheme = runtime.NewScheme()
 		_ = landscape.AddToScheme(scheme)
-		_ = common.AddToScheme(scheme)
 
-		stage = &common.Stage{
+		stage = &landscape.Stage{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "stage-test",
 				Namespace: "default",

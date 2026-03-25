@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,7 +12,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func CreateActivationUsage(ctx context.Context, c client.Client, stage *common.Stage, activation *landscape.VectorActivation) (*landscape.StageVersionUsage, error) {
+func CreateActivationUsage(ctx context.Context, c client.Client, stage *landscape.Stage, activation *landscape.VectorActivation) (*landscape.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 
 	stageVersionUsage := &landscape.StageVersionUsage{

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	common "github.com/konfidence-project/crds/api/common/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +13,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func GetCurrentActiveUsage(ctx context.Context, c client.Client, stage *common.Stage) (*landscape.StageVersionUsage, error) {
+func GetCurrentActiveUsage(ctx context.Context, c client.Client, stage *landscape.Stage) (*landscape.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 	name := getName(stage)
 	stageVersionUsage := &landscape.StageVersionUsage{}
@@ -55,7 +54,7 @@ func UpdateActiveUsage(ctx context.Context, c client.Client, stageVersionUsage *
 	return nil
 }
 
-func CreateActiveUsage(ctx context.Context, c client.Client, stage *common.Stage, stageVersion *landscape.StageVersion) (*landscape.StageVersionUsage, error) {
+func CreateActiveUsage(ctx context.Context, c client.Client, stage *landscape.Stage, stageVersion *landscape.StageVersion) (*landscape.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 	name := getName(stage)
 	newActiveStageVersionUsage := &landscape.StageVersionUsage{
@@ -80,7 +79,7 @@ func CreateActiveUsage(ctx context.Context, c client.Client, stage *common.Stage
 	return newActiveStageVersionUsage, nil
 }
 
-func CreateOrUpdateActiveUsage(ctx context.Context, c client.Client, activeStageVersionUsage *landscape.StageVersionUsage, stage *common.Stage, stageVersion *landscape.StageVersion) error {
+func CreateOrUpdateActiveUsage(ctx context.Context, c client.Client, activeStageVersionUsage *landscape.StageVersionUsage, stage *landscape.Stage, stageVersion *landscape.StageVersion) error {
 	if activeStageVersionUsage == nil {
 		_, err := CreateActiveUsage(ctx, c, stage, stageVersion)
 		if err != nil {
@@ -95,6 +94,6 @@ func CreateOrUpdateActiveUsage(ctx context.Context, c client.Client, activeStage
 	return nil
 }
 
-func getName(stage *common.Stage) string {
+func getName(stage *landscape.Stage) string {
 	return fmt.Sprintf("%s-active-usage", stage.Name)
 }
