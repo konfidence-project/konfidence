@@ -85,8 +85,6 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
 github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
-github.com/konfidence-project/crds/api/common v0.7.0 h1:ayDVFg/0z8cMJuetw61bvIH1rIbBzKcjDhdZLpj1ddQ=
-github.com/konfidence-project/crds/api/common v0.7.0/go.mod h1:8+/MVqg68BBM5N2301VLPmWXL4AnctPYdWA1Igp9L5g=
 github.com/konfidence-project/crds/api/global v0.4.0 h1:IJ6LsXTeD32NtIh53N3KECXEaSwWX9I1BW2Z8iwpL/I=
 github.com/konfidence-project/crds/api/global v0.4.0/go.mod h1:WI2LmaYw/264IMYJ6oiHsRmV9sWoz+Do30kcXif4ui8=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=

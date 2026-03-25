@@ -3,7 +3,6 @@ module github.com/konfidence-project/gcp-vector-promotion-controller
 go 1.25.6
 
 require (
-	github.com/konfidence-project/crds/api/common v0.7.0
 	github.com/konfidence-project/crds/api/global v0.4.0
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
