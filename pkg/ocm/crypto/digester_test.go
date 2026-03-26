@@ -14,7 +14,7 @@ import (
 	"ocm.software/open-component-model/bindings/go/signing"
 )
 
-var _ = Describe("DefaultDigester", func() {
+var _ = Describe("ConfigurableDigester", func() {
 	AfterEach(func() {
 		isSafelyDigestible = signing.IsSafelyDigestible
 		generateDigest = signing.GenerateDigest

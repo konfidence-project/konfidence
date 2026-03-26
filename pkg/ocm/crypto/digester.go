@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	_                  Digester = (*DefaultDigester)(nil)
+	_                  Digester = (*ConfigurableDigester)(nil)
 	isSafelyDigestible          = signing.IsSafelyDigestible
 	generateDigest              = signing.GenerateDigest
 )
@@ -29,36 +29,61 @@ type Digester interface {
 	GetNormalisationAlgorithm() string
 }
 
-// DefaultDigester is the default implementation of the Digester interface for generating digests for OCM descriptors.
-// It uses the SHA256 hash algorithm and the jsonNormalisation/v4alpha1 normalization algorithm.
+// ConfigurableDigester is a configurable implementation of the Digester interface for
+// generating digests for OCM descriptors.
+// It uses the given hash and normalization algorithms to calculate the digest.
 // It also ensures that the descriptor is safely digestible before generating the digest.
-type DefaultDigester struct {
+type ConfigurableDigester struct {
 	// since this logger is only used for handing it to the signing.GenerateDigest function
 	// we store the slog.Logger directly
-	log *slog.Logger
+	log                    *slog.Logger
+	hashAlgorithm          *crypto.Hash
+	normalisationAlgorithm *string
 }
 
-func (d DefaultDigester) GenerateDigest(ctx context.Context, desc *runtime.Descriptor) (*runtime.Digest, error) {
+func (d ConfigurableDigester) GenerateDigest(ctx context.Context, desc *runtime.Descriptor) (*runtime.Digest, error) {
 	if err := isSafelyDigestible(&desc.Component); err != nil {
 		return nil, fmt.Errorf("unable to generate digest for ocm descriptor, descriptor is not safely digestible: %w", err)
 	}
-	dig, err := generateDigest(ctx, desc, d.log, d.GetNormalisationAlgorithm(), d.GetHashAlgorithm().String())
+	dig, err := generateDigest(ctx, desc, d.log, *d.normalisationAlgorithm, d.hashAlgorithm.String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate digest for ocm descriptor, generating digest failed: %w", err)
 	}
 	return dig, nil
 }
 
-func (d DefaultDigester) GetHashAlgorithm() crypto.Hash {
-	return crypto.SHA256
+func (d ConfigurableDigester) GetHashAlgorithm() crypto.Hash {
+	return *d.hashAlgorithm
 }
 
-func (d DefaultDigester) GetNormalisationAlgorithm() string {
-	return norm.Algorithm
+func (d ConfigurableDigester) GetNormalisationAlgorithm() string {
+	return *d.normalisationAlgorithm
 }
 
-func NewDefaultDigester(log logr.Logger) DefaultDigester {
-	return DefaultDigester{
-		log: slog.New(logr.ToSlogHandler(log.WithName("ocm-digester"))),
+// NewDigester creates a new configurable digester with the given options.
+// If no hash algorithm is provided crypto.SHA256 is used as default.
+// If no normalization algorithm is provided norm.Algorithm is used as default.
+func NewDigester(options ...DigestOption) ConfigurableDigester {
+	a := ConfigurableDigester{}
+	for _, opt := range options {
+		opt(&a)
 	}
+	applyDefaults(&a)
+	return a
+}
+
+func applyDefaults(a *ConfigurableDigester) {
+	if a.hashAlgorithm == nil {
+		hashAlgorithm := crypto.SHA256
+		a.hashAlgorithm = &hashAlgorithm
+	}
+
+	if a.normalisationAlgorithm == nil {
+		normalisationAlgorithm := norm.Algorithm
+		a.normalisationAlgorithm = &normalisationAlgorithm
+	}
+}
+
+func NewDefaultDigester(log logr.Logger) ConfigurableDigester {
+	return NewDigester(WithLog(log))
 }

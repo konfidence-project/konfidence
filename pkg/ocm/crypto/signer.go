@@ -62,7 +62,7 @@ func WithNamedSignerLogger(log logr.Logger) RSASignerOption {
 }
 
 // WithDigester sets the digester for the signer.
-// If not provided, DefaultDigester is used.
+// If not provided, a digester with default values is used.
 func WithDigester(digester Digester) RSASignerOption {
 	return func(s *RSASigner) {
 		s.digester = digester
@@ -72,7 +72,7 @@ func WithDigester(digester Digester) RSASignerOption {
 func defaultRSASignerOptions() *RSASigner {
 	return &RSASigner{
 		log:      logr.Discard(),
-		digester: DefaultDigester{},
+		digester: NewDigester(),
 	}
 }
 
