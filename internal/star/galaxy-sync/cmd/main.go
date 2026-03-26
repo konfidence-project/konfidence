@@ -171,7 +171,7 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 		LocalClient:   mgr.GetClient(),
 		RemoteCluster: remoteCluster,
 		Scheme:        scheme,
-		Recorder:      mgr.GetEventRecorder(controller.StageSyncControllerName),
+		Recorder:      remoteCluster.GetEventRecorder(controller.StageSyncControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create StageSyncReconciler: %w", err)
 	}
