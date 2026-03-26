@@ -19,16 +19,17 @@ func WithLog(log logr.Logger) DigestOption {
 
 // WithHashAlgorithm sets the hash algorithm used for calculating the digest.
 // If no algorithm is provided crypto.SHA256 is used as default.
-func WithHashAlgorithm(hashAlgorithm *crypto.Hash) DigestOption {
+func WithHashAlgorithm(hashAlgorithm crypto.Hash) DigestOption {
 	return func(d *ConfigurableDigester) {
-		d.hashAlgorithm = hashAlgorithm
+		hashAlgo := hashAlgorithm
+		d.hashAlgorithm = &hashAlgo
 	}
 }
 
 // WithNormalizationAlgorithm sets the normalization algorithm used for calculating the digest.
 // If no algorithm is provided norm.Algorithm is used as default.
-func WithNormalizationAlgorithm(normalizationAlgorithm *string) DigestOption {
+func WithNormalizationAlgorithm(normalizationAlgorithm string) DigestOption {
 	return func(d *ConfigurableDigester) {
-		d.normalisationAlgorithm = normalizationAlgorithm
+		d.normalisationAlgorithm = &normalizationAlgorithm
 	}
 }
