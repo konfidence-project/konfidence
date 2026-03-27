@@ -166,8 +166,8 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		msg := fmt.Sprintf("unable to create or update local resource: %s", err)
 		logger.Error(err, msg)
-		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, global.StageCreationFailedReason, "CreateOrUpdateStage", msg)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.StageCreationFailedReason, msg)
+		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, global.StageReconcileFailedReason, "CreateOrUpdateStage", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.StageReconcileFailedReason, msg)
 		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
@@ -181,7 +181,7 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// update status of remote resource
 	reconcileMsg := fmt.Sprintf("reconcile of local stage resource successful, operationResult: %s", operationResult)
-	patchErr := r.setAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, metav1.ConditionTrue, global.StageCreationSuccessfulReason, reconcileMsg)
+	patchErr := r.setAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, metav1.ConditionTrue, global.StageReconcileSuccessfulReason, reconcileMsg)
 	if patchErr != nil {
 		err = fmt.Errorf("unable to patch status of remote resource: %w", patchErr)
 		return ctrl.Result{}, err
@@ -189,7 +189,7 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	successMsg := fmt.Sprintf("stage %s/%s reconciled successfully (operation: %s)", localStage.Namespace, localStage.Name, operationResult)
 	logger.Info(successMsg)
-	r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeNormal, global.StageCreationSuccessfulReason, "CreateOrUpdateStage", successMsg)
+	r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeNormal, global.StageReconcileSuccessfulReason, "CreateOrUpdateStage", successMsg)
 
 	return ctrl.Result{RequeueAfter: reconcileInterval.Duration}, nil
 }
