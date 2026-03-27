@@ -29,10 +29,10 @@ const (
 	// It indicates whether the Stage defined in the StageSync resource has been successfully applied to the LCP cluster.
 	StageSyncAppliedCondition = "Applied"
 
-	// StageCreationSuccessfulReason indicates that the stage was successfully created on the LCP cluster.
-	StageCreationSuccessfulReason = "StageCreationSuccessful"
-	// StageCreationFailedReason indicates that the stage creation on the LCP cluster failed.
-	StageCreationFailedReason = "StageCreationFailed"
+	// StageReconcileSuccessfulReason indicates that the stage was successfully reconciled on the LCP cluster.
+	StageReconcileSuccessfulReason = "StageReconcileSuccessful"
+	// StageReconcileFailedReason indicates that the stage reconciliation on the LCP cluster failed.
+	StageReconcileFailedReason = "StageReconcileFailed"
 	// NamespaceNotFoundReason indicates that the target namespace for the stage was not found on the LCP cluster.
 	NamespaceNotFoundReason = "NamespaceNotFound"
 	// StageQueryFailedReason indicates that the stage defined in the StageSync resource could not be queried from the LCP cluster.
