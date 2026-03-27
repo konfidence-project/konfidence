@@ -51,6 +51,8 @@ const (
 	APIVersionNotSupportedReason = "APIVersionNotSupported"
 	// InvalidStageTemplateReason indicates that the stage template defined in the StageSync resource is invalid.
 	InvalidStageTemplateReason = "InvalidStageTemplate"
+	// StageStatusReflectionFailedReason indicates that the stage status could not be reflected back to the StageSync resource.
+	StageStatusReflectionFailedReason = "StageStatusReflectionFailed"
 )
 
 // StageSyncSpec defines the desired state of a StageSync.
