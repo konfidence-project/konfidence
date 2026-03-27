@@ -175,7 +175,7 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err := reflectStageStatusOnStageSync(localStage, remoteStageSync); err != nil {
 		msg := fmt.Sprintf("unable to reflect stage status on StageSync: %s", err)
 		logger.Error(err, msg)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.StageCreationFailedReason, msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.StageStatusReflectionFailedReason, msg)
 		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
