@@ -94,7 +94,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				condition := findCondition(updatedStageSync.Status.Conditions, global.StageSyncAppliedCondition)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
-				g.Expect(condition.Reason).To(Equal(global.StageCreationSuccessfulReason))
+				g.Expect(condition.Reason).To(Equal(global.StageReconcileSuccessfulReason))
 			}).Should(Succeed())
 
 			By("verifying the StageSync status reflects the full stage status")
