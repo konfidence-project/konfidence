@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"ocm.software/open-component-model/bindings/go/blob"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -98,7 +99,7 @@ func (c OciClient) GetLocalResource(
 	ctx context.Context,
 	ref compref.Ref,
 	identity runtime.Identity,
-) (ReadOnlyBlob, *Resource, error) {
+) (blob.ReadOnlyBlob, *descruntime.Resource, error) {
 	repo, err := c.getRepo(ctx, ref.Repository)
 	if err != nil {
 		return nil, nil, fmt.Errorf("getting repository for component reference %s: %w", ref, err)
@@ -110,6 +111,23 @@ func (c OciClient) GetLocalResource(
 		return nil, nil, fmt.Errorf("getting local resource for %s identity %v: %w", ref, identity, err)
 	}
 	return content, resource, nil
+}
+
+func (c OciClient) AddLocalResource(
+	ctx context.Context,
+	ref compref.Ref,
+	res *descruntime.Resource,
+	content blob.ReadOnlyBlob,
+) (*descruntime.Resource, error) {
+	repo, err := c.getRepo(ctx, ref.Repository)
+	if err != nil {
+		return nil, fmt.Errorf("getting repository for component reference %s: %w", ref, err)
+	}
+	updatedRes, err := repo.AddLocalResource(ctx, ref.Component, ref.Version, res, content)
+	if err != nil {
+		return nil, fmt.Errorf("adding local resource for %s: %w", ref, err)
+	}
+	return updatedRes, nil
 }
 
 func (c OciClient) getRepo(ctx context.Context, repoSpec runtime.Typed) (repository.ComponentVersionRepository, error) {
