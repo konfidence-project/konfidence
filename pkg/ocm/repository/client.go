@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"ocm.software/open-component-model/bindings/go/blob"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/repository"
@@ -21,39 +20,10 @@ var (
 	ErrNotFound = repository.ErrNotFound
 )
 
-// ResourceReadClient defines read operations for accessing local resources stored in
-// OCM component versions.
-type ResourceReadClient interface {
-	// GetLocalResource retrieves the content and metadata of a local resource identified
-	// by its component reference and resource identity.
-	//
-	// The identity parameter is a map of extra identity attributes that uniquely identify
-	// the resource within the component version (e.g. {"name": "my-resource"}).
-	//
-	// Returns the raw blob content as a blob.ReadOnlyBlob (call ReadCloser() and io.ReadAll to
-	// get the bytes) along with the resource metadata. Returns ErrNotFound if no matching
-	// resource exists.
-	//
-	// Example:
-	//
-	//	identity := runtime.Identity{"name": "my-manifest"}
-	//	b, res, err := client.GetLocalResource(ctx, ref, identity)
-	//	if err != nil {
-	//	    return err
-	//	}
-	//	rc, err := b.ReadCloser()
-	//	if err != nil {
-	//	    return err
-	//	}
-	//	defer rc.Close()
-	//	data, err := io.ReadAll(rc)
-	GetLocalResource(
-		ctx context.Context,
-		ref compref.Ref,
-		identity runtime.Identity) (blob.ReadOnlyBlob, *descruntime.Resource, error)
-}
-
-// ReadClient defines read operations on OCM component versions.
+// ReadClient defines read-only operations for accessing component descriptors stored in
+// OCM repositories.
+//
+// Implementations must be safe for concurrent use by multiple goroutines.
 type ReadClient interface {
 	// Get retrieves a component descriptor by reference.
 	//
@@ -79,33 +49,11 @@ type ReadClient interface {
 	//	ref.Version = ""
 	//	latest, err := client.Get(ctx, ref)
 	Get(ctx context.Context, ref compref.Ref) (descruntime.Descriptor, error)
-
-	ResourceReadClient
 }
 
-// ResourceWriteClient defines write operations for persisting local resources to OCM component versions.
-type ResourceWriteClient interface {
-	// AddLocalResource persists a local resource blob to a component version in the
-	// specified repository.
-	//
-	// The returned *descruntime.Resource contains the updated access spec (e.g. LocalReference digest)
-	// for the target repository. Callers must use the returned *descruntime.Resource when constructing
-	// or updating the component descriptor.
-	//
-	// Returns an error if the upload fails.
-	//
-	// Example:
-	//
-	//	blob, res, err := client.GetLocalResource(ctx, sourceRef, identity)
-	//	targetRef := compref.Ref{Repository: targetRepoSpec, Component: name, Version: ver}
-	//	updatedRes, err := client.AddLocalResource(ctx, targetRef, res, blob)
-	AddLocalResource(
-		ctx context.Context,
-		ref compref.Ref,
-		res *descruntime.Resource, content blob.ReadOnlyBlob) (*descruntime.Resource, error)
-}
-
-// WriteClient defines write operations on OCM component versions.
+// WriteClient defines write operations for persisting component descriptors to OCM repositories.
+//
+// Implementations must be safe for concurrent use by multiple goroutines.
 type WriteClient interface {
 	// Save persists a component descriptor to the specified repository.
 	//
@@ -133,13 +81,13 @@ type WriteClient interface {
 	//	    // Already published - safe to continue
 	//	}
 	Save(ctx context.Context, repoSpec runtime.Typed, descriptor descruntime.Descriptor) error
-
-	ResourceWriteClient
 }
 
-// Client combines read and write access to OCM repositories.
+// Client combines read and write access to component descriptors in OCM repositories.
 //
-// The primary implementation is OciClient, which works with OCI-compliant endpoints.
+// Implementations must be safe for concurrent use by multiple goroutines.
+//
+// The primary implementation is OciClient, which works with OCI-compliant registries.
 type Client interface {
 	ReadClient
 	WriteClient
