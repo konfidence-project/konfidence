@@ -149,14 +149,20 @@
 //	import (
 //	    "ocm.software/open-component-model/bindings/go/credentials"
 //	    "ocm.software/open-component-model/bindings/go/oci/repository/provider"
+//	    "ocm.software/open-component-model/bindings/go/oci/repository/resource"
+//	    "ocm.software/open-component-model/bindings/go/transfer"
 //	)
 //
 //	resolver := credentials.NewResolver(/* custom config */)
-//	provider := provider.NewComponentVersionRepositoryProvider()
+//	repoProvider := provider.NewComponentVersionRepositoryProvider()
+//	transferExecutor := repository.NewDefaultTransferExecutor(
+//	    transfer.NewDefaultBuilder(repoProvider, resource.NewResourceRepository(nil), resolver),
+//	)
 //
 //	client := repository.NewOciClient(
 //	    resolver,
-//	    provider,
+//	    repoProvider,
+//	    transferExecutor,
 //	    repository.WithOciClientLogger(logger),
 //	)
 //
