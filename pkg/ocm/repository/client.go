@@ -81,6 +81,22 @@ type WriteClient interface {
 	//	    // Already published - safe to continue
 	//	}
 	Save(ctx context.Context, repoSpec runtime.Typed, descriptor descruntime.Descriptor) error
+	// Copy transfers references to the specified target repository.
+	//
+	// The targetRepoSpec parameter defines the target repository. For OCI repositories, it
+	// typically contains the registry hostname and repository path.
+	//
+	// Example:
+	//
+	//	targetRepoSpec := runtime.Typed{
+	//	    Type: "oci",
+	//	    Data: map[string]interface{}{
+	//	        "baseUrl": "ghcr.io/acme/components",
+	//	    },
+	//	}
+	//
+	// err := client.Copy(ctx, artifactReferences, targetRepoSpec)
+	Copy(ctx context.Context, artifactReferences []compref.Ref, targetRepoSpec runtime.Typed) error
 }
 
 // Client combines read and write access to component descriptors in OCM repositories.

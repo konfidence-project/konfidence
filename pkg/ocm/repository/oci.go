@@ -12,6 +12,7 @@ import (
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/repository"
 	"ocm.software/open-component-model/bindings/go/runtime"
+	"ocm.software/open-component-model/bindings/go/transfer"
 )
 
 var (
@@ -37,11 +38,12 @@ var (
 //
 // Or use NewOciClient directly when you need custom credential resolution:
 //
-//	client := NewOciClient(customResolver, provider, WithOciClientLogger(logger))
+//	client := NewOciClient(customResolver, provider, transferExecutor, WithOciClientLogger(logger))
 type OciClient struct {
-	log      logr.Logger
-	resolver credentials.Resolver
-	provider repository.ComponentVersionRepositoryProvider
+	log              logr.Logger
+	resolver         credentials.Resolver
+	provider         repository.ComponentVersionRepositoryProvider
+	transferExecutor TransferExecutor
 }
 
 // Get retrieves a component descriptor from an OCI registry by reference.
@@ -143,6 +145,31 @@ func (c OciClient) Save(ctx context.Context, repoSpec runtime.Typed, desc descru
 		ErrComponentAlreadyExists, desc.Component.ToIdentity(), repoSpec)
 }
 
+// Copy transfers references to the specified target repository.
+func (c OciClient) Copy(ctx context.Context, artifactReferences []compref.Ref, targetRepoSpec runtime.Typed) error {
+	transferOptions := make([]transfer.Option, 0, len(artifactReferences)+1)
+	for _, ref := range artifactReferences {
+		repo, err := c.getRepo(ctx, ref.Repository)
+		if err != nil {
+			return fmt.Errorf("getting repository for component reference %s: %w", ref, err)
+		}
+		transferOptions = append(transferOptions, transfer.WithTransfer(
+			transfer.Component(ref.Component, ref.Version),
+			transfer.FromRepository(repo, ref.Repository),
+			transfer.ToRepositorySpec(targetRepoSpec),
+		))
+	}
+	transferOptions = append(transferOptions, transfer.WithRecursive(true))
+	transferGraphDefinition, err := transfer.BuildGraphDefinition(ctx, transferOptions...)
+	if err != nil {
+		return fmt.Errorf("building transfer graph definition: %w", err)
+	}
+	if err := c.transferExecutor.Execute(ctx, transferGraphDefinition); err != nil {
+		return fmt.Errorf("executing copy: %w", err)
+	}
+	return nil
+}
+
 // OciClientOption configures optional behavior for an OciClient.
 //
 // Use the provided With* functions to create options:
@@ -173,6 +200,8 @@ func WithOciClientLogger(log logr.Logger) OciClientOption {
 // provider: Provides access to OCI repositories and component version operations. The
 // standard implementation is provider.NewComponentVersionRepositoryProvider().
 //
+// transferExecutor: Executes component transfers for Copy operations.
+//
 // options: Optional configuration. Use WithOciClientLogger to enable logging.
 //
 // # Construction Pattern
@@ -188,14 +217,16 @@ func WithOciClientLogger(log logr.Logger) OciClientOption {
 //	client := NewOciClient(
 //	    customResolver,
 //	    provider.NewComponentVersionRepositoryProvider(),
+//	    transferExecutor,
 //	    WithOciClientLogger(logger),
 //	)
 func NewOciClient(
 	resolver credentials.Resolver,
 	provider repository.ComponentVersionRepositoryProvider,
+	transferExecutor TransferExecutor,
 	options ...OciClientOption,
 ) OciClient {
-	client := OciClient{provider: provider, resolver: resolver}
+	client := OciClient{provider: provider, resolver: resolver, transferExecutor: transferExecutor}
 	for _, opt := range options {
 		opt(&client)
 	}

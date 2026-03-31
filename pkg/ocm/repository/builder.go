@@ -12,11 +12,13 @@ import (
 	credentialsv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
 	ocicredentials "ocm.software/open-component-model/bindings/go/oci/credentials"
 	"ocm.software/open-component-model/bindings/go/oci/repository/provider"
+	"ocm.software/open-component-model/bindings/go/oci/repository/resource"
 	ocispeccredentials "ocm.software/open-component-model/bindings/go/oci/spec/credentials"
 	ociidentityv1 "ocm.software/open-component-model/bindings/go/oci/spec/credentials/identity/v1"
 	ocicredentialsv1 "ocm.software/open-component-model/bindings/go/oci/spec/credentials/v1"
 	"ocm.software/open-component-model/bindings/go/plugin/manager"
 	"ocm.software/open-component-model/bindings/go/runtime"
+	"ocm.software/open-component-model/bindings/go/transfer"
 )
 
 // OciClientBuilder constructs OciClient instances with a fluent, type-safe API.
@@ -145,9 +147,10 @@ func (builder *OciClientBuilder) WithDockerConfigJsonSecret(secret *v1.Secret) *
 //	// client is ready for Get() and Save() operations
 func (builder *OciClientBuilder) Build(ctx context.Context) (Client, error) {
 	var (
-		resolver     credentials.Resolver = NoopCredentialResolver{}
-		repoProvider                      = provider.NewComponentVersionRepositoryProvider()
-		opts         []OciClientOption
+		resolver         credentials.Resolver = NoopCredentialResolver{}
+		repoProvider                          = provider.NewComponentVersionRepositoryProvider()
+		transferExecutor TransferExecutor
+		opts             []OciClientOption
 	)
 	if builder.secret != nil {
 		cfg, err := builder.getGenericConfigurationFromSecret()
@@ -166,10 +169,13 @@ func (builder *OciClientBuilder) Build(ctx context.Context) (Client, error) {
 			builder.log.Info("no secret provided for OCI client builder, using noop credential resolver")
 		}
 	}
+	transferExecutor = NewDefaultTransferExecutor(
+		transfer.NewDefaultBuilder(repoProvider, resource.NewResourceRepository(nil), resolver),
+	)
 	if !builder.log.IsZero() {
 		opts = append(opts, WithOciClientLogger(builder.log))
 	}
-	return NewOciClient(resolver, repoProvider, opts...), nil
+	return NewOciClient(resolver, repoProvider, transferExecutor, opts...), nil
 }
 
 func (builder *OciClientBuilder) getGenericConfigurationFromSecret() (*credentialsruntime.Config, error) {
