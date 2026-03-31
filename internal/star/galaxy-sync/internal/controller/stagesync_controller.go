@@ -180,16 +180,15 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// update status of remote resource
-	reconcileMsg := fmt.Sprintf("reconcile of local stage resource successful, operationResult: %s", operationResult)
-	patchErr := r.setAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, metav1.ConditionTrue, global.StageReconcileSuccessfulReason, reconcileMsg)
+	msg := fmt.Sprintf("stage %s/%s reconciled successfully (operation: %s)", localStage.Namespace, localStage.Name, operationResult)
+	patchErr := r.setAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, metav1.ConditionTrue, global.StageReconcileSuccessfulReason, msg)
 	if patchErr != nil {
 		err = fmt.Errorf("unable to patch status of remote resource: %w", patchErr)
 		return ctrl.Result{}, err
 	}
 
-	successMsg := fmt.Sprintf("stage %s/%s reconciled successfully (operation: %s)", localStage.Namespace, localStage.Name, operationResult)
-	logger.Info(successMsg)
-	r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeNormal, global.StageReconcileSuccessfulReason, "CreateOrUpdateStage", successMsg)
+	logger.Info(msg)
+	r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeNormal, global.StageReconcileSuccessfulReason, "CreateOrUpdateStage", msg)
 
 	return ctrl.Result{RequeueAfter: reconcileInterval.Duration}, nil
 }

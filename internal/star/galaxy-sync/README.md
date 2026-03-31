@@ -22,7 +22,7 @@ For each `StageSync` on the remote cluster the controller:
 4. Checks for a conflicting unmanaged `Stage` — if a `Stage` with the same name and namespace already exists but is not owned by this `StageSync`, reconciliation stops with reason `ConflictWithUnmanagedStage`.
 5. Creates or updates the `Stage` on the local cluster with the spec from the template, labelling it `managed-by: <stagesync-namespace>_<stagesync-name>`.
 6. Reflects the `Stage`'s own status conditions back onto the `StageSync`.
-7. Updates the `StageSync` status to `Applied=True` with reason `StageCreationSuccessful`.
+7. Updates the `StageSync` status to `Applied=True` with reason `StageReconcileSuccessful`.
 
 ### Deletion
 
