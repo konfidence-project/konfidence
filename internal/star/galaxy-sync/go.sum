@@ -85,8 +85,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
 github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
-github.com/konfidence-project/crds/api/global v0.6.2 h1:EpOPjIflRMylpUfk2PMrRHkKxJ+ev48FvB3Ugyw0QF4=
-github.com/konfidence-project/crds/api/global v0.6.2/go.mod h1:MBPcu7M2MEVPqjUS8hVj5l/2NxngxElVISSQJegRzyg=
+github.com/konfidence-project/crds/api/global v0.7.4 h1:2zwE+0K5RWPXQZv3wdIQnbX9+JCmS2EwxfcY16NikRU=
+github.com/konfidence-project/crds/api/global v0.7.4/go.mod h1:MBPcu7M2MEVPqjUS8hVj5l/2NxngxElVISSQJegRzyg=
 github.com/konfidence-project/crds/api/landscape v0.18.0 h1:D1/m6c/Ow61TQ0etTIvb6+syKZHh/dB7iILUlfiUCQE=
 github.com/konfidence-project/crds/api/landscape v0.18.0/go.mod h1:sTfqhYFPkbUzX2lQ2MYBp9EimHTyKFSclhnT4H7Ejmo=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=

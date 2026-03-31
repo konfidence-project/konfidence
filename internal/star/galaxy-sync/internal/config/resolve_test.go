@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package remoteconfig_test
+package config_test
 
 import (
-	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/remoteconfig"
+	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/config"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -52,11 +52,11 @@ var _ = Describe("FromSecret", func() {
 		It("should return a rest.Config with the correct host and credentials", func() {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      remoteconfig.SecretName,
+					Name:      config.SecretName,
 					Namespace: namespace,
 				},
 				Data: map[string][]byte{
-					remoteconfig.SecretKey: []byte(minimalKubeconfig),
+					config.SecretKey: []byte(minimalKubeconfig),
 				},
 			}
 
@@ -65,7 +65,7 @@ var _ = Describe("FromSecret", func() {
 				WithObjects(secret).
 				Build()
 
-			cfg, err := remoteconfig.FromSecret(c, namespace)
+			cfg, err := config.FromSecret(c, namespace)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(cfg).NotTo(BeNil())
@@ -79,7 +79,7 @@ var _ = Describe("FromSecret", func() {
 				WithScheme(scheme.Scheme).
 				Build()
 
-			cfg, err := remoteconfig.FromSecret(c, namespace)
+			cfg, err := config.FromSecret(c, namespace)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(cfg).To(BeNil())

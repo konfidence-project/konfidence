@@ -50,7 +50,10 @@ import (
 const (
 	syncControllerFinalizer  = "konfidence.cloud/stage-sync-finalizer"
 	defaultReconcileInterval = 30 * time.Second
-	managedByLabelKey        = "managed-by"
+	deletionRequeueInterval  = 5 * time.Second
+	managedByLabelKey        = "app.kubernetes.io/managed-by"
+	gcpStageSyncLabelKey     = "konfidence.cloud/gcp-stage-sync"
+	stageSyncedByLabelPrefix = "synced-by-lcp/"
 	StageSyncControllerName  = "stage-sync-controller"
 )
 
@@ -64,6 +67,7 @@ type StageSyncReconciler struct {
 	RemoteCluster cluster.Cluster
 	Scheme        *runtime.Scheme
 	Recorder      events.EventRecorder
+	LandscapeName string // name of the local (LCP) cluster (landscape name), used for labeling
 }
 
 // +kubebuilder:rbac:groups="",resources=namespaces;secrets,verbs=get;list;watch
@@ -133,12 +137,16 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		err = errors.Join(err, patchErr)
 		return ctrl.Result{}, err
 	}
-	stageFound := !apierrors.IsNotFound(err)
-	if stageFound {
-		// check if existing stage is managed by this StageSync resource
-		namespacedNameString, ok := localStage.GetLabels()[managedByLabelKey]
-		if !ok || namespacedNameString != getLabelValue(req.NamespacedName) {
-			msg := fmt.Sprintf("stage that is not managed by this StageSync resource already exists with desired name and namespace; expected label '%s: %s'", managedByLabelKey, getLabelValue(req.NamespacedName))
+	// err is either nil (stage exists) or NotFound
+	if !apierrors.IsNotFound(err) {
+		// stage found: check if existing stage is managed by this StageSync resource
+		managedBy, hasManagedBy := localStage.GetLabels()[managedByLabelKey]
+		parentStageSync, hasParentStageSync := localStage.GetLabels()[gcpStageSyncLabelKey]
+		if !hasManagedBy || managedBy != StageSyncControllerName ||
+			!hasParentStageSync || parentStageSync != sanitizeLabelValue(req.String()) {
+			msg := fmt.Sprintf("stage that is not managed by this StageSync resource already exists with desired name and namespace; expected labels '%s: %s' and '%s: %s'",
+				managedByLabelKey, StageSyncControllerName,
+				gcpStageSyncLabelKey, sanitizeLabelValue(req.String()))
 			logger.Error(nil, msg)
 			r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, global.ConflictWithUnmanagedStageReason, "CheckManagedStage", msg)
 			patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.ConflictWithUnmanagedStageReason, msg)
@@ -146,13 +154,19 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	// handle finalizer to control deletion
-	isBeingDeleted, err := r.handleFinalizer(ctx, remoteStageSync, originalRemoteStageSync, localStage, stageFound)
-	if err != nil {
+	// handle deletion
+	if !remoteStageSync.DeletionTimestamp.IsZero() {
+		result, err := r.handleStageSyncDeletion(ctx, remoteStageSync, originalRemoteStageSync, localStage)
+		return result, err
+	}
+	if err := r.ensureFinalizer(ctx, remoteStageSync, originalRemoteStageSync); err != nil {
 		return ctrl.Result{}, err
 	}
-	if isBeingDeleted {
-		return ctrl.Result{}, nil
+
+	// label the remote StageSync with the local cluster name so it is visible
+	// on the GCP side which LCP cluster is syncing it
+	if err := r.ensureStageSyncedByLabel(ctx, remoteStageSync, originalRemoteStageSync); err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to set stage-synced-by label on remote StageSync: %w", err)
 	}
 
 	// adjust local stage based on remote stage template
@@ -255,46 +269,140 @@ func (r *StageSyncReconciler) falsifyAndPatchStatus(ctx context.Context, stageSy
 	return r.setAndPatchStatus(ctx, stageSync, originalStageSync, metav1.ConditionFalse, reason, message)
 }
 
-func (r *StageSyncReconciler) handleFinalizer(ctx context.Context, stageSync, originalStageSync *global.StageSync, stage *landscape.Stage, stageFound bool) (bool, error) {
-	// Check if StageSync is being deleted
-	if stageSync.DeletionTimestamp.IsZero() {
-		// Object is NOT being deleted
-		if !controllerutil.ContainsFinalizer(stageSync, syncControllerFinalizer) {
-			patch := client.MergeFrom(originalStageSync)
-			controllerutil.AddFinalizer(stageSync, syncControllerFinalizer)
-			if err := r.RemoteCluster.GetClient().Patch(ctx, stageSync, patch); err != nil {
-				err = fmt.Errorf("unable to add finalizer to remote resource: %w", err)
-				patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, global.AddingFinalizerFailedReason, err.Error())
-				err = errors.Join(err, patchErr)
-				return false, err
-			}
+// setStageDeletedCondition sets the StageDeleted condition on the remote StageSync
+// and patches the status. It is used during the deletion lifecycle to report
+// progress (e.g. deletion initiated, blocked, confirmed).
+func (r *StageSyncReconciler) setStageDeletedCondition(ctx context.Context, stageSync, originalStageSync *global.StageSync, status metav1.ConditionStatus, reason, message string) error {
+	meta.SetStatusCondition(&stageSync.Status.Conditions, metav1.Condition{
+		Type:               global.StageDeletedCondition,
+		Status:             status,
+		Reason:             reason,
+		Message:            message,
+		ObservedGeneration: stageSync.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
+	patch := client.MergeFrom(originalStageSync)
+	if !reflect.DeepEqual(stageSync.Status, originalStageSync.Status) {
+		if err := r.RemoteCluster.GetClient().Status().Patch(ctx, stageSync, patch); err != nil {
+			return fmt.Errorf("unable to patch StageDeleted condition: %w", err)
 		}
-		return false, nil
 	}
-	// Object IS being deleted
+	return nil
+}
+
+// ensureStageSyncedByLabel patches a per-cluster label onto the remote
+// StageSync object when it is absent. The label key is
+// "synced-by-lcp/<cluster-name>" with value "true", so multiple LCP clusters
+// can each add their own label without overwriting one another.
+// If LandscapeName is empty the label is skipped to avoid writing an invalid key.
+func (r *StageSyncReconciler) ensureStageSyncedByLabel(ctx context.Context, stageSync, originalStageSync *global.StageSync) error {
+	if r.LandscapeName == "" {
+		// LandscapeName is not configured — the synced-by label cannot be set.
+		r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, "LandscapeNameNotConfigured", "EnsureStageSyncedByLabel",
+			"LANDSCAPE_NAME is not set; skipping synced-by label on StageSync %s/%s", stageSync.Namespace, stageSync.Name)
+		return nil
+	}
+	labelKey := stageSyncedByLabelPrefix + r.LandscapeName
+
+	if stageSync.Labels[labelKey] == "true" {
+		return nil
+	}
+	labels := stageSync.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[labelKey] = "true"
+	stageSync.SetLabels(labels)
+	patch := client.MergeFrom(originalStageSync)
+	return r.RemoteCluster.GetClient().Patch(ctx, stageSync, patch)
+}
+
+// ensureFinalizer adds the sync controller finalizer to the remote StageSync
+// if it is not already present.
+//
+// Parameters:
+//   - stageSync: the current (possibly mutated) state of the remote StageSync object.
+//   - originalStageSync: an unmodified deep-copy of stageSync used as the patch base.
+//
+// Return values:
+//   - error: non-nil if adding the finalizer failed.
+func (r *StageSyncReconciler) ensureFinalizer(ctx context.Context, stageSync, originalStageSync *global.StageSync) error {
 	if controllerutil.ContainsFinalizer(stageSync, syncControllerFinalizer) {
-		if stageFound {
-			// Delete corresponding local resource if it exists
-			if err := r.LocalClient.Delete(ctx, stage); err != nil {
-				msg := fmt.Sprintf("unable to delete local resource: %s", err)
-				r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, global.StageDeletionFailedReason, "DeleteStage", msg)
-				patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, global.StageDeletionFailedReason, msg)
-				return true, errors.Join(errors.New(msg), patchErr)
-			}
-			successMsg := fmt.Sprintf("stage %s/%s deleted successfully", stage.Namespace, stage.Name)
-			r.Recorder.Eventf(stageSync, nil, corev1.EventTypeNormal, global.StageDeletionFailedReason, "DeleteStage", successMsg)
+		return nil
+	}
+	patch := client.MergeFrom(originalStageSync)
+	controllerutil.AddFinalizer(stageSync, syncControllerFinalizer)
+	if err := r.RemoteCluster.GetClient().Patch(ctx, stageSync, patch); err != nil {
+		err = fmt.Errorf("unable to add finalizer to remote resource: %w", err)
+		patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, global.AddingFinalizerFailedReason, err.Error())
+		return errors.Join(err, patchErr)
+	}
+	return nil
+}
+
+// handleStageSyncDeletion drives the deletion flow for a StageSync that is being
+// deleted (DeletionTimestamp is set). It uses the local Stage object that was
+// already fetched by the reconcile loop to avoid a redundant API call.
+// If localStage.Name is empty the Stage was not found (NotFound was returned by the fetch).
+//
+// The method progresses through the following states:
+//  1. Stage not found (localStage.Name == "") → remove the StageSync finalizer.
+//     Returns ctrl.Result{} (no requeue) since the StageSync will be garbage collected.
+//  2. Stage found with a DeletionTimestamp → blocked by finalizers; surface
+//     StageDeletionBlocked and return RequeueAfter to check again later.
+//  3. Stage found without a DeletionTimestamp → issue the delete, set
+//     StageDeletionInitiated and return RequeueAfter to confirm removal.
+func (r *StageSyncReconciler) handleStageSyncDeletion(ctx context.Context, stageSync, originalStageSync *global.StageSync, localStage *landscape.Stage) (ctrl.Result, error) {
+	if !controllerutil.ContainsFinalizer(stageSync, syncControllerFinalizer) {
+		// Finalizer already removed; nothing left to do.
+		return ctrl.Result{}, nil
+	}
+
+	if localStage.Name == "" {
+		// Stage is gone
+		msg := fmt.Sprintf("stage for StageSync %s/%s successfully deleted", stageSync.Namespace, stageSync.Name)
+		if err := r.setStageDeletedCondition(ctx, stageSync, originalStageSync, metav1.ConditionTrue, global.StageDeletionSuccessfulReason, msg); err != nil {
+			return ctrl.Result{}, err
 		}
-		// Remove finalizer
+		// Remove finalizer to allow StageSync to be garbage collected.
 		patch := client.MergeFrom(originalStageSync)
 		controllerutil.RemoveFinalizer(stageSync, syncControllerFinalizer)
 		if err := r.RemoteCluster.GetClient().Patch(ctx, stageSync, patch); err != nil {
 			err = fmt.Errorf("unable to remove finalizer from remote resource: %w", err)
 			patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, global.RemovingFinalizerFailedReason, err.Error())
-			err = errors.Join(err, patchErr)
-			return true, err
+			return ctrl.Result{}, errors.Join(err, patchErr)
 		}
+		// Finalizer removed – StageSync will be garbage collected; no requeue needed.
+		return ctrl.Result{}, nil
 	}
-	return true, nil
+
+	// Stage still exists – check whether it is stuck on finalizers.
+	if !localStage.DeletionTimestamp.IsZero() {
+		// The Stage has a DeletionTimestamp but hasn't been removed yet → blocked by finalizers.
+		remaining := localStage.GetFinalizers()
+		msg := fmt.Sprintf("stage %s/%s deletion is blocked by finalizers: %v", localStage.Namespace, localStage.Name, remaining)
+		r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, global.StageDeletionBlockedReason, "DeleteStage", msg)
+		if err := r.setStageDeletedCondition(ctx, stageSync, originalStageSync, metav1.ConditionFalse, global.StageDeletionBlockedReason, msg); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{RequeueAfter: deletionRequeueInterval}, nil
+	}
+
+	// Stage exists and has no DeletionTimestamp → issue delete.
+	if err := r.LocalClient.Delete(ctx, localStage); err != nil {
+		msg := fmt.Sprintf("unable to delete local resource: %s", err)
+		r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, global.StageDeletionFailedReason, "DeleteStage", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, global.StageDeletionFailedReason, msg)
+		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
+	}
+
+	// Deletion issued – requeue to confirm removal.
+	msg := fmt.Sprintf("stage %s/%s delete issued, waiting for confirmation", localStage.Namespace, localStage.Name)
+	r.Recorder.Eventf(stageSync, nil, corev1.EventTypeNormal, global.StageDeletionInitiatedReason, "DeleteStage", msg)
+	if err := r.setStageDeletedCondition(ctx, stageSync, originalStageSync, metav1.ConditionFalse, global.StageDeletionInitiatedReason, msg); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{RequeueAfter: deletionRequeueInterval}, nil
 }
 
 func getStageFromTemplate(stageTemplate runtime.RawExtension) (*landscape.Stage, error) {
@@ -328,17 +436,26 @@ func adjustStageFromTemplate(stage, stageTemplate *landscape.Stage, namespacedNa
 	stage.SetName(stageTemplate.Name)
 	stage.SetNamespace(stageTemplate.Namespace)
 
-	// set label to identify the StageSync resource managing this stage
+	// set labels to identify the controller and the StageSync resource managing this stage
 	stageLabels := stage.GetLabels()
 	if stageLabels == nil {
 		stageLabels = make(map[string]string)
 	}
-	stageLabels[managedByLabelKey] = getLabelValue(namespacedName)
+	stageLabels[managedByLabelKey] = StageSyncControllerName
+	stageLabels[gcpStageSyncLabelKey] = sanitizeLabelValue(namespacedName.String())
 	stage.SetLabels(stageLabels)
 }
 
-func getLabelValue(namespacedName types.NamespacedName) string {
-	return strings.ReplaceAll(namespacedName.String(), "/", "_")
+// sanitizeLabelValue converts a string into a valid Kubernetes label value.
+// It replaces '/' with '_' and lowercases the result to comply with the
+// label value format: [a-z0-9.-_], max 63 characters.
+func sanitizeLabelValue(s string) string {
+	s = strings.ReplaceAll(s, "/", "_")
+	s = strings.ToLower(s)
+	if len(s) > 63 {
+		s = s[:63]
+	}
+	return s
 }
 
 func reflectStageStatusOnStageSync(stage *landscape.Stage, stageSync *global.StageSync) error {

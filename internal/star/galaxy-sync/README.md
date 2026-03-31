@@ -38,6 +38,16 @@ A finalizer (`konfidence.cloud/stage-sync-finalizer`) is added to each `StageSyn
 
 ## Requirements and Setup
 
+### Environment Variables
+
+#### `LANDSCAPE_NAME` *(required)*
+
+The `LANDSCAPE_NAME` environment variable sets the name of the landscape (LCP cluster) the controller is running on. It is used to label `StageSync` objects on the remote cluster with `synced-by-lcp/<landscape-name>`, allowing tracking of which landscape cluster is managing a given sync.
+
+#### `CONTROLLER_NAMESPACE` *(auto-injected)*
+
+Injected automatically via the Kubernetes Downward API. Used to locate the remote kubeconfig Secret. Falls back to `default` when not set.
+
 ### Kubeconfig Secret for Remote Cluster (GCP)
 
 The controller reads the remote (GCP) cluster kubeconfig from a Secret named `gcp-sync-kubeconfig`, with the kubeconfig YAML stored under the key `kubeconfig`.

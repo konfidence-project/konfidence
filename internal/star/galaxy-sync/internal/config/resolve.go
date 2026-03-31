@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package remoteconfig
+package config
 
 import (
 	"context"
 	"fmt"
+	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +33,12 @@ import (
 const (
 	SecretName = "gcp-sync-kubeconfig"
 	SecretKey  = "kubeconfig"
+
+	// LandscapeNameEnvVar is the name of the environment variable that
+	// holds the human-readable name of the local (LCP) cluster (landscape name).
+	// It is injected via a patch on the Flux Kustomization CR in the per-cluster
+	// GitOps overlay and must not be set in the base deployment manifest.
+	LandscapeNameEnvVar = "LANDSCAPE_NAME"
 )
 
 // FromSecret reads the kubeconfig bytes stored under SecretKey in the Secret
@@ -41,7 +48,7 @@ const (
 // It returns (nil, nil) when the Secret does not exist so that the caller can
 // apply the single-cluster fallback.
 func FromSecret(c client.Client, namespace string) (*rest.Config, error) {
-	logger := log.Log.WithName("remoteconfig")
+	logger := log.Log.WithName("config")
 
 	secretKey := types.NamespacedName{
 		Namespace: namespace,
@@ -71,4 +78,13 @@ func FromSecret(c client.Client, namespace string) (*rest.Config, error) {
 
 	logger.Info("Successfully loaded remote kubeconfig from Secret", "secret", secretKey.String())
 	return cfg, nil
+}
+
+// LandscapeName returns the human-readable name of the local (LCP) cluster.
+// It reads the value from the LANDSCAPE_NAME environment variable, which is
+// expected to be injected via a patch on the Flux Kustomization CR in the
+// per-cluster GitOps overlay.
+// Returns an empty string when the variable is not set.
+func LandscapeName() string {
+	return os.Getenv(LandscapeNameEnvVar)
 }
