@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/config"
 	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/controller"
-	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/remoteconfig"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -128,7 +128,7 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 		return fmt.Errorf("unable to create direct client for kubeconfig Secret lookup: %w", err)
 	}
 
-	remoteConfig, err := remoteconfig.FromSecret(directClient, getControllerNamespace())
+	remoteConfig, err := config.FromSecret(directClient, getControllerNamespace())
 	if err != nil {
 		return fmt.Errorf("unable to resolve remote kubeconfig: %w", err)
 	}
@@ -140,8 +140,8 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 	if remoteConfig != nil {
 		// Multi-cluster: build a dedicated cluster for the remote (GCP) side.
 		log.Info("Remote kubeconfig found; running in multi-cluster mode",
-			"kubeconfig-secret", fmt.Sprintf("%s/%s", getControllerNamespace(), remoteconfig.SecretName),
-			"secret-key", remoteconfig.SecretKey,
+			"kubeconfig-secret", fmt.Sprintf("%s/%s", getControllerNamespace(), config.SecretName),
+			"secret-key", config.SecretKey,
 			"remote-cluster-server", remoteConfig.Host)
 
 		remoteCluster, err = cluster.New(remoteConfig, func(options *cluster.Options) {
@@ -172,6 +172,7 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 		RemoteCluster: remoteCluster,
 		Scheme:        scheme,
 		Recorder:      remoteCluster.GetEventRecorder(controller.StageSyncControllerName),
+		LandscapeName: config.LandscapeName(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create StageSyncReconciler: %w", err)
 	}

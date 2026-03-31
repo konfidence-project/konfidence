@@ -23,6 +23,7 @@ import (
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,13 +32,16 @@ import (
 
 const testStageVector = "ocm.example.com/test-vector:1.0.0"
 
+const (
+	stageSyncName      = "test-stagesync"
+	stageSyncNamespace = "default"
+	stageName          = "test-stage"
+)
+
 var _ = Describe("StageSync Controller", Ordered, func() {
 	const (
-		stageSyncName      = "test-stagesync"
-		stageSyncNamespace = "default"
-		stageName          = "test-stage"
-		stageNamespace     = "default"
-		stageVector        = testStageVector
+		stageNamespace = "default"
+		stageVector    = testStageVector
 	)
 
 	Context("When reconciling a stageSync on the remote cluster", func() {
@@ -45,7 +49,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageSyncName, stageSyncNamespace, stageName, stageNamespace, "landscape.konfidence.cloud/v1alpha1")
+			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v1alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -59,6 +63,16 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 					Name:      stageName,
 					Namespace: stageNamespace,
 				}, &landscape.Stage{})
+				g.Expect(client.IgnoreNotFound(err)).To(Succeed())
+				g.Expect(err).To(MatchError(ContainSubstring("not found")))
+			}).Should(Succeed())
+
+			By("verifying the StageSync is fully removed from the remote cluster")
+			Eventually(func(g Gomega) {
+				err := remoteK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageSyncName,
+					Namespace: stageSyncNamespace,
+				}, &global.StageSync{})
 				g.Expect(client.IgnoreNotFound(err)).To(Succeed())
 				g.Expect(err).To(MatchError(ContainSubstring("not found")))
 			}).Should(Succeed())
@@ -77,12 +91,15 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			By("verifying the Stage has the correct spec")
 			Expect(createdStage.Spec.Vector).To(Equal(stageVector))
 
-			By("verifying the Stage carries the managed-by label pointing to the StageSync")
-			expectedLabelValue := getLabelValue(types.NamespacedName{
+			By("verifying the Stage carries the app.kubernetes.io/managed-by label")
+			Expect(createdStage.GetLabels()).To(HaveKeyWithValue("app.kubernetes.io/managed-by", StageSyncControllerName))
+
+			By("verifying the Stage carries the gcp-stage-sync label pointing to the StageSync")
+			expectedParentLabel := sanitizeLabelValue(types.NamespacedName{
 				Name:      stageSyncName,
 				Namespace: stageSyncNamespace,
-			})
-			Expect(createdStage.GetLabels()).To(HaveKeyWithValue("managed-by", expectedLabelValue))
+			}.String())
+			Expect(createdStage.GetLabels()).To(HaveKeyWithValue(gcpStageSyncLabelKey, expectedParentLabel))
 
 			By("verifying the StageSync status condition is set to Applied=True on the remote cluster")
 			updatedStageSync := &global.StageSync{}
@@ -111,7 +128,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageSyncName, stageSyncNamespace, stageName, nonExistentNamespace, "landscape.konfidence.cloud/v1alpha1")
+			stageSync = buildStageSync(nonExistentNamespace, "landscape.konfidence.cloud/v1alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -140,7 +157,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageSyncName, stageSyncNamespace, stageName, stageNamespace, "landscape.konfidence.cloud/v999alpha1")
+			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v999alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -161,6 +178,118 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
 				g.Expect(condition.Reason).To(Equal(global.APIVersionNotSupportedReason))
 			}).Should(Succeed())
+		})
+	})
+
+	Context("When a StageSync is deleted", func() {
+		var stageSync *global.StageSync
+
+		BeforeEach(func() {
+			By("creating the StageSync on the remote cluster")
+			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v1alpha1")
+			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
+
+			By("waiting for the Stage to be created on the local cluster")
+			Eventually(func(g Gomega) {
+				g.Expect(localK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageName,
+					Namespace: stageNamespace,
+				}, &landscape.Stage{})).To(Succeed())
+			}).Should(Succeed())
+		})
+
+		AfterEach(func() {
+			By("ensuring the StageSync is cleaned up")
+			stageSync := &global.StageSync{}
+			err := remoteK8sClient.Get(ctx, types.NamespacedName{Name: stageSyncName, Namespace: stageSyncNamespace}, stageSync)
+			if err == nil {
+				// remove any leftover finalizers so the object can be deleted
+				stageSync.Finalizers = nil
+				Expect(remoteK8sClient.Update(ctx, stageSync)).To(Succeed())
+				Expect(client.IgnoreNotFound(remoteK8sClient.Delete(ctx, stageSync))).To(Succeed())
+			}
+
+			By("ensuring the Stage is cleaned up")
+			stage := &landscape.Stage{}
+			err = localK8sClient.Get(ctx, types.NamespacedName{Name: stageName, Namespace: stageNamespace}, stage)
+			if err == nil {
+				stage.Finalizers = nil
+				Expect(localK8sClient.Update(ctx, stage)).To(Succeed())
+				Expect(client.IgnoreNotFound(localK8sClient.Delete(ctx, stage))).To(Succeed())
+			}
+
+			By("waiting for both objects to be fully gone")
+			Eventually(func(g Gomega) {
+				err := remoteK8sClient.Get(ctx, types.NamespacedName{
+					Name: stageSyncName, Namespace: stageSyncNamespace,
+				}, &global.StageSync{})
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}).Should(Succeed())
+			Eventually(func(g Gomega) {
+				err := localK8sClient.Get(ctx, types.NamespacedName{
+					Name: stageName, Namespace: stageNamespace,
+				}, &landscape.Stage{})
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}).Should(Succeed())
+		})
+
+		It("should delete the local Stage and remove the finalizer from the StageSync", func() {
+			By("deleting the StageSync on the remote cluster")
+			Expect(remoteK8sClient.Delete(ctx, stageSync)).To(Succeed())
+
+			By("verifying the Stage is deleted from the local cluster")
+			Eventually(func(g Gomega) {
+				err := localK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageName,
+					Namespace: stageNamespace,
+				}, &landscape.Stage{})
+				g.Expect(client.IgnoreNotFound(err)).To(Succeed())
+				g.Expect(err).To(MatchError(ContainSubstring("not found")))
+			}).Should(Succeed())
+
+			By("verifying the StageSync is fully removed (finalizer released)")
+			Eventually(func(g Gomega) {
+				err := remoteK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageSyncName,
+					Namespace: stageSyncNamespace,
+				}, &global.StageSync{})
+				g.Expect(client.IgnoreNotFound(err)).To(Succeed())
+				g.Expect(err).To(MatchError(ContainSubstring("not found")))
+			}).Should(Succeed())
+		})
+
+		It("should set StageDeletionBlocked condition when the local Stage is stuck on a finalizer", func() {
+			By("adding a blocking finalizer to the local Stage")
+			stage := &landscape.Stage{}
+			Expect(localK8sClient.Get(ctx, types.NamespacedName{
+				Name:      stageName,
+				Namespace: stageNamespace,
+			}, stage)).To(Succeed())
+			stage.Finalizers = append(stage.Finalizers, "test.konfidence.cloud/block-deletion")
+			Expect(localK8sClient.Update(ctx, stage)).To(Succeed())
+
+			By("deleting the StageSync on the remote cluster")
+			Expect(remoteK8sClient.Delete(ctx, stageSync)).To(Succeed())
+
+			By("verifying the StageSync status has StageDeletionBlocked condition set")
+			Eventually(func(g Gomega) {
+				updated := &global.StageSync{}
+				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageSyncName,
+					Namespace: stageSyncNamespace,
+				}, updated)).To(Succeed())
+				condition := findCondition(updated.Status.Conditions, global.StageDeletedCondition)
+				g.Expect(condition).NotTo(BeNil())
+				g.Expect(condition.Reason).To(Equal(global.StageDeletionBlockedReason))
+			}).Should(Succeed())
+
+			By("verifying the StageSync finalizer is still present (not yet released)")
+			stuck := &global.StageSync{}
+			Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
+				Name:      stageSyncName,
+				Namespace: stageSyncNamespace,
+			}, stuck)).To(Succeed())
+			Expect(stuck.Finalizers).To(ContainElement(syncControllerFinalizer))
 		})
 	})
 })
@@ -186,7 +315,8 @@ func buildStageRaw(name, namespace, apiVersion string) []byte {
 }
 
 // buildStageSync builds a StageSync object with a Stage template for the given parameters.
-func buildStageSync(stageSyncName, stageSyncNamespace, stageName, stageNamespace, stageAPIVersion string) *global.StageSync {
+// The StageSync name, namespace and Stage name are fixed to the test constants.
+func buildStageSync(stageNamespace, stageAPIVersion string) *global.StageSync {
 	return &global.StageSync{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageSyncName,

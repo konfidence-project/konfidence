@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
@@ -63,6 +64,8 @@ func TestControllers(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 	ctx, cancel = context.WithCancel(context.TODO())
+
+	SetDefaultEventuallyTimeout(10 * time.Second)
 
 	var err error
 	err = global.AddToScheme(scheme.Scheme)
@@ -134,6 +137,7 @@ var _ = BeforeSuite(func() {
 		RemoteCluster: remoteCluster,
 		Scheme:        reconcileScheme,
 		Recorder:      events.NewFakeRecorder(32),
+		LandscapeName: "",
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

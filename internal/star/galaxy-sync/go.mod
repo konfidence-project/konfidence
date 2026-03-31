@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/go-logr/logr v1.4.3
-	github.com/konfidence-project/crds/api/global v0.6.2
+	github.com/konfidence-project/crds/api/global v0.7.4
 	github.com/konfidence-project/crds/api/landscape v0.18.0
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
