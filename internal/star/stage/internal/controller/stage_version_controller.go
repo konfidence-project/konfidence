@@ -108,7 +108,14 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	}
 
 	// set vectorDeploymentCreated status
-	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorDeploymentCreatedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorDeploymentCreatedCondition, Message: fmt.Sprintf("Successfully created VectorDeployment %s for stageVersion %s", vectorDeployment.Name, stageVersion.Name)})
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
+		Type:               landscape.VectorDeploymentCreatedCondition,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.VectorDeploymentCreatedCondition,
+		Message:            fmt.Sprintf("Successfully created VectorDeployment %s for stageVersion %s", vectorDeployment.Name, stageVersion.Name),
+		ObservedGeneration: stageVersion.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	// check if vectorDeployment is marked as deployed
 	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, landscape.VectorDeployedCondition) {
@@ -123,7 +130,14 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	}
 
 	// set vectorMigrationCreated status
-	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationCreatedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationCreatedCondition, Message: fmt.Sprintf("Successfully created vectorMigration %s for stageVersion %s", vectorMigration.Name, stageVersion.Name)})
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
+		Type:               landscape.VectorMigrationCreatedCondition,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.VectorMigrationCreatedCondition,
+		Message:            fmt.Sprintf("Successfully created vectorMigration %s for stageVersion %s", vectorMigration.Name, stageVersion.Name),
+		ObservedGeneration: stageVersion.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	// check if vectorMigration is marked as successful
 	if !meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded) {
@@ -132,7 +146,14 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	}
 
 	// set vectorMigrated status
-	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorMigratedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorMigratedCondition, Message: fmt.Sprintf("VectorMigration %s successful for stageVersion %s", vectorMigration.Name, stageVersion.Name)})
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
+		Type:               landscape.VectorMigratedCondition,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.VectorMigratedCondition,
+		Message:            fmt.Sprintf("VectorMigration %s successful for stageVersion %s", vectorMigration.Name, stageVersion.Name),
+		ObservedGeneration: stageVersion.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	// check if a vectorActivation exists matching the stage vector
 	vectorActivation, err := r.getOrCreateVectorActivation(ctx, stageVersion, stageName, vectorDeployment)
@@ -141,10 +162,24 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	}
 
 	// set vectorActivationCreated status
-	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.VectorActivationCreatedCondition, Status: metav1.ConditionTrue, Reason: landscape.VectorActivationCreatedCondition, Message: fmt.Sprintf("Successfully created vectorActivation %s for stageVersion %s", vectorActivation.Name, stageVersion.Name)})
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
+		Type:               landscape.VectorActivationCreatedCondition,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.VectorActivationCreatedCondition,
+		Message:            fmt.Sprintf("Successfully created vectorActivation %s for stageVersion %s", vectorActivation.Name, stageVersion.Name),
+		ObservedGeneration: stageVersion.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	// set stageVersionReady status
-	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady, Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady, Message: fmt.Sprintf("StageVersion %s reconciled successfully", stageVersion.Name)})
+	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
+		Type:               landscape.StageVersionReady,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.StageVersionReady,
+		Message:            fmt.Sprintf("StageVersion %s reconciled successfully", stageVersion.Name),
+		ObservedGeneration: stageVersion.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	log.Info("StageVersion reconciled")
 	return nil

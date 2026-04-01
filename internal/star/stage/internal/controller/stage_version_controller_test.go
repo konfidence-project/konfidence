@@ -104,9 +104,14 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// mark vectorDeployment as deployed
-			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.VectorDeployedCondition,
-				Status: metav1.ConditionTrue, Reason: landscape.VectorDeployedCondition,
-				Message: "Vector has been successfully deployed"})
+			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+				Type:               landscape.VectorDeployedCondition,
+				Status:             metav1.ConditionTrue,
+				Reason:             landscape.VectorDeployedCondition,
+				Message:            "Vector has been successfully deployed",
+				ObservedGeneration: vectorDeployment.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
 
 			Expect(k8sClient.Status().Update(ctx, vectorDeployment)).To(Succeed())
 
@@ -133,9 +138,13 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// mark vectorMigration as successful
-			meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationSucceeded,
-				Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationSucceeded,
-				Message: "VectorMigration succeeded"})
+			meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
+				Type:               landscape.VectorMigrationSucceeded,
+				Status:             metav1.ConditionTrue,
+				Reason:             landscape.VectorMigrationSucceeded,
+				Message:            "VectorMigration succeeded",
+				ObservedGeneration: vectorMigration.Generation,
+				LastTransitionTime: metav1.Now()})
 
 			Expect(k8sClient.Status().Update(ctx, vectorMigration)).To(Succeed())
 
