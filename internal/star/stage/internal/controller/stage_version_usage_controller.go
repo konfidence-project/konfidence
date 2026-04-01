@@ -108,9 +108,23 @@ func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Con
 	}
 
 	if allStageVersionsReady {
-		meta.SetStatusCondition(&stageVersionUsage.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady, Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady, Message: "Referenced StageVersion(s) are rolled out and ready for traffic"})
+		meta.SetStatusCondition(&stageVersionUsage.Status.Conditions, metav1.Condition{
+			Type:               landscape.StageVersionReady,
+			Status:             metav1.ConditionTrue,
+			Reason:             landscape.StageVersionReady,
+			Message:            "Referenced StageVersion(s) are rolled out and ready for traffic",
+			ObservedGeneration: stageVersionUsage.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
 	} else {
-		meta.SetStatusCondition(&stageVersionUsage.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady, Status: metav1.ConditionFalse, Reason: landscape.StageVersionReady, Message: "Referenced StageVersion(s) are not ready"})
+		meta.SetStatusCondition(&stageVersionUsage.Status.Conditions, metav1.Condition{
+			Type:               landscape.StageVersionReady,
+			Status:             metav1.ConditionFalse,
+			Reason:             landscape.StageVersionReady,
+			Message:            "Referenced StageVersion(s) are not ready",
+			ObservedGeneration: stageVersionUsage.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
 	}
 
 	// update status with current resolved stageVersion names
@@ -126,7 +140,14 @@ func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Con
 
 func (r *StageVersionUsageReconciler) resolveStageVersions(ctx context.Context, req ctrl.Request, stageVersionUsage *landscape.StageVersionUsage) ([]landscape.StageVersion, error) {
 	log := logf.FromContext(ctx)
-	notFoundCondition := metav1.Condition{Type: landscape.StageVersionNotFound, Status: metav1.ConditionTrue, Reason: landscape.StageVersionNotFound, Message: "Referenced StageVersion(s) not found"}
+	notFoundCondition := metav1.Condition{
+		Type:               landscape.StageVersionNotFound,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.StageVersionNotFound,
+		Message:            "Referenced StageVersion(s) not found",
+		ObservedGeneration: stageVersionUsage.Generation,
+		LastTransitionTime: metav1.Now(),
+	}
 
 	if stageVersionUsage.Spec.StageVersionRef != nil {
 		stageVersion := &landscape.StageVersion{}

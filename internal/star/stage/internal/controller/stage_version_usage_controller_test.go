@@ -99,9 +99,14 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// mark stageVersion as ready
-			meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady,
-				Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady,
-				Message: "StageVersion is ready"})
+			meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
+				Type:               landscape.StageVersionReady,
+				Status:             metav1.ConditionTrue,
+				Reason:             landscape.StageVersionReady,
+				Message:            "StageVersion is ready",
+				ObservedGeneration: stageVersion.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
 
 			Expect(k8sClient.Status().Update(ctx, stageVersion)).To(Succeed())
 
@@ -200,9 +205,14 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// mark stageVersion1 as ready
-			meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady,
-				Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady,
-				Message: "StageVersion is ready"})
+			meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
+				Type:               landscape.StageVersionReady,
+				Status:             metav1.ConditionTrue,
+				Reason:             landscape.StageVersionReady,
+				Message:            "StageVersion is ready",
+				ObservedGeneration: stageVersion.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
 
 			Expect(k8sClient.Status().Update(ctx, stageVersion)).To(Succeed())
 
@@ -214,9 +224,14 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// mark stageVersion2 as ready
-			meta.SetStatusCondition(&stageVersion2.Status.Conditions, metav1.Condition{Type: landscape.StageVersionReady,
-				Status: metav1.ConditionTrue, Reason: landscape.StageVersionReady,
-				Message: "StageVersion is ready"})
+			meta.SetStatusCondition(&stageVersion2.Status.Conditions, metav1.Condition{
+				Type:               landscape.StageVersionReady,
+				Status:             metav1.ConditionTrue,
+				Reason:             landscape.StageVersionReady,
+				Message:            "StageVersion is ready",
+				ObservedGeneration: stageVersion2.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
 
 			Expect(k8sClient.Status().Update(ctx, stageVersion2)).To(Succeed())
 

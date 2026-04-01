@@ -91,7 +91,14 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, stage *landscape.Stage) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stage")
-	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{Type: landscape.StageReady, Status: metav1.ConditionFalse})
+	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{
+		Type:               landscape.StageReady,
+		Status:             metav1.ConditionFalse,
+		Reason:             landscape.StageReady,
+		Message:            "",
+		ObservedGeneration: stage.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	_, err := r.getOrCreateTargetStageVersionUsage(ctx, req, stage)
 	if err != nil {
@@ -103,7 +110,14 @@ func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, 
 		return err
 	}
 
-	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{Type: landscape.StageReady, Status: metav1.ConditionTrue, Reason: landscape.StageReady, Message: fmt.Sprintf("Successfully reconciled Stage %s", stage.Name)})
+	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{
+		Type:               landscape.StageReady,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.StageReady,
+		Message:            fmt.Sprintf("Successfully reconciled Stage %s", stage.Name),
+		ObservedGeneration: stage.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 	log.Info("Stage reconciled")
 	return nil
 }
