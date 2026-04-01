@@ -37,7 +37,14 @@ var _ = Describe("status tests", func() {
 			va := &landscape.VectorActivation{
 				Status: landscape.VectorActivationStatus{
 					Conditions: []metav1.Condition{
-						{Type: landscape.ActivationSucceeded, Status: metav1.ConditionTrue},
+						{
+							Type:               landscape.ActivationSucceeded,
+							Status:             metav1.ConditionTrue,
+							Reason:             landscape.ActivationSucceeded,
+							Message:            "",
+							ObservedGeneration: 1,
+							LastTransitionTime: metav1.Now(),
+						},
 					},
 				},
 			}
@@ -48,7 +55,14 @@ var _ = Describe("status tests", func() {
 			va := &landscape.VectorActivation{
 				Status: landscape.VectorActivationStatus{
 					Conditions: []metav1.Condition{
-						{Type: landscape.ActivationFailed, Status: metav1.ConditionTrue},
+						{
+							Type:               landscape.ActivationFailed,
+							Status:             metav1.ConditionTrue,
+							Reason:             landscape.ActivationFailed,
+							Message:            "",
+							ObservedGeneration: 1,
+							LastTransitionTime: metav1.Now(),
+						},
 					},
 				},
 			}
@@ -59,7 +73,14 @@ var _ = Describe("status tests", func() {
 			vectorActivation := &landscape.VectorActivation{
 				Status: landscape.VectorActivationStatus{
 					Conditions: []metav1.Condition{
-						{Type: landscape.ActivationSkipped, Status: metav1.ConditionTrue},
+						{
+							Type:               landscape.ActivationSkipped,
+							Status:             metav1.ConditionTrue,
+							Reason:             landscape.ActivationSkipped,
+							Message:            "",
+							ObservedGeneration: 1,
+							LastTransitionTime: metav1.Now(),
+						},
 					},
 				},
 			}
@@ -75,10 +96,12 @@ var _ = Describe("status tests", func() {
 
 		BeforeEach(func() {
 			condition = metav1.Condition{
-				Type:    "Ready",
-				Status:  metav1.ConditionTrue,
-				Reason:  "Test",
-				Message: "Testing",
+				Type:               "Ready",
+				Status:             metav1.ConditionTrue,
+				Reason:             "Test",
+				Message:            "Testing",
+				ObservedGeneration: 1,
+				LastTransitionTime: metav1.Now(),
 			}
 			vectorActivation = &landscape.VectorActivation{}
 		})
@@ -90,10 +113,12 @@ var _ = Describe("status tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			newCondition := metav1.Condition{
-				Type:    "AnotherType",
-				Status:  metav1.ConditionTrue,
-				Reason:  "AnotherTest",
-				Message: "Testing",
+				Type:               "AnotherType",
+				Status:             metav1.ConditionTrue,
+				Reason:             "AnotherTest",
+				Message:            "Testing",
+				ObservedGeneration: 1,
+				LastTransitionTime: metav1.Now(),
 			}
 			clientMock.EXPECT().Status().Return(statusWriterMock)
 			statusWriterMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)

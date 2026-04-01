@@ -125,10 +125,12 @@ var _ = Describe("VectorActivation Controller", func() {
 				for _, execution := range executionList.Items {
 					updated := execution.DeepCopy()
 					meta.SetStatusCondition(&updated.Status.Conditions, metav1.Condition{
-						Type:    landscape.ActivationTaskExecutionSucceeded,
-						Status:  metav1.ConditionTrue,
-						Reason:  landscape.ActivationTaskExecutionSucceeded,
-						Message: "marked succeeded by test",
+						Type:               landscape.ActivationTaskExecutionSucceeded,
+						Status:             metav1.ConditionTrue,
+						Reason:             landscape.ActivationTaskExecutionSucceeded,
+						Message:            "marked succeeded by test",
+						ObservedGeneration: updated.Generation,
+						LastTransitionTime: metav1.Now(),
 					})
 					g.Expect(k8sClient.Status().Patch(ctx, updated, client.MergeFrom(&execution))).To(Succeed())
 				}
