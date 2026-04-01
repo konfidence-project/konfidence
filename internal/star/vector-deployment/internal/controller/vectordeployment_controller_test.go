@@ -202,19 +202,28 @@ var _ = Describe("VectorDeployment Controller", func() {
 			{Name: "result-1", Type: "test", Spec: runtime.RawExtension{Raw: []byte("{\"test-deployment-result\": true}")}},
 		}
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:   landscape.ArtifactDeployedCondition,
-			Reason: landscape.ArtifactDeployedCondition,
-			Status: metav1.ConditionTrue,
+			Type:               landscape.ArtifactDeployedCondition,
+			Reason:             landscape.ArtifactDeployedCondition,
+			Status:             metav1.ConditionTrue,
+			Message:            "",
+			ObservedGeneration: artifactDeployment.Generation,
+			LastTransitionTime: metav1.Now(),
 		})
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:   landscape.DeploymentResultCreatedCondition,
-			Reason: landscape.DeploymentResultCreatedCondition,
-			Status: metav1.ConditionTrue,
+			Type:               landscape.DeploymentResultCreatedCondition,
+			Reason:             landscape.DeploymentResultCreatedCondition,
+			Status:             metav1.ConditionTrue,
+			Message:            "",
+			ObservedGeneration: artifactDeployment.Generation,
+			LastTransitionTime: metav1.Now(),
 		})
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:   landscape.ArtifactDeploymentReadyCondition,
-			Reason: landscape.ArtifactDeploymentReadyCondition,
-			Status: metav1.ConditionTrue,
+			Type:               landscape.ArtifactDeploymentReadyCondition,
+			Reason:             landscape.ArtifactDeploymentReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Message:            "",
+			ObservedGeneration: artifactDeployment.Generation,
+			LastTransitionTime: metav1.Now(),
 		})
 
 		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())

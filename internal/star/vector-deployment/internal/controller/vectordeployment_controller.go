@@ -96,9 +96,12 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		meta.SetStatusCondition(
 			&vectorDeployment.Status.Conditions,
 			metav1.Condition{
-				Type:   landscape.VectorDownloadedCondition,
-				Status: metav1.ConditionTrue, Reason: landscape.VectorDownloadedCondition,
-				Message: fmt.Sprintf("Successfully downloaded vector %s from OCM repository", vectorDeployment.Spec.Vector),
+				Type:               landscape.VectorDownloadedCondition,
+				Status:             metav1.ConditionTrue,
+				Reason:             landscape.VectorDownloadedCondition,
+				Message:            fmt.Sprintf("Successfully downloaded vector %s from OCM repository", vectorDeployment.Spec.Vector),
+				ObservedGeneration: vectorDeployment.Generation,
+				LastTransitionTime: metav1.Now(),
 			},
 		)
 	} else {
@@ -152,9 +155,14 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	// set status condition VectorReadyCondition to True
-	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.VectorReadyCondition,
-		Status: metav1.ConditionTrue, Reason: landscape.VectorReadyCondition,
-		Message: fmt.Sprintf("Vector deployment %s is ready", vectorDeployment.Name)})
+	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+		Type:               landscape.VectorReadyCondition,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.VectorReadyCondition,
+		Message:            fmt.Sprintf("Vector deployment %s is ready", vectorDeployment.Name),
+		ObservedGeneration: vectorDeployment.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
@@ -266,14 +274,24 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 	}
 
 	// set status condition ArtifactDeploymentsCreatedCondition to created
-	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.ArtifactDeploymentsCreatedCondition,
-		Status: metav1.ConditionTrue, Reason: landscape.ArtifactDeploymentsCreatedCondition,
-		Message: fmt.Sprintf("Successfully created Artifact deployments for vector deployment %s", vectorDeployment.Name)})
+	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+		Type:               landscape.ArtifactDeploymentsCreatedCondition,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.ArtifactDeploymentsCreatedCondition,
+		Message:            fmt.Sprintf("Successfully created Artifact deployments for vector deployment %s", vectorDeployment.Name),
+		ObservedGeneration: vectorDeployment.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	if allReady {
-		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.VectorDeployedCondition,
-			Status: metav1.ConditionTrue, Reason: landscape.VectorDeployedCondition,
-			Message: fmt.Sprintf("All artifacts of vector deployment %s are deployed", vectorDeployment.Name)})
+		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+			Type:               landscape.VectorDeployedCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             landscape.VectorDeployedCondition,
+			Message:            fmt.Sprintf("All artifacts of vector deployment %s are deployed", vectorDeployment.Name),
+			ObservedGeneration: vectorDeployment.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
 	}
 
 	return allReady, nil
@@ -367,14 +385,24 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 	}
 
 	// set status condition ArtifactDeploymentsCreatedCondition to created
-	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.VectorAssignmentsCreatedCondition,
-		Status: metav1.ConditionTrue, Reason: landscape.VectorAssignmentsCreatedCondition,
-		Message: fmt.Sprintf("Successfully created vector assignments for vector deployment %s", vectorDeployment.Name)})
+	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+		Type:               landscape.VectorAssignmentsCreatedCondition,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.VectorAssignmentsCreatedCondition,
+		Message:            fmt.Sprintf("Successfully created vector assignments for vector deployment %s", vectorDeployment.Name),
+		ObservedGeneration: vectorDeployment.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	if allReady {
-		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{Type: landscape.VectorReadyCondition,
-			Status: metav1.ConditionTrue, Reason: landscape.VectorReadyCondition,
-			Message: fmt.Sprintf("Vector deployment %s fully deployed", vectorDeployment.Name)})
+		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+			Type:               landscape.VectorReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             landscape.VectorReadyCondition,
+			Message:            fmt.Sprintf("Vector deployment %s fully deployed", vectorDeployment.Name),
+			ObservedGeneration: vectorDeployment.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
 	}
 
 	return allReady, nil
