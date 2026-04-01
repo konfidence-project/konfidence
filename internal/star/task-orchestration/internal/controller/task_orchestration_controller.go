@@ -138,9 +138,14 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 		log.Info("No migration tasks found")
 
 		// mark vectorMigration as successful if no tasks exist
-		meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationSucceeded,
-			Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationSucceeded,
-			Message: fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name)})
+		meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
+			Type:               landscape.VectorMigrationSucceeded,
+			Status:             metav1.ConditionTrue,
+			Reason:             landscape.VectorMigrationSucceeded,
+			Message:            fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name),
+			ObservedGeneration: vectorMigration.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
 
 		// delete stageVersionUsage
 		if err := r.Delete(ctx, stageVersionUsage); err != nil {
@@ -166,9 +171,14 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 
 	if mappedTasks.taskFailed {
 		// if at least one of the tasks failed mark vectorMigration as failed
-		meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationFailed,
-			Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationFailed,
-			Message: fmt.Sprintf("Reconciling VectorMigration %s failed", vectorMigration.Name)})
+		meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
+			Type:               landscape.VectorMigrationFailed,
+			Status:             metav1.ConditionTrue,
+			Reason:             landscape.VectorMigrationFailed,
+			Message:            fmt.Sprintf("Reconciling VectorMigration %s failed", vectorMigration.Name),
+			ObservedGeneration: vectorMigration.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
 		return fmt.Errorf("reconciling VectorMigration failed")
 	}
 
@@ -189,9 +199,14 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 	log.Info("Finished processing tasks")
 
 	// mark vectorMigration as successful
-	meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{Type: landscape.VectorMigrationSucceeded,
-		Status: metav1.ConditionTrue, Reason: landscape.VectorMigrationSucceeded,
-		Message: fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name)})
+	meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
+		Type:               landscape.VectorMigrationSucceeded,
+		Status:             metav1.ConditionTrue,
+		Reason:             landscape.VectorMigrationSucceeded,
+		Message:            fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name),
+		ObservedGeneration: vectorMigration.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	log.Info("Cleaning up resources...")
 

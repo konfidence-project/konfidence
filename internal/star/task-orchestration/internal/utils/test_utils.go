@@ -244,9 +244,14 @@ func UpdateVectorDeploymentStatus(ctx context.Context, k8sClient client.Client, 
 }
 
 func SetTaskExecutionStatus(ctx context.Context, k8sClient client.Client, taskExecution *landscape.TaskExecution, status string) {
-	meta.SetStatusCondition(&taskExecution.Status.Conditions, metav1.Condition{Type: status,
-		Status: metav1.ConditionTrue, Reason: status,
-		Message: fmt.Sprintf("Successfully executed Task %s", taskExecution.Name)})
+	meta.SetStatusCondition(&taskExecution.Status.Conditions, metav1.Condition{
+		Type:               status,
+		Status:             metav1.ConditionTrue,
+		Reason:             status,
+		Message:            fmt.Sprintf("Successfully executed Task %s", taskExecution.Name),
+		ObservedGeneration: taskExecution.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
 
 	err := k8sClient.Status().Update(ctx, taskExecution)
 	Expect(err).ToNot(HaveOccurred(), "Failed to update status of taskExecution: %s", taskExecution.Name)
