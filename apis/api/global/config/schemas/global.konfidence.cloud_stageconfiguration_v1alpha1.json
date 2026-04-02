@@ -15,6 +15,33 @@
     "spec": {
       "description": "StageConfigurationSpec defines the desired state of StageConfiguration.",
       "properties": {
+        "config": {
+          "description": "Config is the list of credential resources that may be used to access an OCI registry.",
+          "items": {
+            "description": "CredentialsConfig defines a credential reference to a secret or configMap used to access an OCI registry.",
+            "properties": {
+              "apiVersion": {
+                "description": "APIVersion is the api version of the of configuration resource, e.g. v1.",
+                "type": "string"
+              },
+              "kind": {
+                "description": "Kind of the configuration resource. Allowed values are Secret or ConfigMap.",
+                "type": "string"
+              },
+              "name": {
+                "description": "Name is the name\t of the of configuration resource.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "apiVersion",
+              "kind",
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
         "name": {
           "description": "Name is the stage name",
           "type": "string"

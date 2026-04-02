@@ -37,6 +37,24 @@ _Appears in:_
 | `name` _string_ |  |  |  |
 
 
+#### CredentialsConfig
+
+
+
+CredentialsConfig defines a credential reference to a secret or configMap used to access an OCI registry.
+
+
+
+_Appears in:_
+- [StageConfigurationSpec](#stageconfigurationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `kind` _string_ | Kind of the configuration resource. Allowed values are Secret or ConfigMap. |  |  |
+| `apiVersion` _string_ | APIVersion is the api version of the of configuration resource, e.g. v1. |  |  |
+| `name` _string_ | Name is the name	 of the of configuration resource. |  |  |
+
+
 #### StageConfiguration
 
 
@@ -96,6 +114,7 @@ _Appears in:_
 | `vector` _string_ | Vector points to the OCM component that contains the deployment vector for this stage. |  |  |
 | `targetNamespace` _string_ | TargetNamespace is the target namespace where the associated stage is created or updated |  |  |
 | `targetWorkspace` _string_ | TargetWorkspace is the target workspace where the associated stage is created or updated |  | Optional: \{\} <br />Optional: \{\} <br /> |
+| `config` _[CredentialsConfig](#credentialsconfig) array_ | Config is the list of credential resources that may be used to access an OCI registry. |  |  |
 
 
 #### StageConfigurationStatus
