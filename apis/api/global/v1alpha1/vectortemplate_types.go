@@ -32,8 +32,6 @@ const (
 	VectorTemplateVectorCreationFailedReason = "VectorCreationFailed"
 	// VectorTemplateDriftDetectionFailedReason indicates that drift detection failed.
 	VectorTemplateDriftDetectionFailedReason = "DriftDetectionFailed"
-	// VectorTemplateArtifactCopyFailedReason indicates that copying the artifacts from the source to the target registry failed.
-	VectorTemplateArtifactCopyFailedReason = "ArtifactCopyFailed"
 )
 
 // VectorTemplateSpec defines the desired state of VectorTemplate.
