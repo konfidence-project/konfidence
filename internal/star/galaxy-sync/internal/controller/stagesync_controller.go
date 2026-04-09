@@ -196,7 +196,10 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 // SetupWithManager sets up the controller with the Manager.
 func (r *StageSyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	mapStageSyncToRequests := func(ctx context.Context, obj *global.StageSync) []reconcile.Request {
-		return r.getNamespacedNameReconcileRequest(ctx, obj)
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{
+			Name:      obj.GetName(),
+			Namespace: obj.GetNamespace(),
+		}}}
 	}
 
 	b := ctrl.NewControllerManagedBy(mgr).
@@ -250,13 +253,6 @@ func (r *StageSyncReconciler) setAndPatchStatus(ctx context.Context, stageSync *
 
 func (r *StageSyncReconciler) falsifyAndPatchStatus(ctx context.Context, stageSync *global.StageSync, originalStageSync *global.StageSync, reason, message string) error {
 	return r.setAndPatchStatus(ctx, stageSync, originalStageSync, metav1.ConditionFalse, reason, message)
-}
-
-func (r *StageSyncReconciler) getNamespacedNameReconcileRequest(_ context.Context, object client.Object) []reconcile.Request {
-	return []reconcile.Request{{NamespacedName: types.NamespacedName{
-		Name:      object.GetName(),
-		Namespace: object.GetNamespace(),
-	}}}
 }
 
 func (r *StageSyncReconciler) handleFinalizer(ctx context.Context, stageSync, originalStageSync *global.StageSync, stage *landscape.Stage, stageFound bool) (bool, error) {
