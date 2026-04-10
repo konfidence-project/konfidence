@@ -28,6 +28,8 @@ const (
 	// StageSyncAppliedCondition is the applied condition for the StageSync resource.
 	// It indicates whether the Stage defined in the StageSync resource has been successfully applied to the LCP cluster.
 	StageSyncAppliedCondition = "Applied"
+	// StageDeletedCondition tracks the deletion lifecycle of the local Stage.
+	StageDeletedCondition = "StageDeleted"
 
 	// StageReconcileSuccessfulReason indicates that the stage was successfully reconciled on the LCP cluster.
 	StageReconcileSuccessfulReason = "StageReconcileSuccessful"
@@ -53,6 +55,12 @@ const (
 	InvalidStageTemplateReason = "InvalidStageTemplate"
 	// StageStatusReflectionFailedReason indicates that the stage status could not be reflected back to the StageSync resource.
 	StageStatusReflectionFailedReason = "StageStatusReflectionFailed"
+	// StageDeletionInitiatedReason indicates the Stage delete call has been issued
+	// but the object has not yet been confirmed as removed.
+	StageDeletionInitiatedReason = "StageDeletionInitiated"
+	// StageDeletionBlockedReason indicates the Stage still exists and has a non-zero
+	// DeletionTimestamp, meaning it is stuck on one or more finalizers.
+	StageDeletionBlockedReason = "StageDeletionBlocked"
 )
 
 // StageSyncSpec defines the desired state of a StageSync.
