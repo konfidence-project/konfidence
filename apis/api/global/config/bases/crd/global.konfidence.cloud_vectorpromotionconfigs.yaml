@@ -4,34 +4,30 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectorpromotions.global.konfidence.cloud
+  name: vectorpromotionconfigs.global.konfidence.cloud
 spec:
   group: global.konfidence.cloud
   names:
-    kind: VectorPromotion
-    listKind: VectorPromotionList
-    plural: vectorpromotions
-    singular: vectorpromotion
+    kind: VectorPromotionConfig
+    listKind: VectorPromotionConfigList
+    plural: vectorpromotionconfigs
+    singular: vectorpromotionconfig
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The referenced VectorPromotionConfig
-      jsonPath: .spec.vectorPromotionConfigRef
-      name: Config
+    - description: The source OCM component reference
+      jsonPath: .spec.source
+      name: Source
       type: string
-    - description: The overall state of the promotion
-      jsonPath: .status.state
-      name: State
+    - description: The target OCM component reference
+      jsonPath: .spec.target
+      name: Target
       type: string
-    - description: Age
-      jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VectorPromotion triggers a one-time execution of a promotion
-          flow defined by a VectorPromotionConfig.
+        description: VectorPromotionConfig describes a promotion flow for a vector
+          between a source and a target.
         properties:
           apiVersion:
             description: |-
@@ -51,24 +47,31 @@ spec:
           metadata:
             type: object
           spec:
-            description: VectorPromotionSpec defines the desired state of VectorPromotion.
+            description: Spec defines the desired state of the VectorPromotionConfig
+              and is immutable after it has been set
             properties:
-              ttl:
+              source:
                 description: |-
-                  TTL defines how long the VectorPromotion should be kept after completion.
-                  Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
-                  the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
+                  Source is the OCM component reference to promote from.
+                  This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.
+                minLength: 1
                 type: string
-              vectorPromotionConfigRef:
-                description: VectorPromotionConfigRef is the name of the VectorPromotionConfig
-                  that defines the promotion flow to execute.
+              target:
+                description: |-
+                  Target is the OCM component reference to promote to.
+                  This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.
                 minLength: 1
                 type: string
             required:
-            - vectorPromotionConfigRef
+            - source
+            - target
             type: object
+            x-kubernetes-validations:
+            - message: VectorPromotionConfig spec is immutable after it has been set
+              rule: self == oldSelf
           status:
-            description: VectorPromotionStatus defines the observed state of VectorPromotion.
+            description: VectorPromotionConfigStatus defines the observed state of
+              VectorPromotionConfig.
             properties:
               conditions:
                 items:
@@ -126,16 +129,16 @@ spec:
                   - type
                   type: object
                 type: array
-              state:
-                description: State reflects the overall lifecycle state of the promotion.
-                enum:
-                - Pending
-                - Running
-                - Completed
-                - Failed
+              lastPromotionTime:
+                description: LastPromotionTime reflects the last successful execution
+                  of a promotion with this configuration.
+                format: date-time
                 type: string
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:

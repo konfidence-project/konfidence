@@ -1,0 +1,8 @@
+apiVersion: global.konfidence.cloud/v1alpha1
+kind: VectorPromotion
+metadata:
+  namespace: default
+  name: sample-vector-promotion
+spec:
+  vectorPromotionConfigRef: sample-promotion-config
+  ttl: 1h

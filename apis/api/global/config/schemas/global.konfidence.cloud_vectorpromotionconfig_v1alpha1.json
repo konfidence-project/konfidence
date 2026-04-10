@@ -1,5 +1,5 @@
 {
-  "description": "VectorPromotion triggers a one-time execution of a promotion flow defined by a VectorPromotionConfig.",
+  "description": "VectorPromotionConfig describes a promotion flow for a vector between a source and a target.",
   "properties": {
     "apiVersion": {
       "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
@@ -13,25 +13,33 @@
       "type": "object"
     },
     "spec": {
-      "description": "VectorPromotionSpec defines the desired state of VectorPromotion.",
+      "description": "Spec defines the desired state of the VectorPromotionConfig and is immutable after it has been set",
       "properties": {
-        "ttl": {
-          "description": "TTL defines how long the VectorPromotion should be kept after completion.\nOnce the TTL expires after the promotion reaches a terminal state (Completed or Failed),\nthe resource is eligible for automatic deletion. If no TTL is set, no deletion happens.",
+        "source": {
+          "description": "Source is the OCM component reference to promote from.\nThis usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.",
+          "minLength": 1,
           "type": "string"
         },
-        "vectorPromotionConfigRef": {
-          "description": "VectorPromotionConfigRef is the name of the VectorPromotionConfig that defines the promotion flow to execute.",
+        "target": {
+          "description": "Target is the OCM component reference to promote to.\nThis usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.",
           "minLength": 1,
           "type": "string"
         }
       },
       "required": [
-        "vectorPromotionConfigRef"
+        "source",
+        "target"
       ],
-      "type": "object"
+      "type": "object",
+      "x-kubernetes-validations": [
+        {
+          "message": "VectorPromotionConfig spec is immutable after it has been set",
+          "rule": "self == oldSelf"
+        }
+      ]
     },
     "status": {
-      "description": "VectorPromotionStatus defines the observed state of VectorPromotion.",
+      "description": "VectorPromotionConfigStatus defines the observed state of VectorPromotionConfig.",
       "properties": {
         "conditions": {
           "items": {
@@ -87,19 +95,20 @@
           },
           "type": "array"
         },
-        "state": {
-          "description": "State reflects the overall lifecycle state of the promotion.",
-          "enum": [
-            "Pending",
-            "Running",
-            "Completed",
-            "Failed"
-          ],
+        "lastPromotionTime": {
+          "description": "LastPromotionTime reflects the last successful execution of a promotion with this configuration.",
+          "format": "date-time",
           "type": "string"
         }
       },
       "type": "object"
     }
   },
-  "type": "object"
+  "type": "object",
+  "x-kubernetes-validations": [
+    {
+      "message": "Spec is required once set",
+      "rule": "!has(oldSelf.spec) || has(self.spec)"
+    }
+  ]
 }
