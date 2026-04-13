@@ -61,6 +61,9 @@ const (
 	// StageDeletionBlockedReason indicates the Stage still exists and has a non-zero
 	// DeletionTimestamp, meaning it is stuck on one or more finalizers.
 	StageDeletionBlockedReason = "StageDeletionBlocked"
+	// StageDeletionSuccessfulReason is set on the StageDeleted condition when the
+	// local Stage has been confirmed gone and the StageSync finalizer is released.
+	StageDeletionSuccessfulReason = "StageDeletionSuccessful"
 )
 
 // StageSyncSpec defines the desired state of a StageSync.
