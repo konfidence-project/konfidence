@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/repository"
@@ -18,26 +19,32 @@ var (
 	// ErrNotFound is returned when a component descriptor or component version cannot be
 	// found in the repository.
 	ErrNotFound = repository.ErrNotFound
+
+	// ErrInvalidComponentReference is returned when a component reference is invalid,
+	// such as when the version field is empty. All repository operations require an
+	// explicit version (semantic version or alias).
+	ErrInvalidComponentReference = konfcompref.ErrInvalidComponentReference
 )
 
 // ReadClient defines read-only operations for accessing component descriptors stored in
 // OCM repositories.
-//
-// Implementations must be safe for concurrent use by multiple goroutines.
 type ReadClient interface {
 	// Get retrieves a component descriptor by reference.
 	//
-	// If ref.Version is empty, Get returns the latest version of the component based on
-	// semantic versioning rules. The repository determines version ordering.
+	// The ref.Version field can specify either:
+	//   - A semantic version (e.g., "1.2.3")
+	//   - A version alias (e.g., "latest", "stable", "production")
+	//
+	// Returns ErrInvalidComponentReference if the reference is incomplete or invalid.
 	//
 	// Returns ErrNotFound if:
 	//   - The component doesn't exist in the repository
-	//   - The specified version doesn't exist
+	//   - The specified version or alias doesn't exist
 	//   - The repository doesn't exist or is inaccessible
 	//
 	// Example:
 	//
-	//	// Get a specific version
+	//	// Get a specific semantic version
 	//	ref := compref.Ref{
 	//	    Repository: ociSpec,
 	//	    Component:  "github.com/acme/backend",
@@ -45,15 +52,13 @@ type ReadClient interface {
 	//	}
 	//	desc, err := client.Get(ctx, ref)
 	//
-	//	// Get the latest version
-	//	ref.Version = ""
-	//	latest, err := client.Get(ctx, ref)
+	//	// Get using a version alias
+	//	ref.Version = "latest"
+	//	desc, err = client.Get(ctx, ref)
 	Get(ctx context.Context, ref compref.Ref) (descruntime.Descriptor, error)
 }
 
 // WriteClient defines write operations for persisting component descriptors to OCM repositories.
-//
-// Implementations must be safe for concurrent use by multiple goroutines.
 type WriteClient interface {
 	// Save persists a component descriptor to the specified repository.
 	//
@@ -81,10 +86,13 @@ type WriteClient interface {
 	//	    // Already published - safe to continue
 	//	}
 	Save(ctx context.Context, repoSpec runtime.Typed, descriptor descruntime.Descriptor) error
+
 	// Copy transfers references to the specified target repository.
 	//
 	// The targetRepoSpec parameter defines the target repository. For OCI repositories, it
 	// typically contains the registry hostname and repository path.
+	//
+	// Returns ErrInvalidComponentReference if any reference is incomplete or invalid.
 	//
 	// Example:
 	//
@@ -97,11 +105,46 @@ type WriteClient interface {
 	//
 	// err := client.Copy(ctx, artifactReferences, targetRepoSpec)
 	Copy(ctx context.Context, artifactReferences []compref.Ref, targetRepoSpec runtime.Typed) error
+
+	// AddAlias creates or updates a version alias for a component.
+	//
+	// Version aliases provide human-readable names (like "latest", "stable", "production")
+	// that point to specific component versions. Aliases are mutable and can be updated
+	// to point to different versions over time.
+	//
+	// The ref parameter must specify:
+	//   - Repository: the target OCI repository
+	//   - Component: the component name
+	//   - Version: the version to alias (e.g., "1.2.3", or an existing alias "edge")
+	//
+	// The alias parameter is the human-readable name to assign (e.g., "latest", "stable").
+	//
+	// If the alias already exists, it will be updated to point to the new version.
+	//
+	// Returns ErrInvalidComponentReference if the reference or alias is incomplete or invalid.
+	// Returns ErrNotFound if the specified component version doesn't exist.
+	//
+	// Example:
+	//
+	//	// Point the "latest" alias to version 2.1.0
+	//	ref := compref.Ref{
+	//	    Repository: ociSpec,
+	//	    Component:  "github.com/acme/backend",
+	//	    Version:    "2.1.0",
+	//	}
+	//	err := client.AddAlias(ctx, ref, "latest")
+	//
+	//	// Users can now fetch using the alias
+	//	aliasRef := compref.Ref{
+	//	    Repository: ociSpec,
+	//	    Component:  "github.com/acme/backend",
+	//	    Version:    "latest",
+	//	}
+	//	desc, err := client.Get(ctx, aliasRef)
+	AddAlias(ctx context.Context, ref compref.Ref, alias string) error
 }
 
 // Client combines read and write access to component descriptors in OCM repositories.
-//
-// Implementations must be safe for concurrent use by multiple goroutines.
 //
 // The primary implementation is OciClient, which works with OCI-compliant registries.
 type Client interface {

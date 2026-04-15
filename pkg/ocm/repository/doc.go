@@ -80,9 +80,10 @@
 //
 // # Reading Component Descriptors
 //
-// Use the Get method to retrieve component descriptors by reference:
+// Use the Get method to retrieve component descriptors by reference.
+// You must specify an explicit version (semantic version or alias):
 //
-//	// Get a specific version
+//	// Get a specific semantic version
 //	ref := compref.Ref{
 //	    Repository: ociRepoSpec,
 //	    Component:  "github.com/my-org/backend",
@@ -90,14 +91,16 @@
 //	}
 //	descriptor, err := client.Get(ctx, ref)
 //
-//	// Get the latest version (omit Version field)
+//	// Get a component using a version alias
 //	ref := compref.Ref{
 //	    Repository: ociRepoSpec,
 //	    Component:  "github.com/my-org/backend",
+//	    Version:    "latest",  // or any other alias like "stable", "dev"
 //	}
-//	latest, err := client.Get(ctx, ref)
+//	descriptor, err := client.Get(ctx, ref)
 //
-// The Get method returns ErrNotFound if the component or version doesn't exist.
+// The Get method returns ErrInvalidComponentReference if the reference is incomplete,
+// and returns ErrNotFound if the component or version/alias doesn't exist.
 //
 // # Writing Component Descriptors
 //
@@ -134,12 +137,46 @@
 // The Save method returns ErrComponentAlreadyExists if an identical component version
 // already exists in the repository, ensuring immutability of released components.
 //
+// # Version Aliasing
+//
+// Version aliases provide human-readable names for component versions, allowing you to
+// reference versions using names like "latest", "stable", or "production" instead of
+// semantic version numbers.
+//
+// Use the AddAlias method to create or update version aliases:
+//
+//	// Create a reference to a specific component version
+//	ref := compref.Ref{
+//	    Repository: ociRepoSpec,
+//	    Component:  "github.com/my-org/backend",
+//	    Version:    "2.1.0",
+//	}
+//
+//	// Add or update the "latest" alias to point to version 2.1.0
+//	err := client.AddAlias(ctx, ref, "latest")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Users can now fetch the component using the alias
+//	aliasRef := compref.Ref{
+//	    Repository: ociRepoSpec,
+//	    Component:  "github.com/my-org/backend",
+//	    Version:    "latest",
+//	}
+//	descriptor, err := client.Get(ctx, aliasRef)
+//
+// Aliases are mutable - calling AddAlias with an existing alias name will update it
+// to point to the new version. This is useful for maintaining rolling aliases like
+// "latest" that should always point to the most recent release.
+//
 // # Error Handling
 //
-// The package defines two sentinel errors for common scenarios:
+// The package defines three sentinel errors for common scenarios:
 //
 //   - ErrNotFound: returned when a component or version is not found
 //   - ErrComponentAlreadyExists: returned when attempting to save a duplicate component version
+//   - ErrInvalidComponentReference: returned when a component reference is invalid (e.g., missing version)
 //
 // # Advanced Configuration
 //
@@ -165,12 +202,6 @@
 //	    transferExecutor,
 //	    repository.WithOciClientLogger(logger),
 //	)
-//
-// # Thread Safety
-//
-// The OciClient is safe for concurrent use by multiple goroutines. All methods are
-// safe to call concurrently, and the underlying credential resolver and repository
-// provider are designed to handle concurrent access.
 //
 // # See Also
 //

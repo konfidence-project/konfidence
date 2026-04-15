@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
 	"github.com/konfidence-project/pkg/ocm/repository/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -234,118 +235,77 @@ var _ = Describe("OciClient", func() {
 				Expect(err.Error()).To(ContainSubstring("invalid repo spec"))
 				Expect(desc).To(Equal(descruntime.Descriptor{}))
 			})
+
+			Context("with version alias", func() {
+				It("retrieves a component descriptor using an alias", func() {
+					ref := compref.Ref{
+						Repository: repoSpec,
+						Component:  "github.com/acme/backend",
+						Version:    "latest", // Using alias instead of semantic version
+					}
+					expectedDesc := makeDescriptor("github.com/acme/backend", "1.2.3")
+
+					providerMock.EXPECT().
+						GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+						Return(identity, nil)
+					resolverMock.EXPECT().
+						Resolve(gomock.Any(), identity).
+						Return(creds, nil)
+					providerMock.EXPECT().
+						GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+						Return(repoMock, nil)
+					repoMock.EXPECT().
+						GetComponentVersion(gomock.Any(), "github.com/acme/backend", "latest").
+						Return(&expectedDesc, nil)
+
+					desc, err := client.Get(ctx, ref)
+
+					Expect(err).ToNot(HaveOccurred())
+					Expect(desc).To(Equal(expectedDesc))
+				})
+
+				It("returns ErrNotFound when alias doesn't exist", func() {
+					ref := compref.Ref{
+						Repository: repoSpec,
+						Component:  "github.com/acme/backend",
+						Version:    "nonexistent-alias",
+					}
+
+					providerMock.EXPECT().
+						GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+						Return(identity, nil)
+					resolverMock.EXPECT().
+						Resolve(gomock.Any(), identity).
+						Return(creds, nil)
+					providerMock.EXPECT().
+						GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+						Return(repoMock, nil)
+					repoMock.EXPECT().
+						GetComponentVersion(gomock.Any(), "github.com/acme/backend", "nonexistent-alias").
+						Return(nil, repository.ErrNotFound)
+
+					desc, err := client.Get(ctx, ref)
+
+					Expect(err).To(HaveOccurred())
+					Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+					Expect(desc).To(Equal(descruntime.Descriptor{}))
+				})
+			})
 		})
 
-		Context("with latest version (empty version)", func() {
-			It("retrieves the latest version successfully", func() {
-				ref := compref.Ref{
-					Repository: repoSpec,
-					Component:  "github.com/acme/backend",
-					Version:    "", // Request latest
-				}
-				versions := []string{"2.0.0", "1.5.0", "1.0.0"}
-				expectedDesc := makeDescriptor("github.com/acme/backend", "2.0.0")
-
-				providerMock.EXPECT().
-					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
-					Return(identity, nil)
-				resolverMock.EXPECT().
-					Resolve(gomock.Any(), identity).
-					Return(creds, nil)
-				providerMock.EXPECT().
-					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
-					Return(repoMock, nil)
-				repoMock.EXPECT().
-					ListComponentVersions(gomock.Any(), "github.com/acme/backend").
-					Return(versions, nil)
-				repoMock.EXPECT().
-					GetComponentVersion(gomock.Any(), "github.com/acme/backend", "2.0.0").
-					Return(&expectedDesc, nil)
-
-				desc, err := client.Get(ctx, ref)
-
-				Expect(err).ToNot(HaveOccurred())
-				Expect(desc).To(Equal(expectedDesc))
-			})
-
-			It("returns ErrNotFound when component has no versions", func() {
-				ref := compref.Ref{
-					Repository: repoSpec,
-					Component:  "github.com/acme/empty",
-					Version:    "",
-				}
-
-				providerMock.EXPECT().
-					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
-					Return(identity, nil)
-				resolverMock.EXPECT().
-					Resolve(gomock.Any(), identity).
-					Return(creds, nil)
-				providerMock.EXPECT().
-					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
-					Return(repoMock, nil)
-				repoMock.EXPECT().
-					ListComponentVersions(gomock.Any(), "github.com/acme/empty").
-					Return([]string{}, nil)
-
-				desc, err := client.Get(ctx, ref)
-
-				Expect(err).To(HaveOccurred())
-				Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
-				Expect(desc).To(Equal(descruntime.Descriptor{}))
-			})
-
-			It("returns ErrNotFound when repository doesn't exist", func() {
-				ref := compref.Ref{
-					Repository: repoSpec,
-					Component:  "github.com/acme/missing",
-					Version:    "",
-				}
-
-				providerMock.EXPECT().
-					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
-					Return(identity, nil)
-				resolverMock.EXPECT().
-					Resolve(gomock.Any(), identity).
-					Return(creds, nil)
-				providerMock.EXPECT().
-					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
-					Return(repoMock, nil)
-				repoMock.EXPECT().
-					ListComponentVersions(gomock.Any(), "github.com/acme/missing").
-					Return(nil, fmt.Errorf("repository name not known to registry"))
-
-				desc, err := client.Get(ctx, ref)
-
-				Expect(err).To(HaveOccurred())
-				Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
-				Expect(desc).To(Equal(descruntime.Descriptor{}))
-			})
-
-			It("returns error when listing versions fails", func() {
+		Context("reference validation", func() {
+			It("returns error when version is empty", func() {
 				ref := compref.Ref{
 					Repository: repoSpec,
 					Component:  "github.com/acme/backend",
 					Version:    "",
 				}
 
-				providerMock.EXPECT().
-					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
-					Return(identity, nil)
-				resolverMock.EXPECT().
-					Resolve(gomock.Any(), identity).
-					Return(creds, nil)
-				providerMock.EXPECT().
-					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
-					Return(repoMock, nil)
-				repoMock.EXPECT().
-					ListComponentVersions(gomock.Any(), "github.com/acme/backend").
-					Return(nil, fmt.Errorf("network error"))
-
 				desc, err := client.Get(ctx, ref)
 
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("network error"))
+				Expect(errors.Is(err, ErrInvalidComponentReference)).To(BeTrue())
+				Expect(err.Error()).To(ContainSubstring("invalid reference for Get"))
 				Expect(desc).To(Equal(descruntime.Descriptor{}))
 			})
 		})
@@ -640,6 +600,56 @@ var _ = Describe("OciClient", func() {
 			})
 		})
 
+		Context("reference validation", func() {
+			It("returns error when a reference has empty version", func() {
+				refs := []compref.Ref{
+					{
+						Repository: sourceRepoSpec,
+						Component:  "github.com/acme/backend",
+						Version:    "",
+					},
+				}
+
+				err := client.Copy(ctx, refs, targetRepoSpec)
+
+				Expect(err).To(HaveOccurred())
+				Expect(errors.Is(err, ErrInvalidComponentReference)).To(BeTrue())
+				Expect(err.Error()).To(ContainSubstring("invalid reference for Copy"))
+			})
+
+			It("returns error when second reference in slice has empty version", func() {
+				refs := []compref.Ref{
+					{
+						Repository: sourceRepoSpec,
+						Component:  "github.com/acme/backend",
+						Version:    "1.0.0",
+					},
+					{
+						Repository: sourceRepoSpec,
+						Component:  "github.com/acme/frontend",
+						Version:    "",
+					},
+				}
+
+				// First reference will be validated and processed, so we need mocks
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), sourceRepoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), sourceRepoSpec, creds).
+					Return(repoMock, nil)
+
+				err := client.Copy(ctx, refs, targetRepoSpec)
+
+				Expect(err).To(HaveOccurred())
+				Expect(errors.Is(err, ErrInvalidComponentReference)).To(BeTrue())
+				Expect(err.Error()).To(ContainSubstring("invalid reference for Copy"))
+			})
+		})
+
 		Context("transfer graph errors", func() {
 			It("returns error when called with empty references", func() {
 				err := client.Copy(ctx, []compref.Ref{}, targetRepoSpec)
@@ -771,6 +781,221 @@ var _ = Describe("OciClient", func() {
 				err := client.Copy(ctx, refs, targetOCISpec)
 
 				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+	})
+
+	Describe("AddAlias", func() {
+		var (
+			repoSpec *runtime.Unstructured
+			identity runtime.Identity
+			creds    map[string]string
+		)
+
+		BeforeEach(func() {
+			repoSpec = &runtime.Unstructured{
+				Data: map[string]interface{}{
+					"type": "oci",
+				},
+			}
+			identity = runtime.Identity{"type": "ociRegistry", "hostname": "ghcr.io"}
+			creds = map[string]string{"username": "user", "password": "pass"}
+		})
+
+		Context("reference and alias validation", func() {
+			It("returns error when reference version is empty", func() {
+				ref := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "",
+				}
+
+				err := client.AddAlias(ctx, ref, "latest")
+
+				Expect(err).To(HaveOccurred())
+				Expect(errors.Is(err, konfcompref.ErrInvalidComponentReference)).To(BeTrue())
+				Expect(err.Error()).To(ContainSubstring("invalid reference for AddAlias"))
+			})
+
+			It("returns error when alias is empty", func() {
+				ref := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "1.0.0",
+				}
+
+				err := client.AddAlias(ctx, ref, "")
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("alias must not be empty"))
+			})
+		})
+
+		Context("successful alias creation", func() {
+			It("creates a new alias for a semantic version", func() {
+				ref := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "1.2.3",
+				}
+
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+					Return(repoMock, nil)
+				repoMock.EXPECT().
+					AddComponentVersionAlias(gomock.Any(), "github.com/acme/backend", "1.2.3", "latest").
+					Return(nil)
+
+				err := client.AddAlias(ctx, ref, "latest")
+
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("creates an alias pointing to an existing alias", func() {
+				ref := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "latest", // Point to existing alias
+				}
+
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+					Return(repoMock, nil)
+				repoMock.EXPECT().
+					AddComponentVersionAlias(gomock.Any(), "github.com/acme/backend", "latest", "stable").
+					Return(nil)
+
+				err := client.AddAlias(ctx, ref, "stable")
+
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("error handling", func() {
+			It("returns ErrNotFound when component version doesn't exist", func() {
+				ref := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "99.99.99",
+				}
+
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+					Return(repoMock, nil)
+				repoMock.EXPECT().
+					AddComponentVersionAlias(gomock.Any(), "github.com/acme/backend", "99.99.99", "latest").
+					Return(repository.ErrNotFound)
+
+				err := client.AddAlias(ctx, ref, "latest")
+
+				Expect(err).To(HaveOccurred())
+				Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+			})
+
+			It("returns error when getting repository credential identity fails", func() {
+				ref := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "1.0.0",
+				}
+
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(nil, fmt.Errorf("invalid repo spec"))
+
+				err := client.AddAlias(ctx, ref, "latest")
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("getting repository for component reference"))
+				Expect(err.Error()).To(ContainSubstring("invalid repo spec"))
+			})
+
+			It("returns error when credential resolution fails with non-NotFound error", func() {
+				ref := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "1.0.0",
+				}
+
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(nil, fmt.Errorf("auth service unavailable"))
+
+				err := client.AddAlias(ctx, ref, "latest")
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("auth service unavailable"))
+			})
+
+			It("returns error when getting repository fails", func() {
+				ref := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "1.0.0",
+				}
+
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+					Return(nil, fmt.Errorf("repository unavailable"))
+
+				err := client.AddAlias(ctx, ref, "latest")
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("repository unavailable"))
+			})
+
+			It("returns error when AddComponentVersionAlias fails", func() {
+				ref := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "1.0.0",
+				}
+
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+					Return(repoMock, nil)
+				repoMock.EXPECT().
+					AddComponentVersionAlias(gomock.Any(), "github.com/acme/backend", "1.0.0", "latest").
+					Return(fmt.Errorf("permission denied"))
+
+				err := client.AddAlias(ctx, ref, "latest")
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("adding alias latest"))
+				Expect(err.Error()).To(ContainSubstring("permission denied"))
 			})
 		})
 	})
