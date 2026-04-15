@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/go-logr/logr"
+	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
+	"ocm.software/open-component-model/bindings/go/oci"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/repository"
 	"ocm.software/open-component-model/bindings/go/runtime"
@@ -48,49 +49,33 @@ type OciClient struct {
 
 // Get retrieves a component descriptor from an OCI registry by reference.
 //
-// # Version Resolution
-//
-// If ref.Version is empty, Get fetches the latest version by:
-//  1. Listing all versions of the component
-//  2. Sorting by semantic version
-//  3. Returning the highest version
-//
-// If ref.Version is specified, Get fetches that exact version.
-//
 // # Error Handling
 //
-// Returns ErrNotFound if:
-//   - The component doesn't exist in the repository
-//   - The specified version doesn't exist
-//   - The repository doesn't exist (404 from registry)
-//   - No versions exist for the component when fetching latest
+// Returns ErrInvalidComponentReference if the reference is incomplete or invalid.
+// Returns ErrNotFound if the component version doesn't exist in the repository.
+// Returns a generic error in case of other failures (e.g., repository access issues).
 func (c OciClient) Get(ctx context.Context, ref compref.Ref) (descruntime.Descriptor, error) {
+	if err := konfcompref.Validate(ref); err != nil {
+		return descruntime.Descriptor{},
+			errors.Join(ErrInvalidComponentReference, fmt.Errorf("invalid reference for Get: %w", err))
+	}
 	repo, err := c.getRepo(ctx, ref.Repository)
 	if err != nil {
 		return descruntime.Descriptor{},
 			fmt.Errorf("getting repository for component reference %s: %w", ref, err)
 	}
-	version := ref.Version
-	if version == "" {
-		var err error
-		version, err = c.getLatestComponentVersion(ctx, repo, ref)
-		if err != nil {
-			return descruntime.Descriptor{},
-				fmt.Errorf("getting latest component version: %w", err)
-		}
-	}
-	desc, err := repo.GetComponentVersion(ctx, ref.Component, version)
+	desc, err := repo.GetComponentVersion(ctx, ref.Component, ref.Version)
 	if errors.Is(err, repository.ErrNotFound) {
 		return descruntime.Descriptor{},
-			fmt.Errorf("%s: %w, target version %s", ref, ErrNotFound, version)
+			errors.Join(err, fmt.Errorf("%s: %w, target version %s", ref, ErrNotFound, ref.Version))
 	} else if err != nil {
 		return descruntime.Descriptor{},
-			fmt.Errorf("getting component version %s for component %s: %w", version, ref, err)
+			fmt.Errorf("getting component version %s for component %s: %w", ref.Version, ref, err)
 	}
 	return *desc, nil
 }
 
-func (c OciClient) getRepo(ctx context.Context, repoSpec runtime.Typed) (repository.ComponentVersionRepository, error) {
+func (c OciClient) getRepo(ctx context.Context, repoSpec runtime.Typed) (oci.ComponentVersionRepository, error) {
 	identity, err := c.provider.GetComponentVersionRepositoryCredentialConsumerIdentity(ctx, repoSpec)
 	if err != nil {
 		return nil, fmt.Errorf("getting credential consumer identity for %s: %w", repoSpec, err)
@@ -102,21 +87,18 @@ func (c OciClient) getRepo(ctx context.Context, repoSpec runtime.Typed) (reposit
 	} else if err != nil {
 		return nil, fmt.Errorf("resolving credentials for identity %s: %w", identity, err)
 	}
-	return c.provider.GetComponentVersionRepository(ctx, repoSpec, creds)
-}
-
-func (c OciClient) getLatestComponentVersion(
-	ctx context.Context, repo repository.ComponentVersionRepository, ref compref.Ref) (string, error) {
-	versions, err := repo.ListComponentVersions(ctx, ref.Component)
-	if err != nil && strings.Contains(strings.ToLower(err.Error()), "repository name not known to registry") {
-		return "", fmt.Errorf("no versions found for component %s: %w", ref, ErrNotFound)
-	} else if err != nil {
-		return "", fmt.Errorf("list component versions for component %s: %w", ref, err)
+	repo, err := c.provider.GetComponentVersionRepository(ctx, repoSpec, creds)
+	if err != nil {
+		return nil, err
 	}
-	if len(versions) == 0 {
-		return "", fmt.Errorf("no versions found for component %s: %w", ref, ErrNotFound)
+	ociRepo, ok := repo.(oci.ComponentVersionRepository)
+	if !ok {
+		return nil, fmt.Errorf(
+			"expected an OCI component version repository for spec %s, but got %T. (targeting unsupported CTF?)",
+			repoSpec, repo,
+		)
 	}
-	return versions[0], nil
+	return ociRepo, nil
 }
 
 // Save persists a component descriptor to an OCI registry.
@@ -146,9 +128,14 @@ func (c OciClient) Save(ctx context.Context, repoSpec runtime.Typed, desc descru
 }
 
 // Copy transfers references to the specified target repository.
+//
+// Returns ErrInvalidComponentReference if any reference is incomplete or invalid.
 func (c OciClient) Copy(ctx context.Context, artifactReferences []compref.Ref, targetRepoSpec runtime.Typed) error {
 	transferOptions := make([]transfer.Option, 0, len(artifactReferences)+1)
 	for _, ref := range artifactReferences {
+		if err := konfcompref.Validate(ref); err != nil {
+			return errors.Join(ErrInvalidComponentReference, fmt.Errorf("invalid reference for Copy: %w", err))
+		}
 		repo, err := c.getRepo(ctx, ref.Repository)
 		if err != nil {
 			return fmt.Errorf("getting repository for component reference %s: %w", ref, err)
@@ -166,6 +153,52 @@ func (c OciClient) Copy(ctx context.Context, artifactReferences []compref.Ref, t
 	}
 	if err := c.transferExecutor.Execute(ctx, transferGraphDefinition); err != nil {
 		return fmt.Errorf("executing copy: %w", err)
+	}
+	return nil
+}
+
+// AddAlias creates or updates a version alias for a component in the OCI registry.
+//
+// This implementation delegates to the underlying OCI repository's AddComponentVersionAlias
+// method, which creates an OCI tag (alias) pointing to the manifest/index of the specified
+// component version.
+//
+// The ref.Version can be an existing exact semantic version (e.g., "1.2.3"), or an existing alias.
+// The alias parameter is the tag name to create (e.g., "latest", "stable").
+//
+// If the alias already exists, it will be overwritten to point to the new version.
+// This enables updating rolling aliases like "latest".
+//
+// Example:
+//
+//	ref := compref.Ref{
+//	    Repository: ociSpec,
+//	    Component:  "github.com/acme/backend",
+//	    Version:    "2.1.0",
+//	}
+//	err := client.AddAlias(ctx, ref, "latest")
+//
+// # Error Handling
+//
+// Returns ErrInvalidComponentReference if the reference is incomplete or invalid.
+// Returns ErrNotFound if the component version doesn't exist in the repository.
+// Returns a generic error in case of other failures (e.g., repository access issues).
+func (c OciClient) AddAlias(ctx context.Context, ref compref.Ref, alias string) error {
+	if err := konfcompref.Validate(ref); err != nil {
+		return errors.Join(ErrInvalidComponentReference, fmt.Errorf("invalid reference for AddAlias: %w", err))
+	}
+	if alias == "" {
+		return errors.New("invalid input for AddAlias: %w: alias must not be empty")
+	}
+	repo, err := c.getRepo(ctx, ref.Repository)
+	if err != nil {
+		return fmt.Errorf("getting repository for component reference %s: %w", ref, err)
+	}
+	err = repo.AddComponentVersionAlias(ctx, ref.Component, ref.Version, alias)
+	if errors.Is(err, repository.ErrNotFound) {
+		return errors.Join(err, fmt.Errorf("%s: %w", ref, ErrNotFound))
+	} else if err != nil {
+		return fmt.Errorf("adding alias %s to component version %s: %w", alias, ref, err)
 	}
 	return nil
 }
