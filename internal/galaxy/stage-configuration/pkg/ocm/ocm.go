@@ -4,27 +4,25 @@ import (
 	"context"
 	"fmt"
 
+	pkgComp "github.com/konfidence-project/pkg/ocm/compref"
 	"github.com/konfidence-project/pkg/ocm/crypto"
-	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
-	"ocm.software/open-component-model/bindings/go/oci/compref"
+	pkgRepo "github.com/konfidence-project/pkg/ocm/repository"
 )
-
-var ErrVersionInReference = fmt.Errorf("version in vector component reference is not allowed in StageConfiguration")
 
 type VectorOCMAdapter struct {
 	VectorVerifier crypto.Verifier
-	OcmClient      pkgOcm.Client
+	OcmClient      pkgRepo.Client
 }
 
 func (o VectorOCMAdapter) GetLatestVectorVersion(ctx context.Context, registryAndComponent string) (string, error) {
-	vectorOCMComponent, err := parseAndValidateComponentReference(registryAndComponent)
+	vectorOCMComponent, err := pkgComp.Parse(registryAndComponent)
 	if err != nil {
 		return "", err
 	}
 
 	descriptor, err := o.OcmClient.Get(ctx, *vectorOCMComponent)
 	if err != nil {
-		return "", fmt.Errorf("unable to get latest version for vector ocm component (%s): %w", registryAndComponent, err)
+		return "", fmt.Errorf("unable to get specified version for vector ocm component (%s): %w", registryAndComponent, err)
 	}
 
 	version := descriptor.Component.Version
@@ -33,16 +31,7 @@ func (o VectorOCMAdapter) GetLatestVectorVersion(ctx context.Context, registryAn
 			registryAndComponent, version, err)
 	}
 
-	return version, nil
-}
-
-func parseAndValidateComponentReference(reference string) (*compref.Ref, error) {
-	parsedRef, err := compref.Parse(reference)
-	if err != nil {
-		return nil, err
-	}
-	if parsedRef.Version != "" {
-		return nil, ErrVersionInReference
-	}
-	return parsedRef, nil
+	vectorOCMComponent.Type = ""
+	vectorOCMComponent.Version = version
+	return vectorOCMComponent.String(), nil
 }

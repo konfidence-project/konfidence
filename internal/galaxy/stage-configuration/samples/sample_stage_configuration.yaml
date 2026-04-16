@@ -8,6 +8,6 @@ metadata:
   namespace: default
 spec:
   name: stage-dev
-  vector: http://localhost:5100//konfidence.cloud/project/constructed-vector
+  vector: http://localhost:5100/sample-project//konfidence.cloud/project/constructed-vector:latest
   targetWorkspace: root:lcp-1
-  targetNamespace: dev-test
+  targetNamespace: default

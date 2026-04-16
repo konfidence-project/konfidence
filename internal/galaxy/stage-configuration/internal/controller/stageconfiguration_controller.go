@@ -115,14 +115,11 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageConfiguration")
 
-	// get latest vector version
-	latestVersion, err := r.VectorPort.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
+	// get vector with specific version or alias
+	vector, err := r.VectorPort.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
 	if err != nil {
-		return fmt.Errorf("unable to get latest vector component version %s: %w", stageConfiguration.Spec.Vector, err)
+		return fmt.Errorf("unable to get vector component version %s: %w", stageConfiguration.Spec.Vector, err)
 	}
-
-	// combine vector with latest version
-	vector := stageConfiguration.Spec.Vector + ":" + latestVersion
 
 	// write to cluster or workspace
 	var targetClient client.Client
