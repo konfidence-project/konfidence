@@ -32,10 +32,10 @@ go.work.sum
 # editor and IDE paraphernalia
 .idea
 .vscode
+.zed/*
 *.swp
 *.swo
 *~
-
 terraform.tfstate
 
 
@@ -49,3 +49,5 @@ configs
 
 # generated files like CRDs for testing
 test/data/generated/
+
+.DS_Store
