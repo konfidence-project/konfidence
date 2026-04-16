@@ -41,7 +41,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 		StageSyncDev       = "sync-stage-dev"
 		V100               = "1.0.0"
 		V101               = "1.0.1"
-		Vector             = "http://localhost:5100//konfidence.cloud/project/constructed-vector"
+		VectorLatest       = "http://localhost:5100//konfidence.cloud/project/constructed-vector:latest"
 		VectorV100         = "http://localhost:5100//konfidence.cloud/project/constructed-vector" + ":" + V100
 		VectorV101         = "http://localhost:5100//konfidence.cloud/project/constructed-vector" + ":" + V101
 		Namespace          = "default"
@@ -85,9 +85,9 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 	})
 
 	Context("When reconciling a stageConfiguration", func() {
-		It("should successfully create a stageSync with latest vector version ", func() {
+		It("should successfully create a stageSync with specific vector version ", func() {
 			ctx := context.Background()
-			vectorPortMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V100, nil)
+			vectorPortMock.EXPECT().GetLatestVectorVersion(gomock.Any(), VectorV100).Return(VectorV100, nil)
 			// create target namespace
 			// note: since test env cannot delete namespaces the target namespace is created once in the first test
 			testutil.CreateNamespace(ctx, k8sClient, TargetNamespace)
@@ -100,7 +100,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// create stageConfiguration
-			testutil.CreateStageConfiguration(ctx, k8sClient, StageConfiguration, Namespace, TargetNamespace, StageDev, Vector)
+			testutil.CreateStageConfiguration(ctx, k8sClient, StageConfiguration, Namespace, TargetNamespace, StageDev, VectorV100)
 
 			// check that the stageConfiguration has been created and has valid properties
 			stageConfiguration := &global.StageConfiguration{}
@@ -108,7 +108,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
 				g.Expect(stageConfiguration.Spec.Name).To(Equal(StageDev))
-				g.Expect(stageConfiguration.Spec.Vector).To(Equal(Vector))
+				g.Expect(stageConfiguration.Spec.Vector).To(Equal(VectorV100))
 				g.Expect(stageConfiguration.Spec.TargetNamespace).To(Equal(TargetNamespace))
 			}, timeout, interval).Should(Succeed())
 
@@ -127,7 +127,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 		})
 		It("should successfully update an existing stage with latest vector version ", func() {
 			ctx := context.Background()
-			vectorPortMock.EXPECT().GetLatestVectorVersion(gomock.Any(), Vector).Return(V101, nil)
+			vectorPortMock.EXPECT().GetLatestVectorVersion(gomock.Any(), VectorLatest).Return(VectorV101, nil)
 
 			// create stageSync with v1.0.0 vector version
 			testutil.CreateStageSync(ctx, k8sClient, StageSyncDev, Namespace, StageConfiguration, TargetNamespace, StageDev, VectorV100)
@@ -145,7 +145,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// create stageConfiguration
-			testutil.CreateStageConfiguration(ctx, k8sClient, StageConfiguration, Namespace, TargetNamespace, StageDev, Vector)
+			testutil.CreateStageConfiguration(ctx, k8sClient, StageConfiguration, Namespace, TargetNamespace, StageDev, VectorLatest)
 
 			// check that the stageConfiguration has been created and has valid properties
 			stageConfiguration := &global.StageConfiguration{}
@@ -153,7 +153,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
 				g.Expect(stageConfiguration.Spec.Name).To(Equal(StageDev))
-				g.Expect(stageConfiguration.Spec.Vector).To(Equal(Vector))
+				g.Expect(stageConfiguration.Spec.Vector).To(Equal(VectorLatest))
 				g.Expect(stageConfiguration.Spec.TargetNamespace).To(Equal(TargetNamespace))
 			}, timeout, interval).Should(Succeed())
 
