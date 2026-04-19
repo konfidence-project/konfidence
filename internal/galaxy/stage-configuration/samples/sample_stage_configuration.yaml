@@ -11,3 +11,7 @@ spec:
   vector: http://localhost:5100/sample-project//konfidence.cloud/project/constructed-vector:latest
   targetWorkspace: root:star-1
   targetNamespace: default
+  config:
+    - kind: Secret
+      apiVersion: v1
+      name: registry-credentials

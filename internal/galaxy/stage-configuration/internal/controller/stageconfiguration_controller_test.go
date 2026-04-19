@@ -22,9 +22,12 @@ import (
 	"time"
 
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/domain/mocks"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/ports"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/ports/mocks"
 	testutil "github.com/konfidence-project/gcp-stage-configuration-controller/internal/utils"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
+	"github.com/konfidence-project/pkg/ocm/crypto"
+	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -63,9 +66,14 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 		vectorPortMock = mocks.NewMockVectorPort(mockCtrl)
 
 		reconciler = &StageConfigurationReconciler{
-			Mgr:        k8sManager,
-			VectorPort: vectorPortMock,
-			Scheme:     k8sScheme,
+			Mgr: k8sManager,
+			OcmClientProvider: pkgOcm.ClientProviderFunc(func(ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []global.CredentialsConfig) (pkgOcm.Client, error) {
+				return nil, nil
+			}),
+			VectorPortProvider: ports.VectorPortProviderFunc(func(verifier crypto.Verifier, client pkgOcm.Client) ports.VectorPort {
+				return vectorPortMock
+			}),
+			Scheme: k8sScheme,
 		}
 		err := reconciler.SetupWithManager(k8sManager)
 		Expect(err).ToNot(HaveOccurred())

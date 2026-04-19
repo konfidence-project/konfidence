@@ -6,6 +6,8 @@ import (
 
 	pkgComp "github.com/konfidence-project/pkg/ocm/compref"
 	"github.com/konfidence-project/pkg/ocm/crypto"
+
+	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/ports"
 	pkgRepo "github.com/konfidence-project/pkg/ocm/repository"
 )
 
@@ -35,3 +37,10 @@ func (o VectorOCMAdapter) GetLatestVectorVersion(ctx context.Context, registryAn
 	vectorOCMComponent.Version = version
 	return vectorOCMComponent.String(), nil
 }
+
+var DefaultPortProvider = ports.VectorPortProviderFunc(func(verifier crypto.Verifier, client pkgRepo.Client) ports.VectorPort {
+	return VectorOCMAdapter{
+		VectorVerifier: verifier,
+		OcmClient:      client,
+	}
+})
