@@ -26,8 +26,7 @@ import (
 
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/domain"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
+	"github.com/konfidence-project/pkg/ocm/crypto"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +42,10 @@ import (
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
+
+	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/ports"
+	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
+	"github.com/konfidence-project/pkg/ocm/repository"
 )
 
 const (
@@ -52,16 +55,16 @@ const (
 	ClusterPattern                   = "\\/clusters\\/[^/]+$"
 )
 
-var (
-	ClusterRegex = regexp.MustCompile(ClusterPattern)
-)
+var ClusterRegex = regexp.MustCompile(ClusterPattern)
 
 // StageConfigurationReconciler reconciles a StageConfiguration object
 type StageConfigurationReconciler struct {
-	Mgr        mcmanager.Manager
-	VectorPort domain.VectorPort
-	Scheme     *runtime.Scheme
-	RestConfig *rest.Config
+	Mgr                mcmanager.Manager
+	OcmClientProvider  repository.ClientProvider
+	VectorPortProvider ports.VectorPortProvider
+	Scheme             *runtime.Scheme
+	RestConfig         *rest.Config
+	OcmVerifier        crypto.Verifier
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -113,13 +116,25 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 	return ctrl.Result{RequeueAfter: DefaultReconcileInterval}, nil
 }
 
-func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.Context, clusterClient client.Client, stageConfiguration *global.StageConfiguration, recorder events.EventRecorder) error {
+func (r *StageConfigurationReconciler) reconcileStageConfiguration(
+	ctx context.Context,
+	clusterClient client.Client,
+	stageConfiguration *global.StageConfiguration,
+	recorder events.EventRecorder,
+) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageConfiguration")
 	r.updateStageConfigurationReadyStatus(stageConfiguration, false, "")
 
+	ocmClient, err := r.OcmClientProvider.NewClient(ctx, clusterClient, stageConfiguration.GetNamespace(), stageConfiguration.Spec.Config)
+	if err != nil {
+		return fmt.Errorf("unable to create OCM client: %w", err)
+	}
+
+	vectorPort := r.VectorPortProvider.NewVectorPort(r.OcmVerifier, ocmClient)
+
 	// get vector with specific version or alias
-	vector, err := r.VectorPort.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
+	vector, err := vectorPort.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
 	if err != nil {
 		return fmt.Errorf("unable to get vector component version %s: %w", stageConfiguration.Spec.Vector, err)
 	}
@@ -143,7 +158,6 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 		cl, err := client.New(targetCfg, client.Options{
 			Scheme: r.Scheme,
 		})
-
 		if err != nil {
 			return fmt.Errorf("could not create target client from rest config %w", err)
 		}
@@ -187,7 +201,6 @@ func (r *StageConfigurationReconciler) createOrUpdateStageSync(ctx context.Conte
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, operationResult, fmt.Errorf("failed to create or update stageSync: %w", err)
 	}

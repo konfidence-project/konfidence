@@ -8,12 +8,16 @@ Dockerfile.cross
 
 # Do ignore things like bin/k8s/
 bin/*/
+bin/manager
 
 # Do not ignore hermit binary and pkg files in bin/
 !bin/hermit
 !bin/.hermit/
 !bin/*.pkg
 !bin/.*pkg
+
+# Ignore Go-installed tool binaries in .hermit
+.hermit/go/bin/*
 
 # Test binary, built with `go test -c`
 *.test
@@ -35,6 +39,11 @@ go.work.sum
 *.swo
 *~
 .DS_Store
+__debug*
 
 # crd test data
 test/data/
+
+# ignore zot data
+*/zot-data/*
+*/zot-data-target/*
