@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -81,7 +82,7 @@ func AdaptVectorName(vector string) (string, error) {
 	return adaptedVector, nil
 }
 
-func ComputeDigest(content string) (string, error) {
+func ComputeFnv64Digest(content string) (string, error) {
 	if len(content) == 0 {
 		return "", fmt.Errorf("content is empty")
 	}
@@ -91,5 +92,25 @@ func ComputeDigest(content string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to compute digest: %w", err)
 	}
+
+	// encode to base36
 	return strconv.FormatUint(digest.Sum64(), 36), nil
+}
+
+func ComputeFnv128Digest(content string) (string, error) {
+	if len(content) == 0 {
+		return "", fmt.Errorf("content is empty")
+	}
+
+	digest := fnv.New128a()
+	_, err := digest.Write([]byte(content))
+	if err != nil {
+		return "", fmt.Errorf("unable to compute digest: %w", err)
+	}
+
+	hashBytes := digest.Sum(nil)
+	n := new(big.Int).SetBytes(hashBytes)
+
+	// encode to base36
+	return n.Text(36), nil
 }

@@ -296,15 +296,15 @@ func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, sta
 }
 
 func getStageVersionLabels(stage *landscape.Stage) (map[string]string, error) {
-	// TODO label and key value must have a max length of 63, cut vector name to last 63?
-	adaptedVectorName, err := util.AdaptVectorName(stage.Spec.Vector)
+	// use vector hash as vector ref for now
+	digest, err := util.ComputeFnv128Digest(stage.Spec.Vector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to compute digest for stage vector: %w", err)
 	}
 
 	return map[string]string{
 		StageNameLabel:       stage.Name,
-		VectorReferenceLabel: adaptedVectorName,
+		VectorReferenceLabel: digest,
 	}, nil
 }
 
@@ -316,7 +316,7 @@ func getTargetStageVersionUsageLabels(stage *landscape.Stage) map[string]string 
 
 func getStageVersionName(stage *landscape.Stage) (string, error) {
 	content := fmt.Sprintf("%s-%s-%d", stage.Name, stage.Spec.Vector, stage.Generation)
-	digest, err := util.ComputeDigest(content)
+	digest, err := util.ComputeFnv64Digest(content)
 	if err != nil {
 		return "", fmt.Errorf("unable to compute digest for stageVersion name: %w", err)
 	}
