@@ -19,9 +19,13 @@ spec:
       jsonPath: .spec.vectorPromotionConfigRef
       name: Config
       type: string
-    - description: The overall state of the promotion
-      jsonPath: .status.state
-      name: State
+    - description: Promotion was successful
+      jsonPath: .status.conditions[0].status
+      name: Promotion Succeeded
+      type: string
+    - description: Promotion condition reason
+      jsonPath: .status.conditions[0].reason
+      name: Reason
       type: string
     - description: Age
       jsonPath: .metadata.creationTimestamp
@@ -53,9 +57,9 @@ spec:
           spec:
             description: VectorPromotionSpec defines the desired state of VectorPromotion.
             properties:
-              ttl:
+              ttlAfterFinished:
                 description: |-
-                  TTL defines how long the VectorPromotion should be kept after completion.
+                  TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
                   Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
                   the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
                 type: string
@@ -126,14 +130,6 @@ spec:
                   - type
                   type: object
                 type: array
-              state:
-                description: State reflects the overall lifecycle state of the promotion.
-                enum:
-                - Pending
-                - Running
-                - Completed
-                - Failed
-                type: string
             type: object
         type: object
     served: true

@@ -251,7 +251,7 @@ _Appears in:_
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[VectorPromotionConfigSpec](#vectorpromotionconfigspec)_ | Spec defines the desired state of the VectorPromotionConfig and is immutable after it has been set |  | Optional: \{\} <br /> |
+| `spec` _[VectorPromotionConfigSpec](#vectorpromotionconfigspec)_ | Spec defines the desired state of the VectorPromotionConfig. |  | Optional: \{\} <br /> |
 | `status` _[VectorPromotionConfigStatus](#vectorpromotionconfigstatus)_ |  |  |  |
 
 
@@ -288,8 +288,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `source` _string_ | Source is the OCM component reference to promote from.<br />This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted. |  | MinLength: 1 <br /> |
-| `target` _string_ | Target is the OCM component reference to promote to.<br />This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version. |  | MinLength: 1 <br /> |
+| `source` _string_ | Source is the OCM component reference to promote from.<br />This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.<br />The format is <registry>//<component-name>:<version>. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
+| `target` _string_ | Target is the OCM component reference to promote to.<br />This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.<br />The format is <registry>//<component-name>:<version>. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
 
 
 #### VectorPromotionConfigStatus
@@ -305,8 +305,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `lastPromotionTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#time-v1-meta)_ | LastPromotionTime reflects the last successful execution of a promotion with this configuration. |  | Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+| `lastPromotionConditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | LastPromotionConditions contains the result of the most recent VectorPromotion execution |  |  |
+| `lastSuccessfulPromotionConditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | LastSuccessfulPromotionConditions contains the result of the most recent VectorPromotion execution, that was successful |  |  |
 
 
 #### VectorPromotionList
@@ -343,7 +343,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `vectorPromotionConfigRef` _string_ | VectorPromotionConfigRef is the name of the VectorPromotionConfig that defines the promotion flow to execute. |  | MinLength: 1 <br /> |
-| `ttl` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTL defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
+| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
 
 
 #### VectorPromotionStatus
@@ -359,7 +359,6 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `state` _string_ | State reflects the overall lifecycle state of the promotion. |  | Enum: [Pending Running Completed Failed] <br />Optional: \{\} <br /> |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
 
 
