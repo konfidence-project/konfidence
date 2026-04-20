@@ -5,4 +5,4 @@ metadata:
   name: sample-vector-promotion
 spec:
   vectorPromotionConfigRef: sample-promotion-config
-  ttl: 1h
+  ttlAfterFinished: 1h

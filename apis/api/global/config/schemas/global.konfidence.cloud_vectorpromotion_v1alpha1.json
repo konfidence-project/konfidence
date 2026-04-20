@@ -15,8 +15,8 @@
     "spec": {
       "description": "VectorPromotionSpec defines the desired state of VectorPromotion.",
       "properties": {
-        "ttl": {
-          "description": "TTL defines how long the VectorPromotion should be kept after completion.\nOnce the TTL expires after the promotion reaches a terminal state (Completed or Failed),\nthe resource is eligible for automatic deletion. If no TTL is set, no deletion happens.",
+        "ttlAfterFinished": {
+          "description": "TTLAfterFinished defines how long the VectorPromotion should be kept after completion.\nOnce the TTL expires after the promotion reaches a terminal state (Completed or Failed),\nthe resource is eligible for automatic deletion. If no TTL is set, no deletion happens.",
           "type": "string"
         },
         "vectorPromotionConfigRef": {
@@ -86,16 +86,6 @@
             "type": "object"
           },
           "type": "array"
-        },
-        "state": {
-          "description": "State reflects the overall lifecycle state of the promotion.",
-          "enum": [
-            "Pending",
-            "Running",
-            "Completed",
-            "Failed"
-          ],
-          "type": "string"
         }
       },
       "type": "object"

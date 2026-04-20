@@ -24,14 +24,23 @@ const (
 	// VectorPromotionKind is kind of the VectorPromotion resource.
 	VectorPromotionKind = "VectorPromotion"
 
-	// VectorPromotionStatePending indicates that the promotion has been created and is waiting to be executed.
-	VectorPromotionStatePending = "Pending"
-	// VectorPromotionStateRunning indicates that the promotion is currently being executed.
-	VectorPromotionStateRunning = "Running"
-	// VectorPromotionStateCompleted indicates that the promotion has been completed successfully.
-	VectorPromotionStateCompleted = "Completed"
-	// VectorPromotionStateFailed indicates that the promotion has failed.
-	VectorPromotionStateFailed = "Failed"
+	// ConditionTypeSucceeded is the condition type for promotion results.
+	ConditionTypeSucceeded = "Succeeded"
+
+	// ReasonPromotionStatusUnknown indicates that the promotion status is unknown.
+	ReasonPromotionStatusUnknown = "PromotionStatusUnknown"
+	// ReasonPromotionSucceeded indicates the promotion completed successfully.
+	ReasonPromotionSucceeded = "PromotionSucceeded"
+	// ReasonInvalidPromotionConfiguration indicates the promotion configuration is invalid.
+	ReasonInvalidPromotionConfiguration = "InvalidPromotionConfiguration"
+	// ReasonPromotionConfigurationNotFound indicates the referenced VectorPromotionConfig was not found.
+	ReasonPromotionConfigurationNotFound = "PromotionConfigurationNotFound"
+	// ReasonPromotionSourceNotFound indicates the source vector was not found.
+	ReasonPromotionSourceNotFound = "PromotionSourceNotFound"
+	// ReasonPromotionFailed is a catch-all for other promotion errors.
+	ReasonPromotionFailed = "PromotionFailed"
+	// ReasonPromotionRunning indicates that the promotion is still running.
+	ReasonPromotionRunning = "PromotionRunning"
 )
 
 // VectorPromotionSpec defines the desired state of VectorPromotion.
@@ -40,26 +49,23 @@ type VectorPromotionSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	VectorPromotionConfigRef string `json:"vectorPromotionConfigRef"`
 
-	// TTL defines how long the VectorPromotion should be kept after completion.
+	// TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
 	// Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
 	// the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
 	// +kubebuilder:validation:Optional
-	TTL *metav1.Duration `json:"ttl,omitempty"`
+	TTLAfterFinished *metav1.Duration `json:"ttlAfterFinished,omitempty"`
 }
 
 // VectorPromotionStatus defines the observed state of VectorPromotion.
 type VectorPromotionStatus struct {
-	// State reflects the overall lifecycle state of the promotion.
-	// +kubebuilder:validation:Enum=Pending;Running;Completed;Failed
-	// +optional
-	State      string             `json:"state,omitempty"`
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Config",type=string,JSONPath=".spec.vectorPromotionConfigRef",description="The referenced VectorPromotionConfig"
-// +kubebuilder:printcolumn:name="State",type=string,JSONPath=".status.state",description="The overall state of the promotion"
+// +kubebuilder:printcolumn:name="Promotion Succeeded",type=string,JSONPath=".status.conditions[0].status",description="Promotion was successful"
+// +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".status.conditions[0].reason",description="Promotion condition reason"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Age"
 
 // VectorPromotion triggers a one-time execution of a promotion flow defined by a VectorPromotionConfig.
