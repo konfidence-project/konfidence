@@ -43,10 +43,6 @@ type StageVersionUsageReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-const (
-	StageVersionUsageFinalizer = "konfidence.cloud/stage-version-usage-finalizer"
-)
-
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=stageversionusages,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=stageversionusages/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete

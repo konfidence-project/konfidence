@@ -23,6 +23,7 @@ import (
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
 	testutil "github.com/konfidence-project/landscape-stage-controller/internal/utils"
+	pkgCtrl "github.com/konfidence-project/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -55,8 +56,8 @@ var _ = Describe("Stage Controller", Ordered, func() {
 
 	const (
 		StageDev                    = "stage-dev"
-		StageVersion                = "stage-version-3j5rp95ig707y"
-		StageVersionUpdated         = "stage-version-n31v4bxt7p2"
+		StageVersion                = "stage-dev-3j5rp95ig707y"
+		StageVersionUpdated         = "stage-dev-n31v4bxt7p2"
 		Namespace                   = "default"
 		Vector001                   = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.tools.cloud/example/vector:0.0.1"
 		Vector002                   = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.tools.cloud/example/vector:0.0.2"
@@ -159,8 +160,8 @@ func verifyStageVersion(ctx context.Context, k8sClient client.Client, stageVersi
 		g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 		g.Expect(stageVersion.Spec.Vector).To(Equal(stage.Spec.Vector))
 		g.Expect(stageVersion.Spec.StageGeneration).To(Equal(stage.Generation))
-		g.Expect(stageVersion.Labels[controller.StageNameLabel]).To(Equal(stage.Name))
-		g.Expect(stageVersion.Labels[controller.VectorReferenceLabel]).To(Equal(vectorRef))
+		g.Expect(stageVersion.Labels[pkgCtrl.StageNameLabel]).To(Equal(stage.Name))
+		g.Expect(stageVersion.Labels[pkgCtrl.VectorReferenceLabel]).To(Equal(vectorRef))
 		g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
 		g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
 			Kind: landscape.StageKind,
@@ -178,11 +179,11 @@ func verifyStageVersionUsage(ctx context.Context, k8sClient client.Client, names
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.List(ctx, stageVersionUsages, client.InNamespace(namespace))).To(Succeed())
 		g.Expect(stageVersionUsages.Items).To(HaveLen(1))
-		g.Expect(stageVersionUsages.Items[0].Labels[controller.StageVersionUsageTarget]).To(Equal(stage.Name))
+		g.Expect(stageVersionUsages.Items[0].Labels[pkgCtrl.StageVersionUsageTarget]).To(Equal(stage.Name))
 		g.Expect(stageVersionUsages.Items[0].GetOwnerReferences()).To(HaveLen(1))
 		g.Expect(stageVersionUsages.Items[0].Spec.Reason).To(Equal(controller.StageVersionUsageTargetType))
-		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[controller.StageNameLabel]).To(Equal(stage.Name))
-		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[controller.VectorReferenceLabel]).To(Equal(vectorRef))
+		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[pkgCtrl.StageNameLabel]).To(Equal(stage.Name))
+		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[pkgCtrl.VectorReferenceLabel]).To(Equal(vectorRef))
 		g.Expect(testutil.HasOwnerReference(stageVersionUsages.Items[0].GetOwnerReferences(), metav1.OwnerReference{
 			Kind: landscape.StageKind,
 			Name: stage.Name,
