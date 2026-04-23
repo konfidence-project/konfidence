@@ -1,5 +1,7 @@
 package crypto
 
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_ocm_signer.go -package=mocks ocm.software/open-component-model/bindings/go/signing Signer
+
 import (
 	"context"
 	"fmt"

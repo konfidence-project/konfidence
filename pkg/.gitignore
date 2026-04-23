@@ -15,6 +15,9 @@ bin/*/
 !bin/*.pkg
 !bin/.*pkg
 
+# Ignore Go-installed tool binaries in .hermit
+.hermit/go/bin/*
+
 # Test binary, built with `go test -c`
 *.test
 

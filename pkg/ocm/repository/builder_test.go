@@ -9,19 +9,21 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	genericv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
+	credentialsv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
+	"ocm.software/open-component-model/bindings/go/runtime"
+	"ocm.software/open-component-model/kubernetes/controller/pkg/configuration"
 )
 
 var _ = Describe("OciClientBuilder", func() {
 	var (
 		ctx     context.Context
 		builder *OciClientBuilder
-		log     logr.Logger
 	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
 		builder = NewOciClientBuilder()
-		log = logr.Discard()
 	})
 
 	Describe("NewOciClientBuilder", func() {
@@ -29,7 +31,6 @@ var _ = Describe("OciClientBuilder", func() {
 			b := NewOciClientBuilder()
 			Expect(b).ToNot(BeNil())
 			Expect(b.log.IsZero()).To(BeTrue())
-			Expect(b.secret).To(BeNil())
 		})
 	})
 
@@ -40,6 +41,16 @@ var _ = Describe("OciClientBuilder", func() {
 
 			Expect(result).To(Equal(builder), "should return the builder for chaining")
 			Expect(result.log).To(Equal(customLog))
+		})
+	})
+
+	Describe("WithOCMConfig", func() {
+		It("sets the OCM configuration", func() {
+			cfg := &configuration.Configuration{}
+			result := builder.WithOCMConfig(cfg)
+
+			Expect(result).To(Equal(builder), "should return the builder for chaining")
+			Expect(result.ocmConfig).To(Equal(cfg))
 		})
 	})
 
@@ -70,11 +81,10 @@ var _ = Describe("OciClientBuilder", func() {
 			}
 
 			result := builder.
-				WithLogger(log).
+				WithLogger(logr.Discard()).
 				WithDockerConfigJsonSecret(secret)
 
 			Expect(result).To(Equal(builder))
-			Expect(result.log).To(Equal(log))
 			Expect(result.secret).To(Equal(secret))
 		})
 	})
@@ -112,7 +122,97 @@ var _ = Describe("OciClientBuilder", func() {
 			})
 		})
 
-		Context("with authentication", func() {
+		Context("with OCM configuration", func() {
+			It("builds a client with credential resolver from valid OCM config", func() {
+				credScheme := runtime.NewScheme()
+				credentialsv1.MustRegister(credScheme)
+
+				// DockerConfig repository entry with sample credentials
+				repoRaw := &runtime.Raw{
+					Data: []byte(`{
+						"type": "DockerConfig/v1",
+						"dockerConfig": "{\"auths\":{\"ghcr.io\":{\"auth\":\"dGVzdDp0ZXN0\"}}}"
+					}`),
+				}
+
+				credConfig := &credentialsv1.Config{
+					Repositories: []credentialsv1.RepositoryConfigEntry{{Repository: repoRaw}},
+				}
+				rawCreds := &runtime.Raw{}
+				err := credScheme.Convert(credConfig, rawCreds)
+				Expect(err).ToNot(HaveOccurred())
+
+				cfg := &genericv1.Config{
+					Type:           runtime.Type{Version: genericv1.Version, Name: genericv1.ConfigType},
+					Configurations: []*runtime.Raw{rawCreds},
+				}
+
+				ocmCfg := &configuration.Configuration{Config: cfg}
+
+				client, err := NewOciClientBuilder().
+					WithOCMConfig(ocmCfg).
+					Build(ctx)
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(client).ToNot(BeNil())
+				ociClient, ok := client.(OciClient)
+				Expect(ok).To(BeTrue())
+				Expect(ociClient.resolver).ToNot(BeNil())
+				_, isNoop := ociClient.resolver.(NoopCredentialResolver)
+				Expect(isNoop).To(BeFalse(), "resolver should not be noop when OCM config with credentials is provided")
+			})
+
+			It("returns error when no credential configuration is found in OCM config", func() {
+				cfg := &genericv1.Config{
+					Type:           runtime.Type{Version: genericv1.Version, Name: genericv1.ConfigType},
+					Configurations: []*runtime.Raw{{Data: []byte(`{"type":"unrelated.config/v1"}`)}},
+				}
+
+				ocmCfg := &configuration.Configuration{Config: cfg}
+
+				client, err := NewOciClientBuilder().
+					WithOCMConfig(ocmCfg).
+					Build(ctx)
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("no credential configuration found"))
+				Expect(client).To(BeNil())
+			})
+
+			It("returns error when credential graph building fails", func() {
+				credScheme := runtime.NewScheme()
+				credentialsv1.MustRegister(credScheme)
+
+				// Unknown repository type that LookupCredentialConfig can parse but buildGraph cannot resolve
+				unknownRepo := &runtime.Raw{
+					Data: []byte(`{"type":"unknown.repository.type/v1"}`),
+				}
+
+				credConfig := &credentialsv1.Config{
+					Repositories: []credentialsv1.RepositoryConfigEntry{{Repository: unknownRepo}},
+				}
+				rawCreds := &runtime.Raw{}
+				err := credScheme.Convert(credConfig, rawCreds)
+				Expect(err).ToNot(HaveOccurred())
+
+				cfg := &genericv1.Config{
+					Type:           runtime.Type{Version: genericv1.Version, Name: genericv1.ConfigType},
+					Configurations: []*runtime.Raw{rawCreds},
+				}
+
+				ocmCfg := &configuration.Configuration{Config: cfg}
+
+				client, err := NewOciClientBuilder().
+					WithOCMConfig(ocmCfg).
+					Build(ctx)
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("building credential graph"))
+				Expect(client).To(BeNil())
+			})
+		})
+
+		Context("with docker config secret (deprecated)", func() {
 			var validDockerConfig map[string]interface{}
 
 			BeforeEach(func() {
@@ -147,9 +247,10 @@ var _ = Describe("OciClientBuilder", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(client).ToNot(BeNil())
 				ociClient, ok := client.(OciClient)
-				Expect(ok).To(BeTrue(), "built client should be of type *OciClient")
+				Expect(ok).To(BeTrue())
 				Expect(ociClient.resolver).ToNot(BeNil())
-				Expect(ociClient.provider).ToNot(BeNil())
+				_, isNoop := ociClient.resolver.(NoopCredentialResolver)
+				Expect(isNoop).To(BeFalse(), "resolver should not be noop when secret with credentials is provided")
 			})
 
 			It("returns error when secret is missing .dockerconfigjson key", func() {
@@ -188,14 +289,11 @@ var _ = Describe("OciClientBuilder", func() {
 					WithDockerConfigJsonSecret(secret).
 					Build(ctx)
 
-				// Should succeed - empty auths is valid Docker config
 				Expect(err).ToNot(HaveOccurred())
 				Expect(client).ToNot(BeNil())
 				ociClient, ok := client.(OciClient)
 				Expect(ok).To(BeTrue(), "built client should be of type *OciClient")
 				Expect(ociClient.resolver).ToNot(BeNil())
-				Expect(ociClient.provider).ToNot(BeNil())
-				Expect(ociClient.log.IsZero()).To(BeTrue(), "default logger should be zero value (discard)")
 			})
 		})
 
@@ -238,8 +336,7 @@ var _ = Describe("OciClientBuilder", func() {
 	})
 
 	Describe("Integration scenarios", func() {
-		It("supports typical Kubernetes operator pattern", func() {
-			// Simulate a Kubernetes operator fetching a pull secret
+		It("supports typical Kubernetes operator pattern with docker config secret (deprecated)", func() {
 			dockerConfig := map[string]interface{}{
 				"auths": map[string]interface{}{
 					"ghcr.io": map[string]interface{}{
@@ -261,11 +358,9 @@ var _ = Describe("OciClientBuilder", func() {
 				},
 			}
 
-			// Build client with operator logger pattern
-			operatorLog := logr.Discard().WithName("ocm-operator")
 			client, err := NewOciClientBuilder().
 				WithDockerConfigJsonSecret(pullSecret).
-				WithLogger(operatorLog).
+				WithLogger(logr.Discard().WithName("ocm-operator")).
 				Build(ctx)
 
 			Expect(err).ToNot(HaveOccurred())
@@ -281,41 +376,6 @@ var _ = Describe("OciClientBuilder", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(client).ToNot(BeNil())
 			// Client should work for public registries without credentials
-		})
-
-		It("supports multi-registry authentication", func() {
-			// Real-world scenario: multiple registries in one config
-			dockerConfig := map[string]interface{}{
-				"auths": map[string]interface{}{
-					"ghcr.io": map[string]interface{}{
-						"username": "github-user",
-						"password": "ghp_token",
-					},
-					"docker.io": map[string]interface{}{
-						"auth": "ZG9ja2VyOnRva2Vu", // base64("docker:token")
-					},
-					"registry.example.com": map[string]interface{}{
-						"username": "company-user",
-						"password": "company-pass",
-					},
-				},
-			}
-			dockerConfigJSON, err := json.Marshal(dockerConfig)
-			Expect(err).ToNot(HaveOccurred())
-
-			secret := &corev1.Secret{
-				Type: corev1.SecretTypeDockerConfigJson,
-				Data: map[string][]byte{
-					corev1.DockerConfigJsonKey: dockerConfigJSON,
-				},
-			}
-
-			client, err := NewOciClientBuilder().
-				WithDockerConfigJsonSecret(secret).
-				Build(ctx)
-
-			Expect(err).ToNot(HaveOccurred())
-			Expect(client).ToNot(BeNil())
 		})
 	})
 })

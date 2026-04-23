@@ -1,5 +1,7 @@
 package crypto
 
+//go:generate go run go.uber.org/mock/mockgen -source=digester.go -destination=internal/mocks/mock_digester.go -package=mocks
+
 import (
 	"context"
 	"crypto"

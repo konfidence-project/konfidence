@@ -49,34 +49,31 @@
 //	    // Use the descriptor...
 //	}
 //
-// # Authentication with Kubernetes Secrets
+// # Client Provider
 //
-// For private OCI registries, provide a Kubernetes Secret containing Docker config JSON.
-// The secret must be of type kubernetes.io/dockerconfigjson:
+// Use ClientProvider to obtain an authenticated Client without managing credential resolution directly.
+// It handles credential resolution, including loading OCM configurations from the
+// Kubernetes API, so controllers do not need to manage this directly.
 //
-//	// Load your secret from the Kubernetes API or construct it
-//	secret := &corev1.Secret{
-//	    Type: corev1.SecretTypeDockerConfigJson,
-//	    Data: map[string][]byte{
-//	        corev1.DockerConfigJsonKey: []byte(`{"auths":{"registry.example.com":{"auth":"..."}}}`),
-//	    },
-//	}
+// Use DefaultOciClientProvider for standard use cases:
 //
-//	client, err := repository.NewOciClientBuilder().
-//	    WithDockerConfigJsonSecret(secret).
-//	    WithLogger(logger).
-//	    Build(ctx)
+//	client, err := repository.DefaultOciClientProvider.NewClient(
+//	    ctx,
+//	    r.Client,          // sigs.k8s.io/controller-runtime/pkg/client.Reader
+//	    req.Namespace,
+//	    credentialsConfig, // []global.CredentialsConfig from the reconciled resource
+//	)
 //	if err != nil {
-//	    log.Fatal(err)
+//	    return ctrl.Result{}, err
 //	}
 //
-// The builder automatically:
-//   - Parses the Docker config JSON from the secret
-//   - Creates an OCM credential graph for authenticating with registries
-//   - Configures the credential resolver to match registry hostnames with credentials
+// For testing, use ClientProviderFunc to adapt any function to the ClientProvider interface:
 //
-// If no credentials are found for a given registry, the client attempts anonymous access,
-// which works for public registries.
+//	fakeProvider := repository.ClientProviderFunc(
+//	    func(ctx context.Context, k8sClient client.Reader, namespace string, creds []global.CredentialsConfig) (repository.Client, error) {
+//	        return myFakeClient, nil
+//	    },
+//	)
 //
 // # Reading Component Descriptors
 //

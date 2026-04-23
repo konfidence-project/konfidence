@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/go-logr/logr"
-	mocks "github.com/konfidence-project/pkg/ocm/crypto/mocks"
+	"github.com/konfidence-project/pkg/ocm/crypto/internal/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -202,7 +202,8 @@ var _ = Describe("RSASigner", func() {
 			Return(runtime.SignatureInfo{
 				Algorithm: string(rsav1alpha1.AlgorithmRSASSAPSS),
 				Value:     "sig_data",
-				MediaType: string(rsav1alpha1.SignatureEncodingPolicyPEM)}, nil)
+				MediaType: string(rsav1alpha1.SignatureEncodingPolicyPEM),
+			}, nil)
 		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, creds).Times(1).
 			Return(runtime.SignatureInfo{}, fmt.Errorf("signing failed"))
 		signer := &RSASigner{

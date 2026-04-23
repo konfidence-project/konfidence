@@ -1,5 +1,7 @@
 package repository
 
+//go:generate go run go.uber.org/mock/mockgen -source=client.go -destination=internal/mocks/mock_client_port.go -package=mocks
+
 import (
 	"context"
 	"errors"

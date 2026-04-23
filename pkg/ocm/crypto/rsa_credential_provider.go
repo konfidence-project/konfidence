@@ -1,5 +1,7 @@
 package crypto
 
+//go:generate go run go.uber.org/mock/mockgen -source=rsa_credential_provider.go -destination=internal/mocks/mock_rsa_credential_provider.go -package=mocks
+
 import (
 	"context"
 	"fmt"
