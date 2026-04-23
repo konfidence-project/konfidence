@@ -111,6 +111,7 @@ var _ = Describe("VectorActivation Controller", func() {
 				g.Expect(k8sClient.List(ctx, executionList, client.InNamespace(Namespace))).To(Succeed())
 				g.Expect(executionList.Items).ToNot(BeEmpty(), "expected ActivationTaskExecutions to be created for VectorActivationName")
 				for _, execution := range executionList.Items {
+					g.Expect(execution.Name).To(HavePrefix(RegistrationName + "-"))
 					g.Expect(execution.Status.Conditions).To(BeEmpty())
 					g.Expect(execution.OwnerReferences).ToNot(BeEmpty())
 					g.Expect(execution.OwnerReferences[0].UID).To(Equal(vectorActivation.UID))

@@ -29,7 +29,7 @@ func CreateExecution(ctx context.Context, c client.Client, namespace string, vec
 	log := logf.FromContext(ctx)
 	activationExecution := &landscape.ActivationTaskExecution{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "activation-execution-",
+			GenerateName: registration.Name + "-",
 			Namespace:    namespace,
 			Labels: map[string]string{
 				"registration": registration.Name,
