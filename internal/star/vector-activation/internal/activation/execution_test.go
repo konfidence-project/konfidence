@@ -97,6 +97,7 @@ var _ = Describe("activation task execution tests", func() {
 			clientMock.EXPECT().Create(ctx, gomock.Any()).
 				DoAndReturn(func(_ context.Context, obj interface{}, _ ...interface{}) error {
 					execution := obj.(*landscape.ActivationTaskExecution)
+					Expect(execution.GenerateName).To(HavePrefix(registration.Name + "-"))
 					Expect(execution.Spec.Type).To(Equal(registration.Spec.Type))
 					Expect(execution.Spec.VectorActivation).To(Equal(vectorActivation.Name))
 					Expect(execution.Labels["registration"]).To(Equal(registration.Name))
