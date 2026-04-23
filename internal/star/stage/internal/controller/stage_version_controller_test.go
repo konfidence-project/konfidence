@@ -23,6 +23,7 @@ import (
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
 	testutil "github.com/konfidence-project/landscape-stage-controller/internal/utils"
+	pkgCtrl "github.com/konfidence-project/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -54,16 +55,13 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 	})
 
 	const (
-		StageDev                  = "stage-dev"
-		StageVersionDev           = "stage-version-dev"
-		StageVersionTest          = "stage-version-test"
-		Namespace                 = "default"
-		Vector001                 = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.cloud/example/vector:0.0.1"
-		VectorName001             = "landscape.konfidence.cloud.example.vector-0.0.1"
-		StageVersionDevMigration  = "stage-version-dev-migration"
-		StageVersionDevActivation = "stage-version-dev-activation"
-		timeout                   = time.Second * 10
-		interval                  = time.Millisecond * 250
+		StageDev        = "stage-dev"
+		StageVersionDev = "stage-version-dev"
+		Namespace       = "default"
+		Vector001       = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.cloud/example/vector:0.0.1"
+		VectorName001   = "landscape.konfidence.cloud.example.vector-0.0.1"
+		timeout         = time.Second * 10
+		interval        = time.Millisecond * 250
 	)
 
 	BeforeEach(func() {
@@ -91,10 +89,11 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 
 			// check that the vectorDeployment has been created and has valid properties
 			vectorDeployment := &landscape.VectorDeployment{}
-			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
+			vectorDeploymentLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersion.Spec.Vector))
+				g.Expect(vectorDeployment.Labels[pkgCtrl.StageVersionNameLabel]).To(Equal(StageVersionDev))
 				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
 					Kind: landscape.StageVersionKind,
@@ -117,7 +116,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 
 			// check that the vectorMigration has been created and has valid properties
 			vectorMigration := &landscape.VectorMigration{}
-			vectorMigrationLookupKey := types.NamespacedName{Name: StageVersionDevMigration, Namespace: Namespace}
+			vectorMigrationLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 				g.Expect(vectorMigration.GetOwnerReferences()).To(HaveLen(1))
@@ -150,13 +149,13 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 
 			// check that the vectorActivation has been created and has valid properties
 			vectorActivation := &landscape.VectorActivation{}
-			vectorActivationLookupKey := types.NamespacedName{Name: StageVersionDevActivation, Namespace: Namespace}
+			vectorActivationLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorActivationLookupKey, vectorActivation)).To(Succeed())
 				g.Expect(vectorActivation.Spec.Stage).To(Equal(StageDev))
 				g.Expect(vectorActivation.Spec.StageVersion).To(Equal(StageVersionDev))
 				g.Expect(vectorActivation.Spec.Vector).To(Equal(Vector001))
-				g.Expect(vectorActivation.Spec.VectorDeployment).To(Equal(VectorName001))
+				g.Expect(vectorActivation.Spec.VectorDeployment).To(Equal(StageVersionDev))
 				g.Expect(vectorActivation.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.HasOwnerReference(vectorActivation.GetOwnerReferences(), metav1.OwnerReference{
 					Kind: landscape.StageVersionKind,
@@ -174,51 +173,5 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, landscape.StageVersionReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
-		It("should re-use a vectorDeployment if another stageVersion references the same vector", func() {
-			ctx := context.Background()
-			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionDev, Namespace, Vector001, VectorName001)
-
-			// check that the stageVersion has been created and has valid properties
-			stageVersionDev := &landscape.StageVersion{}
-			stageVersionDevLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageVersionDevLookupKey, stageVersionDev)).To(Succeed())
-				g.Expect(stageVersionDev.Name).To(Equal(StageVersionDev))
-				g.Expect(stageVersionDev.Status.Conditions).To(HaveLen(1))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionDev.Status.Conditions, landscape.VectorDeploymentCreatedCondition)).To(BeTrue())
-			}, timeout, interval).Should(Succeed())
-
-			// create another stageVersion that references the same vector
-			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionTest, Namespace, Vector001, VectorName001)
-
-			// check that the stageVersion has been created and has valid properties
-			stageVersionTest := &landscape.StageVersion{}
-			stageVersionTestLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageVersionTestLookupKey, stageVersionTest)).To(Succeed())
-				g.Expect(stageVersionTest.Name).To(Equal(StageVersionDev))
-				g.Expect(stageVersionTest.Status.Conditions).To(HaveLen(1))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionTest.Status.Conditions, landscape.VectorDeploymentCreatedCondition)).To(BeTrue())
-			}, timeout, interval).Should(Succeed())
-
-			// check that the vectorDeployment has been created and has both stageVersions set as owner references
-			vectorDeployment := &landscape.VectorDeployment{}
-			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
-				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersionDev.Spec.Vector))
-				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(2))
-				g.Expect(testutil.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: landscape.StageVersionKind,
-					Name: StageVersionDev,
-				})).To(BeTrue())
-				g.Expect(testutil.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: landscape.StageVersionKind,
-					Name: StageVersionTest,
-				})).To(BeTrue())
-				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
-			}, timeout, interval).Should(Succeed())
-		})
-
 	})
 })

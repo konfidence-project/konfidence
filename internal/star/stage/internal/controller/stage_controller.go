@@ -23,6 +23,7 @@ import (
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	util "github.com/konfidence-project/landscape-stage-controller/internal/utils"
+	pkgCtrl "github.com/konfidence-project/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -235,7 +236,7 @@ func (r *StageReconciler) constructStageVersion(stage *landscape.Stage) (*landsc
 }
 
 func (r *StageReconciler) constructStageVersionUsage(stage *landscape.Stage) (*landscape.StageVersionUsage, error) {
-	name := fmt.Sprintf("%s-target-usage-%s", stage.Name, rand.String(8))
+	name := fmt.Sprintf("%s-target-%s", stage.Name, rand.String(8))
 	stageVersionLabels, err := getStageVersionLabels(stage)
 	if err != nil {
 		return nil, err
@@ -303,14 +304,14 @@ func getStageVersionLabels(stage *landscape.Stage) (map[string]string, error) {
 	}
 
 	return map[string]string{
-		StageNameLabel:       stage.Name,
-		VectorReferenceLabel: digest,
+		pkgCtrl.StageNameLabel:       stage.Name,
+		pkgCtrl.VectorReferenceLabel: digest,
 	}, nil
 }
 
 func getTargetStageVersionUsageLabels(stage *landscape.Stage) map[string]string {
 	return map[string]string{
-		StageVersionUsageTarget: stage.Name,
+		pkgCtrl.StageVersionUsageTarget: stage.Name,
 	}
 }
 
@@ -321,7 +322,7 @@ func getStageVersionName(stage *landscape.Stage) (string, error) {
 		return "", fmt.Errorf("unable to compute digest for stageVersion name: %w", err)
 	}
 
-	return fmt.Sprintf("%s-%s", "stage-version", digest), nil
+	return fmt.Sprintf("%s-%s", stage.Name, digest), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -23,6 +23,7 @@ import (
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	util "github.com/konfidence-project/landscape-stage-controller/internal/utils"
+	pkgCtrl "github.com/konfidence-project/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,9 +97,9 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageVersion")
 
-	stageName, ok := stageVersion.Labels[StageNameLabel]
+	stageName, ok := stageVersion.Labels[pkgCtrl.StageNameLabel]
 	if !ok {
-		return fmt.Errorf("StageName label %s not found in stageVersion", StageNameLabel)
+		return fmt.Errorf("StageName label %s not found in stageVersion", pkgCtrl.StageNameLabel)
 	}
 
 	// check if a vectorDeployment exists matching the stage vector
@@ -204,7 +205,7 @@ func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context
 		return nil, fmt.Errorf("failed to create or update vectorDeployment: %w", err)
 	}
 	msg := fmt.Sprintf("VectorDeployment %s for StageVersion %s: %s", vectorDeployment.Name, stageVersion.Name, operationResult)
-	r.Recorder.Eventf(stageVersion, nil, corev1.EventTypeNormal, "VectorDeploymentReconciled", "VectorDeploymentReconciled", msg)
+	r.Recorder.Eventf(stageVersion, nil, corev1.EventTypeNormal, "VectorDeploymentCreated", "VectorDeploymentCreated", msg)
 	log.Info(msg)
 
 	return vectorDeployment, nil
@@ -259,15 +260,11 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context
 }
 
 func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *landscape.StageVersion) (*landscape.VectorDeployment, error) {
-	adaptedVectorName, err := util.AdaptVectorName(stageVersion.Spec.Vector)
-	if err != nil {
-		return nil, err
-	}
-
 	vectorDeployment := &landscape.VectorDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      adaptedVectorName,
+			Name:      stageVersion.Name,
 			Namespace: stageVersion.Namespace,
+			Labels:    getVectorDeploymentLabels(stageVersion),
 		},
 		Spec: landscape.VectorDeploymentSpec{
 			Vector: stageVersion.Spec.Vector,
@@ -285,7 +282,7 @@ func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *landsca
 func (r *StageVersionReconciler) constructVectorMigration(stageVersion *landscape.StageVersion) (*landscape.VectorMigration, error) {
 	vectorMigration := &landscape.VectorMigration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getVectorMigrationName(stageVersion),
+			Name:      stageVersion.Name,
 			Namespace: stageVersion.Namespace,
 		},
 		Spec: landscape.VectorMigrationSpec{
@@ -304,7 +301,7 @@ func (r *StageVersionReconciler) constructVectorMigration(stageVersion *landscap
 func (r *StageVersionReconciler) constructVectorActivation(stageVersion *landscape.StageVersion, stageName string, vectorDeployment *landscape.VectorDeployment) (*landscape.VectorActivation, error) {
 	vectorActivation := &landscape.VectorActivation{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getVectorActivationName(stageVersion),
+			Name:      stageVersion.Name,
 			Namespace: stageVersion.Namespace,
 		},
 		Spec: landscape.VectorActivationSpec{
@@ -361,10 +358,8 @@ func reconcileStageVersionOwner(ctx context.Context, obj client.Object) []reconc
 	return requests
 }
 
-func getVectorMigrationName(stageVersion *landscape.StageVersion) string {
-	return fmt.Sprintf("%s-%s", stageVersion.Name, "migration")
-}
-
-func getVectorActivationName(stageVersion *landscape.StageVersion) string {
-	return fmt.Sprintf("%s-%s", stageVersion.Name, "activation")
+func getVectorDeploymentLabels(stageVersion *landscape.StageVersion) map[string]string {
+	return map[string]string{
+		pkgCtrl.StageVersionNameLabel: stageVersion.Name,
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	pkgCtrl "github.com/konfidence-project/pkg/controller"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,8 +85,8 @@ func CreateStageVersion(ctx context.Context, k8sClient client.Client, stageName,
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				StageNameLabel:       stageName,
-				VectorReferenceLabel: adaptedVectorName,
+				pkgCtrl.StageNameLabel:       stageName,
+				pkgCtrl.VectorReferenceLabel: adaptedVectorName,
 			},
 		},
 		Spec: landscape.StageVersionSpec{
@@ -110,8 +111,8 @@ func CreateStageVersionWithLabels(ctx context.Context, k8sClient client.Client, 
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				StageNameLabel:       stageName,
-				VectorReferenceLabel: adaptedVectorName,
+				pkgCtrl.StageNameLabel:       stageName,
+				pkgCtrl.VectorReferenceLabel: adaptedVectorName,
 			},
 		},
 		Spec: landscape.StageVersionSpec{
@@ -202,8 +203,8 @@ func CreateStageVersionUsageWithSelector(ctx context.Context, k8sClient client.C
 		Spec: landscape.StageVersionUsageSpec{
 			StageVersionSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					StageNameLabel:       stageName,
-					VectorReferenceLabel: vectorRef,
+					pkgCtrl.StageNameLabel:       stageName,
+					pkgCtrl.VectorReferenceLabel: vectorRef,
 				},
 			},
 		},
@@ -211,7 +212,7 @@ func CreateStageVersionUsageWithSelector(ctx context.Context, k8sClient client.C
 
 	if isTarget {
 		usage.SetLabels(map[string]string{
-			StageVersionUsageTarget: stageName,
+			pkgCtrl.StageVersionUsageTarget: stageName,
 		})
 	}
 
