@@ -19,6 +19,7 @@ import (
 	"ocm.software/open-component-model/bindings/go/plugin/manager"
 	"ocm.software/open-component-model/bindings/go/runtime"
 	"ocm.software/open-component-model/bindings/go/transfer"
+	"ocm.software/open-component-model/kubernetes/controller/pkg/configuration"
 )
 
 // OciClientBuilder constructs OciClient instances with a fluent, type-safe API.
@@ -39,15 +40,37 @@ import (
 // Example usage:
 //
 //	client, err := NewOciClientBuilder().
-//	    WithDockerConfigJsonSecret(pullSecret).
+//	    WithOCMConfig(ocmCfg).
 //	    WithLogger(ctrl.Log).
 //	    Build(ctx)
 //	if err != nil {
 //	    return fmt.Errorf("building OCM client: %w", err)
 //	}
 type OciClientBuilder struct {
-	log    logr.Logger
-	secret *v1.Secret
+	log       logr.Logger
+	ocmConfig *configuration.Configuration
+	secret    *v1.Secret
+}
+
+// WithOCMConfig configures OCI registry authentication.
+//
+// The configuration is typically obtained via configuration.LoadConfigurations, which resolves
+// credential references from the Kubernetes API into a unified credential config. During .Build(ctx),
+// the config is used to construct a credential graph that automatically matches registry hosts
+// to their credentials
+func (builder *OciClientBuilder) WithOCMConfig(config *configuration.Configuration) *OciClientBuilder {
+	builder.ocmConfig = config
+	return builder
+}
+
+// WithDockerConfigJsonSecret configures authentication using a Kubernetes
+// dockerconfigjson secret.
+//
+// Deprecated: Use WithOCMConfig instead, which supports the full OCM
+// configuration model via configuration.LoadConfigurations.
+func (builder *OciClientBuilder) WithDockerConfigJsonSecret(secret *v1.Secret) *OciClientBuilder {
+	builder.secret = secret
+	return builder
 }
 
 // WithLogger configures structured logging for the OciClient.
@@ -71,73 +94,29 @@ func (builder *OciClientBuilder) WithLogger(log logr.Logger) *OciClientBuilder {
 	return builder
 }
 
-// WithDockerConfigJsonSecret configures authentication using a Kubernetes pull secret.
-//
-// The secret must be of type kubernetes.io/dockerconfigjson and contain a valid Docker
-// config JSON in the .dockerconfigjson key.
-//
-// The Docker config JSON format is:
-//
-//	{
-//	  "auths": {
-//	    "registry.example.com": {
-//	      "auth": "base64(username:password)"
-//	    },
-//	    "another-registry.io": {
-//	      "username": "user",
-//	      "password": "pass"
-//	    }
-//	  }
-//	}
-//
-// During Build(), the secret is parsed and converted into an OCM credential graph that
-// matches registry hostnames with credentials. The credential resolution is automatic
-// during Get() and Save() operations.
-//
-// If a repository requires authentication but no matching credentials are found, the
-// client will log a warning and attempt anonymous access, which succeeds for public
-// repositories.
-//
-// Example Kubernetes Secret:
-//
-//	apiVersion: v1
-//	kind: Secret
-//	type: kubernetes.io/dockerconfigjson
-//	metadata:
-//	  name: ocm-registry-credentials
-//	data:
-//	  .dockerconfigjson: eyJhdXRocyI6eyJnaGNyLmlvIjp7ImF1dGgiOiJ1c2VyOnBhc3MifX19
-//
-// If not called, the client operates without authentication (suitable for public registries).
-func (builder *OciClientBuilder) WithDockerConfigJsonSecret(secret *v1.Secret) *OciClientBuilder {
-	builder.secret = secret
-	return builder
-}
-
 // Build constructs and initializes an OciClient with the configured options.
 //
 // This method performs several initialization steps:
-//  1. Creates a credential resolver from the provided secret (if any)
+//  1. Creates a credential resolver from the provided OCM configuration (if any)
 //  2. Initializes the OCI repository provider for component version access
 //  3. Configures logging with appropriate defaults
 //  4. Validates the configuration and returns any errors
 //
 // Credential Resolution:
 //
-// If a secret was provided via WithDockerConfigJsonSecret(), Build() will:
-//   - Parse the Docker config JSON from the secret's .dockerconfigjson key
-//   - Convert it to OCM's internal credential format
+// If an OCM configuration was provided via WithOCMConfig(), Build() will:
+//   - Look up credential configurations from the generic config
 //   - Build a credential graph that resolves registry hostnames to credentials
 //   - Register the OCI credential repository plugin for runtime resolution
 //
-// If no secret was provided, a NoopCredentialResolver is used, which always returns
+// If no configuration was provided, a NoopCredentialResolver is used, which always returns
 // no credentials. This works fine for public registries but will fail authentication
 // for private registries.
 //
 // Example:
 //
 //	builder := repository.NewOciClientBuilder().
-//	    WithDockerConfigJsonSecret(secret).
+//	    WithOCMConfig(ocmCfg).
 //	    WithLogger(logger)
 //
 //	client, err := builder.Build(ctx)
@@ -152,7 +131,24 @@ func (builder *OciClientBuilder) Build(ctx context.Context) (Client, error) {
 		transferExecutor TransferExecutor
 		opts             []OciClientOption
 	)
-	if builder.secret != nil {
+
+	if builder.ocmConfig != nil {
+		cfg, err := credentialsruntime.LookupCredentialConfig(builder.ocmConfig.Config)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lookup credential config from generic config: %w", err)
+		}
+		if cfg == nil {
+			return nil, fmt.Errorf("no credential configuration found in OCM config")
+		}
+		resolver, err = buildGraph(ctx, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("building credential graph from config: %w", err)
+		}
+
+	} else if builder.secret != nil {
+		if !builder.log.IsZero() {
+			builder.log.Info("WithDockerConfigJsonSecret is deprecated, use WithOCMConfig instead")
+		}
 		cfg, err := builder.getGenericConfigurationFromSecret()
 		if err != nil {
 			return nil, fmt.Errorf("getting generic configuration from secret: %w", err)
@@ -166,7 +162,7 @@ func (builder *OciClientBuilder) Build(ctx context.Context) (Client, error) {
 		}
 	} else {
 		if !builder.log.IsZero() {
-			builder.log.Info("no secret provided for OCI client builder, using noop credential resolver")
+			builder.log.Info("no OCM configuration provided for OCI client builder, using noop credential resolver")
 		}
 	}
 	transferExecutor = NewDefaultTransferExecutor(
@@ -190,7 +186,6 @@ func (builder *OciClientBuilder) getGenericConfigurationFromSecret() (*credentia
 	}
 
 	dockerConfig.DockerConfig = string(dockerConfigJson)
-	// Validate that dockerConfigJson is valid Docker config JSON
 	raw := &runtime.Raw{}
 	if err := ocispeccredentials.Scheme.Convert(dockerConfig, raw); err != nil {
 		return nil, fmt.Errorf("failed to convert docker config to raw: %w", err)
@@ -248,7 +243,7 @@ func buildGraph(ctx context.Context, cfg *credentialsruntime.Config) (credential
 // Chain configuration methods before calling Build():
 //
 //	client, err := NewOciClientBuilder().
-//	    WithDockerConfigJsonSecret(secret).
+//	    WithOCMConfig(ocmCfg).
 //	    WithLogger(logger).
 //	    Build(ctx)
 func NewOciClientBuilder() *OciClientBuilder {

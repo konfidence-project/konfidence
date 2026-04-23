@@ -1,5 +1,9 @@
 package repository
 
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_credentials_resolver.go -package=mocks ocm.software/open-component-model/bindings/go/credentials Resolver
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_component_version_repository_provider.go -package=mocks ocm.software/open-component-model/bindings/go/repository ComponentVersionRepositoryProvider
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_component_version_repository.go -package=mocks ocm.software/open-component-model/bindings/go/oci ComponentVersionRepository
+
 import (
 	"context"
 	"errors"

@@ -1,4 +1,4 @@
-package repository
+package repository_test
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 
 	"github.com/go-logr/logr"
 	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
-	"github.com/konfidence-project/pkg/ocm/repository/mocks"
+	. "github.com/konfidence-project/pkg/ocm/repository"
+	"github.com/konfidence-project/pkg/ocm/repository/internal/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -71,21 +72,6 @@ var _ = Describe("OciClient", func() {
 		mockCtrl.Finish()
 	})
 
-	Describe("NewOciClient", func() {
-		It("creates a client successfully", func() {
-			c := NewOciClient(resolverMock, providerMock, transferExecutorMock)
-			Expect(c).ToNot(BeNil())
-		})
-
-		It("applies logger option", func() {
-			customLog := logr.Discard().WithName("custom")
-			c := NewOciClient(resolverMock, providerMock, transferExecutorMock, WithOciClientLogger(customLog))
-
-			Expect(c).ToNot(BeNil())
-			Expect(c.log).To(Equal(customLog))
-		})
-	})
-
 	Describe("Get", func() {
 		var (
 			repoSpec *runtime.Unstructured
@@ -95,7 +81,7 @@ var _ = Describe("OciClient", func() {
 
 		BeforeEach(func() {
 			repoSpec = &runtime.Unstructured{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"type": "oci",
 				},
 			}
@@ -321,7 +307,7 @@ var _ = Describe("OciClient", func() {
 
 		BeforeEach(func() {
 			repoSpec = &runtime.Unstructured{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"type": "oci",
 				},
 			}
@@ -493,13 +479,13 @@ var _ = Describe("OciClient", func() {
 
 		BeforeEach(func() {
 			sourceRepoSpec = &runtime.Unstructured{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"type":    "oci",
 					"baseUrl": "ghcr.io/acme/source",
 				},
 			}
 			targetRepoSpec = &runtime.Unstructured{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"type":    "oci",
 					"baseUrl": "ghcr.io/acme/target",
 				},
@@ -553,7 +539,7 @@ var _ = Describe("OciClient", func() {
 
 			It("fails on second reference when its repository cannot be resolved", func() {
 				secondRepoSpec := &runtime.Unstructured{
-					Data: map[string]interface{}{
+					Data: map[string]any{
 						"type":    "oci",
 						"baseUrl": "private.registry.io/components",
 					},
@@ -794,7 +780,7 @@ var _ = Describe("OciClient", func() {
 
 		BeforeEach(func() {
 			repoSpec = &runtime.Unstructured{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"type": "oci",
 				},
 			}
@@ -1011,7 +997,7 @@ var _ = Describe("OciClient", func() {
 
 		BeforeEach(func() {
 			repoSpec = &runtime.Unstructured{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"type": "oci",
 				},
 			}

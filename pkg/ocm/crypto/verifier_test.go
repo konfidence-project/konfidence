@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/go-logr/logr"
-	mocks "github.com/konfidence-project/pkg/ocm/crypto/mocks"
+	"github.com/konfidence-project/pkg/ocm/crypto/internal/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
