@@ -30,6 +30,7 @@ import (
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
 	"github.com/konfidence-project/pkg/ocm/crypto"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -203,6 +204,8 @@ func main() {
 		Mgr:        mgr,
 		Scheme:     scheme,
 		OcmAdapter: ocm.NewAdapter(adapterConfig...),
+		// VersionGenerator: domain.TimestampVectorVersionGenerator,
+		VersionGenerator: domain.TimestampVectorVersionGenerator,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorTemplate")
 		os.Exit(1)

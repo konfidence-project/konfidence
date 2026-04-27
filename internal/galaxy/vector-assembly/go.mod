@@ -3,26 +3,25 @@ module github.com/konfidence-project/gcp-vector-assembly-controller
 go 1.26.1
 
 require (
-	github.com/aws/smithy-go v1.24.0
 	github.com/kcp-dev/multicluster-provider v0.5.1
 	github.com/kcp-dev/sdk v0.30.0
 	github.com/konfidence-project/crds/api/global v0.7.0
-	github.com/konfidence-project/pkg v0.13.0
+	github.com/konfidence-project/pkg v0.14.0
 	github.com/onsi/ginkgo/v2 v2.27.5
 	github.com/onsi/gomega v1.39.0
 	github.com/testcontainers/testcontainers-go v0.42.0
-	go.uber.org/mock v0.6.0
 	k8s.io/api v0.35.2
 	k8s.io/apimachinery v0.35.3
 	k8s.io/client-go v0.35.2
-	ocm.software/open-component-model/bindings/go/descriptor/runtime v0.0.0-20260331065509-81fba63a1b55
-	ocm.software/open-component-model/bindings/go/oci v0.0.37
+	ocm.software/open-component-model/bindings/go/descriptor/normalisation v0.0.0-20260331065509-81fba63a1b55
+	ocm.software/open-component-model/bindings/go/descriptor/runtime v0.0.0-20260409111948-a6aca34e77a9
+	ocm.software/open-component-model/bindings/go/oci v0.0.39
 	ocm.software/open-component-model/bindings/go/runtime v0.0.7
 	sigs.k8s.io/controller-runtime v0.23.1
 	sigs.k8s.io/multicluster-runtime v0.23.1
 )
 
-require golang.org/x/sync v0.20.0 // indirect
+require golang.org/x/sync v0.20.0
 
 require (
 	cel.dev/expr v0.25.1 // indirect
@@ -147,20 +146,21 @@ require (
 	go.opentelemetry.io/otel/metric v1.41.0 // indirect
 	go.opentelemetry.io/otel/trace v1.41.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
+	go.uber.org/mock v0.6.0
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	go.yaml.in/yaml/v2 v2.4.3 // indirect
+	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39 // indirect
-	golang.org/x/mod v0.32.0 // indirect
+	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.41.0 // indirect
+	golang.org/x/tools v0.42.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251124214823-79d6a2a48846 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
@@ -181,9 +181,8 @@ require (
 	ocm.software/open-component-model/bindings/go/configuration v0.0.12 // indirect
 	ocm.software/open-component-model/bindings/go/constructor v0.0.7 // indirect
 	ocm.software/open-component-model/bindings/go/credentials v0.0.9 // indirect
-	ocm.software/open-component-model/bindings/go/ctf v0.3.0 // indirect
+	ocm.software/open-component-model/bindings/go/ctf v0.4.0 // indirect
 	ocm.software/open-component-model/bindings/go/dag v0.0.6 // indirect
-	ocm.software/open-component-model/bindings/go/descriptor/normalisation v0.0.0-20260331065509-81fba63a1b55 // indirect
 	ocm.software/open-component-model/bindings/go/descriptor/v2 v2.0.3-alpha2 // indirect
 	ocm.software/open-component-model/bindings/go/helm v0.0.0-20260331065509-81fba63a1b55 // indirect
 	ocm.software/open-component-model/bindings/go/plugin v0.0.14 // indirect

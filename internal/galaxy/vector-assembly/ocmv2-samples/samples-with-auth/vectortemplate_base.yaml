@@ -5,6 +5,6 @@ metadata:
   name: base-app
 spec:
   reconcileInterval: 10s
-  uploadTarget: http://localhost:5100//konfidence.cloud/constructed-vectors/base-vector
+  uploadTarget: http://localhost:5100//konfidence.cloud/constructed-vectors/base-vector:my-target
   components:
-    - name: http://localhost:5100//konfidence.cloud/services/service1
+    - name: http://localhost:5100//konfidence.cloud/services/service1:edge

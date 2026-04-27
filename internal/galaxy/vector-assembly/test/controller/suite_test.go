@@ -56,10 +56,18 @@ var (
 	testEnv   *envtest.Environment
 	cfg       *rest.Config
 	k8sClient client.Client
-	// registryEndpoint is the host:port of the Zot container, e.g. "localhost:55123"
+	// registryEndpoint is the host:port of the oci container, e.g. "localhost:55123"
 	registryEndpoint string
 	// ocmClient is the shared OCM client used for both seeding test data and by the adapter
 	ocmClient pkgOcm.Client
+	// testVersion is the version returned by the static version generator used in tests for newly created vectors
+	testVersion = "2026.1.2-000000000Z"
+	// oldTestVersion is used when manually pushing pre-existing vectors in test setup (to simulate existing state)
+	oldTestVersion = "2026.1.1-000000000Z"
+	// testVersionGenerator is a static version generator that always returns testVersion, used in tests to have predictable vector versions
+	testVersionGenerator = domain.VectorVersionGeneratorFunc(func() string {
+		return testVersion
+	})
 )
 
 func TestController(t *testing.T) {
@@ -75,14 +83,14 @@ var _ = BeforeSuite(func() {
 		cancel()
 	})
 
-	By("starting Zot OCI registry container")
+	By("starting OCI registry container")
 	zotConfigDir, err := filepath.Abs(filepath.Join(".", "zot-config"))
 	Expect(err).NotTo(HaveOccurred(), "failed to resolve zot-config directory path")
 
 	// Use the full Zot image (includes web UI) matching the host architecture.
 	zotImage := fmt.Sprintf("ghcr.io/project-zot/zot-linux-%s:latest", runtime.GOARCH)
 
-	zotContainer, err := testcontainers.Run(
+	ociContainer, err := testcontainers.Run(
 		ctx,
 		zotImage,
 		testcontainers.WithName("zot-controller-test"),
@@ -107,15 +115,15 @@ var _ = BeforeSuite(func() {
 				}),
 		),
 	)
-	Expect(err).NotTo(HaveOccurred(), "failed to start Zot container")
+	Expect(err).NotTo(HaveOccurred(), "failed to start OCI registry container")
 	DeferCleanup(func() {
-		By("terminating Zot container")
-		Expect(testcontainers.TerminateContainer(zotContainer)).To(Succeed())
+		By("terminating OCI registry container")
+		Expect(testcontainers.TerminateContainer(ociContainer)).To(Succeed())
 	})
 
-	registryEndpoint, err = zotContainer.Endpoint(ctx, "")
-	Expect(err).NotTo(HaveOccurred(), "failed to get Zot container endpoint")
-	GinkgoWriter.Printf("Zot registry running at: http://%s\n", registryEndpoint)
+	registryEndpoint, err = ociContainer.Endpoint(ctx, "")
+	Expect(err).NotTo(HaveOccurred(), "failed to get OCI registry container endpoint")
+	GinkgoWriter.Printf("OCI registry running at: http://%s\n", registryEndpoint)
 
 	By("bootstrapping envtest")
 	testEnv = &envtest.Environment{
@@ -173,9 +181,10 @@ func startManager(ocmAdapter domain.VectorOcmPort) {
 	Expect(err).NotTo(HaveOccurred(), "failed to create k8s client")
 
 	Expect((&controller.VectorTemplateReconciler{
-		Mgr:        mgr,
-		Scheme:     mgr.GetLocalManager().GetScheme(),
-		OcmAdapter: ocmAdapter,
+		Mgr:              mgr,
+		Scheme:           mgr.GetLocalManager().GetScheme(),
+		OcmAdapter:       ocmAdapter,
+		VersionGenerator: testVersionGenerator,
 	}).SetupWithManager(mgr)).To(Succeed())
 
 	managerCtx, managerCancel := context.WithCancel(ctx)
@@ -205,7 +214,7 @@ func buildRegistrySecret(endpoint, username, password string) *corev1.Secret {
 	dockerConfigJSON, err := json.Marshal(dockerConfig)
 	Expect(err).NotTo(HaveOccurred(), "failed to marshal docker config JSON")
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "zot-registry-credentials"},
+		ObjectMeta: metav1.ObjectMeta{Name: "oci-registry-credentials"},
 		Type:       corev1.SecretTypeDockerConfigJson,
 		Data: map[string][]byte{
 			corev1.DockerConfigJsonKey: dockerConfigJSON,

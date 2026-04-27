@@ -10,5 +10,5 @@ configurations:
     credentials:
     - type: Credentials/v1
       properties:
-        username: ""
-        password: ""
+        username: "user"
+        password: "password"
