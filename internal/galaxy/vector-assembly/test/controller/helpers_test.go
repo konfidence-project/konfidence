@@ -1,18 +1,3 @@
-/*
-Copyright 2026.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-	http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package controller
 
 import (
@@ -21,6 +6,7 @@ import (
 	"time"
 
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
 	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,108 +14,104 @@ import (
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 )
 
-// pushComponent pushes a component descriptor into the Zot registry.
-func pushComponent(ctx context.Context, client pkgOcm.Client, endpoint, componentName, version string) {
-	ref := mustParseRef(fmt.Sprintf("http://%s//%s", endpoint, componentName))
+// create reference creates a reference and fails the test in case of errors.
+func createReference(component string) compref.Ref {
+	ref, err := konfcompref.Parse(fmt.Sprintf("http://%s//%s", registryEndpoint, component))
+	ExpectWithOffset(1, err).
+		NotTo(HaveOccurred(), "failed to create reference for component %s", component)
+	return *ref
+}
 
+// pushComponent pushes an artifact descriptor into the OCI registry with an optional alias.
+func pushComponent(ctx context.Context, client pkgOcm.Client, ref compref.Ref, alias *string) {
 	descriptor := ocmDescriptor.Descriptor{
 		Meta: ocmDescriptor.Meta{Version: "v2"},
 		Component: ocmDescriptor.Component{
 			ComponentMeta: ocmDescriptor.ComponentMeta{
 				ObjectMeta: ocmDescriptor.ObjectMeta{
-					Name:    componentName,
-					Version: version,
+					Name:    ref.Component,
+					Version: ref.Version,
 				},
 			},
 			Provider: ocmDescriptor.Provider{Name: "test"},
 		},
 	}
-
-	err := client.Save(ctx, ref.Repository, descriptor)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to create mock component %s@%s", componentName, version)
+	ExpectWithOffset(1,
+		client.Save(ctx, ref.Repository, descriptor)).
+		NotTo(HaveOccurred(), "failed to create component %s", ref)
+	if alias != nil {
+		ExpectWithOffset(1,
+			client.AddAlias(ctx, ref, *alias)).
+			NotTo(HaveOccurred(), "failed to add alias %s for component %s", *alias, ref)
+	}
 }
 
-// pushVector pushes a vector (component descriptor with references) into the Zot registry.
-func pushVector(ctx context.Context, client pkgOcm.Client, endpoint, vectorName, version string, artifacts []vectorArtifact) {
-	ref := mustParseRef(fmt.Sprintf("http://%s//%s", endpoint, vectorName))
-
+// pushVector pushes a vector (artifact descriptor with references) into the OCI registry with the given alias.
+func pushVector(ctx context.Context, client pkgOcm.Client, vector compref.Ref, artifacts []compref.Ref, alias string) {
 	references := make([]ocmDescriptor.Reference, 0, len(artifacts))
-	for _, artifact := range artifacts {
+	for i, artifact := range artifacts {
 		references = append(references, ocmDescriptor.Reference{
 			ElementMeta: ocmDescriptor.ElementMeta{
 				ObjectMeta: ocmDescriptor.ObjectMeta{
-					Name:    artifact.Name,
+					Name:    fmt.Sprintf("ref-%d", i),
 					Version: artifact.Version,
 				},
 			},
-			Component: artifact.Name,
+			Component: artifact.Component,
 		})
 	}
-
 	descriptor := ocmDescriptor.Descriptor{
 		Meta: ocmDescriptor.Meta{Version: "v2"},
 		Component: ocmDescriptor.Component{
 			ComponentMeta: ocmDescriptor.ComponentMeta{
 				ObjectMeta: ocmDescriptor.ObjectMeta{
-					Name:    vectorName,
-					Version: version,
+					Name:    vector.Component,
+					Version: vector.Version,
 				},
 			},
 			Provider:   ocmDescriptor.Provider{Name: "konfidence"},
 			References: references,
 		},
 	}
-
-	err := client.Save(ctx, ref.Repository, descriptor)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to create mock vector %s@%s", vectorName, version)
+	ExpectWithOffset(1,
+		client.Save(ctx, vector.Repository, descriptor)).
+		NotTo(HaveOccurred(), "failed to create vector %s", vector)
+	ExpectWithOffset(1,
+		client.AddAlias(ctx, vector, alias)).
+		NotTo(HaveOccurred(), "failed to add alias %s for vector %s", alias, vector)
 }
 
-// vectorArtifact is a simple struct for mock vector references.
-type vectorArtifact struct {
-	Name    string
-	Version string
-}
-
-// getDescriptorFromRegistry reads back a component descriptor from Zot.
-func getDescriptorFromRegistry(ctx context.Context, client pkgOcm.Client, endpoint, componentName string) (ocmDescriptor.Descriptor, error) {
-	ref := mustParseRef(fmt.Sprintf("http://%s//%s", endpoint, componentName))
-	return client.Get(ctx, *ref)
-}
-
-// mustParseRef parses a component reference string and panics on error.
-func mustParseRef(reference string) *compref.Ref {
-	ref, err := compref.Parse(reference)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to parse ref: %s", reference)
-	return ref
-}
-
-// newVectorTemplateCR creates a VectorTemplate CR with the dynamic registry endpoint.
+// newVectorTemplateCR creates a VectorTemplate CR.
 //
 //nolint:unparam // namespace is the same in every call, keep as param for consistency
-func newVectorTemplateCR(name, namespace, endpoint, vectorName string, componentNames []string, base *string) *global.VectorTemplate {
-	components := make([]global.Component, 0, len(componentNames))
-	for _, componentName := range componentNames {
+func createVectorTemplateCR(
+	ctx context.Context,
+	name, namespace string,
+	artifacts []compref.Ref,
+	vector compref.Ref,
+	base *compref.Ref) *global.VectorTemplate {
+	components := make([]global.Component, 0, len(artifacts))
+	for _, artifact := range artifacts {
 		components = append(components, global.Component{
-			Name: fmt.Sprintf("http://%s//%s", endpoint, componentName),
+			Name: artifact.String(),
 		})
 	}
-
 	var baseRef *string
 	if base != nil {
-		baseRefStr := fmt.Sprintf("http://%s//%s", endpoint, *base)
-		baseRef = &baseRefStr
+		baseRef = new(base.String())
 	}
-
-	return &global.VectorTemplate{
+	vectorTemplate := &global.VectorTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
 		Spec: global.VectorTemplateSpec{
 			ReconcileInterval: &metav1.Duration{Duration: time.Hour}, // long interval to avoid re-reconciliation during test
-			UploadTarget:      fmt.Sprintf("http://%s//%s", endpoint, vectorName),
+			UploadTarget:      vector.String(),
 			Base:              baseRef,
 			Components:        components,
 		},
 	}
+	Expect(k8sClient.Create(ctx, vectorTemplate)).To(Succeed())
+	return vectorTemplate
 }

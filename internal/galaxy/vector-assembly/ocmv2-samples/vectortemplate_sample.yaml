@@ -5,8 +5,8 @@ metadata:
   name: sample-app
 spec:
   reconcileInterval: 10s
-  base: http://localhost:5100//konfidence.project/common-services
-  uploadTarget: http://localhost:5100//konfidence.cloud/sample-vector/sample-app
+  base: http://localhost:5100//konfidence.project/common-services:future
+  uploadTarget: http://localhost:5100//konfidence.cloud/sample-vector/sample-app:prod-eu10
   components:
-    - name: http://localhost:5100//dwc.tools.sap/dwc-project/dev/service2
-    - name: http://localhost:5100//dwc.tools.sap/dwc-project/dev/service3
+    - name: http://localhost:5100//dwc.tools.sap/dwc-project/dev/service2:1.2.0
+    - name: http://localhost:5100//dwc.tools.sap/dwc-project/dev/service3:edge

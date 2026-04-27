@@ -44,45 +44,45 @@ func (m *MockVectorOcmPort) EXPECT() *MockVectorOcmPortMockRecorder {
 }
 
 // CreateVector mocks base method.
-func (m *MockVectorOcmPort) CreateVector(ctx context.Context, repoSpec runtime.Typed, vector domain.Vector) error {
+func (m *MockVectorOcmPort) CreateVector(ctx context.Context, repoSpec runtime.Typed, vector domain.Vector, alias string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateVector", ctx, repoSpec, vector)
+	ret := m.ctrl.Call(m, "CreateVector", ctx, repoSpec, vector, alias)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateVector indicates an expected call of CreateVector.
-func (mr *MockVectorOcmPortMockRecorder) CreateVector(ctx, repoSpec, vector any) *gomock.Call {
+func (mr *MockVectorOcmPortMockRecorder) CreateVector(ctx, repoSpec, vector, alias any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateVector", reflect.TypeOf((*MockVectorOcmPort)(nil).CreateVector), ctx, repoSpec, vector)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateVector", reflect.TypeOf((*MockVectorOcmPort)(nil).CreateVector), ctx, repoSpec, vector, alias)
 }
 
-// GetLatestArtifactVersions mocks base method.
-func (m *MockVectorOcmPort) GetLatestArtifactVersions(ctx context.Context, references []compref.Ref) ([]domain.Artifact, error) {
+// GetArtifacts mocks base method.
+func (m *MockVectorOcmPort) GetArtifacts(ctx context.Context, references []compref.Ref) ([]domain.Artifact, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLatestArtifactVersions", ctx, references)
+	ret := m.ctrl.Call(m, "GetArtifacts", ctx, references)
 	ret0, _ := ret[0].([]domain.Artifact)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLatestArtifactVersions indicates an expected call of GetLatestArtifactVersions.
-func (mr *MockVectorOcmPortMockRecorder) GetLatestArtifactVersions(ctx, references any) *gomock.Call {
+// GetArtifacts indicates an expected call of GetArtifacts.
+func (mr *MockVectorOcmPortMockRecorder) GetArtifacts(ctx, references any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestArtifactVersions", reflect.TypeOf((*MockVectorOcmPort)(nil).GetLatestArtifactVersions), ctx, references)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetArtifacts", reflect.TypeOf((*MockVectorOcmPort)(nil).GetArtifacts), ctx, references)
 }
 
-// GetLatestVector mocks base method.
-func (m *MockVectorOcmPort) GetLatestVector(ctx context.Context, vectorRef compref.Ref) (domain.Vector, error) {
+// GetVector mocks base method.
+func (m *MockVectorOcmPort) GetVector(ctx context.Context, vectorRef compref.Ref) (domain.Vector, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLatestVector", ctx, vectorRef)
+	ret := m.ctrl.Call(m, "GetVector", ctx, vectorRef)
 	ret0, _ := ret[0].(domain.Vector)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLatestVector indicates an expected call of GetLatestVector.
-func (mr *MockVectorOcmPortMockRecorder) GetLatestVector(ctx, vectorRef any) *gomock.Call {
+// GetVector indicates an expected call of GetVector.
+func (mr *MockVectorOcmPortMockRecorder) GetVector(ctx, vectorRef any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestVector", reflect.TypeOf((*MockVectorOcmPort)(nil).GetLatestVector), ctx, vectorRef)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVector", reflect.TypeOf((*MockVectorOcmPort)(nil).GetVector), ctx, vectorRef)
 }
