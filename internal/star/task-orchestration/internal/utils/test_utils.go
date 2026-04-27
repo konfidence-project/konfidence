@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	pkgCtrl "github.com/konfidence-project/pkg/controller"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -193,7 +194,7 @@ func CleanupArtifactDeployment(k8sClient client.Client, artifactDeploymentName s
 	}
 }
 
-func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, vector string) {
+func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, vector string, stageVersion string) {
 	vectorDeployment := &landscape.VectorDeployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "landscape.konfidence.cloud/v1alpha1",
@@ -202,6 +203,9 @@ func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name s
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Labels: map[string]string{
+				pkgCtrl.StageVersionNameLabel: stageVersion,
+			},
 		},
 		Spec: landscape.VectorDeploymentSpec{
 			Vector: vector,

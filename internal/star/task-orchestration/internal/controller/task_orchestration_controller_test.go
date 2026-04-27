@@ -37,7 +37,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 		StageDev            = "stage-dev"
 		StageVersion        = "stage-version-stage-dev"
 		VectorMigration     = "stage-version-stage-dev-migration"
-		StageVersionUsage   = "stage-version-stage-dev-migration-usage"
+		StageVersionUsage   = "stage-version-stage-dev-migration"
 		ArtifactDeployment1 = "artifact-deployment-1"
 		ArtifactDeployment2 = "artifact-deployment-2"
 		Namespace           = "default"
@@ -180,7 +180,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// create vectorDeployment
-			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001)
+			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001, StageVersion)
 
 			vectorDeployment := &landscape.VectorDeployment{}
 			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
@@ -396,7 +396,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// create vectorDeployment
-			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001)
+			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001, StageVersion)
 
 			vectorDeployment := &landscape.VectorDeployment{}
 			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
@@ -500,7 +500,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// create vectorDeployment
-			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001)
+			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001, StageVersion)
 
 			vectorDeployment := &landscape.VectorDeployment{}
 			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}

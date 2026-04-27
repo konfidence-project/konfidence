@@ -20,10 +20,10 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 
 	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
 	"github.com/konfidence-project/landscape-task-orchestration-controller/internal/graph"
+	pkgCtrl "github.com/konfidence-project/pkg/controller"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -225,18 +225,19 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 }
 
 func (r *TaskOrchestrationReconciler) getVectorDeployment(ctx context.Context, vectorMigration *landscape.VectorMigration) (*landscape.VectorDeployment, error) {
-	adaptedVectorName, err := adaptVectorName(vectorMigration.Spec.Vector)
-	if err != nil {
-		return nil, err
+	labelMatcher := client.MatchingLabels{}
+	labelMatcher[pkgCtrl.StageVersionNameLabel] = vectorMigration.Spec.StageVersion
+
+	vectorDeployments := &landscape.VectorDeploymentList{}
+	if err := r.List(ctx, vectorDeployments, client.InNamespace(vectorMigration.Namespace), labelMatcher); err != nil {
+		return nil, fmt.Errorf("unable to list vectorDeployments: %w", err)
 	}
 
-	vectorDeployment := &landscape.VectorDeployment{}
-	err = r.Get(ctx, types.NamespacedName{
-		Namespace: vectorMigration.Namespace,
-		Name:      adaptedVectorName,
-	}, vectorDeployment)
+	if len(vectorDeployments.Items) != 1 {
+		return nil, fmt.Errorf("unable to find vectorDeployment for stage version %s", vectorMigration.Spec.StageVersion)
+	}
 
-	return vectorDeployment, err
+	return &vectorDeployments.Items[0], nil
 }
 
 func (r *TaskOrchestrationReconciler) getArtifactDeployment(ctx context.Context, vectorMigration *landscape.VectorMigration, name string) (*landscape.ArtifactDeployment, error) {
@@ -505,29 +506,7 @@ func (r *TaskOrchestrationReconciler) cleanupVectorMigration(ctx context.Context
 }
 
 func getStageVersionUsageName(stageVersionName string) string {
-	return fmt.Sprintf("%s-%s", stageVersionName, "migration-usage")
-}
-
-// TODO same method as in stage controller, move to separate common library
-func adaptVectorName(vector string) (string, error) {
-	trimmedVector := strings.TrimSpace(strings.ToLower(vector))
-
-	// TODO validate defined vector format
-	if len(trimmedVector) < 4 {
-		return "", fmt.Errorf("unable to parse vector: %s", vector)
-	}
-
-	// get index of separator
-	separatorIdx := strings.LastIndex(trimmedVector, "//")
-
-	if separatorIdx == -1 || separatorIdx == len(vector)-2 {
-		return "", fmt.Errorf("unable to parse vector: %s", vector)
-	}
-
-	componentVersion := trimmedVector[separatorIdx+2:]
-	adaptedVector := strings.ReplaceAll(componentVersion, "/", ".")
-	adaptedVector = strings.ReplaceAll(adaptedVector, ":", "-")
-	return adaptedVector, nil
+	return fmt.Sprintf("%s-%s", stageVersionName, "migration")
 }
 
 func taskExecutionFailed(taskExecution landscape.TaskExecution) bool {
