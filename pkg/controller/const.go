@@ -5,4 +5,5 @@ const (
 	StageVersionNameLabel   = "konfidence.cloud/stage-version-name"
 	VectorReferenceLabel    = "konfidence.cloud/vector-ref"
 	StageVersionUsageTarget = "konfidence.cloud/target-for-stage"
+	ArtifactReferenceLabel  = "konfidence.cloud/artifact-ref"
 )
