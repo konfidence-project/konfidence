@@ -17,7 +17,7 @@ func CreateActivationUsage(ctx context.Context, c client.Client, stage *landscap
 
 	stageVersionUsage := &landscape.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("activation-usage-%s-%s", stage.Name, activation.Name),
+			Name:      fmt.Sprintf("%s-%s-activation", stage.Name, activation.Name),
 			Namespace: stage.Namespace,
 			Labels:    map[string]string{ActivationStageVersionUsage: stage.Name},
 		},

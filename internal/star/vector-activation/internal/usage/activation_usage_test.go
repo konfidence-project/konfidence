@@ -35,6 +35,9 @@ var _ = Describe("active usage tests", func() {
 			},
 		}
 		activation = &landscape.VectorActivation{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "123",
+			},
 			Spec: landscape.VectorActivationSpec{
 				StageVersion: "stage-version-test",
 			},
@@ -50,7 +53,7 @@ var _ = Describe("active usage tests", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(usage).NotTo(BeNil())
-			Expect(usage.Name).To(ContainSubstring("activation-"))
+			Expect(usage.Name).To(Equal("stage-test-123-activation"))
 			Expect(usage.Labels[ActivationStageVersionUsage]).To(Equal(stage.Name))
 			Expect(usage.Spec.Reason).To(Equal(StageVersionUsageActivationType))
 			Expect(usage.Spec.StageVersionRef.Name).To(Equal(activation.Spec.StageVersion))
