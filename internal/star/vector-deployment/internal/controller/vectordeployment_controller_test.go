@@ -40,6 +40,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		vectorReference = "https://registry.kdenv.lab/sample-project//github.com/konfidence-project/sample-vector:0.3.0"
 		ocmName         = "common.konfidence.cloud.example.vector-0.3.0"
 		testNamespace   = "default"
+		artifactPrefix  = "sample-service-1-0-0-1-"
 		timeout         = time.Second * 10
 		interval        = time.Millisecond * 250
 	)
@@ -59,7 +60,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		reconciler = &VectorDeploymentReconciler{
 			Client:     k8sManager.GetClient(),
 			Scheme:     k8sManager.GetScheme(),
-			Recorder:   k8sManager.GetEventRecorderFor(VectorDeploymentControllerName),
+			Recorder:   k8sManager.GetEventRecorder(VectorDeploymentControllerName),
 			OcmAdapter: ocmAdapterMock,
 		}
 		err := reconciler.SetupWithManager(k8sManager, controllerName)
@@ -185,7 +186,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.List(ctx, artifactDeploymentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
 			g.Expect(artifactDeploymentList.Items).To(gomega.HaveLen(1))
-
+			g.Expect(artifactDeploymentList.Items[0].Name).To(gomega.HavePrefix(artifactPrefix))
 			artifactDeployment := &artifactDeploymentList.Items[0]
 			g.Expect(artifactDeployment.Spec.Component.Resources).To(gomega.HaveLen(4))
 		}, timeout, interval).Should(gomega.Succeed())
@@ -247,6 +248,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 			g.Expect(vectorAssignmentList.Items).To(gomega.HaveLen(1))
 
 			vectorAssignment := vectorAssignmentList.Items[0]
+			g.Expect(vectorAssignment.Name).To(gomega.Equal(vectorDeployment.Name))
 			g.Expect(vectorAssignment.Spec.VectorDeploymentRef.Name).To(gomega.Equal(vectorDeployment.Name))
 			g.Expect(vectorAssignment.Spec.ArtifactDeploymentRef.Name).To(gomega.Equal(artifactDeployment.Name))
 		}, timeout, interval).Should(gomega.Succeed())
