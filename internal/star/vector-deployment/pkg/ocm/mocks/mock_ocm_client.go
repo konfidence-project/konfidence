@@ -44,6 +44,34 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
+// AddAlias mocks base method.
+func (m *MockClient) AddAlias(ctx context.Context, ref compref.Ref, alias string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddAlias", ctx, ref, alias)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddAlias indicates an expected call of AddAlias.
+func (mr *MockClientMockRecorder) AddAlias(ctx, ref, alias any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAlias", reflect.TypeOf((*MockClient)(nil).AddAlias), ctx, ref, alias)
+}
+
+// Copy mocks base method.
+func (m *MockClient) Copy(ctx context.Context, artifactReferences []compref.Ref, targetRepoSpec runtime0.Typed) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Copy", ctx, artifactReferences, targetRepoSpec)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Copy indicates an expected call of Copy.
+func (mr *MockClientMockRecorder) Copy(ctx, artifactReferences, targetRepoSpec any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Copy", reflect.TypeOf((*MockClient)(nil).Copy), ctx, artifactReferences, targetRepoSpec)
+}
+
 // Get mocks base method.
 func (m *MockClient) Get(ctx context.Context, ref compref.Ref) (runtime.Descriptor, error) {
 	m.ctrl.T.Helper()
