@@ -190,7 +190,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `stageTemplate` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | StageTemplate contains the template of the stage to be created on the LCP cluster. |  |  |
+| `stageTemplate` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | StageTemplate contains the template of the stage to be created on the star cluster. |  |  |
 | `reconcileInterval` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | ReconcileInterval defines how often the sync controller should reconcile the StageSync resource.<br />If not set, the controller's default reconcile interval will be used. |  | Optional: \{\} <br /> |
 
 

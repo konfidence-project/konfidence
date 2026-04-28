@@ -26,30 +26,30 @@ const (
 	StageSyncKind = "StageSync"
 
 	// StageSyncAppliedCondition is the applied condition for the StageSync resource.
-	// It indicates whether the Stage defined in the StageSync resource has been successfully applied to the LCP cluster.
+	// It indicates whether the Stage defined in the StageSync resource has been successfully applied to the star cluster.
 	StageSyncAppliedCondition = "Applied"
 	// StageDeletedCondition tracks the deletion lifecycle of the local Stage.
 	StageDeletedCondition = "StageDeleted"
 
-	// StageReconcileSuccessfulReason indicates that the stage was successfully reconciled on the LCP cluster.
+	// StageReconcileSuccessfulReason indicates that the stage was successfully reconciled on the star cluster.
 	StageReconcileSuccessfulReason = "StageReconcileSuccessful"
-	// StageReconcileFailedReason indicates that the stage reconciliation on the LCP cluster failed.
+	// StageReconcileFailedReason indicates that the stage reconciliation on the star cluster failed.
 	StageReconcileFailedReason = "StageReconcileFailed"
-	// NamespaceNotFoundReason indicates that the target namespace for the stage was not found on the LCP cluster.
+	// NamespaceNotFoundReason indicates that the target namespace for the stage was not found on the star cluster.
 	NamespaceNotFoundReason = "NamespaceNotFound"
-	// StageQueryFailedReason indicates that the stage defined in the StageSync resource could not be queried from the LCP cluster.
+	// StageQueryFailedReason indicates that the stage defined in the StageSync resource could not be queried from the star cluster.
 	StageQueryFailedReason = "StageQueryFailed"
-	// ConflictWithUnmanagedStageReason indicates that there is a conflict with an unmanaged stage on the LCP cluster.
+	// ConflictWithUnmanagedStageReason indicates that there is a conflict with an unmanaged stage on the star cluster.
 	ConflictWithUnmanagedStageReason = "ConflictWithUnmanagedStage"
 	// AddingFinalizerFailedReason indicates that adding the finalizer to the StageSync resource failed.
 	AddingFinalizerFailedReason = "AddingFinalizerFailed"
-	// StageDeletionFailedReason indicates that the stage deletion on the LCP cluster failed.
+	// StageDeletionFailedReason indicates that the stage deletion on the star cluster failed.
 	StageDeletionFailedReason = "StageDeletionFailed"
 	// RemovingFinalizerFailedReason indicates that removing the finalizer from the StageSync resource failed.
 	RemovingFinalizerFailedReason = "RemovingFinalizerFailed"
-	// StageCrdQueryFailedReason indicates that the Stage CRD could not be queried from the LCP cluster.
+	// StageCrdQueryFailedReason indicates that the Stage CRD could not be queried from the star cluster.
 	StageCrdQueryFailedReason = "StageCrdQueryFailed"
-	// APIVersionNotSupportedReason indicates that the Stage CRD on the LCP cluster does not support the requested API version.
+	// APIVersionNotSupportedReason indicates that the Stage CRD on the star cluster does not support the requested API version.
 	APIVersionNotSupportedReason = "APIVersionNotSupported"
 	// InvalidStageTemplateReason indicates that the stage template defined in the StageSync resource is invalid.
 	InvalidStageTemplateReason = "InvalidStageTemplate"
@@ -68,7 +68,7 @@ const (
 
 // StageSyncSpec defines the desired state of a StageSync.
 type StageSyncSpec struct {
-	// StageTemplate contains the template of the stage to be created on the LCP cluster.
+	// StageTemplate contains the template of the stage to be created on the star cluster.
 	StageTemplate runtime.RawExtension `json:"stageTemplate"`
 
 	// ReconcileInterval defines how often the sync controller should reconcile the StageSync resource.

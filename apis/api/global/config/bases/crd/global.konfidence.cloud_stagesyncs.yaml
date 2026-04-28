@@ -55,7 +55,7 @@ spec:
                 type: string
               stageTemplate:
                 description: StageTemplate contains the template of the stage to be
-                  created on the LCP cluster.
+                  created on the star cluster.
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
             required:

@@ -9,5 +9,5 @@ metadata:
 spec:
   name: stage-dev
   vector: https://registry.kdenv.lab/sample-project//konfidence-project/constructed-vector
-  targetWorkspace: root:project-lcp
+  targetWorkspace: root:project-star
   targetNamespace: dev-eu10
