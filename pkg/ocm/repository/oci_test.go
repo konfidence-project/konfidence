@@ -999,4 +999,182 @@ var _ = Describe("OciClient", func() {
 			})
 		})
 	})
+
+	Describe("GetLocalResource", func() {
+		var (
+			repoSpec    *runtime.Unstructured
+			identity    runtime.Identity
+			creds       map[string]string
+			ref         compref.Ref
+			resIdentity runtime.Identity
+		)
+
+		BeforeEach(func() {
+			repoSpec = &runtime.Unstructured{
+				Data: map[string]interface{}{
+					"type": "oci",
+				},
+			}
+			identity = runtime.Identity{"type": "ociRegistry", "hostname": "ghcr.io"}
+			creds = map[string]string{"username": "user", "password": "pass"}
+			ref = compref.Ref{
+				Repository: repoSpec,
+				Component:  "github.com/acme/backend",
+				Version:    "1.0.0",
+			}
+			resIdentity = runtime.Identity{"name": "my-manifest"}
+		})
+
+		Context("successful retrieval", func() {
+			It("retrieves a local resource successfully", func() {
+				expectedResource := &descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{
+						ObjectMeta: descruntime.ObjectMeta{
+							Name: "my-manifest",
+						},
+					},
+				}
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+					Return(repoMock, nil)
+				repoMock.EXPECT().
+					GetLocalResource(gomock.Any(), ref.Component, ref.Version, resIdentity).
+					Return(nil, expectedResource, nil)
+
+				content, res, err := client.GetLocalResource(ctx, ref, resIdentity)
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(content).To(BeNil())
+				Expect(res).To(Equal(expectedResource))
+			})
+
+			It("works with anonymous access when no credentials found", func() {
+				expectedResource := &descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{
+						ObjectMeta: descruntime.ObjectMeta{
+							Name: "my-manifest",
+						},
+					},
+				}
+
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(nil, fmt.Errorf("credentials: %w", credentials.ErrNotFound))
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, gomock.Nil()).
+					Return(repoMock, nil)
+				repoMock.EXPECT().
+					GetLocalResource(gomock.Any(), ref.Component, ref.Version, resIdentity).
+					Return(nil, expectedResource, nil)
+
+				content, res, err := client.GetLocalResource(ctx, ref, resIdentity)
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(content).To(BeNil())
+				Expect(res).To(Equal(expectedResource))
+			})
+		})
+
+		Context("error handling", func() {
+			It("returns ErrInvalidComponentReference for invalid reference", func() {
+				invalidRef := compref.Ref{
+					Repository: repoSpec,
+					Component:  "github.com/acme/backend",
+					Version:    "", // empty version is invalid
+				}
+
+				content, res, err := client.GetLocalResource(ctx, invalidRef, resIdentity)
+
+				Expect(err).To(HaveOccurred())
+				Expect(errors.Is(err, ErrInvalidComponentReference)).To(BeTrue())
+				Expect(content).To(BeNil())
+				Expect(res).To(BeNil())
+			})
+
+			It("returns ErrNotFound when resource doesn't exist", func() {
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+					Return(repoMock, nil)
+				repoMock.EXPECT().
+					GetLocalResource(gomock.Any(), ref.Component, ref.Version, resIdentity).
+					Return(nil, nil, repository.ErrNotFound)
+
+				content, res, err := client.GetLocalResource(ctx, ref, resIdentity)
+
+				Expect(err).To(HaveOccurred())
+				Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+				Expect(content).To(BeNil())
+				Expect(res).To(BeNil())
+			})
+
+			It("returns error when repository access fails", func() {
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+					Return(nil, fmt.Errorf("connection failed"))
+
+				content, res, err := client.GetLocalResource(ctx, ref, resIdentity)
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("connection failed"))
+				Expect(content).To(BeNil())
+				Expect(res).To(BeNil())
+			})
+
+			It("returns error when credential identity lookup fails", func() {
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(nil, fmt.Errorf("invalid repo spec"))
+
+				content, res, err := client.GetLocalResource(ctx, ref, resIdentity)
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("invalid repo spec"))
+				Expect(content).To(BeNil())
+				Expect(res).To(BeNil())
+			})
+
+			It("returns error when GetLocalResource fails", func() {
+				providerMock.EXPECT().
+					GetComponentVersionRepositoryCredentialConsumerIdentity(gomock.Any(), repoSpec).
+					Return(identity, nil)
+				resolverMock.EXPECT().
+					Resolve(gomock.Any(), identity).
+					Return(creds, nil)
+				providerMock.EXPECT().
+					GetComponentVersionRepository(gomock.Any(), repoSpec, creds).
+					Return(repoMock, nil)
+				repoMock.EXPECT().
+					GetLocalResource(gomock.Any(), ref.Component, ref.Version, resIdentity).
+					Return(nil, nil, fmt.Errorf("download failed"))
+
+				content, res, err := client.GetLocalResource(ctx, ref, resIdentity)
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("download failed"))
+				Expect(content).To(BeNil())
+				Expect(res).To(BeNil())
+			})
+		})
+	})
 })
