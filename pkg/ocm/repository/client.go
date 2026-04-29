@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
+	"ocm.software/open-component-model/bindings/go/blob"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/repository"
@@ -26,8 +27,39 @@ var (
 	ErrInvalidComponentReference = konfcompref.ErrInvalidComponentReference
 )
 
-// ReadClient defines read-only operations for accessing component descriptors stored in
-// OCM repositories.
+// ResourceReadClient defines read operations for accessing local resources stored in
+// OCM component versions.
+type ResourceReadClient interface {
+	// GetLocalResource retrieves the content and metadata of a local resource identified
+	// by its component reference and resource identity.
+	//
+	// The identity parameter is a map of extra identity attributes that uniquely identify
+	// the resource within the component version (e.g. {"name": "my-resource"}).
+	//
+	// Returns the raw blob content as a blob.ReadOnlyBlob (call ReadCloser() and io.ReadAll to
+	// get the bytes) along with the resource metadata. Returns ErrNotFound if no matching
+	// resource exists.
+	//
+	// Example:
+	//
+	//	identity := runtime.Identity{"name": "my-manifest"}
+	//	b, res, err := client.GetLocalResource(ctx, ref, identity)
+	//	if err != nil {
+	//	    return err
+	//	}
+	//	rc, err := b.ReadCloser()
+	//	if err != nil {
+	//	    return err
+	//	}
+	//	defer rc.Close()
+	//	data, err := io.ReadAll(rc)
+	GetLocalResource(
+		ctx context.Context,
+		ref compref.Ref,
+		identity runtime.Identity) (blob.ReadOnlyBlob, *descruntime.Resource, error)
+}
+
+// ReadClient defines read operations on OCM component versions.
 type ReadClient interface {
 	// Get retrieves a component descriptor by reference.
 	//
@@ -56,6 +88,8 @@ type ReadClient interface {
 	//	ref.Version = "latest"
 	//	desc, err = client.Get(ctx, ref)
 	Get(ctx context.Context, ref compref.Ref) (descruntime.Descriptor, error)
+
+	ResourceReadClient
 }
 
 // WriteClient defines write operations for persisting component descriptors to OCM repositories.
