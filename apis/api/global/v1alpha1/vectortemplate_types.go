@@ -54,6 +54,8 @@ type VectorTemplateSpec struct {
 	// Components lists the components to be included in the vector.
 	// +kubebuilder:validation:MinItems=1
 	Components []Component `json:"components"`
+
+	Config []CredentialsConfig `json:"config,omitempty"`
 }
 
 // Component defines a component of a VectorTemplate.

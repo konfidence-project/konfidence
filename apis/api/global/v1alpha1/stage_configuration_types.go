@@ -44,7 +44,6 @@ type StageConfigurationSpec struct {
 	// +optional
 	TargetWorkspace *string `json:"targetWorkspace,omitempty"`
 
-	// Config is the list of credential resources that may be used to access an OCI registry.
 	Config []CredentialsConfig `json:"config,omitempty"`
 }
 

@@ -16,7 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
-// CredentialsConfig defines a credential reference to a secret or configMap used to access an OCI registry.
+// CredentialsConfig defines a credential reference to a secret or configMap used to access OCM backends (like OCI registry).
 type CredentialsConfig struct {
 	// Kind of the configuration resource. Allowed values are Secret or ConfigMap.
 	Kind string `json:"kind"`

@@ -43,12 +43,14 @@ _Appears in:_
 
 
 
-CredentialsConfig defines a credential reference to a secret or configMap used to access an OCI registry.
+CredentialsConfig defines a credential reference to a secret or configMap used to access OCM backends (like OCI registry).
 
 
 
 _Appears in:_
 - [StageConfigurationSpec](#stageconfigurationspec)
+- [VectorPromotion](#vectorpromotion)
+- [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -116,7 +118,7 @@ _Appears in:_
 | `vector` _string_ | Vector points to the OCM component that contains the deployment vector for this stage. |  |  |
 | `targetNamespace` _string_ | TargetNamespace is the target namespace where the associated stage is created or updated |  |  |
 | `targetWorkspace` _string_ | TargetWorkspace is the target workspace where the associated stage is created or updated |  | Optional: \{\} <br />Optional: \{\} <br /> |
-| `config` _[CredentialsConfig](#credentialsconfig) array_ | Config is the list of credential resources that may be used to access an OCI registry. |  |  |
+| `config` _[CredentialsConfig](#credentialsconfig) array_ |  |  |  |
 
 
 #### StageConfigurationStatus
@@ -231,6 +233,7 @@ _Appears in:_
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[VectorPromotionSpec](#vectorpromotionspec)_ |  |  |  |
 | `status` _[VectorPromotionStatus](#vectorpromotionstatus)_ |  |  |  |
+| `config` _[CredentialsConfig](#credentialsconfig) array_ |  |  |  |
 
 
 #### VectorPromotionConfig
@@ -424,6 +427,7 @@ _Appears in:_
 | `uploadTarget` _string_ | UploadTarget defines the target OCM component where the assembled vector will be uploaded. |  |  |
 | `base` _string_ | Base represents an optional base component version to build upon. |  | Optional: \{\} <br />Optional: \{\} <br /> |
 | `components` _[Component](#component) array_ | Components lists the components to be included in the vector. |  | MinItems: 1 <br /> |
+| `config` _[CredentialsConfig](#credentialsconfig) array_ |  |  |  |
 
 
 #### VectorTemplateStatus

@@ -48,11 +48,9 @@ spec:
             description: StageConfigurationSpec defines the desired state of StageConfiguration.
             properties:
               config:
-                description: Config is the list of credential resources that may be
-                  used to access an OCI registry.
                 items:
                   description: CredentialsConfig defines a credential reference to
-                    a secret or configMap used to access an OCI registry.
+                    a secret or configMap used to access OCM backends (like OCI registry).
                   properties:
                     apiVersion:
                       description: APIVersion is the api version of the of configuration
