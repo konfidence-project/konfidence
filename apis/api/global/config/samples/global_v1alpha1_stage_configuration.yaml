@@ -11,3 +11,7 @@ spec:
   vector: https://registry.kdenv.lab/sample-project//konfidence-project/constructed-vector
   targetWorkspace: root:project-star
   targetNamespace: dev-eu10
+  config:
+    - kind: Secret
+      apiVersion: v1
+      name: registry-credentials

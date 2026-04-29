@@ -11,3 +11,7 @@ spec:
     - name: https://registry.kdenv.lab/sample-project//konfidence-project/sample-vector/service1
     - name: https://registry.dwc.com/sample-project//dwc.tools.sap/dwc-project/dev/service2
     - name: https://registry.example.lab/sample-project//dwc.tools.sap/dwc-project/dev/service3
+  config:
+    - kind: Secret
+      apiVersion: v1
+      name: registry-credentials
