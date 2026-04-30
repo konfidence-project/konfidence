@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -33,9 +32,11 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
+	genericv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
+	credentialsv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
+	ocmruntime "ocm.software/open-component-model/bindings/go/runtime"
+	"ocm.software/open-component-model/kubernetes/controller/pkg/configuration"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -153,23 +154,20 @@ var _ = BeforeSuite(func() {
 	Expect(global.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	By("building shared OCM client")
-	registrySecret := buildRegistrySecret(registryEndpoint, "user", "password")
+	ocmConfig := buildOCMConfig(registryEndpoint, "user", "password")
 	ocmClient, err = pkgOcm.NewOciClientBuilder().
 		WithLogger(ctrl.Log.WithName("ocm-client")).
-		WithDockerConfigJsonSecret(registrySecret).
+		WithOCMConfig(ocmConfig).
 		Build(ctx)
 	Expect(err).NotTo(HaveOccurred(), "failed to build OCM client")
 
 	By("starting manager with OCM adapter")
-	ocmAdapter := ocm.NewAdapter(
-		ocm.WithOcmClient(ctx, registrySecret),
-	)
-	startManager(ocmAdapter)
+	startManager()
 })
 
-// startManager wires up the VectorTemplateReconciler with the given OCM adapter,
+// startManager wires up the VectorTemplateReconciler with providers,
 // then starts the manager in a background goroutine.
-func startManager(ocmAdapter domain.VectorOcmPort) {
+func startManager() {
 	var err error
 
 	mgr, err := mcmanager.New(cfg, nil, ctrl.Options{
@@ -181,10 +179,20 @@ func startManager(ocmAdapter domain.VectorOcmPort) {
 	Expect(err).NotTo(HaveOccurred(), "failed to create k8s client")
 
 	Expect((&controller.VectorTemplateReconciler{
-		Mgr:              mgr,
-		Scheme:           mgr.GetLocalManager().GetScheme(),
-		OcmAdapter:       ocmAdapter,
-		VersionGenerator: testVersionGenerator,
+		Mgr:    mgr,
+		Scheme: mgr.GetLocalManager().GetScheme(),
+		OcmClientProvider: pkgOcm.ClientProviderFunc(
+			func(
+				_ context.Context,
+				_ client.Reader,
+				_ string,
+				_ []global.CredentialsConfig,
+			) (pkgOcm.Client, error) {
+				return ocmClient, nil
+			},
+		),
+		VectorOcmPortProvider: ocm.NewPortProvider(),
+		VersionGenerator:      testVersionGenerator,
 	}).SetupWithManager(mgr)).To(Succeed())
 
 	managerCtx, managerCancel := context.WithCancel(ctx)
@@ -201,25 +209,38 @@ func startManager(ocmAdapter domain.VectorOcmPort) {
 	}).Should(BeTrue())
 }
 
-// buildRegistrySecret creates a kubernetes.io/dockerconfigjson Secret for the given registry endpoint.
-func buildRegistrySecret(endpoint, username, password string) *corev1.Secret {
+// buildOCMConfig creates an OCM Configuration with DockerConfig credentials for the given registry endpoint.
+func buildOCMConfig(endpoint, username, password string) *configuration.Configuration {
 	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
-	dockerConfig := map[string]any{
-		"auths": map[string]any{
-			endpoint: map[string]any{
-				"auth": auth,
-			},
-		},
+	dockerConfigJSON := fmt.Sprintf(`{"auths":{%q:{"auth":%q}}}`, endpoint, auth)
+
+	repoRaw := &ocmruntime.Raw{
+		Data: []byte(fmt.Sprintf(`{
+			"type": "DockerConfig/v1",
+			"dockerConfig": %q
+		}`, dockerConfigJSON)),
 	}
-	dockerConfigJSON, err := json.Marshal(dockerConfig)
-	Expect(err).NotTo(HaveOccurred(), "failed to marshal docker config JSON")
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "oci-registry-credentials"},
-		Type:       corev1.SecretTypeDockerConfigJson,
-		Data: map[string][]byte{
-			corev1.DockerConfigJsonKey: dockerConfigJSON,
-		},
+
+	credConfig := &credentialsv1.Config{
+		Repositories: []credentialsv1.RepositoryConfigEntry{{Repository: repoRaw}},
 	}
+
+	credScheme := ocmruntime.NewScheme()
+	credentialsv1.MustRegister(credScheme)
+
+	rawCreds := &ocmruntime.Raw{}
+	err := credScheme.Convert(credConfig, rawCreds)
+	Expect(err).NotTo(HaveOccurred(), "failed to convert credentials config")
+
+	cfg := &genericv1.Config{
+		Type: ocmruntime.Type{
+			Version: genericv1.Version,
+			Name:    genericv1.ConfigType,
+		},
+		Configurations: []*ocmruntime.Raw{rawCreds},
+	}
+
+	return &configuration.Configuration{Config: cfg}
 }
 
 // envtest needs the etcd and kube-apiserver binaries that `make setup-envtest` downloads

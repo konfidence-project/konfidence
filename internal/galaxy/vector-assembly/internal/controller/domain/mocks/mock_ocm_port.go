@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	domain "github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
+	repository "github.com/konfidence-project/pkg/ocm/repository"
 	gomock "go.uber.org/mock/gomock"
 	compref "ocm.software/open-component-model/bindings/go/oci/compref"
 	runtime "ocm.software/open-component-model/bindings/go/runtime"
@@ -85,4 +86,42 @@ func (m *MockVectorOcmPort) GetVector(ctx context.Context, vectorRef compref.Ref
 func (mr *MockVectorOcmPortMockRecorder) GetVector(ctx, vectorRef any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVector", reflect.TypeOf((*MockVectorOcmPort)(nil).GetVector), ctx, vectorRef)
+}
+
+// MockVectorOcmPortProvider is a mock of VectorOcmPortProvider interface.
+type MockVectorOcmPortProvider struct {
+	ctrl     *gomock.Controller
+	recorder *MockVectorOcmPortProviderMockRecorder
+	isgomock struct{}
+}
+
+// MockVectorOcmPortProviderMockRecorder is the mock recorder for MockVectorOcmPortProvider.
+type MockVectorOcmPortProviderMockRecorder struct {
+	mock *MockVectorOcmPortProvider
+}
+
+// NewMockVectorOcmPortProvider creates a new mock instance.
+func NewMockVectorOcmPortProvider(ctrl *gomock.Controller) *MockVectorOcmPortProvider {
+	mock := &MockVectorOcmPortProvider{ctrl: ctrl}
+	mock.recorder = &MockVectorOcmPortProviderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockVectorOcmPortProvider) EXPECT() *MockVectorOcmPortProviderMockRecorder {
+	return m.recorder
+}
+
+// NewVectorOcmPort mocks base method.
+func (m *MockVectorOcmPortProvider) NewVectorOcmPort(client repository.Client) domain.VectorOcmPort {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewVectorOcmPort", client)
+	ret0, _ := ret[0].(domain.VectorOcmPort)
+	return ret0
+}
+
+// NewVectorOcmPort indicates an expected call of NewVectorOcmPort.
+func (mr *MockVectorOcmPortProviderMockRecorder) NewVectorOcmPort(client any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewVectorOcmPort", reflect.TypeOf((*MockVectorOcmPortProvider)(nil).NewVectorOcmPort), client)
 }

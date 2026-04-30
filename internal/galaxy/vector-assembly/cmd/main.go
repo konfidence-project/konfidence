@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -32,11 +31,9 @@ import (
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
 	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
 	"github.com/konfidence-project/pkg/ocm/crypto"
-	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/konfidence-project/pkg/ocm/repository"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/konfidence-project/gcp-vector-assembly-controller/pkg/ocm"
@@ -193,19 +190,12 @@ func main() {
 		}
 	}
 
-	secret, err := resolveRegistryCredentials(ctx, mgr.GetLocalManager())
-	if err != nil {
-		setupLog.Error(err, "unable to load registry credentials secret")
-		os.Exit(1)
-	}
-	adapterConfig = append(adapterConfig, ocm.WithOcmClient(ctx, secret))
-
 	if err := (&controller.VectorTemplateReconciler{
-		Mgr:        mgr,
-		Scheme:     scheme,
-		OcmAdapter: ocm.NewAdapter(adapterConfig...),
-		// VersionGenerator: domain.TimestampVectorVersionGenerator,
-		VersionGenerator: domain.TimestampVectorVersionGenerator,
+		Mgr:                   mgr,
+		Scheme:                scheme,
+		OcmClientProvider:     repository.DefaultOciClientProvider,
+		VectorOcmPortProvider: ocm.NewPortProvider(adapterConfig...),
+		VersionGenerator:      domain.TimestampVectorVersionGenerator,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorTemplate")
 		os.Exit(1)
@@ -226,23 +216,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-// TODO: the credentials for accessing OCI registries should be configured in a controller-specific configuration.
-// resolveRegistryCredentials loads the registry credentials secret from the k8s cluster.
-// returns nil if the secret is not found.
-func resolveRegistryCredentials(ctx context.Context, mgr manager.Manager) (*v1.Secret, error) {
-	const secretName = "registry-credentials"
-	const secretNamespace = "konfidence-system"
-
-	secret := &v1.Secret{}
-	err := mgr.GetAPIReader().Get(ctx, types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret)
-	if apierrors.IsNotFound(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get secret %s/%s: %w", secretNamespace, secretName, err)
-	}
-
-	return secret, nil
 }
