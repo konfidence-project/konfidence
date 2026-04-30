@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: landscape-gcp-sync-controller
+  name: star-galaxy-sync-controller
   labels:
-    app.kubernetes.io/name: landscape-gcp-sync-controller
+    app.kubernetes.io/name: star-galaxy-sync-controller
     app.kubernetes.io/managed-by: kustomize
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: landscape-gcp-sync-controller
+      app.kubernetes.io/name: star-galaxy-sync-controller
   replicas: 1
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
-        app.kubernetes.io/name: landscape-gcp-sync-controller
+        app.kubernetes.io/name: star-galaxy-sync-controller
         app.kubernetes.io/managed-by: kustomize
     spec:
       securityContext:
@@ -26,7 +26,7 @@ spec:
       - args:
           - --leader-elect
           - --health-probe-bind-address=:8081
-        image: konfidence-project/landscape-gcp-sync-controller:latest
+        image: konfidence-project/star-galaxy-sync-controller:latest
         imagePullPolicy: Always
         name: manager
         ports: []
@@ -62,5 +62,5 @@ spec:
             value: ""
         volumeMounts: []
       volumes: []
-      serviceAccountName: landscape-gcp-sync-controller
+      serviceAccountName: star-galaxy-sync-controller
       terminationGracePeriodSeconds: 10

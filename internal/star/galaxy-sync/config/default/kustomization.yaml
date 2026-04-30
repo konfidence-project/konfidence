@@ -5,6 +5,6 @@ resources:
 - namespace.yaml
 - ../manager
 images:
-- name: konfidence-project/landscape-gcp-sync-controller
-  newName: registry.kdenv.lab/landscape-gcp-sync-controller
+- name: konfidence-project/star-galaxy-sync-controller
+  newName: registry.kdenv.lab/star-galaxy-sync-controller
   newTag: dev

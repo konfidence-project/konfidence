@@ -31,11 +31,11 @@ import (
 )
 
 const (
-	SecretName = "gcp-sync-kubeconfig"
+	SecretName = "galaxy-sync-kubeconfig"
 	SecretKey  = "kubeconfig"
 
 	// LandscapeNameEnvVar is the name of the environment variable that
-	// holds the human-readable name of the local (LCP) cluster (landscape name).
+	// holds the human-readable name of the local (star) cluster (landscape name).
 	// It is injected via a patch on the Flux Kustomization CR in the per-cluster
 	// GitOps overlay and must not be set in the base deployment manifest.
 	LandscapeNameEnvVar = "LANDSCAPE_NAME"
@@ -80,7 +80,7 @@ func FromSecret(c client.Client, namespace string) (*rest.Config, error) {
 	return cfg, nil
 }
 
-// LandscapeName returns the human-readable name of the local (LCP) cluster.
+// LandscapeName returns the human-readable name of the local (star) cluster.
 // It reads the value from the LANDSCAPE_NAME environment variable, which is
 // expected to be injected via a patch on the Flux Kustomization CR in the
 // per-cluster GitOps overlay.

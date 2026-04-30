@@ -47,7 +47,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: hermit ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=landscape-gcp-sync-manager crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=star-galaxy-sync-manager crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: hermit  ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -74,7 +74,7 @@ test: hermit manifests generate generate-test-crds fmt vet setup-envtest ## Run 
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
 # CertManager is installed by default; skip with:
 # - CERT_MANAGER_INSTALL_SKIP=true
-KIND_CLUSTER ?= landscape-gcp-sync-controller-test-e2e
+KIND_CLUSTER ?= star-galaxy-sync-controller-test-e2e
 
 .PHONY: setup-test-e2e
 setup-test-e2e: hermit ## Set up a Kind cluster for e2e tests if it does not exist
@@ -119,11 +119,11 @@ run: manifests generate fmt vet ## Run a controller from your host.
 .PHONY: docker-build
 docker-build: hermit
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/manager cmd/main.go
-	$(CONTAINER_TOOL) build -f local.Dockerfile -t ${REGISTRY}/landscape-gcp-sync-controller:${TAG} .
+	$(CONTAINER_TOOL) build -f local.Dockerfile -t ${REGISTRY}/star-galaxy-sync-controller:${TAG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${REGISTRY}/landscape-gcp-sync-controller:${TAG}
+	$(CONTAINER_TOOL) push ${REGISTRY}/star-galaxy-sync-controller:${TAG}
 
 ##@ Deployment
 
@@ -141,7 +141,7 @@ uninstall: hermit manifests  ## Uninstall CRDs from the K8s cluster specified in
 
 .PHONY: deploy
 deploy: hermit manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/default && $(KUSTOMIZE) edit set image konfidence-project/landscape-gcp-sync-controller=${REGISTRY}/landscape-gcp-sync-controller:${TAG}
+	cd config/default && $(KUSTOMIZE) edit set image konfidence-project/star-galaxy-sync-controller=${REGISTRY}/star-galaxy-sync-controller:${TAG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy

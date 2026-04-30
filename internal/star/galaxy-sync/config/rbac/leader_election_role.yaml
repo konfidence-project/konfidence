@@ -3,9 +3,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app.kubernetes.io/name: landscape-gcp-sync-controller
+    app.kubernetes.io/name: star-galaxy-sync-controller
     app.kubernetes.io/managed-by: kustomize
-  name: landscape-gcp-sync-controller-leader-election-role
+  name: star-galaxy-sync-controller-leader-election-role
 rules:
 - apiGroups:
   - ""

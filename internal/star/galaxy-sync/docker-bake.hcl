@@ -7,14 +7,14 @@ variable "REGISTRY" {
 }
 
 group "default" {
-  targets = ["landscape-gcp-sync-controller"]
+  targets = ["star-galaxy-sync-controller"]
 }
 
-target "landscape-gcp-sync-controller" {
+target "star-galaxy-sync-controller" {
   context    = "."
   dockerfile = "Dockerfile"
   platforms  = ["linux/amd64", "linux/arm64"]
-  tags       = ["${REGISTRY}/landscape-gcp-sync-controller:${TAG}"]
+  tags       = ["${REGISTRY}/star-galaxy-sync-controller:${TAG}"]
   
   secret = ["id=gh_token,env=GH_TOKEN"]
 }

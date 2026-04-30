@@ -52,22 +52,22 @@ const (
 	defaultReconcileInterval = 30 * time.Second
 	deletionRequeueInterval  = 5 * time.Second
 	managedByLabelKey        = "app.kubernetes.io/managed-by"
-	gcpStageSyncLabelKey     = "konfidence.cloud/gcp-stage-sync"
-	stageSyncedByLabelPrefix = "synced-by-lcp/"
+	galaxyStageSyncLabelKey   = "konfidence.cloud/galaxy-stage-sync"
+	stageSyncedByLabelPrefix = "synced-by-star/"
 	StageSyncControllerName  = "stage-sync-controller"
 )
 
-// StageSyncReconciler watches a StageSync object on the remote client (GCP) and creates/updates/deletes a corresponding Stage object on the local cluster (LCP).
+// StageSyncReconciler watches a StageSync object on the remote client (galaxy) and creates/updates/deletes a corresponding Stage object on the local cluster (star).
 type StageSyncReconciler struct {
-	// LocalClient is the client accessing the LCP
+	// LocalClient is the client accessing the star
 	LocalClient client.Client
-	// RemoteCluster is the cluster accessor for the GCP side. Its cache is
+	// RemoteCluster is the cluster accessor for the galaxy side. Its cache is
 	// managed by the controller-runtime manager, which guarantees it is
 	// started (and synced) before any informers sourced from it.
 	RemoteCluster cluster.Cluster
 	Scheme        *runtime.Scheme
 	Recorder      events.EventRecorder
-	LandscapeName string // name of the local (LCP) cluster (landscape name), used for labeling
+	LandscapeName string // name of the local (star) cluster (landscape name), used for labeling
 }
 
 // +kubebuilder:rbac:groups="",resources=namespaces;secrets,verbs=get;list;watch
@@ -141,12 +141,12 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if !apierrors.IsNotFound(err) {
 		// stage found: check if existing stage is managed by this StageSync resource
 		managedBy, hasManagedBy := localStage.GetLabels()[managedByLabelKey]
-		parentStageSync, hasParentStageSync := localStage.GetLabels()[gcpStageSyncLabelKey]
+		parentStageSync, hasParentStageSync := localStage.GetLabels()[galaxyStageSyncLabelKey]
 		if !hasManagedBy || managedBy != StageSyncControllerName ||
 			!hasParentStageSync || parentStageSync != sanitizeLabelValue(req.String()) {
 			msg := fmt.Sprintf("stage that is not managed by this StageSync resource already exists with desired name and namespace; expected labels '%s: %s' and '%s: %s'",
 				managedByLabelKey, StageSyncControllerName,
-				gcpStageSyncLabelKey, sanitizeLabelValue(req.String()))
+				galaxyStageSyncLabelKey, sanitizeLabelValue(req.String()))
 			logger.Error(nil, msg)
 			r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, global.ConflictWithUnmanagedStageReason, "CheckManagedStage", msg)
 			patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, global.ConflictWithUnmanagedStageReason, msg)
@@ -164,7 +164,7 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// label the remote StageSync with the local cluster name so it is visible
-	// on the GCP side which LCP cluster is syncing it
+	// on the galaxy side which star cluster is syncing it
 	if err := r.ensureStageSyncedByLabel(ctx, remoteStageSync, originalRemoteStageSync); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to set stage-synced-by label on remote StageSync: %w", err)
 	}
@@ -292,7 +292,7 @@ func (r *StageSyncReconciler) setStageDeletedCondition(ctx context.Context, stag
 
 // ensureStageSyncedByLabel patches a per-cluster label onto the remote
 // StageSync object when it is absent. The label key is
-// "synced-by-lcp/<cluster-name>" with value "true", so multiple LCP clusters
+// "synced-by-star/<cluster-name>" with value "true", so multiple star clusters
 // can each add their own label without overwriting one another.
 // If LandscapeName is empty the label is skipped to avoid writing an invalid key.
 func (r *StageSyncReconciler) ensureStageSyncedByLabel(ctx context.Context, stageSync, originalStageSync *global.StageSync) error {
@@ -442,7 +442,7 @@ func adjustStageFromTemplate(stage, stageTemplate *landscape.Stage, namespacedNa
 		stageLabels = make(map[string]string)
 	}
 	stageLabels[managedByLabelKey] = StageSyncControllerName
-	stageLabels[gcpStageSyncLabelKey] = sanitizeLabelValue(namespacedName.String())
+	stageLabels[galaxyStageSyncLabelKey] = sanitizeLabelValue(namespacedName.String())
 	stage.SetLabels(stageLabels)
 }
 
