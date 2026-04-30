@@ -52,7 +52,7 @@ const (
 	defaultReconcileInterval = 30 * time.Second
 	deletionRequeueInterval  = 5 * time.Second
 	managedByLabelKey        = "app.kubernetes.io/managed-by"
-	galaxyStageSyncLabelKey   = "konfidence.cloud/galaxy-stage-sync"
+	galaxyStageSyncLabelKey  = "konfidence.cloud/galaxy-stage-sync"
 	stageSyncedByLabelPrefix = "synced-by-star/"
 	StageSyncControllerName  = "stage-sync-controller"
 )
