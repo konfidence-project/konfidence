@@ -9,5 +9,5 @@ metadata:
 spec:
   name: stage-dev
   vector: http://localhost:5100/sample-project//konfidence.cloud/project/constructed-vector:latest
-  targetWorkspace: root:lcp-1
+  targetWorkspace: root:star-1
   targetNamespace: default
