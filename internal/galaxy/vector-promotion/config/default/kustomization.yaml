@@ -5,6 +5,6 @@ resources:
 - namespace.yaml
 - ../manager
 images:
-- name: konfidence-project/gcp-vector-promotion-controller
-  newName: registry.kdenv.lab/gcp-vector-promotion-controller
+- name: konfidence-project/galaxy-vector-promotion-controller
+  newName: registry.kdenv.lab/galaxy-vector-promotion-controller
   newTag: dev

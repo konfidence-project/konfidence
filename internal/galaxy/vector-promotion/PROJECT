@@ -6,7 +6,7 @@ cliVersion: 4.10.1
 domain: konfidence.cloud
 layout:
 - go.kubebuilder.io/v4
-projectName: gcp-vector-promotion-controller
+projectName: galaxy-vector-promotion-controller
 repo: github.com/konfidence-project/gcp-vector-promotion-controller
 resources:
 - controller: true

@@ -7,14 +7,14 @@ variable "REGISTRY" {
 }
 
 group "default" {
-  targets = ["gcp-vector-promotion-controller"]
+  targets = ["galaxy-vector-promotion-controller"]
 }
 
-target "gcp-vector-promotion-controller" {
+target "galaxy-vector-promotion-controller" {
   context    = "."
   dockerfile = "Dockerfile"
   platforms  = ["linux/amd64", "linux/arm64"]
-  tags       = ["${REGISTRY}/gcp-vector-promotion-controller:${TAG}"]
+  tags       = ["${REGISTRY}/galaxy-vector-promotion-controller:${TAG}"]
   
   secret = ["id=gh_token,env=GH_TOKEN"]
 }
