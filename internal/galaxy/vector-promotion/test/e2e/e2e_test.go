@@ -31,16 +31,16 @@ import (
 )
 
 // namespace where the project is deployed in
-const namespace = "gcp-vector-promotion-controller-system"
+const namespace = "galaxy-vector-promotion-controller-system"
 
 // serviceAccountName created for the project
-const serviceAccountName = "gcp-vector-promotion-controller-controller-manager"
+const serviceAccountName = "galaxy-vector-promotion-controller-controller-manager"
 
 // metricsServiceName is the name of the metrics service of the project
-const metricsServiceName = "gcp-vector-promotion-controller-controller-manager-metrics-service"
+const metricsServiceName = "galaxy-vector-promotion-controller-controller-manager-metrics-service"
 
 // metricsRoleBindingName is the name of the RBAC that will be created to allow get the metrics data
-const metricsRoleBindingName = "gcp-vector-promotion-controller-metrics-binding"
+const metricsRoleBindingName = "galaxy-vector-promotion-controller-metrics-binding"
 
 var _ = Describe("Manager", Ordered, func() {
 	var controllerPodName string
@@ -173,7 +173,7 @@ var _ = Describe("Manager", Ordered, func() {
 		It("should ensure the metrics endpoint is serving metrics", func() {
 			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
 			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
-				"--clusterrole=gcp-vector-promotion-controller-metrics-reader",
+				"--clusterrole=galaxy-vector-promotion-controller-metrics-reader",
 				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
 			)
 			_, err := utils.Run(cmd)

@@ -3,9 +3,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app.kubernetes.io/name: gcp-vector-promotion-controller
+    app.kubernetes.io/name: galaxy-vector-promotion-controller
     app.kubernetes.io/managed-by: kustomize
-  name: gcp-vector-promotion-controller-leader-election-role
+  name: galaxy-vector-promotion-controller-leader-election-role
 rules:
 - apiGroups:
   - ""
