@@ -266,6 +266,16 @@ func NewAdapter(options ...AdapterOption) Adapter {
 	return a
 }
 
+// NewPortProvider creates a VectorOcmPortProviderFunc that builds an Adapter
+// with the given options and plugs in the provided client at call time.
+func NewPortProvider(opts ...AdapterOption) domain.VectorOcmPortProviderFunc {
+	return func(client pkgocm.Client) domain.VectorOcmPort {
+		a := NewAdapter(opts...)
+		a.ocmClient = client
+		return a
+	}
+}
+
 func applyDefaults(a *Adapter) {
 	if a.vectorSigner == nil {
 		ctrl.Log.Info("vector signer not configured - using noop signer")

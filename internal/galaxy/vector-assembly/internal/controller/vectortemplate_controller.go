@@ -26,6 +26,7 @@ import (
 	"github.com/konfidence-project/crds/api/global/v1alpha1"
 	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
 	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
+	"github.com/konfidence-project/pkg/ocm/repository"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,10 +54,11 @@ const (
 
 // VectorTemplateReconciler reconciles a VectorTemplate object
 type VectorTemplateReconciler struct {
-	Mgr              mcmanager.Manager
-	Scheme           *runtime.Scheme
-	OcmAdapter       domain.VectorOcmPort
-	VersionGenerator domain.VectorVersionGenerator
+	Mgr                   mcmanager.Manager
+	Scheme                *runtime.Scheme
+	OcmClientProvider     repository.ClientProvider
+	VectorOcmPortProvider domain.VectorOcmPortProvider
+	VersionGenerator      domain.VectorVersionGenerator
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
@@ -87,7 +89,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req mcreconcil
 	originalVectorTemplate := vectorTemplate.DeepCopy()
 	patch := client.MergeFrom(originalVectorTemplate)
 
-	if err = r.detectAndActOnDrift(ctx, vectorTemplate, recorder); err != nil {
+	if err = r.detectAndActOnDrift(ctx, clusterClient, vectorTemplate, recorder); err != nil {
 		log.Error(err, "error detecting or acting on drift for Vector template")
 	}
 
@@ -106,8 +108,15 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req mcreconcil
 	return ctrl.Result{RequeueAfter: requeueAfterFromSpecOrDefault(vectorTemplate)}, nil
 }
 
-func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, template *v1alpha1.VectorTemplate, recorder events.EventRecorder) error {
+func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, clusterClient client.Client, template *v1alpha1.VectorTemplate, recorder events.EventRecorder) error {
 	log := logf.FromContext(ctx)
+
+	ocmClient, err := r.OcmClientProvider.NewClient(ctx, clusterClient, template.GetNamespace(), template.Spec.Config)
+	if err != nil {
+		return fmt.Errorf("unable to create OCM client: %w", err)
+	}
+
+	ocmAdapter := r.VectorOcmPortProvider.NewVectorOcmPort(ocmClient)
 
 	ocmComponentsFromComponentList, err := mapComponentsToOCMReferences(template.Spec.Components)
 	if err != nil {
@@ -142,12 +151,12 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 
 	var desiredArtifacts []domain.Artifact
 	if template.Spec.Base != nil {
-		if desiredArtifacts, err = r.getArtifactsFromBaseVector(ctx, template, vectorOCMComponent.Component, recorder); err != nil {
+		if desiredArtifacts, err = r.getArtifactsFromBaseVector(ctx, ocmAdapter, template, vectorOCMComponent.Component, recorder); err != nil {
 			return err
 		}
 	}
 
-	latestArtifactsFromComponentList, err := r.OcmAdapter.GetArtifacts(ctx, ocmComponentsFromComponentList)
+	latestArtifactsFromComponentList, err := ocmAdapter.GetArtifacts(ctx, ocmComponentsFromComponentList)
 	if err != nil {
 		err = fmt.Errorf("unable to get desired artifacts for vector (%s): %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -164,7 +173,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 
 	desiredArtifacts = combineBaseArtifactsAndComponentArtifacts(desiredArtifacts, latestArtifactsFromComponentList)
 
-	actualVector, err := r.OcmAdapter.GetVector(ctx, *vectorOCMComponent)
+	actualVector, err := ocmAdapter.GetVector(ctx, *vectorOCMComponent)
 	if errors.Is(err, domain.ErrVectorNotFound) {
 		msg := "Vector not found in OCM repository - creating new vector"
 		recorder.Eventf(template, nil, v1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
@@ -205,7 +214,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 		Artifacts: desiredArtifacts,
 	}
 
-	err = r.OcmAdapter.CreateVector(ctx, vectorOCMComponent.Repository, newVector, vectorOCMComponent.Version)
+	err = ocmAdapter.CreateVector(ctx, vectorOCMComponent.Repository, newVector, vectorOCMComponent.Version)
 	if err != nil {
 		err = fmt.Errorf("unable to create new vector (%s) on drift: %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -234,7 +243,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, temp
 	return nil
 }
 
-func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(ctx context.Context, template *v1alpha1.VectorTemplate, vectorOCMComponentName string, recorder events.EventRecorder) ([]domain.Artifact, error) {
+func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(ctx context.Context, ocmAdapter domain.VectorOcmPort, template *v1alpha1.VectorTemplate, vectorOCMComponentName string, recorder events.EventRecorder) ([]domain.Artifact, error) {
 	baseVectorOCMComponent, err := konfcompref.Parse(*template.Spec.Base)
 	if err != nil {
 		err = fmt.Errorf("unable to create ocm reference from vector template base (%s): %w", *template.Spec.Base, err)
@@ -250,7 +259,7 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(ctx context.Contex
 		return nil, err
 	}
 
-	baseVector, err := r.OcmAdapter.GetVector(ctx, *baseVectorOCMComponent)
+	baseVector, err := ocmAdapter.GetVector(ctx, *baseVectorOCMComponent)
 	if err != nil {
 		err = fmt.Errorf("unable to get artifacts from base vector (%s): %w", baseVectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{

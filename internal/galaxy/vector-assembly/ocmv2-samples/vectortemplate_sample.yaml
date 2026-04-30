@@ -1,12 +1,16 @@
 apiVersion: global.konfidence.cloud/v1alpha1
 kind: VectorTemplate
 metadata:
-  namespace: default
+  namespace: konfidence-system 
   name: sample-app
 spec:
   reconcileInterval: 10s
-  base: http://localhost:5100//konfidence.project/common-services:future
+  base: http://localhost:5100//konfidence.cloud/common-services:future
   uploadTarget: http://localhost:5100//konfidence.cloud/sample-vector/sample-app:prod-eu10
   components:
-    - name: http://localhost:5100//dwc.tools.sap/dwc-project/dev/service2:1.2.0
-    - name: http://localhost:5100//dwc.tools.sap/dwc-project/dev/service3:edge
+    - name: http://localhost:5100//konfidence.cloud/services/service2:1.2.0
+    - name: http://localhost:5100//konfidence.cloud/services/service3:4.1.0
+  config:
+    - kind: Secret
+      apiVersion: v1
+      name: registry-credentials
