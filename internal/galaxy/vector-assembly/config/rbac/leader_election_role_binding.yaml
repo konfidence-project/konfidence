@@ -2,14 +2,14 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/name: gcp-vector-assembly-controller
+    app.kubernetes.io/name: galaxy-vector-assembly-controller
     app.kubernetes.io/managed-by: kustomize
-  name: gcp-vector-assembly-controller-leader-election-rolebinding
+  name: galaxy-vector-assembly-controller-leader-election-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: gcp-vector-assembly-controller-leader-election-role
+  name: galaxy-vector-assembly-controller-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: gcp-vector-assembly-controller
+  name: galaxy-vector-assembly-controller
 

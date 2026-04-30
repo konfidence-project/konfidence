@@ -44,7 +44,7 @@ import (
 const (
 	defaultReconcileInterval = time.Minute
 
-	VectorAssemblyControllerName = "gcp-vector-assembly-controller"
+	VectorAssemblyControllerName = "galaxy-vector-assembly-controller"
 
 	EventActionStatusPatch    = "StatusPatch"
 	EventActionDriftDetection = "DriftDetection"
