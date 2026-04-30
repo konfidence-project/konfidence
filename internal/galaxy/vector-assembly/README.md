@@ -1,10 +1,10 @@
 [![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/gcp-vector-assembly-controller)](https://api.reuse.software/info/github.com/konfidence-project/gcp-vector-assembly-controller)
 
-# gcp-vector-assembly-controller
+# galaxy-vector-assembly-controller
 
 ## About this project
 
-The GCP Vector Assembly Controller ...
+The Galaxy Vector Assembly Controller ...
 
 ## Requirements and Setup
 
@@ -30,4 +30,4 @@ We as members, contributors, and leaders pledge to make participation in our com
 
 ## Licensing
 
-Copyright 2026 SAP SE or an SAP affiliate company and gcp-vector-assembly-controller contributors. Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available [via the REUSE tool](https://api.reuse.software/info/github.com/konfidence-project/<your-project>).
+Copyright 2026 SAP SE or an SAP affiliate company and galaxy-vector-assembly-controller contributors. Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available [via the REUSE tool](https://api.reuse.software/info/github.com/konfidence-project/<your-project>).

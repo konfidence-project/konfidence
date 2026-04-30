@@ -7,14 +7,14 @@ variable "REGISTRY" {
 }
 
 group "default" {
-  targets = ["gcp-vector-assembly-controller"]
+  targets = ["galaxy-vector-assembly-controller"]
 }
 
-target "gcp-vector-assembly-controller" {
+target "galaxy-vector-assembly-controller" {
   context    = "."
   dockerfile = "Dockerfile"
   platforms  = ["linux/amd64", "linux/arm64"]
-  tags       = ["${REGISTRY}/gcp-vector-assembly-controller:${TAG}"]
+  tags       = ["${REGISTRY}/galaxy-vector-assembly-controller:${TAG}"]
 
   secret = ["id=gh_token,env=GH_TOKEN"]
 }

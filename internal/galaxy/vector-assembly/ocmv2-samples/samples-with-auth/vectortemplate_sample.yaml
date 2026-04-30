@@ -6,7 +6,7 @@ metadata:
 spec:
   reconcileInterval: 10s
   base: http://localhost:5100//konfidence.cloud/constructed-vectors/base-vector
-  uploadTarget: http://localhost:5100/gcp-vector-assembly-controller//konfidence.cloud/constructed-vectors/sample-app
+  uploadTarget: http://localhost:5100/galaxy-vector-assembly-controller//konfidence.cloud/constructed-vectors/sample-app
   components:
     - name: http://localhost:5100//konfidence.cloud/services/service2
     - name: http://localhost:5100//konfidence.cloud/services/service3

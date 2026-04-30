@@ -5,6 +5,6 @@ resources:
 - namespace.yaml
 - ../manager
 images:
-- name: konfidence-project/gcp-vector-assembly-controller
-  newName: registry.kdenv.lab/gcp-vector-assembly-controller
+- name: konfidence-project/galaxy-vector-assembly-controller
+  newName: registry.kdenv.lab/galaxy-vector-assembly-controller
   newTag: dev

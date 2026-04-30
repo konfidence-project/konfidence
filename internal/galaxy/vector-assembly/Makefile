@@ -47,7 +47,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: hermit ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	"$(CONTROLLER_GEN)" rbac:roleName=gcp-vector-assembly-manager crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	"$(CONTROLLER_GEN)" rbac:roleName=galaxy-vector-assembly-manager crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: hermit ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -77,7 +77,7 @@ test-controller: hermit generate-test-crds setup-envtest ## Run controller tests
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
 # CertManager is installed by default; skip with:
 # - CERT_MANAGER_INSTALL_SKIP=true
-KIND_CLUSTER ?= gcp-vector-assembly-test-e2e
+KIND_CLUSTER ?= galaxy-vector-assembly-test-e2e
 
 .PHONY: setup-test-e2e
 setup-test-e2e: hermit ## Set up a Kind cluster for e2e tests if it does not exist
@@ -122,11 +122,11 @@ run: hermit manifests generate fmt vet ## Run a controller from your host.
 .PHONY: docker-build
 docker-build: hermit
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/manager cmd/main.go
-	$(CONTAINER_TOOL) build -f local.Dockerfile -t ${REGISTRY}/gcp-vector-assembly-controller:${TAG} .
+	$(CONTAINER_TOOL) build -f local.Dockerfile -t ${REGISTRY}/galaxy-vector-assembly-controller:${TAG} .
 
 .PHONY: docker-push
 docker-push: hermit ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${REGISTRY}/gcp-vector-assembly-controller:${TAG}
+	$(CONTAINER_TOOL) push ${REGISTRY}/galaxy-vector-assembly-controller:${TAG}
 ##@ Deployment
 
 ifndef ignore-not-found
