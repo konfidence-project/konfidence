@@ -94,12 +94,12 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			By("verifying the Stage carries the app.kubernetes.io/managed-by label")
 			Expect(createdStage.GetLabels()).To(HaveKeyWithValue("app.kubernetes.io/managed-by", StageSyncControllerName))
 
-			By("verifying the Stage carries the gcp-stage-sync label pointing to the StageSync")
+			By("verifying the Stage carries the galaxy-stage-sync label pointing to the StageSync")
 			expectedParentLabel := sanitizeLabelValue(types.NamespacedName{
 				Name:      stageSyncName,
 				Namespace: stageSyncNamespace,
 			}.String())
-			Expect(createdStage.GetLabels()).To(HaveKeyWithValue(gcpStageSyncLabelKey, expectedParentLabel))
+			Expect(createdStage.GetLabels()).To(HaveKeyWithValue(galaxyStageSyncLabelKey, expectedParentLabel))
 
 			By("verifying the StageSync status condition is set to Applied=True on the remote cluster")
 			updatedStageSync := &global.StageSync{}

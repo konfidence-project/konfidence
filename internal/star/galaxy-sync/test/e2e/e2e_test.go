@@ -31,16 +31,16 @@ import (
 )
 
 // namespace where the project is deployed in
-const namespace = "landscape-gcp-sync-controller-system"
+const namespace = "star-galaxy-sync-controller-system"
 
 // serviceAccountName created for the project
-const serviceAccountName = "landscape-gcp-sync-controller-controller-manager"
+const serviceAccountName = "star-galaxy-sync-controller-controller-manager"
 
 // metricsServiceName is the name of the metrics service of the project
-const metricsServiceName = "landscape-gcp-sync-controller-controller-manager-metrics-service"
+const metricsServiceName = "star-galaxy-sync-controller-controller-manager-metrics-service"
 
 // metricsRoleBindingName is the name of the RBAC that will be created to allow get the metrics data
-const metricsRoleBindingName = "landscape-gcp-sync-controller-metrics-binding"
+const metricsRoleBindingName = "star-galaxy-sync-controller-metrics-binding"
 
 var _ = Describe("Manager", Ordered, func() {
 	var controllerPodName string
@@ -173,7 +173,7 @@ var _ = Describe("Manager", Ordered, func() {
 		It("should ensure the metrics endpoint is serving metrics", func() {
 			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
 			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
-				"--clusterrole=landscape-gcp-sync-controller-metrics-reader",
+				"--clusterrole=star-galaxy-sync-controller-metrics-reader",
 				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
 			)
 			_, err := utils.Run(cmd)

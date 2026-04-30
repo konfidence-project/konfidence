@@ -117,7 +117,7 @@ func main() {
 // setupStageSyncReconciler wires up the StageSyncReconciler.
 //
 // It attempts to read the remote kubeconfig from a Secret named
-// gcpSyncKubeconfigSecretName in secretNamespace. When the Secret is not
+// galaxySyncKubeconfigSecretName in secretNamespace. When the Secret is not
 // found the controller falls back to using the local cluster as the remote
 // cluster (single-cluster use-case).
 func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
@@ -138,7 +138,7 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 	var remoteCluster cluster.Cluster = mgr
 
 	if remoteConfig != nil {
-		// Multi-cluster: build a dedicated cluster for the remote (GCP) side.
+		// Multi-cluster: build a dedicated cluster for the remote (galaxy) side.
 		log.Info("Remote kubeconfig found; running in multi-cluster mode",
 			"kubeconfig-secret", fmt.Sprintf("%s/%s", getControllerNamespace(), config.SecretName),
 			"secret-key", config.SecretKey,
