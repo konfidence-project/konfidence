@@ -29,6 +29,7 @@ import (
 	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/domain"
 	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -38,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -114,6 +116,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.Context, clusterClient client.Client, stageConfiguration *global.StageConfiguration, recorder events.EventRecorder) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageConfiguration")
+	r.updateStageConfigurationReadyStatus(stageConfiguration, false, "")
 
 	// get vector with specific version or alias
 	vector, err := r.VectorPort.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
@@ -153,6 +156,9 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(ctx context.C
 	if err != nil {
 		return err
 	}
+
+	// mark stageConfiguration as ready
+	r.updateStageConfigurationReadyStatus(stageConfiguration, true, fmt.Sprintf("StageConfiguration %s reconciled", stageConfiguration.Name))
 
 	msg := fmt.Sprintf("StageSync %s %s with StageConfiguration %s", stageSync.Name, operationResult, stageConfiguration.Name)
 	recorder.Eventf(stageConfiguration, nil, v1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
@@ -245,10 +251,26 @@ func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stage
 	return host[:separatorIdx] + ClusterMarker + *stageConfiguration.Spec.TargetWorkspace, nil
 }
 
+func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stageConfiguration *global.StageConfiguration, ready bool, message string) {
+	status := metav1.ConditionFalse
+	if ready {
+		status = metav1.ConditionTrue
+	}
+
+	meta.SetStatusCondition(&stageConfiguration.Status.Conditions, metav1.Condition{
+		Type:               global.StageConfigurationReadyCondition,
+		Status:             status,
+		Reason:             global.StageConfigurationReadyCondition,
+		Message:            message,
+		ObservedGeneration: stageConfiguration.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *StageConfigurationReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
-		For(&global.StageConfiguration{}).
+		For(&global.StageConfiguration{}, mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named(StageConfigurationControllerName).
 		Complete(r)
 }
