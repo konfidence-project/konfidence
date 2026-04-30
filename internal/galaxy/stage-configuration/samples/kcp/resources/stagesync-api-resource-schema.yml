@@ -42,7 +42,7 @@ spec:
               type: string
             stageTemplate:
               description: StageTemplate contains the template of the stage to be
-                created on the star cluster.
+                created on the Star cluster.
               type: object
               x-kubernetes-preserve-unknown-fields: true
           required:
