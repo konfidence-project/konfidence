@@ -2,13 +2,13 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/name: gcp-stage-configuration-controller
+    app.kubernetes.io/name: galaxy-stage-configuration-controller
     app.kubernetes.io/managed-by: kustomize
-  name: gcp-stage-configuration-controller-leader-election-rolebinding
+  name: galaxy-stage-configuration-controller-leader-election-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: gcp-stage-configuration-controller-leader-election-role
+  name: galaxy-stage-configuration-controller-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: gcp-stage-configuration-controller
+  name: galaxy-stage-configuration-controller

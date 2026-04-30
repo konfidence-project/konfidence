@@ -3,9 +3,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app.kubernetes.io/name: gcp-stage-configuration-controller
+    app.kubernetes.io/name: galaxy-stage-configuration-controller
     app.kubernetes.io/managed-by: kustomize
-  name: gcp-stage-configuration-controller-leader-election-role
+  name: galaxy-stage-configuration-controller-leader-election-role
 rules:
 - apiGroups:
   - ""

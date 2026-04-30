@@ -6,7 +6,7 @@ cliVersion: 4.10.1
 domain: konfidence.cloud
 layout:
 - go.kubebuilder.io/v4
-projectName: gcp-stage-configuration-controller
+projectName: galaxy-stage-configuration-controller
 repo: github.com/konfidence-project/gcp-stage-configuration-controller
 resources:
 - controller: true

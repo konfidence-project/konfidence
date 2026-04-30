@@ -5,6 +5,6 @@ resources:
 - namespace.yaml
 - ../manager
 images:
-- name: konfidence-project/gcp-stage-configuration-controller
-  newName: registry.kdenv.lab/gcp-stage-configuration-controller
+- name: konfidence-project/galaxy-stage-configuration-controller
+  newName: registry.kdenv.lab/galaxy-stage-configuration-controller
   newTag: dev
