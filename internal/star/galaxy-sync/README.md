@@ -4,13 +4,13 @@
 
 ## About this project
 
-The Star Galaxy Sync Controller is a Kubernetes controller that keeps `Stage` objects on a **local (star) cluster** in sync with `StageSync` objects managed on a **remote (galaxy) cluster**. It bridges the two clusters by watching the remote cluster for `StageSync` resources and reconciling the desired state onto the local cluster.
+The Star Galaxy Sync Controller is a Kubernetes controller that keeps `Stage` objects on a **local (Star) cluster** in sync with `StageSync` objects managed on a **remote (Galaxy) cluster**. It bridges the two clusters by watching the remote cluster for `StageSync` resources and reconciling the desired state onto the local cluster.
 
 ## How it works
 
 ### Trigger
 
-The controller watches `StageSync` objects on the **remote (galaxy) cluster**. Every create, update, or delete of a `StageSync` triggers a reconcile, during which a corresponding `Stage` object is created or updated on the **local (star) cluster** according to the template embedded in the `StageSync` spec. In addition, the controller re-reconciles each `StageSync` periodically (default: every 30 seconds) to correct any drift.
+The controller watches `StageSync` objects on the **remote (Galaxy) cluster**. Every create, update, or delete of a `StageSync` triggers a reconcile, during which a corresponding `Stage` object is created or updated on the **local (Star) cluster** according to the template embedded in the `StageSync` spec. In addition, the controller re-reconciles each `StageSync` periodically (default: every 30 seconds) to correct any drift.
 
 ### Reconcile flow
 
@@ -42,15 +42,15 @@ A finalizer (`konfidence.cloud/stage-sync-finalizer`) is added to each `StageSyn
 
 #### `LANDSCAPE_NAME` *(required)*
 
-The `LANDSCAPE_NAME` environment variable sets the name of the landscape (star cluster) the controller is running on. It is used to label `StageSync` objects on the remote cluster with `synced-by-star/<landscape-name>`, allowing tracking of which landscape cluster is managing a given sync.
+The `LANDSCAPE_NAME` environment variable sets the name of the landscape (Star cluster) the controller is running on. It is used to label `StageSync` objects on the remote cluster with `synced-by-star/<landscape-name>`, allowing tracking of which landscape cluster is managing a given sync.
 
 #### `CONTROLLER_NAMESPACE` *(auto-injected)*
 
 Injected automatically via the Kubernetes Downward API. Used to locate the remote kubeconfig Secret. Falls back to `default` when not set.
 
-### Kubeconfig Secret for Remote Cluster (galaxy)
+### Kubeconfig Secret for Remote Cluster (Galaxy)
 
-The controller reads the remote (galaxy) cluster kubeconfig from a Secret named `galaxy-sync-kubeconfig`, with the kubeconfig YAML stored under the key `kubeconfig`.
+The controller reads the remote (Galaxy) cluster kubeconfig from a Secret named `galaxy-sync-kubeconfig`, with the kubeconfig YAML stored under the key `kubeconfig`.
 
 The lookup namespace for the secret is resolved from the `CONTROLLER_NAMESPACE` environment variable (injected via the Downward API) and falls back to `default` when not set.
 

@@ -57,17 +57,17 @@ const (
 	StageSyncControllerName  = "stage-sync-controller"
 )
 
-// StageSyncReconciler watches a StageSync object on the remote client (galaxy) and creates/updates/deletes a corresponding Stage object on the local cluster (star).
+// StageSyncReconciler watches a StageSync object on the remote client (Galaxy) and creates/updates/deletes a corresponding Stage object on the local cluster (Star).
 type StageSyncReconciler struct {
-	// LocalClient is the client accessing the star
+	// LocalClient is the client accessing the Star
 	LocalClient client.Client
-	// RemoteCluster is the cluster accessor for the galaxy side. Its cache is
+	// RemoteCluster is the cluster accessor for the Galaxy side. Its cache is
 	// managed by the controller-runtime manager, which guarantees it is
 	// started (and synced) before any informers sourced from it.
 	RemoteCluster cluster.Cluster
 	Scheme        *runtime.Scheme
 	Recorder      events.EventRecorder
-	LandscapeName string // name of the local (star) cluster (landscape name), used for labeling
+	LandscapeName string // name of the local (Star) cluster (landscape name), used for labeling
 }
 
 // +kubebuilder:rbac:groups="",resources=namespaces;secrets,verbs=get;list;watch
@@ -164,7 +164,7 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// label the remote StageSync with the local cluster name so it is visible
-	// on the galaxy side which star cluster is syncing it
+	// on the Galaxy side which Star cluster is syncing it
 	if err := r.ensureStageSyncedByLabel(ctx, remoteStageSync, originalRemoteStageSync); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to set stage-synced-by label on remote StageSync: %w", err)
 	}
@@ -292,7 +292,7 @@ func (r *StageSyncReconciler) setStageDeletedCondition(ctx context.Context, stag
 
 // ensureStageSyncedByLabel patches a per-cluster label onto the remote
 // StageSync object when it is absent. The label key is
-// "synced-by-star/<cluster-name>" with value "true", so multiple star clusters
+// "synced-by-star/<cluster-name>" with value "true", so multiple Star clusters
 // can each add their own label without overwriting one another.
 // If LandscapeName is empty the label is skipped to avoid writing an invalid key.
 func (r *StageSyncReconciler) ensureStageSyncedByLabel(ctx context.Context, stageSync, originalStageSync *global.StageSync) error {

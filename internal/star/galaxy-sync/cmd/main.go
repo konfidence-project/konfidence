@@ -138,7 +138,7 @@ func setupStageSyncReconciler(log logr.Logger, mgr ctrl.Manager) error {
 	var remoteCluster cluster.Cluster = mgr
 
 	if remoteConfig != nil {
-		// Multi-cluster: build a dedicated cluster for the remote (galaxy) side.
+		// Multi-cluster: build a dedicated cluster for the remote (Galaxy) side.
 		log.Info("Remote kubeconfig found; running in multi-cluster mode",
 			"kubeconfig-secret", fmt.Sprintf("%s/%s", getControllerNamespace(), config.SecretName),
 			"secret-key", config.SecretKey,
