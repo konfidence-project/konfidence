@@ -10,24 +10,22 @@ It is built using the Kubebuilder framework and make use of the `controller-gen`
 ### Module Structure
 ```
 api/
-├── common/v1alpha1/     # Common CRDs (Stage)
 ├── landscape/v1alpha1/  # Landscape CRDs (Deployment, Execution, Vector management)
 └── global/v1alpha1/     # Global CRDs (StageConfiguration...)
 ```
 
 ### API Documentation
-- [Common APIs](api/common/docs/README.md) - Stage definitions
-- [Landscape APIs](api/landscape/docs/README.md) - Deployment and execution resources
+- [Landscape APIs](api/landscape/docs/README.md) - DStage definitions, deployment and execution resources
 - [Global APIs](api/landscape/docs/README.md) - Global resources
 
 ## Development
 
 ### How to update CRDs
 
-1. Implement your changes in the Go types of your module, e.g. `api/common/v1alpha1/stage_types.go`.
+1. Implement your changes in the Go types of your module, e.g. `api/landscape/v1alpha1/stage_types.go`.
 Make sure to follow the [kubebuilder conventions](https://book.kubebuilder.io/reference/markers/crd-validation.html) for defining CRD fields validation.
 Always add a comment to each field/struct to describe its purpose and to generate meaningful documentation.
-2. Update the examples for the CRDs that you changed, e.g. `api/common/v1alpha1/config/samples/stage.yaml`.
+2. Update the examples for the CRDs that you changed, e.g. `api/landscape/v1alpha1/config/samples/stage.yaml`.
 3. Run `make all` to update the generated code and run schema validations.
 4. Commit and push your changes.
 
@@ -37,7 +35,6 @@ Always add a comment to each field/struct to describe its purpose and to generat
 
 Apply the CRDs to your Kubernetes cluster using kustomize:
 ```bash
-kubectl apply -f api/common/config/release
 kubectl apply -f api/landscape/config/release
 kubectl apply -f api/global/config/release
 ```
@@ -47,7 +44,6 @@ kubectl apply -f api/global/config/release
 To use these CRDs in your Kubebuilder controller project, first add the dependencies:
 
 ```bash
-go get github.com/konfidence-project/crds/api/common
 go get github.com/konfidence-project/crds/api/landscape
 go get github.com/konfidence-project/crds/api/global
 ```
@@ -55,9 +51,6 @@ go get github.com/konfidence-project/crds/api/global
 Then you can run controller-gen directly:
 
 ```bash
-# Generate Konfidence Common CRDs
-controller-gen crd paths="github.com/konfidence-project/crds/api/common/..." output:crd:artifacts:config=config/crd/common
-
 # Generate Konfidence Landscape CRDs
 controller-gen crd paths="github.com/konfidence-project/crds/api/landscape/..." output:crd:artifacts:config=config/crd/landscape
 
@@ -71,14 +64,12 @@ Or add the following target to your Makefile:
 .PHONY: manifests
 manifests: controller-gen ## Generate ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/common/..." output:crd:artifacts:config=config/crd/common
 	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/landscape/..." output:crd:artifacts:config=config/crd/landscape
 	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/global/..." output:crd:artifacts:config=config/crd/global
 ```
 
 This will:
 - Generate your project's own CRDs and RBAC in `config/crd/bases/`
-- Generate Konfidence Common CRDs in `config/crd/common/`
 - Generate Konfidence Landscape CRDs in `config/crd/landscape/`
 - Generate Konfidence Global CRDs in `config/crd/global/`
 
@@ -86,7 +77,6 @@ Then reference them in your `config/default/kustomization.yaml`:
 ```yaml
 resources:
 - ../crd/bases
-- ../crd/common
 - ../crd/landscape
 - ../crd/global
 ```
