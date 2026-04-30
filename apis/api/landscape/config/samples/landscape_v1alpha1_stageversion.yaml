@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: stageversion-dev-475124
   ownerReferences:
-    - apiVersion: common.konfidence.cloud/v1alpha1
+    - apiVersion: landscape.konfidence.cloud/v1alpha1
       kind: Stage
       name: stage-dev
       uid: # TODO: add owner uid here after creating Stage resource

@@ -23,6 +23,9 @@ import (
 const (
 	// StageConfigurationKind is kind of the StageConfiguration resource.
 	StageConfigurationKind = "StageConfiguration"
+
+	// StageConfigurationReadyCondition is the ready condition for the StageConfiguration resource.
+	StageConfigurationReadyCondition = "Ready"
 )
 
 // StageConfigurationSpec defines the desired state of StageConfiguration.
