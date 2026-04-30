@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	github.com/kcp-dev/multicluster-provider v0.5.0
 	github.com/kcp-dev/sdk v0.30.0
-	github.com/konfidence-project/crds/api/global v0.5.0
+	github.com/konfidence-project/crds/api/global v0.8.1
 	github.com/konfidence-project/crds/api/landscape v0.18.0
 	github.com/konfidence-project/pkg v0.14.0
 	github.com/onsi/ginkgo/v2 v2.28.1

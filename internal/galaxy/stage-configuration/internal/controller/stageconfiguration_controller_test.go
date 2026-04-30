@@ -29,6 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -110,6 +111,9 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				g.Expect(stageConfiguration.Spec.Name).To(Equal(StageDev))
 				g.Expect(stageConfiguration.Spec.Vector).To(Equal(VectorV100))
 				g.Expect(stageConfiguration.Spec.TargetNamespace).To(Equal(TargetNamespace))
+				g.Expect(stageConfiguration.Status.Conditions).To(HaveLen(1))
+				g.Expect(stageConfiguration.Status.Conditions[0].Type).To(Equal(global.StageConfigurationReadyCondition))
+				g.Expect(stageConfiguration.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
 			}, timeout, interval).Should(Succeed())
 
 			stageTemplate := testutil.CreateStageTemplate(*stageConfiguration, VectorV100)
