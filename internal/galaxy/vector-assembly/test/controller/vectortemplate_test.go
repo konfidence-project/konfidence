@@ -5,6 +5,7 @@ import (
 	"time"
 
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	testutilOcm "github.com/konfidence-project/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -41,11 +42,11 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		aliasVector := createReference("konfidence.io/sample/vectors/drift-test:dev-eu10")
 
 		By("creating mock component descriptors in oci")
-		pushComponent(ctx, ocmClient, svc1, new("edge"))
-		pushComponent(ctx, ocmClient, svc2, new("edge"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc1, new("edge"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc2, new("edge"))
 
 		By("creating a mock vector with older versions")
-		pushVector(ctx, ocmClient, versionVector, []compref.Ref{
+		testutilOcm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{
 			createReference("konfidence.io/sample/drift/service1:v5.0.0"),
 			createReference("konfidence.io/sample/drift/service2:v3.2.1"), // older version: drift
 		}, "dev-eu10")
@@ -86,11 +87,11 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		aliasVector := createReference("konfidence.io/sample/vectors/nodrift-test:stable")
 
 		By("creating mock component descriptors in OCI registry")
-		pushComponent(ctx, ocmClient, svc1, new("stable"))
-		pushComponent(ctx, ocmClient, svc2, new("stable"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc1, new("stable"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc2, new("stable"))
 
 		By("creating a mock vector with matching versions")
-		pushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable")
+		testutilOcm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable")
 
 		By("creating a VectorTemplate CR")
 		vectorTemplate := createVectorTemplateCR(ctx, "nodrift-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil)
@@ -119,8 +120,8 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		aliasVector := createReference("konfidence.io/sample/vectors/first-test:latest")
 
 		By("creating mock component descriptors (no existing vector)")
-		pushComponent(ctx, ocmClient, svc1, new("latest"))
-		pushComponent(ctx, ocmClient, svc2, new("latest"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc1, new("latest"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc2, new("latest"))
 
 		By("creating a VectorTemplate CR")
 		vectorTemplate := createVectorTemplateCR(ctx, "first-create-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil)
@@ -154,12 +155,12 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		aliasBaseVector := createReference("konfidence.io/sample/vectors/base-vector:base")
 
 		By("creating a mock base vector with service3")
-		pushComponent(ctx, ocmClient, svc3, new("prod"))
-		pushVector(ctx, ocmClient, versionBaseVector, []compref.Ref{svc3}, "base")
+		testutilOcm.PushComponent(ctx, ocmClient, svc3, new("prod"))
+		testutilOcm.PushVector(ctx, ocmClient, versionBaseVector, []compref.Ref{svc3}, "base")
 
 		By("creating mock component descriptors for service1 and service2")
-		pushComponent(ctx, ocmClient, svc1, new("prod"))
-		pushComponent(ctx, ocmClient, svc2, new("prod"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc1, new("prod"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc2, new("prod"))
 
 		By("creating a VectorTemplate CR with base")
 		vectorTemplate := createVectorTemplateCR(ctx, "inherit-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, &aliasBaseVector)
@@ -216,8 +217,8 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		aliasVector := createReference("konfidence.io/sample/vectors/dedup-test:dedup")
 
 		By("creating mock component descriptors")
-		pushComponent(ctx, ocmClient, svc1, new("dedup"))
-		pushComponent(ctx, ocmClient, svc2, new("dedup"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc1, new("dedup"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc2, new("dedup"))
 
 		By("creating a VectorTemplate CR with duplicate components")
 		components := []compref.Ref{svc1Alias, svc1Alias, svc2Alias, svc1Alias, svc2Alias}
@@ -249,12 +250,12 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		versionBaseVector := createReference(fmt.Sprintf("konfidence.io/sample/vectors/mixed-base:%s", oldTestVersion))
 
 		By("creating a mock base vector with semver component")
-		pushComponent(ctx, ocmClient, svc3, nil)
-		pushVector(ctx, ocmClient, versionBaseVector, []compref.Ref{svc3}, "stable")
+		testutilOcm.PushComponent(ctx, ocmClient, svc3, nil)
+		testutilOcm.PushVector(ctx, ocmClient, versionBaseVector, []compref.Ref{svc3}, "stable")
 
 		By("creating mock component descriptors with mixed semver and tag versions")
-		pushComponent(ctx, ocmClient, svc1, nil)         // semver component, no alias
-		pushComponent(ctx, ocmClient, svc2, new("edge")) // tag-based component with alias
+		testutilOcm.PushComponent(ctx, ocmClient, svc1, nil)         // semver component, no alias
+		testutilOcm.PushComponent(ctx, ocmClient, svc2, new("edge")) // tag-based component with alias
 
 		By("creating a VectorTemplate CR referencing semver directly and tag via alias")
 		vectorTemplate := createVectorTemplateCR(ctx,
@@ -296,7 +297,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		semverVector := createReference("konfidence.io/sample/vectors/semver-fail:v1.2.3")
 
 		By("creating mock component descriptor")
-		pushComponent(ctx, ocmClient, svc1, new("latest"))
+		testutilOcm.PushComponent(ctx, ocmClient, svc1, new("latest"))
 
 		By("creating a VectorTemplate CR with semver uploadTarget")
 		vectorTemplate := createVectorTemplateCR(ctx, "semver-fail-test", testNamespace, []compref.Ref{svc1Alias}, semverVector, nil)
