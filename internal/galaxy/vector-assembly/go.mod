@@ -6,7 +6,7 @@ require (
 	github.com/kcp-dev/multicluster-provider v0.5.1
 	github.com/kcp-dev/sdk v0.30.0
 	github.com/konfidence-project/crds/api/global v0.7.0
-	github.com/konfidence-project/pkg v0.14.0
+	github.com/konfidence-project/pkg v0.15.1-0.20260504065250-5c890e6a497e
 	github.com/onsi/ginkgo/v2 v2.27.5
 	github.com/onsi/gomega v1.39.0
 	github.com/testcontainers/testcontainers-go v0.42.0
