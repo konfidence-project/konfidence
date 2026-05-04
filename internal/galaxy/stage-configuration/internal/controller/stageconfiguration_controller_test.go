@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	v1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -136,6 +137,14 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				g.Expect(json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &originalTemplate)).To(Succeed())
 				g.Expect(reflect.DeepEqual(stageTemplate, originalTemplate)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
+
+			// check that an event was recorded for the reconciliation
+			eventList := &eventsv1.EventList{}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.List(ctx, eventList, client.InNamespace(Namespace))).To(Succeed())
+				matchingEvents := filterEventsByReason(eventList.Items, "StageConfigurationReconciled")
+				g.Expect(matchingEvents).ToNot(BeEmpty())
+			}, timeout, interval).Should(Succeed())
 		})
 		It("should successfully update an existing stage with latest vector version ", func() {
 			ctx := context.Background()
@@ -175,6 +184,32 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				g.Expect(json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &stageTemplate)).To(Succeed())
 				g.Expect(stageTemplate.Spec.Vector).To(Equal(VectorV101))
 			}, timeout, interval).Should(Succeed())
+
+			// check that the status condition is set to ready after reconcile
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
+				g.Expect(stageConfiguration.Status.Conditions).To(HaveLen(1))
+				g.Expect(stageConfiguration.Status.Conditions[0].Type).To(Equal(global.StageConfigurationReadyCondition))
+				g.Expect(stageConfiguration.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			}, timeout, interval).Should(Succeed())
+
+			// check that an event was recorded for the reconciliation
+			eventList := &eventsv1.EventList{}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.List(ctx, eventList, client.InNamespace(Namespace))).To(Succeed())
+				matchingEvents := filterEventsByReason(eventList.Items, "StageConfigurationReconciled")
+				g.Expect(matchingEvents).ToNot(BeEmpty())
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 })
+
+func filterEventsByReason(events []eventsv1.Event, reason string) []eventsv1.Event {
+	var filtered []eventsv1.Event
+	for _, e := range events {
+		if e.Reason == reason {
+			filtered = append(filtered, e)
+		}
+	}
+	return filtered
+}
