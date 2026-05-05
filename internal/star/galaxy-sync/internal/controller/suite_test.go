@@ -137,7 +137,7 @@ var _ = BeforeSuite(func() {
 		RemoteCluster: remoteCluster,
 		Scheme:        reconcileScheme,
 		Recorder:      events.NewFakeRecorder(32),
-		LandscapeName: "",
+		LandscapeName: "test-landscape",
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
