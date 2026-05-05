@@ -119,6 +119,158 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			var reflectedStatus landscape.StageStatus
 			Expect(json.Unmarshal(updatedStageSync.Status.StageStatus.Raw, &reflectedStatus)).To(Succeed())
 			Expect(reflectedStatus).To(Equal(createdStage.Status))
+
+			By("verifying the remote StageSync carries the synced-by-star label")
+			expectedLabelKey := stageSyncedByLabelPrefix + "test-landscape"
+			Expect(updatedStageSync.GetLabels()).To(HaveKeyWithValue(expectedLabelKey, "true"))
+		})
+	})
+
+	Context("When the StageSync template is updated", func() {
+		var stageSync *global.StageSync
+
+		BeforeEach(func() {
+			By("creating the StageSync on the remote cluster")
+			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v1alpha1")
+			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
+
+			By("waiting for the Stage to be created on the local cluster")
+			Eventually(func(g Gomega) {
+				g.Expect(localK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageName,
+					Namespace: stageNamespace,
+				}, &landscape.Stage{})).To(Succeed())
+			}).Should(Succeed())
+		})
+
+		AfterEach(func() {
+			By("cleaning up the StageSync from the remote cluster")
+			Expect(remoteK8sClient.Delete(ctx, stageSync)).To(Succeed())
+
+			By("waiting for the Stage to be deleted from the local cluster")
+			Eventually(func(g Gomega) {
+				err := localK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageName,
+					Namespace: stageNamespace,
+				}, &landscape.Stage{})
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}).Should(Succeed())
+
+			By("waiting for the StageSync to be fully removed")
+			Eventually(func(g Gomega) {
+				err := remoteK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageSyncName,
+					Namespace: stageSyncNamespace,
+				}, &global.StageSync{})
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}).Should(Succeed())
+		})
+
+		It("should update the local Stage spec when the template vector changes", func() {
+			const updatedVector = "ocm.example.com/test-vector:2.0.0"
+
+			By("updating the StageSync template with a new vector")
+			fresh := &global.StageSync{}
+			Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
+				Name:      stageSyncName,
+				Namespace: stageSyncNamespace,
+			}, fresh)).To(Succeed())
+
+			fresh.Spec.StageTemplate = runtime.RawExtension{
+				Raw: buildStageRaw(stageName, stageNamespace, "landscape.konfidence.cloud/v1alpha1", updatedVector),
+			}
+			Expect(remoteK8sClient.Update(ctx, fresh)).To(Succeed())
+
+			By("verifying the local Stage spec is updated")
+			Eventually(func(g Gomega) {
+				stage := &landscape.Stage{}
+				g.Expect(localK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageName,
+					Namespace: stageNamespace,
+				}, stage)).To(Succeed())
+				g.Expect(stage.Spec.Vector).To(Equal(updatedVector))
+			}).Should(Succeed())
+
+			By("verifying the StageSync status condition remains Applied=True")
+			Eventually(func(g Gomega) {
+				updated := &global.StageSync{}
+				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageSyncName,
+					Namespace: stageSyncNamespace,
+				}, updated)).To(Succeed())
+				condition := findCondition(updated.Status.Conditions, global.StageSyncAppliedCondition)
+				g.Expect(condition).NotTo(BeNil())
+				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(condition.Reason).To(Equal(global.StageReconcileSuccessfulReason))
+			}).Should(Succeed())
+		})
+	})
+
+	Context("When a pre-existing unmanaged Stage conflicts", func() {
+		var stageSync *global.StageSync
+		var unmanagedStage *landscape.Stage
+
+		BeforeEach(func() {
+			By("creating an unmanaged Stage on the local cluster")
+			unmanagedStage = &landscape.Stage{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      stageName,
+					Namespace: stageNamespace,
+				},
+				Spec: landscape.StageSpec{
+					Vector: "ocm.example.com/other:1.0.0",
+				},
+			}
+			Expect(localK8sClient.Create(ctx, unmanagedStage)).To(Succeed())
+
+			By("creating the StageSync on the remote cluster")
+			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v1alpha1")
+			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			By("cleaning up the StageSync from the remote cluster")
+			Expect(client.IgnoreNotFound(remoteK8sClient.Delete(ctx, stageSync))).To(Succeed())
+			Eventually(func(g Gomega) {
+				err := remoteK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageSyncName,
+					Namespace: stageSyncNamespace,
+				}, &global.StageSync{})
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}).Should(Succeed())
+
+			By("cleaning up the unmanaged Stage from the local cluster")
+			Expect(client.IgnoreNotFound(localK8sClient.Delete(ctx, unmanagedStage))).To(Succeed())
+			Eventually(func(g Gomega) {
+				err := localK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageName,
+					Namespace: stageNamespace,
+				}, &landscape.Stage{})
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}).Should(Succeed())
+		})
+
+		It("should set Applied=False with reason ConflictWithUnmanagedStage", func() {
+			Eventually(func(g Gomega) {
+				updated := &global.StageSync{}
+				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageSyncName,
+					Namespace: stageSyncNamespace,
+				}, updated)).To(Succeed())
+				condition := findCondition(updated.Status.Conditions, global.StageSyncAppliedCondition)
+				g.Expect(condition).NotTo(BeNil())
+				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
+				g.Expect(condition.Reason).To(Equal(global.ConflictWithUnmanagedStageReason))
+			}).Should(Succeed())
+
+			By("verifying the unmanaged Stage is NOT modified")
+			stage := &landscape.Stage{}
+			Expect(localK8sClient.Get(ctx, types.NamespacedName{
+				Name:      stageName,
+				Namespace: stageNamespace,
+			}, stage)).To(Succeed())
+			Expect(stage.Spec.Vector).To(Equal("ocm.example.com/other:1.0.0"))
+			Expect(stage.GetLabels()).NotTo(HaveKey(managedByLabelKey))
 		})
 	})
 
@@ -294,8 +446,8 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 	})
 })
 
-// buildStageRaw builds a marshalled Stage object with the given name, namespace and apiVersion.
-func buildStageRaw(name, namespace, apiVersion string) []byte {
+// buildStageRaw builds a marshalled Stage object with the given name, namespace, apiVersion and vector.
+func buildStageRaw(name, namespace, apiVersion, vector string) []byte {
 	stage := &landscape.Stage{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: apiVersion,
@@ -306,7 +458,7 @@ func buildStageRaw(name, namespace, apiVersion string) []byte {
 			Namespace: namespace,
 		},
 		Spec: landscape.StageSpec{
-			Vector: testStageVector,
+			Vector: vector,
 		},
 	}
 	raw, err := json.Marshal(stage)
@@ -323,7 +475,7 @@ func buildStageSync(stageNamespace, stageAPIVersion string) *global.StageSync {
 			Namespace: stageSyncNamespace,
 		},
 		Spec: global.StageSyncSpec{
-			StageTemplate: runtime.RawExtension{Raw: buildStageRaw(stageName, stageNamespace, stageAPIVersion)},
+			StageTemplate: runtime.RawExtension{Raw: buildStageRaw(stageName, stageNamespace, stageAPIVersion, testStageVector)},
 		},
 	}
 }
