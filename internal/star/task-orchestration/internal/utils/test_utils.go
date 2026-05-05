@@ -315,3 +315,34 @@ func HasOwnerReference(ownerReferences []metav1.OwnerReference, ref metav1.Owner
 
 	return false
 }
+
+func GetTaskExecutionWithTaskName(name string, items []landscape.TaskExecution) *landscape.TaskExecution {
+	for _, exec := range items {
+		if name == exec.Spec.Name {
+			return &exec
+		}
+	}
+
+	return nil
+}
+
+func DeleteTaskExecution(ctx context.Context, k8sClient client.Client, taskExecution *landscape.TaskExecution) {
+	err := k8sClient.Delete(ctx, taskExecution)
+	Expect(err).ToNot(HaveOccurred(), "Failed to delete taskExecution: %s", taskExecution.Name)
+}
+
+func GetTaskExecutions(ctx context.Context, k8sClient client.Client) *landscape.TaskExecutionList {
+	taskExecutions := &landscape.TaskExecutionList{}
+	err := k8sClient.List(ctx, taskExecutions)
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch taskExecutions")
+	return taskExecutions
+}
+func CleanupTaskExecutions(k8sClient client.Client) {
+	ctx := context.Background()
+	taskExecutions := GetTaskExecutions(ctx, k8sClient)
+
+	for _, taskExecution := range taskExecutions.Items {
+		DeleteTaskExecution(ctx, k8sClient, &taskExecution)
+	}
+}

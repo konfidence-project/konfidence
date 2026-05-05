@@ -63,6 +63,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 		testutil.CleanupStageVersionUsage(k8sClient, StageVersionUsage, Namespace)
 		testutil.CleanupVectorMigration(k8sClient, VectorMigration, Namespace)
 		testutil.CleanupStage(k8sClient, StageDev, Namespace)
+		testutil.CleanupTaskExecutions(k8sClient)
 	})
 
 	AfterEach(func() {
@@ -73,6 +74,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 		testutil.CleanupStageVersionUsage(k8sClient, StageVersionUsage, Namespace)
 		testutil.CleanupVectorMigration(k8sClient, VectorMigration, Namespace)
 		testutil.CleanupStage(k8sClient, StageDev, Namespace)
+		testutil.CleanupTaskExecutions(k8sClient)
 	})
 
 	Context("When reconciling a vectorMigration", func() {
@@ -234,92 +236,94 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// check that the first two taskExecutions have been created
-			taskExecution0 := &landscape.TaskExecution{}
-			taskExecution0LookupKey := types.NamespacedName{Name: Task0, Namespace: Namespace}
+			taskExecutions := &landscape.TaskExecutionList{}
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, taskExecution0LookupKey, taskExecution0)).To(Succeed())
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(HaveLen(2))
 			}, timeout, interval).Should(Succeed())
 
-			// check that the first two taskExecutions have been created
-			taskExecution1 := &landscape.TaskExecution{}
-			taskExecution1LookupKey := types.NamespacedName{Name: Task1, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, taskExecution1LookupKey, taskExecution1)).To(Succeed())
-			}, timeout, interval).Should(Succeed())
+			taskExecution0 := testutil.GetTaskExecutionWithTaskName(Task0, taskExecutions.Items)
+			taskExecution1 := testutil.GetTaskExecutionWithTaskName(Task1, taskExecutions.Items)
+			Expect(taskExecution0).ToNot(BeNil())
+			Expect(taskExecution1).ToNot(BeNil())
 
 			// mark task0 as successful
 			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, landscape.TaskSucceeded)
 
 			// check that taskExecution2 has not yet been created
-			taskExecution2 := &landscape.TaskExecution{}
-			taskExecution2LookupKey := types.NamespacedName{Name: Task2, Namespace: Namespace}
 			Eventually(func(g Gomega) {
-				err := k8sClient.Get(ctx, taskExecution2LookupKey, taskExecution2)
-				g.Expect(err).To(HaveOccurred())
-				g.Expect(err).To(MatchError(errors.IsNotFound, "Should be a not found error"))
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(HaveLen(2))
 			}, timeout, interval).Should(Succeed())
+
+			taskExecution2 := testutil.GetTaskExecutionWithTaskName(Task2, taskExecutions.Items)
+			Expect(taskExecution2).To(BeNil())
 
 			// mark task1 as successful
 			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution1, landscape.TaskSucceeded)
 
-			// now taskExecution2 should have been created
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, taskExecution2LookupKey, taskExecution2)).To(Succeed())
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(HaveLen(3))
 			}, timeout, interval).Should(Succeed())
+
+			// now taskExecution2 should have been created
+			taskExecution2 = testutil.GetTaskExecutionWithTaskName(Task2, taskExecutions.Items)
+			Expect(taskExecution2).ToNot(BeNil())
 
 			// mark task2 as successful
 			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution2, landscape.TaskSucceeded)
 
-			// now taskExecution3 should have been created
-			taskExecution3 := &landscape.TaskExecution{}
-			taskExecution3LookupKey := types.NamespacedName{Name: Task3, Namespace: Namespace}
+			// now taskExecution3 and taskExecution4 should have been created
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, taskExecution3LookupKey, taskExecution3)).To(Succeed())
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(HaveLen(5))
 			}, timeout, interval).Should(Succeed())
 
-			// and also now taskExecution4 should have been created
-			taskExecution4 := &landscape.TaskExecution{}
-			taskExecution4LookupKey := types.NamespacedName{Name: Task4, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, taskExecution4LookupKey, taskExecution4)).To(Succeed())
-			}, timeout, interval).Should(Succeed())
+			taskExecution3 := testutil.GetTaskExecutionWithTaskName(Task3, taskExecutions.Items)
+			taskExecution4 := testutil.GetTaskExecutionWithTaskName(Task4, taskExecutions.Items)
+			Expect(taskExecution3).ToNot(BeNil())
+			Expect(taskExecution4).ToNot(BeNil())
 
 			// mark task4 as successful
 			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution4, landscape.TaskSucceeded)
 
-			// check that taskExecution5 has not yet been created
-			taskExecution5 := &landscape.TaskExecution{}
-			taskExecution5LookupKey := types.NamespacedName{Name: Task5, Namespace: Namespace}
+			// check that taskExecution5 and taskExecution6 have not yet been created
 			Eventually(func(g Gomega) {
-				err := k8sClient.Get(ctx, taskExecution5LookupKey, taskExecution5)
-				g.Expect(err).To(HaveOccurred())
-				g.Expect(err).To(MatchError(errors.IsNotFound, "Should be a not found error"))
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(HaveLen(5))
 			}, timeout, interval).Should(Succeed())
 
-			// check that taskExecution6 has not yet been created
-			taskExecution6 := &landscape.TaskExecution{}
-			taskExecution6LookupKey := types.NamespacedName{Name: Task6, Namespace: Namespace}
-			Eventually(func(g Gomega) {
-				err := k8sClient.Get(ctx, taskExecution6LookupKey, taskExecution6)
-				g.Expect(err).To(HaveOccurred())
-				g.Expect(err).To(MatchError(errors.IsNotFound, "Should be a not found error"))
-			}, timeout, interval).Should(Succeed())
+			taskExecution5 := testutil.GetTaskExecutionWithTaskName(Task5, taskExecutions.Items)
+			taskExecution6 := testutil.GetTaskExecutionWithTaskName(Task6, taskExecutions.Items)
+			Expect(taskExecution5).To(BeNil())
+			Expect(taskExecution6).To(BeNil())
 
 			// mark task3 as successful
 			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution3, landscape.TaskSucceeded)
 
 			// now taskExecution5 should have been created
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, taskExecution5LookupKey, taskExecution5)).To(Succeed())
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(HaveLen(6))
 			}, timeout, interval).Should(Succeed())
+
+			taskExecution5 = testutil.GetTaskExecutionWithTaskName(Task5, taskExecutions.Items)
+			Expect(taskExecution5).ToNot(BeNil())
+			taskExecution6 = testutil.GetTaskExecutionWithTaskName(Task6, taskExecutions.Items)
+			Expect(taskExecution6).To(BeNil())
 
 			// mark task5 as successful
 			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution5, landscape.TaskSucceeded)
 
 			// now taskExecution6 should have been created
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, taskExecution6LookupKey, taskExecution6)).To(Succeed())
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(HaveLen(7))
 			}, timeout, interval).Should(Succeed())
+
+			taskExecution6 = testutil.GetTaskExecutionWithTaskName(Task6, taskExecutions.Items)
+			Expect(taskExecution6).ToNot(BeNil())
 
 			// mark task6 as successful
 			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution6, landscape.TaskSucceeded)
@@ -433,11 +437,14 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// check that the first taskExecution has been created
-			taskExecution0 := &landscape.TaskExecution{}
-			taskExecution0LookupKey := types.NamespacedName{Name: Task0, Namespace: Namespace}
+			taskExecutions := &landscape.TaskExecutionList{}
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, taskExecution0LookupKey, taskExecution0)).To(Succeed())
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(HaveLen(1))
 			}, timeout, interval).Should(Succeed())
+
+			taskExecution0 := testutil.GetTaskExecutionWithTaskName(Task0, taskExecutions.Items)
+			Expect(taskExecution0).ToNot(BeNil())
 
 			// mark task0 as failed
 			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, landscape.TaskFailed)

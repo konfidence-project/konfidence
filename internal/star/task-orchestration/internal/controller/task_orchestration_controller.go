@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -163,7 +164,7 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 		return fmt.Errorf("unable to sort task dependency graph: %w", err)
 	}
 
-	// map taskExecutions by name
+	// map taskExecutions by task name
 	mappedTasks, err := r.mapTasks(ctx, req)
 	if err != nil {
 		return fmt.Errorf("mapping taskExecutions failed: %w", err)
@@ -183,7 +184,8 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 	}
 
 	// process all layers
-	for _, layer := range layers {
+	layerStatus := make([]int, len(layers))
+	for idx, layer := range layers {
 		status, err := r.processTaskLayer(ctx, vectorMigration, layer, mappedTasks.taskExecutionsByName, mappedTasks.successfulTaskExecutionsByName)
 		if err != nil {
 			return fmt.Errorf("failed to process tasks: %w", err)
@@ -191,6 +193,17 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 
 		if status == layerPending {
 			log.Info("Task layer still pending... retry later")
+			// wait for taskExecution status change notifications
+			return nil
+		}
+
+		layerStatus[idx] = status
+	}
+
+	// check that all layer tasks have actually succeeded
+	for _, status := range layerStatus {
+		if status != layerSucceeded {
+			log.Info("Waiting for task layers to finish...")
 			// wait for taskExecution status change notifications
 			return nil
 		}
@@ -349,7 +362,7 @@ func (r *TaskOrchestrationReconciler) mapTasks(ctx context.Context, req ctrl.Req
 		return nil, err
 	}
 
-	// map taskExecutions by name
+	// map taskExecutions by task name
 	mappedTasks := &MapTasksResult{}
 	taskExecutionsByName := make(map[string]landscape.TaskExecution)
 	successfulTaskExecutionsByName := make(map[string]bool)
@@ -360,8 +373,8 @@ func (r *TaskOrchestrationReconciler) mapTasks(ctx context.Context, req ctrl.Req
 			return mappedTasks, nil
 		}
 
-		taskExecutionsByName[taskExecution.Name] = taskExecution
-		successfulTaskExecutionsByName[taskExecution.Name] = taskExecutionSucceeded(taskExecution)
+		taskExecutionsByName[taskExecution.Spec.Name] = taskExecution
+		successfulTaskExecutionsByName[taskExecution.Spec.Name] = taskExecutionSucceeded(taskExecution)
 	}
 
 	mappedTasks.taskExecutionsByName = taskExecutionsByName
@@ -462,7 +475,7 @@ func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration
 func (r *TaskOrchestrationReconciler) constructTaskExecution(vectorMigration *landscape.VectorMigration, taskManifest landscape.TaskManifest, namespace string) (*landscape.TaskExecution, error) {
 	taskExecution := &landscape.TaskExecution{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      taskManifest.Name,
+			Name:      taskManifest.Name + "-" + rand.String(8),
 			Namespace: namespace,
 		},
 		Spec: landscape.TaskExecutionSpec(taskManifest),
