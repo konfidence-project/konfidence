@@ -21,11 +21,11 @@ import (
 )
 
 const (
-	// VectorAssignedCondition indicates that the deployer has successfully processed the VectorAssignment. This usually
+	// VectorAssignmentReadyCondition indicates that the deployer has successfully processed the VectorAssignment. This usually
 	// means that any assignment-specific configuration such as routing configuration has been created or updated.
 	//
 	// A VectorAssignment is considered complete once this condition is True.
-	VectorAssignedCondition = "VectorAssigned"
+	VectorAssignmentReadyCondition = "Ready"
 )
 
 // VectorAssignmentSpec defines the desired state of a VectorAssignment.
@@ -61,10 +61,10 @@ type VectorAssignmentSpec struct {
 //
 //  1. VectorAssignment is created by the vector-deployment-controller.
 //  2. deployer reconciles it and configures vector-specific integration
-//  3. VectorAssignedCondition is set to True
+//  3. VectorAssignmentReadyCondition is set to True
 type VectorAssignmentStatus struct {
 	// Conditions describes the latest observed state of the assignment. The primary condition is
-	// VectorAssignedCondition, which becomes True once the deployer has finished processing the VectorAssignment.
+	// VectorAssignmentReadyCondition, which becomes True once the deployer has finished processing the VectorAssignment.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
