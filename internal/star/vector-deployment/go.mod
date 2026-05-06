@@ -4,7 +4,7 @@ go 1.26.1
 
 require (
 	github.com/go-logr/logr v1.4.3
-	github.com/konfidence-project/crds/api/landscape v0.14.0
+	github.com/konfidence-project/crds/api/landscape v0.19.2
 	github.com/konfidence-project/pkg v0.15.0
 	github.com/onsi/ginkgo/v2 v2.27.3
 	github.com/onsi/gomega v1.38.3
