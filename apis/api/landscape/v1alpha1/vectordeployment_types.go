@@ -34,7 +34,7 @@ const (
 	VectorAssignmentsCreatedCondition = "VectorAssignmentsCreated"
 
 	// VectorReadyCondition indicates that the vector deployment is ready for use.
-	VectorReadyCondition = "VectorReady"
+	VectorReadyCondition = "Ready"
 )
 
 // VectorDeploymentSpec defines the desired state of a VectorDeployment.
