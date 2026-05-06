@@ -921,7 +921,7 @@ A VectorAssignment progresses through a simple lifecycle driven by the deployer:
 
  1. VectorAssignment is created by the vector-deployment-controller.
  2. deployer reconciles it and configures vector-specific integration
- 3. VectorAssignedCondition is set to True
+ 3. VectorAssignmentReadyCondition is set to True
 
 
 
@@ -930,7 +930,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions describes the latest observed state of the assignment. The primary condition is<br />VectorAssignedCondition, which becomes True once the deployer has finished processing the VectorAssignment. |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions describes the latest observed state of the assignment. The primary condition is<br />VectorAssignmentReadyCondition, which becomes True once the deployer has finished processing the VectorAssignment. |  | Optional: \{\} <br /> |
 
 
 #### VectorDeployment

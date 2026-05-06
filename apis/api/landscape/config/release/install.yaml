@@ -1494,12 +1494,12 @@ spec:
 
                1. VectorAssignment is created by the vector-deployment-controller.
                2. deployer reconciles it and configures vector-specific integration
-               3. VectorAssignedCondition is set to True
+               3. VectorAssignmentReadyCondition is set to True
             properties:
               conditions:
                 description: |-
                   Conditions describes the latest observed state of the assignment. The primary condition is
-                  VectorAssignedCondition, which becomes True once the deployer has finished processing the VectorAssignment.
+                  VectorAssignmentReadyCondition, which becomes True once the deployer has finished processing the VectorAssignment.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.

@@ -74,10 +74,10 @@
       ]
     },
     "status": {
-      "description": "VectorAssignmentStatus defines the observed state of a VectorAssignment.\n\nA VectorAssignment progresses through a simple lifecycle driven by the deployer:\n\n 1. VectorAssignment is created by the vector-deployment-controller.\n 2. deployer reconciles it and configures vector-specific integration\n 3. VectorAssignedCondition is set to True",
+      "description": "VectorAssignmentStatus defines the observed state of a VectorAssignment.\n\nA VectorAssignment progresses through a simple lifecycle driven by the deployer:\n\n 1. VectorAssignment is created by the vector-deployment-controller.\n 2. deployer reconciles it and configures vector-specific integration\n 3. VectorAssignmentReadyCondition is set to True",
       "properties": {
         "conditions": {
-          "description": "Conditions describes the latest observed state of the assignment. The primary condition is\nVectorAssignedCondition, which becomes True once the deployer has finished processing the VectorAssignment.",
+          "description": "Conditions describes the latest observed state of the assignment. The primary condition is\nVectorAssignmentReadyCondition, which becomes True once the deployer has finished processing the VectorAssignment.",
           "items": {
             "description": "Condition contains details for one aspect of the current state of this API Resource.",
             "properties": {
