@@ -95,7 +95,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions).To(HaveLen(1))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[0]).To(Equal(StageVersionTest))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionReady)).To(BeFalse())
+				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeFalse())
 			}, timeout, interval).Should(Succeed())
 
 			// mark stageVersion as ready
@@ -115,7 +115,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions).To(HaveLen(1))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[0]).To(Equal(StageVersionTest))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 		})
@@ -179,7 +179,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
 				g.Expect(meta.FindStatusCondition(stageVersionUsage.Status.Conditions, landscape.StageVersionNotFound)).To(BeNil())
-				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions).To(HaveLen(1))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[0]).To(Equal(StageVersionTest))
 			}, timeout, interval).Should(Succeed())
@@ -198,7 +198,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
-				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions).To(HaveLen(2))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[0]).To(Equal(StageVersionTest))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[1]).To(Equal(StageVersionTest2))
@@ -220,7 +220,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
-				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// mark stageVersion2 as ready
@@ -239,7 +239,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 	})
