@@ -26,6 +26,9 @@ const (
 
 	// StageVersionNotFound indicates that the referenced stage version does not exist.
 	StageVersionNotFound = "StageVersionNotFound"
+
+	// StageVersionUsageReady indicates that all referenced stage versions are ready.
+	StageVersionUsageReady = "Ready"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
