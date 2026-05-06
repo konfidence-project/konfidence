@@ -3,7 +3,8 @@ module github.com/konfidence-project/landscape-stage-controller
 go 1.26.1
 
 require (
-	github.com/konfidence-project/crds/api/landscape v0.18.0
+	github.com/konfidence-project/crds/api/landscape v0.19.2
+	github.com/konfidence-project/pkg v0.14.1
 	github.com/onsi/ginkgo/v2 v2.28.2
 	github.com/onsi/gomega v1.39.1
 	k8s.io/api v0.35.2
@@ -44,7 +45,6 @@ require (
 	github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/konfidence-project/pkg v0.14.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect

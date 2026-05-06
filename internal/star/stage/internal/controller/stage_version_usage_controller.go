@@ -105,18 +105,18 @@ func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Con
 
 	if allStageVersionsReady {
 		meta.SetStatusCondition(&stageVersionUsage.Status.Conditions, metav1.Condition{
-			Type:               landscape.StageVersionReady,
+			Type:               landscape.StageVersionUsageReady,
 			Status:             metav1.ConditionTrue,
-			Reason:             landscape.StageVersionReady,
+			Reason:             landscape.StageVersionUsageReady,
 			Message:            "Referenced StageVersion(s) are rolled out and ready for traffic",
 			ObservedGeneration: stageVersionUsage.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
 	} else {
 		meta.SetStatusCondition(&stageVersionUsage.Status.Conditions, metav1.Condition{
-			Type:               landscape.StageVersionReady,
+			Type:               landscape.StageVersionUsageReady,
 			Status:             metav1.ConditionFalse,
-			Reason:             landscape.StageVersionReady,
+			Reason:             landscape.StageVersionUsageReady,
 			Message:            "Referenced StageVersion(s) are not ready",
 			ObservedGeneration: stageVersionUsage.Generation,
 			LastTransitionTime: metav1.Now(),
