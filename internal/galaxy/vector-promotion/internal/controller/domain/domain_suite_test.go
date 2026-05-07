@@ -14,15 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package domain
 
 import (
+	"testing"
+
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Vector Promotion Controller", Ordered, func() {
-	Context("When reconciling a vectorPromotion", func() {
-		It("should successfully reconcile ", func() {
-		})
-	})
-})
+func TestDomain(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Domain Suite")
+}
