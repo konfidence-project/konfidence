@@ -67,7 +67,11 @@ vet: hermit ## Run go vet against code.
 
 .PHONY: test
 test: hermit manifests generate generate-test-crds fmt vet setup-envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out -ginkgo.v -v
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e | grep -v /test/controller) -coverprofile cover.out -ginkgo.v -v
+
+.PHONY: test-controller
+test-controller: hermit generate-test-crds setup-envtest ## Run controller tests (requires Docker for Zot testcontainers).
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/controller/ -v -ginkgo.v -timeout 5m -count=1
 
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.

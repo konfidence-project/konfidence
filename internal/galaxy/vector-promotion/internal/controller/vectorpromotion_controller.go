@@ -1,87 +1,146 @@
-/*
-Copyright 2026.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
+
+	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
 )
 
-// VectorPromotionReconciler reconciles a VectorPromotion object
+// VectorPromotionReconciler reconciles a VectorPromotion object.
 type VectorPromotionReconciler struct {
-	client.Client
-	Scheme *runtime.Scheme
+	Mgr           mcmanager.Manager
+	Scheme        *runtime.Scheme
+	PromotionPort domain.PromotionPort
 }
 
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
 
-func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-	log.Info("Reconcile vectorPromotion started...")
+func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+	log := logf.FromContext(ctx).WithValues("cluster", req.ClusterName)
+	ctx = logf.IntoContext(ctx, log)
+	log.Info("reconciling vector promotion")
+
+	cluster, err := r.Mgr.GetCluster(ctx, req.ClusterName)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get cluster: %w", err)
+	}
+	clusterClient := cluster.GetClient()
 
 	vectorPromotion := &global.VectorPromotion{}
-	if err := r.Get(ctx, req.NamespacedName, vectorPromotion); err != nil {
+	if err := clusterClient.Get(ctx, req.NamespacedName, vectorPromotion); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	originalVectorPromotion := vectorPromotion.DeepCopy()
-	patch := client.MergeFrom(originalVectorPromotion)
-	err := r.reconcileVectorPromotion(ctx, req, vectorPromotion)
+	// Take the snapshot before any modifications for the status patch.
+	original := vectorPromotion.DeepCopy()
 
-	if !reflect.DeepEqual(vectorPromotion.Status, originalVectorPromotion.Status) {
-		if patchError := r.Client.Status().Patch(ctx, vectorPromotion, patch); patchError != nil {
-			patchErrorMessage := "unable to update vectorPromotion status"
-
-			if err != nil {
-				reconcileError := fmt.Errorf("an error occurred while reconciling vectorPromotion: %w", err)
-				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
-			}
-
-			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
+	if domain.IsRunning(vectorPromotion) { // Promotion was started but promotion status could not be patched, so result is unknown
+		if err := setAndPatchPromotionCondition(
+			ctx, clusterClient, vectorPromotion, original,
+			metav1.ConditionUnknown, global.ReasonPromotionStatusUnknown,
+			"Promotion is in unknown state - cannot ensure one-time execution. Aborting reconciliation."); err != nil {
+			return ctrl.Result{}, err
 		}
+
+		return ctrl.Result{}, nil
 	}
 
-	return ctrl.Result{}, err
+	config, err := getPromotionConfig(ctx, clusterClient, vectorPromotion)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			err = fmt.Errorf("promotion configuration %q not found: %w", vectorPromotion.Spec.VectorPromotionConfigRef, err)
+			if patchErr := setAndPatchPromotionCondition(
+				ctx, clusterClient, vectorPromotion, original, metav1.ConditionFalse,
+				global.ReasonPromotionConfigurationNotFound, err.Error()); patchErr != nil {
+				return ctrl.Result{}, errors.Join(err, patchErr)
+			}
+			return ctrl.Result{}, reconcile.TerminalError(err)
+		}
+
+		err = fmt.Errorf("failed to fetch promotion configuration %q: %w", vectorPromotion.Spec.VectorPromotionConfigRef, err)
+		if patchErr := setAndPatchPromotionCondition(
+			ctx, clusterClient, vectorPromotion, original, metav1.ConditionFalse,
+			global.ReasonPromotionFailed, err.Error()); patchErr != nil {
+			return ctrl.Result{}, errors.Join(err, patchErr)
+		}
+		return ctrl.Result{}, err
+	}
+
+	if err := setAndPatchPromotionCondition(
+		ctx, clusterClient, vectorPromotion, original, metav1.ConditionFalse,
+		global.ReasonPromotionRunning, "Promotion is currently running"); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.PromotionPort.Promote(ctx, config.Spec.Source, config.Spec.Target); err != nil {
+		log.Error(err, "Promotion failed")
+		if patchError := setAndPatchPromotionCondition(
+			ctx, clusterClient, vectorPromotion, original, metav1.ConditionFalse,
+			domain.ClassifyPromotionError(err), err.Error()); patchError != nil {
+			return ctrl.Result{}, errors.Join(err, patchError)
+		}
+		return ctrl.Result{}, reconcile.TerminalError(err)
+	}
+
+	if err := setAndPatchPromotionCondition(
+		ctx, clusterClient, vectorPromotion, original, metav1.ConditionTrue,
+		global.ReasonPromotionSucceeded, "Promotion completed successfully"); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
 }
 
-func (r *VectorPromotionReconciler) reconcileVectorPromotion(ctx context.Context, _ ctrl.Request, _ *global.VectorPromotion) error {
-	log := logf.FromContext(ctx)
-	log.Info("Reconciling vectorPromotion")
-
-	// TODO implement
-
-	log.Info("VectorPromotion reconciled")
+func setAndPatchPromotionCondition(
+	ctx context.Context,
+	clusterClient client.Client,
+	vectorPromotion, original *global.VectorPromotion,
+	status metav1.ConditionStatus,
+	reason, message string) error {
+	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
+		Type:               global.ConditionTypeSucceeded,
+		Status:             status,
+		ObservedGeneration: vectorPromotion.Generation,
+		Reason:             reason,
+		Message:            message,
+	})
+	if !reflect.DeepEqual(vectorPromotion.Status, original.Status) {
+		if err := clusterClient.Status().Patch(ctx, vectorPromotion, client.MergeFrom(original)); err != nil {
+			return fmt.Errorf("failed to patch VectorPromotion status: %w", err)
+		}
+	}
 	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VectorPromotionReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&global.VectorPromotion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+func (r *VectorPromotionReconciler) SetupWithManager(mgr mcmanager.Manager) error {
+	return mcbuilder.ControllerManagedBy(mgr).
+		For(&global.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
+			CreateFunc:  func(e event.CreateEvent) bool { return true },
+			UpdateFunc:  func(e event.UpdateEvent) bool { return false },
+			DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+			GenericFunc: func(e event.GenericEvent) bool { return false },
+		})).
 		Named("vectorPromotion").
 		Complete(r)
 }

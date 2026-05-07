@@ -7,6 +7,23 @@ rules:
 - apiGroups:
   - global.konfidence.cloud
   resources:
+  - vectorpromotionconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - global.konfidence.cloud
+  resources:
+  - vectorpromotionconfigs/status
+  - vectorpromotions/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - global.konfidence.cloud
+  resources:
   - vectorpromotions
   verbs:
   - create
@@ -16,11 +33,3 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - global.konfidence.cloud
-  resources:
-  - vectorpromotions/status
-  verbs:
-  - get
-  - patch
-  - update
