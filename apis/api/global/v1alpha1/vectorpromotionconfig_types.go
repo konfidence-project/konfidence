@@ -68,6 +68,8 @@ type VectorPromotionConfig struct {
 	// +kubebuilder:validation:Optional
 	Spec   VectorPromotionConfigSpec   `json:"spec,omitempty"`
 	Status VectorPromotionConfigStatus `json:"status,omitempty"`
+
+	Config []CredentialsConfig `json:"config,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -49,7 +49,7 @@ CredentialsConfig defines a credential reference to a secret or configMap used t
 
 _Appears in:_
 - [StageConfigurationSpec](#stageconfigurationspec)
-- [VectorPromotion](#vectorpromotion)
+- [VectorPromotionConfig](#vectorpromotionconfig)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |
@@ -233,7 +233,6 @@ _Appears in:_
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[VectorPromotionSpec](#vectorpromotionspec)_ |  |  |  |
 | `status` _[VectorPromotionStatus](#vectorpromotionstatus)_ |  |  |  |
-| `config` _[CredentialsConfig](#credentialsconfig) array_ |  |  |  |
 
 
 #### VectorPromotionConfig
@@ -256,6 +255,7 @@ _Appears in:_
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[VectorPromotionConfigSpec](#vectorpromotionconfigspec)_ | Spec defines the desired state of the VectorPromotionConfig. |  | Optional: \{\} <br /> |
 | `status` _[VectorPromotionConfigStatus](#vectorpromotionconfigstatus)_ |  |  |  |
+| `config` _[CredentialsConfig](#credentialsconfig) array_ |  |  |  |
 
 
 #### VectorPromotionConfigList
