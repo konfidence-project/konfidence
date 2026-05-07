@@ -40,6 +40,28 @@ spec:
               may reject unrecognized values.
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
+          config:
+            items:
+              description: CredentialsConfig defines a credential reference to a secret
+                or configMap used to access OCM backends (like OCI registry).
+              properties:
+                apiVersion:
+                  description: APIVersion is the api version of the of configuration
+                    resource, e.g. v1.
+                  type: string
+                kind:
+                  description: Kind of the configuration resource. Allowed values
+                    are Secret or ConfigMap.
+                  type: string
+                name:
+                  description: "Name is the name\t of the of configuration resource."
+                  type: string
+              required:
+              - apiVersion
+              - kind
+              - name
+              type: object
+            type: array
           kind:
             description: |-
               Kind is a string value representing the REST resource this object represents.
