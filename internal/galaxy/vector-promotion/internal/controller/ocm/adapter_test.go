@@ -20,16 +20,17 @@ import (
 	"context"
 	"errors"
 
+	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
-
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/ocm/internal/mock"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ocispec "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 	"ocm.software/open-component-model/bindings/go/runtime"
+
+	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
+	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/ocm/internal/mock"
 )
 
 var _ = Describe("PromotionAdapter", func() {
@@ -43,7 +44,7 @@ var _ = Describe("PromotionAdapter", func() {
 	BeforeEach(func() {
 		ctrl = gomock.NewController(GinkgoT())
 		mockClient = mock.NewMockClient(ctrl)
-		adapter = NewPromotionAdapter(mockClient)
+		adapter = &PromotionAdapter{ocmClient: mockClient}
 		ctx = context.Background()
 	})
 
@@ -52,48 +53,16 @@ var _ = Describe("PromotionAdapter", func() {
 	})
 
 	Describe("Promote", func() {
-		Context("with invalid source reference", func() {
-			It("returns ErrInvalidConfiguration for malformed source", func() {
-				err := adapter.Promote(ctx, "not-a-valid-reference", "ghcr.io/org/components//github.com/org/app:production")
-
-				Expect(err).To(HaveOccurred())
-				Expect(errors.Is(err, domain.ErrInvalidConfiguration)).To(BeTrue())
-				Expect(err.Error()).To(ContainSubstring("failed to parse source reference"))
-			})
-
-			It("returns ErrInvalidConfiguration for source without version", func() {
-				err := adapter.Promote(ctx, "ghcr.io/org/components//github.com/org/app", "ghcr.io/org/components//github.com/org/app:production")
-
-				Expect(err).To(HaveOccurred())
-				Expect(errors.Is(err, domain.ErrInvalidConfiguration)).To(BeTrue())
-			})
-		})
-
-		Context("with invalid target reference", func() {
-			It("returns ErrInvalidConfiguration for malformed target", func() {
-				err := adapter.Promote(ctx, "ghcr.io/org/components//github.com/org/app:1.0.0", "not-a-valid-reference")
-
-				Expect(err).To(HaveOccurred())
-				Expect(errors.Is(err, domain.ErrInvalidConfiguration)).To(BeTrue())
-				Expect(err.Error()).To(ContainSubstring("failed to parse target reference"))
-			})
-
-			It("returns ErrInvalidConfiguration for target with semver instead of alias", func() {
-				err := adapter.Promote(ctx, "ghcr.io/org/components//github.com/org/app:1.0.0", "ghcr.io/org/components//github.com/org/app:2.0.0")
-
-				Expect(err).To(HaveOccurred())
-				Expect(errors.Is(err, domain.ErrInvalidConfiguration)).To(BeTrue())
-				Expect(err.Error()).To(ContainSubstring("failed to parse target reference"))
-			})
-		})
-
 		Context("when source resolution fails", func() {
 			It("returns ErrFetchingSourceFailed", func() {
 				mockClient.EXPECT().
 					Get(gomock.Any(), gomock.Any()).
 					Return(descruntime.Descriptor{}, errors.New("source not found"))
 
-				err := adapter.Promote(ctx, "ghcr.io/org/components//github.com/org/app:1.0.0", "ghcr.io/org/components//github.com/org/app:production")
+				err := adapter.Promote(ctx,
+					mustParse("ghcr.io/org/components//github.com/org/app:1.0.0"),
+					mustParse("ghcr.io/org/components//github.com/org/app:production"),
+				)
 
 				Expect(err).To(HaveOccurred())
 				Expect(errors.Is(err, domain.ErrFetchingSourceFailed)).To(BeTrue())
@@ -112,8 +81,9 @@ var _ = Describe("PromotionAdapter", func() {
 					Return(nil)
 
 				err := adapter.Promote(ctx,
-					"ghcr.io/org/components//github.com/org/app:1.0.0",
-					"ghcr.io/org/components//github.com/org/app:production")
+					mustParse("ghcr.io/org/components//github.com/org/app:1.0.0"),
+					mustParse("ghcr.io/org/components//github.com/org/app:production"),
+				)
 
 				Expect(err).ToNot(HaveOccurred())
 			})
@@ -134,8 +104,9 @@ var _ = Describe("PromotionAdapter", func() {
 					Return(nil)
 
 				err := adapter.Promote(ctx,
-					"ghcr.io/org/source-repo//github.com/org/app:1.0.0",
-					"ghcr.io/org/target-repo//github.com/org/app:production")
+					mustParse("ghcr.io/org/source-repo//github.com/org/app:1.0.0"),
+					mustParse("ghcr.io/org/target-repo//github.com/org/app:production"),
+				)
 
 				Expect(err).ToNot(HaveOccurred())
 			})
@@ -150,8 +121,9 @@ var _ = Describe("PromotionAdapter", func() {
 					Return(errors.New("copy failed"))
 
 				err := adapter.Promote(ctx,
-					"ghcr.io/org/source-repo//github.com/org/app:1.0.0",
-					"ghcr.io/org/target-repo//github.com/org/app:production")
+					mustParse("ghcr.io/org/source-repo//github.com/org/app:1.0.0"),
+					mustParse("ghcr.io/org/target-repo//github.com/org/app:production"),
+				)
 
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("failed to copy"))
@@ -169,8 +141,9 @@ var _ = Describe("PromotionAdapter", func() {
 					Return(errors.New("alias failed"))
 
 				err := adapter.Promote(ctx,
-					"ghcr.io/org/components//github.com/org/app:1.0.0",
-					"ghcr.io/org/components//github.com/org/app:production")
+					mustParse("ghcr.io/org/components//github.com/org/app:1.0.0"),
+					mustParse("ghcr.io/org/components//github.com/org/app:production"),
+				)
 
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("failed to add alias"))
@@ -181,92 +154,66 @@ var _ = Describe("PromotionAdapter", func() {
 			It("promotes the resolved version", func() {
 				mockClient.EXPECT().
 					Get(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, ref compref.Ref) (descruntime.Descriptor, error) {
+					DoAndReturn(func(_ context.Context, ref compref.Ref) (descruntime.Descriptor, error) {
 						Expect(ref.Version).To(Equal("latest"))
 						return makeDescriptor("2.5.3"), nil
 					})
 
 				mockClient.EXPECT().
 					AddAlias(gomock.Any(), gomock.Any(), "production").
-					DoAndReturn(func(ctx context.Context, ref compref.Ref, alias string) error {
+					DoAndReturn(func(_ context.Context, ref compref.Ref, _ string) error {
 						Expect(ref.Version).To(Equal("2.5.3"))
 						return nil
 					})
 
 				err := adapter.Promote(ctx,
-					"ghcr.io/org/components//github.com/org/app:latest",
-					"ghcr.io/org/components//github.com/org/app:production")
+					mustParse("ghcr.io/org/components//github.com/org/app:latest"),
+					mustParse("ghcr.io/org/components//github.com/org/app:production"),
+				)
 
 				Expect(err).ToNot(HaveOccurred())
 			})
+		})
+	})
+
+	Describe("PromotionPortProvider", func() {
+		It("returns a valid OcmPromotionPort", func() {
+			port := PromotionPortProvider.NewOcmPromotionPort(mockClient)
+
+			Expect(port).ToNot(BeNil())
+			Expect(port).To(BeAssignableToTypeOf(&PromotionAdapter{}))
 		})
 	})
 })
 
 var _ = Describe("sameLocation", func() {
 	DescribeTable("compares OCI repositories",
-		func(a, b *compref.Ref, expected bool) {
+		func(a, b compref.Ref, expected bool) {
 			result, err := sameLocation(a, b)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(expected))
 		},
 		Entry("same base url and sub path",
-			&compref.Ref{
-				Repository: &ocispec.Repository{
-					Type:    runtime.Type{Name: ocispec.Type, Version: "v1"},
-					BaseUrl: "https://registry.example.com",
-					SubPath: "repo",
-				},
-			},
-			&compref.Ref{
-				Repository: &ocispec.Repository{
-					Type:    runtime.Type{Name: ocispec.Type, Version: "v1"},
-					BaseUrl: "https://registry.example.com",
-					SubPath: "repo",
-				},
-			},
+			mustParse("ghcr.io/org/components//github.com/org/app:1.0.0"),
+			mustParse("ghcr.io/org/components//github.com/org/app:2.0.0"),
 			true,
 		),
 		Entry("different base url",
-			&compref.Ref{
-				Repository: &ocispec.Repository{
-					Type:    runtime.Type{Name: ocispec.Type, Version: "v1"},
-					BaseUrl: "https://registry-a.example.com",
-					SubPath: "repo",
-				},
-			},
-			&compref.Ref{
-				Repository: &ocispec.Repository{
-					Type:    runtime.Type{Name: ocispec.Type, Version: "v1"},
-					BaseUrl: "https://registry-b.example.com",
-					SubPath: "repo",
-				},
-			},
+			mustParse("ghcr.io/org-a/components//github.com/org/app:1.0.0"),
+			mustParse("ghcr.io/org-b/components//github.com/org/app:1.0.0"),
 			false,
 		),
 		Entry("different sub path",
-			&compref.Ref{
-				Repository: &ocispec.Repository{
-					Type:    runtime.Type{Name: ocispec.Type, Version: "v1"},
-					BaseUrl: "https://registry.example.com",
-					SubPath: "repo-a",
-				},
-			},
-			&compref.Ref{
-				Repository: &ocispec.Repository{
-					Type:    runtime.Type{Name: ocispec.Type, Version: "v1"},
-					BaseUrl: "https://registry.example.com",
-					SubPath: "repo-b",
-				},
-			},
+			mustParse("ghcr.io/org/source-repo//github.com/org/app:1.0.0"),
+			mustParse("ghcr.io/org/target-repo//github.com/org/app:1.0.0"),
 			false,
 		),
 	)
 
 	Context("with non-OCI repositories", func() {
 		It("returns error when source is not OCI", func() {
-			a := &compref.Ref{Repository: &nonOCIRepository{}}
-			b := &compref.Ref{Repository: &ocispec.Repository{}}
+			a := compref.Ref{Repository: &nonOCIRepository{}}
+			b := compref.Ref{Repository: &ocispec.Repository{}}
 
 			_, err := sameLocation(a, b)
 
@@ -275,8 +222,8 @@ var _ = Describe("sameLocation", func() {
 		})
 
 		It("returns error when target is not OCI", func() {
-			a := &compref.Ref{Repository: &ocispec.Repository{}}
-			b := &compref.Ref{Repository: &nonOCIRepository{}}
+			a := compref.Ref{Repository: &ocispec.Repository{}}
+			b := compref.Ref{Repository: &nonOCIRepository{}}
 
 			_, err := sameLocation(a, b)
 
@@ -299,8 +246,14 @@ func makeDescriptor(version string) descruntime.Descriptor {
 	}
 }
 
+func mustParse(ref string) compref.Ref {
+	r, err := konfcompref.Parse(ref)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	return *r
+}
+
 type nonOCIRepository struct{}
 
 func (n *nonOCIRepository) GetType() runtime.Type        { return runtime.Type{Name: "other"} }
-func (n *nonOCIRepository) SetType(t runtime.Type)       {}
+func (n *nonOCIRepository) SetType(_ runtime.Type)       {}
 func (n *nonOCIRepository) DeepCopyTyped() runtime.Typed { return &nonOCIRepository{} }

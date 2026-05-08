@@ -147,6 +147,30 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 		}, timeout, interval).Should(Succeed())
 	})
 
+	It("should set PromotionFailed when OCM client creation fails", func() {
+		By("creating VectorPromotionConfig with credentials that trigger client creation failure")
+		source := fmt.Sprintf("http://%s//konfidence.io/promo/client-fail:latest", sourceRegistryEndpoint)
+		target := fmt.Sprintf("http://%s//konfidence.io/promo/client-fail:promoted", targetRegistryEndpoint)
+		config := createConfigWithCredentials("client-fail-config", source, target, []global.CredentialsConfig{
+			{Kind: "Secret", APIVersion: "v1", Name: failClientCreationSecret},
+		})
+
+		By("creating VectorPromotion")
+		promotion := createPromotion("client-fail-promotion", config.Name)
+
+		By("asserting PromotionFailed condition due to client creation failure")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name: promotion.Name, Namespace: testNamespace,
+			}, promotion)).To(Succeed())
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, global.ConditionTypeSucceeded)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+			g.Expect(cond.Reason).To(Equal(global.ReasonPromotionFailed))
+			g.Expect(cond.Message).To(ContainSubstring("failed to create OCM client"))
+		}, timeout, interval).Should(Succeed())
+	})
+
 	It("should set PromotionConfigurationNotFound when config does not exist", func() {
 		By("creating VectorPromotion referencing non-existent config")
 		promotion := createPromotion("config-not-found-promotion", "non-existent-config")

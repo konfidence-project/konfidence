@@ -2,13 +2,25 @@ package domain
 
 import (
 	"context"
+
+	pkgrepository "github.com/konfidence-project/pkg/ocm/repository"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
 )
 
-// PromotionPort abstracts the OCM operations required by the promotion controller.
-type PromotionPort interface {
-	// Promote executes the full promotion flow:
-	// 1. Resolves the source reference to a concrete version
-	// 2. Copies the component to the target repository (if cross-repo)
-	// 3. Moves the target alias to point to the resolved version
-	Promote(ctx context.Context, source, target string) error
+// OcmPromotionPort is an interface that abstracts the promotion process
+// from a source to a target vector using OCM.
+type OcmPromotionPort interface {
+	Promote(ctx context.Context, source, target compref.Ref) error
+}
+
+// OcmPromotionPortProvider is a factory interface for creating OcmPromotionPort instances.
+type OcmPromotionPortProvider interface {
+	NewOcmPromotionPort(client pkgrepository.Client) OcmPromotionPort
+}
+
+// OcmPromotionPortProviderFunc is a function bridge type that implements OcmPromotionPortProvider.
+type OcmPromotionPortProviderFunc func(client pkgrepository.Client) OcmPromotionPort
+
+func (f OcmPromotionPortProviderFunc) NewOcmPromotionPort(client pkgrepository.Client) OcmPromotionPort {
+	return f(client)
 }

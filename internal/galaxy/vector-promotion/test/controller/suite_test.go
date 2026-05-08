@@ -33,10 +33,12 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	genericv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
+	credentialsv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
+	ocmruntime "ocm.software/open-component-model/bindings/go/runtime"
+	"ocm.software/open-component-model/kubernetes/controller/pkg/configuration"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -61,6 +63,8 @@ var (
 
 	ocmClient pkgOcm.Client
 )
+
+const failClientCreationSecret = "fail-client-creation"
 
 func TestController(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -177,22 +181,21 @@ var _ = BeforeSuite(func() {
 	Expect(global.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	By("building shared OCM client")
-	registrySecret := buildCombinedRegistrySecret(
+	ocmConfig := buildOCMConfig(
 		registryCredential{endpoint: sourceRegistryEndpoint, username: "user", password: "password"},
 		registryCredential{endpoint: targetRegistryEndpoint, username: "user", password: "password"},
 	)
 	ocmClient, err = pkgOcm.NewOciClientBuilder().
 		WithLogger(ctrl.Log.WithName("ocm-client")).
-		WithDockerConfigJsonSecret(registrySecret).
+		WithOCMConfig(ocmConfig).
 		Build(ctx)
 	Expect(err).NotTo(HaveOccurred(), "failed to build OCM client")
 
-	By("starting manager with promotion adapter")
-	promotionAdapter := ocm.NewPromotionAdapter(ocmClient)
-	startManager(promotionAdapter)
+	By("starting manager")
+	startManager()
 })
 
-func startManager(promotionAdapter *ocm.PromotionAdapter) {
+func startManager() {
 	var err error
 
 	mgr, err := mcmanager.New(cfg, nil, ctrl.Options{
@@ -204,9 +207,19 @@ func startManager(promotionAdapter *ocm.PromotionAdapter) {
 	Expect(err).NotTo(HaveOccurred(), "failed to create k8s client")
 
 	Expect((&controller.VectorPromotionReconciler{
-		Mgr:           mgr,
-		Scheme:        mgr.GetLocalManager().GetScheme(),
-		PromotionPort: promotionAdapter,
+		Mgr:    mgr,
+		Scheme: mgr.GetLocalManager().GetScheme(),
+		OcmClientProvider: pkgOcm.ClientProviderFunc(
+			func(_ context.Context, _ client.Reader, _ string, creds []global.CredentialsConfig) (pkgOcm.Client, error) {
+				for _, c := range creds {
+					if c.Name == failClientCreationSecret {
+						return nil, fmt.Errorf("simulated credential resolution failure")
+					}
+				}
+				return ocmClient, nil
+			},
+		),
+		PortProvider: ocm.PromotionPortProvider,
 	}).SetupWithManager(mgr)).To(Succeed())
 
 	Expect((&controller.VectorPromotionTTLReconciler{
@@ -238,22 +251,42 @@ type registryCredential struct {
 	password string
 }
 
-func buildCombinedRegistrySecret(endpoints ...registryCredential) *corev1.Secret {
+func buildOCMConfig(endpoints ...registryCredential) *configuration.Configuration {
 	auths := make(map[string]any, len(endpoints))
 	for _, ep := range endpoints {
 		auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", ep.username, ep.password)))
 		auths[ep.endpoint] = map[string]any{"auth": auth}
 	}
-	dockerConfig := map[string]any{"auths": auths}
-	dockerConfigJSON, err := json.Marshal(dockerConfig)
+	dockerConfigJSON, err := json.Marshal(map[string]any{"auths": auths})
 	Expect(err).NotTo(HaveOccurred(), "failed to marshal docker config JSON")
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "oci-registry-credentials"},
-		Type:       corev1.SecretTypeDockerConfigJson,
-		Data: map[string][]byte{
-			corev1.DockerConfigJsonKey: dockerConfigJSON,
-		},
+
+	repoRaw := &ocmruntime.Raw{
+		Data: fmt.Appendf(nil, `{
+			"type": "DockerConfig/v1",
+			"dockerConfig": %q
+		}`, string(dockerConfigJSON)),
 	}
+
+	credConfig := &credentialsv1.Config{
+		Repositories: []credentialsv1.RepositoryConfigEntry{{Repository: repoRaw}},
+	}
+
+	credScheme := ocmruntime.NewScheme()
+	credentialsv1.MustRegister(credScheme)
+
+	rawCreds := &ocmruntime.Raw{}
+	err = credScheme.Convert(credConfig, rawCreds)
+	Expect(err).NotTo(HaveOccurred(), "failed to convert credentials config")
+
+	cfg := &genericv1.Config{
+		Type: ocmruntime.Type{
+			Version: genericv1.Version,
+			Name:    genericv1.ConfigType,
+		},
+		Configurations: []*ocmruntime.Raw{rawCreds},
+	}
+
+	return &configuration.Configuration{Config: cfg}
 }
 
 func getFirstFoundEnvTestBinaryDir() string {

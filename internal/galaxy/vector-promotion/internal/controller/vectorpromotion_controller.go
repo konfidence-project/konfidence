@@ -7,10 +7,13 @@ import (
 	"reflect"
 
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
+	"github.com/konfidence-project/pkg/ocm/repository"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -26,9 +29,10 @@ import (
 
 // VectorPromotionReconciler reconciles a VectorPromotion object.
 type VectorPromotionReconciler struct {
-	Mgr           mcmanager.Manager
-	Scheme        *runtime.Scheme
-	PromotionPort domain.PromotionPort
+	Mgr               mcmanager.Manager
+	Scheme            *runtime.Scheme
+	OcmClientProvider repository.ClientProvider
+	PortProvider      domain.OcmPromotionPortProvider
 }
 
 // +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch
@@ -86,13 +90,34 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		return ctrl.Result{}, err
 	}
 
+	src, dst, err := parsePromotionParameters(config)
+	if err != nil {
+		if patchError := setAndPatchPromotionCondition(
+			ctx, clusterClient, vectorPromotion, original, metav1.ConditionFalse,
+			global.ReasonInvalidPromotionConfiguration, err.Error()); patchError != nil {
+			return ctrl.Result{}, errors.Join(err, patchError)
+		}
+		return ctrl.Result{}, reconcile.TerminalError(err)
+	}
+
+	ocmClient, err := r.OcmClientProvider.NewClient(ctx, clusterClient, config.GetNamespace(), config.Config)
+	if err != nil {
+		err = fmt.Errorf("failed to create OCM client: %w", err)
+		if patchErr := setAndPatchPromotionCondition(
+			ctx, clusterClient, vectorPromotion, original, metav1.ConditionFalse,
+			global.ReasonPromotionFailed, err.Error()); patchErr != nil {
+			return ctrl.Result{}, errors.Join(err, patchErr)
+		}
+		return ctrl.Result{}, err
+	}
+
 	if err := setAndPatchPromotionCondition(
 		ctx, clusterClient, vectorPromotion, original, metav1.ConditionFalse,
 		global.ReasonPromotionRunning, "Promotion is currently running"); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.PromotionPort.Promote(ctx, config.Spec.Source, config.Spec.Target); err != nil {
+	if err := r.PortProvider.NewOcmPromotionPort(ocmClient).Promote(ctx, *src, *dst); err != nil {
 		log.Error(err, "Promotion failed")
 		if patchError := setAndPatchPromotionCondition(
 			ctx, clusterClient, vectorPromotion, original, metav1.ConditionFalse,
@@ -130,6 +155,18 @@ func setAndPatchPromotionCondition(
 		}
 	}
 	return nil
+}
+
+func parsePromotionParameters(config *global.VectorPromotionConfig) (source, target *compref.Ref, err error) {
+	source, err = konfcompref.Parse(config.Spec.Source)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse source reference %q: %w", config.Spec.Source, err)
+	}
+	target, err = konfcompref.Parse(config.Spec.Target, konfcompref.WithVersionValidation(konfcompref.VersionValidationAliasOnly))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse target reference %q: %w", config.Spec.Target, err)
+	}
+	return source, target, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
