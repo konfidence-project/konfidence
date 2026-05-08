@@ -48,6 +48,26 @@ func createConfig(name, source, target string) *global.VectorPromotionConfig {
 	return config
 }
 
+// createConfigWithCredentials creates a VectorPromotionConfig with credentials in the test namespace.
+func createConfigWithCredentials(
+	name, source, target string,
+	creds []global.CredentialsConfig,
+) *global.VectorPromotionConfig {
+	config := &global.VectorPromotionConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: testNamespace,
+		},
+		Spec: global.VectorPromotionConfigSpec{
+			Source: source,
+			Target: target,
+		},
+		Config: creds,
+	}
+	ExpectWithOffset(1, k8sClient.Create(ctx, config)).To(Succeed())
+	return config
+}
+
 // createPromotion creates a VectorPromotion in the test namespace referencing a config.
 func createPromotion(name, configRef string) *global.VectorPromotion {
 	promotion := &global.VectorPromotion{

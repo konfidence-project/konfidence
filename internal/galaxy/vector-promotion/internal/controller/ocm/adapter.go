@@ -24,63 +24,51 @@ import (
 	"fmt"
 
 	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
-	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
 	pkgrepository "github.com/konfidence-project/pkg/ocm/repository"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ocispec "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 )
 
-var _ domain.PromotionPort = (*PromotionAdapter)(nil)
+var (
+	_                     domain.OcmPromotionPort = (*PromotionAdapter)(nil)
+	PromotionPortProvider                         = domain.OcmPromotionPortProviderFunc(func(client pkgrepository.Client) domain.OcmPromotionPort {
+		return &PromotionAdapter{ocmClient: client}
+	})
+)
 
-// PromotionAdapter implements PromotionPort using the pkg module's OCM client.
+// PromotionAdapter implements domain.OcmPromotionPort using pkgrepository.Client.
 type PromotionAdapter struct {
 	ocmClient pkgrepository.Client
 }
 
-// NewPromotionAdapter creates a new PromotionAdapter with the given OCM client.
-func NewPromotionAdapter(ocmClient pkgrepository.Client) *PromotionAdapter {
-	return &PromotionAdapter{ocmClient: ocmClient}
-}
-
-func (a *PromotionAdapter) Promote(ctx context.Context, source, target string) error {
-	sourceRef, err := konfcompref.Parse(source)
-	if err != nil {
-		return fmt.Errorf("failed to parse source reference %q: %w", source, errors.Join(domain.ErrInvalidConfiguration, err))
-	}
-
-	targetRef, err := konfcompref.Parse(target, konfcompref.WithVersionValidation(konfcompref.VersionValidationAliasOnly))
-	if err != nil {
-		return fmt.Errorf("failed to parse target reference %q: %w", target, errors.Join(domain.ErrInvalidConfiguration, err))
-	}
-
-	sourceDesc, err := a.ocmClient.Get(ctx, *sourceRef)
+func (a *PromotionAdapter) Promote(ctx context.Context, source, target compref.Ref) error {
+	sourceDesc, err := a.ocmClient.Get(ctx, source)
 	if err != nil {
 		return fmt.Errorf("failed to get source reference: %w", errors.Join(domain.ErrFetchingSourceFailed, err))
 	}
 	sourceVersionRef := compref.Ref{
-		Repository: sourceRef.Repository,
+		Repository: source.Repository,
 		Component:  sourceDesc.Component.Name,
 		Version:    sourceDesc.Component.Version,
 	}
 
-	same, err := sameLocation(sourceRef, targetRef)
+	same, err := sameLocation(source, target)
 	if err != nil {
 		return fmt.Errorf("failed to process promotion: %w", err)
 	}
 	if !same {
-		if err := a.ocmClient.Copy(ctx, []compref.Ref{sourceVersionRef}, targetRef.Repository); err != nil { // TODO: check if alias tag gets copied or only semver tag
-			return fmt.Errorf("failed to copy %s -> %s during promotion: %w", sourceRef, targetRef, err)
+		if err := a.ocmClient.Copy(ctx, []compref.Ref{sourceVersionRef}, target.Repository); err != nil { // TODO: check if alias tag gets copied or only semver tag
+			return fmt.Errorf("failed to copy %s -> %s during promotion: %w", source, target, err)
 		}
 	}
 
 	aliasRef := compref.Ref{
-		Repository: targetRef.Repository,
+		Repository: target.Repository,
 		Component:  sourceVersionRef.Component,
 		Version:    sourceVersionRef.Version,
 	}
-	// Move the target alias to point to the resolved version.
-	if err := a.ocmClient.AddAlias(ctx, aliasRef, targetRef.Version); err != nil {
-		return fmt.Errorf("failed to add alias %q to %s during promotion: %w", targetRef.Version, aliasRef, err)
+	if err := a.ocmClient.AddAlias(ctx, aliasRef, target.Version); err != nil {
+		return fmt.Errorf("failed to add alias %q to %s during promotion: %w", target.Version, aliasRef, err)
 	}
 
 	return nil
@@ -88,7 +76,7 @@ func (a *PromotionAdapter) Promote(ctx context.Context, source, target string) e
 
 // sameLocation returns true if two refs point to the same location (same base URL and subpath)
 // it returns an error in case a ref's repository does not point to a ocispec.Repository.
-func sameLocation(a, b *compref.Ref) (bool, error) {
+func sameLocation(a, b compref.Ref) (bool, error) {
 	aOCI, ok := a.Repository.(*ocispec.Repository)
 	if !ok {
 		return false, fmt.Errorf("source repository is not an OCI repository: %s", a)

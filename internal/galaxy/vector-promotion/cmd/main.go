@@ -17,9 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"os"
 
 	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
@@ -27,18 +25,14 @@ import (
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
-	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/konfidence-project/pkg/ocm/repository"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
@@ -125,25 +119,11 @@ func main() {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	registryCredentials, err := resolveRegistryCredentials(ctx, mgr.GetLocalManager())
-	if err != nil {
-		setupLog.Error(err, "unable to resolve registry credentials")
-		os.Exit(1)
-	}
-
-	ocmClient, err := pkgOcm.NewOciClientBuilder().
-		WithLogger(ctrl.Log).
-		WithDockerConfigJsonSecret(registryCredentials).
-		Build(ctx)
-	if err != nil {
-		setupLog.Error(err, "unable to create OCM client")
-		os.Exit(1)
-	}
-
 	if err := (&controller.VectorPromotionReconciler{
-		Mgr:           mgr,
-		Scheme:        scheme,
-		PromotionPort: ocm.NewPromotionAdapter(ocmClient),
+		Mgr:               mgr,
+		Scheme:            scheme,
+		PortProvider:      ocm.PromotionPortProvider,
+		OcmClientProvider: repository.DefaultOciClientProvider,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorPromotion")
 		os.Exit(1)
@@ -180,21 +160,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-// TODO: move to pkg, because it's used by the vector-assembly-controller as well
-func resolveRegistryCredentials(ctx context.Context, mgr manager.Manager) (*v1.Secret, error) {
-	const secretName = "registry-credentials"
-	const secretNamespace = "konfidence-system"
-
-	secret := &v1.Secret{}
-	err := mgr.GetAPIReader().Get(ctx, types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret)
-	if apierrors.IsNotFound(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get secret %s/%s: %w", secretNamespace, secretName, err)
-	}
-
-	return secret, nil
 }
