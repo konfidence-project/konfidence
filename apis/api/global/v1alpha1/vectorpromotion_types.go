@@ -41,6 +41,8 @@ const (
 	ReasonPromotionFailed = "PromotionFailed"
 	// ReasonPromotionRunning indicates that the promotion is still running.
 	ReasonPromotionRunning = "PromotionRunning"
+	// ReasonPromotionSourceVerificationFailed indicates that the verification of the source vector failed.
+	ReasonPromotionSourceVerificationFailed = "PromotionSourceVerificationFailed"
 )
 
 // VectorPromotionSpec defines the desired state of VectorPromotion.
