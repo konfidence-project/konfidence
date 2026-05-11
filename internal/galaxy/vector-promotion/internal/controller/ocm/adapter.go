@@ -17,6 +17,7 @@ limitations under the License.
 package ocm
 
 //go:generate go run go.uber.org/mock/mockgen -destination=internal/mock/client_mock.go -package=mock github.com/konfidence-project/pkg/ocm/repository Client
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mock/verifier_mock.go -package=mock github.com/konfidence-project/pkg/ocm/crypto Verifier
 
 import (
 	"context"
@@ -24,28 +25,55 @@ import (
 	"fmt"
 
 	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
+	"github.com/konfidence-project/pkg/ocm/crypto"
 	pkgrepository "github.com/konfidence-project/pkg/ocm/repository"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ocispec "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
-	_                     domain.OcmPromotionPort = (*PromotionAdapter)(nil)
-	PromotionPortProvider                         = domain.OcmPromotionPortProviderFunc(func(client pkgrepository.Client) domain.OcmPromotionPort {
-		return &PromotionAdapter{ocmClient: client}
-	})
+	_ domain.OcmPromotionPort = (*PromotionAdapter)(nil)
 )
 
 // PromotionAdapter implements domain.OcmPromotionPort using pkgrepository.Client.
 type PromotionAdapter struct {
-	ocmClient pkgrepository.Client
+	ocmClient      pkgrepository.Client
+	vectorVerifier crypto.Verifier
+}
+
+// NewPromotionAdapter creates a new PromotionAdapter with the given options.
+func NewPromotionAdapter(opts ...PromotionAdapterOption) *PromotionAdapter {
+	adapter := &PromotionAdapter{}
+	for _, opt := range opts {
+		opt(adapter)
+	}
+	if adapter.vectorVerifier == nil {
+		ctrl.Log.Info("vector verifier not configured - using noop verifier")
+		adapter.vectorVerifier = crypto.NoopVerifier{}
+	}
+	return adapter
+}
+
+// NewPromotionPortProvider creates a PromotionPortProvider that builds a PromotionAdapter
+// with the given options and plugs in the provided client at call time.
+func NewPromotionPortProvider(opts ...PromotionAdapterOption) domain.OcmPromotionPortProviderFunc {
+	return func(client pkgrepository.Client) domain.OcmPromotionPort {
+		a := NewPromotionAdapter(opts...)
+		a.ocmClient = client
+		return a
+	}
 }
 
 func (a *PromotionAdapter) Promote(ctx context.Context, source, target compref.Ref) error {
 	sourceDesc, err := a.ocmClient.Get(ctx, source)
 	if err != nil {
-		return fmt.Errorf("failed to get source reference: %w", errors.Join(domain.ErrFetchingSourceFailed, err))
+		return fmt.Errorf("failed to get descriptor of source reference: %w", errors.Join(domain.ErrFetchingSourceFailed, err))
 	}
+	if err = a.vectorVerifier.Verify(ctx, &sourceDesc); err != nil {
+		return fmt.Errorf("unable to verify signature of the source reference descriptor: %w", errors.Join(domain.ErrSourceVerificationFailed, err))
+	}
+
 	sourceVersionRef := compref.Ref{
 		Repository: source.Repository,
 		Component:  sourceDesc.Component.Name,

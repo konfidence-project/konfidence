@@ -44,7 +44,8 @@ var _ = Describe("PromotionAdapter", func() {
 	BeforeEach(func() {
 		ctrl = gomock.NewController(GinkgoT())
 		mockClient = mock.NewMockClient(ctrl)
-		adapter = &PromotionAdapter{ocmClient: mockClient}
+		adapter = NewPromotionAdapter()
+		adapter.ocmClient = mockClient
 		ctx = context.Background()
 	})
 
@@ -66,7 +67,60 @@ var _ = Describe("PromotionAdapter", func() {
 
 				Expect(err).To(HaveOccurred())
 				Expect(errors.Is(err, domain.ErrFetchingSourceFailed)).To(BeTrue())
-				Expect(err.Error()).To(ContainSubstring("failed to get source reference"))
+				Expect(err.Error()).To(ContainSubstring("failed to get descriptor of source reference"))
+			})
+		})
+
+		Context("when source vector verification fails", func() {
+			It("returns ErrFetchingSourceFailed", func() {
+				mockVerifier := mock.NewMockVerifier(ctrl)
+				verifyAdapter := NewPromotionAdapter(WithVectorVerifier(mockVerifier))
+				verifyAdapter.ocmClient = mockClient
+
+				mockClient.EXPECT().
+					Get(gomock.Any(), gomock.Any()).
+					Return(makeDescriptor("1.0.0"), nil)
+
+				mockVerifier.EXPECT().
+					Verify(gomock.Any(), gomock.Any()).
+					Return(errors.New("signature mismatch"))
+
+				err := verifyAdapter.Promote(ctx,
+					mustParse("ghcr.io/org/components//github.com/org/app:latest"),
+					mustParse("ghcr.io/org/components//github.com/org/app:production"),
+				)
+
+				Expect(err).To(HaveOccurred())
+				Expect(errors.Is(err, domain.ErrSourceVerificationFailed)).To(BeTrue())
+				Expect(err.Error()).To(ContainSubstring("unable to verify signature of the source reference descriptor"))
+				Expect(err.Error()).To(ContainSubstring("signature mismatch"))
+			})
+		})
+
+		Context("when source vector verification succeeds", func() {
+			It("proceeds with promotion", func() {
+				mockVerifier := mock.NewMockVerifier(ctrl)
+				verifyAdapter := NewPromotionAdapter(WithVectorVerifier(mockVerifier))
+				verifyAdapter.ocmClient = mockClient
+
+				mockClient.EXPECT().
+					Get(gomock.Any(), gomock.Any()).
+					Return(makeDescriptor("1.0.0"), nil)
+
+				mockVerifier.EXPECT().
+					Verify(gomock.Any(), gomock.Any()).
+					Return(nil)
+
+				mockClient.EXPECT().
+					AddAlias(gomock.Any(), gomock.Any(), "production").
+					Return(nil)
+
+				err := verifyAdapter.Promote(ctx,
+					mustParse("ghcr.io/org/components//github.com/org/app:latest"),
+					mustParse("ghcr.io/org/components//github.com/org/app:production"),
+				)
+
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 
@@ -178,7 +232,7 @@ var _ = Describe("PromotionAdapter", func() {
 
 	Describe("PromotionPortProvider", func() {
 		It("returns a valid OcmPromotionPort", func() {
-			port := PromotionPortProvider.NewOcmPromotionPort(mockClient)
+			port := NewPromotionPortProvider().NewOcmPromotionPort(mockClient)
 
 			Expect(port).ToNot(BeNil())
 			Expect(port).To(BeAssignableToTypeOf(&PromotionAdapter{}))

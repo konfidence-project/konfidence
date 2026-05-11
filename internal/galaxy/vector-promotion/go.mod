@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	github.com/kcp-dev/multicluster-provider v0.5.1
 	github.com/kcp-dev/sdk v0.31.0
-	github.com/konfidence-project/crds/api/global v0.10.1
+	github.com/konfidence-project/crds/api/global v0.11.0
 	github.com/konfidence-project/pkg v0.17.0
 	github.com/onsi/ginkgo/v2 v2.28.3
 	github.com/onsi/gomega v1.40.0
@@ -162,6 +162,7 @@ require (
 	ocm.software/open-component-model/bindings/go/helm v0.0.0-20260422093231-6611b268e461 // indirect
 	ocm.software/open-component-model/bindings/go/plugin v0.0.14 // indirect
 	ocm.software/open-component-model/bindings/go/repository v0.0.8 // indirect
+	ocm.software/open-component-model/bindings/go/rsa v0.0.0-20260422093231-6611b268e461 // indirect
 	ocm.software/open-component-model/bindings/go/signing v0.0.0-20260422093231-6611b268e461 // indirect
 	ocm.software/open-component-model/bindings/go/transfer v0.0.0-20260422133910-9bc7e29e468b // indirect
 	ocm.software/open-component-model/bindings/go/transform v0.0.0-20260422093231-6611b268e461 // indirect
