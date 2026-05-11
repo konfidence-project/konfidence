@@ -219,7 +219,7 @@ func startManager() {
 				return ocmClient, nil
 			},
 		),
-		PortProvider: ocm.PromotionPortProvider,
+		PortProvider: ocm.NewPromotionPortProvider(),
 	}).SetupWithManager(mgr)).To(Succeed())
 
 	Expect((&controller.VectorPromotionTTLReconciler{

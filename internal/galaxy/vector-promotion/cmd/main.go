@@ -18,15 +18,20 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	"github.com/konfidence-project/pkg/ocm/crypto"
 	"github.com/konfidence-project/pkg/ocm/repository"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -44,9 +49,12 @@ import (
 )
 
 const (
-	KubernetesServiceHostEnv = "KUBERNETES_SERVICE_HOST"
-	KubernetesServicePortEnv = "KUBERNETES_SERVICE_PORT"
-	KcpEndpointSliceEnv      = "KCP_ENDPOINT_SLICE"
+	KubernetesServiceHostEnv                 = "KUBERNETES_SERVICE_HOST"
+	KubernetesServicePortEnv                 = "KUBERNETES_SERVICE_PORT"
+	KcpEndpointSliceEnv                      = "KCP_ENDPOINT_SLICE"
+	OcmVectorVerifyEnv                       = "OCM_VECTOR_VERIFY"
+	VerifierTrustAnchorConfigMapNameEnv      = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAME"
+	VerifierTrustAnchorConfigMapNamespaceEnv = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAMESPACE"
 )
 
 var (
@@ -119,10 +127,41 @@ func main() {
 
 	ctx := ctrl.SetupSignalHandler()
 
+	var promotionAdapterConfig []ocm.PromotionAdapterOption
+	verifyVectorEnv := strings.ToLower(os.Getenv(OcmVectorVerifyEnv))
+	if verifyVectorEnv != "" {
+		verifyVector, err := strconv.ParseBool(verifyVectorEnv)
+		if err != nil {
+			setupLog.Error(err, fmt.Sprintf("unable to parse env variable %q into bool", OcmVectorVerifyEnv))
+			os.Exit(1)
+		}
+
+		if verifyVector {
+			configMapName, namespace := os.Getenv(VerifierTrustAnchorConfigMapNameEnv),
+				os.Getenv(VerifierTrustAnchorConfigMapNamespaceEnv)
+			if configMapName == "" || namespace == "" {
+				setupLog.Error(fmt.Errorf("env variables %s and/or %s not set", VerifierTrustAnchorConfigMapNameEnv,
+					VerifierTrustAnchorConfigMapNamespaceEnv), "")
+				os.Exit(1)
+			}
+
+			configMapProvider := crypto.NewConfigMapTrustAnchorProvider(
+				types.NamespacedName{Name: configMapName, Namespace: namespace})
+			if err = configMapProvider.SetupWithManager(ctx, mgr.GetLocalManager()); err != nil {
+				setupLog.Error(err, "unable to set up config map trust anchor provider")
+				os.Exit(1)
+			}
+
+			promotionAdapterConfig = append(promotionAdapterConfig, ocm.WithDefaultVectorVerification(configMapProvider))
+		} else {
+			setupLog.Info("OCM vector verification is disabled")
+		}
+	}
+
 	if err := (&controller.VectorPromotionReconciler{
 		Mgr:               mgr,
 		Scheme:            scheme,
-		PortProvider:      ocm.PromotionPortProvider,
+		PortProvider:      ocm.NewPromotionPortProvider(promotionAdapterConfig...),
 		OcmClientProvider: repository.DefaultOciClientProvider,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VectorPromotion")
