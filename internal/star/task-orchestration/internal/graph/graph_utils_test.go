@@ -9,13 +9,14 @@ import (
 
 var _ = Describe("Graph utility functions", func() {
 	const (
-		Task0 = "task-0"
-		Task1 = "task-1"
-		Task2 = "task-2"
-		Task3 = "task-3"
-		Task4 = "task-4"
-		Task5 = "task-5"
-		Task6 = "task-6"
+		Task0       = "task-0"
+		Task1       = "task-1"
+		Task2       = "task-2"
+		Task3       = "task-3"
+		Task4       = "task-4"
+		Task5       = "task-5"
+		Task6       = "task-6"
+		TaskTypeK8s = "k8s"
 	)
 
 	Context("When processing a task dependency graph", func() {
@@ -23,35 +24,35 @@ var _ = Describe("Graph utility functions", func() {
 			tasks := []landscape.TaskManifest{
 				{
 					Name: Task0,
-					Type: "k8s",
+					Type: TaskTypeK8s,
 				},
 				{
 					Name: Task1,
-					Type: "k8s",
+					Type: TaskTypeK8s,
 				},
 				{
 					Name:      Task2,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task0, Task1},
 				},
 				{
 					Name:      Task3,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task0, Task2},
 				},
 				{
 					Name:      Task4,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task2},
 				},
 				{
 					Name:      Task5,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task3},
 				},
 				{
 					Name:      Task6,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task4, Task5},
 				},
 			}
@@ -81,30 +82,30 @@ var _ = Describe("Graph utility functions", func() {
 			tasks := []landscape.TaskManifest{
 				{
 					Name: Task0,
-					Type: "k8s",
+					Type: TaskTypeK8s,
 				},
 				{
 					Name:      Task1,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task0},
 				},
 				{
 					Name:      Task2,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task1},
 				},
 				{
 					Name: Task3,
-					Type: "k8s",
+					Type: TaskTypeK8s,
 				},
 				{
 					Name:      Task4,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task3},
 				},
 				{
 					Name:      Task5,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task4},
 				},
 			}
@@ -134,17 +135,17 @@ var _ = Describe("Graph utility functions", func() {
 			tasks := []landscape.TaskManifest{
 				{
 					Name:      Task0,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task2},
 				},
 				{
 					Name:      Task1,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task0},
 				},
 				{
 					Name:      Task2,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task1},
 				},
 			}
@@ -156,21 +157,21 @@ var _ = Describe("Graph utility functions", func() {
 			tasks := []landscape.TaskManifest{
 				{
 					Name:      Task0,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task3},
 				},
 				{
 					Name: Task1,
-					Type: "k8s",
+					Type: TaskTypeK8s,
 				},
 				{
 					Name:      Task2,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task0, Task1},
 				},
 				{
 					Name:      Task3,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task1, Task2},
 				},
 			}
