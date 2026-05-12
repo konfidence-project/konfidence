@@ -212,6 +212,28 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 		}, timeout, interval).Should(Succeed())
 	})
 
+	It("should set InvalidPromotionConfiguration when source and target component names do not match", func() {
+		By("creating VectorPromotionConfig with mismatched component names")
+		source := fmt.Sprintf("http://%s//konfidence.io/promo/app-a:latest", sourceRegistryEndpoint)
+		target := fmt.Sprintf("http://%s//konfidence.io/promo/app-b:promoted", targetRegistryEndpoint)
+		config := createConfig("mismatched-components-config", source, target)
+
+		By("creating VectorPromotion")
+		promotion := createPromotion("mismatched-components-promotion", config.Name)
+
+		By("asserting InvalidPromotionConfiguration condition")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name: promotion.Name, Namespace: testNamespace,
+			}, promotion)).To(Succeed())
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, global.ConditionTypeSucceeded)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+			g.Expect(cond.Reason).To(Equal(global.ReasonInvalidPromotionConfiguration))
+			g.Expect(cond.Message).To(ContainSubstring("source and target component names do not match"))
+		}, timeout, interval).Should(Succeed())
+	})
+
 	It("should remain stable after reaching terminal state even when spec is updated", func() {
 		By("pushing component to source registry")
 		ref := sourceRef("konfidence.io/promo/terminal:v4.0.0")
