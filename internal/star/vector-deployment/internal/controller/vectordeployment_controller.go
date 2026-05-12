@@ -379,7 +379,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 		}
 
 		// state management for VectorAssignmentsCreatedCondition
-		if !meta.IsStatusConditionTrue(vectorAssignment.Status.Conditions, landscape.VectorAssignmentReadyCondition) {
+		if !meta.IsStatusConditionTrue(vectorAssignment.Status.Conditions, landscape.VectorAssignedCondition) {
 			allReady = false
 		}
 	}

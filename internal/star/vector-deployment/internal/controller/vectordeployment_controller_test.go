@@ -258,5 +258,64 @@ var _ = Describe("VectorDeployment Controller", func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
 			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, landscape.VectorAssignmentsCreatedCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Verifying ArtifactDeployment has owner reference pointing to VectorDeployment")
+		gomega.Eventually(func(g gomega.Gomega) {
+			ad := &landscape.ArtifactDeployment{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      artifactDeploymentList.Items[0].Name,
+				Namespace: testNamespace,
+			}, ad)).To(gomega.Succeed())
+			g.Expect(ad.OwnerReferences).ToNot(gomega.BeEmpty())
+			foundOwner := false
+			for _, ref := range ad.OwnerReferences {
+				if ref.UID == vectorDeployment.UID && ref.Kind == "VectorDeployment" {
+					foundOwner = true
+				}
+			}
+			g.Expect(foundOwner).To(gomega.BeTrue(), "ArtifactDeployment should have VectorDeployment as owner")
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Verifying VectorAssignment has controller owner reference pointing to VectorDeployment")
+		gomega.Eventually(func(g gomega.Gomega) {
+			va := &landscape.VectorAssignment{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      vectorDeployment.Name,
+				Namespace: testNamespace,
+			}, va)).To(gomega.Succeed())
+			g.Expect(va.OwnerReferences).ToNot(gomega.BeEmpty())
+			foundControllerOwner := false
+			for _, ref := range va.OwnerReferences {
+				if ref.UID == vectorDeployment.UID && ref.Kind == "VectorDeployment" && ref.Controller != nil && *ref.Controller {
+					foundControllerOwner = true
+				}
+			}
+			g.Expect(foundControllerOwner).To(gomega.BeTrue(), "VectorAssignment should have VectorDeployment as controller owner")
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Simulating VectorAssignment readiness")
+		vectorAssignment := &landscape.VectorAssignment{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      vectorDeployment.Name,
+				Namespace: testNamespace,
+			}, vectorAssignment)).To(gomega.Succeed())
+		}, timeout, interval).Should(gomega.Succeed())
+
+		meta.SetStatusCondition(&vectorAssignment.Status.Conditions, metav1.Condition{
+			Type:               landscape.VectorAssignedCondition,
+			Reason:             landscape.VectorAssignedCondition,
+			Status:             metav1.ConditionTrue,
+			Message:            "simulated",
+			ObservedGeneration: vectorAssignment.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, vectorAssignment)).To(gomega.Succeed())
+
+		By("Verifying VectorReady condition is set on VectorDeployment")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, landscape.VectorReadyCondition)).To(gomega.BeTrue())
+		}, timeout, interval).Should(gomega.Succeed())
 	})
 })
