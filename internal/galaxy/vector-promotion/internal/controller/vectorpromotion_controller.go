@@ -166,6 +166,10 @@ func parsePromotionParameters(config *global.VectorPromotionConfig) (source, tar
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse target reference %q: %w", config.Spec.Target, err)
 	}
+
+	if source.Component != target.Component {
+		return nil, nil, fmt.Errorf("source and target component names do not match")
+	}
 	return source, target, nil
 }
 

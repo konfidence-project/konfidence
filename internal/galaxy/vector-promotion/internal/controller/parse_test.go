@@ -78,6 +78,23 @@ var _ = Describe("parsePromotionParameters", func() {
 		})
 	})
 
+	Context("with mismatched component names", func() {
+		It("returns error when source and target components differ", func() {
+			config := &global.VectorPromotionConfig{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-config"},
+				Spec: global.VectorPromotionConfigSpec{
+					Source: "ghcr.io/org/components//github.com/org/app-a:1.0.0",
+					Target: "ghcr.io/org/components//github.com/org/app-b:production",
+				},
+			}
+
+			_, _, err := parsePromotionParameters(config)
+
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("source and target component names do not match"))
+		})
+	})
+
 	Context("with invalid target", func() {
 		It("returns error for target with semver version", func() {
 			config := &global.VectorPromotionConfig{
