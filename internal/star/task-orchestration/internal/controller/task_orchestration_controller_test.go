@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright 2025-2026.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 		Task5               = "task-5"
 		Task6               = "task-6"
 		SpecJson            = "{}"
+		TaskTypeK8s         = "k8s"
 		timeout             = time.Second * 10
 		interval            = time.Millisecond * 250
 	)
@@ -119,24 +120,24 @@ var _ = Describe("Task Orchestration Controller", func() {
 			artifactDeployment1Tasks := []landscape.TaskManifest{
 				{
 					Name: Task0,
-					Type: "k8s",
+					Type: TaskTypeK8s,
 					Spec: runtime.RawExtension{Raw: []byte(SpecJson)},
 				},
 				{
 					Name:      Task3,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task0, Task2},
 					Spec:      runtime.RawExtension{Raw: []byte(SpecJson)},
 				},
 				{
 					Name:      Task5,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task3},
 					Spec:      runtime.RawExtension{Raw: []byte(SpecJson)},
 				},
 				{
 					Name:      Task6,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task4, Task5},
 					Spec:      runtime.RawExtension{Raw: []byte(SpecJson)},
 				},
@@ -155,18 +156,18 @@ var _ = Describe("Task Orchestration Controller", func() {
 			artifactDeployment2Tasks := []landscape.TaskManifest{
 				{
 					Name: Task1,
-					Type: "k8s",
+					Type: TaskTypeK8s,
 					Spec: runtime.RawExtension{Raw: []byte(SpecJson)},
 				},
 				{
 					Name:      Task2,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task0, Task1},
 					Spec:      runtime.RawExtension{Raw: []byte(SpecJson)},
 				},
 				{
 					Name:      Task4,
-					Type:      "k8s",
+					Type:      TaskTypeK8s,
 					DependsOn: []string{Task2},
 					Spec:      runtime.RawExtension{Raw: []byte(SpecJson)},
 				},
@@ -341,6 +342,131 @@ var _ = Describe("Task Orchestration Controller", func() {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(err).To(MatchError(errors.IsNotFound, "Should be a not found error"))
 			}, timeout, interval).Should(Succeed())
+
+			// check that all taskExecutions have been cleaned up
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should handle re-reconciliation of an already succeeded vectorMigration idempotently", func() {
+			ctx := context.Background()
+
+			// Create the stageVersion referenced by the migration.
+			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001, StageDev)
+
+			stageVersion := &landscape.StageVersion{}
+			stageVersionLookupKey := types.NamespacedName{Name: StageVersion, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Create a single migration task behind one artifactDeployment.
+			artifactDeploymentTasks := []landscape.TaskManifest{
+				{
+					Name: Task0,
+					Type: TaskTypeK8s,
+					Spec: runtime.RawExtension{Raw: []byte(SpecJson)},
+				},
+			}
+			testutil.CreateArtifactDeployment(ctx, k8sClient, ArtifactDeployment1, Namespace, artifactDeploymentTasks)
+
+			artifactDeployment1 := &landscape.ArtifactDeployment{}
+			artifactDeployment1LookupKey := types.NamespacedName{Name: ArtifactDeployment1, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, artifactDeployment1LookupKey, artifactDeployment1)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Create the vectorDeployment and link it to the artifactDeployment.
+			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001, StageVersion)
+
+			vectorDeployment := &landscape.VectorDeployment{}
+			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			artifactDeploymentRefs := make(map[string]landscape.LocalArtifactDeploymentReference)
+			artifactDeploymentRefs[ArtifactDeployment1] = landscape.LocalArtifactDeploymentReference{
+				Name: ArtifactDeployment1,
+			}
+			vectorDeployment.Status.ResultingArtifactDeployments = artifactDeploymentRefs
+			testutil.UpdateVectorDeploymentStatus(ctx, k8sClient, vectorDeployment)
+
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
+				g.Expect(vectorDeployment.Status.ResultingArtifactDeployments).To(HaveLen(1))
+			}, timeout, interval).Should(Succeed())
+
+			// Start the migration.
+			testutil.CreateVectorMigration(ctx, k8sClient, VectorMigration, Namespace, StageVersion, Vector001)
+
+			vectorMigration := &landscape.VectorMigration{}
+			vectorMigrationLookupKey := types.NamespacedName{Name: VectorMigration, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Let the single task run to completion.
+			taskExecutions := &landscape.TaskExecutionList{}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(HaveLen(1))
+			}, timeout, interval).Should(Succeed())
+
+			taskExecution0 := testutil.GetTaskExecutionWithTaskName(Task0, taskExecutions.Items)
+			Expect(taskExecution0).ToNot(BeNil())
+
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, landscape.TaskSucceeded)
+
+			// Wait for cleanup of child resources created by the successful migration.
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			// Trigger another reconcile after the migration already succeeded.
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			stageVersionUsage := &landscape.StageVersionUsage{}
+			stageVersionUsageLookupKey := types.NamespacedName{Name: StageVersionUsage, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err).To(MatchError(errors.IsNotFound, "Should be a not found error"))
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			if vectorMigration.Labels == nil {
+				vectorMigration.Labels = make(map[string]string)
+			}
+			vectorMigration.Labels["re-reconcile-trigger"] = "true"
+			Expect(k8sClient.Update(ctx, vectorMigration)).To(Succeed())
+
+			// Re-reconciliation must not recreate work or lock the stageVersion again.
+			Consistently(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
+				g.Expect(vectorMigration.Status.Conditions).To(HaveLen(1))
+				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded)).To(BeTrue())
+			}, time.Second*2, interval).Should(Succeed())
+
+			Consistently(func(g Gomega) {
+				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
+				g.Expect(taskExecutions.Items).To(BeEmpty())
+			}, time.Second*2, interval).Should(Succeed())
+
+			Consistently(func(g Gomega) {
+				err := k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err).To(MatchError(errors.IsNotFound, "Should be a not found error"))
+			}, time.Second*2, interval).Should(Succeed())
 		})
 
 		It("should fail to reconcile the vectorMigration if at least one task fails", func() {
@@ -384,7 +510,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			artifactDeploymentTasks := []landscape.TaskManifest{
 				{
 					Name: Task0,
-					Type: "k8s",
+					Type: TaskTypeK8s,
 					Spec: runtime.RawExtension{Raw: []byte(SpecJson)},
 				},
 			}

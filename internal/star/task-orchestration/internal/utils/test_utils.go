@@ -18,7 +18,7 @@ import (
 func CreateVectorMigration(ctx context.Context, k8sClient client.Client, name string, namespace string, stageVersionName string, vectorName string) {
 	vectorMigration := &landscape.VectorMigration{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: landscape.GroupVersion.String(),
 			Kind:       "VectorMigration",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -64,7 +64,7 @@ func CleanupVectorMigration(k8sClient client.Client, vectorMigrationName string,
 func CreateStageVersion(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string, stageName string) {
 	stageVersion := &landscape.StageVersion{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: landscape.GroupVersion.String(),
 			Kind:       "StageVersion",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -145,7 +145,7 @@ func CleanupStageVersionUsage(k8sClient client.Client, stageVersionUsageName str
 func CreateArtifactDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, taskManifest []landscape.TaskManifest) {
 	artifactDeployment := &landscape.ArtifactDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: landscape.GroupVersion.String(),
 			Kind:       "ArtifactDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -197,7 +197,7 @@ func CleanupArtifactDeployment(k8sClient client.Client, artifactDeploymentName s
 func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, vector string, stageVersion string) {
 	vectorDeployment := &landscape.VectorDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: landscape.GroupVersion.String(),
 			Kind:       "VectorDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -264,7 +264,7 @@ func SetTaskExecutionStatus(ctx context.Context, k8sClient client.Client, taskEx
 func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, specName string, vectorName string) {
 	stage := &landscape.Stage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: landscape.GroupVersion.String(),
 			Kind:       "Stage",
 		},
 		ObjectMeta: metav1.ObjectMeta{
