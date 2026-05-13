@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/star/task-orchestration/internal/graph"
 	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"

@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	. "github.com/onsi/gomega"
 )
 
 func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name string, namespace string,
