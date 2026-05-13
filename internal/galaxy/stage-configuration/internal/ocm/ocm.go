@@ -7,7 +7,7 @@ import (
 	pkgComp "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 
-	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/controller/ports"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/ports"
 	pkgRepo "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
 

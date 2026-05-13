@@ -14,16 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller_test
+package stage_test
 
 import (
 	"context"
 	"time"
 
 	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
-	"github.com/konfidence-project/konfidence/internal/star/stage/internal/controller"
-	testutil "github.com/konfidence-project/konfidence/internal/star/stage/test/utils"
+	controller "github.com/konfidence-project/konfidence/internal/star/stage"
+	testutil "github.com/konfidence-project/konfidence/internal/star/stage/internal/utils"
 	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

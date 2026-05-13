@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	ports "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/controller/ports"
+	ports "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/ports"
 	crypto "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	repository "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	gomock "go.uber.org/mock/gomock"

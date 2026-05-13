@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package stageconfiguration
 
 import (
 	"context"
@@ -22,12 +22,14 @@ import (
 	"time"
 
 	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/controller/ports"
-	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/controller/ports/mocks"
-	testutil "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/utils"
-	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/pkg/template"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/ports"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/ports/mocks"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/template"
+	testutil "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/utils"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	v1 "k8s.io/api/core/v1"
 	eventsv1 "k8s.io/api/events/v1"
@@ -35,8 +37,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Stage Configuration Controller", Ordered, func() {

@@ -6,14 +6,14 @@ import (
 
 	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
-	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/pkg/template"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/template"
+	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	. "github.com/onsi/gomega"
 )
 
 func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name string, namespace string,

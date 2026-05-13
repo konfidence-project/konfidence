@@ -1,4 +1,4 @@
-package controller
+package stage
 
 const (
 	StageVersionUsageTargetType = "target"

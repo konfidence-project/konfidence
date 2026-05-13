@@ -14,15 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller_test
+package stage_test
 
 import (
 	"context"
 	"time"
 
 	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
-	"github.com/konfidence-project/konfidence/internal/star/stage/internal/controller"
-	testutil "github.com/konfidence-project/konfidence/internal/star/stage/test/utils"
+	"github.com/konfidence-project/konfidence/internal/star/stage"
+	testutil "github.com/konfidence-project/konfidence/internal/star/stage/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -40,7 +40,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 
 	BeforeAll(func() {
 		k8sClient, cancel = StartTestManagerWithReconciler(func(mgr ctrl.Manager) error {
-			return (&controller.StageVersionUsageReconciler{
+			return (&stage.StageVersionUsageReconciler{
 				Client: mgr.GetClient(),
 				Scheme: mgr.GetScheme(),
 			}).SetupWithManager(mgr)

@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/test/utils"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 // namespace where the project is deployed in

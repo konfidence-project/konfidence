@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package stageconfiguration
 
 import (
 	"context"
@@ -43,19 +43,20 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/controller/ports"
-	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/pkg/template"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/ocm"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/ports"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/template"
 	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
 
 const (
-	DefaultReconcileInterval         = 30 * time.Second
-	StageConfigurationControllerName = "stage-configuration-controller"
-	ClusterMarker                    = "/clusters/"
-	ClusterPattern                   = "\\/clusters\\/[^/]+$"
+	defaultReconcileInterval         = 30 * time.Second
+	stageConfigurationControllerName = "stage-configuration-controller"
+	clusterMarker                    = "/clusters/"
+	clusterPattern                   = "\\/clusters\\/[^/]+$"
 )
 
-var ClusterRegex = regexp.MustCompile(ClusterPattern)
+var clusterRegex = regexp.MustCompile(clusterPattern)
 
 // StageConfigurationReconciler reconciles a StageConfiguration object
 type StageConfigurationReconciler struct {
@@ -65,6 +66,22 @@ type StageConfigurationReconciler struct {
 	Scheme             *runtime.Scheme
 	RestConfig         *rest.Config
 	OcmVerifier        crypto.Verifier
+}
+
+func NewStageConfigurationReconciler(
+	mgr mcmanager.Manager,
+	scheme *runtime.Scheme,
+	restConfig *rest.Config,
+	vectorVerifier crypto.Verifier,
+) *StageConfigurationReconciler {
+	return &StageConfigurationReconciler{
+		Mgr:                mgr,
+		OcmClientProvider:  repository.DefaultOciClientProvider,
+		VectorPortProvider: ocm.DefaultPortProvider,
+		Scheme:             scheme,
+		RestConfig:         restConfig,
+		OcmVerifier:        vectorVerifier,
+	}
 }
 
 // +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -85,7 +102,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 	}
 
 	clusterClient := cluster.GetClient()
-	recorder := cluster.GetEventRecorder(StageConfigurationControllerName)
+	recorder := cluster.GetEventRecorder(stageConfigurationControllerName)
 
 	// get stageConfiguration
 	stageConfiguration := &global.StageConfiguration{}
@@ -113,7 +130,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	return ctrl.Result{RequeueAfter: DefaultReconcileInterval}, nil
+	return ctrl.Result{RequeueAfter: defaultReconcileInterval}, nil
 }
 
 func (r *StageConfigurationReconciler) reconcileStageConfiguration(
@@ -252,16 +269,16 @@ func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stage
 		return "", fmt.Errorf("stage configuration does not contain a target workspace")
 	}
 
-	if !ClusterRegex.MatchString(host) {
+	if !clusterRegex.MatchString(host) {
 		return "", fmt.Errorf("could not match clusters entry at end of config host %s", host)
 	}
 
-	separatorIdx := strings.LastIndex(host, ClusterMarker)
+	separatorIdx := strings.LastIndex(host, clusterMarker)
 	if separatorIdx == -1 {
 		return "", fmt.Errorf("missing clusters entry in config host %s", host)
 	}
 
-	return host[:separatorIdx] + ClusterMarker + *stageConfiguration.Spec.TargetWorkspace, nil
+	return host[:separatorIdx] + clusterMarker + *stageConfiguration.Spec.TargetWorkspace, nil
 }
 
 func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stageConfiguration *global.StageConfiguration, ready bool, message string) {
@@ -284,6 +301,6 @@ func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stage
 func (r *StageConfigurationReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
 		For(&global.StageConfiguration{}, mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Named(StageConfigurationControllerName).
+		Named(stageConfigurationControllerName).
 		Complete(r)
 }
