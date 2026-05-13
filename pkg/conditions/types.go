@@ -3,7 +3,7 @@ package conditions
 //go:generate go run go.uber.org/mock/mockgen -source=types.go -destination=internal/mocks/mock_types_port.go -package=mocks
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/api/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/konfidence-project/konfidence/pkg/conditions/internal/mocks"
 	"go.uber.org/mock/gomock"
-	metav1 "k8s.io/apimachinery/pkg/api/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("Set", func() {
