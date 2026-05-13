@@ -1,0 +1,43 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: landscape-vector-deployment-manager
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - landscape.konfidence.cloud
+  resources:
+  - artifactdeployments
+  - vectorassignments
+  - vectordeployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - landscape.konfidence.cloud
+  resources:
+  - vectordeployments/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - landscape.konfidence.cloud
+  resources:
+  - vectordeployments/status
+  verbs:
+  - get
+  - patch
+  - update

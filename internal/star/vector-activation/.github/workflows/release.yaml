@@ -1,0 +1,20 @@
+name: Release
+
+on:
+  push: 
+    branches: [main]    
+
+jobs:
+  release:
+    name: Release
+    uses: konfidence-project/.github/.github/workflows/kubebuilder-release-pipeline.yaml@v3
+    secrets: inherit
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      packages: write
+      attestations: write
+      id-token: write
+    with:
+      before-tests: make generate-test-crds

@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: 🔒 Internal Request (Maintainers Only)
+    url: https://github.com/konfidence-project/konfidence-project/issues/new/choose
+    about: Epics, User-Stories and Tasks - access restricted to maintainers
+
+  - name: 📚 Documentation
+    url: https://docs.konfidence.cloud/
+    about: Check our documentation before opening an issue

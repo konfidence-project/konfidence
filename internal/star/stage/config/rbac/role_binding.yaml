@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: landscape-stage-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: landscape-stage-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: landscape-stage-manager
+subjects:
+- kind: ServiceAccount
+  name: landscape-stage-controller

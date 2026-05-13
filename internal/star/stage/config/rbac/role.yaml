@@ -1,0 +1,36 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: landscape-stage-manager
+rules:
+- apiGroups:
+  - landscape.konfidence.cloud
+  resources:
+  - stages
+  - stageversions
+  - stageversionusages
+  - vectoractivations
+  - vectordeployments
+  - vectormigrations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - landscape.konfidence.cloud
+  resources:
+  - stages/status
+  - stageversions/status
+  - stageversionusages/status
+  - vectoractivations/status
+  - vectordeployments/status
+  - vectormigrations/status
+  verbs:
+  - get
+  - patch
+  - update

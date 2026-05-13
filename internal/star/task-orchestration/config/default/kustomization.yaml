@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: konfidence-system
+resources:
+- namespace.yaml
+- ../manager
+images:
+- name: konfidence-project/landscape-task-orchestration-controller
+  newName: registry.kdenv.lab/landscape-task-orchestration-controller
+  newTag: dev

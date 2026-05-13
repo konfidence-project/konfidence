@@ -1,0 +1,20 @@
+apiVersion: landscape.konfidence.cloud/v1alpha1
+kind: ArtifactDeployment
+metadata:
+  name: e9cea9b3764b9adda065f85acd63a42f04b69de2d42e9b7e4f9556913bb37abb
+  namespace: default
+spec:
+  component:
+    name: cloud.konfidence.flux.helm
+    resources:
+      - content:
+          helmChart: podinfo:6.9.1
+          helmRepository: https://stefanprodan.github.io/podinfo
+          type: helm
+        name: sample-service-1-helm-chart
+        type: helmChart
+    version: 1.0.0
+  manifest:
+    allowReuse: true
+    type: cloud.konfidence.flux.helm
+  taskManifests: [ ]

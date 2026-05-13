@@ -1,0 +1,20 @@
+# specify a schema to validate the configuration and get auto-completion in your editor
+# yaml-language-server: $schema=https://ocm.software/schemas/configuration-schema.yaml
+components:
+- name: github.com/konfidence-project/sample-vector
+  version: 0.3.0
+  provider:                 
+    name: konfidence-project
+  labels:
+    - name: konfidence-project/sample-vector
+      value: 01904be8-bae3-ae70-e4d6-78af41d7e0a2
+      version: v1  
+  componentReferences:      
+  - componentName: github.com/konfidence-project/sample-service-1
+    name: sample-service-1
+    version: 0.0.1
+  - name: sample-service-2
+    version: 0.2.0
+    componentName: github.com/konfidence-project/sample-service-2
+  sources: []
+  resources: []

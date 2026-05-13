@@ -1,0 +1,23 @@
+{
+  "name": "sample-service-1-task-3",
+  "type": "k8s-job",
+  "dependsOn": ["sample-service-1-task-2", "sample-service-2-task-2"],
+  "spec": {
+    "template": {
+      "spec": {
+        "restartPolicy": "Never",
+        "containers": [
+          {
+            "name": "sample-service-1-task-3-container",
+            "image": "alpine:3.22.1",
+            "command": [
+              "echo",
+              "I am task 3 of service 1"
+            ]
+          }
+        ]
+      }
+    },
+    "backoffLimit": 4
+  }
+}
