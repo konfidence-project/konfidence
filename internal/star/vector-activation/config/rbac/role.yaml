@@ -25,7 +25,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - landscape.konfidence.cloud
+  - star.konfidence.cloud
   resources:
   - activationtaskexecutions
   - activationtaskregistrations
@@ -42,7 +42,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - landscape.konfidence.cloud
+  - star.konfidence.cloud
   resources:
   - activationtaskexecutions/status
   - activationtaskregistrations/status

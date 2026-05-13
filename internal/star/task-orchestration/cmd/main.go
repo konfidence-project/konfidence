@@ -20,8 +20,8 @@ import (
 	"flag"
 	"os"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/konfidence-project/landscape-task-orchestration-controller/internal/controller"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/star/task-orchestration/internal/controller"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

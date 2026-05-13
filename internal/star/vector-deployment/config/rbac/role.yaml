@@ -14,7 +14,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - landscape.konfidence.cloud
+  - star.konfidence.cloud
   resources:
   - artifactdeployments
   - vectorassignments
@@ -28,13 +28,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - landscape.konfidence.cloud
+  - star.konfidence.cloud
   resources:
   - vectordeployments/finalizers
   verbs:
   - update
 - apiGroups:
-  - landscape.konfidence.cloud
+  - star.konfidence.cloud
   resources:
   - vectordeployments/status
   verbs:

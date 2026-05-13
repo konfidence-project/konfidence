@@ -1,4 +1,4 @@
-[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/pkg)](https://api.reuse.software/info/github.com/konfidence-project/pkg)
+[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/konfidence/pkg)](https://api.reuse.software/info/github.com/konfidence-project/konfidence/pkg)
 
 # pkg
 
@@ -15,7 +15,7 @@ The pkg repository contains commonly used libraries for Kubernetes controllers. 
 To use the libraries in your project, add them as a dependency:
 
 ```bash
-go get github.com/konfidence-project/pkg
+go get github.com/konfidence-project/konfidence/pkg
 ```
 
 ## Development

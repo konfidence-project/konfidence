@@ -1,7 +1,7 @@
-apiVersion: global.konfidence.cloud/v1alpha1
+apiVersion: galaxy.konfidence.cloud/v1alpha1
 kind: VectorTemplate
 metadata:
-  namespace: konfidence-system 
+  namespace: konfidence-system
   name: base-app
 spec:
   reconcileInterval: 10s

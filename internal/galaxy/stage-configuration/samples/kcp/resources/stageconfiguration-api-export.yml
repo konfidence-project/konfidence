@@ -1,12 +1,12 @@
-apiVersion: apis.kcp.io/v1alpha2
+apiVersion: api.kcp.io/v1alpha2
 kind: APIExport
 metadata:
   name: stageconfiguration.konfidence.cloud.export
 spec:
   resources:
-    - group: global.konfidence.cloud
+    - group: galaxy.konfidence.cloud
       name: stageconfigurations
-      schema: v1a.stageconfigurations.global.konfidence.cloud
+      schema: v1a.stageconfigurations.galaxy.konfidence.cloud
       storage:
         crd: {}
   permissionClaims:
@@ -15,9 +15,8 @@ spec:
       verbs: ["get", "list", "watch", "create", "update"]
     - group: ""
       resource: secrets
-      verbs: ["get", "list", "watch", "create", "update"]  
+      verbs: ["get", "list", "watch", "create", "update"]
     - group: "events.k8s.io"
       resource: events
       verbs: [ "get", "list", "create", "update", "patch"]
 
-      

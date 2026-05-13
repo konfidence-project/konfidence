@@ -1,7 +1,7 @@
 package conditions
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/api/meta/v1"
 )
 
 // NewCondition creates a new condition with the specified type, status, reason, and message.

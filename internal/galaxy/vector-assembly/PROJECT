@@ -7,7 +7,7 @@ domain: konfidence.cloud
 layout:
 - go.kubebuilder.io/v4
 projectName: galaxy-vector-assembly-controller
-repo: github.com/konfidence-project/gcp-vector-assembly-controller
+repo: github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly
 resources:
 - api:
     crdVersion: v1
@@ -16,6 +16,6 @@ resources:
   domain: konfidence.cloud
   group: global
   kind: VectorTemplate
-  path: github.com/konfidence-project/gcp-vector-assembly-controller/api/v1alpha1
+  path: github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/api/v1alpha1
   version: v1alpha1
 version: "3"

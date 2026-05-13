@@ -1,4 +1,4 @@
-[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/landscape-vector-activation-controller)](https://api.reuse.software/info/github.com/konfidence-project/landscape-vector-activation-controller)
+[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/konfidence/internal/star/vector-activation)](https://api.reuse.software/info/github.com/konfidence-project/konfidence/internal/star/vector-activation)
 
 # landscape-vector-activation-controller
 

@@ -4,13 +4,12 @@ package utils
 import (
 	"context"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
-	. "github.com/onsi/gomega"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/pkg/template"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/api/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,7 +19,7 @@ func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name
 	targetNamespace string, stageName string, vector string) {
 	stageConfiguration := &global.StageConfiguration{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "global.konfidence.cloud/v1alpha1",
+			APIVersion: "galaxy.konfidence.cloud/v1alpha1",
 			Kind:       global.StageConfigurationKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -40,7 +39,7 @@ func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name
 func CreateStageSync(ctx context.Context, k8sClient client.Client, name string, namespace string, stageConfigName string, targetNamespace string, stageName string, vectorName string) {
 	stageConfiguration := global.StageConfiguration{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "global.konfidence.cloud/v1alpha1",
+			APIVersion: "galaxy.konfidence.cloud/v1alpha1",
 			Kind:       global.StageConfigurationKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -60,7 +59,7 @@ func CreateStageSync(ctx context.Context, k8sClient client.Client, name string, 
 
 	stageSync := &global.StageSync{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "global.konfidence.cloud/v1alpha1",
+			APIVersion: "galaxy.konfidence.cloud/v1alpha1",
 			Kind:       global.StageSyncKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -84,7 +83,7 @@ func CreateStageTemplate(stageConfiguration global.StageConfiguration, vector st
 	return template.StageTemplate{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       landscape.StageKind,
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: "star.konfidence.cloud/v1alpha1",
 		},
 		Metadata: template.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,

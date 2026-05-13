@@ -22,7 +22,7 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,9 +35,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/config"
-	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/controller"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/star/galaxy-sync/internal/config"
+	"github.com/konfidence-project/konfidence/internal/star/galaxy-sync/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 

@@ -7,7 +7,7 @@ domain: konfidence.cloud
 layout:
 - go.kubebuilder.io/v4
 projectName: landscape-vector-deployment-controller
-repo: github.com/konfidence-project/landscape-vector-deployment-controller
+repo: github.com/konfidence-project/konfidence/internal/star/vector-deployment
 resources:
 - controller: true
   domain: konfidence.cloud

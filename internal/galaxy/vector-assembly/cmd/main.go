@@ -28,15 +28,15 @@ import (
 	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
-	"github.com/konfidence-project/pkg/ocm/crypto"
-	"github.com/konfidence-project/pkg/ocm/repository"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/internal/controller/domain"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	"github.com/konfidence-project/gcp-vector-assembly-controller/pkg/ocm"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/pkg/ocm"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -47,7 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/internal/controller"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	// +kubebuilder:scaffold:imports
 )

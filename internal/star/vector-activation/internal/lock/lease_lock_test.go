@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	. "github.com/konfidence-project/landscape-vector-activation-controller/test/mocks"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	. "github.com/konfidence-project/konfidence/internal/star/vector-activation/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"

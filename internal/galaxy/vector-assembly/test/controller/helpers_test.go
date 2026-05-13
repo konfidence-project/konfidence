@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	testutilOcm "github.com/konfidence-project/pkg/testutil/ocm"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	testutilOcm "github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ocm.software/open-component-model/bindings/go/oci/compref"

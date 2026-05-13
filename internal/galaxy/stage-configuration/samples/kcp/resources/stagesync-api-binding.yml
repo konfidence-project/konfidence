@@ -1,4 +1,4 @@
-apiVersion: apis.kcp.io/v1alpha2
+apiVersion: api.kcp.io/v1alpha2
 kind: APIBinding
 metadata:
   name: stagesync.konfidence.cloud.binding

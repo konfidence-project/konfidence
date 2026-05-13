@@ -17,7 +17,7 @@
 //	    "k8s.io/apimachinery/pkg/types"
 //	    ctrl "sigs.k8s.io/controller-runtime"
 //	    descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
-//	    "github.com/konfidence-project/pkg/ocm/crypto"
+//	    "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 //	)
 //
 //	func setupSigning(ctx context.Context, mgr ctrl.Manager, descriptor *descruntime.Descriptor) error {

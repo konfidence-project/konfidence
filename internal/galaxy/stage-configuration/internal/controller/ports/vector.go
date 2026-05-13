@@ -5,8 +5,8 @@ package ports
 import (
 	"context"
 
-	"github.com/konfidence-project/pkg/ocm/crypto"
-	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
 
 type VectorPort interface {

@@ -26,11 +26,10 @@ import (
 	"runtime"
 	"testing"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	genericv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
@@ -46,9 +45,9 @@ import (
 
 	"k8s.io/client-go/rest"
 
-	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller"
-	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
-	"github.com/konfidence-project/gcp-vector-assembly-controller/pkg/ocm"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/internal/controller"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/internal/controller/domain"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/pkg/ocm"
 )
 
 var (

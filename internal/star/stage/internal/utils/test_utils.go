@@ -4,8 +4,8 @@ package utils
 import (
 	"context"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	pkgCtrl "github.com/konfidence-project/pkg/controller"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +16,7 @@ import (
 func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
 	stage := &landscape.Stage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: "star.konfidence.cloud/v1alpha1",
 			Kind:       "Stage",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -78,7 +78,7 @@ func CleanupStages(k8sClient client.Client) {
 func CreateStageVersion(ctx context.Context, k8sClient client.Client, stageName, name string, namespace string, vectorName string, adaptedVectorName string) {
 	stageVersion := &landscape.StageVersion{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: "star.konfidence.cloud/v1alpha1",
 			Kind:       "StageVersion",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -104,7 +104,7 @@ func CreateStageVersion(ctx context.Context, k8sClient client.Client, stageName,
 func CreateStageVersionWithLabels(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string, stageName string, adaptedVectorName string) {
 	stageVersion := &landscape.StageVersion{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: "star.konfidence.cloud/v1alpha1",
 			Kind:       "StageVersion",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -173,7 +173,7 @@ func CleanupStageVersion(k8sClient client.Client, stageVersionName string, names
 func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name string, namespace string, stageVersionName string) {
 	usage := &landscape.StageVersionUsage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: "star.konfidence.cloud/v1alpha1",
 			Kind:       "StageVersionUsage",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -193,7 +193,7 @@ func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name 
 func CreateStageVersionUsageWithSelector(ctx context.Context, k8sClient client.Client, name string, namespace string, stageName string, vectorRef string, isTarget bool) {
 	usage := &landscape.StageVersionUsage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: "star.konfidence.cloud/v1alpha1",
 			Kind:       "StageVersionUsage",
 		},
 		ObjectMeta: metav1.ObjectMeta{

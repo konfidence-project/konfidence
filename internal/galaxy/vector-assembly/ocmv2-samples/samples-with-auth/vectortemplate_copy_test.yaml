@@ -1,4 +1,4 @@
-apiVersion: global.konfidence.cloud/v1alpha1
+apiVersion: galaxy.konfidence.cloud/v1alpha1
 kind: VectorTemplate
 metadata:
   namespace: default

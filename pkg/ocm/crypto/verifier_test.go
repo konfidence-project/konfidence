@@ -6,9 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/go-logr/logr"
-	"github.com/konfidence-project/pkg/ocm/crypto/internal/mocks"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto/internal/mocks"
 	"go.uber.org/mock/gomock"
 	"ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/signing"

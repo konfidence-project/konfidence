@@ -22,10 +22,7 @@ import (
 	"os/exec"
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
-	"github.com/konfidence-project/gcp-vector-promotion-controller/test/utils"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/test/utils"
 )
 
 var (

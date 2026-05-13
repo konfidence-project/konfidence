@@ -1,8 +1,8 @@
 package template
 
 import (
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/api/meta/v1"
 )
 
 // StageTemplate is used to initialize a StageSync object

@@ -1,4 +1,4 @@
-[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/gcp-vector-assembly-controller)](https://api.reuse.software/info/github.com/konfidence-project/gcp-vector-assembly-controller)
+[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly)](https://api.reuse.software/info/github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly)
 
 # galaxy-vector-assembly-controller
 

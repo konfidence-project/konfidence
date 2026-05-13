@@ -14,7 +14,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - global.konfidence.cloud
+  - galaxy.konfidence.cloud
   resources:
   - stageconfigurations
   - stagesyncs
@@ -27,7 +27,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - global.konfidence.cloud
+  - galaxy.konfidence.cloud
   resources:
   - stageconfigurations/status
   - stagesyncs/status

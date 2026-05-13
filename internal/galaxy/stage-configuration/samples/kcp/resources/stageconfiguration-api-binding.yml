@@ -1,4 +1,4 @@
-apiVersion: apis.kcp.io/v1alpha2
+apiVersion: api.kcp.io/v1alpha2
 kind: APIBinding
 metadata:
   name: stageconfiguration.konfidence.cloud.binding
@@ -7,22 +7,22 @@ spec:
     export:
       name: stageconfiguration.konfidence.cloud.export
       path: "root:konfidence-provider"
-  permissionClaims:      
-  - group: ""      
+  permissionClaims:
+  - group: ""
     resource: configmaps
     verbs: ["get", "list", "watch", "create", "update"]
     selector:
       matchAll: true
     state: Accepted
-  - group: ""      
+  - group: ""
     resource: secrets
     verbs: ["get", "list", "watch", "create", "update"]
     selector:
       matchAll: true
-    state: Accepted  
+    state: Accepted
   - group: "events.k8s.io"
     resource: events
     verbs: ["get", "list", "create", "update", "patch"]
     selector:
       matchAll: true
-    state: Accepted   
+    state: Accepted

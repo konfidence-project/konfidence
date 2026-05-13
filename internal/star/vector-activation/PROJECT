@@ -7,7 +7,7 @@ domain: konfidence.cloud
 layout:
   - go.kubebuilder.io/v4
 projectName: activation-controller
-repo: github.com/konfidence-project/landscape-vector-activation-controller
+repo: github.com/konfidence-project/konfidence/internal/star/vector-activation
 resources:
   - controller: true
     domain: konfidence.cloud

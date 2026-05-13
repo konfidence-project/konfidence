@@ -5,7 +5,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.20.0
   name: stageconfigurations.global.konfidence.cloud
 spec:
-  group: global.konfidence.cloud
+  group: galaxy.konfidence.cloud
   names:
     kind: StageConfiguration
     listKind: StageConfigurationList
@@ -139,7 +139,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.20.0
   name: vectorpromotions.global.konfidence.cloud
 spec:
-  group: global.konfidence.cloud
+  group: galaxy.konfidence.cloud
   names:
     kind: VectorPromotion
     listKind: VectorPromotionList
@@ -245,7 +245,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.20.0
   name: vectortemplates.global.konfidence.cloud
 spec:
-  group: global.konfidence.cloud
+  group: galaxy.konfidence.cloud
   names:
     categories:
       - konfidence

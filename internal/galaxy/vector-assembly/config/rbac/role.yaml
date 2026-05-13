@@ -14,7 +14,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - global.konfidence.cloud
+  - galaxy.konfidence.cloud
   resources:
   - vectortemplates
   verbs:
@@ -22,7 +22,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - global.konfidence.cloud
+  - galaxy.konfidence.cloud
   resources:
   - vectortemplates/status
   verbs:

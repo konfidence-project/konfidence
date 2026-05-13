@@ -8,7 +8,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: landscape-task-orchestration-manager
+  name: star-task-orchestration-manager
 subjects:
 - kind: ServiceAccount
-  name: landscape-task-orchestration-controller
+  name: star-task-orchestration-controller

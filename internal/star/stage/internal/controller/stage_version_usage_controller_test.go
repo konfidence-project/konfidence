@@ -20,9 +20,9 @@ import (
 	"context"
 	"time"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
-	testutil "github.com/konfidence-project/landscape-stage-controller/internal/utils"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/star/stage/internal/controller"
+	testutil "github.com/konfidence-project/konfidence/internal/star/stage/test/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -59,7 +59,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 		Namespace             = "default"
 		StageDev              = "stage-dev"
 		Vector001             = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.cloud/example/vector:0.0.1"
-		VectorName001         = "landscape.konfidence.cloud.example.vector-0.0.1"
+		VectorName001         = "star.konfidence.cloud.example.vector-0.0.1"
 		timeout               = time.Second * 10
 		interval              = time.Millisecond * 250
 	)

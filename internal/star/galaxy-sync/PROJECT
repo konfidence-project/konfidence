@@ -7,7 +7,7 @@ domain: konfidence.cloud
 layout:
 - go.kubebuilder.io/v4
 projectName: star-galaxy-sync-controller
-repo: github.com/konfidence-project/landscape-gcp-sync-controller
+repo: github.com/konfidence-project/konfidence/internal/star/galaxy-sync
 resources:
 - controller: true
   domain: konfidence.cloud

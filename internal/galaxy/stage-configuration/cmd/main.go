@@ -23,13 +23,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/konfidence-project/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/ocm"
-	"github.com/konfidence-project/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/pkg/ocm"
+	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -40,8 +40,8 @@ import (
 	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -50,7 +50,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 

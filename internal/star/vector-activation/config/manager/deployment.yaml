@@ -55,5 +55,5 @@ spec:
             memory: 64Mi
         volumeMounts: []
       volumes: []
-      serviceAccountName: landscape-vector-activation-controller
+      serviceAccountName: star-vector-activation-controller
       terminationGracePeriodSeconds: 10

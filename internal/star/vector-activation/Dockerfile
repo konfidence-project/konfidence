@@ -16,9 +16,9 @@ COPY go.mod go.sum ./
 ENV GOPRIVATE=github.com/konfidence-project/*
 RUN --mount=type=secret,id=gh_token \
     GH_TOKEN=$(cat /run/secrets/gh_token) && \
-    git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+    git config --galaxy url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/" && \
     go mod download && \
-    git config --global --unset url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf
+    git config --galaxy --unset url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf
 
 
 COPY cmd/ cmd/

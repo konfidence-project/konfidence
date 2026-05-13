@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -77,7 +77,7 @@ var _ = BeforeSuite(func() {
 	By("bootstrapping local test environment")
 	localTestEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "test", "data", "crds", "landscape"),
+			filepath.Join("..", "..", "test", "data", "crds", "star"),
 		},
 		ErrorIfCRDPathMissing: true,
 	}
@@ -99,7 +99,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping remote test environment")
 	remoteTestEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "global")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "galaxy")},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -137,7 +137,7 @@ var _ = BeforeSuite(func() {
 		RemoteCluster: remoteCluster,
 		Scheme:        reconcileScheme,
 		Recorder:      events.NewFakeRecorder(32),
-		LandscapeName: "test-landscape",
+		LandscapeName: "test-star",
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

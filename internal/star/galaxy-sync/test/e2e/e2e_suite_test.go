@@ -22,10 +22,7 @@ import (
 	"os/exec"
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
-	"github.com/konfidence-project/landscape-gcp-sync-controller/test/utils"
+	"github.com/konfidence-project/konfidence/internal/star/galaxy-sync/test/utils"
 )
 
 var (

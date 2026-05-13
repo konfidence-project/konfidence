@@ -29,7 +29,7 @@ rules:
   - create
   - patch
 - apiGroups:
-  - global.konfidence.cloud
+  - galaxy.konfidence.cloud
   resources:
   - stagesyncs
   - stagesyncs/status
@@ -42,7 +42,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - landscape.konfidence.cloud
+  - star.konfidence.cloud
   resources:
   - stages
   verbs:

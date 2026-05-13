@@ -1,4 +1,4 @@
-[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/landscape-stage-controller)](https://api.reuse.software/info/github.com/konfidence-project/landscape-stage-controller)
+[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/konfidence/internal/star/stage)](https://api.reuse.software/info/github.com/konfidence-project/konfidence/internal/star/stage)
 
 # landscape-stage-controller
 

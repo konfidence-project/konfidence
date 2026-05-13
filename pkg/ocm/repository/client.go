@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
+	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"ocm.software/open-component-model/bindings/go/blob"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"

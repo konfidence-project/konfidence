@@ -55,5 +55,5 @@ spec:
             memory: 64Mi
         volumeMounts: []
       volumes: []
-      serviceAccountName: landscape-task-orchestration-controller
+      serviceAccountName: star-task-orchestration-controller
       terminationGracePeriodSeconds: 10

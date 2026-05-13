@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	pkgComp "github.com/konfidence-project/pkg/ocm/compref"
-	"github.com/konfidence-project/pkg/ocm/crypto"
+	pkgComp "github.com/konfidence-project/konfidence/pkg/ocm/compref"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 
-	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/ports"
-	pkgRepo "github.com/konfidence-project/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/controller/ports"
+	pkgRepo "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
 
 type VectorOCMAdapter struct {

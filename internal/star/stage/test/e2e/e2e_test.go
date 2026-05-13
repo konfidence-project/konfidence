@@ -27,20 +27,20 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/konfidence-project/landscape-stage-controller/test/utils"
+	"github.com/konfidence-project/konfidence/internal/star/stage/test/utils"
 )
 
 // namespace where the project is deployed in
-const namespace = "landscape-stage-controller-system"
+const namespace = "star-stage-controller-system"
 
 // serviceAccountName created for the project
-const serviceAccountName = "landscape-stage-controller-controller-manager"
+const serviceAccountName = "star-stage-controller-controller-manager"
 
 // metricsServiceName is the name of the metrics service of the project
-const metricsServiceName = "landscape-stage-controller-controller-manager-metrics-service"
+const metricsServiceName = "star-stage-controller-controller-manager-metrics-service"
 
 // metricsRoleBindingName is the name of the RBAC that will be created to allow get the metrics data
-const metricsRoleBindingName = "landscape-stage-controller-metrics-binding"
+const metricsRoleBindingName = "star-stage-controller-metrics-binding"
 
 var _ = Describe("Manager", Ordered, func() {
 	var controllerPodName string
@@ -173,7 +173,7 @@ var _ = Describe("Manager", Ordered, func() {
 		It("should ensure the metrics endpoint is serving metrics", func() {
 			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
 			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
-				"--clusterrole=landscape-stage-controller-metrics-reader",
+				"--clusterrole=star-stage-controller-metrics-reader",
 				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
 			)
 			_, err := utils.Run(cmd)

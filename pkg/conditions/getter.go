@@ -1,7 +1,7 @@
 package conditions
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/api/meta/v1"
 )
 
 // Get returns a pointer to the metav1.Condition of the specified type from the object.

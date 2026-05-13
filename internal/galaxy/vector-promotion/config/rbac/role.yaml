@@ -5,7 +5,7 @@ metadata:
   name: galaxy-vector-promotion-manager
 rules:
 - apiGroups:
-  - global.konfidence.cloud
+  - galaxy.konfidence.cloud
   resources:
   - vectorpromotionconfigs
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - global.konfidence.cloud
+  - galaxy.konfidence.cloud
   resources:
   - vectorpromotionconfigs/status
   - vectorpromotions/status
@@ -22,7 +22,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - global.konfidence.cloud
+  - galaxy.konfidence.cloud
   resources:
   - vectorpromotions
   verbs:

@@ -1,4 +1,4 @@
-[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/gcp-vector-promotion-controller)](https://api.reuse.software/info/github.com/konfidence-project/gcp-vector-promotion-controller)
+[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion)](https://api.reuse.software/info/github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion)
 
 # galaxy-vector-promotion-controller
 

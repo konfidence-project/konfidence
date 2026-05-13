@@ -22,8 +22,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -35,8 +33,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -74,7 +72,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "global"), filepath.Join("..", "..", "test", "data", "crds", "landscape")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "galaxy"), filepath.Join("..", "..", "test", "data", "crds", "star")},
 		ErrorIfCRDPathMissing: true,
 	}
 

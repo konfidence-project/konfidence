@@ -55,5 +55,5 @@ spec:
             memory: 64Mi
         volumeMounts: []
       volumes: []
-      serviceAccountName: landscape-vector-deployment-controller
+      serviceAccountName: star-vector-deployment-controller
       terminationGracePeriodSeconds: 10

@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"time"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/konfidence-project/landscape-vector-activation-controller/internal/usage"
-	util "github.com/konfidence-project/landscape-vector-activation-controller/internal/utils/test-utils"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/star/vector-activation/internal/usage"
+	util "github.com/konfidence-project/konfidence/internal/star/vector-activation/internal/utils/test-utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/coordination/v1"
@@ -184,7 +184,7 @@ var _ = Describe("VectorActivation Controller", func() {
 func CreateVectorActivation() *landscape.VectorActivation {
 	vectorActivation := &landscape.VectorActivation{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: "star.konfidence.cloud/v1alpha1",
 			Kind:       "VectorActivation",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -214,7 +214,7 @@ func SetupResources() {
 	Eventually(func(g Gomega) {
 		stage := &landscape.Stage{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "landscape.konfidence.cloud/v1alpha1",
+				APIVersion: "star.konfidence.cloud/v1alpha1",
 				Kind:       "Stage",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -230,7 +230,7 @@ func SetupResources() {
 
 		stageVersion := &landscape.StageVersion{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "landscape.konfidence.cloud/v1alpha1",
+				APIVersion: "star.konfidence.cloud/v1alpha1",
 				Kind:       "StageVersion",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -252,7 +252,7 @@ func SetupResources() {
 
 		activationTaskRegistration := &landscape.ActivationTaskRegistration{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "landscape.konfidence.cloud/v1alpha1",
+				APIVersion: "star.konfidence.cloud/v1alpha1",
 				Kind:       "ActivationTaskRegistration",
 			},
 			ObjectMeta: metav1.ObjectMeta{

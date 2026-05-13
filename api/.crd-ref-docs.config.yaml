@@ -1,0 +1,16 @@
+# Install the tool with: `go install github.com/elastic/crd-ref-docs@latest`
+# Usage:
+# crd-ref-docs \
+#    --source-path=api \
+#    --config=.crd-ref-docs.config.yaml \
+#    --output-path=./docs \
+#    --output-mode=group --renderer=markdown
+
+logLevel: INFO
+
+render:
+  kubernetesVersion: 1.32
+  knownTypes:
+    - name: Condition
+      package: k8s.io/apimachinery/pkg/api/meta/v1
+      link: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#condition-v1-meta

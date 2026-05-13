@@ -21,9 +21,9 @@ import (
 	"os"
 	"time"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/konfidence-project/landscape-stage-controller/internal/controller"
-	"github.com/konfidence-project/landscape-stage-controller/internal/gc"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/star/stage/internal/controller"
+	"github.com/konfidence-project/konfidence/internal/star/stage/internal/gc"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

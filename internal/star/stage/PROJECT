@@ -7,7 +7,7 @@ domain: konfidence.cloud
 layout:
 - go.kubebuilder.io/v4
 projectName: landscape-stage-controller
-repo: github.com/konfidence-project/landscape-stage-controller
+repo: github.com/konfidence-project/konfidence/internal/star/stage
 resources:
 - controller: true
   domain: konfidence.cloud

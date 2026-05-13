@@ -55,7 +55,7 @@ generate: hermit ## Generate code containing DeepCopy, DeepCopyInto, and DeepCop
 
 .PHONY: generate-test-crds
 generate-test-crds: hermit
-	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/crds/api/global/..." output:crd:artifacts:config=test/data/generated/crds
+	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/konfidence/api/galaxy/..." output:crd:artifacts:config=test/data/generated/crds
 
 .PHONY: fmt
 fmt: hermit ## Run go fmt against code.

@@ -1,4 +1,4 @@
-[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/landscape-task-orchestration-controller)](https://api.reuse.software/info/github.com/konfidence-project/landscape-task-orchestration-controller)
+[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/konfidence/internal/star/task-orchestration)](https://api.reuse.software/info/github.com/konfidence-project/konfidence/internal/star/task-orchestration)
 
 # landscape-task-orchestration-controller
 

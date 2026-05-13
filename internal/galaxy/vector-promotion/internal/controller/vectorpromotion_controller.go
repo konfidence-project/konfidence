@@ -7,9 +7,9 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
-	"github.com/konfidence-project/pkg/ocm/repository"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
+	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -27,7 +27,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller/domain"
 )
 
 const (
@@ -46,9 +46,9 @@ type VectorPromotionReconciler struct {
 	PortProvider      domain.OcmPromotionPortProvider
 }
 
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotions/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
 
 func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx).WithValues("cluster", req.ClusterName)

@@ -5,7 +5,7 @@ package domain
 import (
 	"context"
 
-	pkgocm "github.com/konfidence-project/pkg/ocm/repository"
+	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/runtime"
 )

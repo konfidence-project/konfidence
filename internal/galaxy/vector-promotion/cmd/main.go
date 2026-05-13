@@ -27,9 +27,9 @@ import (
 	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	"github.com/konfidence-project/pkg/ocm/crypto"
-	"github.com/konfidence-project/pkg/ocm/repository"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -43,8 +43,8 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller"
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/ocm"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller/ocm"
 	// +kubebuilder:scaffold:imports
 )
 

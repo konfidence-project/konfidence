@@ -24,10 +24,7 @@ import (
 	"path/filepath"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
-	"github.com/konfidence-project/gcp-stage-configuration-controller/test/utils"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/test/utils"
 )
 
 // namespace where the project is deployed in

@@ -24,12 +24,12 @@ import (
 	"strings"
 	"time"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	"github.com/konfidence-project/pkg/ocm/crypto"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/api/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/rest"
@@ -43,9 +43,9 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/konfidence-project/gcp-stage-configuration-controller/internal/controller/ports"
-	"github.com/konfidence-project/gcp-stage-configuration-controller/pkg/template"
-	"github.com/konfidence-project/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/internal/controller/ports"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/pkg/template"
+	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
 
 const (
@@ -67,10 +67,10 @@ type StageConfigurationReconciler struct {
 	OcmVerifier        crypto.Verifier
 }
 
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stageconfigurations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stagesyncs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stagesyncs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stageconfigurations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stagesyncs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stagesyncs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
@@ -234,7 +234,7 @@ func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration
 	return &template.StageTemplate{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       landscape.StageKind,
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: "star.konfidence.cloud/v1alpha1",
 		},
 		Metadata: template.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,

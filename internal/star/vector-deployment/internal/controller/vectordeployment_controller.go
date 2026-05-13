@@ -22,8 +22,8 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	pkgCtrl "github.com/konfidence-project/pkg/controller"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -53,11 +53,11 @@ type VectorDeploymentReconciler struct {
 	OcmAdapter VectorOcmPort
 }
 
-// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectordeployments/finalizers,verbs=update
-// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=vectorassignments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments/finalizers,verbs=update
+// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectorassignments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
@@ -452,7 +452,7 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controll
 }
 
 func (r *VectorDeploymentReconciler) constructArtifactDeployment(ref compref.Ref, artifactManifest ArtifactManifest, vectorDeployment *landscape.VectorDeployment, deploymentName string) *landscape.ArtifactDeployment {
-	// map task manifests from domain.TaskManifest to landscape.TaskManifest
+	// map task manifests from domain.TaskManifest to star.TaskManifest
 	taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
 	artifactResources := mapArtifactResourcesToLandscape(artifactManifest.Resources)
 	return &landscape.ArtifactDeployment{

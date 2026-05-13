@@ -8,7 +8,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: landscape-vector-activation-manager
+  name: star-vector-activation-manager
 subjects:
 - kind: ServiceAccount
-  name: landscape-vector-activation-controller
+  name: star-vector-activation-controller
