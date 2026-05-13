@@ -1,0 +1,36 @@
+components:
+  - name: konfidence.cloud/services/service1
+    version: "1.5.2"
+    provider:
+      name: konfidence
+    resources:
+      - name: service1-image
+        type: ociImage
+        version: "1.0.0"
+        access:
+          type: ociArtifact
+          imageReference: "docker.io/stefanprodan/podinfo:6.9.4"
+
+  - name: konfidence.cloud/services/service2
+    version: "1.2.0"
+    provider:
+      name: konfidence
+    resources:
+      - name: service2-image
+        type: ociImage
+        version: "1.45.8"
+        access:
+          type: ociArtifact
+          imageReference: "docker.io/stefanprodan/podinfo:latest"
+
+  - name: konfidence.cloud/services/service3
+    version: "4.1.0"
+    provider:
+      name: konfidence
+    resources:
+      - name: service2-image
+        type: ociImage
+        version: "1.45.8"
+        access:
+          type: ociArtifact
+          imageReference: "docker.io/stefanprodan/podinfo:latest"

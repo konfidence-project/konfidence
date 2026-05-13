@@ -1,0 +1,14 @@
+apiVersion: global.konfidence.cloud/v1alpha1
+kind: VectorTemplate
+metadata:
+  namespace: konfidence-system 
+  name: base-app
+spec:
+  reconcileInterval: 10s
+  uploadTarget: http://localhost:5100//konfidence.cloud/common-services:future
+  components:
+    - name: http://localhost:5100//konfidence.cloud/services/service1:1.5.2
+  config:
+    - kind: Secret
+      apiVersion: v1
+      name: registry-credentials

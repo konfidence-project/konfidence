@@ -1,0 +1,39 @@
+components:
+  # Service 1 - has a local blob resource (artifact manifest)
+  - name: konfidence.cloud/services/service1
+    version: "1.5.2"
+    provider:
+      name: konfidence
+    resources:
+      - name: artifact-manifest
+        type: cloud.konfidence.artifact.manifest
+        input:
+          type: file
+          path: test-data/service1-manifest.yaml
+          mediaType: application/x-yaml
+
+  # Service 2 - has a local blob resource (artifact manifest)
+  - name: konfidence.cloud/services/service2
+    version: "1.2.0"
+    provider:
+      name: konfidence
+    resources:
+      - name: artifact-manifest
+        type: cloud.konfidence.artifact.manifest
+        input:
+          type: file
+          path: test-data/service2-manifest.yaml
+          mediaType: application/x-yaml
+
+  # Service 3 - has a local blob resource (artifact manifest)
+  - name: konfidence.cloud/services/service3
+    version: "4.1.0"
+    provider:
+      name: konfidence
+    resources:
+      - name: artifact-manifest
+        type: cloud.konfidence.artifact.manifest
+        input:
+          type: file
+          path: test-data/service3-manifest.yaml
+          mediaType: application/x-yaml

@@ -1,0 +1,38 @@
+version: "2"
+run:
+  allow-parallel-runners: true
+linters:
+  default: none
+  enable:
+    - copyloopvar
+    - errcheck
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - unconvert
+    - unused
+issues:
+  exclude-rules:
+    # Exclude generated files from all linters
+    - path: "zz_generated\\.deepcopy\\.go"
+      linters:
+        - unused
+        - ineffassign
+        - revive
+    # Exclude API types from certain linters (they're mostly struct definitions)
+    - path: "api/.*/.*types\\.go"
+      linters:
+        - revive
+        - unused
+  exclude-dirs:
+    - third_party
+    - builtin
+    - examples
+linters-settings:
+  goimports:
+    local-prefixes: konfidence.cloud
+  revive:
+    rules:
+      - name: comment-spacings

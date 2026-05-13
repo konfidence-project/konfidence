@@ -1,0 +1,30 @@
+name: Task
+description: Create a new task
+projects: ["konfidence-project/7"]
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for creating a task! Please provide clear information about what needs to be accomplished.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Detailed description of what needs to be done
+      placeholder: Provide a clear explanation of the work that needs to be completed
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Specific criteria that must be met for this task to be considered complete
+      placeholder: |
+        - [ ] Criteria 1
+        - [ ] Criteria 2
+        - [ ] Criteria 3
+    validations:
+      required: true

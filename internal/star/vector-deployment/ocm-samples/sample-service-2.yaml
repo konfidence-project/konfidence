@@ -1,0 +1,58 @@
+# specify a schema to validate the configuration and get auto-completion in your editor
+# yaml-language-server: $schema=https://ocm.software/schemas/configuration-schema.yaml
+components:
+- name: github.com/konfidence-project/sample-service-2
+  version: 0.2.0            
+  provider:                 
+    name: konfidence-project
+  sources: []
+  resources:
+  - name: sample-service-2-helm-chart
+    type: helmChart
+    version: 6.9.1
+    access:
+      type: helm
+      helmChart: podinfo:6.9.1
+      helmRepository: https://stefanprodan.github.io/podinfo
+  - name: sample-service-2-image
+    version: 0.2.0
+    relation: external
+    type: ociImage
+    access:
+      type: ociArtifact
+      imageReference: stefanprodan/podinfo:6.9.1
+  - name: konfidence-manifest
+    version: 0.0.1
+    relation: local
+    type: cloud.konfidence.artifact.manifest
+    input:
+      type: file
+      path: ./sample-service-2-manifest.json
+  - name: sample-service-2-task-1-manifest
+    version: 0.2.1
+    relation: local
+    type: cloud.konfidence.artifact.task.manifest
+    input:
+      type: file
+      path: ./sample-service-2-task-1/task-manifest.json
+  - name: sample-service-2-task-1
+    version: 0.2.1
+    relation: external
+    type: ociImage
+    access:
+      type: ociArtifact
+      imageReference: alpine:3.22.1
+  - name: sample-service-2-task-2-manifest
+    version: 0.2.2
+    relation: local
+    type: cloud.konfidence.artifact.task.manifest
+    input:
+      type: file
+      path: ./sample-service-2-task-2/task-manifest.json
+  - name: sample-service-2-task-2
+    version: 0.2.2
+    relation: external
+    type: ociImage
+    access:
+      type: ociArtifact
+      imageReference: alpine:3.22.1

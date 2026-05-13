@@ -1,0 +1,27 @@
+{
+  "distSpecVersion": "1.1.0",
+  "storage": {
+    "rootDirectory": "/var/lib/registry",
+    "gc": false
+  },
+  "http": {
+    "address": "0.0.0.0",
+    "port": "5100",
+    "auth": {
+      "htpasswd": {
+        "path": "/etc/zot/htpasswd"
+      }
+    }
+  },
+  "log": {
+    "level": "info"
+  },
+  "extensions": {
+    "search": {
+      "enable": true
+    },
+    "ui": {
+      "enable": true
+    }
+  }
+}

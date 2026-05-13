@@ -1,0 +1,24 @@
+type: generic.config.ocm.software/v1
+configurations:
+  - type: credentials.config.ocm.software
+    consumers:
+      - identity:
+          type: OCIRepository
+          hostname: localhost
+          port: "5100"
+          scheme: http
+        credentials:
+          - type: Credentials/v1
+            properties:
+              username: "user"
+              password: "password"
+      - identity:
+          type: OCIRepository
+          hostname: localhost
+          port: "5200"
+          scheme: http
+        credentials:
+          - type: Credentials/v1
+            properties:
+              username: "user"
+              password: "password"

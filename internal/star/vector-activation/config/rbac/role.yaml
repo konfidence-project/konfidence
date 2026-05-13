@@ -1,0 +1,56 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: landscape-vector-activation-manager
+rules:
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - landscape.konfidence.cloud
+  resources:
+  - activationtaskexecutions
+  - activationtaskregistrations
+  - stages
+  - stageversions
+  - stageversionusages
+  - vectoractivations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - landscape.konfidence.cloud
+  resources:
+  - activationtaskexecutions/status
+  - activationtaskregistrations/status
+  - stages/status
+  - stageversions/status
+  - stageversionusages/status
+  - vectoractivations/status
+  verbs:
+  - get
+  - patch
+  - update
