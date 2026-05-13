@@ -71,7 +71,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 	original := vectorPromotion.DeepCopy()
 
 	if domain.IsRunning(vectorPromotion) { // Promotion was started but promotion status could not be patched, so result is unknown
-		logStr := "Promotion is in unknown state because the controller failed to patch the promotion status after " +
+		logStr := "Promotion is in unknown state probably because the controller failed to patch the promotion status after " +
 			"starting the promotion. Aborting reconciliation."
 		log.Info(logStr)
 		recorder.Eventf(vectorPromotion, nil, v1.EventTypeWarning, "EncounteredRunningPromotion", EventActionUnknownPromotionStatus,
