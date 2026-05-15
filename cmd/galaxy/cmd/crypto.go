@@ -36,10 +36,7 @@ func resolveCryptoConfig(ctx context.Context, mgr mcmanager.Manager) (*cryptoCon
 	verifyArtifact := parseBoolEnv(OcmArtifactVerifyEnv)
 	signVector := parseBoolEnv(OcmVectorSignEnv)
 
-	needVectorVerification := verifyVector
-	needArtifactVerification := verifyArtifact
-	needTrustAnchor := needVectorVerification || needArtifactVerification
-	needSigning := signVector
+	needTrustAnchor := verifyVector || verifyArtifact
 
 	// Set up shared trust anchor provider if any verification is needed
 	var trustAnchorProvider *crypto.ConfigMapTrustAnchorProvider
@@ -59,7 +56,7 @@ func resolveCryptoConfig(ctx context.Context, mgr mcmanager.Manager) (*cryptoCon
 	}
 
 	// Vector verification
-	if needVectorVerification {
+	if verifyVector {
 		setupLog.Info("OCM vector verification is enabled")
 		rsaVerifier, err := crypto.NewRSAVerifier([]string{crypto.VectorAssemblySignature},
 			crypto.WithCredentialProvider(trustAnchorProvider))
@@ -72,7 +69,7 @@ func resolveCryptoConfig(ctx context.Context, mgr mcmanager.Manager) (*cryptoCon
 	}
 
 	// Artifact verification
-	if needArtifactVerification {
+	if verifyArtifact {
 		setupLog.Info("OCM artifact verification is enabled")
 		rsaVerifier, err := crypto.NewRSAVerifier([]string{crypto.ArtifactSignature},
 			crypto.WithCredentialProvider(trustAnchorProvider))
@@ -85,7 +82,7 @@ func resolveCryptoConfig(ctx context.Context, mgr mcmanager.Manager) (*cryptoCon
 	}
 
 	// Vector signing
-	if needSigning {
+	if signVector {
 		setupLog.Info("OCM vector signing is enabled")
 		secretName := os.Getenv(SigningCredentialSecretNameEnv)
 		secretNamespace := os.Getenv(SigningCredentialSecretNamespaceEnv)
