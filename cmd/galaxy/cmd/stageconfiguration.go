@@ -20,6 +20,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	stageconfiguration "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration"
+	"github.com/konfidence-project/konfidence/pkg/cli"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -71,12 +72,12 @@ to quickly create a Cobra application.`,
 
 		ctx := ctrl.SetupSignalHandler()
 
-		vectorVerifier, err := getVectorVerifier(ctx, mgr)
+		cryptoCfg, err := cli.ResolveCryptoConfig(ctx, mgr.GetLocalManager(), setupLog)
 		if err != nil {
 			os.Exit(1)
 		}
 		if err := stageconfiguration.SetupControllers(mgr, scheme, cfg, stageconfiguration.Options{
-			VectorVerifier: vectorVerifier,
+			VectorVerifier: cryptoCfg.VectorVerifier,
 		}); err != nil {
 			setupLog.Error(err, "unable to set up stage configuration controllers")
 			os.Exit(1)

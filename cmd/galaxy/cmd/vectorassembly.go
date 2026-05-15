@@ -15,18 +15,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion"
+	vectorassembly "github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly"
 	"github.com/konfidence-project/konfidence/pkg/cli"
 )
 
-var vectorpromotionCmd = &cobra.Command{
-	Use:   "vectorpromotion",
-	Short: "Start the vector promotion controllers",
-	Long:  `Starts the VectorPromotion, VectorPromotionTTL, and VectorPromotionStatusPropagation controllers.`,
-	RunE:  startVectorPromotion,
+var vectorassemblyCmd = &cobra.Command{
+	Use:   "vectorassembly",
+	Short: "Start the vector assembly controllers",
+	Long:  `Starts the VectorTemplate controller for assembling vectors from templates.`,
+	RunE:  startVectorAssembly,
 }
 
-func startVectorPromotion(cmd *cobra.Command, args []string) error {
+func startVectorAssembly(cmd *cobra.Command, args []string) error {
 	cfg := ctrl.GetConfigOrDie()
 	leaderElectionCfg := cfg
 	if kubernetesServiceHost != "" && kubernetesServicePort != 0 {
@@ -53,7 +53,7 @@ func startVectorPromotion(cmd *cobra.Command, args []string) error {
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "e83e292c.konfidence.cloud",
+		LeaderElectionID:       "f4a7b3d1.konfidence.cloud",
 		LeaderElectionConfig:   leaderElectionCfg,
 	})
 	if err != nil {
@@ -68,10 +68,12 @@ func startVectorPromotion(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := vectorpromotion.SetupControllers(ctx, mgr, scheme, vectorpromotion.Options{
-		VectorVerifier: cryptoCfg.VectorVerifier,
+	if err := vectorassembly.SetupControllers(mgr, scheme, vectorassembly.Options{
+		ArtifactVerifier: cryptoCfg.ArtifactVerifier,
+		VectorVerifier:   cryptoCfg.VectorVerifier,
+		VectorSigner:     cryptoCfg.VectorSigner,
 	}); err != nil {
-		setupLog.Error(err, "unable to set up vector promotion controllers")
+		setupLog.Error(err, "unable to set up vector assembly controllers")
 		return err
 	}
 
@@ -94,5 +96,5 @@ func startVectorPromotion(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
-	rootCmd.AddCommand(vectorpromotionCmd)
+	rootCmd.AddCommand(vectorassemblyCmd)
 }

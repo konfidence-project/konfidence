@@ -15,6 +15,7 @@ import (
 	stageconfiguration "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration"
 	vectorassembly "github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly"
 	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion"
+	"github.com/konfidence-project/konfidence/pkg/cli"
 )
 
 func startOperator(cmd *cobra.Command, args []string) error {
@@ -55,7 +56,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	ctx := ctrl.SetupSignalHandler()
 
 	// Resolve all crypto dependencies from env vars
-	cryptoCfg, err := resolveCryptoConfig(ctx, mgr)
+	cryptoCfg, err := cli.ResolveCryptoConfig(ctx, mgr.GetLocalManager(), setupLog)
 	if err != nil {
 		setupLog.Error(err, "unable to resolve crypto configuration")
 		return err
