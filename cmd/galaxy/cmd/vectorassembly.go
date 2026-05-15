@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,10 +35,10 @@ var vectorassemblyCmd = &cobra.Command{
 	Use:   "vectorassembly",
 	Short: "Start the vector assembly controllers",
 	Long:  `Starts the VectorTemplate controller for assembling vectors from templates.`,
-	RunE:  startVectorAssembly,
+	RunE:  startVectorAssemblyController,
 }
 
-func startVectorAssembly(cmd *cobra.Command, args []string) error {
+func startVectorAssemblyController(cmd *cobra.Command, args []string) error {
 	cfg := ctrl.GetConfigOrDie()
 	leaderElectionCfg := cfg
 	if kubernetesServiceHost != "" && kubernetesServicePort != 0 {

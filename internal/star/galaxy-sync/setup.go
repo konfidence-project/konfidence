@@ -8,10 +8,10 @@ import (
 	"github.com/konfidence-project/konfidence/internal/star/galaxy-sync/internal/config"
 	"github.com/konfidence-project/konfidence/internal/star/galaxy-sync/internal/controller"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // Options holds the dependencies for the galaxy-sync controller domain.
@@ -44,6 +44,7 @@ func SetupControllers(mgr ctrl.Manager, logger logr.Logger, scheme *runtime.Sche
 	var remoteCluster cluster.Cluster = mgr
 
 	if remoteConfig != nil {
+		// Multi-cluster: build a dedicated cluster for the remote (Galaxy) side.
 		logger.Info("Remote kubeconfig found; running in multi-cluster mode",
 			"kubeconfig-secret", fmt.Sprintf("%s/%s", namespace, config.SecretName),
 			"secret-key", config.SecretKey,
@@ -51,6 +52,11 @@ func SetupControllers(mgr ctrl.Manager, logger logr.Logger, scheme *runtime.Sche
 
 		remoteCluster, err = cluster.New(remoteConfig, func(options *cluster.Options) {
 			options.Scheme = scheme
+			// Restrict the remote cache to only StageSync objects.
+			// The remote cluster is a kcp workspace where StageSync is served
+			// via an APIBinding — restricting the cache prevents discovery
+			// errors caused by trying to watch resource types that are not
+			// available on that workspace.
 			options.Cache.ByObject = map[client.Object]cache.ByObject{
 				&global.StageSync{}: {},
 			}
@@ -58,6 +64,8 @@ func SetupControllers(mgr ctrl.Manager, logger logr.Logger, scheme *runtime.Sche
 		if err != nil {
 			return fmt.Errorf("unable to create remote cluster: %w", err)
 		}
+		// Adding the cluster to the manager ensures its cache is started and
+		// fully synced before the controller's informers are set up.
 		if err := mgr.Add(remoteCluster); err != nil {
 			return fmt.Errorf("unable to add remote cluster to manager: %w", err)
 		}

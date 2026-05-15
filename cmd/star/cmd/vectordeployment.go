@@ -13,60 +13,62 @@ import (
 var vectordeploymentCmd = &cobra.Command{
 	Use:   "vectordeployment",
 	Short: "Run the vector-deployment controller standalone",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-			Scheme:                 scheme,
-			HealthProbeBindAddress: probeAddr,
-			LeaderElection:         enableLeaderElection,
-			LeaderElectionID:       "a67b73e3.konfidence.cloud",
-		})
-		if err != nil {
-			setupLog.Error(err, "unable to start manager")
-			return err
-		}
+	RunE:  startVectorDeploymentController,
+}
 
-		ctx := ctrl.SetupSignalHandler()
+func startVectorDeploymentController(cmd *cobra.Command, args []string) error {
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme:                 scheme,
+		HealthProbeBindAddress: probeAddr,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "a67b73e3.konfidence.cloud",
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		return err
+	}
 
-		cryptoCfg, err := cli.ResolveCryptoConfig(ctx, mgr, setupLog)
-		if err != nil {
-			setupLog.Error(err, "unable to resolve crypto config")
-			return err
-		}
+	ctx := ctrl.SetupSignalHandler()
 
-		registrySecret, err := resolveRegistryCredentials(ctx, mgr)
-		if err != nil {
-			setupLog.Error(err, "unable to load registry credentials secret")
-			return err
-		}
+	cryptoCfg, err := cli.ResolveCryptoConfig(ctx, mgr, setupLog)
+	if err != nil {
+		setupLog.Error(err, "unable to resolve crypto config")
+		return err
+	}
 
-		ocmAdapter, err := ocm.NewOcmAdapter(ctx, registrySecret, cryptoCfg.VectorVerifier, cryptoCfg.ArtifactVerifier)
-		if err != nil {
-			setupLog.Error(err, "unable to create OCM adapter")
-			return err
-		}
+	registrySecret, err := resolveRegistryCredentials(ctx, mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to load registry credentials secret")
+		return err
+	}
 
-		if err := vectordeployment.SetupControllers(mgr, setupLog, vectordeployment.Options{
-			OcmAdapter: ocmAdapter,
-		}); err != nil {
-			return err
-		}
+	ocmAdapter, err := ocm.NewOcmAdapter(ctx, registrySecret, cryptoCfg.VectorVerifier, cryptoCfg.ArtifactVerifier)
+	if err != nil {
+		setupLog.Error(err, "unable to create OCM adapter")
+		return err
+	}
 
-		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-			setupLog.Error(err, "unable to set up health check")
-			return err
-		}
-		if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-			setupLog.Error(err, "unable to set up ready check")
-			return err
-		}
+	if err := vectordeployment.SetupControllers(mgr, setupLog, vectordeployment.Options{
+		OcmAdapter: ocmAdapter,
+	}); err != nil {
+		return err
+	}
 
-		setupLog.Info("starting manager")
-		if err := mgr.Start(ctx); err != nil {
-			setupLog.Error(err, "problem running manager")
-			return err
-		}
-		return nil
-	},
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up health check")
+		return err
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up ready check")
+		return err
+	}
+
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctx); err != nil {
+		setupLog.Error(err, "problem running manager")
+		return err
+	}
+	return nil
 }
 
 func init() {

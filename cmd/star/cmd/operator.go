@@ -110,6 +110,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// TODO: the credentials for accessing OCI registries should be configured in a controller-specific configuration.
 // resolveRegistryCredentials loads the registry credentials secret from the k8s cluster.
 // Returns nil if the secret is not found.
 func resolveRegistryCredentials(ctx context.Context, mgr manager.Manager) (*v1.Secret, error) {
