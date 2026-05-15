@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: stageconfigurations.global.konfidence.cloud
+  name: stageconfigurations.galaxy.konfidence.cloud
 spec:
   group: galaxy.konfidence.cloud
   names:
@@ -159,7 +159,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: stagesyncs.global.konfidence.cloud
+  name: stagesyncs.galaxy.konfidence.cloud
 spec:
   group: galaxy.konfidence.cloud
   names:
@@ -290,7 +290,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectorpromotionconfigs.global.konfidence.cloud
+  name: vectorpromotionconfigs.galaxy.konfidence.cloud
 spec:
   group: galaxy.konfidence.cloud
   names:
@@ -522,7 +522,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectorpromotions.global.konfidence.cloud
+  name: vectorpromotions.galaxy.konfidence.cloud
 spec:
   group: galaxy.konfidence.cloud
   names:
@@ -660,7 +660,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectortemplates.global.konfidence.cloud
+  name: vectortemplates.galaxy.konfidence.cloud
 spec:
   group: galaxy.konfidence.cloud
   names:
