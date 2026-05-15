@@ -4,40 +4,42 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: stageversions.landscape.konfidence.cloud
+  name: vectortemplates.galaxy.konfidence.cloud
 spec:
-  group: star.konfidence.cloud
+  group: galaxy.konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: StageVersion
-    listKind: StageVersionList
-    plural: stageversions
-    singular: stageversion
+    kind: VectorTemplate
+    listKind: VectorTemplateList
+    plural: vectortemplates
+    singular: vectortemplate
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Name of the referenced Stage
-      jsonPath: .spec.stageRef.name
-      name: Stage
+    - description: Indicates if the vector template is ready
+      jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
       type: string
-    - description: The object generation of the stage
-      jsonPath: .spec.stageGeneration
-      name: Stage-Generation
-      type: integer
-    - description: The deployment vector for this stage
-      jsonPath: .spec.vector
-      name: Vector
+    - description: The reason of the Ready condition
+      jsonPath: .status.conditions[?(@.type=="Ready")].reason
+      name: Reason
       type: string
-    - description: Time since creation of StageVersion
+    - description: The upload target of the vector template
+      jsonPath: .spec.uploadTarget
+      name: Upload-Target
+      type: string
+    - description: Time since creation of the vector template
       jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: StageVersion is the Schema for the stageversions API
+        description: |-
+          VectorTemplate represents a template for assembling OCM components into an OCM component
+          that represents a vector.
         properties:
           apiVersion:
             description: |-
@@ -57,40 +59,64 @@ spec:
           metadata:
             type: object
           spec:
-            description: Spec defines the desired state of the StageVersion and is
-              immutable after it has been set
+            description: spec defines the desired state of VectorTemplate
             properties:
-              stageGeneration:
-                description: the object generation of the stage that created this
-                  stage version
-                format: int64
-                minimum: 1
-                type: integer
-              stageRef:
-                description: stageRef references the Stage this StageVersion belongs
-                  to
-                properties:
-                  name:
-                    description: Name is the name of the Stage. Required.
-                    type: string
-                required:
-                - name
-                type: object
-              vector:
-                description: Vector points to the OCM component version that contains
-                  the deployment vector for this stage.
-                minLength: 1
+              base:
+                description: Base represents an optional base component version to
+                  build upon.
+                type: string
+              components:
+                description: Components lists the components to be included in the
+                  vector.
+                items:
+                  description: |-
+                    Component defines a component of a VectorTemplate.
+                    A struct is used for future expansion.
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                minItems: 1
+                type: array
+              config:
+                items:
+                  description: CredentialsConfig defines a credential reference to
+                    a secret or configMap used to access OCM backends (like OCI registry).
+                  properties:
+                    apiVersion:
+                      description: APIVersion is the api version of the of configuration
+                        resource, e.g. v1.
+                      type: string
+                    kind:
+                      description: Kind of the configuration resource. Allowed values
+                        are Secret or ConfigMap.
+                      type: string
+                    name:
+                      description: "Name is the name\t of the of configuration resource."
+                      type: string
+                  required:
+                  - apiVersion
+                  - kind
+                  - name
+                  type: object
+                type: array
+              reconcileInterval:
+                description: |-
+                  ReconcileInterval defines how often the assembly controller should check for drift.
+                  If not set, the controller's default reconcile interval will be used.
+                type: string
+              uploadTarget:
+                description: UploadTarget defines the target OCM component where the
+                  assembled vector will be uploaded.
                 type: string
             required:
-            - stageGeneration
-            - stageRef
-            - vector
+            - components
+            - uploadTarget
             type: object
-            x-kubernetes-validations:
-            - message: StageVersion spec is immutable after it has been set
-              rule: self == oldSelf
           status:
-            description: status defines the observed state of StageVersion
+            description: status defines the observed state of VectorTemplate
             properties:
               conditions:
                 items:
@@ -149,10 +175,9 @@ spec:
                   type: object
                 type: array
             type: object
+        required:
+        - spec
         type: object
-        x-kubernetes-validations:
-        - message: Spec is required once set
-          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:

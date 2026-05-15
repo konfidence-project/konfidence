@@ -4,23 +4,27 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: taskexecutions.landscape.konfidence.cloud
+  name: vectoractivations.star.konfidence.cloud
 spec:
   group: star.konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: TaskExecution
-    listKind: TaskExecutionList
-    plural: taskexecutions
-    singular: taskexecution
+    kind: VectorActivation
+    listKind: VectorActivationList
+    plural: vectoractivations
+    singular: vectoractivation
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The type of the task execution
-      jsonPath: .spec.type
-      name: Type
+    - description: The stage of the activation
+      jsonPath: .spec.stage
+      name: Stage
+      type: string
+    - description: The version of the stage
+      jsonPath: .spec.stageVersion
+      name: Stage-Version
       type: string
     - description: The latest condition type
       jsonPath: .status.conditions[-1:].type
@@ -33,7 +37,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: TaskExecution is the Schema for the taskexecutions API
+        description: VectorActivation is the Schema for the vectoractivations API
         properties:
           apiVersion:
             description: |-
@@ -53,26 +57,26 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of TaskExecution
+            description: spec defines the desired state of VectorActivation
             properties:
-              dependsOn:
-                items:
-                  type: string
-                type: array
-              name:
+              stage:
                 type: string
-              spec:
-                type: object
-                x-kubernetes-preserve-unknown-fields: true
-              type:
+              stageVersion:
+                type: string
+              vector:
+                description: Vector points to the OCM component version that contains
+                  the deployment vector for this stage.
+                type: string
+              vectorDeployment:
                 type: string
             required:
-            - name
-            - spec
-            - type
+            - stage
+            - stageVersion
+            - vector
+            - vectorDeployment
             type: object
           status:
-            description: status defines the observed state of TaskExecution
+            description: status defines the observed state of VectorActivation
             properties:
               conditions:
                 items:

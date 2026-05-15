@@ -4,28 +4,38 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: stageconfigurations.global.konfidence.cloud
+  name: vectorpromotions.galaxy.konfidence.cloud
 spec:
   group: galaxy.konfidence.cloud
   names:
-    kind: StageConfiguration
-    listKind: StageConfigurationList
-    plural: stageconfigurations
-    singular: stageconfiguration
+    kind: VectorPromotion
+    listKind: VectorPromotionList
+    plural: vectorpromotions
+    singular: vectorpromotion
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.name
-      name: Name
+    - description: The referenced VectorPromotionConfig
+      jsonPath: .spec.vectorPromotionConfigRef
+      name: Config
       type: string
-    - jsonPath: .spec.vector
-      name: Vector
+    - description: Promotion was successful
+      jsonPath: .status.conditions[0].status
+      name: Promotion Succeeded
       type: string
+    - description: Promotion condition reason
+      jsonPath: .status.conditions[0].reason
+      name: Reason
+      type: string
+    - description: Age
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: StageConfiguration is the Schema for the stageConfigurations
-          API.
+        description: VectorPromotion triggers a one-time execution of a promotion
+          flow defined by a VectorPromotionConfig.
         properties:
           apiVersion:
             description: |-
@@ -45,52 +55,24 @@ spec:
           metadata:
             type: object
           spec:
-            description: StageConfigurationSpec defines the desired state of StageConfiguration.
+            description: VectorPromotionSpec defines the desired state of VectorPromotion.
             properties:
-              config:
-                items:
-                  description: CredentialsConfig defines a credential reference to
-                    a secret or configMap used to access OCM backends (like OCI registry).
-                  properties:
-                    apiVersion:
-                      description: APIVersion is the api version of the of configuration
-                        resource, e.g. v1.
-                      type: string
-                    kind:
-                      description: Kind of the configuration resource. Allowed values
-                        are Secret or ConfigMap.
-                      type: string
-                    name:
-                      description: "Name is the name\t of the of configuration resource."
-                      type: string
-                  required:
-                  - apiVersion
-                  - kind
-                  - name
-                  type: object
-                type: array
-              name:
-                description: Name is the stage name
+              ttlAfterFinished:
+                description: |-
+                  TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
+                  Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
+                  the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
                 type: string
-              targetNamespace:
-                description: TargetNamespace is the target namespace where the associated
-                  stage is created or updated
-                type: string
-              targetWorkspace:
-                description: TargetWorkspace is the target workspace where the associated
-                  stage is created or updated
-                type: string
-              vector:
-                description: Vector points to the OCM component that contains the
-                  deployment vector for this stage.
+              vectorPromotionConfigRef:
+                description: VectorPromotionConfigRef is the name of the VectorPromotionConfig
+                  that defines the promotion flow to execute.
+                minLength: 1
                 type: string
             required:
-            - name
-            - targetNamespace
-            - vector
+            - vectorPromotionConfigRef
             type: object
           status:
-            description: StageConfigurationStatus defines the observed state of StageConfiguration.
+            description: VectorPromotionStatus defines the observed state of VectorPromotion.
             properties:
               conditions:
                 items:

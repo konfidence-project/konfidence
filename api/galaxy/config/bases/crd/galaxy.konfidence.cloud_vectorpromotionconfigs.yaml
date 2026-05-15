@@ -4,7 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectorpromotionconfigs.global.konfidence.cloud
+  name: vectorpromotionconfigs.galaxy.konfidence.cloud
 spec:
   group: galaxy.konfidence.cloud
   names:

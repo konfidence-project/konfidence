@@ -4,28 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectorpromotions.global.konfidence.cloud
+  name: stagesyncs.galaxy.konfidence.cloud
 spec:
   group: galaxy.konfidence.cloud
   names:
-    kind: VectorPromotion
-    listKind: VectorPromotionList
-    plural: vectorpromotions
-    singular: vectorpromotion
+    kind: StageSync
+    listKind: StageSyncList
+    plural: stagesyncs
+    singular: stagesync
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The referenced VectorPromotionConfig
-      jsonPath: .spec.vectorPromotionConfigRef
-      name: Config
-      type: string
-    - description: Promotion was successful
-      jsonPath: .status.conditions[0].status
-      name: Promotion Succeeded
-      type: string
-    - description: Promotion condition reason
-      jsonPath: .status.conditions[0].reason
-      name: Reason
+    - description: Applied status
+      jsonPath: .status.conditions[?(@.type=='Applied')].status
+      name: Applied
       type: string
     - description: Age
       jsonPath: .metadata.creationTimestamp
@@ -34,8 +26,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VectorPromotion triggers a one-time execution of a promotion
-          flow defined by a VectorPromotionConfig.
+        description: StageSync is the Schema for the stageSyncs API.
         properties:
           apiVersion:
             description: |-
@@ -55,24 +46,23 @@ spec:
           metadata:
             type: object
           spec:
-            description: VectorPromotionSpec defines the desired state of VectorPromotion.
+            description: StageSyncSpec defines the desired state of a StageSync.
             properties:
-              ttlAfterFinished:
+              reconcileInterval:
                 description: |-
-                  TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
-                  Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
-                  the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
+                  ReconcileInterval defines how often the sync controller should reconcile the StageSync resource.
+                  If not set, the controller's default reconcile interval will be used.
                 type: string
-              vectorPromotionConfigRef:
-                description: VectorPromotionConfigRef is the name of the VectorPromotionConfig
-                  that defines the promotion flow to execute.
-                minLength: 1
-                type: string
+              stageTemplate:
+                description: StageTemplate contains the template of the stage to be
+                  created on the Star cluster.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             required:
-            - vectorPromotionConfigRef
+            - stageTemplate
             type: object
           status:
-            description: VectorPromotionStatus defines the observed state of VectorPromotion.
+            description: StageSyncStatus defines the observed state of a StageSync.
             properties:
               conditions:
                 items:
@@ -130,6 +120,9 @@ spec:
                   - type
                   type: object
                 type: array
+              stageStatus:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             type: object
         type: object
     served: true

@@ -4,40 +4,40 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectormigrations.landscape.konfidence.cloud
+  name: stageversions.star.konfidence.cloud
 spec:
   group: star.konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: VectorMigration
-    listKind: VectorMigrationList
-    plural: vectormigrations
-    singular: vectormigration
+    kind: StageVersion
+    listKind: StageVersionList
+    plural: stageversions
+    singular: stageversion
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The stage version
-      jsonPath: .spec.stageVersion
-      name: Stage-Version
+    - description: Name of the referenced Stage
+      jsonPath: .spec.stageRef.name
+      name: Stage
       type: string
-    - description: The deployment vector
+    - description: The object generation of the stage
+      jsonPath: .spec.stageGeneration
+      name: Stage-Generation
+      type: integer
+    - description: The deployment vector for this stage
       jsonPath: .spec.vector
       name: Vector
       type: string
-    - description: The latest condition type
-      jsonPath: .status.conditions[-1:].type
-      name: Condition
-      type: string
-    - description: The latest condition status
-      jsonPath: .status.conditions[-1:].status
-      name: Condition-Status
-      type: string
+    - description: Time since creation of StageVersion
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VectorMigration is the Schema for the vectormigrations API
+        description: StageVersion is the Schema for the stageversions API
         properties:
           apiVersion:
             description: |-
@@ -57,20 +57,40 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of VectorMigration
+            description: Spec defines the desired state of the StageVersion and is
+              immutable after it has been set
             properties:
-              stageVersion:
-                type: string
+              stageGeneration:
+                description: the object generation of the stage that created this
+                  stage version
+                format: int64
+                minimum: 1
+                type: integer
+              stageRef:
+                description: stageRef references the Stage this StageVersion belongs
+                  to
+                properties:
+                  name:
+                    description: Name is the name of the Stage. Required.
+                    type: string
+                required:
+                - name
+                type: object
               vector:
                 description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
+                minLength: 1
                 type: string
             required:
-            - stageVersion
+            - stageGeneration
+            - stageRef
             - vector
             type: object
+            x-kubernetes-validations:
+            - message: StageVersion spec is immutable after it has been set
+              rule: self == oldSelf
           status:
-            description: status defines the observed state of VectorMigration
+            description: status defines the observed state of StageVersion
             properties:
               conditions:
                 items:
@@ -129,9 +149,10 @@ spec:
                   type: object
                 type: array
             type: object
-        required:
-        - spec
         type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:

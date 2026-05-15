@@ -4,36 +4,35 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: stageversionusages.landscape.konfidence.cloud
+  name: stages.star.konfidence.cloud
 spec:
   group: star.konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: StageVersionUsage
-    listKind: StageVersionUsageList
-    plural: stageversionusages
-    singular: stageversionusage
+    kind: Stage
+    listKind: StageList
+    plural: stages
+    singular: stage
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The referenced StageVersion
-      jsonPath: .spec.stageVersionRef.name
-      name: Stage-Version-Ref
+    - description: Ready status
+      jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
       type: string
-    - description: The label selector for the StageVersion
-      jsonPath: .spec.stageVersionSelector
-      name: Stage-Version-Selector
-      type: string
-    - description: The reason for this StageVersion usage
-      jsonPath: .spec.reason
-      name: Reason
+    - description: Age
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .spec.vector
+      name: Vector
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: StageVersionUsage is the Schema for the stageversionusages API
+        description: Stage is the Schema for the stages API.
         properties:
           apiVersion:
             description: |-
@@ -53,77 +52,17 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of StageVersionUsage
+            description: StageSpec defines the desired state of Stage.
             properties:
-              reason:
-                description: Reason is human-readable description of why this StageVersion
-                  is in use, e.g. "executing vector migrations", "latest vector for
-                  stage xyz",
+              vector:
+                description: Vector points to the OCM component version that contains
+                  the deployment vector for this stage.
                 type: string
-              stageVersionRef:
-                description: StageVersionRef references a stageVersion
-                properties:
-                  name:
-                    description: Name is the name of the StageVersion. Required.
-                    type: string
-                required:
-                - name
-                type: object
-              stageVersionSelector:
-                description: StageVersionSelector is a label selector to find a StageVersion
-                  when name is not provided.
-                properties:
-                  matchExpressions:
-                    description: matchExpressions is a list of label selector requirements.
-                      The requirements are ANDed.
-                    items:
-                      description: |-
-                        A label selector requirement is a selector that contains values, a key, and an operator that
-                        relates the key and values.
-                      properties:
-                        key:
-                          description: key is the label key that the selector applies
-                            to.
-                          type: string
-                        operator:
-                          description: |-
-                            operator represents a key's relationship to a set of values.
-                            Valid operators are In, NotIn, Exists and DoesNotExist.
-                          type: string
-                        values:
-                          description: |-
-                            values is an array of string values. If the operator is In or NotIn,
-                            the values array must be non-empty. If the operator is Exists or DoesNotExist,
-                            the values array must be empty. This array is replaced during a strategic
-                            merge patch.
-                          items:
-                            type: string
-                          type: array
-                          x-kubernetes-list-type: atomic
-                      required:
-                      - key
-                      - operator
-                      type: object
-                    type: array
-                    x-kubernetes-list-type: atomic
-                  matchLabels:
-                    additionalProperties:
-                      type: string
-                    description: |-
-                      matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
-                      map is equivalent to an element of matchExpressions, whose key field is "key", the
-                      operator is "In", and the values array contains only "value". The requirements are ANDed.
-                    type: object
-                type: object
-                x-kubernetes-map-type: atomic
+            required:
+            - vector
             type: object
-            x-kubernetes-validations:
-            - message: exactly one of the fields in [stageVersionRef stageVersionSelector]
-                must be set
-              rule: '[has(self.stageVersionRef),has(self.stageVersionSelector)].filter(x,x==true).size()
-                == 1'
           status:
-            description: status defines the observed state of StageVersionUsage
+            description: StageStatus defines the observed state of Stage.
             properties:
               conditions:
                 items:
@@ -181,15 +120,37 @@ spec:
                   - type
                   type: object
                 type: array
-              resolvedStageVersions:
-                description: ResolvedStageVersions contains the names of all resolved
-                  stageVersion resources specified by either stageVersionRef or StageVersionSelector
+              latestVectorDeploymentRef:
+                description: TypedObjectReference contains enough information to let
+                  you locate the typed referenced object
+                properties:
+                  apiGroup:
+                    description: |-
+                      APIGroup is the group for the resource being referenced.
+                      If APIGroup is not specified, the specified Kind must be in the core API group.
+                      For any other third-party types, APIGroup is required.
+                    type: string
+                  kind:
+                    description: Kind is the type of resource being referenced
+                    type: string
+                  name:
+                    description: Name is the name of resource being referenced
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace is the namespace of resource being referenced
+                      Note that when a namespace is specified, a gateway.networking.k8s.io/ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details.
+                      (Alpha) This field requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              vectorHistory:
                 items:
                   type: string
                 type: array
             type: object
-        required:
-        - spec
         type: object
     served: true
     storage: true

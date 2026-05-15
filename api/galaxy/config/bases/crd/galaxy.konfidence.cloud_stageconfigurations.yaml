@@ -4,42 +4,28 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectortemplates.global.konfidence.cloud
+  name: stageconfigurations.galaxy.konfidence.cloud
 spec:
   group: galaxy.konfidence.cloud
   names:
-    categories:
-    - konfidence
-    - kden
-    kind: VectorTemplate
-    listKind: VectorTemplateList
-    plural: vectortemplates
-    singular: vectortemplate
+    kind: StageConfiguration
+    listKind: StageConfigurationList
+    plural: stageconfigurations
+    singular: stageconfiguration
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Indicates if the vector template is ready
-      jsonPath: .status.conditions[?(@.type=="Ready")].status
-      name: Ready
+    - jsonPath: .spec.name
+      name: Name
       type: string
-    - description: The reason of the Ready condition
-      jsonPath: .status.conditions[?(@.type=="Ready")].reason
-      name: Reason
+    - jsonPath: .spec.vector
+      name: Vector
       type: string
-    - description: The upload target of the vector template
-      jsonPath: .spec.uploadTarget
-      name: Upload-Target
-      type: string
-    - description: Time since creation of the vector template
-      jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: |-
-          VectorTemplate represents a template for assembling OCM components into an OCM component
-          that represents a vector.
+        description: StageConfiguration is the Schema for the stageConfigurations
+          API.
         properties:
           apiVersion:
             description: |-
@@ -59,27 +45,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of VectorTemplate
+            description: StageConfigurationSpec defines the desired state of StageConfiguration.
             properties:
-              base:
-                description: Base represents an optional base component version to
-                  build upon.
-                type: string
-              components:
-                description: Components lists the components to be included in the
-                  vector.
-                items:
-                  description: |-
-                    Component defines a component of a VectorTemplate.
-                    A struct is used for future expansion.
-                  properties:
-                    name:
-                      type: string
-                  required:
-                  - name
-                  type: object
-                minItems: 1
-                type: array
               config:
                 items:
                   description: CredentialsConfig defines a credential reference to
@@ -102,21 +69,28 @@ spec:
                   - name
                   type: object
                 type: array
-              reconcileInterval:
-                description: |-
-                  ReconcileInterval defines how often the assembly controller should check for drift.
-                  If not set, the controller's default reconcile interval will be used.
+              name:
+                description: Name is the stage name
                 type: string
-              uploadTarget:
-                description: UploadTarget defines the target OCM component where the
-                  assembled vector will be uploaded.
+              targetNamespace:
+                description: TargetNamespace is the target namespace where the associated
+                  stage is created or updated
+                type: string
+              targetWorkspace:
+                description: TargetWorkspace is the target workspace where the associated
+                  stage is created or updated
+                type: string
+              vector:
+                description: Vector points to the OCM component that contains the
+                  deployment vector for this stage.
                 type: string
             required:
-            - components
-            - uploadTarget
+            - name
+            - targetNamespace
+            - vector
             type: object
           status:
-            description: status defines the observed state of VectorTemplate
+            description: StageConfigurationStatus defines the observed state of StageConfiguration.
             properties:
               conditions:
                 items:
@@ -175,8 +149,6 @@ spec:
                   type: object
                 type: array
             type: object
-        required:
-        - spec
         type: object
     served: true
     storage: true
