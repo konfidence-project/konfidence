@@ -25,7 +25,8 @@ import (
 const (
 	OcmVectorVerifyEnv                       = "OCM_VECTOR_VERIFY"
 	OcmArtifactVerifyEnv                     = "OCM_ARTIFACT_VERIFY"
-	OcmVectorSignAndVerifyEnv                = "OCM_VECTOR_SIGN_AND_VERIFY"
+	OcmVectorSignAndVerifyEnv                = "OCM_VECTOR_SIGN_AND_VERIFY" // TODO: remove when internal/galaxy/vector-assembly/cmd/main.go is deleted
+	OcmVectorSignEnv                         = "OCM_VECTOR_SIGN"
 	VerifierTrustAnchorConfigMapNameEnv      = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAME"
 	VerifierTrustAnchorConfigMapNamespaceEnv = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAMESPACE"
 	SigningCredentialSecretNameEnv            = "OCM_RSA_SIGNING_KEY_SECRET_NAME"

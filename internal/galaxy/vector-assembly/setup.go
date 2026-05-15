@@ -44,15 +44,10 @@ type Options struct {
 
 // SetupControllers registers all vector assembly controllers with the given manager.
 func SetupControllers(mgr mcmanager.Manager, scheme *runtime.Scheme, opts Options) error {
-	var adapterConfig []ocm.AdapterOption
-	if opts.ArtifactVerifier != nil {
-		adapterConfig = append(adapterConfig, ocm.WithArtifactVerifier(opts.ArtifactVerifier))
-	}
-	if opts.VectorVerifier != nil {
-		adapterConfig = append(adapterConfig, ocm.WithVectorVerifier(opts.VectorVerifier))
-	}
-	if opts.VectorSigner != nil {
-		adapterConfig = append(adapterConfig, ocm.WithVectorSigner(opts.VectorSigner))
+	adapterConfig := []ocm.AdapterOption{
+		ocm.WithArtifactVerifier(opts.ArtifactVerifier),
+		ocm.WithVectorVerifier(opts.VectorVerifier),
+		ocm.WithVectorSigner(opts.VectorSigner),
 	}
 
 	if err := (&controller.VectorTemplateReconciler{

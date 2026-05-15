@@ -16,9 +16,9 @@ import (
 type cryptoConfig struct {
 	// VectorVerifier verifies vector assembly signatures. NoopVerifier if disabled.
 	VectorVerifier crypto.Verifier
-	// ArtifactVerifier verifies artifact signatures. nil if disabled.
+	// ArtifactVerifier verifies artifact signatures. NoopVerifier if disabled.
 	ArtifactVerifier crypto.Verifier
-	// VectorSigner signs assembled vectors. nil if disabled.
+	// VectorSigner signs assembled vectors. NoopSigner if disabled.
 	VectorSigner crypto.Signer
 }
 
@@ -27,18 +27,19 @@ type cryptoConfig struct {
 // concerns (artifact verification, vector verification) need it.
 func resolveCryptoConfig(ctx context.Context, mgr mcmanager.Manager) (*cryptoConfig, error) {
 	cfg := &cryptoConfig{
-		VectorVerifier: crypto.NoopVerifier{},
+		VectorVerifier:   crypto.NoopVerifier{},
+		ArtifactVerifier: crypto.NoopVerifier{},
+		VectorSigner:     crypto.NoopSigner{},
 	}
 
 	verifyVector := parseBoolEnv(OcmVectorVerifyEnv)
 	verifyArtifact := parseBoolEnv(OcmArtifactVerifyEnv)
-	signAndVerifyVector := parseBoolEnv(OcmVectorSignAndVerifyEnv)
+	signVector := parseBoolEnv(OcmVectorSignEnv)
 
-	// If signing is enabled, it implies vector verification too
-	needVectorVerification := verifyVector || signAndVerifyVector
+	needVectorVerification := verifyVector
 	needArtifactVerification := verifyArtifact
 	needTrustAnchor := needVectorVerification || needArtifactVerification
-	needSigning := signAndVerifyVector
+	needSigning := signVector
 
 	// Set up shared trust anchor provider if any verification is needed
 	var trustAnchorProvider *crypto.ConfigMapTrustAnchorProvider
@@ -113,8 +114,7 @@ func resolveCryptoConfig(ctx context.Context, mgr mcmanager.Manager) (*cryptoCon
 
 // getVectorVerifier is a convenience helper for subcommands that only need vector verification.
 func getVectorVerifier(ctx context.Context, mgr mcmanager.Manager) (crypto.Verifier, error) {
-	verifyVector := parseBoolEnv(OcmVectorVerifyEnv)
-	if !verifyVector {
+	if !parseBoolEnv(OcmVectorVerifyEnv) {
 		setupLog.Info("OCM vector verification is disabled")
 		return crypto.NoopVerifier{}, nil
 	}
