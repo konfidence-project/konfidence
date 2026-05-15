@@ -13,6 +13,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	stageconfiguration "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration"
+	vectorassembly "github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly"
 	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion"
 )
 
@@ -53,15 +54,16 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	// Set up shared vector verifier
-	vectorVerifier, err := getVectorVerifier(ctx, mgr)
+	// Resolve all crypto dependencies from env vars
+	cryptoCfg, err := resolveCryptoConfig(ctx, mgr)
 	if err != nil {
+		setupLog.Error(err, "unable to resolve crypto configuration")
 		return err
 	}
 
 	// Set up stage configuration controllers
 	if err := stageconfiguration.SetupControllers(mgr, scheme, cfg, stageconfiguration.Options{
-		VectorVerifier: vectorVerifier,
+		VectorVerifier: cryptoCfg.VectorVerifier,
 	}); err != nil {
 		setupLog.Error(err, "unable to set up stage configuration controllers")
 		return err
@@ -69,9 +71,19 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	// Set up vector promotion controllers
 	if err := vectorpromotion.SetupControllers(ctx, mgr, scheme, vectorpromotion.Options{
-		VectorVerifier: vectorVerifier,
+		VectorVerifier: cryptoCfg.VectorVerifier,
 	}); err != nil {
 		setupLog.Error(err, "unable to set up vector promotion controllers")
+		return err
+	}
+
+	// Set up vector assembly controllers
+	if err := vectorassembly.SetupControllers(mgr, scheme, vectorassembly.Options{
+		ArtifactVerifier: cryptoCfg.ArtifactVerifier,
+		VectorVerifier:   cryptoCfg.VectorVerifier,
+		VectorSigner:     cryptoCfg.VectorSigner,
+	}); err != nil {
+		setupLog.Error(err, "unable to set up vector assembly controllers")
 		return err
 	}
 
