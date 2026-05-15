@@ -75,13 +75,10 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			os.Exit(1)
 		}
-		if err := stageconfiguration.NewStageConfigurationReconciler(
-			mgr,
-			scheme,
-			cfg,
-			vectorVerifier,
-		).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "StageConfiguration")
+		if err := stageconfiguration.SetupControllers(mgr, scheme, cfg, stageconfiguration.Options{
+			VectorVerifier: vectorVerifier,
+		}); err != nil {
+			setupLog.Error(err, "unable to set up stage configuration controllers")
 			os.Exit(1)
 		}
 		// +kubebuilder:scaffold:builder

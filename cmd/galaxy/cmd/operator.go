@@ -1,13 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"strconv"
-	"strings"
-
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
@@ -20,7 +14,6 @@ import (
 
 	stageconfiguration "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration"
 	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion"
-	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 )
 
 func startOperator(cmd *cobra.Command, args []string) error {
@@ -60,52 +53,24 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	// Set up stage configuration controller
+	// Set up shared vector verifier
 	vectorVerifier, err := getVectorVerifier(ctx, mgr)
 	if err != nil {
 		return err
 	}
-	if err := stageconfiguration.NewStageConfigurationReconciler(
-		mgr,
-		scheme,
-		cfg,
-		vectorVerifier,
-	).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "StageConfiguration")
+
+	// Set up stage configuration controllers
+	if err := stageconfiguration.SetupControllers(mgr, scheme, cfg, stageconfiguration.Options{
+		VectorVerifier: vectorVerifier,
+	}); err != nil {
+		setupLog.Error(err, "unable to set up stage configuration controllers")
 		return err
 	}
 
 	// Set up vector promotion controllers
-	vpOpts := vectorpromotion.Options{}
-	verifyVectorEnv := strings.ToLower(os.Getenv(OcmVectorVerifyEnv))
-	if verifyVectorEnv != "" {
-		verifyVector, err := strconv.ParseBool(verifyVectorEnv)
-		if err != nil {
-			return fmt.Errorf("unable to parse env variable %q into bool: %w", OcmVectorVerifyEnv, err)
-		}
-
-		if verifyVector {
-			configMapName, namespace := os.Getenv(VerifierTrustAnchorConfigMapNameEnv),
-				os.Getenv(VerifierTrustAnchorConfigMapNamespaceEnv)
-			if configMapName == "" || namespace == "" {
-				return fmt.Errorf("env variables %s and/or %s not set", VerifierTrustAnchorConfigMapNameEnv,
-					VerifierTrustAnchorConfigMapNamespaceEnv)
-			}
-
-			configMapProvider := crypto.NewConfigMapTrustAnchorProvider(
-				types.NamespacedName{Name: configMapName, Namespace: namespace})
-			if err = configMapProvider.SetupWithManager(ctx, mgr.GetLocalManager()); err != nil {
-				setupLog.Error(err, "unable to set up config map trust anchor provider")
-				return err
-			}
-
-			vpOpts.VectorVerificationProvider = configMapProvider
-		} else {
-			setupLog.Info("OCM vector verification is disabled")
-		}
-	}
-
-	if err := vectorpromotion.SetupControllers(ctx, mgr, scheme, vpOpts); err != nil {
+	if err := vectorpromotion.SetupControllers(ctx, mgr, scheme, vectorpromotion.Options{
+		VectorVerifier: vectorVerifier,
+	}); err != nil {
 		setupLog.Error(err, "unable to set up vector promotion controllers")
 		return err
 	}

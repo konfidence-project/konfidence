@@ -13,17 +13,15 @@ import (
 
 // Options configures the vector promotion controllers.
 type Options struct {
-	// VectorVerificationProvider is an optional ConfigMapTrustAnchorProvider for vector verification.
-	// If nil, vector verification is disabled.
-	VectorVerificationProvider *crypto.ConfigMapTrustAnchorProvider
+	// VectorVerifier is used to verify vectors during promotion.
+	// If nil, vector verification is disabled (NoopVerifier is used).
+	VectorVerifier crypto.Verifier
 }
 
 // SetupControllers registers all vector promotion controllers with the given manager.
 func SetupControllers(ctx context.Context, mgr mcmanager.Manager, scheme *runtime.Scheme, opts Options) error {
 	var promotionAdapterConfig []ocm.PromotionAdapterOption
-	if opts.VectorVerificationProvider != nil {
-		promotionAdapterConfig = append(promotionAdapterConfig, ocm.WithDefaultVectorVerification(opts.VectorVerificationProvider))
-	}
+	promotionAdapterConfig = append(promotionAdapterConfig, ocm.WithVectorVerifier(opts.VectorVerifier))
 
 	if err := (&controller.VectorPromotionReconciler{
 		Mgr:               mgr,
