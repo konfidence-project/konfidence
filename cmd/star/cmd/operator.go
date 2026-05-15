@@ -3,7 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
+	galaxysync "github.com/konfidence-project/konfidence/internal/star/galaxy-sync"
 	"github.com/konfidence-project/konfidence/internal/star/stage"
 	taskorchestration "github.com/konfidence-project/konfidence/internal/star/task-orchestration"
 	vectoractivation "github.com/konfidence-project/konfidence/internal/star/vector-activation"
@@ -68,6 +70,12 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	if err := vectordeployment.SetupControllers(mgr, setupLog, vectordeployment.Options{
 		OcmAdapter: ocmAdapter,
+	}); err != nil {
+		return err
+	}
+
+	if err := galaxysync.SetupControllers(mgr, setupLog, scheme, galaxysync.Options{
+		ControllerNamespace: os.Getenv("CONTROLLER_NAMESPACE"),
 	}); err != nil {
 		return err
 	}

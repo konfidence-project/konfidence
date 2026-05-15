@@ -6,10 +6,12 @@ package cmd
 import (
 	"os"
 
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,6 +54,8 @@ func Execute() {
 
 func init() {
 	utilruntime.Must(landscape.AddToScheme(scheme))
+	utilruntime.Must(global.AddToScheme(scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	loggerOpts := zap.Options{
