@@ -23,10 +23,9 @@ import (
 )
 
 const (
-	OcmVectorSignAndVerifyEnv = "OCM_VECTOR_SIGN_AND_VERIFY" // TODO: remove when internal/galaxy/vector-assembly/cmd/main.go is deleted
-	KubernetesServiceHostEnv  = "KUBERNETES_SERVICE_HOST"
-	KubernetesServicePortEnv  = "KUBERNETES_SERVICE_PORT"
-	KcpEndpointSliceEnv       = "KCP_ENDPOINT_SLICE"
+	KubernetesServiceHostEnv = "KUBERNETES_SERVICE_HOST"
+	KubernetesServicePortEnv = "KUBERNETES_SERVICE_PORT"
+	KcpEndpointSliceEnv      = "KCP_ENDPOINT_SLICE"
 )
 
 var (

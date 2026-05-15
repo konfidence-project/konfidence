@@ -26,7 +26,6 @@ var galaxysyncCmd = &cobra.Command{
 		}
 
 		ctx := ctrl.SetupSignalHandler()
-		_ = ctx
 
 		if err := galaxysync.SetupControllers(mgr, setupLog, scheme, galaxysync.Options{
 			ControllerNamespace: os.Getenv("CONTROLLER_NAMESPACE"),
