@@ -4,7 +4,7 @@ package graph
 import (
 	"errors"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 )
 
 func createAdjacencyList(tasks []landscape.TaskManifest) map[string][]landscape.TaskManifest {

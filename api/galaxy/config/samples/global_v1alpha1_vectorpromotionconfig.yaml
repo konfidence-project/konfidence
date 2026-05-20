@@ -1,0 +1,8 @@
+apiVersion: galaxy.konfidence.cloud/v1alpha1
+kind: VectorPromotionConfig
+metadata:
+  namespace: default
+  name: sample-promotion-config
+spec:
+  source: https://registry.kdenv.lab/sample-project//konfidence-project.com/constructed-vector:latest
+  target: https://registry.dwc.com/sample-project//dwc.tools.sap/sample-vector:promoted

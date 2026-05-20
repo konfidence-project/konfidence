@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/konfidence-project/pkg/ocm/crypto"
-	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	v1 "k8s.io/api/core/v1"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ocmRuntime "ocm.software/open-component-model/bindings/go/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/konfidence-project/landscape-vector-deployment-controller/internal/controller"
+	"github.com/konfidence-project/konfidence/internal/star/vector-deployment/internal/controller"
 )
 
 // Adapter implements the VectorOcmPort interface.

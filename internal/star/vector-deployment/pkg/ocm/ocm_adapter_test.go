@@ -15,8 +15,8 @@ import (
 	ociv1 "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 	ocmRuntime "ocm.software/open-component-model/bindings/go/runtime"
 
-	ocmadapter "github.com/konfidence-project/landscape-vector-deployment-controller/pkg/ocm"
-	"github.com/konfidence-project/landscape-vector-deployment-controller/pkg/ocm/mocks"
+	ocmadapter "github.com/konfidence-project/konfidence/internal/star/vector-deployment/pkg/ocm"
+	"github.com/konfidence-project/konfidence/internal/star/vector-deployment/pkg/ocm/mocks"
 )
 
 // newTestAdapter creates an Adapter with the given mock client injected via the exported constructor

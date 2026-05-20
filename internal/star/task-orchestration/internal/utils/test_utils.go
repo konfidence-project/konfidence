@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	pkgCtrl "github.com/konfidence-project/pkg/controller"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"

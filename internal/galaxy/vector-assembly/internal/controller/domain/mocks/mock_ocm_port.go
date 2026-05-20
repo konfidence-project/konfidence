@@ -13,8 +13,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	domain "github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
-	repository "github.com/konfidence-project/pkg/ocm/repository"
+	domain "github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/internal/controller/domain"
+	repository "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	gomock "go.uber.org/mock/gomock"
 	compref "ocm.software/open-component-model/bindings/go/oci/compref"
 	runtime "ocm.software/open-component-model/bindings/go/runtime"

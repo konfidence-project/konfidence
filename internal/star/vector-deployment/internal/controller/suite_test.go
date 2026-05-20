@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -147,7 +147,7 @@ func GetVectorDeployment(ctx context.Context, k8sClient client.Client, name stri
 func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorUrl string) landscape.VectorDeployment {
 	vectorDeployment := landscape.VectorDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "landscape.konfidence.cloud/v1alpha1",
+			APIVersion: "star.konfidence.cloud/v1alpha1",
 			Kind:       "VectorDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{

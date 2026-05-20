@@ -1,7 +1,0 @@
-type: generic.config.ocm.software/v1
-configurations:
-  - type: credentials.config.ocm.software
-    repositories:
-      - repository:
-          type: DockerConfig/v1
-          propagateConsumerIdentity: true

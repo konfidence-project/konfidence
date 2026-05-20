@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
-	pkgocm "github.com/konfidence-project/pkg/ocm/repository"
+	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
+	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"github.com/onsi/gomega"
 	ocmdescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"

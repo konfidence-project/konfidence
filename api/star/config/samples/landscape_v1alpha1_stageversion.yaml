@@ -1,0 +1,17 @@
+apiVersion: star.konfidence.cloud/v1alpha1
+kind: StageVersion
+metadata:
+  labels:
+    app.kubernetes.io/name: crds
+    app.kubernetes.io/managed-by: kustomize
+  name: stageversion-dev-475124
+  ownerReferences:
+    - apiVersion: star.konfidence.cloud/v1alpha1
+      kind: Stage
+      name: stage-dev
+      uid: # TODO: add owner uid here after creating Stage resource
+spec:
+  vector: https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1
+  stageGeneration: 1
+  stageRef:
+    name: stage-dev

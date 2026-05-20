@@ -1,0 +1,15 @@
+apiVersion: star.konfidence.cloud/v1alpha1
+kind: ActivationTaskRegistration
+metadata:
+  labels:
+    app.kubernetes.io/name: crds
+    app.kubernetes.io/managed-by: kustomize
+  name: activationtaskregistration-sample
+spec:
+  type: custom-k8s-activation
+  spec: {}
+  succeeds:
+    - activation-A
+    - activation-B
+  precedes:
+    - activation-C

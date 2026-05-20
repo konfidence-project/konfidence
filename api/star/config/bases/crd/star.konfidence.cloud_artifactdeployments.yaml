@@ -1,0 +1,285 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: artifactdeployments.star.konfidence.cloud
+spec:
+  group: star.konfidence.cloud
+  names:
+    categories:
+    - konfidence
+    - kden
+    kind: ArtifactDeployment
+    listKind: ArtifactDeploymentList
+    plural: artifactdeployments
+    singular: artifactdeployment
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="ArtifactFetched")].status
+      name: Fetched
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="ArtifactDeployed")].status
+      name: Deployed
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="AppHealthy")].message
+      name: Healthy
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ArtifactDeployment is the Schema for the artifactdeployments
+          API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of the ArtifactDeployment
+              and is immutable after it has been set
+            properties:
+              component:
+                description: Component contains OCM metadata associated with the artifact.
+                  This is a simplified mapping of the OCM ComponentVersion.
+                properties:
+                  name:
+                    description: Name is the OCM ComponentVersion name.
+                    type: string
+                  resources:
+                    description: |-
+                      Resources contains OCM resources belonging to this component. The structure is intentionally generic to support
+                      the requirements of deployers targeting different runtimes.
+                    items:
+                      description: |-
+                        OCMResource represents a single resource of an OCM ComponentVersion. The content and type are deployer-specific and
+                        opaque to the API.
+                      properties:
+                        content:
+                          description: |-
+                            Content holds raw resource data, typically an embedded manifest, file, or
+                            binary payload.
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        name:
+                          description: Name is the resource name.
+                          type: string
+                        type:
+                          description: Type describes the resource type, following
+                            OCM conventions.
+                          type: string
+                      required:
+                      - content
+                      - name
+                      - type
+                      type: object
+                    type: array
+                  version:
+                    description: Version is the OCM ComponentVersion version.
+                    type: string
+                required:
+                - name
+                type: object
+              manifest:
+                description: Manifest contains information about the artifact itself
+                  and the deployer implementation responsible for handling it.
+                properties:
+                  allowReuse:
+                    description: |-
+                      AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.
+                      Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific
+                      runtime context.
+                    type: boolean
+                  type:
+                    description: |-
+                      Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",
+                      "cloud.konfidence.flux.kustomize", or any custom deployer type). Deployers implement their own interpretation
+                      of the artifact's contents.
+                    type: string
+                required:
+                - allowReuse
+                - type
+                type: object
+              taskManifests:
+                description: |-
+                  TaskManifests describes optional post-deployment tasks (commonly used for vector migrations such as database
+                  schema updates). Tasks are executed after the artifact has been deployed and may form a dependency graph via
+                  DependsOn.
+                items:
+                  description: |-
+                    TaskManifest defines a post-deployment task that is executed after the artifact has been deployed. Tasks are
+                    commonly used for vector migrations (such as database schema changes) but may represent any post-deployment action.
+
+                    Tasks form a directed acyclic graph (DAG) at the *vector level* rather than only within a single ArtifactDeployment.
+                    A task may depend on tasks belonging to other microservices or artifacts in the same VectorDeployment. These
+                    cross-artifact dependencies allow defining a globally ordered migration or transformation workflow.
+
+                    The controller responsible for the task type interprets the Spec field and performs the execution once all declared
+                    dependencies have completed successfully.
+                  properties:
+                    dependsOn:
+                      description: |-
+                        DependsOn lists names of other tasks that must complete before this task may run. Dependencies may reference
+                        tasks within the same artifact or any other artifact that participates in the same VectorDeployment, allowing the
+                        formation of a vector-wide DAG.
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      description: |-
+                        Name uniquely identifies this task within the entire vector. This name may be referenced by other tasks across
+                        different artifacts.
+                      type: string
+                    spec:
+                      description: |-
+                        Spec contains task-specific configuration. The structure depends on the task Type and is interpreted by the
+                        corresponding task controller.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type:
+                      description: |-
+                        Type specifies the task controller or execution runtime (e.g. "k8s-job", or any custom task runtime). Different
+                        task types correspond to different task controllers, each interpreting the Spec field according to their own semantics.
+                      type: string
+                  required:
+                  - name
+                  - spec
+                  - type
+                  type: object
+                type: array
+            required:
+            - manifest
+            - taskManifests
+            type: object
+            x-kubernetes-validations:
+            - message: ArtifactDeployment spec is immutable after it has been set
+              rule: self == oldSelf
+          status:
+            description: ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.
+            properties:
+              conditions:
+                description: |-
+                  Conditions describes the state of the deployment lifecycle. The following conditions are expected:
+
+                    - ArtifactFetched: the artifact was successfully retrieved
+                    - ArtifactDeployed: the artifact was successfully deployed
+                    - AppHealthy: the deployer reports the workload as healthy
+
+                  Conditions progress in a linear order:
+                  ArtifactFetched -> ArtifactDeployed -> AppHealthy
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              deploymentResult:
+                description: |-
+                  DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as
+                  computed DNS names, service endpoints, generated configuration, or other workload-specific details.
+
+                  Results should be treated as immutable for a given generation and may be consumed by later stages of a vector
+                  rollout (e.g., routing configuration).
+
+                  Each result must have a unique Name.
+                items:
+                  description: |-
+                    DeploymentResult contains a single output produced by a deployer. These results are used to transport information
+                    from the deployer to later phases of the vector lifecycle.
+                  properties:
+                    name:
+                      description: Name is a unique identifier for the result within
+                        an ArtifactDeploymentStatus.
+                      type: string
+                    spec:
+                      description: Spec contains deployer-specific structured data.
+                        Its format is determined by the Type field.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type:
+                      description: Type describes the structure contained in Spec.
+                        Each deployer may define multiple result types.
+                      type: string
+                  required:
+                  - name
+                  - spec
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                description: ObservedGeneration is the last observed generation.
+                format: int64
+                type: integer
+            type: object
+        type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
+    served: true
+    storage: true
+    subresources:
+      status: {}

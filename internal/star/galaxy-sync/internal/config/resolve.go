@@ -35,7 +35,7 @@ const (
 	SecretKey  = "kubeconfig"
 
 	// LandscapeNameEnvVar is the name of the environment variable that
-	// holds the human-readable name of the local (Star) cluster (landscape name).
+	// holds the human-readable name of the local (Star) cluster (star name).
 	// It is injected via a patch on the Flux Kustomization CR in the per-cluster
 	// GitOps overlay and must not be set in the base deployment manifest.
 	LandscapeNameEnvVar = "LANDSCAPE_NAME"
