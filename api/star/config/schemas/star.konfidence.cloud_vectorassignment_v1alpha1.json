@@ -1,0 +1,145 @@
+{
+  "description": "VectorAssignment is the Schema for the vectorassignments API.\n\nA VectorAssignment represents a single binding between a VectorDeployment and an ArtifactDeployment. It enables\nan n:m mapping where a single artifact may be reused across multiple vectors. These objects are automatically\nmanaged by the vector-deployment-controller and reconciled by deployers to apply vector-specific configuration.",
+  "properties": {
+    "apiVersion": {
+      "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+      "type": "string"
+    },
+    "kind": {
+      "description": "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "spec": {
+      "description": "Spec defines the desired state of the VectorAssignment and is immutable after it has been set",
+      "properties": {
+        "artifactDeploymentRef": {
+          "description": "ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The\nreferenced artifact must exist in the same namespace as this VectorAssignment.",
+          "properties": {
+            "name": {
+              "description": "Name\tis the name of the ArtifactDeployment. Required.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        },
+        "manifest": {
+          "description": "Manifest contains the ArtifactManifest describing the artifact to be assigned to the vector. This duplicates the\nmanifest stored in the ArtifactDeployment for efficiency: deployers often need to filter or select assignments\nby artifact type, and embedding the manifest avoids repeated API lookups.",
+          "properties": {
+            "allowReuse": {
+              "description": "AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.\nReuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific\nruntime context.",
+              "type": "boolean"
+            },
+            "type": {
+              "description": "Type specifies the deployer that should handle this artifact (e.g., \"cloud.konfidence.flux.helm\",\n\"cloud.konfidence.flux.kustomize\", or any custom deployer type). Deployers implement their own interpretation\nof the artifact's contents.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "allowReuse",
+            "type"
+          ],
+          "type": "object"
+        },
+        "vectorDeploymentRef": {
+          "description": "VectorDeploymentRef references the VectorDeployment that this artifact is assigned to. This creates the explicit\nmapping \"artifact X belongs to vector Y\".",
+          "properties": {
+            "name": {
+              "description": "Name\tis the name of the VectorDeployment. Required.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "artifactDeploymentRef",
+        "manifest",
+        "vectorDeploymentRef"
+      ],
+      "type": "object",
+      "x-kubernetes-validations": [
+        {
+          "message": "VectorAssignment spec is immutable after it has been set",
+          "rule": "self == oldSelf"
+        }
+      ]
+    },
+    "status": {
+      "description": "VectorAssignmentStatus defines the observed state of a VectorAssignment.\n\nA VectorAssignment progresses through a simple lifecycle driven by the deployer:\n\n 1. VectorAssignment is created by the vector-deployment-controller.\n 2. deployer reconciles it and configures vector-specific integration\n 3. VectorAssignmentReadyCondition is set to True",
+      "properties": {
+        "conditions": {
+          "description": "Conditions describes the latest observed state of the assignment. The primary condition is\nVectorAssignmentReadyCondition, which becomes True once the deployer has finished processing the VectorAssignment.",
+          "items": {
+            "description": "Condition contains details for one aspect of the current state of this API Resource.",
+            "properties": {
+              "lastTransitionTime": {
+                "description": "lastTransitionTime is the last time the condition transitioned from one status to another.\nThis should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.",
+                "format": "date-time",
+                "type": "string"
+              },
+              "message": {
+                "description": "message is a human readable message indicating details about the transition.\nThis may be an empty string.",
+                "maxLength": 32768,
+                "type": "string"
+              },
+              "observedGeneration": {
+                "description": "observedGeneration represents the .metadata.generation that the condition was set based upon.\nFor instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date\nwith respect to the current state of the instance.",
+                "format": "int64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reason": {
+                "description": "reason contains a programmatic identifier indicating the reason for the condition's last transition.\nProducers of specific condition types may define expected values and meanings for this field,\nand whether the values are considered a guaranteed API.\nThe value should be a CamelCase string.\nThis field may not be empty.",
+                "maxLength": 1024,
+                "minLength": 1,
+                "pattern": "^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$",
+                "type": "string"
+              },
+              "status": {
+                "description": "status of the condition, one of True, False, Unknown.",
+                "enum": [
+                  "True",
+                  "False",
+                  "Unknown"
+                ],
+                "type": "string"
+              },
+              "type": {
+                "description": "type of condition in CamelCase or in foo.example.com/CamelCase.",
+                "maxLength": 316,
+                "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "lastTransitionTime",
+              "message",
+              "reason",
+              "status",
+              "type"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "type": "object",
+  "x-kubernetes-validations": [
+    {
+      "message": "Spec is required once set",
+      "rule": "!has(oldSelf.spec) || has(self.spec)"
+    }
+  ]
+}

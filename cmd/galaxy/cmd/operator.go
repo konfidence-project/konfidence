@@ -62,7 +62,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// TODO: reevaluat CLI flags usage
 	setups := []struct {
 		Name  string
 		Setup func() error

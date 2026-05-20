@@ -170,16 +170,18 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			const updatedVector = "ocm.example.com/test-vector:2.0.0"
 
 			By("updating the StageSync template with a new vector")
-			fresh := &global.StageSync{}
-			Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
-				Name:      stageSyncName,
-				Namespace: stageSyncNamespace,
-			}, fresh)).To(Succeed())
+			Eventually(func(g Gomega) {
+				fresh := &global.StageSync{}
+				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
+					Name:      stageSyncName,
+					Namespace: stageSyncNamespace,
+				}, fresh)).To(Succeed())
 
-			fresh.Spec.StageTemplate = runtime.RawExtension{
-				Raw: buildStageRaw(stageName, stageNamespace, "star.konfidence.cloud/v1alpha1", updatedVector),
-			}
-			Expect(remoteK8sClient.Update(ctx, fresh)).To(Succeed())
+				fresh.Spec.StageTemplate = runtime.RawExtension{
+					Raw: buildStageRaw(stageName, stageNamespace, "star.konfidence.cloud/v1alpha1", updatedVector),
+				}
+				g.Expect(remoteK8sClient.Update(ctx, fresh)).To(Succeed())
+			}).Should(Succeed())
 
 			By("verifying the local Stage spec is updated")
 			Eventually(func(g Gomega) {
