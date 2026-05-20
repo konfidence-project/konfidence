@@ -303,8 +303,8 @@ var _ = Describe("VectorDeployment Controller", func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		meta.SetStatusCondition(&vectorAssignment.Status.Conditions, metav1.Condition{
-			Type:               landscape.VectorAssignmentsCreatedCondition,
-			Reason:             landscape.VectorAssignmentsCreatedCondition,
+			Type:               landscape.VectorAssignmentReadyCondition,
+			Reason:             landscape.VectorAssignmentReadyCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "simulated",
 			ObservedGeneration: vectorAssignment.Generation,

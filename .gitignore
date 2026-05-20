@@ -28,3 +28,6 @@ go.work.sum
 .backup
 
 .hermit/*
+
+bin/galaxy
+bin/star

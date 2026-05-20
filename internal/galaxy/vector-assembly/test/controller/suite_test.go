@@ -42,6 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/client-go/rest"
@@ -128,7 +129,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping envtest")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "generated", "crds")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "..", "..", "api", "galaxy", "config", "bases", "crd")},
 		ErrorIfCRDPathMissing: true,
 		UseExistingCluster:    new(false),
 	}
@@ -172,6 +173,9 @@ func startManager() {
 
 	mgr, err := mcmanager.New(cfg, nil, ctrl.Options{
 		Scheme: scheme.Scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
 	})
 	Expect(err).NotTo(HaveOccurred(), "failed to create multicluster manager")
 
@@ -249,7 +253,7 @@ func buildOCMConfig(endpoint, username, password string) *configuration.Configur
 // absent. This helper bridges the gap by scanning the known download location so IDE-based
 // test runs work without extra configuration.
 func getFirstFoundEnvTestBinaryDir() string {
-	basePath := filepath.Join("..", "..", "bin", "k8s")
+	basePath := filepath.Join("..", "..", "..", "..", "..", "bin", "k8s")
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
 		logf.Log.Error(err, "Failed to read envtest binary directory", "path", basePath)

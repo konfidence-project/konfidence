@@ -34,6 +34,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -62,8 +63,7 @@ var _ = BeforeSuite(func() {
 
 	useExternalCluster := false
 	testEnv = &envtest.Environment{
-		// CRDs are located in the ../../test/data/generated/crds directory
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "generated", "crds")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "..", "..", "api", "star", "config", "bases", "crd")},
 		ErrorIfCRDPathMissing: true,
 		UseExistingCluster:    &useExternalCluster,
 	}
@@ -80,7 +80,11 @@ var _ = BeforeSuite(func() {
 	Expect(cfg).NotTo(BeNil())
 
 	// setup the k8s manager
-	k8sManager, err = manager.New(cfg, manager.Options{})
+	k8sManager, err = manager.New(cfg, manager.Options{
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
+	})
 	Expect(err).ToNot(HaveOccurred())
 
 	err = landscape.AddToScheme(k8sManager.GetScheme())
@@ -115,7 +119,7 @@ var _ = AfterSuite(func() {
 // setting the 'KUBEBUILDER_ASSETS' environment variable. To ensure the binaries are
 // properly set up, run 'make setup-envtest' beforehand.
 func getFirstFoundEnvTestBinaryDir() string {
-	basePath := filepath.Join("..", "..", "bin", "k8s")
+	basePath := filepath.Join("..", "..", "..", "..", "..", "bin", "k8s")
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
 		logf.Log.Error(err, "Failed to read directory", "path", basePath)
