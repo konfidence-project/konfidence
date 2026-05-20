@@ -3,7 +3,7 @@ package ocm
 import (
 	"fmt"
 
-	"github.com/konfidence-project/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 )
 
 // AdapterOption is a functional option for configuring the Adapter.

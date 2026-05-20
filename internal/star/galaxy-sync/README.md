@@ -1,4 +1,4 @@
-[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/landscape-gcp-sync-controller)](https://api.reuse.software/info/github.com/konfidence-project/landscape-gcp-sync-controller)
+[![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/konfidence/internal/star/galaxy-sync)](https://api.reuse.software/info/github.com/konfidence-project/konfidence/internal/star/galaxy-sync)
 
 # star-galaxy-sync-controller
 
@@ -86,11 +86,11 @@ make uninstall-git-hooks  # uninstall all git hooks with prek
 
 ## Support, Feedback, Contributing
 
-This project is open to feature requests, suggestions, and bug reports via [GitHub issues](https://github.com/konfidence-project/landscape-gcp-sync-controller/issues). Contributions are encouraged and always welcome. For more information on how to contribute, see our [Contribution Guidelines](CONTRIBUTING.md).
+This project is open to feature requests, suggestions, and bug reports via [GitHub issues](https://github.com/konfidence-project/konfidence/internal/star/galaxy-sync/issues). Contributions are encouraged and always welcome. For more information on how to contribute, see our [Contribution Guidelines](CONTRIBUTING.md).
 
 ## Security / Disclosure
 
-If you find a bug that may be a security problem, please follow the instructions in our [security policy](https://github.com/konfidence-project/landscape-gcp-sync-controller/security/policy) on how to report it. Please do not create GitHub issues for security-related concerns.
+If you find a bug that may be a security problem, please follow the instructions in our [security policy](https://github.com/konfidence-project/konfidence/internal/star/galaxy-sync/security/policy) on how to report it. Please do not create GitHub issues for security-related concerns.
 
 ## Code of Conduct
 
@@ -98,4 +98,4 @@ We as members, contributors, and leaders pledge to make participation in our com
 
 ## Licensing
 
-Copyright 2026 SAP SE or an SAP affiliate company and landscape-gcp-sync-controller contributors. Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available via the [REUSE tool](https://api.reuse.software/info/github.com/konfidence-project/landscape-gcp-sync-controller).
+Copyright 2026 SAP SE or an SAP affiliate company and landscape-gcp-sync-controller contributors. Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available via the [REUSE tool](https://api.reuse.software/info/github.com/konfidence-project/konfidence/internal/star/galaxy-sync).

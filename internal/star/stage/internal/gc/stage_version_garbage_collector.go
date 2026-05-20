@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"

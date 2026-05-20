@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/coordination/v1"
@@ -63,7 +63,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "landscape")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "star")},
 		ErrorIfCRDPathMissing: true,
 	}
 

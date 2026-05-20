@@ -10,7 +10,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
+	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"ocm.software/open-component-model/bindings/go/blob"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,7 +18,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller/domain"
 )
 
 // VectorPromotionStatusPropagationReconciler enures that the status condition of the VectorPromotion are propagated to the
@@ -30,10 +30,10 @@ type VectorPromotionStatusPropagationReconciler struct {
 
 const statusPropagationReconcileInterval = time.Second * 1
 
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotions/status,verbs=get
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotionconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions/status,verbs=get
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotionconfigs/status,verbs=get;update;patch
 
 func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx).WithValues("cluster", req.ClusterName)

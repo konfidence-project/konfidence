@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -67,13 +67,13 @@ type StageSyncReconciler struct {
 	RemoteCluster cluster.Cluster
 	Scheme        *runtime.Scheme
 	Recorder      events.EventRecorder
-	LandscapeName string // name of the local (Star) cluster (landscape name), used for labeling
+	LandscapeName string // name of the local (Star) cluster (star name), used for labeling
 }
 
 // +kubebuilder:rbac:groups="",resources=namespaces;secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;patch
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=stagesyncs;stagesyncs/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=landscape.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stagesyncs;stagesyncs/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 
 func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -231,7 +231,7 @@ func (r *StageSyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 func (r *StageSyncReconciler) isStageVersionServed(ctx context.Context, logger logr.Logger, expectedVersion string) (bool, error) {
 	crd := &apiextensionsv1.CustomResourceDefinition{}
-	if err := r.LocalClient.Get(ctx, client.ObjectKey{Name: "stages.landscape.konfidence.cloud"}, crd); err != nil {
+	if err := r.LocalClient.Get(ctx, client.ObjectKey{Name: "stages.star.konfidence.cloud"}, crd); err != nil {
 		return false, fmt.Errorf("unable to fetch Stage CRD: %w", err)
 	}
 

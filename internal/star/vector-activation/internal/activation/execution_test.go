@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	. "github.com/konfidence-project/landscape-vector-activation-controller/test/mocks"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	. "github.com/konfidence-project/konfidence/internal/star/vector-activation/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -50,7 +50,7 @@ var _ = Describe("activation task execution tests", func() {
 				UID:       "test-uid",
 			},
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "landscape.konfidence.io/v1alpha1",
+				APIVersion: "star.konfidence.io/v1alpha1",
 				Kind:       "VectorActivation",
 			},
 			Spec: landscape.VectorActivationSpec{

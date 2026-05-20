@@ -13,8 +13,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	v1alpha1 "github.com/konfidence-project/crds/api/global/v1alpha1"
-	repository "github.com/konfidence-project/pkg/ocm/repository"
+	v1alpha1 "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	repository "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	gomock "go.uber.org/mock/gomock"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )

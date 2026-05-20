@@ -23,10 +23,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/konfidence-project/crds/api/global/v1alpha1"
-	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
-	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
-	"github.com/konfidence-project/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/internal/controller/domain"
+	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
+	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,8 +61,8 @@ type VectorTemplateReconciler struct {
 	VersionGenerator      domain.VectorVersionGenerator
 }
 
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectortemplates/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectortemplates/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 

@@ -11,15 +11,15 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/konfidence-project/pkg/ocm/crypto"
-	pkgocm "github.com/konfidence-project/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"golang.org/x/sync/errgroup"
 	ocmDescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/internal/controller/domain"
 )
 
 var (

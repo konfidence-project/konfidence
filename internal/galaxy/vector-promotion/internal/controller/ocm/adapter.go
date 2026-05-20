@@ -16,17 +16,17 @@ limitations under the License.
 
 package ocm
 
-//go:generate go run go.uber.org/mock/mockgen -destination=internal/mock/client_mock.go -package=mock github.com/konfidence-project/pkg/ocm/repository Client
-//go:generate go run go.uber.org/mock/mockgen -destination=internal/mock/verifier_mock.go -package=mock github.com/konfidence-project/pkg/ocm/crypto Verifier
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mock/client_mock.go -package=mock github.com/konfidence-project/konfidence/pkg/ocm/repository Client
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mock/verifier_mock.go -package=mock github.com/konfidence-project/konfidence/pkg/ocm/crypto Verifier
 
 import (
 	"context"
 	"errors"
 	"fmt"
 
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
-	"github.com/konfidence-project/pkg/ocm/crypto"
-	pkgrepository "github.com/konfidence-project/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller/domain"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	pkgrepository "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ocispec "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 	ctrl "sigs.k8s.io/controller-runtime"

@@ -3,7 +3,7 @@ package domain
 import (
 	"errors"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 )
 
 var (

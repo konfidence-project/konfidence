@@ -10,7 +10,7 @@
 //
 // # Quick Start
 //
-//	import "github.com/konfidence-project/pkg/ocm/compref"
+//	import "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 //
 //	// Parse references with OCI tag aliases (validates by default)
 //	ref, err := compref.Parse("ghcr.io/org/components//github.com/org/app:latest")

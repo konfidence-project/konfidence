@@ -1,8 +1,0 @@
-apiVersion: artifact.konfidence.cloud/v1
-kind: ArtifactManifest
-metadata:
-  name: service1
-spec:
-  image: docker.io/stefanprodan/podinfo:6.9.4
-  replicas: 2
-  port: 9898

@@ -13,8 +13,8 @@ import (
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/runtime"
 
-	"github.com/konfidence-project/gcp-vector-assembly-controller/internal/controller/domain"
-	"github.com/konfidence-project/gcp-vector-assembly-controller/pkg/ocm/mocks"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/internal/controller/domain"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/pkg/ocm/mocks"
 )
 
 func TestOcmAdapter(t *testing.T) {

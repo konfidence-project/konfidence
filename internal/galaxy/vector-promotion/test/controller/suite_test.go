@@ -27,8 +27,8 @@ import (
 	"runtime"
 	"testing"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	pkgOcm "github.com/konfidence-project/pkg/ocm/repository"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/testcontainers/testcontainers-go"
@@ -46,8 +46,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller"
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/ocm"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller/ocm"
 )
 
 var (
@@ -161,7 +161,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping envtest")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "global")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "galaxy")},
 		ErrorIfCRDPathMissing: true,
 		UseExistingCluster:    new(false),
 	}

@@ -3,7 +3,7 @@ package domain
 import (
 	"time"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

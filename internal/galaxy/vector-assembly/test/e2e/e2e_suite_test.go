@@ -25,10 +25,7 @@ import (
 	"os/exec"
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
-	"github.com/konfidence-project/gcp-vector-assembly-controller/test/utils"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly/test/utils"
 )
 
 var (
