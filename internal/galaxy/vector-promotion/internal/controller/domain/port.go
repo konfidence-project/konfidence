@@ -3,7 +3,7 @@ package domain
 import (
 	"context"
 
-	pkgrepository "github.com/konfidence-project/pkg/ocm/repository"
+	pkgrepository "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 )
 

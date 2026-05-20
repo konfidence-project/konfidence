@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,7 +32,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller/domain"
 )
 
 // VectorPromotionTTLReconciler deletes VectorPromotion objects that have exceeded their TTL
@@ -42,7 +42,7 @@ type VectorPromotionTTLReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=global.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;delete
+// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;delete
 
 func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx).WithValues("cluster", req.ClusterName)

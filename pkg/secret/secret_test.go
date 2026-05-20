@@ -19,7 +19,7 @@ package secret
 import (
 	"context"
 
-	. "github.com/konfidence-project/pkg/secret/internal/mocks"
+	. "github.com/konfidence-project/konfidence/pkg/secret/internal/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"

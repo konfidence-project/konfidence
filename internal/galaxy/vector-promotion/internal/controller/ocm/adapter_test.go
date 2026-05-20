@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 
-	konfcompref "github.com/konfidence-project/pkg/ocm/compref"
+	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -29,8 +29,8 @@ import (
 	ocispec "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 	"ocm.software/open-component-model/bindings/go/runtime"
 
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/domain"
-	"github.com/konfidence-project/gcp-vector-promotion-controller/internal/controller/ocm/internal/mock"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller/domain"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller/ocm/internal/mock"
 )
 
 var _ = Describe("PromotionAdapter", func() {

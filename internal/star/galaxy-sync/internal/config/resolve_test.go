@@ -17,7 +17,7 @@ limitations under the License.
 package config_test
 
 import (
-	"github.com/konfidence-project/landscape-gcp-sync-controller/internal/config"
+	"github.com/konfidence-project/konfidence/internal/star/galaxy-sync/internal/config"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

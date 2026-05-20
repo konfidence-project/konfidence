@@ -61,7 +61,7 @@
 //	    ctx,
 //	    r.Client,          // sigs.k8s.io/controller-runtime/pkg/client.Reader
 //	    req.Namespace,
-//	    credentialsConfig, // []global.CredentialsConfig from the reconciled resource
+//	    credentialsConfig, // []galaxy.CredentialsConfig from the reconciled resource
 //	)
 //	if err != nil {
 //	    return ctrl.Result{}, err
@@ -70,7 +70,7 @@
 // For testing, use ClientProviderFunc to adapt any function to the ClientProvider interface:
 //
 //	fakeProvider := repository.ClientProviderFunc(
-//	    func(ctx context.Context, k8sClient client.Reader, namespace string, creds []global.CredentialsConfig) (repository.Client, error) {
+//	    func(ctx context.Context, k8sClient client.Reader, namespace string, creds []galaxy.CredentialsConfig) (repository.Client, error) {
 //	        return myFakeClient, nil
 //	    },
 //	)

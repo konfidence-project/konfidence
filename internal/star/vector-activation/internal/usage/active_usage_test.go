@@ -3,8 +3,8 @@ package usage
 import (
 	"context"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
-	. "github.com/konfidence-project/landscape-vector-activation-controller/test/mocks"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	. "github.com/konfidence-project/konfidence/internal/star/vector-activation/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -65,7 +65,7 @@ var _ = Describe("active usage tests", func() {
 			Expect(usage.Name).To(Equal(name))
 
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.Any()).
-				Return(apierrors.NewNotFound(schema.GroupResource{Group: "landscape.konfidence.io", Resource: "stageversionusages"}, "not-found"))
+				Return(apierrors.NewNotFound(schema.GroupResource{Group: "star.konfidence.io", Resource: "stageversionusages"}, "not-found"))
 
 			usage, err = GetCurrentActiveUsage(ctx, clientMock, stage)
 			Expect(err).ToNot(HaveOccurred())

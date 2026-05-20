@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/konfidence-project/landscape-vector-deployment-controller/test/utils"
+	"github.com/konfidence-project/konfidence/internal/star/vector-deployment/test/utils"
 )
 
 var (
@@ -39,7 +39,7 @@ var (
 
 	// projectImage is the name of the image which will be build and loaded
 	// with the code source changes to be tested.
-	projectImage = "example.com/landscape-vector-deployment-controller:v0.0.1"
+	projectImage = "example.com/star-vector-deployment-controller:v0.0.1"
 )
 
 // TestE2E runs the end-to-end (e2e) test suite for the project. These tests execute in an isolated,
@@ -48,7 +48,7 @@ var (
 // CertManager.
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	_, _ = fmt.Fprintf(GinkgoWriter, "Starting landscape-vector-deployment-controller integration test suite\n")
+	_, _ = fmt.Fprintf(GinkgoWriter, "Starting star-vector-deployment-controller integration test suite\n")
 	RunSpecs(t, "e2e suite")
 }
 

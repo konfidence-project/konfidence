@@ -20,7 +20,7 @@ import (
 	"context"
 	"time"
 
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -153,7 +153,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		vectorDeployment := &landscape.VectorDeployment{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "VectorDeployment",
-				APIVersion: "landscape.konfidence.cloud/v1alpha1",
+				APIVersion: "star.konfidence.cloud/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ocmName,
@@ -303,8 +303,8 @@ var _ = Describe("VectorDeployment Controller", func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		meta.SetStatusCondition(&vectorAssignment.Status.Conditions, metav1.Condition{
-			Type:               landscape.VectorAssignedCondition,
-			Reason:             landscape.VectorAssignedCondition,
+			Type:               landscape.VectorAssignmentsCreatedCondition,
+			Reason:             landscape.VectorAssignmentsCreatedCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "simulated",
 			ObservedGeneration: vectorAssignment.Generation,

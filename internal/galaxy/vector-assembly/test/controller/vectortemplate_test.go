@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	testutilOcm "github.com/konfidence-project/pkg/testutil/ocm"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	testutilOcm "github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"

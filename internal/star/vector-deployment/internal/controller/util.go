@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"strings"
 
-	pkgSanitize "github.com/konfidence-project/pkg/sanitize"
+	pkgSanitize "github.com/konfidence-project/konfidence/pkg/sanitize"
 )
 
 func ConstructArtifactDeploymentName(artifactName, artifactVersion string, uid *string) (string, error) {

@@ -19,8 +19,8 @@ package controller
 import (
 	"encoding/json"
 
-	global "github.com/konfidence-project/crds/api/global/v1alpha1"
-	landscape "github.com/konfidence-project/crds/api/landscape/v1alpha1"
+	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,7 +49,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v1alpha1")
+			stageSync = buildStageSync(stageNamespace, "star.konfidence.cloud/v1alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -121,7 +121,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			Expect(reflectedStatus).To(Equal(createdStage.Status))
 
 			By("verifying the remote StageSync carries the synced-by-star label")
-			expectedLabelKey := stageSyncedByLabelPrefix + "test-landscape"
+			expectedLabelKey := stageSyncedByLabelPrefix + "test-star"
 			Expect(updatedStageSync.GetLabels()).To(HaveKeyWithValue(expectedLabelKey, "true"))
 		})
 	})
@@ -131,7 +131,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v1alpha1")
+			stageSync = buildStageSync(stageNamespace, "star.konfidence.cloud/v1alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 
 			By("waiting for the Stage to be created on the local cluster")
@@ -177,7 +177,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			}, fresh)).To(Succeed())
 
 			fresh.Spec.StageTemplate = runtime.RawExtension{
-				Raw: buildStageRaw(stageName, stageNamespace, "landscape.konfidence.cloud/v1alpha1", updatedVector),
+				Raw: buildStageRaw(stageName, stageNamespace, "star.konfidence.cloud/v1alpha1", updatedVector),
 			}
 			Expect(remoteK8sClient.Update(ctx, fresh)).To(Succeed())
 
@@ -224,7 +224,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			Expect(localK8sClient.Create(ctx, unmanagedStage)).To(Succeed())
 
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v1alpha1")
+			stageSync = buildStageSync(stageNamespace, "star.konfidence.cloud/v1alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -280,7 +280,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(nonExistentNamespace, "landscape.konfidence.cloud/v1alpha1")
+			stageSync = buildStageSync(nonExistentNamespace, "star.konfidence.cloud/v1alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -309,7 +309,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v999alpha1")
+			stageSync = buildStageSync(stageNamespace, "star.konfidence.cloud/v999alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
@@ -338,7 +338,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
-			stageSync = buildStageSync(stageNamespace, "landscape.konfidence.cloud/v1alpha1")
+			stageSync = buildStageSync(stageNamespace, "star.konfidence.cloud/v1alpha1")
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 
 			By("waiting for the Stage to be created on the local cluster")

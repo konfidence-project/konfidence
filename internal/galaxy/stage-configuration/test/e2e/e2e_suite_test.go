@@ -22,10 +22,9 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration/test/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/konfidence-project/gcp-stage-configuration-controller/test/utils"
 )
 
 var (
