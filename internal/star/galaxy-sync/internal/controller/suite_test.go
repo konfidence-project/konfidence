@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -77,7 +78,7 @@ var _ = BeforeSuite(func() {
 	By("bootstrapping local test environment")
 	localTestEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "test", "data", "crds", "star"),
+			filepath.Join("..", "..", "..", "..", "..", "api", "star", "config", "bases", "crd"),
 		},
 		ErrorIfCRDPathMissing: true,
 	}
@@ -99,7 +100,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping remote test environment")
 	remoteTestEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "galaxy")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "..", "..", "api", "galaxy", "config", "bases", "crd")},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -119,6 +120,9 @@ var _ = BeforeSuite(func() {
 	// create manager
 	k8sManager, err := ctrl.NewManager(localCfg, ctrl.Options{
 		Scheme: scheme.Scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -167,7 +171,7 @@ var _ = AfterSuite(func() {
 // setting the 'KUBEBUILDER_ASSETS' environment variable. To ensure the binaries are
 // properly set up, run 'make setup-envtest' beforehand.
 func getFirstFoundEnvTestBinaryDir() string {
-	basePath := filepath.Join("..", "..", "bin", "k8s")
+	basePath := filepath.Join("..", "..", "..", "..", "..", "bin", "k8s")
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
 		logf.Log.Error(err, "Failed to read directory", "path", basePath)

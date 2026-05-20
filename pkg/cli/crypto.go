@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	VectorVerifyEnv                 = "OCM_VECTOR_VERIFY"
-	ArtifactVerifyEnv               = "OCM_ARTIFACT_VERIFY"
-	VectorSignEnv                   = "OCM_VECTOR_SIGN"
+	VectorVerifyEnv                  = "OCM_VECTOR_VERIFY"
+	ArtifactVerifyEnv                = "OCM_ARTIFACT_VERIFY"
+	VectorSignEnv                    = "OCM_VECTOR_SIGN"
 	VerifierTrustAnchorConfigMapName = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAME"
 	VerifierTrustAnchorConfigMapNs   = "OCM_VERIFIER_TRUST_ANCHOR_CONFIGMAP_NAMESPACE"
 	SigningCredentialSecretName      = "OCM_RSA_SIGNING_KEY_SECRET_NAME"
