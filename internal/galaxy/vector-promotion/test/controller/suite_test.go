@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion/internal/controller"
@@ -161,7 +162,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping envtest")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "test", "data", "crds", "galaxy")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "..", "..", "api", "galaxy", "config", "bases", "crd")},
 		ErrorIfCRDPathMissing: true,
 		UseExistingCluster:    new(false),
 	}
@@ -200,6 +201,9 @@ func startManager() {
 
 	mgr, err := mcmanager.New(cfg, nil, ctrl.Options{
 		Scheme: scheme.Scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
 	})
 	Expect(err).NotTo(HaveOccurred(), "failed to create multicluster manager")
 
@@ -290,7 +294,7 @@ func buildOCMConfig(endpoints ...registryCredential) *configuration.Configuratio
 }
 
 func getFirstFoundEnvTestBinaryDir() string {
-	basePath := filepath.Join("..", "..", "bin", "k8s")
+	basePath := filepath.Join("..", "..", "..", "..", "..", "bin", "k8s")
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
 		logf.Log.Error(err, "Failed to read envtest binary directory", "path", basePath)
