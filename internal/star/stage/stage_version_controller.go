@@ -234,7 +234,12 @@ func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context,
 	return vectorMigration, nil
 }
 
-func (r *StageVersionReconciler) getOrCreateVectorActivation(ctx context.Context, stageVersion *landscape.StageVersion, stageName string, vectorDeployment *landscape.VectorDeployment) (*landscape.VectorActivation, error) {
+func (r *StageVersionReconciler) getOrCreateVectorActivation(
+	ctx context.Context,
+	stageVersion *landscape.StageVersion,
+	stageName string,
+	vectorDeployment *landscape.VectorDeployment,
+) (*landscape.VectorActivation, error) {
 	log := logf.FromContext(ctx)
 	vectorActivation, err := r.constructVectorActivation(stageVersion, stageName, vectorDeployment)
 	if err != nil {
@@ -298,7 +303,11 @@ func (r *StageVersionReconciler) constructVectorMigration(stageVersion *landscap
 	return vectorMigration, nil
 }
 
-func (r *StageVersionReconciler) constructVectorActivation(stageVersion *landscape.StageVersion, stageName string, vectorDeployment *landscape.VectorDeployment) (*landscape.VectorActivation, error) {
+func (r *StageVersionReconciler) constructVectorActivation(
+	stageVersion *landscape.StageVersion,
+	stageName string,
+	vectorDeployment *landscape.VectorDeployment,
+) (*landscape.VectorActivation, error) {
 	vectorActivation := &landscape.VectorActivation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageVersion.Name,

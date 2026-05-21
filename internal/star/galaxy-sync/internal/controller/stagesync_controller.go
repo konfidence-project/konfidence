@@ -57,7 +57,8 @@ const (
 	StageSyncControllerName  = "stage-sync-controller"
 )
 
-// StageSyncReconciler watches a StageSync object on the remote client (Galaxy) and creates/updates/deletes a corresponding Stage object on the local cluster (Star).
+// StageSyncReconciler watches a StageSync object on the remote client (Galaxy) and
+// creates/updates/deletes a corresponding Stage object on the local cluster (Star).
 type StageSyncReconciler struct {
 	// LocalClient is the client accessing the Star
 	LocalClient client.Client
@@ -144,7 +145,9 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		parentStageSync, hasParentStageSync := localStage.GetLabels()[galaxyStageSyncLabelKey]
 		if !hasManagedBy || managedBy != StageSyncControllerName ||
 			!hasParentStageSync || parentStageSync != sanitizeLabelValue(req.String()) {
-			msg := fmt.Sprintf("stage that is not managed by this StageSync resource already exists with desired name and namespace; expected labels '%s: %s' and '%s: %s'",
+			msg := fmt.Sprintf(
+				"stage that is not managed by this StageSync resource already exists with desired name and namespace; "+
+					"expected labels '%s: %s' and '%s: %s'",
 				managedByLabelKey, StageSyncControllerName,
 				galaxyStageSyncLabelKey, sanitizeLabelValue(req.String()))
 			logger.Error(nil, msg)
@@ -245,7 +248,13 @@ func (r *StageSyncReconciler) isStageVersionServed(ctx context.Context, logger l
 	return false, nil
 }
 
-func (r *StageSyncReconciler) setAndPatchStatus(ctx context.Context, stageSync *global.StageSync, originalStageSync *global.StageSync, status metav1.ConditionStatus, reason, message string) error {
+func (r *StageSyncReconciler) setAndPatchStatus(
+	ctx context.Context,
+	stageSync *global.StageSync,
+	originalStageSync *global.StageSync,
+	status metav1.ConditionStatus,
+	reason, message string,
+) error {
 	meta.SetStatusCondition(&stageSync.Status.Conditions, metav1.Condition{
 		Type:               global.StageSyncAppliedCondition,
 		Status:             status,
@@ -265,14 +274,24 @@ func (r *StageSyncReconciler) setAndPatchStatus(ctx context.Context, stageSync *
 	return nil
 }
 
-func (r *StageSyncReconciler) falsifyAndPatchStatus(ctx context.Context, stageSync *global.StageSync, originalStageSync *global.StageSync, reason, message string) error {
+func (r *StageSyncReconciler) falsifyAndPatchStatus(
+	ctx context.Context,
+	stageSync *global.StageSync,
+	originalStageSync *global.StageSync,
+	reason, message string,
+) error {
 	return r.setAndPatchStatus(ctx, stageSync, originalStageSync, metav1.ConditionFalse, reason, message)
 }
 
 // setStageDeletedCondition sets the StageDeleted condition on the remote StageSync
 // and patches the status. It is used during the deletion lifecycle to report
 // progress (e.g. deletion initiated, blocked, confirmed).
-func (r *StageSyncReconciler) setStageDeletedCondition(ctx context.Context, stageSync, originalStageSync *global.StageSync, status metav1.ConditionStatus, reason, message string) error {
+func (r *StageSyncReconciler) setStageDeletedCondition(
+	ctx context.Context,
+	stageSync, originalStageSync *global.StageSync,
+	status metav1.ConditionStatus,
+	reason, message string,
+) error {
 	meta.SetStatusCondition(&stageSync.Status.Conditions, metav1.Condition{
 		Type:               global.StageDeletedCondition,
 		Status:             status,
@@ -352,7 +371,11 @@ func (r *StageSyncReconciler) ensureFinalizer(ctx context.Context, stageSync, or
 //     StageDeletionBlocked and return RequeueAfter to check again later.
 //  3. Stage found without a DeletionTimestamp → issue the delete, set
 //     StageDeletionInitiated and return RequeueAfter to confirm removal.
-func (r *StageSyncReconciler) handleStageSyncDeletion(ctx context.Context, stageSync, originalStageSync *global.StageSync, localStage *landscape.Stage) (ctrl.Result, error) {
+func (r *StageSyncReconciler) handleStageSyncDeletion(
+	ctx context.Context,
+	stageSync, originalStageSync *global.StageSync,
+	localStage *landscape.Stage,
+) (ctrl.Result, error) {
 	if !controllerutil.ContainsFinalizer(stageSync, syncControllerFinalizer) {
 		// Finalizer already removed; nothing left to do.
 		return ctrl.Result{}, nil

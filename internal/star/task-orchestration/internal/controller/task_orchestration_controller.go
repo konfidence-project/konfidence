@@ -152,7 +152,9 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 		if err := r.Delete(ctx, stageVersionUsage); err != nil {
 			return fmt.Errorf("unable to delete stageVersionUsage for vectorMigration: %w", err)
 		}
-		r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal, "StageVersionUsageDeleted", "StageVersionUsageDeleted", fmt.Sprintf("Deleted StageVersionUsage %s", stageVersionUsage.Name))
+		r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal,
+			"StageVersionUsageDeleted", "StageVersionUsageDeleted",
+			fmt.Sprintf("Deleted StageVersionUsage %s", stageVersionUsage.Name))
 
 		log.Info("VectorMigration reconciled")
 		return nil
@@ -232,12 +234,16 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 	if err := r.Delete(ctx, stageVersionUsage); err != nil {
 		return fmt.Errorf("unable to delete stageVersionUsage for vectorMigration: %w", err)
 	}
-	r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal, "StageVersionUsageDeleted", "StageVersionUsageDeleted", fmt.Sprintf("Deleted StageVersionUsage %s", stageVersionUsage.Name))
+	r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal,
+		"StageVersionUsageDeleted", "StageVersionUsageDeleted",
+		fmt.Sprintf("Deleted StageVersionUsage %s", stageVersionUsage.Name))
 	log.Info("VectorMigration reconciled")
 	return nil
 }
 
-func (r *TaskOrchestrationReconciler) getVectorDeployment(ctx context.Context, vectorMigration *landscape.VectorMigration) (*landscape.VectorDeployment, error) {
+func (r *TaskOrchestrationReconciler) getVectorDeployment(
+	ctx context.Context, vectorMigration *landscape.VectorMigration,
+) (*landscape.VectorDeployment, error) {
 	labelMatcher := client.MatchingLabels{}
 	labelMatcher[pkgCtrl.StageVersionNameLabel] = vectorMigration.Spec.StageVersion
 
@@ -253,7 +259,9 @@ func (r *TaskOrchestrationReconciler) getVectorDeployment(ctx context.Context, v
 	return &vectorDeployments.Items[0], nil
 }
 
-func (r *TaskOrchestrationReconciler) getArtifactDeployment(ctx context.Context, vectorMigration *landscape.VectorMigration, name string) (*landscape.ArtifactDeployment, error) {
+func (r *TaskOrchestrationReconciler) getArtifactDeployment(
+	ctx context.Context, vectorMigration *landscape.VectorMigration, name string,
+) (*landscape.ArtifactDeployment, error) {
 	artifactDeployment := &landscape.ArtifactDeployment{}
 	err := r.Get(ctx, types.NamespacedName{
 		Namespace: vectorMigration.Namespace,
@@ -273,18 +281,24 @@ func (r *TaskOrchestrationReconciler) getTaskExecutions(ctx context.Context, req
 	return taskExecutions.Items, nil
 }
 
-func (r *TaskOrchestrationReconciler) deleteTaskExecutions(ctx context.Context, taskExecutions []landscape.TaskExecution, vectorMigration *landscape.VectorMigration) error {
+func (r *TaskOrchestrationReconciler) deleteTaskExecutions(
+	ctx context.Context, taskExecutions []landscape.TaskExecution, vectorMigration *landscape.VectorMigration,
+) error {
 	for _, taskExecution := range taskExecutions {
 		if err := r.Delete(ctx, &taskExecution); err != nil {
 			return fmt.Errorf("unable to delete taskExecution for vectorMigration: %w", err)
 		}
-		r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal, "TaskExecutionDeleted", "TaskExecutionDeleted", fmt.Sprintf("Deleted TaskExecution %s", taskExecution.Name))
+		r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal,
+			"TaskExecutionDeleted", "TaskExecutionDeleted",
+			fmt.Sprintf("Deleted TaskExecution %s", taskExecution.Name))
 	}
 
 	return nil
 }
 
-func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(ctx context.Context, req ctrl.Request, vectorMigration *landscape.VectorMigration) (*landscape.StageVersionUsage, error) {
+func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(
+	ctx context.Context, req ctrl.Request, vectorMigration *landscape.VectorMigration,
+) (*landscape.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 	stageVersionUsage := &landscape.StageVersionUsage{}
 	err := r.Get(ctx, types.NamespacedName{Name: getStageVersionUsageName(vectorMigration.Spec.StageVersion), Namespace: req.Namespace}, stageVersionUsage)
@@ -328,7 +342,11 @@ func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(ctx context.C
 	return stageVersionUsage, nil
 }
 
-func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(ctx context.Context, vectorDeployment *landscape.VectorDeployment, vectorMigration *landscape.VectorMigration) ([]landscape.TaskManifest, error) {
+func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(
+	ctx context.Context,
+	vectorDeployment *landscape.VectorDeployment,
+	vectorMigration *landscape.VectorMigration,
+) ([]landscape.TaskManifest, error) {
 	artifactDeployments := make(map[string]landscape.ArtifactDeployment)
 	numberOfTasks := 0
 	for _, deploymentReference := range vectorDeployment.Status.ResultingArtifactDeployments {
@@ -382,7 +400,13 @@ func (r *TaskOrchestrationReconciler) mapTasks(ctx context.Context, req ctrl.Req
 	return mappedTasks, nil
 }
 
-func (r *TaskOrchestrationReconciler) processTaskLayer(ctx context.Context, vectorMigration *landscape.VectorMigration, layer []landscape.TaskManifest, taskExecutionsByName map[string]landscape.TaskExecution, successfulTaskExecutionsByName map[string]bool) (int, error) {
+func (r *TaskOrchestrationReconciler) processTaskLayer(
+	ctx context.Context,
+	vectorMigration *landscape.VectorMigration,
+	layer []landscape.TaskManifest,
+	taskExecutionsByName map[string]landscape.TaskExecution,
+	successfulTaskExecutionsByName map[string]bool,
+) (int, error) {
 	status := layerPending
 	succeeded := 0
 
@@ -399,12 +423,16 @@ func (r *TaskOrchestrationReconciler) processTaskLayer(ctx context.Context, vect
 				if err := r.Create(ctx, taskExecution); err != nil {
 					return status, fmt.Errorf("unable to create taskExecution: %w", err)
 				}
-				r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal, "TaskExecutionCreated", "TaskExecutionCreated", fmt.Sprintf("Created TaskExecution %s", taskExecution.Name))
+				r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal,
+					"TaskExecutionCreated", "TaskExecutionCreated",
+					fmt.Sprintf("Created TaskExecution %s", taskExecution.Name))
 			}
 		}
 
 		if successfulTaskExecutionsByName[task.Name] {
-			r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal, "TaskExecutionSucceeded", "TaskExecutionSucceeded", fmt.Sprintf("TaskExecution %s succeeded", task.Name))
+			r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal,
+				"TaskExecutionSucceeded", "TaskExecutionSucceeded",
+				fmt.Sprintf("TaskExecution %s succeeded", task.Name))
 			succeeded++
 		}
 	}
@@ -472,7 +500,11 @@ func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration
 	return stageVersionUsage, nil
 }
 
-func (r *TaskOrchestrationReconciler) constructTaskExecution(vectorMigration *landscape.VectorMigration, taskManifest landscape.TaskManifest, namespace string) (*landscape.TaskExecution, error) {
+func (r *TaskOrchestrationReconciler) constructTaskExecution(
+	vectorMigration *landscape.VectorMigration,
+	taskManifest landscape.TaskManifest,
+	namespace string,
+) (*landscape.TaskExecution, error) {
 	taskExecution := &landscape.TaskExecution{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      taskManifest.Name + "-" + rand.String(8),
@@ -488,7 +520,9 @@ func (r *TaskOrchestrationReconciler) constructTaskExecution(vectorMigration *la
 	return taskExecution, nil
 }
 
-func (r *TaskOrchestrationReconciler) cleanupVectorMigration(ctx context.Context, req ctrl.Request, vectorMigration *landscape.VectorMigration) (ctrl.Result, error) {
+func (r *TaskOrchestrationReconciler) cleanupVectorMigration(
+	ctx context.Context, req ctrl.Request, vectorMigration *landscape.VectorMigration,
+) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Cleanup vector migration")
 
@@ -505,14 +539,19 @@ func (r *TaskOrchestrationReconciler) cleanupVectorMigration(ctx context.Context
 
 	// check if stageVersionUsage still exists and should be deleted
 	stageVersionUsage := &landscape.StageVersionUsage{}
-	if err := r.Get(ctx, types.NamespacedName{Name: getStageVersionUsageName(vectorMigration.Spec.StageVersion), Namespace: req.Namespace}, stageVersionUsage); err != nil {
+	if err := r.Get(ctx, types.NamespacedName{
+		Name:      getStageVersionUsageName(vectorMigration.Spec.StageVersion),
+		Namespace: req.Namespace,
+	}, stageVersionUsage); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	if err := r.Delete(ctx, stageVersionUsage); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to delete stageVersionUsage for vectorMigration: %w", err)
 	}
-	r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal, "StageVersionUsageDeleted", "StageVersionUsageDeleted", fmt.Sprintf("Deleted StageVersionUsage %s", stageVersionUsage.Name))
+	r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal,
+		"StageVersionUsageDeleted", "StageVersionUsageDeleted",
+		fmt.Sprintf("Deleted StageVersionUsage %s", stageVersionUsage.Name))
 
 	log.Info("VectorMigration reconciled after resource cleanup")
 	return ctrl.Result{}, nil

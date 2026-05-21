@@ -91,8 +91,12 @@ func init() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 
-	rootCmd.PersistentFlags().StringVar(&kcpEndpointSlice, "kcp-enpoint-slice-name", os.Getenv(KcpEndpointSliceEnv), "Provides a reference to the APIExport in KCP. If using single cluster mode this shall be empty.")
-	rootCmd.PersistentFlags().StringVar(&kubernetesServiceHost, "kubernetes-host", os.Getenv(KubernetesServiceHostEnv), "connection host towards an out of band kubernetes cluster")
+	rootCmd.PersistentFlags().StringVar(&kcpEndpointSlice, "kcp-enpoint-slice-name",
+		os.Getenv(KcpEndpointSliceEnv),
+		"Provides a reference to the APIExport in KCP. If using single cluster mode this shall be empty.")
+	rootCmd.PersistentFlags().StringVar(&kubernetesServiceHost, "kubernetes-host",
+		os.Getenv(KubernetesServiceHostEnv),
+		"connection host towards an out of band kubernetes cluster")
 	servicePort := os.Getenv(KubernetesServicePortEnv)
 	var defaultPort int
 	if servicePort != "" {

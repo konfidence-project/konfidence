@@ -85,7 +85,9 @@ var _ = Describe("VectorActivation Controller", func() {
 			// assert activation usage
 			Eventually(func(g Gomega) {
 				activationUsageLabels := client.MatchingLabels{usage.ActivationStageVersionUsage: StageName}
-				usageList := util.List[*landscape.StageVersionUsageList](ctx, k8sClient, &landscape.StageVersionUsageList{}, client.InNamespace(Namespace), activationUsageLabels)
+				usageList := util.List[*landscape.StageVersionUsageList](
+					ctx, k8sClient, &landscape.StageVersionUsageList{}, client.InNamespace(Namespace), activationUsageLabels,
+				)
 
 				g.Expect(usageList.Items).To(HaveLen(1))
 				activationUsage := &usageList.Items[0]

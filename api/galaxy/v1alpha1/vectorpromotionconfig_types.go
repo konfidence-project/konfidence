@@ -52,6 +52,7 @@ type VectorPromotionConfigStatus struct {
 	LastSuccessfulPromotionConditions []metav1.Condition `json:"lastSuccessfulPromotionConditions,omitempty"`
 }
 
+//nolint:lll // Kubebuilder annotations are intentionally long.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
