@@ -75,7 +75,8 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 						// we continue trying to delete other stageVersions and only log the error here
 						log.Error(err, "unable to delete stage version", "name", stageVersion.Name)
 					}
-					gc.Recorder.Eventf(stage, nil, corev1.EventTypeNormal, "StageVersionDeleted", "StageVersionDeleted", fmt.Sprintf("StageVersion %s has been deleted by the garbage collector", stageVersion.Name))
+					gc.Recorder.Eventf(stage, nil, corev1.EventTypeNormal, "StageVersionDeleted", "StageVersionDeleted",
+						fmt.Sprintf("StageVersion %s has been deleted by the garbage collector", stageVersion.Name))
 				}
 			}
 

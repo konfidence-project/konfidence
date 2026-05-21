@@ -26,6 +26,7 @@ type Adapter struct {
 var _ controller.VectorOcmPort = (*Adapter)(nil)
 
 func NewOcmAdapter(ctx context.Context, secret *v1.Secret, vectorVerifier crypto.Verifier, artifactVerifier crypto.Verifier) (Adapter, error) {
+	//nolint:staticcheck
 	ocmClient, err := pkgOcm.NewOciClientBuilder().
 		WithLogger(ctrl.Log).
 		WithDockerConfigJsonSecret(secret).

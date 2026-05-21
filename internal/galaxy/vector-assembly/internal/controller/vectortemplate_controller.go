@@ -108,7 +108,10 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req mcreconcil
 	return ctrl.Result{RequeueAfter: requeueAfterFromSpecOrDefault(vectorTemplate)}, nil
 }
 
-func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, clusterClient client.Client, template *v1alpha1.VectorTemplate, recorder events.EventRecorder) error {
+func (r *VectorTemplateReconciler) detectAndActOnDrift(
+	ctx context.Context, clusterClient client.Client,
+	template *v1alpha1.VectorTemplate, recorder events.EventRecorder,
+) error {
 	log := logf.FromContext(ctx)
 
 	ocmClient, err := r.OcmClientProvider.NewClient(ctx, clusterClient, template.GetNamespace(), template.Spec.Config)
@@ -243,7 +246,10 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(ctx context.Context, clus
 	return nil
 }
 
-func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(ctx context.Context, ocmAdapter domain.VectorOcmPort, template *v1alpha1.VectorTemplate, vectorOCMComponentName string, recorder events.EventRecorder) ([]domain.Artifact, error) {
+func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
+	ctx context.Context, ocmAdapter domain.VectorOcmPort, template *v1alpha1.VectorTemplate,
+	vectorOCMComponentName string, recorder events.EventRecorder,
+) ([]domain.Artifact, error) {
 	baseVectorOCMComponent, err := konfcompref.Parse(*template.Spec.Base)
 	if err != nil {
 		err = fmt.Errorf("unable to create ocm reference from vector template base (%s): %w", *template.Spec.Base, err)
@@ -274,7 +280,10 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(ctx context.Contex
 		return nil, err
 	}
 	log := logf.FromContext(ctx)
-	log.Info("Using base vector for vector OCM component", "BaseVectorVersion", baseVector.Version, "BaseVectorOCMComponent", baseVectorOCMComponent.Component, "VectorOCMComponent", vectorOCMComponentName)
+	log.Info("Using base vector for vector OCM component",
+		"BaseVectorVersion", baseVector.Version,
+		"BaseVectorOCMComponent", baseVectorOCMComponent.Component,
+		"VectorOCMComponent", vectorOCMComponentName)
 
 	return baseVector.Artifacts, nil
 }

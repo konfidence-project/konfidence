@@ -23,7 +23,10 @@ const DefaultLeaseTTL = 30 * time.Second
 // The lease is associated with the provided owner object.
 // The lease is identified by a combination of resourceType and owner name. This ensures that there is a unique lease per resource type and owner.
 // The holder identity is a combination of controllerID and resourceId to uniquely identify the controller holding the lease for the specific resource.
-func AcquireResourceLease(ctx context.Context, c client.Client, resourceId string, namespace string, controllerID string, resourceType string, owner metav1.Object) (bool, error) {
+func AcquireResourceLease(
+	ctx context.Context, c client.Client, resourceId string, namespace string,
+	controllerID string, resourceType string, owner metav1.Object,
+) (bool, error) {
 	leaseName := getLeaseName(resourceType, owner.GetName())
 	holderIdentity := getHolderIdentity(controllerID, resourceId)
 	lease, err := getLease(ctx, c, leaseName, namespace)
@@ -76,7 +79,10 @@ func AcquireResourceLease(ctx context.Context, c client.Client, resourceId strin
 
 // ReleaseResourceLease releases the lease for a given resource if it is held by the specified controller.
 // It sets the HolderIdentity, RenewTime, and AcquireTime to nil to indicate that the lease is no longer held.
-func ReleaseResourceLease(ctx context.Context, c client.Client, resourceId string, namespace string, controllerID string, resourceType string, owner metav1.Object) error {
+func ReleaseResourceLease(
+	ctx context.Context, c client.Client, resourceId string, namespace string,
+	controllerID string, resourceType string, owner metav1.Object,
+) error {
 	leaseName := getLeaseName(resourceType, owner.GetName())
 	holderIdentity := getHolderIdentity(controllerID, resourceId)
 	lease, err := getLease(ctx, c, leaseName, namespace)

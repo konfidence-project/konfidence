@@ -68,7 +68,10 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 
 		reconciler = &StageConfigurationReconciler{
 			Mgr: k8sManager,
-			OcmClientProvider: pkgOcm.ClientProviderFunc(func(ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []global.CredentialsConfig) (pkgOcm.Client, error) {
+			OcmClientProvider: pkgOcm.ClientProviderFunc(func(
+				ctx context.Context, k8sClient client.Reader, namespace string,
+				credentialsConfig []global.CredentialsConfig,
+			) (pkgOcm.Client, error) {
 				return nil, nil
 			}),
 			VectorPortProvider: ports.VectorPortProviderFunc(func(verifier crypto.Verifier, client pkgOcm.Client) ports.VectorPort {

@@ -1,3 +1,4 @@
+//nolint:dupl // TODO(konfidence-project#659): extract shared standalone controller startup wiring.
 package cmd
 
 import (

@@ -53,6 +53,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			Expect(remoteK8sClient.Create(ctx, stageSync)).To(Succeed())
 		})
 
+		//nolint:dupl
 		AfterEach(func() {
 			By("cleaning up the StageSync from the remote cluster")
 			Expect(remoteK8sClient.Delete(ctx, stageSync)).To(Succeed())
@@ -387,6 +388,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			}).Should(Succeed())
 		})
 
+		//nolint:dupl
 		It("should delete the local Stage and remove the finalizer from the StageSync", func() {
 			By("deleting the StageSync on the remote cluster")
 			Expect(remoteK8sClient.Delete(ctx, stageSync)).To(Succeed())

@@ -69,6 +69,7 @@ type VectorTemplateStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
+//nolint:lll // Kubebuilder annotations are intentionally long.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories=konfidence;kden

@@ -53,6 +53,7 @@ type StageVersionUsageReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
+// TODO(konfidence-project#680): factor shared reconcile/status-patch boilerplate to fix dupl linting.
 func (r *StageVersionUsageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Reconcile stageVersionUsage started...")
@@ -134,7 +135,9 @@ func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Con
 	return nil
 }
 
-func (r *StageVersionUsageReconciler) resolveStageVersions(ctx context.Context, req ctrl.Request, stageVersionUsage *landscape.StageVersionUsage) ([]landscape.StageVersion, error) {
+func (r *StageVersionUsageReconciler) resolveStageVersions(
+	ctx context.Context, req ctrl.Request, stageVersionUsage *landscape.StageVersionUsage,
+) ([]landscape.StageVersion, error) {
 	log := logf.FromContext(ctx)
 	notFoundCondition := metav1.Condition{
 		Type:               landscape.StageVersionNotFound,
