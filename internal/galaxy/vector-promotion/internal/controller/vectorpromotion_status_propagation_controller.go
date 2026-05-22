@@ -82,7 +82,10 @@ func requeueIfNotTerminal(promotion *global.VectorPromotion) ctrl.Result {
 	return ctrl.Result{RequeueAfter: statusPropagationReconcileInterval}
 }
 
-func patchPromotionConfigStatus(ctx context.Context, clusterClient client.Client, promotion *global.VectorPromotion, config *global.VectorPromotionConfig) error {
+func patchPromotionConfigStatus(
+	ctx context.Context, clusterClient client.Client,
+	promotion *global.VectorPromotion, config *global.VectorPromotionConfig,
+) error {
 	originalConfig := config.DeepCopy()
 	config.Status.LastPromotionConditions = promotion.Status.Conditions
 	if domain.IsSucceeded(promotion) {

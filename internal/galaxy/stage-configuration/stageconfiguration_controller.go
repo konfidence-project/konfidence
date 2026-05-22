@@ -197,7 +197,10 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 	return nil
 }
 
-func (r *StageConfigurationReconciler) createOrUpdateStageSync(ctx context.Context, targetClient client.Client, stageConfiguration *global.StageConfiguration, vector string) (*global.StageSync, controllerutil.OperationResult, error) {
+func (r *StageConfigurationReconciler) createOrUpdateStageSync(
+	ctx context.Context, targetClient client.Client,
+	stageConfiguration *global.StageConfiguration, vector string,
+) (*global.StageSync, controllerutil.OperationResult, error) {
 	stageSync, stageTemplateBytes, err := r.constructStageSync(stageConfiguration, vector)
 	if err != nil {
 		return nil, controllerutil.OperationResultNone, err

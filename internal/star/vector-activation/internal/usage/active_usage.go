@@ -29,13 +29,22 @@ func GetCurrentActiveUsage(ctx context.Context, c client.Client, stage *landscap
 	return stageVersionUsage, nil
 }
 
-func IsNewerThanCurrentActiveUsage(ctx context.Context, c client.Client, stageVersion *landscape.StageVersion, activeStageVersionUsage *landscape.StageVersionUsage) (bool, error) {
+func IsNewerThanCurrentActiveUsage(
+	ctx context.Context,
+	c client.Client,
+	stageVersion *landscape.StageVersion,
+	activeStageVersionUsage *landscape.StageVersionUsage,
+) (bool, error) {
 	activeStageVersion := &landscape.StageVersion{}
-	err := c.Get(ctx, types.NamespacedName{Name: activeStageVersionUsage.Spec.StageVersionRef.Name, Namespace: activeStageVersionUsage.Namespace}, activeStageVersion)
+	err := c.Get(ctx,
+		types.NamespacedName{Name: activeStageVersionUsage.Spec.StageVersionRef.Name, Namespace: activeStageVersionUsage.Namespace},
+		activeStageVersion,
+	)
 	if err != nil {
 		return false, fmt.Errorf("referenced stageVersion %s does not exist: %w", activeStageVersionUsage.Spec.StageVersionRef, err)
 	}
-	// TODO: clarify what should happen in case of equal generation. Proposal: equal generation should only lead to a reconcile if the activation status is not successful (or failed?)
+	// TODO: clarify what should happen in case of equal generation.
+	// Proposal: equal generation should only lead to a reconcile if the activation status is not successful (or failed?)
 	if stageVersion.Spec.StageGeneration < activeStageVersion.Spec.StageGeneration {
 		return false, nil
 	}
@@ -54,7 +63,9 @@ func UpdateActiveUsage(ctx context.Context, c client.Client, stageVersionUsage *
 	return nil
 }
 
-func CreateActiveUsage(ctx context.Context, c client.Client, stage *landscape.Stage, stageVersion *landscape.StageVersion) (*landscape.StageVersionUsage, error) {
+func CreateActiveUsage(
+	ctx context.Context, c client.Client, stage *landscape.Stage, stageVersion *landscape.StageVersion,
+) (*landscape.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 	name := getName(stage)
 	newActiveStageVersionUsage := &landscape.StageVersionUsage{
@@ -79,7 +90,13 @@ func CreateActiveUsage(ctx context.Context, c client.Client, stage *landscape.St
 	return newActiveStageVersionUsage, nil
 }
 
-func CreateOrUpdateActiveUsage(ctx context.Context, c client.Client, activeStageVersionUsage *landscape.StageVersionUsage, stage *landscape.Stage, stageVersion *landscape.StageVersion) error {
+func CreateOrUpdateActiveUsage(
+	ctx context.Context,
+	c client.Client,
+	activeStageVersionUsage *landscape.StageVersionUsage,
+	stage *landscape.Stage,
+	stageVersion *landscape.StageVersion,
+) error {
 	if activeStageVersionUsage == nil {
 		_, err := CreateActiveUsage(ctx, c, stage, stageVersion)
 		if err != nil {

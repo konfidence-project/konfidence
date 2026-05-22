@@ -5,34 +5,59 @@ linters:
   default: none
   enable:
     - copyloopvar
+    - dupl
     - errcheck
+    - ginkgolinter
+    - goconst
+    - gocyclo
     - govet
     - ineffassign
+    - lll
     - misspell
+    - nakedret
+    - prealloc
     - revive
     - staticcheck
     - unconvert
+    - unparam
     - unused
-issues:
-  exclude-rules:
-    # Exclude generated files from all linters
-    - path: "zz_generated\\.deepcopy\\.go"
-      linters:
-        - unused
-        - ineffassign
-        - revive
-    # Exclude API types from certain linters (they're mostly struct definitions)
-    - path: "api/.*/.*types\\.go"
-      linters:
-        - revive
-        - unused
-  exclude-dirs:
-    - third_party
-    - builtin
-    - examples
-linters-settings:
-  goimports:
-    local-prefixes: konfidence.cloud
-  revive:
+  settings:
+    lll:
+      line-length: 160
+    goimports:
+      local-prefixes: konfidence.cloud
+    revive:
+      rules:
+        - name: comment-spacings
+        - name: import-shadowing
+  exclusions:
+    generated: lax
     rules:
-      - name: comment-spacings
+      # Exclude generated files from all linters
+      - path: "zz_generated\\.deepcopy\\.go"
+        linters:
+          - unused
+          - ineffassign
+          - revive
+      # Exclude API types from certain linters (they're mostly struct definitions)
+      - path: "api/.*/.*types\\.go"
+        linters:
+          - revive
+          - unused
+      # Allow dot-imports in test files (conventional for ginkgo/gomega)
+      - path: "_test\\.go"
+        text: "should not use dot imports"
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

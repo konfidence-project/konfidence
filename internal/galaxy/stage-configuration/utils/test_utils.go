@@ -37,7 +37,10 @@ func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name
 	Expect(k8sClient.Create(ctx, stageConfiguration)).To(Succeed())
 }
 
-func CreateStageSync(ctx context.Context, k8sClient client.Client, name string, namespace string, stageConfigName string, targetNamespace string, stageName string, vectorName string) {
+func CreateStageSync(
+	ctx context.Context, k8sClient client.Client, name string, namespace string,
+	stageConfigName string, targetNamespace string, stageName string, vectorName string,
+) {
 	stageConfiguration := global.StageConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "galaxy.konfidence.cloud/v1alpha1",

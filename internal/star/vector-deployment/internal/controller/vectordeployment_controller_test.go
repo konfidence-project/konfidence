@@ -101,7 +101,13 @@ var _ = Describe("VectorDeployment Controller", func() {
 					Version:    "0.0.1",
 				},
 			},
-			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector","version":"0.3.0","labels":[{"name":"konfidence-project/sample-vector","value":"01904be8-bae3-ae70-e4d6-78af41d7e0a2","version":"v1"}],"creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project","resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1","componentName":"github.com/konfidence-project/sample-service-1","digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
+			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +
+				`"version":"0.3.0","labels":[{"name":"konfidence-project/sample-vector",` +
+				`"value":"01904be8-bae3-ae70-e4d6-78af41d7e0a2","version":"v1"}],` +
+				`"creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project",` +
+				`"resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1",` +
+				`"componentName":"github.com/konfidence-project/sample-service-1",` +
+				`"digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
 		}
 		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(vectorDescriptor, nil).AnyTimes()
 
@@ -115,13 +121,19 @@ var _ = Describe("VectorDeployment Controller", func() {
 					Name:      "sample-service-1-task-1",
 					Type:      "k8s-job",
 					DependsOn: nil,
-					Spec:      "{\"template\":{\"spec\":{\"restartPolicy\":\"Never\",\"containers\":[{\"name\":\"sample-service-1-task-1-container\",\"image\":\"alpine:3.22.1\",\"command\":[\"echo\",\"I am task 1 of service 1\"]}]}},\"backoffLimit\":4}",
+					Spec: "{\"template\":{\"spec\":{\"restartPolicy\":\"Never\"," +
+						"\"containers\":[{\"name\":\"sample-service-1-task-1-container\"," +
+						"\"image\":\"alpine:3.22.1\",\"command\":[\"echo\"," +
+						"\"I am task 1 of service 1\"]}]}},\"backoffLimit\":4}",
 				},
 				{
 					Name:      "sample-service-1-task-2",
 					Type:      "k8s-job",
 					DependsOn: nil,
-					Spec:      "{\"template\":{\"spec\":{\"restartPolicy\":\"Never\",\"containers\":[{\"name\":\"sample-service-1-task-2-container\",\"image\":\"alpine:3.22.1\",\"command\":[\"echo\",\"I am task 2 of service 1\"]}]}},\"backoffLimit\":4}",
+					Spec: "{\"template\":{\"spec\":{\"restartPolicy\":\"Never\"," +
+						"\"containers\":[{\"name\":\"sample-service-1-task-2-container\"," +
+						"\"image\":\"alpine:3.22.1\",\"command\":[\"echo\"," +
+						"\"I am task 2 of service 1\"]}]}},\"backoffLimit\":4}",
 				},
 			},
 			Resources: []OCMResource{

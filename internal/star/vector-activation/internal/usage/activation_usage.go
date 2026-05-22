@@ -12,7 +12,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func CreateActivationUsage(ctx context.Context, c client.Client, stage *landscape.Stage, activation *landscape.VectorActivation) (*landscape.StageVersionUsage, error) {
+func CreateActivationUsage(
+	ctx context.Context, c client.Client, stage *landscape.Stage, activation *landscape.VectorActivation,
+) (*landscape.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 
 	stageVersionUsage := &landscape.StageVersionUsage{

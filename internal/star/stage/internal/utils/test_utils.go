@@ -101,7 +101,15 @@ func CreateStageVersion(ctx context.Context, k8sClient client.Client, stageName,
 	Expect(k8sClient.Create(ctx, stageVersion)).To(Succeed())
 }
 
-func CreateStageVersionWithLabels(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string, stageName string, adaptedVectorName string) {
+func CreateStageVersionWithLabels(
+	ctx context.Context,
+	k8sClient client.Client,
+	name string,
+	namespace string,
+	vectorName string,
+	stageName string,
+	adaptedVectorName string,
+) {
 	stageVersion := &landscape.StageVersion{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "star.konfidence.cloud/v1alpha1",
@@ -190,7 +198,15 @@ func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name 
 	Expect(k8sClient.Create(ctx, usage)).To(Succeed())
 }
 
-func CreateStageVersionUsageWithSelector(ctx context.Context, k8sClient client.Client, name string, namespace string, stageName string, vectorRef string, isTarget bool) {
+func CreateStageVersionUsageWithSelector(
+	ctx context.Context,
+	k8sClient client.Client,
+	name string,
+	namespace string,
+	stageName string,
+	vectorRef string,
+	isTarget bool,
+) {
 	usage := &landscape.StageVersionUsage{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "star.konfidence.cloud/v1alpha1",

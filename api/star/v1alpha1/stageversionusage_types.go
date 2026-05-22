@@ -67,6 +67,8 @@ type StageVersionUsageStatus struct {
 // +kubebuilder:printcolumn:name="Stage-Version-Ref",type=string,JSONPath=".spec.stageVersionRef.name",description="The referenced StageVersion"
 // +kubebuilder:printcolumn:name="Stage-Version-Selector",type=string,JSONPath=".spec.stageVersionSelector",description="The label selector for the StageVersion"
 // +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".spec.reason",description="The reason for this StageVersion usage"
+//
+//nolint:lll // Kubebuilder annotations are intentionally long.
 type StageVersionUsage struct {
 	metav1.TypeMeta `json:",inline"`
 
