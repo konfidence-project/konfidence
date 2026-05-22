@@ -11,7 +11,7 @@ import (
 	vectoractivation "github.com/konfidence-project/konfidence/internal/star/vector-activation"
 	vectordeployment "github.com/konfidence-project/konfidence/internal/star/vector-deployment"
 	"github.com/konfidence-project/konfidence/internal/star/vector-deployment/pkg/ocm"
-	"github.com/konfidence-project/konfidence/pkg/cli"
+	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -39,7 +39,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	// Resolve crypto and OcmAdapter for vector-deployment.
 	// TODO: resolve lazily based on which controllers are enabled
-	cryptoCfg, err := cli.ResolveCryptoConfig(signalContext, mgr, setupLog)
+	cryptoCfg, err := pkgcmd.ResolveCryptoConfig(signalContext, mgr, setupLog)
 	if err != nil {
 		setupLog.Error(err, "unable to resolve crypto config")
 		return err
@@ -57,75 +57,53 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	setups := []struct {
-		Name  string
-		Setup func() error
-	}{
-		{
-			Name: "Stage",
-			Setup: func() error {
-				if err := stage.SetupControllers(mgr, setupLog); err != nil {
-					return err
+	controllerSetups := map[string]func() error{
+		stage.OperatorFlagName: func() error {
+			if err := stage.SetupControllers(mgr, setupLog); err != nil {
+				return err
+			}
+			gc := stage.NewGarbageCollector(mgr)
+			setupLog.Info("Starting stageVersion garbage collector")
+			go func() {
+				if err := gc.Start(signalContext); err != nil {
+					cancel()
+					setupLog.Error(err, "An error occurred while starting/running the stageVersion garbage collector")
 				}
-				gc := stage.NewGarbageCollector(mgr)
-				setupLog.Info("Starting stageVersion garbage collector")
-				go func() {
-					if err := gc.Start(signalContext); err != nil {
-						cancel()
-						setupLog.Error(err, "An error occurred while starting/running the stageVersion garbage collector")
-					}
-				}()
-				return nil
-			},
+			}()
+			return nil
 		},
-		{
-			Name: "TaskOrchestration",
-			Setup: func() error {
-				return taskorchestration.SetupControllers(mgr, setupLog)
-			},
+		taskorchestration.OperatorFlagName: func() error {
+			return taskorchestration.SetupControllers(mgr, setupLog)
 		},
-		{
-			Name: "VectorActivation",
-			Setup: func() error {
-				return vectoractivation.SetupControllers(mgr, setupLog)
-			},
+		vectoractivation.OperatorFlagName: func() error {
+			return vectoractivation.SetupControllers(mgr, setupLog)
 		},
-		{
-			Name: "VectorDeployment",
-			Setup: func() error {
-				return vectordeployment.SetupControllers(mgr, setupLog, vectordeployment.Options{
-					OcmAdapter: ocmAdapter,
-				})
-			},
+		vectordeployment.OperatorFlagName: func() error {
+			return vectordeployment.SetupControllers(mgr, setupLog, vectordeployment.Options{
+				OcmAdapter: ocmAdapter,
+			})
 		},
-		{
-			Name: "GalaxySync",
-			Setup: func() error {
-				return galaxysync.SetupControllers(mgr, setupLog, scheme, galaxysync.Options{
-					ControllerNamespace: os.Getenv("CONTROLLER_NAMESPACE"),
-				})
-			},
+		galaxysync.OperatorFlagName: func() error {
+			return galaxysync.SetupControllers(mgr, setupLog, scheme, galaxysync.Options{
+				ControllerNamespace: os.Getenv("CONTROLLER_NAMESPACE"),
+			})
 		},
 	}
 
-	names := make([]string, len(setups))
-	for i, s := range setups {
-		names[i] = s.Name
-	}
-	enabled, err := cli.Filter(controllersSpec, names)
+	enabled, err := pkgcmd.FilterEnabledControllers(controllersSpec, controllerSetups)
 	if err != nil {
 		setupLog.Error(err, "invalid --controllers flag")
 		return err
 	}
 
-	for _, s := range setups {
-		if !enabled[s.Name] {
-			setupLog.Info("controller disabled", "controller", s.Name)
+	for name, setup := range controllerSetups {
+		if !enabled[name] {
+			setupLog.Info("controller disabled", "controller", name)
 			continue
 		}
-		setupLog.Info("setting up controller", "controller", s.Name)
-		if err := s.Setup(); err != nil {
-			setupLog.Error(err, "unable to set up controller", "controller", s.Name)
+		setupLog.Info("setting up controller", "controller", name)
+		if err := setup(); err != nil {
+			setupLog.Error(err, "unable to set up controller", "controller", name)
 			return err
 		}
 	}

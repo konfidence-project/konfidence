@@ -18,7 +18,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	stageconfiguration "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration"
-	"github.com/konfidence-project/konfidence/pkg/cli"
+	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -72,7 +72,7 @@ func startStageConfigurationController(cmd *cobra.Command, args []string) error 
 
 	ctx := ctrl.SetupSignalHandler()
 
-	cryptoCfg, err := cli.ResolveCryptoConfig(ctx, mgr.GetLocalManager(), setupLog)
+	cryptoCfg, err := pkgcmd.ResolveCryptoConfig(ctx, mgr.GetLocalManager(), setupLog)
 	if err != nil {
 		return err
 	}

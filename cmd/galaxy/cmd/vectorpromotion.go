@@ -28,7 +28,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion"
-	"github.com/konfidence-project/konfidence/pkg/cli"
+	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 )
 
 var vectorpromotionCmd = &cobra.Command{
@@ -75,7 +75,7 @@ func startVectorPromotionController(cmd *cobra.Command, args []string) error {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	cryptoCfg, err := cli.ResolveCryptoConfig(ctx, mgr.GetLocalManager(), setupLog)
+	cryptoCfg, err := pkgcmd.ResolveCryptoConfig(ctx, mgr.GetLocalManager(), setupLog)
 	if err != nil {
 		return err
 	}

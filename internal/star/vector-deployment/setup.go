@@ -6,6 +6,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
+const OperatorFlagName = "VectorDeployment"
+
 // Options configures the vector deployment controllers.
 type Options struct {
 	// OcmAdapter provides OCM operations (vector descriptor and artifact manifest fetching).

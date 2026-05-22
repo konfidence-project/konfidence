@@ -11,6 +11,8 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
+const OperatorFlagName = "VectorPromotion"
+
 // Options configures the vector promotion controllers.
 type Options struct {
 	// VectorVerifier is used to verify vectors during promotion.

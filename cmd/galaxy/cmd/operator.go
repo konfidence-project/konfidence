@@ -15,7 +15,7 @@ import (
 	stageconfiguration "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration"
 	vectorassembly "github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly"
 	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion"
-	"github.com/konfidence-project/konfidence/pkg/cli"
+	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 )
 
 func startOperator(cmd *cobra.Command, args []string) error {
@@ -56,62 +56,46 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	ctx := ctrl.SetupSignalHandler()
 
 	// Resolve all crypto dependencies from env vars
-	cryptoCfg, err := cli.ResolveCryptoConfig(ctx, mgr.GetLocalManager(), setupLog)
+	cryptoCfg, err := pkgcmd.ResolveCryptoConfig(ctx, mgr.GetLocalManager(), setupLog)
 	if err != nil {
 		setupLog.Error(err, "unable to resolve crypto configuration")
 		return err
 	}
 
-	setups := []struct {
-		Name  string
-		Setup func() error
-	}{
-		{
-			Name: "StageConfiguration",
-			Setup: func() error {
-				return stageconfiguration.SetupControllers(mgr, scheme, cfg, stageconfiguration.Options{
-					VectorVerifier: cryptoCfg.VectorVerifier,
-				})
-			},
+	controllerSetups := map[string]func() error{
+		stageconfiguration.OperatorFlagName: func() error {
+			return stageconfiguration.SetupControllers(mgr, scheme, cfg, stageconfiguration.Options{
+				VectorVerifier: cryptoCfg.VectorVerifier,
+			})
 		},
-		{
-			Name: "VectorPromotion",
-			Setup: func() error {
-				return vectorpromotion.SetupControllers(ctx, mgr, scheme, vectorpromotion.Options{
-					VectorVerifier: cryptoCfg.VectorVerifier,
-				})
-			},
+		vectorassembly.OperatorFlagName: func() error {
+			return vectorassembly.SetupControllers(mgr, scheme, vectorassembly.Options{
+				ArtifactVerifier: cryptoCfg.ArtifactVerifier,
+				VectorVerifier:   cryptoCfg.VectorVerifier,
+				VectorSigner:     cryptoCfg.VectorSigner,
+			})
 		},
-		{
-			Name: "VectorAssembly",
-			Setup: func() error {
-				return vectorassembly.SetupControllers(mgr, scheme, vectorassembly.Options{
-					ArtifactVerifier: cryptoCfg.ArtifactVerifier,
-					VectorVerifier:   cryptoCfg.VectorVerifier,
-					VectorSigner:     cryptoCfg.VectorSigner,
-				})
-			},
+		vectorpromotion.OperatorFlagName: func() error {
+			return vectorpromotion.SetupControllers(ctx, mgr, scheme, vectorpromotion.Options{
+				VectorVerifier: cryptoCfg.VectorVerifier,
+			})
 		},
 	}
 
-	names := make([]string, len(setups))
-	for i, s := range setups {
-		names[i] = s.Name
-	}
-	enabled, err := cli.Filter(controllersSpec, names)
+	enabled, err := pkgcmd.FilterEnabledControllers(controllersSpec, controllerSetups)
 	if err != nil {
 		setupLog.Error(err, "invalid --controllers flag")
 		return err
 	}
 
-	for _, s := range setups {
-		if !enabled[s.Name] {
-			setupLog.Info("controller disabled", "controller", s.Name)
+	for name, setup := range controllerSetups {
+		if !enabled[name] {
+			setupLog.Info("controller disabled", "controller", name)
 			continue
 		}
-		setupLog.Info("setting up controller", "controller", s.Name)
-		if err := s.Setup(); err != nil {
-			setupLog.Error(err, "unable to set up controller", "controller", s.Name)
+		setupLog.Info("setting up controller", "controller", name)
+		if err := setup(); err != nil {
+			setupLog.Error(err, "unable to set up controller", "controller", name)
 			return err
 		}
 	}
