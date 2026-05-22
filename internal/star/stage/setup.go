@@ -8,6 +8,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
+const OperatorFlagName = "Stage"
+
 func SetupControllers(mgr manager.Manager, logger logr.Logger) (err error) {
 	if err := (&StageReconciler{
 		Client:   mgr.GetClient(),

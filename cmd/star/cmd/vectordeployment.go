@@ -7,7 +7,7 @@ import (
 
 	vectordeployment "github.com/konfidence-project/konfidence/internal/star/vector-deployment"
 	"github.com/konfidence-project/konfidence/internal/star/vector-deployment/pkg/ocm"
-	"github.com/konfidence-project/konfidence/pkg/cli"
+	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 )
 
 var vectordeploymentCmd = &cobra.Command{
@@ -30,7 +30,7 @@ func startVectorDeploymentController(cmd *cobra.Command, args []string) error {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	cryptoCfg, err := cli.ResolveCryptoConfig(ctx, mgr, setupLog)
+	cryptoCfg, err := pkgcmd.ResolveCryptoConfig(ctx, mgr, setupLog)
 	if err != nil {
 		setupLog.Error(err, "unable to resolve crypto config")
 		return err

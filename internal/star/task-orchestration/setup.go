@@ -6,6 +6,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
+const OperatorFlagName = "TaskOrchestration"
+
 func SetupControllers(mgr manager.Manager, logger logr.Logger) error {
 	if err := (&controller.TaskOrchestrationReconciler{
 		Client:   mgr.GetClient(),
