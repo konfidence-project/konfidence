@@ -173,10 +173,6 @@ var _ = BeforeSuite(func() {
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred(), "failed to start envtest")
 	Expect(cfg).NotTo(BeNil(), "envtest config should not be nil")
-	DeferCleanup(func() {
-		By("tearing down envtest")
-		Expect(testEnv.Stop()).To(Succeed())
-	})
 
 	By("registering schemes")
 	Expect(global.AddToScheme(scheme.Scheme)).To(Succeed())
@@ -194,6 +190,11 @@ var _ = BeforeSuite(func() {
 
 	By("starting manager")
 	startManager()
+})
+
+var _ = AfterSuite(func() {
+	By("tearing down the test environment")
+	Expect(testEnv.Stop()).To(Succeed())
 })
 
 func startManager() {
