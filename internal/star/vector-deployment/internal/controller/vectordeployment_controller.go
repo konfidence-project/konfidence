@@ -176,7 +176,12 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return ctrl.Result{}, nil
 }
 
-func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Context, artifactReferences []compref.Ref, vectorDeployment *landscape.VectorDeployment, log logr.Logger) (bool, error) {
+func (r *VectorDeploymentReconciler) handleArtifactDeployments(
+	ctx context.Context,
+	artifactReferences []compref.Ref,
+	vectorDeployment *landscape.VectorDeployment,
+	log logr.Logger,
+) (bool, error) {
 	// Build fresh maps from scratch so removed artifacts are no longer referenced.
 	// We use nil initially and allocate lazily to avoid spurious status patches when
 	// DeepEqual compares nil (server value after omitempty round-trip) vs. empty map.
@@ -242,7 +247,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(ctx context.Conte
 			if err := r.Update(ctx, artifactDeployment); err != nil {
 				return false, fmt.Errorf("failed to set owner reference for ArtifactDeployment %q: %w", artifactDeployment.Name, err)
 			}
-			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal, "ArtifactDeploymentUpdated", "ArtifactDeploymentUpdated", fmt.Sprintf("Updated owner reference for ArtifactDeployment %s", artifactDeployment.Name))
+			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal,
+				"ArtifactDeploymentUpdated", "ArtifactDeploymentUpdated",
+				fmt.Sprintf("Updated owner reference for ArtifactDeployment %s", artifactDeployment.Name))
 		} else {
 			log.Info("ArtifactDeployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", artifactDeployment.Name)
 		}
@@ -368,7 +375,9 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 			if err := r.Update(ctx, vectorAssignment); err != nil {
 				return false, fmt.Errorf("failed to set owner reference for VectorAssignment %q: %w", vectorAssignment.Name, err)
 			}
-			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal, "VectorAssignmentUpdated", "VectorAssignmentUpdated", fmt.Sprintf("Updated owner reference for VectorAssignment %s", vectorAssignment.Name))
+			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal,
+				"VectorAssignmentUpdated", "VectorAssignmentUpdated",
+				fmt.Sprintf("Updated owner reference for VectorAssignment %s", vectorAssignment.Name))
 		} else {
 			log.Info("Vector deployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", vectorAssignment.Name)
 		}
@@ -451,7 +460,12 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controll
 		Complete(r)
 }
 
-func (r *VectorDeploymentReconciler) constructArtifactDeployment(ref compref.Ref, artifactManifest ArtifactManifest, vectorDeployment *landscape.VectorDeployment, deploymentName string) *landscape.ArtifactDeployment {
+func (r *VectorDeploymentReconciler) constructArtifactDeployment(
+	ref compref.Ref,
+	artifactManifest ArtifactManifest,
+	vectorDeployment *landscape.VectorDeployment,
+	deploymentName string,
+) *landscape.ArtifactDeployment {
 	// map task manifests from domain.TaskManifest to star.TaskManifest
 	taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
 	artifactResources := mapArtifactResourcesToLandscape(artifactManifest.Resources)

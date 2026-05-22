@@ -12,7 +12,13 @@ import (
 )
 
 // ListExecutionsForRegistration gets all executions for the given registration and activation
-func ListExecutionsForRegistration(ctx context.Context, c client.Client, namespace string, registration landscape.ActivationTaskRegistration, vectorActivation *landscape.VectorActivation) (*landscape.ActivationTaskExecutionList, error) {
+func ListExecutionsForRegistration(
+	ctx context.Context,
+	c client.Client,
+	namespace string,
+	registration landscape.ActivationTaskRegistration,
+	vectorActivation *landscape.VectorActivation,
+) (*landscape.ActivationTaskExecutionList, error) {
 	executionLabels := client.MatchingLabels{
 		"registration": registration.Name,
 		"activation":   vectorActivation.Name,
@@ -25,7 +31,13 @@ func ListExecutionsForRegistration(ctx context.Context, c client.Client, namespa
 }
 
 // CreateExecution creates an ActivationTaskExecution for the given registration
-func CreateExecution(ctx context.Context, c client.Client, namespace string, vectorActivation *landscape.VectorActivation, registration landscape.ActivationTaskRegistration) (*landscape.ActivationTaskExecution, error) {
+func CreateExecution(
+	ctx context.Context,
+	c client.Client,
+	namespace string,
+	vectorActivation *landscape.VectorActivation,
+	registration landscape.ActivationTaskRegistration,
+) (*landscape.ActivationTaskExecution, error) {
 	log := logf.FromContext(ctx)
 	activationExecution := &landscape.ActivationTaskExecution{
 		ObjectMeta: metav1.ObjectMeta{
@@ -53,7 +65,13 @@ func CreateExecution(ctx context.Context, c client.Client, namespace string, vec
 }
 
 // EnsureExecutionsForRegistrations ensures that for each registration in the list there is an execution created for the given activation
-func EnsureExecutionsForRegistrations(ctx context.Context, c client.Client, namespace string, registrationList *landscape.ActivationTaskRegistrationList, vectorActivation *landscape.VectorActivation) (*landscape.ActivationTaskExecutionList, error) {
+func EnsureExecutionsForRegistrations(
+	ctx context.Context,
+	c client.Client,
+	namespace string,
+	registrationList *landscape.ActivationTaskRegistrationList,
+	vectorActivation *landscape.VectorActivation,
+) (*landscape.ActivationTaskExecutionList, error) {
 	allExecutions := &landscape.ActivationTaskExecutionList{}
 	for _, registration := range registrationList.Items {
 		executionList, err := ListExecutionsForRegistration(ctx, c, namespace, registration, vectorActivation)

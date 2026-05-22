@@ -102,6 +102,8 @@ type VectorDeploymentStatus struct {
 // +kubebuilder:printcolumn:name="Message",type=string,JSONPath=".status.conditions[?(@.type==\"VectorReady\")].message",description="The message of the VectorReady condition"
 //
 // VectorDeployment represents the deployment of an immutable vector of artifacts into a specific environment or stage.
+//
+//nolint:lll // Kubebuilder annotations are intentionally long.
 type VectorDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

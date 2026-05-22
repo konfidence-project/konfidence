@@ -72,11 +72,12 @@ var _ = Describe("lease lock", func() {
 	Context("lease lock library", func() {
 		It("acquires a lease and updates it", func() {
 
-			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
-				l := obj.(*coordinationv1.Lease)
-				*l = *lease
-				return nil
-			})
+			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).
+				DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
+					l := obj.(*coordinationv1.Lease)
+					*l = *lease
+					return nil
+				})
 
 			clientMock.EXPECT().Update(ctx, gomock.Any())
 			acquired, err := AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
@@ -86,8 +87,8 @@ var _ = Describe("lease lock", func() {
 		})
 
 		It("creates a lease if not found", func() {
-			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
-			clientMock.EXPECT().Scheme().Return(scheme)
+			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).
+				Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 
 			acquired, err := AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
@@ -96,11 +97,12 @@ var _ = Describe("lease lock", func() {
 			Expect(acquired).To(BeTrue())
 
 			// does not create another lease for a second resource
-			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
-				l := obj.(*coordinationv1.Lease)
-				*l = *lease
-				return nil
-			})
+			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).
+				DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
+					l := obj.(*coordinationv1.Lease)
+					*l = *lease
+					return nil
+				})
 			acquired, err = AcquireResourceLease(ctx, clientMock, "another-resource", Namespace, controllerId, ResourceType, stage)
 
 			Expect(err).ToNot(HaveOccurred())
@@ -113,7 +115,8 @@ var _ = Describe("lease lock", func() {
 					Namespace: Namespace,
 				},
 			}
-			clientMock.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
+			clientMock.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).
+				Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
 			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 			acquired, err = AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, newStage)
@@ -122,11 +125,12 @@ var _ = Describe("lease lock", func() {
 		})
 		//
 		It("does not acquire a lease if held by another controller", func() {
-			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
-				l := obj.(*coordinationv1.Lease)
-				*l = *lease
-				return nil
-			})
+			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).
+				DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
+					l := obj.(*coordinationv1.Lease)
+					*l = *lease
+					return nil
+				})
 
 			acquired, err := AcquireResourceLease(context.Background(), clientMock, ResourceId, Namespace, "another-controller", ResourceType, stage)
 
@@ -150,14 +154,17 @@ var _ = Describe("lease lock", func() {
 				},
 			}
 
-			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
-				l := obj.(*coordinationv1.Lease)
-				*l = *lease
-				return nil
-			})
+			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).
+				DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
+					l := obj.(*coordinationv1.Lease)
+					*l = *lease
+					return nil
+				})
 			clientMock.EXPECT().Update(ctx, gomock.Any())
 
-			acquired, err := AcquireResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
+			acquired, err := AcquireResourceLease(
+				context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage,
+			)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(acquired).To(BeTrue())
@@ -165,11 +172,12 @@ var _ = Describe("lease lock", func() {
 		})
 
 		It("releases a lease if held by this controller", func() {
-			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
-				l := obj.(*coordinationv1.Lease)
-				*l = *lease
-				return nil
-			})
+			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).
+				DoAndReturn(func(_ context.Context, namespacedName interface{}, obj interface{}, _ ...interface{}) error {
+					l := obj.(*coordinationv1.Lease)
+					*l = *lease
+					return nil
+				})
 			clientMock.EXPECT().Update(ctx, gomock.Any())
 
 			err := ReleaseResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
@@ -177,13 +185,17 @@ var _ = Describe("lease lock", func() {
 		})
 
 		It("release does nothing on lease not found error and throws other errors", func() {
-			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
+			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).
+				Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
 
-			err := ReleaseResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
+			err := ReleaseResourceLease(
+				context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage,
+			)
 
 			Expect(err).ToNot(HaveOccurred())
 
-			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).Return(errors.New("some other error"))
+			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).
+				Return(errors.New("some other error"))
 			err = ReleaseResourceLease(context.Background(), clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
 			Expect(err).To(HaveOccurred())
 		})

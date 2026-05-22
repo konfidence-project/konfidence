@@ -20,7 +20,7 @@ type Options struct {
 
 // SetupControllers registers all vector promotion controllers with the given manager.
 func SetupControllers(ctx context.Context, mgr mcmanager.Manager, scheme *runtime.Scheme, opts Options) error {
-	var promotionAdapterConfig []ocm.PromotionAdapterOption
+	promotionAdapterConfig := make([]ocm.PromotionAdapterOption, 0, 1)
 	promotionAdapterConfig = append(promotionAdapterConfig, ocm.WithVectorVerifier(opts.VectorVerifier))
 
 	if err := (&controller.VectorPromotionReconciler{

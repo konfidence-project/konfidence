@@ -93,7 +93,9 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return r.cleanupVectorActivation(ctx, req, vectorActivation, stage)
 	}
 
-	acquired, err := leaseLock.AcquireResourceLease(ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stage)
+	acquired, err := leaseLock.AcquireResourceLease(
+		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stage,
+	)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to acquire lease: %w", err)
 	}
@@ -102,7 +104,8 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{RequeueAfter: leaseLock.DefaultLeaseTTL}, nil
 	}
 	log.Info("Lease acquired")
-	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "LeaseAcquired", "LeaseAcquired", fmt.Sprintf("Lease acquired by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
+	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "LeaseAcquired", "LeaseAcquired",
+		fmt.Sprintf("Lease acquired by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
 
 	activeStageVersionUsage, err := usage.GetCurrentActiveUsage(ctx, r.Client, stage)
 	if err != nil {
@@ -127,7 +130,9 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			}); err != nil {
 				return ctrl.Result{}, err
 			}
-			r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ActivationSkipped", "ActivationSkipped", fmt.Sprintf("Activation skipped because stage version %s is not newer than currently active stage version %s", stageVersion.Name, activeStageVersionUsage.Spec.StageVersionRef))
+			r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ActivationSkipped", "ActivationSkipped",
+				fmt.Sprintf("Activation skipped because stage version %s is not newer than currently active stage version %s",
+					stageVersion.Name, activeStageVersionUsage.Spec.StageVersionRef))
 			return ctrl.Result{}, nil
 		}
 	}
@@ -152,13 +157,15 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}); err != nil {
 		return ctrl.Result{}, err
 	}
-	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ActivationInProgress", "ActivationInProgress", fmt.Sprintf("VectorActivation %s is in progress", vectorActivation.Name))
+	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ActivationInProgress", "ActivationInProgress",
+		fmt.Sprintf("VectorActivation %s is in progress", vectorActivation.Name))
 
 	executionsInActivation, err := activation.EnsureExecutionsForRegistrations(ctx, r.Client, req.Namespace, registrationList, vectorActivation)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("could not create executions: %w", err)
 	}
-	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ExecutionsEnsured", "ExecutionsEnsured", fmt.Sprintf("Ensured %d executions for %d registrations", len(executionsInActivation.Items), len(registrationList.Items)))
+	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ExecutionsEnsured", "ExecutionsEnsured",
+		fmt.Sprintf("Ensured %d executions for %d registrations", len(executionsInActivation.Items), len(registrationList.Items)))
 
 	allExecutionsSucceeded, err := r.checkExecutionsStatusAndPatchOnFailure(ctx, vectorActivation, executionsInActivation, log)
 	if err != nil {
@@ -166,16 +173,19 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if allExecutionsSucceeded {
-		r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ExecutionsSucceeded", "ExecutionsSucceeded", fmt.Sprintf("All executions in VectorActivation %s succeeded", vectorActivation.Name))
+		r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ExecutionsSucceeded", "ExecutionsSucceeded",
+			fmt.Sprintf("All executions in VectorActivation %s succeeded", vectorActivation.Name))
 		log.Info("all executions in activation succeeded")
 		if err := usage.CreateOrUpdateActiveUsage(ctx, r.Client, activeStageVersionUsage, stage, stageVersion); err != nil {
 			return ctrl.Result{}, err
 		}
-		r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "UsagesUpdated", "UsagesUpdated", fmt.Sprintf("Active StageVersionUsage updated to %s", stageVersion.Name))
+		r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "UsagesUpdated", "UsagesUpdated",
+			fmt.Sprintf("Active StageVersionUsage updated to %s", stageVersion.Name))
 		if err = usage.DeleteActivationUsage(ctx, r.Client, activationUsage); err != nil {
 			return ctrl.Result{}, err
 		}
-		r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ActivationUsageDeleted", "ActivationUsageDeleted", fmt.Sprintf("Activation StageVersionUsage %s deleted", activationUsage.Name))
+		r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ActivationUsageDeleted", "ActivationUsageDeleted",
+			fmt.Sprintf("Activation StageVersionUsage %s deleted", activationUsage.Name))
 
 		successMessage := fmt.Sprintf("VectorActivation %s reconciled successfully, set status to succeeded", vectorActivation.Name)
 		if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{
@@ -196,7 +206,12 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return ctrl.Result{}, nil
 }
 
-func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(ctx context.Context, vectorActivation *landscape.VectorActivation, executionsInActivation *landscape.ActivationTaskExecutionList, log logr.Logger) (bool, error) {
+func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(
+	ctx context.Context,
+	vectorActivation *landscape.VectorActivation,
+	executionsInActivation *landscape.ActivationTaskExecutionList,
+	log logr.Logger,
+) (bool, error) {
 	allExecutionsSucceeded := true
 
 	for _, exec := range executionsInActivation.Items {
@@ -213,7 +228,8 @@ func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(ctx 
 			}); err != nil {
 				return false, err
 			}
-			r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ActivationFailed", "ActivationFailed", fmt.Sprintf("VectorActivation %s failed because execution %s failed", vectorActivation.Name, exec.Name))
+			r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ActivationFailed", "ActivationFailed",
+				fmt.Sprintf("VectorActivation %s failed because execution %s failed", vectorActivation.Name, exec.Name))
 			allExecutionsSucceeded = false
 		}
 		if !meta.IsStatusConditionTrue(exec.Status.Conditions, landscape.ActivationTaskExecutionSucceeded) {
@@ -224,7 +240,9 @@ func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(ctx 
 	return allExecutionsSucceeded, nil
 }
 
-func (r *VectorActivationReconciler) LoadActivationContextData(ctx context.Context, req ctrl.Request) (*landscape.VectorActivation, *landscape.StageVersion, *landscape.Stage, error) {
+func (r *VectorActivationReconciler) LoadActivationContextData(
+	ctx context.Context, req ctrl.Request,
+) (*landscape.VectorActivation, *landscape.StageVersion, *landscape.Stage, error) {
 	vectorActivation := &landscape.VectorActivation{}
 	if err := r.Get(ctx, req.NamespacedName, vectorActivation); err != nil {
 		return nil, nil, nil, client.IgnoreNotFound(err)
@@ -267,11 +285,19 @@ func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *VectorActivationReconciler) cleanupVectorActivation(ctx context.Context, req ctrl.Request, vectorActivation *landscape.VectorActivation, stage *landscape.Stage) (ctrl.Result, error) {
+func (r *VectorActivationReconciler) cleanupVectorActivation(
+	ctx context.Context,
+	req ctrl.Request,
+	vectorActivation *landscape.VectorActivation,
+	stage *landscape.Stage,
+) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("release lease for vectorActivation")
-	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "LeaseReleased", "LeaseReleased", fmt.Sprintf("Lease released by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
-	if err := leaseLock.ReleaseResourceLease(ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stage); err != nil {
+	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "LeaseReleased", "LeaseReleased",
+		fmt.Sprintf("Lease released by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
+	if err := leaseLock.ReleaseResourceLease(
+		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stage,
+	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to release lease: %w", err)
 	}
 	return ctrl.Result{}, nil
