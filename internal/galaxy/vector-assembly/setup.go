@@ -27,6 +27,8 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
+const OperatorFlagName = "VectorAssembly"
+
 // Options configures the vector assembly controllers.
 type Options struct {
 	// ArtifactVerifier is used to verify artifact signatures.

@@ -1,7 +1,7 @@
-// Package cli provides shared startup wiring for the konfidence operator
+// Package cmd provides shared startup wiring for the konfidence operator
 // binaries (galaxy and star). It currently exposes two concerns:
 //
-//   - Filter — selecting which controllers an operator binary runs at startup,
+//   - FilterEnabledControllers — selecting which controllers an operator binary runs at startup,
 //     driven by the operator's --controllers flag.
 //   - ResolveCryptoConfig — resolving OCM signing/verification dependencies
 //     from environment variables and registering the necessary watches with a
@@ -51,7 +51,7 @@
 //
 // # Errors
 //
-// Filter rejects two classes of input to fail fast at startup rather than
+// FilterEnabledControllers rejects two classes of input to fail fast at startup rather than
 // silently running an unintended set of controllers:
 //
 //   - A malformed glob pattern (path.ErrBadPattern), e.g. "[".
@@ -63,35 +63,29 @@
 //
 // # Usage in operator wiring
 //
-// Operator binaries call Filter once after building their registry of
+// Operator binaries call FilterEnabledControllers once after building their registry of
 // controller setups, then iterate the registry and skip entries whose names
-// are not in the returned set. Because Filter returns a map[string]bool the
+// are not in the returned set. Because FilterEnabledControllers returns a map[string]bool the
 // caller checks membership directly without any intermediate conversion:
 //
-//	setups := []struct {
-//	    Name  string
-//	    Setup func() error
-//	}{
-//	    {Name: "StageConfiguration", Setup: func() error { ... }},
-//	    {Name: "VectorPromotion",    Setup: func() error { ... }},
-//	    {Name: "VectorAssembly",     Setup: func() error { ... }},
+//	controllerSetups := map[string]func() error{
+//		"StageConfiguration": func() error { ... },
+//		"VectorAssembly":     func() error { ... },
+//		"VectorPromotion":    func() error { ... },
 //	}
 //
-//	names := make([]string, len(setups))
-//	for i, s := range setups {
-//	    names[i] = s.Name
-//	}
-//	enabled, err := cli.Filter(controllersSpec, names)
+//	enabled, err := cmd.FilterEnabledControllers(controllersSpec, controllerSetups)
 //	if err != nil {
-//	    return err
+//		return err
 //	}
-//	for _, s := range setups {
-//	    if !enabled[s.Name] {
-//	        continue
-//	    }
-//	    if err := s.Setup(); err != nil {
-//	        return err
-//	    }
+//
+//	for name, setup := range controllerSetups {
+//		if !enabled[name] {
+//			continue
+//		}
+//		if err := setup(); err != nil {
+//			return err
+//		}
 //	}
 //
 // Side-effecting work that conceptually belongs to a single controller (for
@@ -108,4 +102,4 @@
 // controller-runtime manager, and returns a CryptoConfig with verifier and
 // signer implementations (or noop implementations when the corresponding
 // feature is disabled).
-package cli
+package cmd

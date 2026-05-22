@@ -1,4 +1,4 @@
-package cli
+package cmd
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Filter parses a comma-separated list of [!]<glob> tokens and returns the
+// FilterEnabledControllers parses a comma-separated list of [!]<glob> tokens and returns the
 // subset of registered names that should be enabled, as a membership set.
 //
 // Semantics are set-based and order-independent. Tokens partition into
@@ -19,11 +19,11 @@ import (
 //   - a malformed glob (path.ErrBadPattern), and
 //   - a literal token (no glob meta-characters) that matches zero registered
 //     names — guards against typos and stale references to removed controllers.
-func Filter(spec string, registered []string) (map[string]bool, error) {
-	enabled := make(map[string]bool, len(registered))
+func FilterEnabledControllers(spec string, controllerSetups map[string]func() error) (map[string]bool, error) {
+	enabled := make(map[string]bool, len(controllerSetups))
 
 	if spec == "" || spec == "*" {
-		for _, name := range registered {
+		for name := range controllerSetups {
 			enabled[name] = true
 		}
 		return enabled, nil
@@ -48,7 +48,7 @@ func Filter(spec string, registered []string) (map[string]bool, error) {
 		}
 
 		matched := false
-		for _, name := range registered {
+		for name := range controllerSetups {
 			ok, err := path.Match(token, name)
 			if err != nil {
 				return nil, fmt.Errorf("invalid controller filter glob %q: %w", token, err)

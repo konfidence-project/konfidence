@@ -1,4 +1,4 @@
-package cli_test
+package cmd_test
 
 import (
 	"testing"

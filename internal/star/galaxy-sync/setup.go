@@ -14,6 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 )
 
+const OperatorFlagName = "GalaxySync"
+
 // Options holds the dependencies for the galaxy-sync controller domain.
 type Options struct {
 	// ControllerNamespace is the namespace the controller is running in.

@@ -24,6 +24,8 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
+const OperatorFlagName = "StageConfiguration"
+
 // Options configures the stage configuration controllers.
 type Options struct {
 	// VectorVerifier is used to verify vector signatures.
