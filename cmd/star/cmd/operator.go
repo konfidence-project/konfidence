@@ -26,7 +26,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "1ca8113e.konfidence.cloud",
+		LeaderElectionID:       leaseID,
 	})
 
 	if err != nil {

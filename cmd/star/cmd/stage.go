@@ -20,7 +20,7 @@ func startStageController(cmd *cobra.Command, args []string) error {
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "1ca8113e.konfidence.cloud",
+		LeaderElectionID:       leaseID,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -61,5 +61,7 @@ func startStageController(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
+	stageCmd.Flags().StringVar(&leaseID, "lease-id", "star-stage.konfidence.cloud",
+		"The ID used for leader election.")
 	rootCmd.AddCommand(stageCmd)
 }

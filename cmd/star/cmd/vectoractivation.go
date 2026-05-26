@@ -20,7 +20,7 @@ func startVectorActivationController(cmd *cobra.Command, args []string) error {
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "29d9a63a.konfidence.cloud",
+		LeaderElectionID:       leaseID,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -49,5 +49,7 @@ func startVectorActivationController(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
+	vectoractivationCmd.Flags().StringVar(&leaseID, "lease-id", "star-vectoractivation.konfidence.cloud",
+		"The ID used for leader election.")
 	rootCmd.AddCommand(vectoractivationCmd)
 }

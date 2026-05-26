@@ -40,6 +40,7 @@ var (
 	kubernetesServicePort int
 	kcpEndpointSlice      string
 	controllersSpec       string
+	leaseID               string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -109,5 +110,8 @@ func init() {
 		"Comma-separated glob expression selecting which controllers to enable. "+
 			"Examples: '*' (all), 'VectorAssembly', '!VectorAssembly,*' (all except), 'Vector*'. "+
 			"Tokens are set-based and order-independent; '!' negates.")
+
+	rootCmd.Flags().StringVar(&leaseID, "lease-id", "galaxy-operator.konfidence.cloud",
+		"The ID used for leader election.")
 
 }

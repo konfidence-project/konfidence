@@ -65,7 +65,7 @@ func startVectorPromotionController(cmd *cobra.Command, args []string) error {
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "e83e292c.konfidence.cloud",
+		LeaderElectionID:       leaseID,
 		LeaderElectionConfig:   leaderElectionCfg,
 	})
 	if err != nil {
@@ -106,5 +106,7 @@ func startVectorPromotionController(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
+	vectorpromotionCmd.Flags().StringVar(&leaseID, "lease-id", "galaxy-vectorpromotion.konfidence.cloud",
+		"The ID used for leader election.")
 	rootCmd.AddCommand(vectorpromotionCmd)
 }
