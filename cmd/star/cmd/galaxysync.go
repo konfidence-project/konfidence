@@ -21,7 +21,7 @@ func startGalaxySyncController(cmd *cobra.Command, args []string) error {
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "e83e292c.konfidence.cloud",
+		LeaderElectionID:       leaseID,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -55,5 +55,7 @@ func startGalaxySyncController(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
+	galaxysyncCmd.Flags().StringVar(&leaseID, "lease-id", "star-galaxysync.konfidence.cloud",
+		"The ID used for leader election.")
 	rootCmd.AddCommand(galaxysyncCmd)
 }

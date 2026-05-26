@@ -24,6 +24,7 @@ var (
 	enableLeaderElection bool
 	probeAddr            string
 	controllersSpec      string
+	leaseID              string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -76,4 +77,7 @@ func init() {
 		"Comma-separated glob expression selecting which controllers to enable. "+
 			"Examples: '*' (all), 'Stage', '!Stage,*' (all except), 'Vector*'. "+
 			"Tokens are set-based and order-independent; '!' negates.")
+
+	rootCmd.Flags().StringVar(&leaseID, "lease-id", "star-operator.konfidence.cloud",
+		"The ID used for leader election.")
 }

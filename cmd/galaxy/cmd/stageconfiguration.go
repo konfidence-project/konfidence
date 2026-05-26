@@ -62,7 +62,7 @@ func startStageConfigurationController(cmd *cobra.Command, args []string) error 
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "969492ce.konfidence.cloud",
+		LeaderElectionID:       leaseID,
 		LeaderElectionConfig:   leaderElectionCfg,
 	})
 	if err != nil {
@@ -103,5 +103,7 @@ func startStageConfigurationController(cmd *cobra.Command, args []string) error 
 }
 
 func init() {
+	stageconfigurationCmd.Flags().StringVar(&leaseID, "lease-id", "galaxy-stageconfiguration.konfidence.cloud",
+		"The ID used for leader election.")
 	rootCmd.AddCommand(stageconfigurationCmd)
 }

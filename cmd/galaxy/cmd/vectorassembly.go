@@ -65,7 +65,7 @@ func startVectorAssemblyController(cmd *cobra.Command, args []string) error {
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "f4a7b3d1.konfidence.cloud",
+		LeaderElectionID:       leaseID,
 		LeaderElectionConfig:   leaderElectionCfg,
 	})
 	if err != nil {
@@ -108,5 +108,7 @@ func startVectorAssemblyController(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
+	vectorassemblyCmd.Flags().StringVar(&leaseID, "lease-id", "galaxy-vectorassembly.konfidence.cloud",
+		"The ID used for leader election.")
 	rootCmd.AddCommand(vectorassemblyCmd)
 }
