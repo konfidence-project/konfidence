@@ -12,9 +12,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	stageconfiguration "github.com/konfidence-project/konfidence/internal/galaxy/stage-configuration"
-	vectorassembly "github.com/konfidence-project/konfidence/internal/galaxy/vector-assembly"
-	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion"
+	stageconfiguration "github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration"
+	vectorassembly "github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly"
+	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion"
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 )
 
