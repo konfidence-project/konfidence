@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vector-promotion"
+	vectorpromotion "github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion"
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 )
 
