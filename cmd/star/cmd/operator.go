@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	galaxysync "github.com/konfidence-project/konfidence/internal/star/galaxy-sync"
+	galaxysync "github.com/konfidence-project/konfidence/internal/star/galaxysync"
 	"github.com/konfidence-project/konfidence/internal/star/stage"
-	taskorchestration "github.com/konfidence-project/konfidence/internal/star/task-orchestration"
-	vectoractivation "github.com/konfidence-project/konfidence/internal/star/vector-activation"
-	vectordeployment "github.com/konfidence-project/konfidence/internal/star/vector-deployment"
-	"github.com/konfidence-project/konfidence/internal/star/vector-deployment/pkg/ocm"
+	taskorchestration "github.com/konfidence-project/konfidence/internal/star/taskorchestration"
+	vectoractivation "github.com/konfidence-project/konfidence/internal/star/vectoractivation"
+	vectordeployment "github.com/konfidence-project/konfidence/internal/star/vectordeployment"
+
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -51,12 +51,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ocmAdapter, err := ocm.NewOcmAdapter(signalContext, registrySecret, cryptoCfg.VectorVerifier, cryptoCfg.ArtifactVerifier)
-	if err != nil {
-		setupLog.Error(err, "unable to create OCM adapter")
-		return err
-	}
-
 	controllerSetups := map[string]func() error{
 		stage.OperatorFlagName: func() error {
 			if err := stage.SetupControllers(mgr, setupLog); err != nil {
@@ -79,8 +73,10 @@ func startOperator(cmd *cobra.Command, args []string) error {
 			return vectoractivation.SetupControllers(mgr, setupLog)
 		},
 		vectordeployment.OperatorFlagName: func() error {
-			return vectordeployment.SetupControllers(mgr, setupLog, vectordeployment.Options{
-				OcmAdapter: ocmAdapter,
+			return vectordeployment.SetupControllers(signalContext, mgr, setupLog, vectordeployment.Options{
+				RegistrySecret:   registrySecret,
+				VectorVerifier:   cryptoCfg.VectorVerifier,
+				ArtifactVerifier: cryptoCfg.ArtifactVerifier,
 			})
 		},
 		galaxysync.OperatorFlagName: func() error {
