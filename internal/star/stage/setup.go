@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/konfidence-project/konfidence/internal/star/stage/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/star/stage/internal/gc"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -11,25 +12,25 @@ import (
 const OperatorFlagName = "Stage"
 
 func SetupControllers(mgr manager.Manager, logger logr.Logger) (err error) {
-	if err := (&StageReconciler{
+	if err := (&controller.StageReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorder(StageControllerName),
+		Recorder: mgr.GetEventRecorder(controller.StageControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "Stage")
 		return err
 	}
 
-	if err := (&StageVersionReconciler{
+	if err := (&controller.StageVersionReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorder(StageVersionControllerName),
+		Recorder: mgr.GetEventRecorder(controller.StageVersionControllerName),
 	}).SetupWithManager(mgr); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "StageVersion")
 		return err
 	}
 
-	if err := (&StageVersionUsageReconciler{
+	if err := (&controller.StageVersionUsageReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

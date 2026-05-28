@@ -29,7 +29,14 @@ go.work.sum
 
 .hermit/*
 
+# Do ignore things like bin/k8s/
+bin/*/
 bin/galaxy
 bin/star
-bin/k8s/*
 bin/ginkgo
+
+# Do not ignore hermit binary and pkg files in bin/
+!bin/hermit
+!bin/.hermit/
+!bin/*.pkg
+!bin/.*pkg

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/ocm/mocks"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -13,21 +14,20 @@ import (
 	ocispec "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 	"ocm.software/open-component-model/bindings/go/runtime"
 
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/ocm/mock"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/promotion"
 )
 
 var _ = Describe("PromotionAdapter", func() {
 	var (
 		ctrl       *gomock.Controller
-		mockClient *mock.MockClient
+		mockClient *mocks.MockClient
 		adapter    *PromotionAdapter
 		ctx        context.Context
 	)
 
 	BeforeEach(func() {
 		ctrl = gomock.NewController(GinkgoT())
-		mockClient = mock.NewMockClient(ctrl)
+		mockClient = mocks.NewMockClient(ctrl)
 		adapter = NewPromotionAdapter()
 		adapter.ocmClient = mockClient
 		ctx = context.Background()
@@ -57,7 +57,7 @@ var _ = Describe("PromotionAdapter", func() {
 
 		Context("when source vector verification fails", func() {
 			It("returns ErrFetchingSourceFailed", func() {
-				mockVerifier := mock.NewMockVerifier(ctrl)
+				mockVerifier := mocks.NewMockVerifier(ctrl)
 				verifyAdapter := NewPromotionAdapter(WithVectorVerifier(mockVerifier))
 				verifyAdapter.ocmClient = mockClient
 
@@ -83,7 +83,7 @@ var _ = Describe("PromotionAdapter", func() {
 
 		Context("when source vector verification succeeds", func() {
 			It("proceeds with promotion", func() {
-				mockVerifier := mock.NewMockVerifier(ctrl)
+				mockVerifier := mocks.NewMockVerifier(ctrl)
 				verifyAdapter := NewPromotionAdapter(WithVectorVerifier(mockVerifier))
 				verifyAdapter.ocmClient = mockClient
 
