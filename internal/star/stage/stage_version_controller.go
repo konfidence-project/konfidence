@@ -170,6 +170,7 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	return nil
 }
 
+//nolint:dupl // TODO(konfidence-project#689): factor shared create-or-update boilerplate.
 func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context, stageVersion *landscape.StageVersion) (*landscape.VectorDeployment, error) {
 	log := logf.FromContext(ctx)
 	vectorDeployment, err := r.constructVectorDeployment(stageVersion)

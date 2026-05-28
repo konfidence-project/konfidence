@@ -31,3 +31,5 @@ go.work.sum
 
 bin/galaxy
 bin/star
+bin/k8s/*
+bin/ginkgo
