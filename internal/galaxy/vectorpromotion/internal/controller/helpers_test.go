@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,13 +33,13 @@ func pushComponent(ctx context.Context, ref compref.Ref, alias *string) {
 }
 
 // createConfig creates a VectorPromotionConfig in the test namespace.
-func createConfig(name, source, target string) *global.VectorPromotionConfig {
-	config := &global.VectorPromotionConfig{
+func createConfig(name, source, target string) *galaxy.VectorPromotionConfig {
+	config := &galaxy.VectorPromotionConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: testNamespace,
 		},
-		Spec: global.VectorPromotionConfigSpec{
+		Spec: galaxy.VectorPromotionConfigSpec{
 			Source: source,
 			Target: target,
 		},
@@ -51,14 +51,14 @@ func createConfig(name, source, target string) *global.VectorPromotionConfig {
 // createConfigWithCredentials creates a VectorPromotionConfig with credentials in the test namespace.
 func createConfigWithCredentials(
 	name, source, target string,
-	creds []global.CredentialsConfig,
-) *global.VectorPromotionConfig {
-	config := &global.VectorPromotionConfig{
+	creds []galaxy.CredentialsConfig,
+) *galaxy.VectorPromotionConfig {
+	config := &galaxy.VectorPromotionConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: testNamespace,
 		},
-		Spec: global.VectorPromotionConfigSpec{
+		Spec: galaxy.VectorPromotionConfigSpec{
 			Source: source,
 			Target: target,
 		},
@@ -69,13 +69,13 @@ func createConfigWithCredentials(
 }
 
 // createPromotion creates a VectorPromotion in the test namespace referencing a config.
-func createPromotion(name, configRef string) *global.VectorPromotion {
-	promotion := &global.VectorPromotion{
+func createPromotion(name, configRef string) *galaxy.VectorPromotion {
+	promotion := &galaxy.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: testNamespace,
 		},
-		Spec: global.VectorPromotionSpec{
+		Spec: galaxy.VectorPromotionSpec{
 			VectorPromotionConfigRef: configRef,
 		},
 	}
@@ -84,13 +84,13 @@ func createPromotion(name, configRef string) *global.VectorPromotion {
 }
 
 // createPromotionWithTTL creates a VectorPromotion with TTLAfterFinished set.
-func createPromotionWithTTL(name, configRef string, ttl time.Duration) *global.VectorPromotion {
-	promotion := &global.VectorPromotion{
+func createPromotionWithTTL(name, configRef string, ttl time.Duration) *galaxy.VectorPromotion {
+	promotion := &galaxy.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: testNamespace,
 		},
-		Spec: global.VectorPromotionSpec{
+		Spec: galaxy.VectorPromotionSpec{
 			VectorPromotionConfigRef: configRef,
 			TTLAfterFinished:         &metav1.Duration{Duration: ttl},
 		},

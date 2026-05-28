@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"testing"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -162,7 +162,7 @@ var _ = BeforeSuite(func() {
 	})
 
 	By("registering schemes")
-	Expect(global.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(galaxy.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	By("building shared OCM client")
 	ocmConfig := buildOCMConfig(
@@ -197,7 +197,7 @@ func startManager() {
 		Mgr:    mgr,
 		Scheme: mgr.GetLocalManager().GetScheme(),
 		OcmClientProvider: pkgOcm.ClientProviderFunc(
-			func(_ context.Context, _ client.Reader, _ string, creds []global.CredentialsConfig) (pkgOcm.Client, error) {
+			func(_ context.Context, _ client.Reader, _ string, creds []galaxy.CredentialsConfig) (pkgOcm.Client, error) {
 				for _, c := range creds {
 					if c.Name == failClientCreationSecret {
 						return nil, fmt.Errorf("simulated credential resolution failure")

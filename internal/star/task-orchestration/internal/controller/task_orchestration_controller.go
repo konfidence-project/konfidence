@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/star/task-orchestration/internal/graph"
 	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"golang.org/x/exp/maps"
@@ -40,7 +40,7 @@ type TaskOrchestrationReconciler struct {
 }
 
 type MapTasksResult struct {
-	taskExecutionsByName           map[string]landscape.TaskExecution
+	taskExecutionsByName           map[string]star.TaskExecution
 	successfulTaskExecutionsByName map[string]bool
 	taskFailed                     bool
 }
@@ -68,12 +68,12 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	log.Info("Reconcile started...")
 
 	// get vectorMigration
-	vectorMigration := &landscape.VectorMigration{}
+	vectorMigration := &star.VectorMigration{}
 	if err := r.Get(ctx, req.NamespacedName, vectorMigration); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded) {
+	if meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, star.VectorMigrationSucceeded) {
 		return r.cleanupVectorMigration(ctx, req, vectorMigration)
 	}
 
@@ -97,7 +97,7 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	return ctrl.Result{}, err
 }
 
-func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Context, req ctrl.Request, vectorMigration *landscape.VectorMigration) error {
+func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Context, req ctrl.Request, vectorMigration *star.VectorMigration) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling vectorMigration")
 
@@ -124,9 +124,9 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 
 		// mark vectorMigration as successful if no tasks exist
 		meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
-			Type:               landscape.VectorMigrationSucceeded,
+			Type:               star.VectorMigrationSucceeded,
 			Status:             metav1.ConditionTrue,
-			Reason:             landscape.VectorMigrationSucceeded,
+			Reason:             star.VectorMigrationSucceeded,
 			Message:            fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name),
 			ObservedGeneration: vectorMigration.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -159,9 +159,9 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 	if mappedTasks.taskFailed {
 		// if at least one of the tasks failed mark vectorMigration as failed
 		meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
-			Type:               landscape.VectorMigrationFailed,
+			Type:               star.VectorMigrationFailed,
 			Status:             metav1.ConditionTrue,
-			Reason:             landscape.VectorMigrationFailed,
+			Reason:             star.VectorMigrationFailed,
 			Message:            fmt.Sprintf("Reconciling VectorMigration %s failed", vectorMigration.Name),
 			ObservedGeneration: vectorMigration.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -199,9 +199,9 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 
 	// mark vectorMigration as successful
 	meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
-		Type:               landscape.VectorMigrationSucceeded,
+		Type:               star.VectorMigrationSucceeded,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.VectorMigrationSucceeded,
+		Reason:             star.VectorMigrationSucceeded,
 		Message:            fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name),
 		ObservedGeneration: vectorMigration.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -226,12 +226,12 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 }
 
 func (r *TaskOrchestrationReconciler) getVectorDeployment(
-	ctx context.Context, vectorMigration *landscape.VectorMigration,
-) (*landscape.VectorDeployment, error) {
+	ctx context.Context, vectorMigration *star.VectorMigration,
+) (*star.VectorDeployment, error) {
 	labelMatcher := client.MatchingLabels{}
 	labelMatcher[pkgCtrl.StageVersionNameLabel] = vectorMigration.Spec.StageVersion
 
-	vectorDeployments := &landscape.VectorDeploymentList{}
+	vectorDeployments := &star.VectorDeploymentList{}
 	if err := r.List(ctx, vectorDeployments, client.InNamespace(vectorMigration.Namespace), labelMatcher); err != nil {
 		return nil, fmt.Errorf("unable to list vectorDeployments: %w", err)
 	}
@@ -244,9 +244,9 @@ func (r *TaskOrchestrationReconciler) getVectorDeployment(
 }
 
 func (r *TaskOrchestrationReconciler) getArtifactDeployment(
-	ctx context.Context, vectorMigration *landscape.VectorMigration, name string,
-) (*landscape.ArtifactDeployment, error) {
-	artifactDeployment := &landscape.ArtifactDeployment{}
+	ctx context.Context, vectorMigration *star.VectorMigration, name string,
+) (*star.ArtifactDeployment, error) {
+	artifactDeployment := &star.ArtifactDeployment{}
 	err := r.Get(ctx, types.NamespacedName{
 		Namespace: vectorMigration.Namespace,
 		Name:      name,
@@ -255,9 +255,9 @@ func (r *TaskOrchestrationReconciler) getArtifactDeployment(
 	return artifactDeployment, err
 }
 
-func (r *TaskOrchestrationReconciler) getTaskExecutions(ctx context.Context, req ctrl.Request) ([]landscape.TaskExecution, error) {
+func (r *TaskOrchestrationReconciler) getTaskExecutions(ctx context.Context, req ctrl.Request) ([]star.TaskExecution, error) {
 	// get all taskExecutions that are owned by this vectorMigration
-	taskExecutions := &landscape.TaskExecutionList{}
+	taskExecutions := &star.TaskExecutionList{}
 	if err := r.List(ctx, taskExecutions, client.InNamespace(req.Namespace), client.MatchingFields{vectorMigrationOwnerKey: req.Name}); err != nil {
 		return nil, fmt.Errorf("unable to list taskExecutions: %w", err)
 	}
@@ -266,7 +266,7 @@ func (r *TaskOrchestrationReconciler) getTaskExecutions(ctx context.Context, req
 }
 
 func (r *TaskOrchestrationReconciler) deleteTaskExecutions(
-	ctx context.Context, taskExecutions []landscape.TaskExecution, vectorMigration *landscape.VectorMigration,
+	ctx context.Context, taskExecutions []star.TaskExecution, vectorMigration *star.VectorMigration,
 ) error {
 	for _, taskExecution := range taskExecutions {
 		if err := r.Delete(ctx, &taskExecution); err != nil {
@@ -281,10 +281,10 @@ func (r *TaskOrchestrationReconciler) deleteTaskExecutions(
 }
 
 func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(
-	ctx context.Context, req ctrl.Request, vectorMigration *landscape.VectorMigration,
-) (*landscape.StageVersionUsage, error) {
+	ctx context.Context, req ctrl.Request, vectorMigration *star.VectorMigration,
+) (*star.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
-	stageVersionUsage := &landscape.StageVersionUsage{}
+	stageVersionUsage := &star.StageVersionUsage{}
 	err := r.Get(ctx, types.NamespacedName{Name: getStageVersionUsageName(vectorMigration.Spec.StageVersion), Namespace: req.Namespace}, stageVersionUsage)
 	if err != nil && !errors.IsNotFound(err) {
 		return nil, fmt.Errorf("unable to fetch stageVersionUsage: %w", err)
@@ -328,10 +328,10 @@ func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(
 
 func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(
 	ctx context.Context,
-	vectorDeployment *landscape.VectorDeployment,
-	vectorMigration *landscape.VectorMigration,
-) ([]landscape.TaskManifest, error) {
-	artifactDeployments := make(map[string]landscape.ArtifactDeployment)
+	vectorDeployment *star.VectorDeployment,
+	vectorMigration *star.VectorMigration,
+) ([]star.TaskManifest, error) {
+	artifactDeployments := make(map[string]star.ArtifactDeployment)
 	numberOfTasks := 0
 	for _, deploymentReference := range vectorDeployment.Status.ResultingArtifactDeployments {
 		// get artifactDeployment
@@ -349,7 +349,7 @@ func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(
 	}
 
 	// get all task manifests from deployments
-	tasks := make([]landscape.TaskManifest, 0, numberOfTasks)
+	tasks := make([]star.TaskManifest, 0, numberOfTasks)
 	for _, artifactDeployment := range artifactDeployments {
 		tasks = append(tasks, artifactDeployment.Spec.TaskManifests...)
 	}
@@ -366,7 +366,7 @@ func (r *TaskOrchestrationReconciler) mapTasks(ctx context.Context, req ctrl.Req
 
 	// map taskExecutions by task name
 	mappedTasks := &MapTasksResult{}
-	taskExecutionsByName := make(map[string]landscape.TaskExecution)
+	taskExecutionsByName := make(map[string]star.TaskExecution)
 	successfulTaskExecutionsByName := make(map[string]bool)
 	for _, taskExecution := range taskExecutions {
 		if taskExecutionFailed(taskExecution) {
@@ -386,9 +386,9 @@ func (r *TaskOrchestrationReconciler) mapTasks(ctx context.Context, req ctrl.Req
 
 func (r *TaskOrchestrationReconciler) processTaskLayer(
 	ctx context.Context,
-	vectorMigration *landscape.VectorMigration,
-	layer []landscape.TaskManifest,
-	taskExecutionsByName map[string]landscape.TaskExecution,
+	vectorMigration *star.VectorMigration,
+	layer []star.TaskManifest,
+	taskExecutionsByName map[string]star.TaskExecution,
 	successfulTaskExecutionsByName map[string]bool,
 ) (int, error) {
 	status := layerPending
@@ -432,20 +432,20 @@ func (r *TaskOrchestrationReconciler) processTaskLayer(
 
 var (
 	vectorMigrationOwnerKey = ".metadata.controller"
-	apiGVStr                = landscape.GroupVersion.String()
+	apiGVStr                = star.GroupVersion.String()
 )
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *TaskOrchestrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &landscape.TaskExecution{}, vectorMigrationOwnerKey, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &star.TaskExecution{}, vectorMigrationOwnerKey, func(rawObj client.Object) []string {
 		// grab the taskExecution object and extract the owner
-		taskExecution := rawObj.(*landscape.TaskExecution)
+		taskExecution := rawObj.(*star.TaskExecution)
 		owner := metav1.GetControllerOf(taskExecution)
 		if owner == nil {
 			return nil
 		}
 		// make sure it is a stage...
-		if owner.APIVersion != apiGVStr || owner.Kind != landscape.VectorMigrationKind {
+		if owner.APIVersion != apiGVStr || owner.Kind != star.VectorMigrationKind {
 			return nil
 		}
 
@@ -456,21 +456,21 @@ func (r *TaskOrchestrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&landscape.VectorMigration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&landscape.TaskExecution{}).
+		For(&star.VectorMigration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&star.TaskExecution{}).
 		Named("taskOrchestration").
 		Complete(r)
 }
 
-func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration *landscape.VectorMigration) (*landscape.StageVersionUsage, error) {
-	stageVersionUsage := &landscape.StageVersionUsage{
+func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration *star.VectorMigration) (*star.StageVersionUsage, error) {
+	stageVersionUsage := &star.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      getStageVersionUsageName(vectorMigration.Spec.StageVersion),
 			Namespace: vectorMigration.Namespace,
 		},
-		Spec: landscape.StageVersionUsageSpec{
+		Spec: star.StageVersionUsageSpec{
 			Reason: "VectorMigration",
-			StageVersionRef: &landscape.StageVersionReference{
+			StageVersionRef: &star.StageVersionReference{
 				Name: vectorMigration.Spec.StageVersion,
 			},
 		},
@@ -485,16 +485,16 @@ func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration
 }
 
 func (r *TaskOrchestrationReconciler) constructTaskExecution(
-	vectorMigration *landscape.VectorMigration,
-	taskManifest landscape.TaskManifest,
+	vectorMigration *star.VectorMigration,
+	taskManifest star.TaskManifest,
 	namespace string,
-) (*landscape.TaskExecution, error) {
-	taskExecution := &landscape.TaskExecution{
+) (*star.TaskExecution, error) {
+	taskExecution := &star.TaskExecution{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      taskManifest.Name + "-" + rand.String(8),
 			Namespace: namespace,
 		},
-		Spec: landscape.TaskExecutionSpec(taskManifest),
+		Spec: star.TaskExecutionSpec(taskManifest),
 	}
 
 	// set vectorMigration as controller
@@ -505,7 +505,7 @@ func (r *TaskOrchestrationReconciler) constructTaskExecution(
 }
 
 func (r *TaskOrchestrationReconciler) cleanupVectorMigration(
-	ctx context.Context, req ctrl.Request, vectorMigration *landscape.VectorMigration,
+	ctx context.Context, req ctrl.Request, vectorMigration *star.VectorMigration,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Cleanup vector migration")
@@ -522,7 +522,7 @@ func (r *TaskOrchestrationReconciler) cleanupVectorMigration(
 	}
 
 	// check if stageVersionUsage still exists and should be deleted
-	stageVersionUsage := &landscape.StageVersionUsage{}
+	stageVersionUsage := &star.StageVersionUsage{}
 	if err := r.Get(ctx, types.NamespacedName{
 		Name:      getStageVersionUsageName(vectorMigration.Spec.StageVersion),
 		Namespace: req.Namespace,
@@ -545,15 +545,15 @@ func getStageVersionUsageName(stageVersionName string) string {
 	return fmt.Sprintf("%s-%s", stageVersionName, "migration")
 }
 
-func taskExecutionFailed(taskExecution landscape.TaskExecution) bool {
-	return meta.IsStatusConditionTrue(taskExecution.Status.Conditions, landscape.TaskFailed)
+func taskExecutionFailed(taskExecution star.TaskExecution) bool {
+	return meta.IsStatusConditionTrue(taskExecution.Status.Conditions, star.TaskFailed)
 }
 
-func taskExecutionSucceeded(taskExecution landscape.TaskExecution) bool {
-	return meta.IsStatusConditionTrue(taskExecution.Status.Conditions, landscape.TaskSucceeded)
+func taskExecutionSucceeded(taskExecution star.TaskExecution) bool {
+	return meta.IsStatusConditionTrue(taskExecution.Status.Conditions, star.TaskSucceeded)
 }
 
-func allTaskDependenciesSucceeded(task landscape.TaskManifest, successfulTasksByName map[string]bool) bool {
+func allTaskDependenciesSucceeded(task star.TaskManifest, successfulTasksByName map[string]bool) bool {
 	if len(task.DependsOn) == 0 {
 		return true
 	}

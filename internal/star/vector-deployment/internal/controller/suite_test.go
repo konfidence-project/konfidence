@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -71,7 +71,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = landscape.AddToScheme(k8sManager.GetScheme())
+	err = star.AddToScheme(k8sManager.GetScheme())
 	Expect(err).ToNot(HaveOccurred())
 
 	// setup the k8s client
@@ -119,8 +119,8 @@ func getFirstFoundEnvTestBinaryDir() string {
 
 // todo: (@alex 19.09.2025) maybe nice functions for a test framework package
 
-func GetVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.VectorDeployment {
-	vectorDeployment := &landscape.VectorDeployment{}
+func GetVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *star.VectorDeployment {
+	vectorDeployment := &star.VectorDeployment{}
 	vectorDeploymentLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)
 
@@ -132,8 +132,8 @@ func GetVectorDeployment(ctx context.Context, k8sClient client.Client, name stri
 	return vectorDeployment
 }
 
-func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorUrl string) landscape.VectorDeployment {
-	vectorDeployment := landscape.VectorDeployment{
+func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorUrl string) star.VectorDeployment {
+	vectorDeployment := star.VectorDeployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "star.konfidence.cloud/v1alpha1",
 			Kind:       "VectorDeployment",
@@ -142,10 +142,10 @@ func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name s
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: landscape.VectorDeploymentSpec{
+		Spec: star.VectorDeploymentSpec{
 			Vector: vectorUrl,
 		},
-		Status: landscape.VectorDeploymentStatus{
+		Status: star.VectorDeploymentStatus{
 			ResolvedVectorOcm:            "",
 			ResultingArtifactDeployments: nil,
 			Conditions:                   nil,
@@ -157,7 +157,7 @@ func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name s
 	return vectorDeployment
 }
 
-func DeleteVectorDeployment(ctx context.Context, k8sClient client.Client, vectorDeployment *landscape.VectorDeployment) {
+func DeleteVectorDeployment(ctx context.Context, k8sClient client.Client, vectorDeployment *star.VectorDeployment) {
 	err := k8sClient.Delete(ctx, vectorDeployment)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete vectorDeployment: %s", vectorDeployment.Name)
 }

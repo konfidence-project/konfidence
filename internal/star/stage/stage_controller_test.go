@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	controller "github.com/konfidence-project/konfidence/internal/star/stage"
 	testutil "github.com/konfidence-project/konfidence/internal/star/stage/internal/utils"
 	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
@@ -67,7 +67,7 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
 
 			// check that the stage has been created and has valid properties
-			stage := &landscape.Stage{}
+			stage := &star.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
@@ -83,7 +83,7 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersion, Namespace, Vector001, VectorName001)
 
 			// check that the stageVersion has been created
-			stageVersion := &landscape.StageVersion{}
+			stageVersion := &star.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: StageVersion, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
@@ -97,7 +97,7 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
 
 			// check that the stage has been created and has valid properties
-			stage := &landscape.Stage{}
+			stage := &star.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
@@ -122,7 +122,7 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
 
 			// check that the stage has been created and has valid properties
-			stage := &landscape.Stage{}
+			stage := &star.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
@@ -137,8 +137,8 @@ var _ = Describe("Stage Controller", Ordered, func() {
 
 // check that the stageVersion has been created and has valid properties
 func verifyStageVersion(ctx context.Context, k8sClient client.Client, stageVersionName string, namespace string,
-	stage *landscape.Stage, vectorRef string, timeout time.Duration, interval time.Duration) {
-	stageVersion := &landscape.StageVersion{}
+	stage *star.Stage, vectorRef string, timeout time.Duration, interval time.Duration) {
+	stageVersion := &star.StageVersion{}
 	stageVersionLookupKey := types.NamespacedName{Name: stageVersionName, Namespace: namespace}
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
@@ -148,7 +148,7 @@ func verifyStageVersion(ctx context.Context, k8sClient client.Client, stageVersi
 		g.Expect(stageVersion.Labels[pkgCtrl.VectorReferenceLabel]).To(Equal(vectorRef))
 		g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
 		g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
-			Kind: landscape.StageKind,
+			Kind: star.StageKind,
 			Name: stage.Name,
 		})).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
@@ -158,8 +158,8 @@ func verifyStageVersion(ctx context.Context, k8sClient client.Client, stageVersi
 //
 //nolint:unparam
 func verifyStageVersionUsage(ctx context.Context, k8sClient client.Client, namespace string,
-	stage *landscape.Stage, vectorRef string, timeout time.Duration, interval time.Duration) {
-	stageVersionUsages := &landscape.StageVersionUsageList{}
+	stage *star.Stage, vectorRef string, timeout time.Duration, interval time.Duration) {
+	stageVersionUsages := &star.StageVersionUsageList{}
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.List(ctx, stageVersionUsages, client.InNamespace(namespace))).To(Succeed())
 		g.Expect(stageVersionUsages.Items).To(HaveLen(1))
@@ -169,17 +169,17 @@ func verifyStageVersionUsage(ctx context.Context, k8sClient client.Client, names
 		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[pkgCtrl.StageNameLabel]).To(Equal(stage.Name))
 		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[pkgCtrl.VectorReferenceLabel]).To(Equal(vectorRef))
 		g.Expect(testutil.HasOwnerReference(stageVersionUsages.Items[0].GetOwnerReferences(), metav1.OwnerReference{
-			Kind: landscape.StageKind,
+			Kind: star.StageKind,
 			Name: stage.Name,
 		})).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
 }
 
 func verifyStageReady(ctx context.Context, k8sClient client.Client, stageName string, namespace string, timeout time.Duration, interval time.Duration) {
-	stage := &landscape.Stage{}
+	stage := &star.Stage{}
 	stageLookupKey := types.NamespacedName{Name: stageName, Namespace: namespace}
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
-		g.Expect(meta.IsStatusConditionTrue(stage.Status.Conditions, landscape.StageReady)).To(BeTrue())
+		g.Expect(meta.IsStatusConditionTrue(stage.Status.Conditions, star.StageReady)).To(BeTrue())
 	}, timeout, interval).Should(Succeed())
 }

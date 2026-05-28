@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"ocm.software/open-component-model/kubernetes/controller/api/v1alpha1"
 	"ocm.software/open-component-model/kubernetes/controller/pkg/configuration"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,19 +17,19 @@ import (
 // It encapsulates credential resolution, allowing controllers to obtain authenticated
 // clients without knowing how credentials are sourced or configured.
 type ClientProvider interface {
-	NewClient(ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []global.CredentialsConfig) (Client, error)
+	NewClient(ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []galaxy.CredentialsConfig) (Client, error)
 }
 
-type ClientProviderFunc func(ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []global.CredentialsConfig) (Client, error)
+type ClientProviderFunc func(ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []galaxy.CredentialsConfig) (Client, error)
 
 func (f ClientProviderFunc) NewClient(
-	ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []global.CredentialsConfig,
+	ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []galaxy.CredentialsConfig,
 ) (Client, error) {
 	return f(ctx, k8sClient, namespace, credentialsConfig)
 }
 
 var DefaultOciClientProvider = ClientProviderFunc(
-	func(ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []global.CredentialsConfig) (Client, error) {
+	func(ctx context.Context, k8sClient client.Reader, namespace string, credentialsConfig []galaxy.CredentialsConfig) (Client, error) {
 		log := logf.FromContext(ctx)
 
 		ocmConfigs := mapToOCMConfigurations(credentialsConfig, namespace)
@@ -42,7 +42,7 @@ var DefaultOciClientProvider = ClientProviderFunc(
 		return NewOciClientBuilder().WithLogger(log).WithOCMConfig(ocmCfg).Build(ctx)
 	})
 
-func mapToOCMConfigurations(credentialsConfig []global.CredentialsConfig, namespace string) []v1alpha1.OCMConfiguration {
+func mapToOCMConfigurations(credentialsConfig []galaxy.CredentialsConfig, namespace string) []v1alpha1.OCMConfiguration {
 	ocmConfigs := make([]v1alpha1.OCMConfiguration, len(credentialsConfig))
 	for i, credConfig := range credentialsConfig {
 		ocmConfigs[i] = v1alpha1.OCMConfiguration{

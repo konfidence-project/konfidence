@@ -3,7 +3,7 @@ package activation
 import (
 	"context"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/star/vector-activation/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -29,8 +29,8 @@ var _ = Describe("registration tests", func() {
 			namespace := "default"
 			clientMock.EXPECT().List(ctx, gomock.Any(), client.InNamespace(namespace)).
 				DoAndReturn(func(_ context.Context, list interface{}, _ ...interface{}) error {
-					regList := list.(*landscape.ActivationTaskRegistrationList)
-					regList.Items = append(regList.Items, landscape.ActivationTaskRegistration{})
+					regList := list.(*star.ActivationTaskRegistrationList)
+					regList.Items = append(regList.Items, star.ActivationTaskRegistration{})
 					return nil
 				})
 

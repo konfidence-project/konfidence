@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/promotion"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -44,7 +44,7 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 	}
 	clusterClient := cluster.GetClient()
 
-	p := &global.VectorPromotion{}
+	p := &galaxy.VectorPromotion{}
 	if err := clusterClient.Get(ctx, req.NamespacedName, p); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -61,8 +61,8 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 		return ctrl.Result{}, fmt.Errorf("failed to get VectorPromotionConfig: %w", err)
 	}
 
-	promotionCondition := meta.FindStatusCondition(p.Status.Conditions, global.ConditionTypeSucceeded)
-	configCondition := meta.FindStatusCondition(config.Status.LastPromotionConditions, global.ConditionTypeSucceeded)
+	promotionCondition := meta.FindStatusCondition(p.Status.Conditions, galaxy.ConditionTypeSucceeded)
+	configCondition := meta.FindStatusCondition(config.Status.LastPromotionConditions, galaxy.ConditionTypeSucceeded)
 	if configCondition != nil && !promotionCondition.LastTransitionTime.After(configCondition.LastTransitionTime.Time) {
 		return requeueIfNotTerminal(p), nil
 	}
@@ -74,7 +74,7 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 	return requeueIfNotTerminal(p), nil
 }
 
-func requeueIfNotTerminal(p *global.VectorPromotion) ctrl.Result {
+func requeueIfNotTerminal(p *galaxy.VectorPromotion) ctrl.Result {
 	if promotion.IsTerminal(p) {
 		return ctrl.Result{}
 	}
@@ -83,7 +83,7 @@ func requeueIfNotTerminal(p *global.VectorPromotion) ctrl.Result {
 
 func patchPromotionConfigStatus(
 	ctx context.Context, clusterClient client.Client,
-	p *global.VectorPromotion, config *global.VectorPromotionConfig,
+	p *galaxy.VectorPromotion, config *galaxy.VectorPromotionConfig,
 ) error {
 	originalConfig := config.DeepCopy()
 	config.Status.LastPromotionConditions = p.Status.Conditions
@@ -99,7 +99,7 @@ func patchPromotionConfigStatus(
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorPromotionStatusPropagationReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
-		For(&global.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
+		For(&galaxy.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
 			CreateFunc:  func(e event.CreateEvent) bool { return true },
 			UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 			DeleteFunc:  func(e event.DeleteEvent) bool { return false },

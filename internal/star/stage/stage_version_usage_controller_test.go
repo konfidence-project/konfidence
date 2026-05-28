@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/star/stage"
 	testutil "github.com/konfidence-project/konfidence/internal/star/stage/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
@@ -62,7 +62,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionTest, Namespace, Vector001, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
-			stageVersion := &landscape.StageVersion{}
+			stageVersion := &star.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: StageVersionTest, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
@@ -72,21 +72,21 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			testutil.CreateStageVersionUsage(ctx, k8sClient, StageVersionTestUsage, Namespace, StageVersionTest)
 
 			// check that the stageVersionUsage has been created and has valid properties
-			stageVersionUsage := &landscape.StageVersionUsage{}
+			stageVersionUsage := &star.StageVersionUsage{}
 			stageVersionUsageLookupKey := types.NamespacedName{Name: StageVersionTestUsage, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions).To(HaveLen(1))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[0]).To(Equal(StageVersionTest))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeFalse())
+				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, star.StageVersionUsageReady)).To(BeFalse())
 			}, timeout, interval).Should(Succeed())
 
 			// mark stageVersion as ready
 			meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
-				Type:               landscape.StageVersionReady,
+				Type:               star.StageVersionReady,
 				Status:             metav1.ConditionTrue,
-				Reason:             landscape.StageVersionReady,
+				Reason:             star.StageVersionReady,
 				Message:            "StageVersion is ready",
 				ObservedGeneration: stageVersion.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -99,7 +99,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions).To(HaveLen(1))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[0]).To(Equal(StageVersionTest))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, star.StageVersionUsageReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 		})
@@ -108,18 +108,18 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			testutil.CreateStageVersionUsage(ctx, k8sClient, StageVersionTestUsage, Namespace, StageVersionTest)
 
 			// check that the stageVersionUsage has been created and has valid properties
-			stageVersionUsage := &landscape.StageVersionUsage{}
+			stageVersionUsage := &star.StageVersionUsage{}
 			stageVersionUsageLookupKey := types.NamespacedName{Name: StageVersionTestUsage, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionNotFound)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, star.StageVersionNotFound)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			testutil.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionTest, Namespace, Vector001, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
-			stageVersion := &landscape.StageVersion{}
+			stageVersion := &star.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: StageVersionTest, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
@@ -132,7 +132,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions).To(HaveLen(1))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[0]).To(Equal(StageVersionTest))
-				g.Expect(meta.FindStatusCondition(stageVersionUsage.Status.Conditions, landscape.StageVersionNotFound)).To(BeNil())
+				g.Expect(meta.FindStatusCondition(stageVersionUsage.Status.Conditions, star.StageVersionNotFound)).To(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 		It("should resolve multiple stageVersions by selector and mark stageVersionUsage only ready if all stageVersions are ready", func() {
@@ -140,18 +140,18 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			testutil.CreateStageVersionUsageWithSelector(ctx, k8sClient, StageVersionTestUsage, Namespace, StageDev, VectorName001, false)
 
 			// check that the stageVersionUsage has been created and has valid properties
-			stageVersionUsage := &landscape.StageVersionUsage{}
+			stageVersionUsage := &star.StageVersionUsage{}
 			stageVersionUsageLookupKey := types.NamespacedName{Name: StageVersionTestUsage, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionNotFound)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, star.StageVersionNotFound)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			testutil.CreateStageVersionWithLabels(ctx, k8sClient, StageVersionTest, Namespace, Vector001, StageDev, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
-			stageVersion := &landscape.StageVersion{}
+			stageVersion := &star.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: StageVersionTest, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
@@ -162,8 +162,8 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
-				g.Expect(meta.FindStatusCondition(stageVersionUsage.Status.Conditions, landscape.StageVersionNotFound)).To(BeNil())
-				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
+				g.Expect(meta.FindStatusCondition(stageVersionUsage.Status.Conditions, star.StageVersionNotFound)).To(BeNil())
+				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, star.StageVersionUsageReady)).To(BeTrue())
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions).To(HaveLen(1))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[0]).To(Equal(StageVersionTest))
 			}, timeout, interval).Should(Succeed())
@@ -171,7 +171,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			testutil.CreateStageVersionWithLabels(ctx, k8sClient, StageVersionTest2, Namespace, Vector001, StageDev, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
-			stageVersion2 := &landscape.StageVersion{}
+			stageVersion2 := &star.StageVersion{}
 			stageVersionLookupKey2 := types.NamespacedName{Name: StageVersionTest2, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey2, stageVersion2)).To(Succeed())
@@ -182,7 +182,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
-				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, star.StageVersionUsageReady)).To(BeTrue())
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions).To(HaveLen(2))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[0]).To(Equal(StageVersionTest))
 				g.Expect(stageVersionUsage.Status.ResolvedStageVersions[1]).To(Equal(StageVersionTest2))
@@ -190,9 +190,9 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 
 			// mark stageVersion1 as ready
 			meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
-				Type:               landscape.StageVersionReady,
+				Type:               star.StageVersionReady,
 				Status:             metav1.ConditionTrue,
-				Reason:             landscape.StageVersionReady,
+				Reason:             star.StageVersionReady,
 				Message:            "StageVersion is ready",
 				ObservedGeneration: stageVersion.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -204,14 +204,14 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
-				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionFalse(stageVersionUsage.Status.Conditions, star.StageVersionUsageReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// mark stageVersion2 as ready
 			meta.SetStatusCondition(&stageVersion2.Status.Conditions, metav1.Condition{
-				Type:               landscape.StageVersionReady,
+				Type:               star.StageVersionReady,
 				Status:             metav1.ConditionTrue,
-				Reason:             landscape.StageVersionReady,
+				Reason:             star.StageVersionReady,
 				Message:            "StageVersion is ready",
 				ObservedGeneration: stageVersion2.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -223,7 +223,7 @@ var _ = Describe("StageVersionUsage Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
 				g.Expect(stageVersionUsage.Name).To(Equal(StageVersionTestUsage))
-				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, landscape.StageVersionUsageReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersionUsage.Status.Conditions, star.StageVersionUsageReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 	})

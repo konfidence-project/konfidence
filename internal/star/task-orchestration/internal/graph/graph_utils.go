@@ -4,11 +4,11 @@ package graph
 import (
 	"errors"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 )
 
-func createAdjacencyList(tasks []landscape.TaskManifest) map[string][]landscape.TaskManifest {
-	adjacencyList := map[string][]landscape.TaskManifest{}
+func createAdjacencyList(tasks []star.TaskManifest) map[string][]star.TaskManifest {
+	adjacencyList := map[string][]star.TaskManifest{}
 
 	// TODO validate that dependsOn only contains valid task names
 	for _, task := range tasks {
@@ -25,7 +25,7 @@ func createAdjacencyList(tasks []landscape.TaskManifest) map[string][]landscape.
 }
 
 // SortTasks implements topological sort of the task dependency graph with Kahn's algorithm see https://en.wikipedia.org/wiki/Topological_sorting
-func SortTasks(tasks []landscape.TaskManifest) ([]landscape.TaskManifest, [][]landscape.TaskManifest, error) {
+func SortTasks(tasks []star.TaskManifest) ([]star.TaskManifest, [][]star.TaskManifest, error) {
 	if len(tasks) == 0 {
 		return nil, nil, errors.New("task list is empty")
 	}
@@ -33,7 +33,7 @@ func SortTasks(tasks []landscape.TaskManifest) ([]landscape.TaskManifest, [][]la
 	// create adjacency list
 	adjacencyList := createAdjacencyList(tasks)
 
-	var queue []landscape.TaskManifest // work queue for the algorithm
+	var queue []star.TaskManifest      // work queue for the algorithm
 	indegreeCounts := map[string]int{} // number of incoming edges per node
 	layerCounts := map[string]int{}    // marks in which layer a node becomes a leaf
 
@@ -53,8 +53,8 @@ func SortTasks(tasks []landscape.TaskManifest) ([]landscape.TaskManifest, [][]la
 		return nil, nil, errors.New("task dependency graph contains no root nodes")
 	}
 
-	layerMap := map[int][]landscape.TaskManifest{0: queue}
-	var result []landscape.TaskManifest
+	layerMap := map[int][]star.TaskManifest{0: queue}
+	var result []star.TaskManifest
 
 	for len(queue) > 0 {
 		// TODO maybe we could use a more efficient queue implementation here
@@ -81,7 +81,7 @@ func SortTasks(tasks []landscape.TaskManifest) ([]landscape.TaskManifest, [][]la
 	}
 
 	// copy layers in ordered list
-	layers := make([][]landscape.TaskManifest, len(layerMap))
+	layers := make([][]star.TaskManifest, len(layerMap))
 	for i, layer := range layerMap {
 		layers[i] = layer
 	}

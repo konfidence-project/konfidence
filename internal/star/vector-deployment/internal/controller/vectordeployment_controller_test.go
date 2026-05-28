@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -57,15 +57,15 @@ var _ = Describe("VectorDeployment Controller", func() {
 		managerClient := k8sManager.GetClient()
 
 		// Cleanup VectorDeployments
-		err := managerClient.DeleteAllOf(ctx, &landscape.VectorDeployment{}, client.InNamespace(testNamespace))
+		err := managerClient.DeleteAllOf(ctx, &star.VectorDeployment{}, client.InNamespace(testNamespace))
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Cleanup ArtifactDeployments
-		err = managerClient.DeleteAllOf(ctx, &landscape.ArtifactDeployment{}, client.InNamespace(testNamespace))
+		err = managerClient.DeleteAllOf(ctx, &star.ArtifactDeployment{}, client.InNamespace(testNamespace))
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Cleanup VectorAssignments
-		err = managerClient.DeleteAllOf(ctx, &landscape.VectorAssignment{}, client.InNamespace(testNamespace))
+		err = managerClient.DeleteAllOf(ctx, &star.VectorAssignment{}, client.InNamespace(testNamespace))
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		if mockCtrl != nil {
@@ -146,7 +146,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).Return(artifactManifest, nil).AnyTimes()
 
 		// GIVEN: create a VectorDeployment resource
-		vectorDeployment := &landscape.VectorDeployment{
+		vectorDeployment := &star.VectorDeployment{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "VectorDeployment",
 				APIVersion: "star.konfidence.cloud/v1alpha1",
@@ -156,10 +156,10 @@ var _ = Describe("VectorDeployment Controller", func() {
 				Namespace: testNamespace,
 				Labels:    map[string]string{"app.kubernetes.io/name": "crds", "app.kubernetes.io/managed-by": "kustomize"},
 			},
-			Spec: landscape.VectorDeploymentSpec{
+			Spec: star.VectorDeploymentSpec{
 				Vector: vectorReference,
 			},
-			Status: landscape.VectorDeploymentStatus{},
+			Status: star.VectorDeploymentStatus{},
 		}
 
 		// WHEN: creating the resource will trigger the reconciler automatically
@@ -170,15 +170,15 @@ var _ = Describe("VectorDeployment Controller", func() {
 		// THEN: Verify that the reconciler processed the resource and updated
 
 		By("Verifying ResolvedVectorOcm and VectorDownloaded condition is set")
-		actualVectorDeployment := &landscape.VectorDeployment{}
+		actualVectorDeployment := &star.VectorDeployment{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
 			g.Expect(actualVectorDeployment.Status.ResolvedVectorOcm).To(gomega.Not(gomega.BeEmpty()))
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, landscape.VectorDownloadedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorDownloadedCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying ArtifactDeployment was created")
-		artifactDeploymentList := &landscape.ArtifactDeploymentList{}
+		artifactDeploymentList := &star.ArtifactDeploymentList{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.List(ctx, artifactDeploymentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
 			g.Expect(artifactDeploymentList.Items).To(gomega.HaveLen(1))
@@ -189,34 +189,34 @@ var _ = Describe("VectorDeployment Controller", func() {
 
 		By("Updating ArtifactDeployment.status")
 		// Re-fetch to get the latest resourceVersion (the controller may have added an owner reference since the list).
-		artifactDeployment := &landscape.ArtifactDeployment{}
+		artifactDeployment := &star.ArtifactDeployment{}
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name:      artifactDeploymentList.Items[0].Name,
 			Namespace: testNamespace,
 		}, artifactDeployment)).To(gomega.Succeed())
 
-		artifactDeployment.Status.DeploymentResults = []landscape.DeploymentResult{
+		artifactDeployment.Status.DeploymentResults = []star.DeploymentResult{
 			{Name: "result-1", Type: "test", Spec: runtime.RawExtension{Raw: []byte("{\"test-deployment-result\": true}")}},
 		}
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               landscape.ArtifactDeployedCondition,
-			Reason:             landscape.ArtifactDeployedCondition,
+			Type:               star.ArtifactDeployedCondition,
+			Reason:             star.ArtifactDeployedCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "",
 			ObservedGeneration: artifactDeployment.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               landscape.DeploymentResultCreatedCondition,
-			Reason:             landscape.DeploymentResultCreatedCondition,
+			Type:               star.DeploymentResultCreatedCondition,
+			Reason:             star.DeploymentResultCreatedCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "",
 			ObservedGeneration: artifactDeployment.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               landscape.ArtifactDeploymentReadyCondition,
-			Reason:             landscape.ArtifactDeploymentReadyCondition,
+			Type:               star.ArtifactDeploymentReadyCondition,
+			Reason:             star.ArtifactDeploymentReadyCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "",
 			ObservedGeneration: artifactDeployment.Generation,
@@ -228,7 +228,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		By("Verifying VectorDeployed condition is set")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, landscape.VectorDeployedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorDeployedCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying VectorDeployment.status.deploymentResults is populated")
@@ -238,7 +238,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying VectorAssignment was created")
-		vectorAssignmentList := &landscape.VectorAssignmentList{}
+		vectorAssignmentList := &star.VectorAssignmentList{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.List(ctx, vectorAssignmentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
 			g.Expect(vectorAssignmentList.Items).To(gomega.HaveLen(1))
@@ -252,12 +252,12 @@ var _ = Describe("VectorDeployment Controller", func() {
 		By("Verifying VectorAssignmentsCreated condition is set")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, landscape.VectorAssignmentsCreatedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorAssignmentsCreatedCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying ArtifactDeployment has owner reference pointing to VectorDeployment")
 		gomega.Eventually(func(g gomega.Gomega) {
-			ad := &landscape.ArtifactDeployment{}
+			ad := &star.ArtifactDeployment{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name:      artifactDeploymentList.Items[0].Name,
 				Namespace: testNamespace,
@@ -274,7 +274,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 
 		By("Verifying VectorAssignment has controller owner reference pointing to VectorDeployment")
 		gomega.Eventually(func(g gomega.Gomega) {
-			va := &landscape.VectorAssignment{}
+			va := &star.VectorAssignment{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name:      vectorDeployment.Name,
 				Namespace: testNamespace,
@@ -290,7 +290,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Simulating VectorAssignment readiness")
-		vectorAssignment := &landscape.VectorAssignment{}
+		vectorAssignment := &star.VectorAssignment{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name:      vectorDeployment.Name,
@@ -299,8 +299,8 @@ var _ = Describe("VectorDeployment Controller", func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		meta.SetStatusCondition(&vectorAssignment.Status.Conditions, metav1.Condition{
-			Type:               landscape.VectorAssignmentReadyCondition,
-			Reason:             landscape.VectorAssignmentReadyCondition,
+			Type:               star.VectorAssignmentReadyCondition,
+			Reason:             star.VectorAssignmentReadyCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "simulated",
 			ObservedGeneration: vectorAssignment.Generation,
@@ -311,7 +311,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 		By("Verifying VectorReady condition is set on VectorDeployment")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, landscape.VectorReadyCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorReadyCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 	})
 })
