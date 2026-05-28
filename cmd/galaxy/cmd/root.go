@@ -8,8 +8,8 @@ import (
 	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -70,8 +70,8 @@ func init() {
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(landscape.AddToScheme(scheme))
-	utilruntime.Must(global.AddToScheme(scheme))
+	utilruntime.Must(star.AddToScheme(scheme))
+	utilruntime.Must(galaxy.AddToScheme(scheme))
 
 	loggerOpts := zap.Options{
 		Development: true,
@@ -89,7 +89,7 @@ func init() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 
-	rootCmd.PersistentFlags().StringVar(&kcpEndpointSlice, "kcp-enpoint-slice-name",
+	rootCmd.PersistentFlags().StringVar(&kcpEndpointSlice, "kcp-endpoint-slice-name",
 		os.Getenv(KcpEndpointSliceEnv),
 		"Provides a reference to the APIExport in KCP. If using single cluster mode this shall be empty.")
 	rootCmd.PersistentFlags().StringVar(&kubernetesServiceHost, "kubernetes-host",
