@@ -3,8 +3,8 @@ package cmd
 import (
 	"os"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/spf13/cobra"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,8 +52,8 @@ func Execute() {
 }
 
 func init() {
-	utilruntime.Must(landscape.AddToScheme(scheme))
-	utilruntime.Must(global.AddToScheme(scheme))
+	utilruntime.Must(star.AddToScheme(scheme))
+	utilruntime.Must(galaxy.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
