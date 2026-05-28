@@ -89,6 +89,7 @@ var _ = Describe("lease lock", func() {
 		It("creates a lease if not found", func() {
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.AssignableToTypeOf(&coordinationv1.Lease{})).
 				Return(apierrors.NewNotFound(schema.GroupResource{}, LeaseName))
+			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 
 			acquired, err := AcquireResourceLease(ctx, clientMock, ResourceId, Namespace, controllerId, ResourceType, stage)
