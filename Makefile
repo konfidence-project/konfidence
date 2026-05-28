@@ -200,7 +200,7 @@ validate-galaxy: schemas-galaxy ## Validate galaxy sample resources against thei
 		api/galaxy/config/samples
 
 ## Tool Binaries (Testing)
-GINKGO ?= ginkgo
+GINKGO ?= $(LOCALBIN)/ginkgo
 
 ##@ Testing
 
@@ -208,17 +208,17 @@ GINKGO ?= ginkgo
 test: hermit test-star test-galaxy test-pkg ## Run all unit tests.
 
 .PHONY: test-star
-test-star: hermit manifests-star generate-star fmt vet setup-envtest ## Run unit tests for the star operator only.
+test-star: hermit manifests-star generate-star fmt vet setup-envtest ginkgo ## Run unit tests for the star operator only.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		$(GINKGO) --coverprofile=cover-star.out -v ./internal/star/...
 
 .PHONY: test-galaxy
-test-galaxy: hermit manifests-galaxy generate-galaxy fmt vet setup-envtest ## Run unit tests for the galaxy operator only.
+test-galaxy: hermit manifests-galaxy generate-galaxy fmt vet setup-envtest ginkgo ## Run unit tests for the galaxy operator only.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		$(GINKGO) --coverprofile=cover-galaxy.out -v ./internal/galaxy/...
 
 .PHONY: test-pkg
-test-pkg: hermit fmt vet ## Run unit tests for shared pkg packages.
+test-pkg: hermit fmt vet ginkgo ## Run unit tests for shared pkg packages.
 	$(GINKGO) --coverprofile=cover-pkg.out -v ./pkg/...
 
 .PHONY: setup-envtest
@@ -228,6 +228,10 @@ setup-envtest: hermit ## Download the envtest binaries for the configured Kubern
 		echo "Error: Failed to set up envtest binaries for version $(ENVTEST_K8S_VERSION)."; \
 		exit 1; \
 	}
+
+.PHONY: ginkgo
+ginkgo: ## Install ginkgo CLI to LOCALBIN.
+	go build -o $(LOCALBIN)/ginkgo github.com/onsi/ginkgo/v2/ginkgo
 
 ##@ Build
 
@@ -256,13 +260,15 @@ docker-build: docker-build-star docker-build-galaxy ## Build container images fo
 
 .PHONY: docker-build-star
 docker-build-star: hermit ## Build the star operator container image (local use only).
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/star ./cmd/star/main.go
-	$(CONTAINER_TOOL) build -f star.Dockerfile -t $(STAR_IMAGE) .
+	$(CONTAINER_TOOL) build -f Dockerfile --build-arg OPERATOR_NAME=star -t $(STAR_IMAGE) .
 
 .PHONY: docker-build-galaxy
 docker-build-galaxy: hermit ## Build the galaxy operator container image (local use only).
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/galaxy ./cmd/galaxy/main.go
-	$(CONTAINER_TOOL) build -f galaxy.Dockerfile -t $(GALAXY_IMAGE) .
+	$(CONTAINER_TOOL) build -f Dockerfile --build-arg OPERATOR_NAME=galaxy -t $(GALAXY_IMAGE) .
+
+.PHONY: docker-bake
+docker-bake: hermit ## Build all container images using docker buildx bake (multi-platform, CI-compatible).
+	$(CONTAINER_TOOL) buildx bake --file docker-bake.hcl
 
 .PHONY: docker-push
 docker-push: docker-push-star docker-push-galaxy ## Push container images for all operators.

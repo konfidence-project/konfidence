@@ -42,7 +42,8 @@ type StageReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
-// TODO(konfidence-project#680): factor shared reconcile/status-patch boilerplate to fix dupl linting.
+//
+//nolint:dupl // TODO(konfidence-project#689): factor shared reconcile/status-patch boilerplate.
 func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Reconcile stage started...")
@@ -167,6 +168,7 @@ func (r *StageReconciler) getOrCreateTargetStageVersionUsage(
 	return stageVersionUsage, nil
 }
 
+//nolint:dupl // TODO(konfidence-project#689): factor shared create-or-update boilerplate.
 func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *landscape.Stage) (*landscape.StageVersion, error) {
 	log := logf.FromContext(ctx)
 	stageVersion, err := r.constructStageVersion(stage)
