@@ -8,7 +8,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/star/vectordeployment/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/star/vectordeployment/internal/ocm"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -18,7 +18,7 @@ const OperatorFlagName = "VectorDeployment"
 type Options struct {
 	// RegistrySecret holds dockerconfigjson-style credentials used to access OCI registries.
 	// May be nil if no authentication is required.
-	RegistrySecret *v1.Secret
+	RegistrySecret *corev1.Secret
 
 	// VectorVerifier is used to verify vector descriptor signatures.
 	// If nil, vector verification is disabled.

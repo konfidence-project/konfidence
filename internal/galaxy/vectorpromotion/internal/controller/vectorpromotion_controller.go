@@ -10,7 +10,7 @@ import (
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,7 +74,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		logStr := `Promotion result is unknown probably because the controller failed to patch the promotion ` +
 			`status after starting the promotion. Aborting reconciliation.`
 		log.Info(logStr)
-		recorder.Eventf(vectorPromotion, nil, v1.EventTypeWarning, "EncounteredRunningPromotion", EventActionUnknownPromotionStatus,
+		recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "EncounteredRunningPromotion", EventActionUnknownPromotionStatus,
 			fmt.Sprintf("%s Please check previous events for details.", logStr))
 		if err := setAndPatchPromotionCondition(
 			ctx, log, clusterClient, recorder, vectorPromotion, original,
@@ -133,7 +133,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 
 	msgStr := "starting promotion"
 	log.Info(msgStr)
-	recorder.Eventf(vectorPromotion, nil, v1.EventTypeNormal, "PromotionStarting", EventActionReconciling, msgStr)
+	recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionStarting", EventActionReconciling, msgStr)
 	if err := setAndPatchPromotionCondition(
 		ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
 		galaxy.ReasonPromotionRunning, "Promotion is currently running"); err != nil {
@@ -152,7 +152,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 
 	msgStr = "promotion succeeded"
 	log.Info(msgStr)
-	recorder.Eventf(vectorPromotion, nil, v1.EventTypeNormal, "PromotionSuccessful", EventActionReconciling, msgStr)
+	recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionSuccessful", EventActionReconciling, msgStr)
 	if err := setAndPatchPromotionCondition(
 		ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionTrue,
 		galaxy.ReasonPromotionSucceeded, "Promotion completed successfully"); err != nil {
@@ -181,7 +181,7 @@ func setAndPatchPromotionCondition(
 		if err := clusterClient.Status().Patch(ctx, vectorPromotion, client.MergeFrom(original)); err != nil {
 			log.Error(err, fmt.Sprintf("failed to patch promotion status of promotion %q in namespace %q",
 				vectorPromotion.Name, vectorPromotion.Namespace))
-			recorder.Eventf(vectorPromotion, nil, v1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch,
+			recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch,
 				fmt.Sprintf("wanted to set condition of type %q to status %q with reason %q and message %q "+
 					"but failed with error: %s", galaxy.ConditionTypeSucceeded, status, reason, message, err.Error()))
 			return fmt.Errorf("failed to patch VectorPromotion status: %w", err)

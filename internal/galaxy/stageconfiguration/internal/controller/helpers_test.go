@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/template"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,7 +59,7 @@ func CreateStageSync(
 }
 
 func CreateNamespace(ctx context.Context, k8sClient client.Client, namespace string) {
-	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	Expect(k8sClient.Create(ctx, ns)).To(Succeed())
 }
 

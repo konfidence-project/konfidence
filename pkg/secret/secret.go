@@ -6,7 +6,7 @@ import (
 	"context"
 
 	"gopkg.in/yaml.v3"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,7 +22,7 @@ const (
 func GetSecretByConfigMap(ctx context.Context, reader client.Reader, configMapName string,
 	domainName string) (string, error) {
 	log := logf.FromContext(ctx)
-	configMap := &v1.ConfigMap{}
+	configMap := &corev1.ConfigMap{}
 	// config map must be in konfidence system namespace
 	err := reader.Get(ctx, types.NamespacedName{
 		Namespace: KonfidenceSystemNamespace,

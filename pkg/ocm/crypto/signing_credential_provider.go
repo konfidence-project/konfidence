@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -69,7 +69,7 @@ func (p *SecretSigningCredentialsProvider) SetupWithManager(ctx context.Context,
 		return fmt.Errorf("provider already started")
 	}
 	p.done = make(chan struct{})
-	data := &v1.Secret{}
+	data := &corev1.Secret{}
 	// Use APIReader here as SetupWithManager might be called during controller startup
 	// before the manager's cache is synced
 	if err := mgr.GetAPIReader().Get(ctx, p.secret, data); err != nil {
@@ -78,7 +78,7 @@ func (p *SecretSigningCredentialsProvider) SetupWithManager(ctx context.Context,
 	if err := p.ingest(data); err != nil {
 		return fmt.Errorf("ingest secret %q: %w", p.secret, err)
 	}
-	inf, err := mgr.GetCache().GetInformer(ctx, &v1.Secret{})
+	inf, err := mgr.GetCache().GetInformer(ctx, &corev1.Secret{})
 	if err != nil {
 		return fmt.Errorf("get informer for secret: %w", err)
 	}
@@ -89,7 +89,7 @@ func (p *SecretSigningCredentialsProvider) SetupWithManager(ctx context.Context,
 }
 
 func (p *SecretSigningCredentialsProvider) refresh(obj any) {
-	sec, ok := obj.(*v1.Secret)
+	sec, ok := obj.(*corev1.Secret)
 	if !ok {
 		p.log.Error(
 			fmt.Errorf("unexpected object type: %T, expected *v1.Secret", obj),
@@ -106,7 +106,7 @@ func (p *SecretSigningCredentialsProvider) refresh(obj any) {
 	p.log.Info("credentials refreshed")
 }
 
-func (p *SecretSigningCredentialsProvider) ingest(sec *v1.Secret) error {
+func (p *SecretSigningCredentialsProvider) ingest(sec *corev1.Secret) error {
 	if sec == nil {
 		return fmt.Errorf("secret is nil")
 	}

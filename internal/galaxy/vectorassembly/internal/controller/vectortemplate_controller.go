@@ -11,7 +11,7 @@ import (
 	domain2 "github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -82,7 +82,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req mcreconcil
 	if !reflect.DeepEqual(vectorTemplate.Status, originalVectorTemplate.Status) {
 		if patchErr = clusterClient.Status().Patch(ctx, vectorTemplate, patch); patchErr != nil {
 			log.Error(patchErr, "unable to patch vector template status")
-			recorder.Eventf(vectorTemplate, nil, v1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch, patchErr.Error())
+			recorder.Eventf(vectorTemplate, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch, patchErr.Error())
 		}
 	}
 
@@ -116,7 +116,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 
@@ -132,7 +132,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 
@@ -154,7 +154,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 
@@ -163,7 +163,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	actualVector, err := ocmAdapter.GetVector(ctx, *vectorOCMComponent)
 	if errors.Is(err, domain2.ErrVectorNotFound) {
 		msg := "Vector not found in OCM repository - creating new vector"
-		recorder.Eventf(template, nil, v1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
+		recorder.Eventf(template, nil, corev1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
 		log.Info(msg, "VectorOCMComponent", vectorOCMComponent.Component)
 	} else if err != nil {
 		err = fmt.Errorf("unable to get actual artifacts from vector (%s): %w", vectorOCMComponent, err)
@@ -175,7 +175,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 
@@ -190,7 +190,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, v1.EventTypeNormal, v1alpha1.VectorTemplateNoDriftDetectedReason, EventActionDriftDetection, msg)
+		recorder.Eventf(template, nil, corev1.EventTypeNormal, v1alpha1.VectorTemplateNoDriftDetectedReason, EventActionDriftDetection, msg)
 		log.Info(msg, "VectorVersion", actualVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
 		return nil
 	}
@@ -212,7 +212,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateVectorCreationFailedReason, EventActionVectorCreation, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateVectorCreationFailedReason, EventActionVectorCreation, err.Error())
 		return err
 	}
 
@@ -225,7 +225,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		ObservedGeneration: template.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
-	recorder.Eventf(template, nil, v1.EventTypeNormal, v1alpha1.VectorTemplateVectorCreatedReason, "VectorCreation", msg)
+	recorder.Eventf(template, nil, corev1.EventTypeNormal, v1alpha1.VectorTemplateVectorCreatedReason, "VectorCreation", msg)
 	log.Info(msg, "VectorVersion", newVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
 	return nil
 }
@@ -245,7 +245,7 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return nil, err
 	}
 
@@ -260,7 +260,7 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, v1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return nil, err
 	}
 	log := logf.FromContext(ctx)
