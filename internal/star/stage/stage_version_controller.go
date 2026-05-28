@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	util "github.com/konfidence-project/konfidence/internal/star/stage/internal/utils"
 	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
@@ -52,7 +52,7 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log.Info("Reconcile stageVersion started...")
 
 	// get stageVersion
-	stageVersion := &landscape.StageVersion{}
+	stageVersion := &star.StageVersion{}
 	if err := r.Get(ctx, req.NamespacedName, stageVersion); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -77,7 +77,7 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, err
 }
 
-func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stageVersion *landscape.StageVersion) error {
+func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stageVersion *star.StageVersion) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageVersion")
 
@@ -94,16 +94,16 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 
 	// set vectorDeploymentCreated status
 	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
-		Type:               landscape.VectorDeploymentCreatedCondition,
+		Type:               star.VectorDeploymentCreatedCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.VectorDeploymentCreatedCondition,
+		Reason:             star.VectorDeploymentCreatedCondition,
 		Message:            fmt.Sprintf("Successfully created VectorDeployment %s for stageVersion %s", vectorDeployment.Name, stageVersion.Name),
 		ObservedGeneration: stageVersion.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
 
 	// check if vectorDeployment is marked as deployed
-	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, landscape.VectorDeployedCondition) {
+	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, star.VectorDeployedCondition) {
 		// wait for vectorDeployment status change notification
 		return nil
 	}
@@ -116,25 +116,25 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 
 	// set vectorMigrationCreated status
 	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
-		Type:               landscape.VectorMigrationCreatedCondition,
+		Type:               star.VectorMigrationCreatedCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.VectorMigrationCreatedCondition,
+		Reason:             star.VectorMigrationCreatedCondition,
 		Message:            fmt.Sprintf("Successfully created vectorMigration %s for stageVersion %s", vectorMigration.Name, stageVersion.Name),
 		ObservedGeneration: stageVersion.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
 
 	// check if vectorMigration is marked as successful
-	if !meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded) {
+	if !meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, star.VectorMigrationSucceeded) {
 		// wait for vectorMigration status change notification
 		return nil
 	}
 
 	// set vectorMigrated status
 	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
-		Type:               landscape.VectorMigratedCondition,
+		Type:               star.VectorMigratedCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.VectorMigratedCondition,
+		Reason:             star.VectorMigratedCondition,
 		Message:            fmt.Sprintf("VectorMigration %s successful for stageVersion %s", vectorMigration.Name, stageVersion.Name),
 		ObservedGeneration: stageVersion.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -148,9 +148,9 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 
 	// set vectorActivationCreated status
 	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
-		Type:               landscape.VectorActivationCreatedCondition,
+		Type:               star.VectorActivationCreatedCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.VectorActivationCreatedCondition,
+		Reason:             star.VectorActivationCreatedCondition,
 		Message:            fmt.Sprintf("Successfully created vectorActivation %s for stageVersion %s", vectorActivation.Name, stageVersion.Name),
 		ObservedGeneration: stageVersion.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -158,9 +158,9 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 
 	// set stageVersionReady status
 	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{
-		Type:               landscape.StageVersionReady,
+		Type:               star.StageVersionReady,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.StageVersionReady,
+		Reason:             star.StageVersionReady,
 		Message:            fmt.Sprintf("StageVersion %s reconciled successfully", stageVersion.Name),
 		ObservedGeneration: stageVersion.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -171,7 +171,7 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 }
 
 //nolint:dupl // TODO(konfidence-project#689): factor shared create-or-update boilerplate.
-func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context, stageVersion *landscape.StageVersion) (*landscape.VectorDeployment, error) {
+func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context, stageVersion *star.StageVersion) (*star.VectorDeployment, error) {
 	log := logf.FromContext(ctx)
 	vectorDeployment, err := r.constructVectorDeployment(stageVersion)
 	if err != nil {
@@ -196,7 +196,7 @@ func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context
 	return vectorDeployment, nil
 }
 
-func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context, stageVersion *landscape.StageVersion) (*landscape.VectorMigration, error) {
+func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context, stageVersion *star.StageVersion) (*star.VectorMigration, error) {
 	log := logf.FromContext(ctx)
 	vectorMigration, err := r.constructVectorMigration(stageVersion)
 	if err != nil {
@@ -221,10 +221,10 @@ func (r *StageVersionReconciler) getOrCreateVectorMigration(ctx context.Context,
 
 func (r *StageVersionReconciler) getOrCreateVectorActivation(
 	ctx context.Context,
-	stageVersion *landscape.StageVersion,
+	stageVersion *star.StageVersion,
 	stageName string,
-	vectorDeployment *landscape.VectorDeployment,
-) (*landscape.VectorActivation, error) {
+	vectorDeployment *star.VectorDeployment,
+) (*star.VectorActivation, error) {
 	log := logf.FromContext(ctx)
 	vectorActivation, err := r.constructVectorActivation(stageVersion, stageName, vectorDeployment)
 	if err != nil {
@@ -249,14 +249,14 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(
 	return vectorActivation, nil
 }
 
-func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *landscape.StageVersion) (*landscape.VectorDeployment, error) {
-	vectorDeployment := &landscape.VectorDeployment{
+func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *star.StageVersion) (*star.VectorDeployment, error) {
+	vectorDeployment := &star.VectorDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageVersion.Name,
 			Namespace: stageVersion.Namespace,
 			Labels:    getVectorDeploymentLabels(stageVersion),
 		},
-		Spec: landscape.VectorDeploymentSpec{
+		Spec: star.VectorDeploymentSpec{
 			Vector: stageVersion.Spec.Vector,
 		},
 	}
@@ -269,13 +269,13 @@ func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *landsca
 	return vectorDeployment, nil
 }
 
-func (r *StageVersionReconciler) constructVectorMigration(stageVersion *landscape.StageVersion) (*landscape.VectorMigration, error) {
-	vectorMigration := &landscape.VectorMigration{
+func (r *StageVersionReconciler) constructVectorMigration(stageVersion *star.StageVersion) (*star.VectorMigration, error) {
+	vectorMigration := &star.VectorMigration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageVersion.Name,
 			Namespace: stageVersion.Namespace,
 		},
-		Spec: landscape.VectorMigrationSpec{
+		Spec: star.VectorMigrationSpec{
 			Vector:       stageVersion.Spec.Vector,
 			StageVersion: stageVersion.Name,
 		},
@@ -289,16 +289,16 @@ func (r *StageVersionReconciler) constructVectorMigration(stageVersion *landscap
 }
 
 func (r *StageVersionReconciler) constructVectorActivation(
-	stageVersion *landscape.StageVersion,
+	stageVersion *star.StageVersion,
 	stageName string,
-	vectorDeployment *landscape.VectorDeployment,
-) (*landscape.VectorActivation, error) {
-	vectorActivation := &landscape.VectorActivation{
+	vectorDeployment *star.VectorDeployment,
+) (*star.VectorActivation, error) {
+	vectorActivation := &star.VectorActivation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageVersion.Name,
 			Namespace: stageVersion.Namespace,
 		},
-		Spec: landscape.VectorActivationSpec{
+		Spec: star.VectorActivationSpec{
 			Stage:            stageName,
 			StageVersion:     stageVersion.Name,
 			Vector:           stageVersion.Spec.Vector,
@@ -316,11 +316,11 @@ func (r *StageVersionReconciler) constructVectorActivation(
 // SetupWithManager sets up the controller with the Manager.
 func (r *StageVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&landscape.StageVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&landscape.VectorMigration{}).
-		Owns(&landscape.VectorActivation{}).
+		For(&star.StageVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&star.VectorMigration{}).
+		Owns(&star.VectorActivation{}).
 		Watches(
-			&landscape.VectorDeployment{},
+			&star.VectorDeployment{},
 			handler.EnqueueRequestsFromMapFunc(reconcileStageVersionOwner),
 		).
 		Named("stageVersion").
@@ -332,7 +332,7 @@ func reconcileStageVersionOwner(ctx context.Context, obj client.Object) []reconc
 	refs := obj.GetOwnerReferences()
 	var stageVersionRefs []metav1.OwnerReference
 	for i := range refs {
-		if refs[i].Kind == landscape.StageVersionKind {
+		if refs[i].Kind == star.StageVersionKind {
 			stageVersionRefs = append(stageVersionRefs, refs[i])
 		}
 	}
@@ -352,7 +352,7 @@ func reconcileStageVersionOwner(ctx context.Context, obj client.Object) []reconc
 	return requests
 }
 
-func getVectorDeploymentLabels(stageVersion *landscape.StageVersion) map[string]string {
+func getVectorDeploymentLabels(stageVersion *star.StageVersion) map[string]string {
 	return map[string]string{
 		pkgCtrl.StageVersionNameLabel: stageVersion.Name,
 	}

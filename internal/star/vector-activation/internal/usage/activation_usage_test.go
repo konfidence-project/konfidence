@@ -3,7 +3,7 @@ package usage
 import (
 	"context"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/star/vector-activation/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -17,8 +17,8 @@ var _ = Describe("active usage tests", func() {
 		ctx        context.Context
 		mockCtrl   *gomock.Controller
 		clientMock *MockClient
-		stage      *landscape.Stage
-		activation *landscape.VectorActivation
+		stage      *star.Stage
+		activation *star.VectorActivation
 		scheme     *runtime.Scheme
 	)
 	BeforeEach(func() {
@@ -26,19 +26,19 @@ var _ = Describe("active usage tests", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		clientMock = NewMockClient(mockCtrl)
 		scheme = runtime.NewScheme()
-		_ = landscape.AddToScheme(scheme)
-		stage = &landscape.Stage{
+		_ = star.AddToScheme(scheme)
+		stage = &star.Stage{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "stage-test",
 				Namespace: "default",
 				UID:       "12345",
 			},
 		}
-		activation = &landscape.VectorActivation{
+		activation = &star.VectorActivation{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "123",
 			},
-			Spec: landscape.VectorActivationSpec{
+			Spec: star.VectorActivationSpec{
 				StageVersion: "stage-version-test",
 			},
 		}
@@ -63,7 +63,7 @@ var _ = Describe("active usage tests", func() {
 		It("should delete", func() {
 			clientMock.EXPECT().Delete(ctx, gomock.Any()).Return(nil)
 
-			err := DeleteActivationUsage(ctx, clientMock, &landscape.StageVersionUsage{})
+			err := DeleteActivationUsage(ctx, clientMock, &star.StageVersionUsage{})
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})

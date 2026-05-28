@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -13,19 +13,19 @@ import (
 )
 
 func CreateActivationUsage(
-	ctx context.Context, c client.Client, stage *landscape.Stage, activation *landscape.VectorActivation,
-) (*landscape.StageVersionUsage, error) {
+	ctx context.Context, c client.Client, stage *star.Stage, activation *star.VectorActivation,
+) (*star.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 
-	stageVersionUsage := &landscape.StageVersionUsage{
+	stageVersionUsage := &star.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s-activation", stage.Name, activation.Name),
 			Namespace: stage.Namespace,
 			Labels:    map[string]string{ActivationStageVersionUsage: stage.Name},
 		},
-		Spec: landscape.StageVersionUsageSpec{
+		Spec: star.StageVersionUsageSpec{
 			Reason:          StageVersionUsageActivationType,
-			StageVersionRef: &landscape.StageVersionReference{Name: activation.Spec.StageVersion},
+			StageVersionRef: &star.StageVersionReference{Name: activation.Spec.StageVersion},
 		},
 	}
 	if err := controllerutil.SetOwnerReference(activation, stageVersionUsage, c.Scheme()); err != nil {
@@ -41,7 +41,7 @@ func CreateActivationUsage(
 	return stageVersionUsage, nil
 }
 
-func DeleteActivationUsage(ctx context.Context, c client.Client, activationUsage *landscape.StageVersionUsage) error {
+func DeleteActivationUsage(ctx context.Context, c client.Client, activationUsage *star.StageVersionUsage) error {
 	log := logf.FromContext(ctx)
 	if err := c.Delete(ctx, activationUsage); err != nil {
 		return fmt.Errorf("unable to delete activation stageVersionUsage: %w", err)

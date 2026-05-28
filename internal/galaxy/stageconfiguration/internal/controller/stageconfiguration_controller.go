@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -89,7 +89,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 	recorder := cluster.GetEventRecorder(stageConfigurationControllerName)
 
 	// get stageConfiguration
-	stageConfiguration := &global.StageConfiguration{}
+	stageConfiguration := &galaxy.StageConfiguration{}
 	if err := clusterClient.Get(ctx, req.NamespacedName, stageConfiguration); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -120,7 +120,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 	ctx context.Context,
 	clusterClient client.Client,
-	stageConfiguration *global.StageConfiguration,
+	stageConfiguration *galaxy.StageConfiguration,
 	recorder events.EventRecorder,
 ) error {
 	log := logf.FromContext(ctx)
@@ -183,8 +183,8 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 
 func (r *StageConfigurationReconciler) createOrUpdateStageSync(
 	ctx context.Context, targetClient client.Client,
-	stageConfiguration *global.StageConfiguration, vector string,
-) (*global.StageSync, controllerutil.OperationResult, error) {
+	stageConfiguration *galaxy.StageConfiguration, vector string,
+) (*galaxy.StageSync, controllerutil.OperationResult, error) {
 	stageSync, stageTemplateBytes, err := r.constructStageSync(stageConfiguration, vector)
 	if err != nil {
 		return nil, controllerutil.OperationResultNone, err
@@ -211,7 +211,7 @@ func (r *StageConfigurationReconciler) createOrUpdateStageSync(
 	return stageSync, operationResult, nil
 }
 
-func (r *StageConfigurationReconciler) constructStageSync(stageConfiguration *global.StageConfiguration, vector string) (*global.StageSync, []byte, error) {
+func (r *StageConfigurationReconciler) constructStageSync(stageConfiguration *galaxy.StageConfiguration, vector string) (*galaxy.StageSync, []byte, error) {
 	stageTemplate := r.constructStageTemplate(stageConfiguration, vector)
 	stageTemplateJSON, err := json.Marshal(stageTemplate)
 	if err != nil {
@@ -222,35 +222,35 @@ func (r *StageConfigurationReconciler) constructStageSync(stageConfiguration *gl
 	// TODO could e.g. use a digest that is computed using stage name and tenant
 	stageSyncName := fmt.Sprintf("sync-%s", stageConfiguration.Spec.Name)
 
-	return &global.StageSync{
+	return &galaxy.StageSync{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageSyncName,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
-		Spec: global.StageSyncSpec{
+		Spec: galaxy.StageSyncSpec{
 			StageTemplate: runtime.RawExtension{Raw: stageTemplateJSON},
 		},
 	}, stageTemplateJSON, nil
 }
 
-func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration *global.StageConfiguration, vector string) *template.StageTemplate {
+func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration *galaxy.StageConfiguration, vector string) *template.StageTemplate {
 	// TODO replace APIVersion with a configured or determined value
 	return &template.StageTemplate{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       landscape.StageKind,
+			Kind:       star.StageKind,
 			APIVersion: "star.konfidence.cloud/v1alpha1",
 		},
 		Metadata: template.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
-		Spec: landscape.StageSpec{
+		Spec: star.StageSpec{
 			Vector: vector,
 		},
 	}
 }
 
-func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stageConfiguration *global.StageConfiguration) (string, error) {
+func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stageConfiguration *galaxy.StageConfiguration) (string, error) {
 	// if kcp is used the target workspace is mandatory
 	if stageConfiguration.Spec.TargetWorkspace == nil || len(*stageConfiguration.Spec.TargetWorkspace) == 0 {
 		return "", fmt.Errorf("stage configuration does not contain a target workspace")
@@ -268,16 +268,16 @@ func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stage
 	return host[:separatorIdx] + clusterMarker + *stageConfiguration.Spec.TargetWorkspace, nil
 }
 
-func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stageConfiguration *global.StageConfiguration, ready bool, message string) {
+func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stageConfiguration *galaxy.StageConfiguration, ready bool, message string) {
 	status := metav1.ConditionFalse
 	if ready {
 		status = metav1.ConditionTrue
 	}
 
 	meta.SetStatusCondition(&stageConfiguration.Status.Conditions, metav1.Condition{
-		Type:               global.StageConfigurationReadyCondition,
+		Type:               galaxy.StageConfigurationReadyCondition,
 		Status:             status,
-		Reason:             global.StageConfigurationReadyCondition,
+		Reason:             galaxy.StageConfigurationReadyCondition,
 		Message:            message,
 		ObservedGeneration: stageConfiguration.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -287,7 +287,7 @@ func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stage
 // SetupWithManager sets up the controller with the Manager.
 func (r *StageConfigurationReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
-		For(&global.StageConfiguration{}, mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&galaxy.StageConfiguration{}, mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named(stageConfigurationControllerName).
 		Complete(r)
 }

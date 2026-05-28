@@ -21,8 +21,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -50,9 +50,9 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	var err error
-	err = landscape.AddToScheme(scheme.Scheme)
+	err = star.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = global.AddToScheme(scheme.Scheme)
+	err = galaxy.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	k8sScheme = scheme.Scheme
 
@@ -131,16 +131,16 @@ func getFirstFoundEnvTestBinaryDir() string {
 func CreateStageConfiguration(ctx context.Context, k8sClient client.Client, name string, namespace string,
 	targetNamespace string, stageName string, vector string,
 ) {
-	stageConfiguration := &global.StageConfiguration{
+	stageConfiguration := &galaxy.StageConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "galaxy.konfidence.cloud/v1alpha1",
-			Kind:       global.StageConfigurationKind,
+			Kind:       galaxy.StageConfigurationKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: global.StageConfigurationSpec{
+		Spec: galaxy.StageConfigurationSpec{
 			Name:            stageName,
 			Vector:          vector,
 			TargetNamespace: targetNamespace,

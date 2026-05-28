@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/star/vector-activation/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,7 +30,7 @@ var _ = Describe("lease lock", func() {
 		ctx            context.Context
 		mockCtrl       *gomock.Controller
 		clientMock     *MockClient
-		stage          *landscape.Stage
+		stage          *star.Stage
 		lease          *coordinationv1.Lease
 		now            time.Time
 		controllerId   = "controller-1"
@@ -44,11 +44,11 @@ var _ = Describe("lease lock", func() {
 		clientMock = NewMockClient(mockCtrl)
 
 		scheme = runtime.NewScheme()
-		_ = landscape.AddToScheme(scheme)
+		_ = star.AddToScheme(scheme)
 
 		now = time.Now()
 
-		stage = &landscape.Stage{
+		stage = &star.Stage{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      stageName,
 				Namespace: Namespace,
@@ -110,7 +110,7 @@ var _ = Describe("lease lock", func() {
 			Expect(acquired).To(BeFalse())
 
 			// creates lease for different stage
-			newStage := &landscape.Stage{
+			newStage := &star.Stage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "different-stage",
 					Namespace: Namespace,

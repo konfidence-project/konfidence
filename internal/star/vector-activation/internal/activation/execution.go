@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -16,14 +16,14 @@ func ListExecutionsForRegistration(
 	ctx context.Context,
 	c client.Client,
 	namespace string,
-	registration landscape.ActivationTaskRegistration,
-	vectorActivation *landscape.VectorActivation,
-) (*landscape.ActivationTaskExecutionList, error) {
+	registration star.ActivationTaskRegistration,
+	vectorActivation *star.VectorActivation,
+) (*star.ActivationTaskExecutionList, error) {
 	executionLabels := client.MatchingLabels{
 		"registration": registration.Name,
 		"activation":   vectorActivation.Name,
 	}
-	executionList := &landscape.ActivationTaskExecutionList{}
+	executionList := &star.ActivationTaskExecutionList{}
 	if err := c.List(ctx, executionList, client.InNamespace(namespace), executionLabels); err != nil {
 		return nil, fmt.Errorf("failed to list ActivationExecutions for labelSelector %s: %w", executionLabels, err)
 	}
@@ -35,11 +35,11 @@ func CreateExecution(
 	ctx context.Context,
 	c client.Client,
 	namespace string,
-	vectorActivation *landscape.VectorActivation,
-	registration landscape.ActivationTaskRegistration,
-) (*landscape.ActivationTaskExecution, error) {
+	vectorActivation *star.VectorActivation,
+	registration star.ActivationTaskRegistration,
+) (*star.ActivationTaskExecution, error) {
 	log := logf.FromContext(ctx)
-	activationExecution := &landscape.ActivationTaskExecution{
+	activationExecution := &star.ActivationTaskExecution{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: registration.Name + "-",
 			Namespace:    namespace,
@@ -48,7 +48,7 @@ func CreateExecution(
 				"activation":   vectorActivation.Name,
 			},
 		},
-		Spec: landscape.ActivationTaskExecutionSpec{
+		Spec: star.ActivationTaskExecutionSpec{
 			Type:             registration.Spec.Type,
 			VectorActivation: vectorActivation.Name,
 			Spec:             registration.Spec.Spec,
@@ -69,10 +69,10 @@ func EnsureExecutionsForRegistrations(
 	ctx context.Context,
 	c client.Client,
 	namespace string,
-	registrationList *landscape.ActivationTaskRegistrationList,
-	vectorActivation *landscape.VectorActivation,
-) (*landscape.ActivationTaskExecutionList, error) {
-	allExecutions := &landscape.ActivationTaskExecutionList{}
+	registrationList *star.ActivationTaskRegistrationList,
+	vectorActivation *star.VectorActivation,
+) (*star.ActivationTaskExecutionList, error) {
+	allExecutions := &star.ActivationTaskExecutionList{}
 	for _, registration := range registrationList.Items {
 		executionList, err := ListExecutionsForRegistration(ctx, c, namespace, registration, vectorActivation)
 		if err != nil {

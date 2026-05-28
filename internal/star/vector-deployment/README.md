@@ -1,6 +1,6 @@
 [![REUSE status](https://api.reuse.software/badge/github.com/konfidence-project/konfidence/internal/star/vector-deployment)](https://api.reuse.software/info/github.com/konfidence-project/konfidence/internal/star/vector-deployment)
 
-# landscape-vector-deployment-controller
+# star-vector-deployment-controller
 
 ## About this project
 

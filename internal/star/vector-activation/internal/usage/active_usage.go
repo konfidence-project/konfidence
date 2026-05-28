@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -13,10 +13,10 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func GetCurrentActiveUsage(ctx context.Context, c client.Client, stage *landscape.Stage) (*landscape.StageVersionUsage, error) {
+func GetCurrentActiveUsage(ctx context.Context, c client.Client, stage *star.Stage) (*star.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 	name := getName(stage)
-	stageVersionUsage := &landscape.StageVersionUsage{}
+	stageVersionUsage := &star.StageVersionUsage{}
 
 	err := c.Get(ctx, types.NamespacedName{Name: name, Namespace: stage.Namespace}, stageVersionUsage)
 	if err != nil {
@@ -32,10 +32,10 @@ func GetCurrentActiveUsage(ctx context.Context, c client.Client, stage *landscap
 func IsNewerThanCurrentActiveUsage(
 	ctx context.Context,
 	c client.Client,
-	stageVersion *landscape.StageVersion,
-	activeStageVersionUsage *landscape.StageVersionUsage,
+	stageVersion *star.StageVersion,
+	activeStageVersionUsage *star.StageVersionUsage,
 ) (bool, error) {
-	activeStageVersion := &landscape.StageVersion{}
+	activeStageVersion := &star.StageVersion{}
 	err := c.Get(ctx,
 		types.NamespacedName{Name: activeStageVersionUsage.Spec.StageVersionRef.Name, Namespace: activeStageVersionUsage.Namespace},
 		activeStageVersion,
@@ -51,10 +51,10 @@ func IsNewerThanCurrentActiveUsage(
 	return true, nil
 }
 
-func UpdateActiveUsage(ctx context.Context, c client.Client, stageVersionUsage *landscape.StageVersionUsage, stageVersion *landscape.StageVersion) error {
+func UpdateActiveUsage(ctx context.Context, c client.Client, stageVersionUsage *star.StageVersionUsage, stageVersion *star.StageVersion) error {
 	log := logf.FromContext(ctx)
 
-	stageVersionUsage.Spec.StageVersionRef = &landscape.StageVersionReference{Name: stageVersion.Name}
+	stageVersionUsage.Spec.StageVersionRef = &star.StageVersionReference{Name: stageVersion.Name}
 
 	if err := c.Update(ctx, stageVersionUsage); err != nil {
 		return fmt.Errorf("unable to update active stageVersionUsage: %w", err)
@@ -64,19 +64,19 @@ func UpdateActiveUsage(ctx context.Context, c client.Client, stageVersionUsage *
 }
 
 func CreateActiveUsage(
-	ctx context.Context, c client.Client, stage *landscape.Stage, stageVersion *landscape.StageVersion,
-) (*landscape.StageVersionUsage, error) {
+	ctx context.Context, c client.Client, stage *star.Stage, stageVersion *star.StageVersion,
+) (*star.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 	name := getName(stage)
-	newActiveStageVersionUsage := &landscape.StageVersionUsage{
+	newActiveStageVersionUsage := &star.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: stage.Namespace,
 			Labels:    map[string]string{ActiveStageVersion: stage.Name},
 		},
-		Spec: landscape.StageVersionUsageSpec{
+		Spec: star.StageVersionUsageSpec{
 			Reason:          StageVersionUsageActiveType,
-			StageVersionRef: &landscape.StageVersionReference{Name: stageVersion.Name},
+			StageVersionRef: &star.StageVersionReference{Name: stageVersion.Name},
 		},
 	}
 	if err := controllerutil.SetControllerReference(stage, newActiveStageVersionUsage, c.Scheme()); err != nil {
@@ -93,9 +93,9 @@ func CreateActiveUsage(
 func CreateOrUpdateActiveUsage(
 	ctx context.Context,
 	c client.Client,
-	activeStageVersionUsage *landscape.StageVersionUsage,
-	stage *landscape.Stage,
-	stageVersion *landscape.StageVersion,
+	activeStageVersionUsage *star.StageVersionUsage,
+	stage *star.Stage,
+	stageVersion *star.StageVersion,
 ) error {
 	if activeStageVersionUsage == nil {
 		_, err := CreateActiveUsage(ctx, c, stage, stageVersion)
@@ -111,6 +111,6 @@ func CreateOrUpdateActiveUsage(
 	return nil
 }
 
-func getName(stage *landscape.Stage) string {
+func getName(stage *star.Stage) string {
 	return fmt.Sprintf("%s-active-usage", stage.Name)
 }

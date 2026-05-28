@@ -3,7 +3,7 @@ package usage
 import (
 	"context"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/star/vector-activation/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -20,8 +20,8 @@ var _ = Describe("active usage tests", func() {
 		ctx          context.Context
 		mockCtrl     *gomock.Controller
 		clientMock   *MockClient
-		stage        *landscape.Stage
-		stageVersion *landscape.StageVersion
+		stage        *star.Stage
+		stageVersion *star.StageVersion
 		scheme       *runtime.Scheme
 	)
 	BeforeEach(func() {
@@ -29,16 +29,16 @@ var _ = Describe("active usage tests", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		clientMock = NewMockClient(mockCtrl)
 		scheme = runtime.NewScheme()
-		_ = landscape.AddToScheme(scheme)
+		_ = star.AddToScheme(scheme)
 
-		stage = &landscape.Stage{
+		stage = &star.Stage{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "stage-test",
 				Namespace: "default",
 				UID:       "12345",
 			},
 		}
-		stageVersion = &landscape.StageVersion{
+		stageVersion = &star.StageVersion{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "stage-version-test",
 				Namespace: "default",
@@ -53,7 +53,7 @@ var _ = Describe("active usage tests", func() {
 
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.Any()).
 				DoAndReturn(func(_ context.Context, namespacedName types.NamespacedName, obj interface{}, _ ...interface{}) error {
-					usage := obj.(*landscape.StageVersionUsage)
+					usage := obj.(*star.StageVersionUsage)
 					usage.Name = name
 					usage.Namespace = namespace
 					return nil
@@ -75,7 +75,7 @@ var _ = Describe("active usage tests", func() {
 		It("should create active usage", func() {
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 			clientMock.EXPECT().Scheme().Return(scheme)
-			newUsage, err := CreateActiveUsage(ctx, clientMock, stage, &landscape.StageVersion{})
+			newUsage, err := CreateActiveUsage(ctx, clientMock, stage, &star.StageVersion{})
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(newUsage).ToNot(BeNil())
@@ -85,7 +85,7 @@ var _ = Describe("active usage tests", func() {
 
 		It("should update active usage", func() {
 			clientMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)
-			usage := &landscape.StageVersionUsage{
+			usage := &star.StageVersionUsage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "usage-to-update",
 					Namespace: "default",
@@ -100,13 +100,13 @@ var _ = Describe("active usage tests", func() {
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 			clientMock.EXPECT().Scheme().Return(scheme)
 
-			err := CreateOrUpdateActiveUsage(ctx, clientMock, nil, stage, &landscape.StageVersion{})
+			err := CreateOrUpdateActiveUsage(ctx, clientMock, nil, stage, &star.StageVersion{})
 
 			Expect(err).ToNot(HaveOccurred())
 
 			clientMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)
 
-			usage := &landscape.StageVersionUsage{
+			usage := &star.StageVersionUsage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "usage-to-update",
 					Namespace: "default",
@@ -119,26 +119,26 @@ var _ = Describe("active usage tests", func() {
 		})
 
 		It("is newer than current active usage", func() {
-			stageVersion := &landscape.StageVersion{
-				Spec: landscape.StageVersionSpec{
+			stageVersion := &star.StageVersion{
+				Spec: star.StageVersionSpec{
 					StageGeneration: int64(3),
 				},
 			}
-			activeUsage := &landscape.StageVersionUsage{
+			activeUsage := &star.StageVersionUsage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "active-usage",
 					Namespace: "default",
 				},
-				Spec: landscape.StageVersionUsageSpec{
-					StageVersionRef: &landscape.StageVersionReference{Name: "active-stage-version"},
+				Spec: star.StageVersionUsageSpec{
+					StageVersionRef: &star.StageVersionReference{Name: "active-stage-version"},
 				},
 			}
-			activeStageVersion := &landscape.StageVersion{Spec: landscape.StageVersionSpec{
+			activeStageVersion := &star.StageVersion{Spec: star.StageVersionSpec{
 				StageGeneration: int64(2),
 			}}
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.Any()).DoAndReturn(
 				func(_ context.Context, _ types.NamespacedName, obj interface{}, _ ...interface{}) error {
-					stagerVersion := obj.(*landscape.StageVersion)
+					stagerVersion := obj.(*star.StageVersion)
 					*stagerVersion = *activeStageVersion
 					return nil
 				})
