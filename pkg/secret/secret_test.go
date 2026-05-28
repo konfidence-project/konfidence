@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -38,7 +38,7 @@ var _ = Describe("pkg auth functions", func() {
 
 	Context("When resolving secret name", func() {
 		It("should successfully extract secret from ConfigMap", func() {
-			configMap := &v1.ConfigMap{Data: map[string]string{
+			configMap := &corev1.ConfigMap{Data: map[string]string{
 				AuthConfigMapKey: HostName + ": " + SecretName,
 			}}
 			clientMock.EXPECT().Get(ctx, types.NamespacedName{
@@ -46,7 +46,7 @@ var _ = Describe("pkg auth functions", func() {
 				Name:      ConfigMapName,
 			}, gomock.Any()).DoAndReturn(
 				func(_ context.Context, _ types.NamespacedName, obj interface{}, _ ...interface{}) error {
-					*obj.(*v1.ConfigMap) = *configMap
+					*obj.(*corev1.ConfigMap) = *configMap
 					return nil
 				})
 

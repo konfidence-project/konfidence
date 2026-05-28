@@ -11,7 +11,7 @@ import (
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -176,7 +176,7 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 	r.updateStageConfigurationReadyStatus(stageConfiguration, true, fmt.Sprintf("StageConfiguration %s reconciled", stageConfiguration.Name))
 
 	msg := fmt.Sprintf("StageSync %s %s with StageConfiguration %s", stageSync.Name, operationResult, stageConfiguration.Name)
-	recorder.Eventf(stageConfiguration, nil, v1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
+	recorder.Eventf(stageConfiguration, nil, corev1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
 	log.Info(msg)
 	return nil
 }

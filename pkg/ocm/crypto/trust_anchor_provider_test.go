@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -83,14 +83,14 @@ var _ = Describe("ConfigMapTrustAnchorProvider", func() {
 
 	It("ingest returns error when tls.crt key is missing", func() {
 		provider := &ConfigMapTrustAnchorProvider{}
-		cm := &v1.ConfigMap{Data: map[string]string{"other-key": "value"}}
+		cm := &corev1.ConfigMap{Data: map[string]string{"other-key": "value"}}
 		err := provider.ingest(cm)
 		Expect(err).To(MatchError("key 'tls.crt' not found"))
 	})
 
 	It("ingest stores public_key_pem from tls.crt", func() {
 		provider := &ConfigMapTrustAnchorProvider{}
-		cm := &v1.ConfigMap{Data: map[string]string{"tls.crt": "test-cert-data"}}
+		cm := &corev1.ConfigMap{Data: map[string]string{"tls.crt": "test-cert-data"}}
 
 		err := provider.ingest(cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -104,7 +104,7 @@ var _ = Describe("ConfigMapTrustAnchorProvider", func() {
 		provider := &ConfigMapTrustAnchorProvider{cfg: cfg, log: logr.Discard()}
 		provider.data.Store(map[string]string{"public_key_pem": "initial"})
 
-		wrongCm := &v1.ConfigMap{
+		wrongCm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Namespace: "other", Name: cfg.Name},
 			Data:       map[string]string{"tls.crt": "wrong"},
 		}
@@ -118,7 +118,7 @@ var _ = Describe("ConfigMapTrustAnchorProvider", func() {
 		provider := &ConfigMapTrustAnchorProvider{cfg: cfg, log: logr.Discard()}
 		provider.data.Store(map[string]string{"public_key_pem": "initial"})
 
-		updatedCm := &v1.ConfigMap{
+		updatedCm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Namespace: cfg.Namespace, Name: cfg.Name},
 			Data:       map[string]string{"tls.crt": "updated-cert"},
 		}
@@ -132,7 +132,7 @@ var _ = Describe("ConfigMapTrustAnchorProvider", func() {
 		provider := &ConfigMapTrustAnchorProvider{cfg: cfg, log: logr.Discard()}
 		provider.data.Store(map[string]string{"public_key_pem": "initial"})
 
-		provider.refresh(&v1.Secret{})
+		provider.refresh(&corev1.Secret{})
 
 		stored := provider.data.Load().(map[string]string)
 		Expect(stored["public_key_pem"]).To(Equal("initial"))
@@ -142,7 +142,7 @@ var _ = Describe("ConfigMapTrustAnchorProvider", func() {
 		provider := &ConfigMapTrustAnchorProvider{cfg: cfg, log: logr.Discard()}
 		provider.data.Store(map[string]string{"public_key_pem": "initial"})
 
-		badCm := &v1.ConfigMap{
+		badCm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Namespace: cfg.Namespace, Name: cfg.Name},
 			Data:       map[string]string{"wrong-key": "data"},
 		}

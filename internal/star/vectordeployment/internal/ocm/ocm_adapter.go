@@ -8,7 +8,7 @@ import (
 
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ocmruntime "ocm.software/open-component-model/bindings/go/runtime"
@@ -25,7 +25,7 @@ type Adapter struct {
 
 var _ controller.VectorOcmPort = (*Adapter)(nil)
 
-func NewAdapter(ctx context.Context, secret *v1.Secret, vectorVerifier, artifactVerifier crypto.Verifier) (Adapter, error) {
+func NewAdapter(ctx context.Context, secret *corev1.Secret, vectorVerifier, artifactVerifier crypto.Verifier) (Adapter, error) {
 	//nolint:staticcheck
 	ocmClient, err := pkgocm.NewOciClientBuilder().
 		WithLogger(ctrl.Log).

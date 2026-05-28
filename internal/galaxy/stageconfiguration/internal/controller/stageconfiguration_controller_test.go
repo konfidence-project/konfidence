@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -87,7 +87,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			// create target namespace
 			// note: since test env cannot delete namespaces the target namespace is created once in the first test
 			CreateNamespace(ctx, k8sClient, TargetNamespace)
-			ns := &v1.Namespace{}
+			ns := &corev1.Namespace{}
 			nsLookupKey := client.ObjectKey{
 				Name: TargetNamespace,
 			}

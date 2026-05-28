@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"os"
 
-	galaxysync "github.com/konfidence-project/konfidence/internal/star/galaxysync"
+	"github.com/konfidence-project/konfidence/internal/star/galaxysync"
 	"github.com/konfidence-project/konfidence/internal/star/stage"
-	taskorchestration "github.com/konfidence-project/konfidence/internal/star/taskorchestration"
-	vectoractivation "github.com/konfidence-project/konfidence/internal/star/vectoractivation"
-	vectordeployment "github.com/konfidence-project/konfidence/internal/star/vectordeployment"
+	"github.com/konfidence-project/konfidence/internal/star/taskorchestration"
+	"github.com/konfidence-project/konfidence/internal/star/vectoractivation"
+	"github.com/konfidence-project/konfidence/internal/star/vectordeployment"
 
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -127,11 +127,11 @@ func startOperator(cmd *cobra.Command, args []string) error {
 // TODO: the credentials for accessing OCI registries should be configured in a controller-specific configuration.
 // resolveRegistryCredentials loads the registry credentials secret from the k8s cluster.
 // Returns nil if the secret is not found.
-func resolveRegistryCredentials(ctx context.Context, mgr manager.Manager) (*v1.Secret, error) {
+func resolveRegistryCredentials(ctx context.Context, mgr manager.Manager) (*corev1.Secret, error) {
 	const secretName = "registry-credentials"
 	const secretNamespace = "konfidence-system"
 
-	secret := &v1.Secret{}
+	secret := &corev1.Secret{}
 	err := mgr.GetAPIReader().Get(ctx, types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret)
 	if apierrors.IsNotFound(err) {
 		return nil, nil
