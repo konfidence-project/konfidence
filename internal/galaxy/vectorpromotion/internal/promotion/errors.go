@@ -3,7 +3,7 @@ package promotion
 import (
 	"errors"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 )
 
 var (
@@ -16,10 +16,10 @@ var (
 func ClassifyPromotionError(err error) string {
 	switch {
 	case errors.Is(err, ErrFetchingSourceFailed):
-		return global.ReasonPromotionSourceNotFound
+		return galaxy.ReasonPromotionSourceNotFound
 	case errors.Is(err, ErrSourceVerificationFailed):
-		return global.ReasonPromotionSourceVerificationFailed
+		return galaxy.ReasonPromotionSourceVerificationFailed
 	default:
-		return global.ReasonPromotionFailed
+		return galaxy.ReasonPromotionFailed
 	}
 }

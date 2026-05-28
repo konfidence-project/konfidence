@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"testing"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
 	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -134,7 +134,7 @@ var _ = BeforeSuite(func() {
 	})
 
 	By("registering schemes")
-	Expect(global.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(galaxy.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	By("building shared OCM client")
 	ocmConfig := buildOCMConfig(registryEndpoint, "user", "password")
@@ -173,7 +173,7 @@ func startManager() {
 				_ context.Context,
 				_ client.Reader,
 				_ string,
-				_ []global.CredentialsConfig,
+				_ []galaxy.CredentialsConfig,
 			) (pkgOcm.Client, error) {
 				return ocmClient, nil
 			},

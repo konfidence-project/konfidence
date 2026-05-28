@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/star/vector-activation/internal/activation"
 	leaseLock "github.com/konfidence-project/konfidence/internal/star/vector-activation/internal/lock"
 	"github.com/konfidence-project/konfidence/internal/star/vector-activation/internal/usage"
@@ -39,9 +39,9 @@ const (
 )
 
 type ActivationContext struct {
-	VectorActivation *landscape.VectorActivation
-	StageVersion     *landscape.StageVersion
-	Stage            *landscape.Stage
+	VectorActivation *star.VectorActivation
+	StageVersion     *star.StageVersion
+	Stage            *star.Stage
 }
 
 // +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectoractivations,verbs=get;list;watch;create;update;patch;delete
@@ -78,7 +78,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	acquired, err := leaseLock.AcquireResourceLease(
-		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stage,
+		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, star.VectorActivationKind, stage,
 	)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to acquire lease: %w", err)
@@ -105,9 +105,9 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if !isNewer {
 			log.Info("activation belongs to older stage version than currently active one, skipping")
 			if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{
-				Type:               landscape.ActivationSkipped,
+				Type:               star.ActivationSkipped,
 				Status:             metav1.ConditionTrue,
-				Reason:             landscape.ActivationSkipped,
+				Reason:             star.ActivationSkipped,
 				Message:            "found newer activation",
 				ObservedGeneration: vectorActivation.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -132,9 +132,9 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{
-		Type:               landscape.ActivationInProgress,
+		Type:               star.ActivationInProgress,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.ActivationInProgress,
+		Reason:             star.ActivationInProgress,
 		Message:            "read in registrations, activation is in progress",
 		ObservedGeneration: vectorActivation.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -173,9 +173,9 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 		successMessage := fmt.Sprintf("VectorActivation %s reconciled successfully, set status to succeeded", vectorActivation.Name)
 		if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{
-			Type:               landscape.ActivationSucceeded,
+			Type:               star.ActivationSucceeded,
 			Status:             metav1.ConditionTrue,
-			Reason:             landscape.ActivationSucceeded,
+			Reason:             star.ActivationSucceeded,
 			Message:            successMessage,
 			ObservedGeneration: vectorActivation.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -192,20 +192,20 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(
 	ctx context.Context,
-	vectorActivation *landscape.VectorActivation,
-	executionsInActivation *landscape.ActivationTaskExecutionList,
+	vectorActivation *star.VectorActivation,
+	executionsInActivation *star.ActivationTaskExecutionList,
 	log logr.Logger,
 ) (bool, error) {
 	allExecutionsSucceeded := true
 
 	for _, exec := range executionsInActivation.Items {
-		if meta.IsStatusConditionTrue(exec.Status.Conditions, landscape.ActivationTaskExecutionFailed) {
+		if meta.IsStatusConditionTrue(exec.Status.Conditions, star.ActivationTaskExecutionFailed) {
 			msg := fmt.Sprintf("ActivationTaskExecution failed: %s", exec.Name)
 			log.Info(msg)
 			if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{
-				Type:               landscape.ActivationFailed,
+				Type:               star.ActivationFailed,
 				Status:             metav1.ConditionTrue,
-				Reason:             landscape.ActivationTaskExecutionFailed,
+				Reason:             star.ActivationTaskExecutionFailed,
 				Message:            msg,
 				ObservedGeneration: vectorActivation.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -216,7 +216,7 @@ func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(
 				fmt.Sprintf("VectorActivation %s failed because execution %s failed", vectorActivation.Name, exec.Name))
 			allExecutionsSucceeded = false
 		}
-		if !meta.IsStatusConditionTrue(exec.Status.Conditions, landscape.ActivationTaskExecutionSucceeded) {
+		if !meta.IsStatusConditionTrue(exec.Status.Conditions, star.ActivationTaskExecutionSucceeded) {
 			allExecutionsSucceeded = false
 			break
 		}
@@ -226,18 +226,18 @@ func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(
 
 func (r *VectorActivationReconciler) LoadActivationContextData(
 	ctx context.Context, req ctrl.Request,
-) (*landscape.VectorActivation, *landscape.StageVersion, *landscape.Stage, error) {
-	vectorActivation := &landscape.VectorActivation{}
+) (*star.VectorActivation, *star.StageVersion, *star.Stage, error) {
+	vectorActivation := &star.VectorActivation{}
 	if err := r.Get(ctx, req.NamespacedName, vectorActivation); err != nil {
 		return nil, nil, nil, client.IgnoreNotFound(err)
 	}
 
-	stageVersion := &landscape.StageVersion{}
+	stageVersion := &star.StageVersion{}
 	if err := r.Get(ctx, types.NamespacedName{Name: vectorActivation.Spec.StageVersion, Namespace: req.Namespace}, stageVersion); err != nil {
 		return nil, nil, nil, fmt.Errorf("could not get stage version: %w", err)
 	}
 
-	stage := &landscape.Stage{}
+	stage := &star.Stage{}
 	if err := r.Get(ctx, types.NamespacedName{Name: vectorActivation.Spec.Stage, Namespace: req.Namespace}, stage); err != nil {
 		return nil, nil, nil, fmt.Errorf("could not get stage: %w", err)
 	}
@@ -252,14 +252,14 @@ func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.ControllerID = ActivationControllerName
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&landscape.VectorActivation{}).
+		For(&star.VectorActivation{}).
 		Named("vectoractivation").
 		WithEventFilter(predicate.Funcs{
 			DeleteFunc: func(e event.DeleteEvent) bool {
 				return false
 			},
 		}).
-		Owns(&landscape.ActivationTaskExecution{},
+		Owns(&star.ActivationTaskExecution{},
 			builder.WithPredicates(predicate.Funcs{
 				UpdateFunc:  func(e event.UpdateEvent) bool { return true },
 				DeleteFunc:  func(e event.DeleteEvent) bool { return false },
@@ -272,15 +272,15 @@ func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *VectorActivationReconciler) cleanupVectorActivation(
 	ctx context.Context,
 	req ctrl.Request,
-	vectorActivation *landscape.VectorActivation,
-	stage *landscape.Stage,
+	vectorActivation *star.VectorActivation,
+	stage *star.Stage,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("release lease for vectorActivation")
 	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "LeaseReleased", "LeaseReleased",
 		fmt.Sprintf("Lease released by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
 	if err := leaseLock.ReleaseResourceLease(
-		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, landscape.VectorActivationKind, stage,
+		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, star.VectorActivationKind, stage,
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to release lease: %w", err)
 	}

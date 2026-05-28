@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -16,16 +16,16 @@ import (
 )
 
 func CreateVectorMigration(ctx context.Context, k8sClient client.Client, name string, namespace string, stageVersionName string, vectorName string) {
-	vectorMigration := &landscape.VectorMigration{
+	vectorMigration := &star.VectorMigration{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: landscape.GroupVersion.String(),
+			APIVersion: star.GroupVersion.String(),
 			Kind:       "VectorMigration",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: landscape.VectorMigrationSpec{
+		Spec: star.VectorMigrationSpec{
 			StageVersion: stageVersionName,
 			Vector:       vectorName,
 		},
@@ -34,8 +34,8 @@ func CreateVectorMigration(ctx context.Context, k8sClient client.Client, name st
 	Expect(k8sClient.Create(ctx, vectorMigration)).To(Succeed())
 }
 
-func GetVectorMigration(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.VectorMigration {
-	vectorMigration := &landscape.VectorMigration{}
+func GetVectorMigration(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *star.VectorMigration {
+	vectorMigration := &star.VectorMigration{}
 	vectorMigrationLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)
 
@@ -47,7 +47,7 @@ func GetVectorMigration(ctx context.Context, k8sClient client.Client, name strin
 	return vectorMigration
 }
 
-func DeleteVectorMigration(ctx context.Context, k8sClient client.Client, vectorMigration *landscape.VectorMigration) {
+func DeleteVectorMigration(ctx context.Context, k8sClient client.Client, vectorMigration *star.VectorMigration) {
 	err := k8sClient.Delete(ctx, vectorMigration)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete vectorMigration: %s", vectorMigration.Name)
 }
@@ -62,19 +62,19 @@ func CleanupVectorMigration(k8sClient client.Client, vectorMigrationName string,
 }
 
 func CreateStageVersion(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string, stageName string) {
-	stageVersion := &landscape.StageVersion{
+	stageVersion := &star.StageVersion{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: landscape.GroupVersion.String(),
+			APIVersion: star.GroupVersion.String(),
 			Kind:       "StageVersion",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: landscape.StageVersionSpec{
+		Spec: star.StageVersionSpec{
 			Vector:          vectorName,
 			StageGeneration: 1,
-			StageRef: &landscape.StageReference{
+			StageRef: &star.StageReference{
 				Name: stageName,
 			},
 		},
@@ -83,8 +83,8 @@ func CreateStageVersion(ctx context.Context, k8sClient client.Client, name strin
 	Expect(k8sClient.Create(ctx, stageVersion)).To(Succeed())
 }
 
-func GetStageVersion(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.StageVersion {
-	stageVersion := &landscape.StageVersion{}
+func GetStageVersion(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *star.StageVersion {
+	stageVersion := &star.StageVersion{}
 	stageVersionLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)
 
@@ -96,12 +96,12 @@ func GetStageVersion(ctx context.Context, k8sClient client.Client, name string, 
 	return stageVersion
 }
 
-func DeleteStageVersion(ctx context.Context, k8sClient client.Client, stageVersion *landscape.StageVersion) {
+func DeleteStageVersion(ctx context.Context, k8sClient client.Client, stageVersion *star.StageVersion) {
 	err := k8sClient.Delete(ctx, stageVersion)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete stageVersion: %s", stageVersion.Name)
 }
 
-func UpdateStageVersion(ctx context.Context, k8sClient client.Client, stageVersion *landscape.StageVersion) {
+func UpdateStageVersion(ctx context.Context, k8sClient client.Client, stageVersion *star.StageVersion) {
 	err := k8sClient.Update(ctx, stageVersion)
 	Expect(err).ToNot(HaveOccurred(), "Failed to update stageVersion: %s", stageVersion.Name)
 }
@@ -115,8 +115,8 @@ func CleanupStageVersion(k8sClient client.Client, stageVersionName string, names
 	}
 }
 
-func GetStageVersionUsage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.StageVersionUsage {
-	stageVersionUsage := &landscape.StageVersionUsage{}
+func GetStageVersionUsage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *star.StageVersionUsage {
+	stageVersionUsage := &star.StageVersionUsage{}
 	stageVersionUsageLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)
 
@@ -128,7 +128,7 @@ func GetStageVersionUsage(ctx context.Context, k8sClient client.Client, name str
 	return stageVersionUsage
 }
 
-func DeleteStageVersionUsage(ctx context.Context, k8sClient client.Client, stageVersionUsage *landscape.StageVersionUsage) {
+func DeleteStageVersionUsage(ctx context.Context, k8sClient client.Client, stageVersionUsage *star.StageVersionUsage) {
 	err := k8sClient.Delete(ctx, stageVersionUsage)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete stageVersionUsage: %s", stageVersionUsage.Name)
 }
@@ -142,23 +142,23 @@ func CleanupStageVersionUsage(k8sClient client.Client, stageVersionUsageName str
 	}
 }
 
-func CreateArtifactDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, taskManifest []landscape.TaskManifest) {
-	artifactDeployment := &landscape.ArtifactDeployment{
+func CreateArtifactDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, taskManifest []star.TaskManifest) {
+	artifactDeployment := &star.ArtifactDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: landscape.GroupVersion.String(),
+			APIVersion: star.GroupVersion.String(),
 			Kind:       "ArtifactDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: landscape.ArtifactDeploymentSpec{
-			Manifest: landscape.ArtifactManifest{
+		Spec: star.ArtifactDeploymentSpec{
+			Manifest: star.ArtifactManifest{
 				Type:       "image",
 				AllowReuse: true,
 			},
 			TaskManifests: taskManifest,
-			Component: landscape.OCMComponent{
+			Component: star.OCMComponent{
 				Name: "service",
 			},
 		},
@@ -167,8 +167,8 @@ func CreateArtifactDeployment(ctx context.Context, k8sClient client.Client, name
 	Expect(k8sClient.Create(ctx, artifactDeployment)).To(Succeed())
 }
 
-func GetArtifactDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.ArtifactDeployment {
-	artifactDeployment := &landscape.ArtifactDeployment{}
+func GetArtifactDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *star.ArtifactDeployment {
+	artifactDeployment := &star.ArtifactDeployment{}
 	artifactDeploymentLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, artifactDeploymentLookupKey, artifactDeployment)
 
@@ -180,7 +180,7 @@ func GetArtifactDeployment(ctx context.Context, k8sClient client.Client, name st
 	return artifactDeployment
 }
 
-func DeleteArtifactDeployment(ctx context.Context, k8sClient client.Client, artifactDeployment *landscape.ArtifactDeployment) {
+func DeleteArtifactDeployment(ctx context.Context, k8sClient client.Client, artifactDeployment *star.ArtifactDeployment) {
 	err := k8sClient.Delete(ctx, artifactDeployment)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete artifactDeployment: %s", artifactDeployment.Name)
 }
@@ -195,9 +195,9 @@ func CleanupArtifactDeployment(k8sClient client.Client, artifactDeploymentName s
 }
 
 func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, vector string, stageVersion string) {
-	vectorDeployment := &landscape.VectorDeployment{
+	vectorDeployment := &star.VectorDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: landscape.GroupVersion.String(),
+			APIVersion: star.GroupVersion.String(),
 			Kind:       "VectorDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -207,7 +207,7 @@ func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name s
 				pkgCtrl.StageVersionNameLabel: stageVersion,
 			},
 		},
-		Spec: landscape.VectorDeploymentSpec{
+		Spec: star.VectorDeploymentSpec{
 			Vector: vector,
 		},
 	}
@@ -215,8 +215,8 @@ func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name s
 	Expect(k8sClient.Create(ctx, vectorDeployment)).To(Succeed())
 }
 
-func GetVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.VectorDeployment {
-	vectorDeployment := &landscape.VectorDeployment{}
+func GetVectorDeployment(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *star.VectorDeployment {
+	vectorDeployment := &star.VectorDeployment{}
 	vectorDeploymentLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)
 
@@ -228,7 +228,7 @@ func GetVectorDeployment(ctx context.Context, k8sClient client.Client, name stri
 	return vectorDeployment
 }
 
-func DeleteVectorDeployment(ctx context.Context, k8sClient client.Client, vectorDeployment *landscape.VectorDeployment) {
+func DeleteVectorDeployment(ctx context.Context, k8sClient client.Client, vectorDeployment *star.VectorDeployment) {
 	err := k8sClient.Delete(ctx, vectorDeployment)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete vectorDeployment: %s", vectorDeployment.Name)
 }
@@ -242,12 +242,12 @@ func CleanupVectorDeployment(k8sClient client.Client, vectorDeploymentName strin
 	}
 }
 
-func UpdateVectorDeploymentStatus(ctx context.Context, k8sClient client.Client, vectorDeployment *landscape.VectorDeployment) {
+func UpdateVectorDeploymentStatus(ctx context.Context, k8sClient client.Client, vectorDeployment *star.VectorDeployment) {
 	err := k8sClient.Status().Update(ctx, vectorDeployment)
 	Expect(err).ToNot(HaveOccurred(), "Failed to update status of vectorDeployment: %s", vectorDeployment.Name)
 }
 
-func SetTaskExecutionStatus(ctx context.Context, k8sClient client.Client, taskExecution *landscape.TaskExecution, status string) {
+func SetTaskExecutionStatus(ctx context.Context, k8sClient client.Client, taskExecution *star.TaskExecution, status string) {
 	meta.SetStatusCondition(&taskExecution.Status.Conditions, metav1.Condition{
 		Type:               status,
 		Status:             metav1.ConditionTrue,
@@ -262,16 +262,16 @@ func SetTaskExecutionStatus(ctx context.Context, k8sClient client.Client, taskEx
 }
 
 func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, specName string, vectorName string) {
-	stage := &landscape.Stage{
+	stage := &star.Stage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: landscape.GroupVersion.String(),
+			APIVersion: star.GroupVersion.String(),
 			Kind:       "Stage",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: landscape.StageSpec{
+		Spec: star.StageSpec{
 			Vector: vectorName,
 		},
 	}
@@ -279,8 +279,8 @@ func CreateStage(ctx context.Context, k8sClient client.Client, name string, name
 	Expect(k8sClient.Create(ctx, stage)).To(Succeed())
 }
 
-func GetStage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *landscape.Stage {
-	stage := &landscape.Stage{}
+func GetStage(ctx context.Context, k8sClient client.Client, name string, namespace string, opt bool) *star.Stage {
+	stage := &star.Stage{}
 	stageLookupKey := types.NamespacedName{Name: name, Namespace: namespace}
 	err := k8sClient.Get(ctx, stageLookupKey, stage)
 
@@ -292,7 +292,7 @@ func GetStage(ctx context.Context, k8sClient client.Client, name string, namespa
 	return stage
 }
 
-func DeleteStage(ctx context.Context, k8sClient client.Client, stage *landscape.Stage) {
+func DeleteStage(ctx context.Context, k8sClient client.Client, stage *star.Stage) {
 	err := k8sClient.Delete(ctx, stage)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete stage: %s", stage.Name)
 }
@@ -316,7 +316,7 @@ func HasOwnerReference(ownerReferences []metav1.OwnerReference, ref metav1.Owner
 	return false
 }
 
-func GetTaskExecutionWithTaskName(name string, items []landscape.TaskExecution) *landscape.TaskExecution {
+func GetTaskExecutionWithTaskName(name string, items []star.TaskExecution) *star.TaskExecution {
 	for _, exec := range items {
 		if name == exec.Spec.Name {
 			return &exec
@@ -326,13 +326,13 @@ func GetTaskExecutionWithTaskName(name string, items []landscape.TaskExecution) 
 	return nil
 }
 
-func DeleteTaskExecution(ctx context.Context, k8sClient client.Client, taskExecution *landscape.TaskExecution) {
+func DeleteTaskExecution(ctx context.Context, k8sClient client.Client, taskExecution *star.TaskExecution) {
 	err := k8sClient.Delete(ctx, taskExecution)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete taskExecution: %s", taskExecution.Name)
 }
 
-func GetTaskExecutions(ctx context.Context, k8sClient client.Client) *landscape.TaskExecutionList {
-	taskExecutions := &landscape.TaskExecutionList{}
+func GetTaskExecutions(ctx context.Context, k8sClient client.Client) *star.TaskExecutionList {
+	taskExecutions := &star.TaskExecutionList{}
 	err := k8sClient.List(ctx, taskExecutions)
 
 	Expect(err).ToNot(HaveOccurred(), "Failed to fetch taskExecutions")

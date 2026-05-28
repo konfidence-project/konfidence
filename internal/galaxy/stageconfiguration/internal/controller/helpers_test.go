@@ -12,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -21,16 +21,16 @@ func CreateStageSync(
 	ctx context.Context, k8sClient client.Client, name string, namespace string,
 	stageConfigName string, targetNamespace string, stageName string, vectorName string,
 ) {
-	stageConfiguration := global.StageConfiguration{
+	stageConfiguration := galaxy.StageConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "galaxy.konfidence.cloud/v1alpha1",
-			Kind:       global.StageConfigurationKind,
+			Kind:       galaxy.StageConfigurationKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageConfigName,
 			Namespace: namespace,
 		},
-		Spec: global.StageConfigurationSpec{
+		Spec: galaxy.StageConfigurationSpec{
 			Name:            stageName,
 			Vector:          vectorName,
 			TargetNamespace: targetNamespace,
@@ -41,16 +41,16 @@ func CreateStageSync(
 	stageTemplateJSON, err := json.Marshal(stageTemplate)
 	Expect(err).ToNot(HaveOccurred())
 
-	stageSync := &global.StageSync{
+	stageSync := &galaxy.StageSync{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "galaxy.konfidence.cloud/v1alpha1",
-			Kind:       global.StageSyncKind,
+			Kind:       galaxy.StageSyncKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: targetNamespace,
 		},
-		Spec: global.StageSyncSpec{
+		Spec: galaxy.StageSyncSpec{
 			StageTemplate: runtime.RawExtension{Raw: stageTemplateJSON},
 		},
 	}
@@ -63,32 +63,32 @@ func CreateNamespace(ctx context.Context, k8sClient client.Client, namespace str
 	Expect(k8sClient.Create(ctx, ns)).To(Succeed())
 }
 
-func CreateStageTemplate(stageConfiguration global.StageConfiguration, vector string) template.StageTemplate {
+func CreateStageTemplate(stageConfiguration galaxy.StageConfiguration, vector string) template.StageTemplate {
 	return template.StageTemplate{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       landscape.StageKind,
+			Kind:       star.StageKind,
 			APIVersion: "star.konfidence.cloud/v1alpha1",
 		},
 		Metadata: template.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
-		Spec: landscape.StageSpec{
+		Spec: star.StageSpec{
 			Vector: vector,
 		},
 	}
 }
 
 func CleanupResources(ctx context.Context, k8sClient client.Client, namespace string, targetNamespace string) {
-	err := k8sClient.DeleteAllOf(ctx, &global.StageConfiguration{}, client.InNamespace(namespace))
+	err := k8sClient.DeleteAllOf(ctx, &galaxy.StageConfiguration{}, client.InNamespace(namespace))
 	Expect(err).ToNot(HaveOccurred())
 
-	err = k8sClient.DeleteAllOf(ctx, &global.StageSync{}, client.InNamespace(namespace))
+	err = k8sClient.DeleteAllOf(ctx, &galaxy.StageSync{}, client.InNamespace(namespace))
 	if !meta.IsNoMatchError(err) {
 		Expect(err).ToNot(HaveOccurred())
 	}
 
-	err = k8sClient.DeleteAllOf(ctx, &global.StageSync{}, client.InNamespace(targetNamespace))
+	err = k8sClient.DeleteAllOf(ctx, &galaxy.StageSync{}, client.InNamespace(targetNamespace))
 	if !meta.IsNoMatchError(err) {
 		Expect(err).ToNot(HaveOccurred())
 	}

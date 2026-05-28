@@ -3,8 +3,8 @@ package controller
 import (
 	"encoding/json"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +29,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 	)
 
 	Context("When reconciling a stageSync on the remote cluster", func() {
-		var stageSync *global.StageSync
+		var stageSync *galaxy.StageSync
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
@@ -47,7 +47,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				err := localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
 					Namespace: stageNamespace,
-				}, &landscape.Stage{})
+				}, &star.Stage{})
 				g.Expect(client.IgnoreNotFound(err)).To(Succeed())
 				g.Expect(err).To(MatchError(ContainSubstring("not found")))
 			}).Should(Succeed())
@@ -57,7 +57,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				err := remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
-				}, &global.StageSync{})
+				}, &galaxy.StageSync{})
 				g.Expect(client.IgnoreNotFound(err)).To(Succeed())
 				g.Expect(err).To(MatchError(ContainSubstring("not found")))
 			}).Should(Succeed())
@@ -65,7 +65,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		It("should successfully create a stage on the local cluster", func() {
 			By("verifying the Stage is created on the local cluster")
-			createdStage := &landscape.Stage{}
+			createdStage := &star.Stage{}
 			Eventually(func(g Gomega) {
 				g.Expect(localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
@@ -87,21 +87,21 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			Expect(createdStage.GetLabels()).To(HaveKeyWithValue(galaxyStageSyncLabelKey, expectedParentLabel))
 
 			By("verifying the StageSync status condition is set to Applied=True on the remote cluster")
-			updatedStageSync := &global.StageSync{}
+			updatedStageSync := &galaxy.StageSync{}
 			Eventually(func(g Gomega) {
 				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
 				}, updatedStageSync)).To(Succeed())
-				condition := findCondition(updatedStageSync.Status.Conditions, global.StageSyncAppliedCondition)
+				condition := findCondition(updatedStageSync.Status.Conditions, galaxy.StageSyncAppliedCondition)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
-				g.Expect(condition.Reason).To(Equal(global.StageReconcileSuccessfulReason))
+				g.Expect(condition.Reason).To(Equal(galaxy.StageReconcileSuccessfulReason))
 			}).Should(Succeed())
 
 			By("verifying the StageSync status reflects the full stage status")
 			Expect(updatedStageSync.Status.StageStatus.Raw).NotTo(BeEmpty())
-			var reflectedStatus landscape.StageStatus
+			var reflectedStatus star.StageStatus
 			Expect(json.Unmarshal(updatedStageSync.Status.StageStatus.Raw, &reflectedStatus)).To(Succeed())
 			Expect(reflectedStatus).To(Equal(createdStage.Status))
 
@@ -112,7 +112,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 	})
 
 	Context("When the StageSync template is updated", func() {
-		var stageSync *global.StageSync
+		var stageSync *galaxy.StageSync
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
@@ -124,7 +124,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				g.Expect(localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
 					Namespace: stageNamespace,
-				}, &landscape.Stage{})).To(Succeed())
+				}, &star.Stage{})).To(Succeed())
 			}).Should(Succeed())
 		})
 
@@ -137,7 +137,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				err := localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
 					Namespace: stageNamespace,
-				}, &landscape.Stage{})
+				}, &star.Stage{})
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}).Should(Succeed())
 
@@ -146,7 +146,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				err := remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
-				}, &global.StageSync{})
+				}, &galaxy.StageSync{})
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}).Should(Succeed())
 		})
@@ -156,7 +156,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 			By("updating the StageSync template with a new vector")
 			Eventually(func(g Gomega) {
-				fresh := &global.StageSync{}
+				fresh := &galaxy.StageSync{}
 				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
@@ -170,7 +170,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 			By("verifying the local Stage spec is updated")
 			Eventually(func(g Gomega) {
-				stage := &landscape.Stage{}
+				stage := &star.Stage{}
 				g.Expect(localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
 					Namespace: stageNamespace,
@@ -180,31 +180,31 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 			By("verifying the StageSync status condition remains Applied=True")
 			Eventually(func(g Gomega) {
-				updated := &global.StageSync{}
+				updated := &galaxy.StageSync{}
 				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
 				}, updated)).To(Succeed())
-				condition := findCondition(updated.Status.Conditions, global.StageSyncAppliedCondition)
+				condition := findCondition(updated.Status.Conditions, galaxy.StageSyncAppliedCondition)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
-				g.Expect(condition.Reason).To(Equal(global.StageReconcileSuccessfulReason))
+				g.Expect(condition.Reason).To(Equal(galaxy.StageReconcileSuccessfulReason))
 			}).Should(Succeed())
 		})
 	})
 
 	Context("When a pre-existing unmanaged Stage conflicts", func() {
-		var stageSync *global.StageSync
-		var unmanagedStage *landscape.Stage
+		var stageSync *galaxy.StageSync
+		var unmanagedStage *star.Stage
 
 		BeforeEach(func() {
 			By("creating an unmanaged Stage on the local cluster")
-			unmanagedStage = &landscape.Stage{
+			unmanagedStage = &star.Stage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      stageName,
 					Namespace: stageNamespace,
 				},
-				Spec: landscape.StageSpec{
+				Spec: star.StageSpec{
 					Vector: "ocm.example.com/other:1.0.0",
 				},
 			}
@@ -222,7 +222,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				err := remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
-				}, &global.StageSync{})
+				}, &galaxy.StageSync{})
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}).Should(Succeed())
 
@@ -232,26 +232,26 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				err := localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
 					Namespace: stageNamespace,
-				}, &landscape.Stage{})
+				}, &star.Stage{})
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}).Should(Succeed())
 		})
 
 		It("should set Applied=False with reason ConflictWithUnmanagedStage", func() {
 			Eventually(func(g Gomega) {
-				updated := &global.StageSync{}
+				updated := &galaxy.StageSync{}
 				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
 				}, updated)).To(Succeed())
-				condition := findCondition(updated.Status.Conditions, global.StageSyncAppliedCondition)
+				condition := findCondition(updated.Status.Conditions, galaxy.StageSyncAppliedCondition)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-				g.Expect(condition.Reason).To(Equal(global.ConflictWithUnmanagedStageReason))
+				g.Expect(condition.Reason).To(Equal(galaxy.ConflictWithUnmanagedStageReason))
 			}).Should(Succeed())
 
 			By("verifying the unmanaged Stage is NOT modified")
-			stage := &landscape.Stage{}
+			stage := &star.Stage{}
 			Expect(localK8sClient.Get(ctx, types.NamespacedName{
 				Name:      stageName,
 				Namespace: stageNamespace,
@@ -263,7 +263,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 	Context("When the target namespace does not exist on the local cluster", func() {
 		const nonExistentNamespace = "non-existent-namespace"
-		var stageSync *global.StageSync
+		var stageSync *galaxy.StageSync
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
@@ -278,21 +278,21 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		It("should set the StageSync status to Applied=False with reason NamespaceNotFound", func() {
 			Eventually(func(g Gomega) {
-				updated := &global.StageSync{}
+				updated := &galaxy.StageSync{}
 				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
 				}, updated)).To(Succeed())
-				condition := findCondition(updated.Status.Conditions, global.StageSyncAppliedCondition)
+				condition := findCondition(updated.Status.Conditions, galaxy.StageSyncAppliedCondition)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-				g.Expect(condition.Reason).To(Equal(global.NamespaceNotFoundReason))
+				g.Expect(condition.Reason).To(Equal(galaxy.NamespaceNotFoundReason))
 			}).Should(Succeed())
 		})
 	})
 
 	Context("When the Stage API version in the template is not served on the local cluster", func() {
-		var stageSync *global.StageSync
+		var stageSync *galaxy.StageSync
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
@@ -307,21 +307,21 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		It("should set the StageSync status to Applied=False with reason APIVersionNotSupported", func() {
 			Eventually(func(g Gomega) {
-				updated := &global.StageSync{}
+				updated := &galaxy.StageSync{}
 				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
 				}, updated)).To(Succeed())
-				condition := findCondition(updated.Status.Conditions, global.StageSyncAppliedCondition)
+				condition := findCondition(updated.Status.Conditions, galaxy.StageSyncAppliedCondition)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-				g.Expect(condition.Reason).To(Equal(global.APIVersionNotSupportedReason))
+				g.Expect(condition.Reason).To(Equal(galaxy.APIVersionNotSupportedReason))
 			}).Should(Succeed())
 		})
 	})
 
 	Context("When a StageSync is deleted", func() {
-		var stageSync *global.StageSync
+		var stageSync *galaxy.StageSync
 
 		BeforeEach(func() {
 			By("creating the StageSync on the remote cluster")
@@ -333,13 +333,13 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				g.Expect(localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
 					Namespace: stageNamespace,
-				}, &landscape.Stage{})).To(Succeed())
+				}, &star.Stage{})).To(Succeed())
 			}).Should(Succeed())
 		})
 
 		AfterEach(func() {
 			By("ensuring the StageSync is cleaned up")
-			stageSync := &global.StageSync{}
+			stageSync := &galaxy.StageSync{}
 			err := remoteK8sClient.Get(ctx, types.NamespacedName{Name: stageSyncName, Namespace: stageSyncNamespace}, stageSync)
 			if err == nil {
 				// remove any leftover finalizers so the object can be deleted
@@ -349,7 +349,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			}
 
 			By("ensuring the Stage is cleaned up")
-			stage := &landscape.Stage{}
+			stage := &star.Stage{}
 			err = localK8sClient.Get(ctx, types.NamespacedName{Name: stageName, Namespace: stageNamespace}, stage)
 			if err == nil {
 				stage.Finalizers = nil
@@ -361,13 +361,13 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				err := remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name: stageSyncName, Namespace: stageSyncNamespace,
-				}, &global.StageSync{})
+				}, &galaxy.StageSync{})
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}).Should(Succeed())
 			Eventually(func(g Gomega) {
 				err := localK8sClient.Get(ctx, types.NamespacedName{
 					Name: stageName, Namespace: stageNamespace,
-				}, &landscape.Stage{})
+				}, &star.Stage{})
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}).Should(Succeed())
 		})
@@ -382,7 +382,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				err := localK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageName,
 					Namespace: stageNamespace,
-				}, &landscape.Stage{})
+				}, &star.Stage{})
 				g.Expect(client.IgnoreNotFound(err)).To(Succeed())
 				g.Expect(err).To(MatchError(ContainSubstring("not found")))
 			}).Should(Succeed())
@@ -392,7 +392,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 				err := remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
-				}, &global.StageSync{})
+				}, &galaxy.StageSync{})
 				g.Expect(client.IgnoreNotFound(err)).To(Succeed())
 				g.Expect(err).To(MatchError(ContainSubstring("not found")))
 			}).Should(Succeed())
@@ -400,7 +400,7 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 		It("should set StageDeletionBlocked condition when the local Stage is stuck on a finalizer", func() {
 			By("adding a blocking finalizer to the local Stage")
-			stage := &landscape.Stage{}
+			stage := &star.Stage{}
 			Expect(localK8sClient.Get(ctx, types.NamespacedName{
 				Name:      stageName,
 				Namespace: stageNamespace,
@@ -413,18 +413,18 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 			By("verifying the StageSync status has StageDeletionBlocked condition set")
 			Eventually(func(g Gomega) {
-				updated := &global.StageSync{}
+				updated := &galaxy.StageSync{}
 				g.Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
 					Name:      stageSyncName,
 					Namespace: stageSyncNamespace,
 				}, updated)).To(Succeed())
-				condition := findCondition(updated.Status.Conditions, global.StageDeletedCondition)
+				condition := findCondition(updated.Status.Conditions, galaxy.StageDeletedCondition)
 				g.Expect(condition).NotTo(BeNil())
-				g.Expect(condition.Reason).To(Equal(global.StageDeletionBlockedReason))
+				g.Expect(condition.Reason).To(Equal(galaxy.StageDeletionBlockedReason))
 			}).Should(Succeed())
 
 			By("verifying the StageSync finalizer is still present (not yet released)")
-			stuck := &global.StageSync{}
+			stuck := &galaxy.StageSync{}
 			Expect(remoteK8sClient.Get(ctx, types.NamespacedName{
 				Name:      stageSyncName,
 				Namespace: stageSyncNamespace,
@@ -436,16 +436,16 @@ var _ = Describe("StageSync Controller", Ordered, func() {
 
 // buildStageRaw builds a marshalled Stage object with the given name, namespace, apiVersion and vector.
 func buildStageRaw(name, namespace, apiVersion, vector string) []byte {
-	stage := &landscape.Stage{
+	stage := &star.Stage{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: apiVersion,
-			Kind:       landscape.StageKind,
+			Kind:       star.StageKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: landscape.StageSpec{
+		Spec: star.StageSpec{
 			Vector: vector,
 		},
 	}
@@ -456,13 +456,13 @@ func buildStageRaw(name, namespace, apiVersion, vector string) []byte {
 
 // buildStageSync builds a StageSync object with a Stage template for the given parameters.
 // The StageSync name, namespace and Stage name are fixed to the test constants.
-func buildStageSync(stageNamespace, stageAPIVersion string) *global.StageSync {
-	return &global.StageSync{
+func buildStageSync(stageNamespace, stageAPIVersion string) *galaxy.StageSync {
+	return &galaxy.StageSync{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageSyncName,
 			Namespace: stageSyncNamespace,
 		},
-		Spec: global.StageSyncSpec{
+		Spec: galaxy.StageSyncSpec{
 			StageTemplate: runtime.RawExtension{Raw: buildStageRaw(stageName, stageNamespace, stageAPIVersion, testStageVector)},
 		},
 	}

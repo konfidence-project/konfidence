@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/star/vector-activation/test/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -20,8 +20,8 @@ var _ = Describe("activation task execution tests", func() {
 		mockCtrl         *gomock.Controller
 		clientMock       *MockClient
 		namespace        string
-		registration     landscape.ActivationTaskRegistration
-		vectorActivation *landscape.VectorActivation
+		registration     star.ActivationTaskRegistration
+		vectorActivation *star.VectorActivation
 		scheme           *runtime.Scheme
 	)
 
@@ -31,19 +31,19 @@ var _ = Describe("activation task execution tests", func() {
 		clientMock = NewMockClient(mockCtrl)
 		namespace = "default"
 		scheme = runtime.NewScheme()
-		_ = landscape.AddToScheme(scheme)
+		_ = star.AddToScheme(scheme)
 
-		registration = landscape.ActivationTaskRegistration{
+		registration = star.ActivationTaskRegistration{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "registration-1",
 				Namespace: namespace,
 			},
-			Spec: landscape.ActivationTaskRegistrationSpec{
+			Spec: star.ActivationTaskRegistrationSpec{
 				Type: "test-type",
 			},
 		}
 
-		vectorActivation = &landscape.VectorActivation{
+		vectorActivation = &star.VectorActivation{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "activation-1",
 				Namespace: namespace,
@@ -53,7 +53,7 @@ var _ = Describe("activation task execution tests", func() {
 				APIVersion: "star.konfidence.io/v1alpha1",
 				Kind:       "VectorActivation",
 			},
-			Spec: landscape.VectorActivationSpec{
+			Spec: star.VectorActivationSpec{
 				StageVersion: "stage-version-1",
 			},
 		}
@@ -68,8 +68,8 @@ var _ = Describe("activation task execution tests", func() {
 
 			clientMock.EXPECT().List(ctx, gomock.Any(), client.InNamespace(namespace), expectedLabels).
 				DoAndReturn(func(_ context.Context, list interface{}, _ ...interface{}) error {
-					execList := list.(*landscape.ActivationTaskExecutionList)
-					execList.Items = append(execList.Items, landscape.ActivationTaskExecution{
+					execList := list.(*star.ActivationTaskExecutionList)
+					execList.Items = append(execList.Items, star.ActivationTaskExecution{
 						ObjectMeta: metav1.ObjectMeta{Name: "execution-1"},
 					})
 					return nil
@@ -96,7 +96,7 @@ var _ = Describe("activation task execution tests", func() {
 			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().Create(ctx, gomock.Any()).
 				DoAndReturn(func(_ context.Context, obj interface{}, _ ...interface{}) error {
-					execution := obj.(*landscape.ActivationTaskExecution)
+					execution := obj.(*star.ActivationTaskExecution)
 					Expect(execution.GenerateName).To(HavePrefix(registration.Name + "-"))
 					Expect(execution.Spec.Type).To(Equal(registration.Spec.Type))
 					Expect(execution.Spec.VectorActivation).To(Equal(vectorActivation.Name))
@@ -124,12 +124,12 @@ var _ = Describe("activation task execution tests", func() {
 
 	Context("EnsureExecutionsForRegistrations", func() {
 		It("should create executions for all registrations without existing executions", func() {
-			registrationList := &landscape.ActivationTaskRegistrationList{
-				Items: []landscape.ActivationTaskRegistration{
+			registrationList := &star.ActivationTaskRegistrationList{
+				Items: []star.ActivationTaskRegistration{
 					registration,
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "registration-2", Namespace: namespace},
-						Spec:       landscape.ActivationTaskRegistrationSpec{Type: "test-type-2"},
+						Spec:       star.ActivationTaskRegistrationSpec{Type: "test-type-2"},
 					},
 				},
 			}
@@ -156,14 +156,14 @@ var _ = Describe("activation task execution tests", func() {
 		})
 
 		It("should skip creating execution if one already exists", func() {
-			registrationList := &landscape.ActivationTaskRegistrationList{
-				Items: []landscape.ActivationTaskRegistration{registration},
+			registrationList := &star.ActivationTaskRegistrationList{
+				Items: []star.ActivationTaskRegistration{registration},
 			}
 
 			clientMock.EXPECT().List(ctx, gomock.Any(), gomock.Any(), gomock.Any()).
 				DoAndReturn(func(_ context.Context, list interface{}, _ ...interface{}) error {
-					execList := list.(*landscape.ActivationTaskExecutionList)
-					execList.Items = append(execList.Items, landscape.ActivationTaskExecution{})
+					execList := list.(*star.ActivationTaskExecutionList)
+					execList.Items = append(execList.Items, star.ActivationTaskExecution{})
 					return nil
 				})
 
@@ -172,8 +172,8 @@ var _ = Describe("activation task execution tests", func() {
 		})
 
 		It("should return error when EnsureExecutionsForRegistrations fails to list", func() {
-			registrationList := &landscape.ActivationTaskRegistrationList{
-				Items: []landscape.ActivationTaskRegistration{registration},
+			registrationList := &star.ActivationTaskRegistrationList{
+				Items: []star.ActivationTaskRegistration{registration},
 			}
 
 			clientMock.EXPECT().List(ctx, gomock.Any(), gomock.Any(), gomock.Any()).
@@ -184,8 +184,8 @@ var _ = Describe("activation task execution tests", func() {
 		})
 
 		It("should return error when EnsureExecutionsForRegistrations fails to create", func() {
-			registrationList := &landscape.ActivationTaskRegistrationList{
-				Items: []landscape.ActivationTaskRegistration{registration},
+			registrationList := &star.ActivationTaskRegistrationList{
+				Items: []star.ActivationTaskRegistration{registration},
 			}
 			clientMock.EXPECT().Scheme().Return(scheme)
 			clientMock.EXPECT().List(ctx, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)

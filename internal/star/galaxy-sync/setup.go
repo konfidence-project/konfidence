@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/star/galaxy-sync/internal/config"
 	"github.com/konfidence-project/konfidence/internal/star/galaxy-sync/internal/controller"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -60,7 +60,7 @@ func SetupControllers(mgr ctrl.Manager, logger logr.Logger, scheme *runtime.Sche
 			// errors caused by trying to watch resource types that are not
 			// available on that workspace.
 			options.Cache.ByObject = map[client.Object]cache.ByObject{
-				&global.StageSync{}: {},
+				&galaxy.StageSync{}: {},
 			}
 		})
 		if err != nil {

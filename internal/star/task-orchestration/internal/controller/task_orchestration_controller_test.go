@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	testutil "github.com/konfidence-project/konfidence/internal/star/task-orchestration/internal/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -69,7 +69,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDev, Vector001)
 
 			// check that the stage has been created and has valid properties
-			stage := &landscape.Stage{}
+			stage := &star.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
@@ -78,7 +78,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001, StageDev)
 
 			// check that the stageVersion has been created and has valid properties
-			stageVersion := &landscape.StageVersion{}
+			stageVersion := &star.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: StageVersion, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
@@ -96,12 +96,12 @@ var _ = Describe("Task Orchestration Controller", func() {
 				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(int64(1)))
 				g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: landscape.StageKind,
+					Kind: star.StageKind,
 					Name: StageDev,
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			artifactDeployment1Tasks := []landscape.TaskManifest{
+			artifactDeployment1Tasks := []star.TaskManifest{
 				{
 					Name: Task0,
 					Type: TaskTypeK8s,
@@ -130,14 +130,14 @@ var _ = Describe("Task Orchestration Controller", func() {
 			// create ArtifactDeployments
 			testutil.CreateArtifactDeployment(ctx, k8sClient, ArtifactDeployment1, Namespace, artifactDeployment1Tasks)
 
-			artifactDeployment1 := &landscape.ArtifactDeployment{}
+			artifactDeployment1 := &star.ArtifactDeployment{}
 			artifactDeployment1LookupKey := types.NamespacedName{Name: ArtifactDeployment1, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, artifactDeployment1LookupKey, artifactDeployment1)).To(Succeed())
 				g.Expect(artifactDeployment1.Spec.TaskManifests).To(HaveLen(4))
 			}, timeout, interval).Should(Succeed())
 
-			artifactDeployment2Tasks := []landscape.TaskManifest{
+			artifactDeployment2Tasks := []star.TaskManifest{
 				{
 					Name: Task1,
 					Type: TaskTypeK8s,
@@ -159,7 +159,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 
 			testutil.CreateArtifactDeployment(ctx, k8sClient, ArtifactDeployment2, Namespace, artifactDeployment2Tasks)
 
-			artifactDeployment2 := &landscape.ArtifactDeployment{}
+			artifactDeployment2 := &star.ArtifactDeployment{}
 			artifactDeployment2LookupKey := types.NamespacedName{Name: ArtifactDeployment2, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, artifactDeployment2LookupKey, artifactDeployment2)).To(Succeed())
@@ -169,7 +169,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			// create vectorDeployment
 			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001, StageVersion)
 
-			vectorDeployment := &landscape.VectorDeployment{}
+			vectorDeployment := &star.VectorDeployment{}
 			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
 			// check that the vectorDeployment has been created and has valid properties
 			Eventually(func(g Gomega) {
@@ -178,11 +178,11 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// update vector status and add artifactDeployment References
-			artifactDeploymentRefs := make(map[string]landscape.LocalArtifactDeploymentReference)
-			artifactDeploymentRefs[ArtifactDeployment1] = landscape.LocalArtifactDeploymentReference{
+			artifactDeploymentRefs := make(map[string]star.LocalArtifactDeploymentReference)
+			artifactDeploymentRefs[ArtifactDeployment1] = star.LocalArtifactDeploymentReference{
 				Name: ArtifactDeployment1,
 			}
-			artifactDeploymentRefs[ArtifactDeployment2] = landscape.LocalArtifactDeploymentReference{
+			artifactDeploymentRefs[ArtifactDeployment2] = star.LocalArtifactDeploymentReference{
 				Name: ArtifactDeployment2,
 			}
 			vectorDeployment.Status.ResultingArtifactDeployments = artifactDeploymentRefs
@@ -198,7 +198,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateVectorMigration(ctx, k8sClient, VectorMigration, Namespace, StageVersion, Vector001)
 
 			// check that the vectorMigration has been created and has valid properties
-			vectorMigration := &landscape.VectorMigration{}
+			vectorMigration := &star.VectorMigration{}
 			vectorMigrationLookupKey := types.NamespacedName{Name: VectorMigration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
@@ -207,7 +207,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// check that a new stageVersionUsage has been created
-			stageVersionUsage := &landscape.StageVersionUsage{}
+			stageVersionUsage := &star.StageVersionUsage{}
 			stageVersionUsageLookupKey := types.NamespacedName{Name: StageVersionUsage, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)).To(Succeed())
@@ -215,13 +215,13 @@ var _ = Describe("Task Orchestration Controller", func() {
 				g.Expect(stageVersionUsage.Spec.StageVersionRef).ToNot(BeNil())
 				g.Expect(stageVersionUsage.Spec.StageVersionRef.Name).To(Equal(StageVersion))
 				g.Expect(testutil.HasOwnerReference(stageVersionUsage.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: landscape.VectorMigrationKind,
+					Kind: star.VectorMigrationKind,
 					Name: VectorMigration,
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// check that the first two taskExecutions have been created
-			taskExecutions := &landscape.TaskExecutionList{}
+			taskExecutions := &star.TaskExecutionList{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
 				g.Expect(taskExecutions.Items).To(HaveLen(2))
@@ -233,7 +233,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Expect(taskExecution1).ToNot(BeNil())
 
 			// mark task0 as successful
-			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, landscape.TaskSucceeded)
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, star.TaskSucceeded)
 
 			// check that taskExecution2 has not yet been created
 			Eventually(func(g Gomega) {
@@ -245,7 +245,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Expect(taskExecution2).To(BeNil())
 
 			// mark task1 as successful
-			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution1, landscape.TaskSucceeded)
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution1, star.TaskSucceeded)
 
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
@@ -257,7 +257,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Expect(taskExecution2).ToNot(BeNil())
 
 			// mark task2 as successful
-			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution2, landscape.TaskSucceeded)
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution2, star.TaskSucceeded)
 
 			// now taskExecution3 and taskExecution4 should have been created
 			Eventually(func(g Gomega) {
@@ -271,7 +271,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Expect(taskExecution4).ToNot(BeNil())
 
 			// mark task4 as successful
-			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution4, landscape.TaskSucceeded)
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution4, star.TaskSucceeded)
 
 			// check that taskExecution5 and taskExecution6 have not yet been created
 			Eventually(func(g Gomega) {
@@ -285,7 +285,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Expect(taskExecution6).To(BeNil())
 
 			// mark task3 as successful
-			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution3, landscape.TaskSucceeded)
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution3, star.TaskSucceeded)
 
 			// now taskExecution5 should have been created
 			Eventually(func(g Gomega) {
@@ -299,7 +299,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Expect(taskExecution6).To(BeNil())
 
 			// mark task5 as successful
-			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution5, landscape.TaskSucceeded)
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution5, star.TaskSucceeded)
 
 			// now taskExecution6 should have been created
 			Eventually(func(g Gomega) {
@@ -311,13 +311,13 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Expect(taskExecution6).ToNot(BeNil())
 
 			// mark task6 as successful
-			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution6, landscape.TaskSucceeded)
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution6, star.TaskSucceeded)
 
 			// vectorMigration should be marked successful
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 				g.Expect(vectorMigration.Status.Conditions).To(HaveLen(1))
-				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, star.VectorMigrationSucceeded)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// check that stageVersionUsage has been deleted
@@ -340,14 +340,14 @@ var _ = Describe("Task Orchestration Controller", func() {
 			// Create the stageVersion referenced by the migration.
 			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001, StageDev)
 
-			stageVersion := &landscape.StageVersion{}
+			stageVersion := &star.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: StageVersion, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			// Create a single migration task behind one artifactDeployment.
-			artifactDeploymentTasks := []landscape.TaskManifest{
+			artifactDeploymentTasks := []star.TaskManifest{
 				{
 					Name: Task0,
 					Type: TaskTypeK8s,
@@ -356,7 +356,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}
 			testutil.CreateArtifactDeployment(ctx, k8sClient, ArtifactDeployment1, Namespace, artifactDeploymentTasks)
 
-			artifactDeployment1 := &landscape.ArtifactDeployment{}
+			artifactDeployment1 := &star.ArtifactDeployment{}
 			artifactDeployment1LookupKey := types.NamespacedName{Name: ArtifactDeployment1, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, artifactDeployment1LookupKey, artifactDeployment1)).To(Succeed())
@@ -365,14 +365,14 @@ var _ = Describe("Task Orchestration Controller", func() {
 			// Create the vectorDeployment and link it to the artifactDeployment.
 			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001, StageVersion)
 
-			vectorDeployment := &landscape.VectorDeployment{}
+			vectorDeployment := &star.VectorDeployment{}
 			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			artifactDeploymentRefs := make(map[string]landscape.LocalArtifactDeploymentReference)
-			artifactDeploymentRefs[ArtifactDeployment1] = landscape.LocalArtifactDeploymentReference{
+			artifactDeploymentRefs := make(map[string]star.LocalArtifactDeploymentReference)
+			artifactDeploymentRefs[ArtifactDeployment1] = star.LocalArtifactDeploymentReference{
 				Name: ArtifactDeployment1,
 			}
 			vectorDeployment.Status.ResultingArtifactDeployments = artifactDeploymentRefs
@@ -386,14 +386,14 @@ var _ = Describe("Task Orchestration Controller", func() {
 			// Start the migration.
 			testutil.CreateVectorMigration(ctx, k8sClient, VectorMigration, Namespace, StageVersion, Vector001)
 
-			vectorMigration := &landscape.VectorMigration{}
+			vectorMigration := &star.VectorMigration{}
 			vectorMigrationLookupKey := types.NamespacedName{Name: VectorMigration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			// Let the single task run to completion.
-			taskExecutions := &landscape.TaskExecutionList{}
+			taskExecutions := &star.TaskExecutionList{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
 				g.Expect(taskExecutions.Items).To(HaveLen(1))
@@ -402,12 +402,12 @@ var _ = Describe("Task Orchestration Controller", func() {
 			taskExecution0 := testutil.GetTaskExecutionWithTaskName(Task0, taskExecutions.Items)
 			Expect(taskExecution0).ToNot(BeNil())
 
-			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, landscape.TaskSucceeded)
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, star.TaskSucceeded)
 
 			// Wait for cleanup of child resources created by the successful migration.
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
-				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, star.VectorMigrationSucceeded)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// Trigger another reconcile after the migration already succeeded.
@@ -416,7 +416,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 				g.Expect(taskExecutions.Items).To(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 
-			stageVersionUsage := &landscape.StageVersionUsage{}
+			stageVersionUsage := &star.StageVersionUsage{}
 			stageVersionUsageLookupKey := types.NamespacedName{Name: StageVersionUsage, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				err := k8sClient.Get(ctx, stageVersionUsageLookupKey, stageVersionUsage)
@@ -438,7 +438,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Consistently(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 				g.Expect(vectorMigration.Status.Conditions).To(HaveLen(1))
-				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, star.VectorMigrationSucceeded)).To(BeTrue())
 			}, time.Second*2, interval).Should(Succeed())
 
 			Consistently(func(g Gomega) {
@@ -459,7 +459,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDev, Vector001)
 
 			// check that the stage has been created and has valid properties
-			stage := &landscape.Stage{}
+			stage := &star.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
@@ -468,7 +468,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001, StageDev)
 
 			// check that the stageVersion has been created and has valid properties
-			stageVersion := &landscape.StageVersion{}
+			stageVersion := &star.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: StageVersion, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
@@ -486,12 +486,12 @@ var _ = Describe("Task Orchestration Controller", func() {
 				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(int64(1)))
 				g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: landscape.StageKind,
+					Kind: star.StageKind,
 					Name: StageDev,
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			artifactDeploymentTasks := []landscape.TaskManifest{
+			artifactDeploymentTasks := []star.TaskManifest{
 				{
 					Name: Task0,
 					Type: TaskTypeK8s,
@@ -502,7 +502,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			// create ArtifactDeployment
 			testutil.CreateArtifactDeployment(ctx, k8sClient, ArtifactDeployment1, Namespace, artifactDeploymentTasks)
 
-			artifactDeployment1 := &landscape.ArtifactDeployment{}
+			artifactDeployment1 := &star.ArtifactDeployment{}
 			artifactDeployment1LookupKey := types.NamespacedName{Name: ArtifactDeployment1, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, artifactDeployment1LookupKey, artifactDeployment1)).To(Succeed())
@@ -512,7 +512,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			// create vectorDeployment
 			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001, StageVersion)
 
-			vectorDeployment := &landscape.VectorDeployment{}
+			vectorDeployment := &star.VectorDeployment{}
 			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
 			// check that the vectorDeployment has been created and has valid properties
 			Eventually(func(g Gomega) {
@@ -521,8 +521,8 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// update vector status and add artifactDeployment References
-			artifactDeploymentRefs := make(map[string]landscape.LocalArtifactDeploymentReference)
-			artifactDeploymentRefs[ArtifactDeployment1] = landscape.LocalArtifactDeploymentReference{
+			artifactDeploymentRefs := make(map[string]star.LocalArtifactDeploymentReference)
+			artifactDeploymentRefs[ArtifactDeployment1] = star.LocalArtifactDeploymentReference{
 				Name: ArtifactDeployment1,
 			}
 			vectorDeployment.Status.ResultingArtifactDeployments = artifactDeploymentRefs
@@ -538,7 +538,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateVectorMigration(ctx, k8sClient, VectorMigration, Namespace, StageVersion, Vector001)
 
 			// check that the vectorMigration has been created and has valid properties
-			vectorMigration := &landscape.VectorMigration{}
+			vectorMigration := &star.VectorMigration{}
 			vectorMigrationLookupKey := types.NamespacedName{Name: VectorMigration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
@@ -547,7 +547,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// check that the first taskExecution has been created
-			taskExecutions := &landscape.TaskExecutionList{}
+			taskExecutions := &star.TaskExecutionList{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.List(ctx, taskExecutions)).To(Succeed())
 				g.Expect(taskExecutions.Items).To(HaveLen(1))
@@ -557,13 +557,13 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Expect(taskExecution0).ToNot(BeNil())
 
 			// mark task0 as failed
-			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, landscape.TaskFailed)
+			testutil.SetTaskExecutionStatus(ctx, k8sClient, taskExecution0, star.TaskFailed)
 
 			// vectorMigration should be marked as failed
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 				g.Expect(vectorMigration.Status.Conditions).To(HaveLen(1))
-				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationFailed)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, star.VectorMigrationFailed)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 
@@ -573,7 +573,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateStage(ctx, k8sClient, StageDev, Namespace, StageDev, Vector001)
 
 			// check that the stage has been created and has valid properties
-			stage := &landscape.Stage{}
+			stage := &star.Stage{}
 			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
@@ -582,7 +582,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateStageVersion(ctx, k8sClient, StageVersion, Namespace, Vector001, StageDev)
 
 			// check that the stageVersion has been created and has valid properties
-			stageVersion := &landscape.StageVersion{}
+			stageVersion := &star.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: StageVersion, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
@@ -600,16 +600,16 @@ var _ = Describe("Task Orchestration Controller", func() {
 				g.Expect(stageVersion.Spec.StageGeneration).To(Equal(int64(1)))
 				g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(testutil.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: landscape.StageKind,
+					Kind: star.StageKind,
 					Name: StageDev,
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// create ArtifactDeployment
-			tasks := []landscape.TaskManifest{}
+			tasks := []star.TaskManifest{}
 			testutil.CreateArtifactDeployment(ctx, k8sClient, ArtifactDeployment1, Namespace, tasks)
 
-			artifactDeployment1 := &landscape.ArtifactDeployment{}
+			artifactDeployment1 := &star.ArtifactDeployment{}
 			artifactDeployment1LookupKey := types.NamespacedName{Name: ArtifactDeployment1, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, artifactDeployment1LookupKey, artifactDeployment1)).To(Succeed())
@@ -619,7 +619,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			// create vectorDeployment
 			testutil.CreateVectorDeployment(ctx, k8sClient, VectorName001, Namespace, Vector001, StageVersion)
 
-			vectorDeployment := &landscape.VectorDeployment{}
+			vectorDeployment := &star.VectorDeployment{}
 			vectorDeploymentLookupKey := types.NamespacedName{Name: VectorName001, Namespace: Namespace}
 			// check that the vectorDeployment has been created and has valid properties
 			Eventually(func(g Gomega) {
@@ -628,8 +628,8 @@ var _ = Describe("Task Orchestration Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			// update vector status and add artifactDeployment References
-			artifactDeploymentRefs := make(map[string]landscape.LocalArtifactDeploymentReference)
-			artifactDeploymentRefs[ArtifactDeployment1] = landscape.LocalArtifactDeploymentReference{
+			artifactDeploymentRefs := make(map[string]star.LocalArtifactDeploymentReference)
+			artifactDeploymentRefs[ArtifactDeployment1] = star.LocalArtifactDeploymentReference{
 				Name: ArtifactDeployment1,
 			}
 			vectorDeployment.Status.ResultingArtifactDeployments = artifactDeploymentRefs
@@ -645,7 +645,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			testutil.CreateVectorMigration(ctx, k8sClient, VectorMigration, Namespace, StageVersion, Vector001)
 
 			// check that the vectorMigration has been created and has valid properties
-			vectorMigration := &landscape.VectorMigration{}
+			vectorMigration := &star.VectorMigration{}
 			vectorMigrationLookupKey := types.NamespacedName{Name: VectorMigration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
@@ -657,7 +657,7 @@ var _ = Describe("Task Orchestration Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 				g.Expect(vectorMigration.Status.Conditions).To(HaveLen(1))
-				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, landscape.VectorMigrationSucceeded)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, star.VectorMigrationSucceeded)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 	})

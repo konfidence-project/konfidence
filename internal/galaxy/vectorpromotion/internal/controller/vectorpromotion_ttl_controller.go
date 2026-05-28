@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	global "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,7 +38,7 @@ func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req mcreco
 	}
 	clusterClient := cluster.GetClient()
 
-	vectorPromotion := &global.VectorPromotion{}
+	vectorPromotion := &galaxy.VectorPromotion{}
 	if err := clusterClient.Get(ctx, req.NamespacedName, vectorPromotion); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -66,7 +66,7 @@ func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req mcreco
 // or when the Promoted condition is set.
 func (r *VectorPromotionTTLReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
-		For(&global.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
+		For(&galaxy.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
 			CreateFunc:  func(e event.CreateEvent) bool { return true },
 			UpdateFunc:  func(e event.UpdateEvent) bool { return true },
 			DeleteFunc:  func(e event.DeleteEvent) bool { return false },

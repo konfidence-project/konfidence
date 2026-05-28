@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -50,7 +50,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	log.Info("Reconciling VectorDeployment")
 
 	// get vector deployment usage
-	vectorDeployment := &landscape.VectorDeployment{}
+	vectorDeployment := &star.VectorDeployment{}
 	if err := r.Get(ctx, req.NamespacedName, vectorDeployment); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -82,9 +82,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		meta.SetStatusCondition(
 			&vectorDeployment.Status.Conditions,
 			metav1.Condition{
-				Type:               landscape.VectorDownloadedCondition,
+				Type:               star.VectorDownloadedCondition,
 				Status:             metav1.ConditionTrue,
-				Reason:             landscape.VectorDownloadedCondition,
+				Reason:             star.VectorDownloadedCondition,
 				Message:            fmt.Sprintf("Successfully downloaded vector %s from OCM repository", vectorDeployment.Spec.Vector),
 				ObservedGeneration: vectorDeployment.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -142,9 +142,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// set status condition VectorReadyCondition to True
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-		Type:               landscape.VectorReadyCondition,
+		Type:               star.VectorReadyCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.VectorReadyCondition,
+		Reason:             star.VectorReadyCondition,
 		Message:            fmt.Sprintf("Vector deployment %s is ready", vectorDeployment.Name),
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -163,15 +163,15 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	ctx context.Context,
 	artifactReferences []compref.Ref,
-	vectorDeployment *landscape.VectorDeployment,
+	vectorDeployment *star.VectorDeployment,
 	log logr.Logger,
 ) (bool, error) {
 	// Build fresh maps from scratch so removed artifacts are no longer referenced.
 	// We use nil initially and allocate lazily to avoid spurious status patches when
 	// DeepEqual compares nil (server value after omitempty round-trip) vs. empty map.
 	var (
-		resultingArtifactDeployments = make(map[string]landscape.LocalArtifactDeploymentReference, len(artifactReferences))
-		deploymentResults            = make(map[string]landscape.DeploymentResult)
+		resultingArtifactDeployments = make(map[string]star.LocalArtifactDeploymentReference, len(artifactReferences))
+		deploymentResults            = make(map[string]star.DeploymentResult)
 	)
 	allReady := true
 
@@ -194,7 +194,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		}
 
 		// fetch existing artifact deployment from k8s api
-		artifactDeployment := &landscape.ArtifactDeployment{}
+		artifactDeployment := &star.ArtifactDeployment{}
 		err = r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: deploymentName}, artifactDeployment)
 		if err != nil {
 			// if error is not NotFound then return error
@@ -239,18 +239,18 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		}
 
 		// Update the artifact deployment to the status map of the VectorDeployment
-		resultingArtifactDeployments[artifactRef.Component] = landscape.LocalArtifactDeploymentReference{
+		resultingArtifactDeployments[artifactRef.Component] = star.LocalArtifactDeploymentReference{
 			Name: artifactDeployment.Name,
 		}
 
 		// state management for VectorDeployedCondition
-		if meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, landscape.DeploymentResultCreatedCondition) {
+		if meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, star.DeploymentResultCreatedCondition) {
 			// collect deployment results
 			for _, result := range artifactDeployment.Status.DeploymentResults {
 				deploymentResults[artifactRef.Component+"/"+result.Name] = result
 			}
 		}
-		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, landscape.ArtifactDeploymentReadyCondition) {
+		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, star.ArtifactDeploymentReadyCondition) {
 			allReady = false
 		}
 	}
@@ -270,9 +270,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 
 	// set status condition ArtifactDeploymentsCreatedCondition to created
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-		Type:               landscape.ArtifactDeploymentsCreatedCondition,
+		Type:               star.ArtifactDeploymentsCreatedCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.ArtifactDeploymentsCreatedCondition,
+		Reason:             star.ArtifactDeploymentsCreatedCondition,
 		Message:            fmt.Sprintf("Successfully created Artifact deployments for vector deployment %s", vectorDeployment.Name),
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -280,9 +280,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 
 	if allReady {
 		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-			Type:               landscape.VectorDeployedCondition,
+			Type:               star.VectorDeployedCondition,
 			Status:             metav1.ConditionTrue,
-			Reason:             landscape.VectorDeployedCondition,
+			Reason:             star.VectorDeployedCondition,
 			Message:            fmt.Sprintf("All artifacts of vector deployment %s are deployed", vectorDeployment.Name),
 			ObservedGeneration: vectorDeployment.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -292,13 +292,13 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	return allReady, nil
 }
 
-func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context, vectorDeployment *landscape.VectorDeployment, log logr.Logger) (bool, error) {
-	resultingVectorAssignments := make(map[string]landscape.LocalVectorAssignmentReference, len(vectorDeployment.Status.ResultingArtifactDeployments))
+func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context, vectorDeployment *star.VectorDeployment, log logr.Logger) (bool, error) {
+	resultingVectorAssignments := make(map[string]star.LocalVectorAssignmentReference, len(vectorDeployment.Status.ResultingArtifactDeployments))
 	allReady := true
 
 	for componentName, artifactDeployment := range vectorDeployment.Status.ResultingArtifactDeployments {
 		// fetch existing artifact assignment from k8s api
-		vectorAssignment := &landscape.VectorAssignment{}
+		vectorAssignment := &star.VectorAssignment{}
 		assignmentName := vectorDeployment.Name
 		err := r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: assignmentName}, vectorAssignment)
 		if err != nil {
@@ -308,7 +308,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 			}
 
 			// create a new VectorAssignment
-			ad := &landscape.ArtifactDeployment{}
+			ad := &star.ArtifactDeployment{}
 			err = r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: artifactDeployment.Name}, ad)
 			if err != nil {
 				return false, fmt.Errorf("failed to get artifact deployment %q for vector assignment %q: %w", artifactDeployment.Name, assignmentName, err)
@@ -316,7 +316,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 
 			log.Info("VectorAssignment not found, create new one", "name", assignmentName)
 
-			vectorAssignment = &landscape.VectorAssignment{
+			vectorAssignment = &star.VectorAssignment{
 				ObjectMeta: ctrl.ObjectMeta{
 					Name:      assignmentName,
 					Namespace: vectorDeployment.Namespace,
@@ -324,10 +324,10 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 						pkgCtrl.ArtifactReferenceLabel: artifactDeployment.Name,
 					},
 				},
-				Spec: landscape.VectorAssignmentSpec{
+				Spec: star.VectorAssignmentSpec{
 					Manifest:              ad.Spec.Manifest,
 					ArtifactDeploymentRef: artifactDeployment,
-					VectorDeploymentRef: landscape.LocalVectorDeploymentReference{
+					VectorDeploymentRef: star.LocalVectorDeploymentReference{
 						Name: vectorDeployment.Name,
 					},
 				},
@@ -367,12 +367,12 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 		}
 
 		// Update the artifact assignment to the status map of the VectorDeployment
-		resultingVectorAssignments[componentName] = landscape.LocalVectorAssignmentReference{
+		resultingVectorAssignments[componentName] = star.LocalVectorAssignmentReference{
 			Name: vectorAssignment.Name,
 		}
 
 		// state management for VectorAssignmentsCreatedCondition
-		if !meta.IsStatusConditionTrue(vectorAssignment.Status.Conditions, landscape.VectorReadyCondition) {
+		if !meta.IsStatusConditionTrue(vectorAssignment.Status.Conditions, star.VectorReadyCondition) {
 			allReady = false
 		}
 	}
@@ -387,9 +387,9 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 
 	// set status condition ArtifactDeploymentsCreatedCondition to created
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-		Type:               landscape.VectorAssignmentsCreatedCondition,
+		Type:               star.VectorAssignmentsCreatedCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.VectorAssignmentsCreatedCondition,
+		Reason:             star.VectorAssignmentsCreatedCondition,
 		Message:            fmt.Sprintf("Successfully created vector assignments for vector deployment %s", vectorDeployment.Name),
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -397,9 +397,9 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 
 	if allReady {
 		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-			Type:               landscape.VectorReadyCondition,
+			Type:               star.VectorReadyCondition,
 			Status:             metav1.ConditionTrue,
-			Reason:             landscape.VectorReadyCondition,
+			Reason:             star.VectorReadyCondition,
 			Message:            fmt.Sprintf("Vector deployment %s fully deployed", vectorDeployment.Name),
 			ObservedGeneration: vectorDeployment.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -409,10 +409,10 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 	return allReady, nil
 }
 
-func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []landscape.TaskManifest {
-	landscapeTaskManifests := make([]landscape.TaskManifest, len(taskManifests))
+func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []star.TaskManifest {
+	landscapeTaskManifests := make([]star.TaskManifest, len(taskManifests))
 	for i, taskManifest := range taskManifests {
-		landscapeTaskManifests[i] = landscape.TaskManifest{
+		landscapeTaskManifests[i] = star.TaskManifest{
 			Name:      taskManifest.Name,
 			Type:      taskManifest.Type,
 			DependsOn: taskManifest.DependsOn,
@@ -422,10 +422,10 @@ func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []landscape.TaskM
 	return landscapeTaskManifests
 }
 
-func mapArtifactResourcesToLandscape(resources []OCMResource) []landscape.OCMResource {
-	landscapeResources := make([]landscape.OCMResource, 0, len(resources))
+func mapArtifactResourcesToLandscape(resources []OCMResource) []star.OCMResource {
+	landscapeResources := make([]star.OCMResource, 0, len(resources))
 	for _, resource := range resources {
-		landscapeResources = append(landscapeResources, landscape.OCMResource{
+		landscapeResources = append(landscapeResources, star.OCMResource{
 			Name:    resource.Name,
 			Content: runtime.RawExtension{Raw: resource.Content},
 			Type:    resource.Type,
@@ -437,9 +437,9 @@ func mapArtifactResourcesToLandscape(resources []OCMResource) []landscape.OCMRes
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controllerName string) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&landscape.VectorDeployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&landscape.ArtifactDeployment{}, builder.MatchEveryOwner).
-		Owns(&landscape.VectorAssignment{}, builder.MatchEveryOwner).
+		For(&star.VectorDeployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&star.ArtifactDeployment{}, builder.MatchEveryOwner).
+		Owns(&star.VectorAssignment{}, builder.MatchEveryOwner).
 		Named(controllerName).
 		Complete(r)
 }
@@ -447,24 +447,24 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controll
 func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 	ref compref.Ref,
 	artifactManifest ArtifactManifest,
-	vectorDeployment *landscape.VectorDeployment,
+	vectorDeployment *star.VectorDeployment,
 	deploymentName string,
-) *landscape.ArtifactDeployment {
+) *star.ArtifactDeployment {
 	// map task manifests from domain.TaskManifest to star.TaskManifest
 	taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
 	artifactResources := mapArtifactResourcesToLandscape(artifactManifest.Resources)
-	return &landscape.ArtifactDeployment{
+	return &star.ArtifactDeployment{
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:      deploymentName,
 			Namespace: vectorDeployment.Namespace,
 		},
-		Spec: landscape.ArtifactDeploymentSpec{
-			Manifest: landscape.ArtifactManifest{
+		Spec: star.ArtifactDeploymentSpec{
+			Manifest: star.ArtifactManifest{
 				Type:       artifactManifest.Type,
 				AllowReuse: artifactManifest.AllowReuse,
 			},
 			TaskManifests: taskManifests,
-			Component: landscape.OCMComponent{
+			Component: star.OCMComponent{
 				Name:      ref.Component,
 				Version:   ref.Version,
 				Resources: artifactResources,

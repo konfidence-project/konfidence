@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	landscape "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	util "github.com/konfidence-project/konfidence/internal/star/stage/internal/utils"
 	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
@@ -49,7 +49,7 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	log.Info("Reconcile stage started...")
 
 	// get stage
-	stage := &landscape.Stage{}
+	stage := &star.Stage{}
 	if err := r.Get(ctx, req.NamespacedName, stage); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -75,13 +75,13 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 }
 
-func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, stage *landscape.Stage) error {
+func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, stage *star.Stage) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stage")
 	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{
-		Type:               landscape.StageReady,
+		Type:               star.StageReady,
 		Status:             metav1.ConditionFalse,
-		Reason:             landscape.StageReady,
+		Reason:             star.StageReady,
 		Message:            "",
 		ObservedGeneration: stage.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -98,9 +98,9 @@ func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, 
 	}
 
 	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{
-		Type:               landscape.StageReady,
+		Type:               star.StageReady,
 		Status:             metav1.ConditionTrue,
-		Reason:             landscape.StageReady,
+		Reason:             star.StageReady,
 		Message:            fmt.Sprintf("Successfully reconciled Stage %s", stage.Name),
 		ObservedGeneration: stage.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -112,11 +112,11 @@ func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, 
 func (r *StageReconciler) getOrCreateTargetStageVersionUsage(
 	ctx context.Context,
 	req ctrl.Request,
-	stage *landscape.Stage,
-) (*landscape.StageVersionUsage, error) {
+	stage *star.Stage,
+) (*star.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 
-	stageVersionUsages := &landscape.StageVersionUsageList{}
+	stageVersionUsages := &star.StageVersionUsageList{}
 	if err := r.List(ctx, stageVersionUsages, client.InNamespace(req.Namespace), client.MatchingLabels(getTargetStageVersionUsageLabels(stage))); err != nil {
 		return nil, fmt.Errorf("unable to list current target stageVersionUsages: %w", err)
 	}
@@ -169,7 +169,7 @@ func (r *StageReconciler) getOrCreateTargetStageVersionUsage(
 }
 
 //nolint:dupl // TODO(konfidence-project#689): factor shared create-or-update boilerplate.
-func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *landscape.Stage) (*landscape.StageVersion, error) {
+func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *star.Stage) (*star.StageVersion, error) {
 	log := logf.FromContext(ctx)
 	stageVersion, err := r.constructStageVersion(stage)
 	if err != nil {
@@ -193,7 +193,7 @@ func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *la
 	return stageVersion, nil
 }
 
-func (r *StageReconciler) constructStageVersion(stage *landscape.Stage) (*landscape.StageVersion, error) {
+func (r *StageReconciler) constructStageVersion(stage *star.Stage) (*star.StageVersion, error) {
 	name, err := getStageVersionName(stage)
 	if err != nil {
 		return nil, err
@@ -204,16 +204,16 @@ func (r *StageReconciler) constructStageVersion(stage *landscape.Stage) (*landsc
 		return nil, err
 	}
 
-	stageVersion := &landscape.StageVersion{
+	stageVersion := &star.StageVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: stage.Namespace,
 			Labels:    stageVersionLabels,
 		},
-		Spec: landscape.StageVersionSpec{
+		Spec: star.StageVersionSpec{
 			Vector:          stage.Spec.Vector,
 			StageGeneration: stage.Generation,
-			StageRef: &landscape.StageReference{
+			StageRef: &star.StageReference{
 				Name: stage.Name,
 			},
 		},
@@ -226,20 +226,20 @@ func (r *StageReconciler) constructStageVersion(stage *landscape.Stage) (*landsc
 	return stageVersion, nil
 }
 
-func (r *StageReconciler) constructStageVersionUsage(stage *landscape.Stage) (*landscape.StageVersionUsage, error) {
+func (r *StageReconciler) constructStageVersionUsage(stage *star.Stage) (*star.StageVersionUsage, error) {
 	name := fmt.Sprintf("%s-target-%s", stage.Name, rand.String(8))
 	stageVersionLabels, err := getStageVersionLabels(stage)
 	if err != nil {
 		return nil, err
 	}
 
-	stageVersionUsage := &landscape.StageVersionUsage{
+	stageVersionUsage := &star.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: stage.Namespace,
 			Labels:    getTargetStageVersionUsageLabels(stage),
 		},
-		Spec: landscape.StageVersionUsageSpec{
+		Spec: star.StageVersionUsageSpec{
 			Reason: StageVersionUsageTargetType,
 			StageVersionSelector: &metav1.LabelSelector{
 				MatchLabels: stageVersionLabels,
@@ -254,7 +254,7 @@ func (r *StageReconciler) constructStageVersionUsage(stage *landscape.Stage) (*l
 	return stageVersionUsage, nil
 }
 
-func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, stageVersionUsage *landscape.StageVersionUsage, stage *landscape.Stage) error {
+func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, stageVersionUsage *star.StageVersionUsage, stage *star.Stage) error {
 	stageVersionLabels, err := getStageVersionLabels(stage)
 	if err != nil {
 		return err
@@ -287,7 +287,7 @@ func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, sta
 	return nil
 }
 
-func getStageVersionLabels(stage *landscape.Stage) (map[string]string, error) {
+func getStageVersionLabels(stage *star.Stage) (map[string]string, error) {
 	// use vector hash as vector ref for now
 	digest, err := util.ComputeFnv128Digest(stage.Spec.Vector)
 	if err != nil {
@@ -300,13 +300,13 @@ func getStageVersionLabels(stage *landscape.Stage) (map[string]string, error) {
 	}, nil
 }
 
-func getTargetStageVersionUsageLabels(stage *landscape.Stage) map[string]string {
+func getTargetStageVersionUsageLabels(stage *star.Stage) map[string]string {
 	return map[string]string{
 		pkgCtrl.StageVersionUsageTarget: stage.Name,
 	}
 }
 
-func getStageVersionName(stage *landscape.Stage) (string, error) {
+func getStageVersionName(stage *star.Stage) (string, error) {
 	content := fmt.Sprintf("%s-%s-%d", stage.Name, stage.Spec.Vector, stage.Generation)
 	digest, err := util.ComputeFnv64Digest(content)
 	if err != nil {
@@ -340,9 +340,9 @@ func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&landscape.Stage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&landscape.StageVersion{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
-		Owns(&landscape.StageVersionUsage{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
+		For(&star.Stage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&star.StageVersion{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
+		Owns(&star.StageVersionUsage{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
 		Named("stage").
 		Complete(r)
 }
