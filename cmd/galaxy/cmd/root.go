@@ -43,15 +43,12 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "galaxy",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "Run the Konfidence galaxy control-plane operator",
+	Long: `galaxy is the Konfidence control-plane operator.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
+It runs a multicluster controller manager with several controllers that reconcile galaxy API resources.
+When a KCP APIExportEndpointSlice is provided it serves workspaces via KCP;
+otherwise it operates against a single Kubernetes cluster.`,
 	RunE: startOperator,
 }
 
@@ -86,29 +83,20 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	rootCmd.PersistentFlags().BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-
-	rootCmd.PersistentFlags().StringVar(&kcpEndpointSlice, "kcp-endpoint-slice-name",
-		os.Getenv(KcpEndpointSliceEnv),
+		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	rootCmd.PersistentFlags().StringVar(&kcpEndpointSlice, "kcp-endpoint-slice-name", os.Getenv(KcpEndpointSliceEnv),
 		"Provides a reference to the APIExport in KCP. If using single cluster mode this shall be empty.")
-	rootCmd.PersistentFlags().StringVar(&kubernetesServiceHost, "kubernetes-host",
-		os.Getenv(KubernetesServiceHostEnv),
-		"connection host towards an out of band kubernetes cluster")
+	rootCmd.PersistentFlags().StringVar(&kubernetesServiceHost, "kubernetes-host", os.Getenv(KubernetesServiceHostEnv),
+		"connection host towards an out of band Kubernetes cluster")
 	servicePort := os.Getenv(KubernetesServicePortEnv)
 	var defaultPort int
 	if servicePort != "" {
 		defaultPort, _ = strconv.Atoi(servicePort)
 	}
-
-	rootCmd.PersistentFlags().IntVar(&kubernetesServicePort, "kubernetes-port", defaultPort, "connection port towards an out of band kubernetes cluster")
-
+	rootCmd.PersistentFlags().IntVar(&kubernetesServicePort, "kubernetes-port", defaultPort, "connection port towards an out of band Kubernetes cluster")
 	rootCmd.Flags().StringVar(&controllersSpec, "controllers", "*",
 		"Comma-separated glob expression selecting which controllers to enable. "+
 			"Examples: '*' (all), 'VectorAssembly', '!VectorAssembly,*' (all except), 'Vector*'. "+
 			"Tokens are set-based and order-independent; '!' negates.")
-
-	rootCmd.Flags().StringVar(&leaseID, "lease-id", "galaxy-operator.konfidence.cloud",
-		"The ID used for leader election.")
-
+	rootCmd.Flags().StringVar(&leaseID, "lease-id", "galaxy-operator.konfidence.cloud", "The ID used for leader election.")
 }

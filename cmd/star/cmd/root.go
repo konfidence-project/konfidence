@@ -30,15 +30,10 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "star",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "Run the Konfidence star workload-cluster operator",
+	Long: `star is the Konfidence workload-cluster operator.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
+It runs a controller manager with several controllers that reconcile star API resources on a target Kubernetes cluster.`,
 	RunE: startOperator,
 }
 
@@ -70,14 +65,10 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	rootCmd.PersistentFlags().BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-
+		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	rootCmd.Flags().StringVar(&controllersSpec, "controllers", "*",
 		"Comma-separated glob expression selecting which controllers to enable. "+
 			"Examples: '*' (all), 'Stage', '!Stage,*' (all except), 'Vector*'. "+
 			"Tokens are set-based and order-independent; '!' negates.")
-
-	rootCmd.Flags().StringVar(&leaseID, "lease-id", "star-operator.konfidence.cloud",
-		"The ID used for leader election.")
+	rootCmd.Flags().StringVar(&leaseID, "lease-id", "star-operator.konfidence.cloud", "The ID used for leader election.")
 }
