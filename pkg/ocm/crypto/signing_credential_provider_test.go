@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -84,21 +84,21 @@ var _ = Describe("SecretSigningCredentialsProvider", func() {
 
 	It("ingest returns error when tls.crt is missing", func() {
 		provider := &SecretSigningCredentialsProvider{}
-		sec := &v1.Secret{Data: map[string][]byte{"tls.key": []byte("key")}}
+		sec := &corev1.Secret{Data: map[string][]byte{"tls.key": []byte("key")}}
 		err := provider.ingest(sec)
 		Expect(err).To(MatchError("keys 'tls.crt' and/or 'tls.key' not found"))
 	})
 
 	It("ingest returns error when tls.key is missing", func() {
 		provider := &SecretSigningCredentialsProvider{}
-		sec := &v1.Secret{Data: map[string][]byte{"tls.crt": []byte("cert")}}
+		sec := &corev1.Secret{Data: map[string][]byte{"tls.crt": []byte("cert")}}
 		err := provider.ingest(sec)
 		Expect(err).To(MatchError("keys 'tls.crt' and/or 'tls.key' not found"))
 	})
 
 	It("ingest stores both public_key_pem and private_key_pem", func() {
 		provider := &SecretSigningCredentialsProvider{}
-		sec := &v1.Secret{Data: map[string][]byte{
+		sec := &corev1.Secret{Data: map[string][]byte{
 			"tls.crt": []byte("cert-data"),
 			"tls.key": []byte("key-data"),
 		}}
@@ -116,7 +116,7 @@ var _ = Describe("SecretSigningCredentialsProvider", func() {
 		provider := &SecretSigningCredentialsProvider{secret: secret, log: logr.Discard()}
 		provider.data.Store(map[string]string{"public_key_pem": "initial", "private_key_pem": "initial"})
 
-		wrongSec := &v1.Secret{
+		wrongSec := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: "other", Name: secret.Name},
 			Data:       map[string][]byte{"tls.crt": []byte("wrong"), "tls.key": []byte("wrong")},
 		}
@@ -130,7 +130,7 @@ var _ = Describe("SecretSigningCredentialsProvider", func() {
 		provider := &SecretSigningCredentialsProvider{secret: secret, log: logr.Discard()}
 		provider.data.Store(map[string]string{"public_key_pem": "initial", "private_key_pem": "initial"})
 
-		updatedSec := &v1.Secret{
+		updatedSec := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: secret.Namespace, Name: secret.Name},
 			Data:       map[string][]byte{"tls.crt": []byte("new-cert"), "tls.key": []byte("new-key")},
 		}
@@ -145,7 +145,7 @@ var _ = Describe("SecretSigningCredentialsProvider", func() {
 		provider := &SecretSigningCredentialsProvider{secret: secret, log: logr.Discard()}
 		provider.data.Store(map[string]string{"public_key_pem": "initial", "private_key_pem": "initial"})
 
-		provider.refresh(&v1.ConfigMap{})
+		provider.refresh(&corev1.ConfigMap{})
 
 		stored := provider.data.Load().(map[string]string)
 		Expect(stored["public_key_pem"]).To(Equal("initial"))
@@ -155,7 +155,7 @@ var _ = Describe("SecretSigningCredentialsProvider", func() {
 		provider := &SecretSigningCredentialsProvider{secret: secret, log: logr.Discard()}
 		provider.data.Store(map[string]string{"public_key_pem": "initial", "private_key_pem": "initial"})
 
-		badSec := &v1.Secret{
+		badSec := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: secret.Namespace, Name: secret.Name},
 			Data:       map[string][]byte{"tls.crt": []byte("cert")}, // missing tls.key
 		}

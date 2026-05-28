@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	genericv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	credentialsruntime "ocm.software/open-component-model/bindings/go/credentials/spec/config/runtime"
@@ -49,7 +49,7 @@ import (
 type OciClientBuilder struct {
 	log       logr.Logger
 	ocmConfig *configuration.Configuration
-	secret    *v1.Secret
+	secret    *corev1.Secret
 }
 
 // WithOCMConfig configures OCI registry authentication.
@@ -68,7 +68,7 @@ func (builder *OciClientBuilder) WithOCMConfig(config *configuration.Configurati
 //
 // Deprecated: Use WithOCMConfig instead, which supports the full OCM
 // configuration model via configuration.LoadConfigurations.
-func (builder *OciClientBuilder) WithDockerConfigJsonSecret(secret *v1.Secret) *OciClientBuilder {
+func (builder *OciClientBuilder) WithDockerConfigJsonSecret(secret *corev1.Secret) *OciClientBuilder {
 	builder.secret = secret
 	return builder
 }
@@ -175,9 +175,9 @@ func (builder *OciClientBuilder) Build(ctx context.Context) (Client, error) {
 }
 
 func (builder *OciClientBuilder) getGenericConfigurationFromSecret() (*credentialsruntime.Config, error) {
-	dockerConfigJson, ok := builder.secret.Data[v1.DockerConfigJsonKey]
+	dockerConfigJson, ok := builder.secret.Data[corev1.DockerConfigJsonKey]
 	if !ok {
-		return nil, fmt.Errorf("secret does not contain key %q", v1.DockerConfigJsonKey)
+		return nil, fmt.Errorf("secret does not contain key %q", corev1.DockerConfigJsonKey)
 	}
 
 	dockerConfig := &ocicredentialsv1.DockerConfig{}

@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -70,7 +70,7 @@ func (p *ConfigMapTrustAnchorProvider) SetupWithManager(ctx context.Context, mgr
 		return fmt.Errorf("provider already started")
 	}
 	p.done = make(chan struct{})
-	data := &v1.ConfigMap{}
+	data := &corev1.ConfigMap{}
 	// Use APIReader here as SetupWithManager might be called during controller startup
 	// before the manager's cache is synced
 	if err := mgr.GetAPIReader().Get(ctx, p.cfg, data); err != nil {
@@ -79,7 +79,7 @@ func (p *ConfigMapTrustAnchorProvider) SetupWithManager(ctx context.Context, mgr
 	if err := p.ingest(data); err != nil {
 		return fmt.Errorf("ingest configmap %q: %w", p.cfg, err)
 	}
-	inf, err := mgr.GetCache().GetInformer(ctx, &v1.ConfigMap{})
+	inf, err := mgr.GetCache().GetInformer(ctx, &corev1.ConfigMap{})
 	if err != nil {
 		return fmt.Errorf("get informer for configmap %q: %w", p.cfg, err)
 	}
@@ -90,7 +90,7 @@ func (p *ConfigMapTrustAnchorProvider) SetupWithManager(ctx context.Context, mgr
 }
 
 func (p *ConfigMapTrustAnchorProvider) refresh(obj any) {
-	cfg, ok := obj.(*v1.ConfigMap)
+	cfg, ok := obj.(*corev1.ConfigMap)
 	if !ok {
 		p.log.Error(
 			fmt.Errorf("unexpected object type: %T, expected *v1.ConfigMap", obj),
@@ -107,7 +107,7 @@ func (p *ConfigMapTrustAnchorProvider) refresh(obj any) {
 	p.log.Info("credentials refreshed")
 }
 
-func (p *ConfigMapTrustAnchorProvider) ingest(cfg *v1.ConfigMap) error {
+func (p *ConfigMapTrustAnchorProvider) ingest(cfg *corev1.ConfigMap) error {
 	if cfg == nil {
 		return fmt.Errorf("configmap is nil")
 	}
