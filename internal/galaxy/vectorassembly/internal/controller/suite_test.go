@@ -13,7 +13,7 @@ import (
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
-	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/testcontainers/testcontainers-go"
@@ -43,7 +43,7 @@ var (
 	// registryEndpoint is the host:port of the oci container, e.g. "localhost:55123"
 	registryEndpoint string
 	// ocmClient is the shared OCM client used for both seeding test data and by the adapter
-	ocmClient pkgOcm.Client
+	ocmClient pkgocm.Client
 	// testVersion is the version returned by the static version generator used in tests for newly created vectors
 	testVersion = "2026.1.2-000000000Z"
 	// oldTestVersion is used when manually pushing pre-existing vectors in test setup (to simulate existing state)
@@ -138,7 +138,7 @@ var _ = BeforeSuite(func() {
 
 	By("building shared OCM client")
 	ocmConfig := buildOCMConfig(registryEndpoint, "user", "password")
-	ocmClient, err = pkgOcm.NewOciClientBuilder().
+	ocmClient, err = pkgocm.NewOciClientBuilder().
 		WithLogger(ctrl.Log.WithName("ocm-client")).
 		WithOCMConfig(ocmConfig).
 		Build(ctx)
@@ -168,13 +168,13 @@ func startManager() {
 	Expect((&VectorTemplateReconciler{
 		Mgr:    mgr,
 		Scheme: mgr.GetLocalManager().GetScheme(),
-		OcmClientProvider: pkgOcm.ClientProviderFunc(
+		OcmClientProvider: pkgocm.ClientProviderFunc(
 			func(
 				_ context.Context,
 				_ client.Reader,
 				_ string,
 				_ []galaxy.CredentialsConfig,
-			) (pkgOcm.Client, error) {
+			) (pkgocm.Client, error) {
 				return ocmClient, nil
 			},
 		),

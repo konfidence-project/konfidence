@@ -10,7 +10,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ports/mocks"
 	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/template"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
-	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -51,13 +51,13 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 
 		reconciler = &StageConfigurationReconciler{
 			Mgr: k8sManager,
-			OcmClientProvider: pkgOcm.ClientProviderFunc(func(
+			OcmClientProvider: pkgocm.ClientProviderFunc(func(
 				ctx context.Context, k8sClient client.Reader, namespace string,
 				credentialsConfig []galaxy.CredentialsConfig,
-			) (pkgOcm.Client, error) {
+			) (pkgocm.Client, error) {
 				return nil, nil
 			}),
-			VectorPortProvider: ports.VectorPortProviderFunc(func(verifier crypto.Verifier, client pkgOcm.Client) ports.VectorPort {
+			VectorPortProvider: ports.VectorPortProviderFunc(func(verifier crypto.Verifier, client pkgocm.Client) ports.VectorPort {
 				return vectorPortMock
 			}),
 			Scheme: k8sScheme,

@@ -6,7 +6,7 @@ import (
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/star/stage/internal/controller"
-	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -76,7 +76,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(stageVersion.Spec.Vector))
-				g.Expect(vectorDeployment.Labels[pkgCtrl.StageVersionNameLabel]).To(Equal(StageVersionDev))
+				g.Expect(vectorDeployment.Labels[pkgctrl.StageVersionNameLabel]).To(Equal(StageVersionDev))
 				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(controller.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
 					Kind: star.StageVersionKind,

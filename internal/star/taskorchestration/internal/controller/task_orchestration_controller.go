@@ -7,7 +7,7 @@ import (
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/star/taskorchestration/internal/graph"
-	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -229,7 +229,7 @@ func (r *TaskOrchestrationReconciler) getVectorDeployment(
 	ctx context.Context, vectorMigration *star.VectorMigration,
 ) (*star.VectorDeployment, error) {
 	labelMatcher := client.MatchingLabels{}
-	labelMatcher[pkgCtrl.StageVersionNameLabel] = vectorMigration.Spec.StageVersion
+	labelMatcher[pkgctrl.StageVersionNameLabel] = vectorMigration.Spec.StageVersion
 
 	vectorDeployments := &star.VectorDeploymentList{}
 	if err := r.List(ctx, vectorDeployments, client.InNamespace(vectorMigration.Namespace), labelMatcher); err != nil {

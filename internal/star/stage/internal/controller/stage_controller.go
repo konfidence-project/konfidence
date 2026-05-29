@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
-	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -294,14 +294,14 @@ func getStageVersionLabels(stage *star.Stage) (map[string]string, error) {
 	}
 
 	return map[string]string{
-		pkgCtrl.StageNameLabel:       stage.Name,
-		pkgCtrl.VectorReferenceLabel: digest,
+		pkgctrl.StageNameLabel:       stage.Name,
+		pkgctrl.VectorReferenceLabel: digest,
 	}, nil
 }
 
 func getTargetStageVersionUsageLabels(stage *star.Stage) map[string]string {
 	return map[string]string{
-		pkgCtrl.StageVersionUsageTarget: stage.Name,
+		pkgctrl.StageVersionUsageTarget: stage.Name,
 	}
 }
 

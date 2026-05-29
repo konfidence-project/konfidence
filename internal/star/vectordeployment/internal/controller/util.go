@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"strings"
 
-	pkgSanitize "github.com/konfidence-project/konfidence/pkg/sanitize"
+	pkgsanitize "github.com/konfidence-project/konfidence/pkg/sanitize"
 )
 
 func ConstructArtifactDeploymentName(artifactName, artifactVersion string, uid *string) (string, error) {
@@ -43,7 +43,7 @@ func ConstructArtifactDeploymentName(artifactName, artifactVersion string, uid *
 
 	// use only hash value as name if version with hash is already too long
 	if remainingSize < 0 {
-		return pkgSanitize.DNSLabelName(hash), nil
+		return pkgsanitize.DNSLabelName(hash), nil
 	}
 
 	// extract last part of artifact name
@@ -59,5 +59,5 @@ func ConstructArtifactDeploymentName(artifactName, artifactVersion string, uid *
 		finalComponentName = componentName[:remainingSize-1]
 	}
 
-	return pkgSanitize.DNSLabelName(finalComponentName + "-" + versionWithHash), nil
+	return pkgsanitize.DNSLabelName(finalComponentName + "-" + versionWithHash), nil
 }

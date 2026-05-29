@@ -15,7 +15,7 @@ import (
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ociv1 "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
-	ocmRuntime "ocm.software/open-component-model/bindings/go/runtime"
+	ocmruntime "ocm.software/open-component-model/bindings/go/runtime"
 )
 
 // newTestAdapter creates an Adapter with the given mock client injected via the exported constructor
@@ -309,12 +309,12 @@ var _ = Describe("OcmAdapter", func() {
 				helmChartResource := descruntime.Resource{
 					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "service-helm-chart"}},
 					Type:        "helmChart",
-					Access:      &ocmRuntime.Raw{Data: helmChartJSON},
+					Access:      &ocmruntime.Raw{Data: helmChartJSON},
 				}
 				ociImageResource := descruntime.Resource{
 					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "service-image"}},
 					Type:        "ociImage",
-					Access:      &ocmRuntime.Raw{Data: ociImageJSON},
+					Access:      &ocmruntime.Raw{Data: ociImageJSON},
 				}
 
 				descriptor := buildDescriptor([]descruntime.Resource{manifestResource, helmChartResource, ociImageResource})
@@ -373,7 +373,7 @@ var _ = Describe("OcmAdapter", func() {
 	Describe("RepositoryURL helper via GetVectorDescriptor", func() {
 		It("returns empty string when repository spec is not an OCI repository", func() {
 			vectorRef := compref.Ref{
-				Repository: ocmRuntime.Identity{"type": "unknown"},
+				Repository: ocmruntime.Identity{"type": "unknown"},
 				Component:  "github.com/example/vec",
 				Version:    "2.0.0",
 			}

@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
-	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -321,7 +321,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 					Name:      assignmentName,
 					Namespace: vectorDeployment.Namespace,
 					Labels: map[string]string{
-						pkgCtrl.ArtifactReferenceLabel: artifactDeployment.Name,
+						pkgctrl.ArtifactReferenceLabel: artifactDeployment.Name,
 					},
 				},
 				Spec: star.VectorAssignmentSpec{
