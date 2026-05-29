@@ -6,7 +6,7 @@ import (
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 )
 
-//go:generate go run go.uber.org/mock/mockgen -source=ocm_port.go -destination=./mocks/mock_ocm_port.go -package=mocks
+//go:generate go run go.uber.org/mock/mockgen -destination=./mocks/mock_ocm_port.go -package=mocks github.com/konfidence-project/konfidence/internal/star/vectordeployment/internal/controller VectorOcmPort
 
 // VectorOcmPort defines a subset of functionalities from the OCM library.
 type VectorOcmPort interface {

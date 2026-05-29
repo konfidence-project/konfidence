@@ -1,7 +1,5 @@
 package repository
 
-//go:generate go run go.uber.org/mock/mockgen -source=provider.go -destination=internal/mocks/mock_client_provider.go -package=mocks
-
 import (
 	"context"
 	"fmt"

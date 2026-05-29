@@ -102,6 +102,10 @@ generate-galaxy: hermit ## Generate DeepCopy implementations for the galaxy oper
 	$(CONTROLLER_GEN) object \
 		paths="./internal/galaxy/..." paths="./api/galaxy/..."
 
+.PHONY: generate-mocks
+generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
+	go generate ./...
+
 .PHONY: fmt
 fmt: hermit ## Run go fmt against the entire codebase.
 	go fmt ./...

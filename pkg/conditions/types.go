@@ -1,6 +1,6 @@
 package conditions
 
-//go:generate go run go.uber.org/mock/mockgen -source=types.go -destination=internal/mocks/mock_types_port.go -package=mocks
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_types_port.go -package=mocks github.com/konfidence-project/konfidence/pkg/conditions Getter,Setter
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

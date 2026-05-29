@@ -1,5 +1,10 @@
 package ocm
 
+//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_client.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/repository Client
+//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_verifier.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Verifier
+//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_signer.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Signer
+//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_digester.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Digester
+
 import (
 	"context"
 	"errors"
