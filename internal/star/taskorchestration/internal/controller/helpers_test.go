@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
-	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -204,7 +204,7 @@ func CreateVectorDeployment(ctx context.Context, k8sClient client.Client, name s
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				pkgCtrl.StageVersionNameLabel: stageVersion,
+				pkgctrl.StageVersionNameLabel: stageVersion,
 			},
 		},
 		Spec: star.VectorDeploymentSpec{

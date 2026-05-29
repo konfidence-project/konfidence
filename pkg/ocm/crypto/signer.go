@@ -5,12 +5,12 @@ package crypto
 import (
 	"context"
 	"fmt"
-	sysRuntime "runtime"
+	sysruntime "runtime"
 	"slices"
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
-	ocmDescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
+	ocmdescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	rsahandler "ocm.software/open-component-model/bindings/go/rsa/signing/handler"
 	rsav1alpha1 "ocm.software/open-component-model/bindings/go/rsa/signing/v1alpha1"
 	"ocm.software/open-component-model/bindings/go/runtime"
@@ -30,7 +30,7 @@ var (
 type Signer interface {
 	// Sign signs the given OCM descriptor and adds the signatures to the descriptor's signatures.
 	// If signing fails or the signature already exists, a non-nil error is returned.
-	Sign(ctx context.Context, desc *ocmDescriptor.Descriptor) error
+	Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error
 }
 
 // RSASigner is the default implementation of the Signer interface for signing OCM descriptors.
@@ -78,9 +78,9 @@ func defaultRSASignerOptions() *RSASigner {
 	}
 }
 
-func (s *RSASigner) Sign(ctx context.Context, desc *ocmDescriptor.Descriptor) error {
+func (s *RSASigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error {
 	for _, signatureName := range s.targetSignatures {
-		if slices.ContainsFunc(desc.Signatures, func(sig ocmDescriptor.Signature) bool { return sig.Name == signatureName }) {
+		if slices.ContainsFunc(desc.Signatures, func(sig ocmdescriptor.Signature) bool { return sig.Name == signatureName }) {
 			return fmt.Errorf("signature with name %q already exists", signatureName)
 		}
 	}
@@ -96,7 +96,7 @@ func (s *RSASigner) Sign(ctx context.Context, desc *ocmDescriptor.Descriptor) er
 		return fmt.Errorf("signing credentials are not available")
 	}
 	// results is an all or nothing buffer for the signing results
-	results := make([]ocmDescriptor.Signature, len(s.targetSignatures))
+	results := make([]ocmdescriptor.Signature, len(s.targetSignatures))
 	if len(s.targetSignatures) == 1 {
 		if err := s.sign(ctx, results, 0, creds, dig, s.targetSignatures[0]); err != nil {
 			return err
@@ -104,7 +104,7 @@ func (s *RSASigner) Sign(ctx context.Context, desc *ocmDescriptor.Descriptor) er
 	} else {
 		signerPool, ctx2 := errgroup.WithContext(ctx)
 		// no oversubscription on CPU bound signing tasks
-		signerPool.SetLimit(min(sysRuntime.GOMAXPROCS(0), len(s.targetSignatures)))
+		signerPool.SetLimit(min(sysruntime.GOMAXPROCS(0), len(s.targetSignatures)))
 		for idx, sig := range s.targetSignatures {
 			signerPool.Go(func() error { return s.sign(ctx2, results, idx, creds, dig, sig) })
 		}
@@ -118,16 +118,16 @@ func (s *RSASigner) Sign(ctx context.Context, desc *ocmDescriptor.Descriptor) er
 
 func (s *RSASigner) sign(
 	ctx context.Context,
-	results []ocmDescriptor.Signature,
+	results []ocmdescriptor.Signature,
 	idx int,
 	creds map[string]string,
-	dig *ocmDescriptor.Digest,
+	dig *ocmdescriptor.Digest,
 	signatureName string) error {
 	signatureInfo, err := s.rsaSigner.Sign(ctx, *dig, s.rsaConfig, creds)
 	if err != nil {
 		return fmt.Errorf("sign %q: %w", signatureName, err)
 	}
-	results[idx] = ocmDescriptor.Signature{
+	results[idx] = ocmdescriptor.Signature{
 		Name:      signatureName,
 		Digest:    *dig,
 		Signature: signatureInfo,
@@ -172,6 +172,6 @@ func NewRSASigner(
 // It's the goto way to disable signing.
 type NoopSigner struct{}
 
-func (n NoopSigner) Sign(ctx context.Context, desc *ocmDescriptor.Descriptor) error {
+func (n NoopSigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error {
 	return nil
 }

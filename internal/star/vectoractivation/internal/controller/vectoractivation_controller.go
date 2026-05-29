@@ -8,7 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/star/vectoractivation/internal/activation"
-	leaseLock "github.com/konfidence-project/konfidence/internal/star/vectoractivation/internal/lock"
+	leaselock "github.com/konfidence-project/konfidence/internal/star/vectoractivation/internal/lock"
 	"github.com/konfidence-project/konfidence/internal/star/vectoractivation/internal/usage"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -77,7 +77,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return r.cleanupVectorActivation(ctx, req, vectorActivation, stage)
 	}
 
-	acquired, err := leaseLock.AcquireResourceLease(
+	acquired, err := leaselock.AcquireResourceLease(
 		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, star.VectorActivationKind, stage,
 	)
 	if err != nil {
@@ -85,7 +85,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 	if !acquired {
 		log.Info("Lease not acquired, requeuing")
-		return ctrl.Result{RequeueAfter: leaseLock.DefaultLeaseTTL}, nil
+		return ctrl.Result{RequeueAfter: leaselock.DefaultLeaseTTL}, nil
 	}
 	log.Info("Lease acquired")
 	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "LeaseAcquired", "LeaseAcquired",
@@ -279,7 +279,7 @@ func (r *VectorActivationReconciler) cleanupVectorActivation(
 	log.Info("release lease for vectorActivation")
 	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "LeaseReleased", "LeaseReleased",
 		fmt.Sprintf("Lease released by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
-	if err := leaseLock.ReleaseResourceLease(
+	if err := leaselock.ReleaseResourceLease(
 		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, star.VectorActivationKind, stage,
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to release lease: %w", err)

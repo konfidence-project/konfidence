@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	sysRuntime "runtime"
+	sysruntime "runtime"
 	"slices"
 
 	"github.com/go-logr/logr"
@@ -88,7 +88,7 @@ func (o *RSAVerifier) Verify(ctx context.Context, descs ...*ocm.Descriptor) erro
 		return o.verify(ctx, creds, descs[0])
 	}
 	verifierPool, ctx2 := errgroup.WithContext(ctx)
-	verifierPool.SetLimit(min(sysRuntime.GOMAXPROCS(0), len(descs))) // no oversubscription on CPU bound verification tasks
+	verifierPool.SetLimit(min(sysruntime.GOMAXPROCS(0), len(descs))) // no oversubscription on CPU bound verification tasks
 	for _, t := range descs {
 		verifierPool.Go(func() error { return o.verify(ctx2, creds, t) })
 	}

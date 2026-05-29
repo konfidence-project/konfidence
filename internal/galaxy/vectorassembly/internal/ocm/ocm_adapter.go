@@ -15,7 +15,7 @@ import (
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"golang.org/x/sync/errgroup"
-	ocmDescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
+	ocmdescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,10 +52,10 @@ func (a Adapter) GetArtifacts(ctx context.Context, references []compref.Ref) ([]
 	return artifacts, nil
 }
 
-func (a Adapter) fetchAndCollectDescriptors(ctx context.Context, references []compref.Ref) (map[compref.Ref]*ocmDescriptor.Descriptor, error) {
+func (a Adapter) fetchAndCollectDescriptors(ctx context.Context, references []compref.Ref) (map[compref.Ref]*ocmdescriptor.Descriptor, error) {
 	var (
 		mux    = sync.Mutex{}
-		result = make(map[compref.Ref]*ocmDescriptor.Descriptor, len(references))
+		result = make(map[compref.Ref]*ocmdescriptor.Descriptor, len(references))
 	)
 	if len(references) == 1 {
 		if err := a.fetchAndCollectDescriptor(ctx, &mux, references[0], result); err != nil {
@@ -75,7 +75,7 @@ func (a Adapter) fetchAndCollectDescriptors(ctx context.Context, references []co
 }
 
 func (a Adapter) fetchAndCollectDescriptor(
-	ctx context.Context, mux *sync.Mutex, ref compref.Ref, results map[compref.Ref]*ocmDescriptor.Descriptor) error {
+	ctx context.Context, mux *sync.Mutex, ref compref.Ref, results map[compref.Ref]*ocmdescriptor.Descriptor) error {
 	desc, err := a.ocmClient.Get(ctx, ref)
 	if err != nil {
 		return fmt.Errorf("unable to get descriptor for ocm component (%s): %w", ref, err)
@@ -86,7 +86,7 @@ func (a Adapter) fetchAndCollectDescriptor(
 	return nil
 }
 
-func (a Adapter) digestAndCollectArtifacts(ctx context.Context, references map[compref.Ref]*ocmDescriptor.Descriptor) ([]vector.Artifact, error) {
+func (a Adapter) digestAndCollectArtifacts(ctx context.Context, references map[compref.Ref]*ocmdescriptor.Descriptor) ([]vector.Artifact, error) {
 	results := make([]vector.Artifact, len(references))
 	keys := slices.Collect(maps.Keys(references))
 	if len(references) == 1 {
@@ -114,7 +114,7 @@ func (a Adapter) digestAndCollectSingleArtifact(
 	ctx context.Context,
 	index int,
 	ref compref.Ref,
-	desc *ocmDescriptor.Descriptor,
+	desc *ocmdescriptor.Descriptor,
 	results []vector.Artifact) error {
 	dig, err := a.digester.GenerateDigest(ctx, desc)
 	if err != nil {
@@ -167,7 +167,7 @@ func (a Adapter) CreateVector(ctx context.Context, repoSpec runtime.Typed, v vec
 	return nil
 }
 
-func mapToDomain(descriptor ocmDescriptor.Descriptor, vectorRepository runtime.Typed) vector.Vector {
+func mapToDomain(descriptor ocmdescriptor.Descriptor, vectorRepository runtime.Typed) vector.Vector {
 
 	artifacts := make([]vector.Artifact, 0, len(descriptor.Component.References))
 	for _, ref := range descriptor.Component.References {
@@ -186,24 +186,24 @@ func mapToDomain(descriptor ocmDescriptor.Descriptor, vectorRepository runtime.T
 	}
 }
 
-func mapToDescriptor(v vector.Vector, hashAlgo, normAlgo string) ocmDescriptor.Descriptor {
-	latestArtifacts := make([]ocmDescriptor.Reference, 0, len(v.Artifacts))
+func mapToDescriptor(v vector.Vector, hashAlgo, normAlgo string) ocmdescriptor.Descriptor {
+	latestArtifacts := make([]ocmdescriptor.Reference, 0, len(v.Artifacts))
 	for _, artifact := range v.Artifacts {
 		latestArtifacts = append(latestArtifacts, mapToReference(artifact, hashAlgo, normAlgo))
 	}
-	return ocmDescriptor.Descriptor{
-		Meta: ocmDescriptor.Meta{
+	return ocmdescriptor.Descriptor{
+		Meta: ocmdescriptor.Meta{
 			Version: "v2",
 		},
-		Component: ocmDescriptor.Component{
-			ComponentMeta: ocmDescriptor.ComponentMeta{
-				ObjectMeta: ocmDescriptor.ObjectMeta{
+		Component: ocmdescriptor.Component{
+			ComponentMeta: ocmdescriptor.ComponentMeta{
+				ObjectMeta: ocmdescriptor.ObjectMeta{
 					Name:    v.Name,
 					Version: v.Version,
 				},
 			},
 			RepositoryContexts: nil,
-			Provider: ocmDescriptor.Provider{
+			Provider: ocmdescriptor.Provider{
 				Name: "konfidence", // TODO: How to set this properly?
 			},
 			Resources:  nil,
@@ -213,16 +213,16 @@ func mapToDescriptor(v vector.Vector, hashAlgo, normAlgo string) ocmDescriptor.D
 	}
 }
 
-func mapToReference(artifact vector.Artifact, hashAlgo, normAlgo string) ocmDescriptor.Reference {
-	return ocmDescriptor.Reference{
-		ElementMeta: ocmDescriptor.ElementMeta{
-			ObjectMeta: ocmDescriptor.ObjectMeta{
+func mapToReference(artifact vector.Artifact, hashAlgo, normAlgo string) ocmdescriptor.Reference {
+	return ocmdescriptor.Reference{
+		ElementMeta: ocmdescriptor.ElementMeta{
+			ObjectMeta: ocmdescriptor.ObjectMeta{
 				Name:    createReferenceName(artifact),
 				Version: artifact.Version,
 			},
 		},
 		Component: artifact.Name,
-		Digest: ocmDescriptor.Digest{
+		Digest: ocmdescriptor.Digest{
 			HashAlgorithm:          hashAlgo,
 			NormalisationAlgorithm: normAlgo,
 			Value:                  artifact.Digest,
