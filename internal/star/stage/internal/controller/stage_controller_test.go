@@ -6,7 +6,7 @@ import (
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/star/stage/internal/controller"
-	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -143,8 +143,8 @@ func verifyStageVersion(ctx context.Context, k8sClient client.Client, stageVersi
 		g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 		g.Expect(stageVersion.Spec.Vector).To(Equal(stage.Spec.Vector))
 		g.Expect(stageVersion.Spec.StageGeneration).To(Equal(stage.Generation))
-		g.Expect(stageVersion.Labels[pkgCtrl.StageNameLabel]).To(Equal(stage.Name))
-		g.Expect(stageVersion.Labels[pkgCtrl.VectorReferenceLabel]).To(Equal(vectorRef))
+		g.Expect(stageVersion.Labels[pkgctrl.StageNameLabel]).To(Equal(stage.Name))
+		g.Expect(stageVersion.Labels[pkgctrl.VectorReferenceLabel]).To(Equal(vectorRef))
 		g.Expect(stageVersion.GetOwnerReferences()).To(HaveLen(1))
 		g.Expect(controller.HasOwnerReference(stageVersion.GetOwnerReferences(), metav1.OwnerReference{
 			Kind: star.StageKind,
@@ -162,11 +162,11 @@ func verifyStageVersionUsage(ctx context.Context, k8sClient client.Client, names
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.List(ctx, stageVersionUsages, client.InNamespace(namespace))).To(Succeed())
 		g.Expect(stageVersionUsages.Items).To(HaveLen(1))
-		g.Expect(stageVersionUsages.Items[0].Labels[pkgCtrl.StageVersionUsageTarget]).To(Equal(stage.Name))
+		g.Expect(stageVersionUsages.Items[0].Labels[pkgctrl.StageVersionUsageTarget]).To(Equal(stage.Name))
 		g.Expect(stageVersionUsages.Items[0].GetOwnerReferences()).To(HaveLen(1))
 		g.Expect(stageVersionUsages.Items[0].Spec.Reason).To(Equal(controller.StageVersionUsageTargetType))
-		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[pkgCtrl.StageNameLabel]).To(Equal(stage.Name))
-		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[pkgCtrl.VectorReferenceLabel]).To(Equal(vectorRef))
+		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[pkgctrl.StageNameLabel]).To(Equal(stage.Name))
+		g.Expect(stageVersionUsages.Items[0].Spec.StageVersionSelector.MatchLabels[pkgctrl.VectorReferenceLabel]).To(Equal(vectorRef))
 		g.Expect(controller.HasOwnerReference(stageVersionUsages.Items[0].GetOwnerReferences(), metav1.OwnerReference{
 			Kind: star.StageKind,
 			Name: stage.Name,

@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
-	pkgCtrl "github.com/konfidence-project/konfidence/pkg/controller"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,9 +80,9 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageVersion")
 
-	stageName, ok := stageVersion.Labels[pkgCtrl.StageNameLabel]
+	stageName, ok := stageVersion.Labels[pkgctrl.StageNameLabel]
 	if !ok {
-		return fmt.Errorf("StageName label %s not found in stageVersion", pkgCtrl.StageNameLabel)
+		return fmt.Errorf("StageName label %s not found in stageVersion", pkgctrl.StageNameLabel)
 	}
 
 	// check if a vectorDeployment exists matching the stage vector
@@ -353,6 +353,6 @@ func reconcileStageVersionOwner(ctx context.Context, obj client.Object) []reconc
 
 func getVectorDeploymentLabels(stageVersion *star.StageVersion) map[string]string {
 	return map[string]string{
-		pkgCtrl.StageVersionNameLabel: stageVersion.Name,
+		pkgctrl.StageVersionNameLabel: stageVersion.Name,
 	}
 }

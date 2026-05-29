@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	pkgOcm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/testcontainers/testcontainers-go"
@@ -45,7 +45,7 @@ var (
 	sourceRegistryEndpoint string
 	targetRegistryEndpoint string
 
-	ocmClient pkgOcm.Client
+	ocmClient pkgocm.Client
 )
 
 const failClientCreationSecret = "fail-client-creation"
@@ -169,7 +169,7 @@ var _ = BeforeSuite(func() {
 		registryCredential{endpoint: sourceRegistryEndpoint, username: "user", password: "password"},
 		registryCredential{endpoint: targetRegistryEndpoint, username: "user", password: "password"},
 	)
-	ocmClient, err = pkgOcm.NewOciClientBuilder().
+	ocmClient, err = pkgocm.NewOciClientBuilder().
 		WithLogger(ctrl.Log.WithName("ocm-client")).
 		WithOCMConfig(ocmConfig).
 		Build(ctx)
@@ -196,8 +196,8 @@ func startManager() {
 	Expect((&VectorPromotionReconciler{
 		Mgr:    mgr,
 		Scheme: mgr.GetLocalManager().GetScheme(),
-		OcmClientProvider: pkgOcm.ClientProviderFunc(
-			func(_ context.Context, _ client.Reader, _ string, creds []galaxy.CredentialsConfig) (pkgOcm.Client, error) {
+		OcmClientProvider: pkgocm.ClientProviderFunc(
+			func(_ context.Context, _ client.Reader, _ string, creds []galaxy.CredentialsConfig) (pkgocm.Client, error) {
 				for _, c := range creds {
 					if c.Name == failClientCreationSecret {
 						return nil, fmt.Errorf("simulated credential resolution failure")
