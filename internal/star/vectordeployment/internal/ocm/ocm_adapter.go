@@ -1,5 +1,7 @@
 package ocm
 
+//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_ocm_client.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/repository Client
+
 import (
 	"context"
 	"encoding/json"

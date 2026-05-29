@@ -1,6 +1,6 @@
 package crypto
 
-//go:generate go run go.uber.org/mock/mockgen -source=digester.go -destination=internal/mocks/mock_digester.go -package=mocks
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_digester.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Digester
 
 import (
 	"context"
