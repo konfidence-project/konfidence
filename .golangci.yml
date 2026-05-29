@@ -30,6 +30,9 @@ linters:
       rules:
         - name: comment-spacings
         - name: import-shadowing
+        - name: import-alias-naming
+          arguments:
+            - "^[a-z][a-z0-9]*$"
   exclusions:
     generated: lax
     rules:
@@ -39,11 +42,6 @@ linters:
           - unused
           - ineffassign
           - revive
-      # Exclude API types from certain linters (they're mostly struct definitions)
-      - path: "api/.*/.*types\\.go"
-        linters:
-          - revive
-          - unused
       # Allow dot-imports in test files (conventional for ginkgo/gomega)
       - path: "_test\\.go"
         text: "should not use dot imports"
