@@ -1,0 +1,50 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "galaxy-controllers.fullname" . }}-manager
+  labels:
+    {{- include "galaxy-controllers.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps, secrets]
+    verbs: [get, list, watch]
+  - apiGroups: [galaxy.konfidence.cloud]
+    resources:
+      - stageconfigurations
+      - stagesyncs
+      - vectorpromotions
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [galaxy.konfidence.cloud]
+    resources:
+      - stageconfigurations/status
+      - stagesyncs/status
+      - vectorpromotionconfigs/status
+      - vectorpromotions/status
+      - vectortemplates/status
+    verbs: [get, patch, update]
+  - apiGroups: [galaxy.konfidence.cloud]
+    resources:
+      - vectorpromotionconfigs
+      - vectortemplates
+    verbs: [get, list, watch]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "galaxy-controllers.fullname" . }}-manager
+  labels:
+    {{- include "galaxy-controllers.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "galaxy-controllers.fullname" . }}-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "galaxy-controllers.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}

@@ -1,0 +1,12 @@
+Konfidence Galaxy CRDs {{ .Chart.AppVersion }} installed.
+
+Installed CustomResourceDefinitions (group: galaxy.konfidence.cloud):
+  - stageconfigurations
+  - stagesyncs
+  - vectorpromotionconfigs
+  - vectorpromotions
+  - vectortemplates
+
+Note: With keepOnUninstall=true (default), these CRDs are retained on
+`helm uninstall` to protect existing custom resources. Remove them
+manually with `kubectl delete crd <name>` if you truly want them gone.

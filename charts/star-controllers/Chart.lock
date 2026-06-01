@@ -1,0 +1,6 @@
+dependencies:
+- name: star-crds
+  repository: file://../star-crds
+  version: 0.1.0
+digest: sha256:b6b4be253092974cc0810c65b1d8e998b518cc39dfec9bc93d73089b1b9bad4d
+generated: "2026-06-01T16:13:58.955807+02:00"
