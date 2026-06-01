@@ -41,8 +41,25 @@ type VectorTemplateReconciler struct {
 	Mgr                   mcmanager.Manager
 	Scheme                *runtime.Scheme
 	OcmClientProvider     repository.ClientProvider
-	VectorOcmPortProvider domain2.OcmPortProvider
+	VectorOcmPortProvider OcmPortProvider
 	VersionGenerator      domain2.VersionGenerator
+}
+
+// NewVectorTemplateReconciler creates a VectorTemplateReconciler wired with the
+// default OCM client provider and version generator. The vector OCM port provider
+// is injected by the caller (composition root).
+func NewVectorTemplateReconciler(
+	mgr mcmanager.Manager,
+	scheme *runtime.Scheme,
+	vectorOcmPortProvider OcmPortProvider,
+) *VectorTemplateReconciler {
+	return &VectorTemplateReconciler{
+		Mgr:                   mgr,
+		Scheme:                scheme,
+		OcmClientProvider:     repository.DefaultOciClientProvider,
+		VectorOcmPortProvider: vectorOcmPortProvider,
+		VersionGenerator:      domain2.TimestampVectorVersionGenerator,
+	}
 }
 
 // +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
@@ -231,7 +248,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 }
 
 func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
-	ctx context.Context, ocmAdapter domain2.OcmPort, template *v1alpha1.VectorTemplate,
+	ctx context.Context, ocmAdapter OcmPort, template *v1alpha1.VectorTemplate,
 	vectorOCMComponentName string, recorder events.EventRecorder,
 ) ([]domain2.Artifact, error) {
 	baseVectorOCMComponent, err := konfcompref.Parse(*template.Spec.Base)

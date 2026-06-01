@@ -2,6 +2,7 @@ package stageconfiguration
 
 import (
 	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/controller"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ocm"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
@@ -25,6 +26,7 @@ func SetupControllers(mgr mcmanager.Manager, scheme *runtime.Scheme, restConfig 
 		scheme,
 		restConfig,
 		opts.VectorVerifier,
+		ocm.DefaultPortProvider,
 	).SetupWithManager(mgr); err != nil {
 		return err
 	}

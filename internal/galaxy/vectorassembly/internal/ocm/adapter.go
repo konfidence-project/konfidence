@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -27,7 +28,7 @@ import (
 )
 
 var (
-	_ vector.OcmPort = (*Adapter)(nil)
+	_ controller.OcmPort = (*Adapter)(nil)
 )
 
 // Adapter is an implementation of the VectorOcmPort interface that interacts
@@ -272,8 +273,8 @@ func NewAdapter(options ...AdapterOption) Adapter {
 
 // NewPortProvider creates a VectorOcmPortProviderFunc that builds an Adapter
 // with the given options and plugs in the provided client at call time.
-func NewPortProvider(opts ...AdapterOption) vector.OcmPortProviderFunc {
-	return func(client pkgocm.Client) vector.OcmPort {
+func NewPortProvider(opts ...AdapterOption) controller.OcmPortProviderFunc {
+	return func(client pkgocm.Client) controller.OcmPort {
 		a := NewAdapter(opts...)
 		a.ocmClient = client
 		return a

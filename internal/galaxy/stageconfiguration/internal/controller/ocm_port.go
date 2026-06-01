@@ -1,6 +1,6 @@
-package ports
+package controller
 
-//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_vector_port.go -package=mocks github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ports VectorPort
+//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_vector_port.go -package=mocks github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/controller VectorPort
 
 import (
 	"context"

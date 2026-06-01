@@ -1,4 +1,4 @@
-package controller
+package controller_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -165,7 +166,7 @@ func startManager() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred(), "failed to create k8s client")
 
-	Expect((&VectorTemplateReconciler{
+	Expect((&controller.VectorTemplateReconciler{
 		Mgr:    mgr,
 		Scheme: mgr.GetLocalManager().GetScheme(),
 		OcmClientProvider: pkgocm.ClientProviderFunc(

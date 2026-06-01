@@ -43,7 +43,23 @@ type VectorPromotionReconciler struct {
 	Mgr               mcmanager.Manager
 	Scheme            *runtime.Scheme
 	OcmClientProvider repository.ClientProvider
-	PortProvider      promotion.OcmPortProvider
+	PortProvider      OcmPortProvider
+}
+
+// NewVectorPromotionReconciler creates a VectorPromotionReconciler wired with the
+// default OCM client provider. The promotion port provider is injected by the
+// caller (composition root).
+func NewVectorPromotionReconciler(
+	mgr mcmanager.Manager,
+	scheme *runtime.Scheme,
+	portProvider OcmPortProvider,
+) *VectorPromotionReconciler {
+	return &VectorPromotionReconciler{
+		Mgr:               mgr,
+		Scheme:            scheme,
+		OcmClientProvider: repository.DefaultOciClientProvider,
+		PortProvider:      portProvider,
+	}
 }
 
 // +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch

@@ -6,7 +6,6 @@ import (
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/ocm"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
-	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"k8s.io/apimachinery/pkg/runtime"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
@@ -25,12 +24,11 @@ func SetupControllers(ctx context.Context, mgr mcmanager.Manager, scheme *runtim
 	promotionAdapterConfig := make([]ocm.PromotionAdapterOption, 0, 1)
 	promotionAdapterConfig = append(promotionAdapterConfig, ocm.WithVectorVerifier(opts.VectorVerifier))
 
-	if err := (&controller.VectorPromotionReconciler{
-		Mgr:               mgr,
-		Scheme:            scheme,
-		PortProvider:      ocm.NewPromotionPortProvider(promotionAdapterConfig...),
-		OcmClientProvider: repository.DefaultOciClientProvider,
-	}).SetupWithManager(mgr); err != nil {
+	if err := controller.NewVectorPromotionReconciler(
+		mgr,
+		scheme,
+		ocm.NewPromotionPortProvider(promotionAdapterConfig...),
+	).SetupWithManager(mgr); err != nil {
 		return err
 	}
 

@@ -1,13 +1,11 @@
 package vectorassembly
 
 import (
-	ocm2 "github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ocm"
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ocm"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
-	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
@@ -30,19 +28,17 @@ type Options struct {
 
 // SetupControllers registers all vector assembly controllers with the given manager.
 func SetupControllers(mgr mcmanager.Manager, scheme *runtime.Scheme, opts Options) error {
-	adapterConfig := []ocm2.AdapterOption{
-		ocm2.WithArtifactVerifier(opts.ArtifactVerifier),
-		ocm2.WithVectorVerifier(opts.VectorVerifier),
-		ocm2.WithVectorSigner(opts.VectorSigner),
+	adapterConfig := []ocm.AdapterOption{
+		ocm.WithArtifactVerifier(opts.ArtifactVerifier),
+		ocm.WithVectorVerifier(opts.VectorVerifier),
+		ocm.WithVectorSigner(opts.VectorSigner),
 	}
 
-	if err := (&controller.VectorTemplateReconciler{
-		Mgr:                   mgr,
-		Scheme:                scheme,
-		OcmClientProvider:     repository.DefaultOciClientProvider,
-		VectorOcmPortProvider: ocm2.NewPortProvider(adapterConfig...),
-		VersionGenerator:      vector.TimestampVectorVersionGenerator,
-	}).SetupWithManager(mgr); err != nil {
+	if err := controller.NewVectorTemplateReconciler(
+		mgr,
+		scheme,
+		ocm.NewPortProvider(adapterConfig...),
+	).SetupWithManager(mgr); err != nil {
 		return err
 	}
 

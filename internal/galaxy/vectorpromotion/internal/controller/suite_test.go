@@ -1,4 +1,4 @@
-package controller
+package controller_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/controller"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -193,7 +194,7 @@ func startManager() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred(), "failed to create k8s client")
 
-	Expect((&VectorPromotionReconciler{
+	Expect((&controller.VectorPromotionReconciler{
 		Mgr:    mgr,
 		Scheme: mgr.GetLocalManager().GetScheme(),
 		OcmClientProvider: pkgocm.ClientProviderFunc(
@@ -209,12 +210,12 @@ func startManager() {
 		PortProvider: ocm.NewPromotionPortProvider(),
 	}).SetupWithManager(mgr)).To(Succeed())
 
-	Expect((&VectorPromotionTTLReconciler{
+	Expect((&controller.VectorPromotionTTLReconciler{
 		Mgr:    mgr,
 		Scheme: mgr.GetLocalManager().GetScheme(),
 	}).SetupWithManager(mgr)).To(Succeed())
 
-	Expect((&VectorPromotionStatusPropagationReconciler{
+	Expect((&controller.VectorPromotionStatusPropagationReconciler{
 		Mgr:    mgr,
 		Scheme: mgr.GetLocalManager().GetScheme(),
 	}).SetupWithManager(mgr)).To(Succeed())
