@@ -7,16 +7,16 @@ import (
 	pkgcomp "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 
-	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ports"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/controller"
 	pkgrepo "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
 
-type VectorOCMAdapter struct {
+type Adapter struct {
 	VectorVerifier crypto.Verifier
 	OcmClient      pkgrepo.Client
 }
 
-func (o VectorOCMAdapter) GetLatestVectorVersion(ctx context.Context, registryAndComponent string) (string, error) {
+func (o Adapter) GetLatestVectorVersion(ctx context.Context, registryAndComponent string) (string, error) {
 	vectorOCMComponent, err := pkgcomp.Parse(registryAndComponent)
 	if err != nil {
 		return "", err
@@ -38,8 +38,8 @@ func (o VectorOCMAdapter) GetLatestVectorVersion(ctx context.Context, registryAn
 	return vectorOCMComponent.String(), nil
 }
 
-var DefaultPortProvider = ports.VectorPortProviderFunc(func(verifier crypto.Verifier, client pkgrepo.Client) ports.VectorPort {
-	return VectorOCMAdapter{
+var DefaultPortProvider = controller.VectorPortProviderFunc(func(verifier crypto.Verifier, client pkgrepo.Client) controller.VectorPort {
+	return Adapter{
 		VectorVerifier: verifier,
 		OcmClient:      client,
 	}

@@ -6,8 +6,7 @@ import (
 	"time"
 
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ports"
-	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ports/mocks"
+	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/controller/mocks"
 	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/template"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -57,7 +56,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			) (pkgocm.Client, error) {
 				return nil, nil
 			}),
-			VectorPortProvider: ports.VectorPortProviderFunc(func(verifier crypto.Verifier, client pkgocm.Client) ports.VectorPort {
+			VectorPortProvider: VectorPortProviderFunc(func(verifier crypto.Verifier, client pkgocm.Client) VectorPort {
 				return vectorPortMock
 			}),
 			Scheme: k8sScheme,

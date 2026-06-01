@@ -27,8 +27,6 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ocm"
-	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ports"
 	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/template"
 	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
@@ -46,7 +44,7 @@ var clusterRegex = regexp.MustCompile(clusterPattern)
 type StageConfigurationReconciler struct {
 	Mgr                mcmanager.Manager
 	OcmClientProvider  repository.ClientProvider
-	VectorPortProvider ports.VectorPortProvider
+	VectorPortProvider VectorPortProvider
 	Scheme             *runtime.Scheme
 	RestConfig         *rest.Config
 	OcmVerifier        crypto.Verifier
@@ -57,11 +55,12 @@ func NewStageConfigurationReconciler(
 	scheme *runtime.Scheme,
 	restConfig *rest.Config,
 	vectorVerifier crypto.Verifier,
+	vectorPortProvider VectorPortProvider,
 ) *StageConfigurationReconciler {
 	return &StageConfigurationReconciler{
 		Mgr:                mgr,
 		OcmClientProvider:  repository.DefaultOciClientProvider,
-		VectorPortProvider: ocm.DefaultPortProvider,
+		VectorPortProvider: vectorPortProvider,
 		Scheme:             scheme,
 		RestConfig:         restConfig,
 		OcmVerifier:        vectorVerifier,

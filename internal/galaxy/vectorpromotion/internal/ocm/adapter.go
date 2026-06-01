@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/promotion"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgrepository "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -17,10 +18,10 @@ import (
 )
 
 var (
-	_ promotion.OcmPort = (*PromotionAdapter)(nil)
+	_ controller.OcmPort = (*PromotionAdapter)(nil)
 )
 
-// PromotionAdapter implements promotion.OcmPort using pkgrepository.Client.
+// PromotionAdapter implements controller.OcmPort using pkgrepository.Client.
 type PromotionAdapter struct {
 	ocmClient      pkgrepository.Client
 	vectorVerifier crypto.Verifier
@@ -41,8 +42,8 @@ func NewPromotionAdapter(opts ...PromotionAdapterOption) *PromotionAdapter {
 
 // NewPromotionPortProvider creates a PromotionPortProvider that builds a PromotionAdapter
 // with the given options and plugs in the provided client at call time.
-func NewPromotionPortProvider(opts ...PromotionAdapterOption) promotion.OcmPortProviderFunc {
-	return func(client pkgrepository.Client) promotion.OcmPort {
+func NewPromotionPortProvider(opts ...PromotionAdapterOption) controller.OcmPortProviderFunc {
+	return func(client pkgrepository.Client) controller.OcmPort {
 		a := NewPromotionAdapter(opts...)
 		a.ocmClient = client
 		return a

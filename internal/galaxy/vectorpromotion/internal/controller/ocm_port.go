@@ -1,4 +1,4 @@
-package promotion
+package controller
 
 import (
 	"context"
