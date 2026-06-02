@@ -91,17 +91,16 @@ var _ = Describe("Filter", func() {
 				"VectorAssembly":  true,
 			}))
 		})
-
-		It("returns an empty set when a wildcard matches nothing (no error)", func() {
-			got, err := cmd.FilterEnabledControllers("Nonexistent*", registered)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(got).To(BeEmpty())
-		})
 	})
 
 	Context("error cases", func() {
 		It("errors when a literal token matches no registered controller", func() {
 			_, err := cmd.FilterEnabledControllers("Typo", registered)
+			Expect(err).To(MatchError(ContainSubstring("matches no registered controller")))
+		})
+
+		It("returns an error when a wildcard matches no registered controller", func() {
+			_, err := cmd.FilterEnabledControllers("Nonexistent*", registered)
 			Expect(err).To(MatchError(ContainSubstring("matches no registered controller")))
 		})
 
