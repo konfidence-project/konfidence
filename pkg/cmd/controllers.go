@@ -64,7 +64,7 @@ func FilterEnabledControllers(spec string, controllerSetups map[string]func() er
 			}
 		}
 
-		if !matched && isLiteral(token) {
+		if !matched {
 			return nil, fmt.Errorf("controller filter token %q matches no registered controller", token)
 		}
 	}
@@ -75,8 +75,4 @@ func FilterEnabledControllers(spec string, controllerSetups map[string]func() er
 		}
 	}
 	return enabled, nil
-}
-
-func isLiteral(token string) bool {
-	return !strings.ContainsAny(token, "*?[")
 }
