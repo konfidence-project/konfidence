@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/controller"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ports"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	_ controller.OcmPort = (*Adapter)(nil)
+	_ ports.OcmPort = (*Adapter)(nil)
 )
 
 // Adapter is an implementation of the VectorOcmPort interface that interacts
@@ -138,6 +138,9 @@ func (a Adapter) digestAndCollectSingleArtifact(
 func (a Adapter) GetVector(ctx context.Context, vectorRef compref.Ref) (vector.Vector, error) {
 	descriptor, err := a.ocmClient.Get(ctx, vectorRef)
 	if err != nil {
+		if errors.Is(err, pkgocm.ErrNotFound) {
+			return vector.Vector{}, ports.ErrVectorNotFound
+		}
 		return vector.Vector{}, fmt.Errorf("unable to get latest ocm descriptor for vector (%s): %w", vectorRef, err)
 	}
 	if err := a.vectorVerifier.Verify(ctx, &descriptor); err != nil {
@@ -273,8 +276,8 @@ func NewAdapter(options ...AdapterOption) Adapter {
 
 // NewPortProvider creates a VectorOcmPortProviderFunc that builds an Adapter
 // with the given options and plugs in the provided client at call time.
-func NewPortProvider(opts ...AdapterOption) controller.OcmPortProviderFunc {
-	return func(client pkgocm.Client) controller.OcmPort {
+func NewPortProvider(opts ...AdapterOption) ports.OcmPortProviderFunc {
+	return func(client pkgocm.Client) ports.OcmPort {
 		a := NewAdapter(opts...)
 		a.ocmClient = client
 		return a

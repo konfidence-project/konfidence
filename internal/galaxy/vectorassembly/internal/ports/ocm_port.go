@@ -1,13 +1,16 @@
-package controller
+package ports
 
 import (
 	"context"
+	"errors"
 
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/runtime"
 )
+
+var ErrVectorNotFound = errors.New("vector not found")
 
 // OcmPort defines an interface for interacting with the OCM repository to manage vectors and their associated artifacts.
 // It provides methods to retrieve artifacts and vectors, and create vectors in the OCM repository.

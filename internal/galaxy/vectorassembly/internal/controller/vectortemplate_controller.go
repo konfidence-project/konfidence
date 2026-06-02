@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	domain2 "github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ports"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	corev1 "k8s.io/api/core/v1"
@@ -41,8 +42,8 @@ type VectorTemplateReconciler struct {
 	Mgr                   mcmanager.Manager
 	Scheme                *runtime.Scheme
 	OcmClientProvider     repository.ClientProvider
-	VectorOcmPortProvider OcmPortProvider
-	VersionGenerator      domain2.VersionGenerator
+	VectorOcmPortProvider ports.OcmPortProvider
+	VersionGenerator      vector.VersionGenerator
 }
 
 // NewVectorTemplateReconciler creates a VectorTemplateReconciler wired with the
@@ -51,14 +52,14 @@ type VectorTemplateReconciler struct {
 func NewVectorTemplateReconciler(
 	mgr mcmanager.Manager,
 	scheme *runtime.Scheme,
-	vectorOcmPortProvider OcmPortProvider,
+	vectorOcmPortProvider ports.OcmPortProvider,
 ) *VectorTemplateReconciler {
 	return &VectorTemplateReconciler{
 		Mgr:                   mgr,
 		Scheme:                scheme,
 		OcmClientProvider:     repository.DefaultOciClientProvider,
 		VectorOcmPortProvider: vectorOcmPortProvider,
-		VersionGenerator:      domain2.TimestampVectorVersionGenerator,
+		VersionGenerator:      vector.TimestampVectorVersionGenerator,
 	}
 }
 
@@ -153,7 +154,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		return err
 	}
 
-	var desiredArtifacts []domain2.Artifact
+	var desiredArtifacts []vector.Artifact
 	if template.Spec.Base != nil {
 		if desiredArtifacts, err = r.getArtifactsFromBaseVector(ctx, ocmAdapter, template, vectorOCMComponent.Component, recorder); err != nil {
 			return err
@@ -178,7 +179,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	desiredArtifacts = combineBaseArtifactsAndComponentArtifacts(desiredArtifacts, latestArtifactsFromComponentList)
 
 	actualVector, err := ocmAdapter.GetVector(ctx, *vectorOCMComponent)
-	if errors.Is(err, domain2.ErrVectorNotFound) {
+	if errors.Is(err, ports.ErrVectorNotFound) {
 		msg := "Vector not found in OCM repository - creating new vector"
 		recorder.Eventf(template, nil, corev1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
 		log.Info(msg, "VectorOCMComponent", vectorOCMComponent.Component)
@@ -196,7 +197,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		return err
 	}
 
-	driftDetected := domain2.HasDrift(desiredArtifacts, actualVector.Artifacts)
+	driftDetected := vector.HasDrift(desiredArtifacts, actualVector.Artifacts)
 	if !driftDetected {
 		msg := fmt.Sprintf("No drift detected for vector - vector version is still %s", actualVector.Version)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -212,7 +213,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		return nil
 	}
 
-	newVector := domain2.Vector{
+	newVector := vector.Vector{
 		Version:   r.VersionGenerator.Generate(),
 		Name:      vectorOCMComponent.Component,
 		Artifacts: desiredArtifacts,
@@ -248,9 +249,9 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 }
 
 func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
-	ctx context.Context, ocmAdapter OcmPort, template *v1alpha1.VectorTemplate,
+	ctx context.Context, ocmAdapter ports.OcmPort, template *v1alpha1.VectorTemplate,
 	vectorOCMComponentName string, recorder events.EventRecorder,
-) ([]domain2.Artifact, error) {
+) ([]vector.Artifact, error) {
 	baseVectorOCMComponent, err := konfcompref.Parse(*template.Spec.Base)
 	if err != nil {
 		err = fmt.Errorf("unable to create ocm reference from vector template base (%s): %w", *template.Spec.Base, err)
@@ -289,7 +290,7 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
 	return baseVector.Artifacts, nil
 }
 
-func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []domain2.Artifact) []domain2.Artifact {
+func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []vector.Artifact) []vector.Artifact {
 	if len(baseArtifacts) == 0 {
 		return componentArtifacts
 	}
