@@ -27,16 +27,11 @@ go.work.sum
 *~
 .backup
 
-.hermit/*
+.hermit/
 
-# Do ignore things like bin/k8s/
+# bin/ contains tracked Hermit bootstrap links (for example bin/hermit and bin/*.pkg)
+# plus ignored local build outputs and runtime-generated directories (for example bin/ginkgo and bin/k8s/).
 bin/*/
 bin/galaxy
 bin/star
 bin/ginkgo
-
-# Do not ignore hermit binary and pkg files in bin/
-!bin/hermit
-!bin/.hermit/
-!bin/*.pkg
-!bin/.*pkg
