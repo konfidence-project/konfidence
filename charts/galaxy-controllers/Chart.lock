@@ -1,6 +1,0 @@
-dependencies:
-- name: galaxy-crds
-  repository: file://../galaxy-crds
-  version: 0.1.0
-digest: sha256:570681d0e6780daa74f217f304ba4bedf528f51c0c7162f442eb9aada85096fd
-generated: "2026-06-01T16:13:46.464455+02:00"

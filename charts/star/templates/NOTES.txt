@@ -1,0 +1,19 @@
+Konfidence Star controllers {{ .Chart.AppVersion }} installed in namespace {{ .Release.Namespace }}.
+
+Verify the controller is running:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Tail logs:
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/instance={{ .Release.Name }} -f
+
+{{- if .Values.installCRDs }}
+CRDs were installed alongside the controller.
+{{- if .Values.keepCRDs }}
+With keepCRDs=true (default), they are retained on `helm uninstall` to
+protect existing custom resources.
+{{- end }}
+{{- else }}
+CRD installation was disabled (installCRDs=false). Make sure the star
+CRDs are present in the cluster, otherwise reconciliation will fail:
+  kubectl get crd | grep star.konfidence.cloud
+{{- end }}

@@ -1,0 +1,68 @@
+# CRD lifecycle toggles.
+# installCRDs:    apply CRDs alongside the controller. Disable for GitOps
+#                 setups that manage CRDs out-of-band.
+# keepCRDs:       on `helm uninstall`, retain CRDs to protect existing CRs.
+#                 Strongly recommended.
+installCRDs: true
+keepCRDs: true
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/konfidence-project/galaxy-operator
+  # tag defaults to .Chart.AppVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicas: 1
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+# Forwarded as flags to the operator binary (cmd/galaxy).
+controller:
+  # Comma-separated list of sub-controllers, or "*" for all.
+  controllers: "*"
+  leaderElection: true
+  leaseId: "galaxy-operator.konfidence.cloud"
+  healthProbeBindAddress: ":8081"
+  metricsBindAddress: ":8080"
+  # Optional: if set, overrides the Kubernetes API endpoint discovery.
+  kcpEndpointSliceName: ""
+  kubernetesHost: ""
+  kubernetesPort: 0
+
+env: []
+extraArgs: []
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

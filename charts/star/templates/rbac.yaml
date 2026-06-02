@@ -1,0 +1,75 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "star.fullname" . }}-manager
+  labels:
+    {{- include "star.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps, secrets]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # The artifactdeployment / vectordeployment controllers manage workloads.
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets, daemonsets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [services, configmaps]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [star.konfidence.cloud]
+    resources:
+      - activationtaskexecutions
+      - activationtaskregistrations
+      - artifactdeployments
+      - stages
+      - stageversions
+      - stageversionusages
+      - taskexecutions
+      - vectoractivations
+      - vectorassignments
+      - vectordeployments
+      - vectormigrations
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [star.konfidence.cloud]
+    resources:
+      - activationtaskexecutions/status
+      - activationtaskregistrations/status
+      - artifactdeployments/status
+      - stages/status
+      - stageversions/status
+      - stageversionusages/status
+      - taskexecutions/status
+      - vectoractivations/status
+      - vectorassignments/status
+      - vectordeployments/status
+      - vectormigrations/status
+    verbs: [get, patch, update]
+  # The galaxysync controller reads galaxy CRs from the upstream cluster.
+  - apiGroups: [galaxy.konfidence.cloud]
+    resources:
+      - stageconfigurations
+      - stagesyncs
+      - vectorpromotionconfigs
+      - vectorpromotions
+      - vectortemplates
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "star.fullname" . }}-manager
+  labels:
+    {{- include "star.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "star.fullname" . }}-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "star.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
