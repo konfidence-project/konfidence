@@ -1,12 +1,7 @@
 package vector
 
 import (
-	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"ocm.software/open-component-model/bindings/go/runtime"
-)
-
-var (
-	ErrVectorNotFound = pkgocm.ErrNotFound
 )
 
 type Vector struct {
