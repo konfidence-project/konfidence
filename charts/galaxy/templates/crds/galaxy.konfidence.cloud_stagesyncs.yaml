@@ -1,44 +1,36 @@
+{{- if .Values.crd.install -}}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+{{- include "galaxy.crdAnnotations" . | nindent 4 }}
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: activationtaskexecutions.star.konfidence.cloud
+  labels:
+{{- include "galaxy.crdLabels" . | nindent 4 }}
+  name: stagesyncs.galaxy.konfidence.cloud
 spec:
-  group: star.konfidence.cloud
+  group: galaxy.konfidence.cloud
   names:
-    categories:
-    - konfidence
-    - kden
-    kind: ActivationTaskExecution
-    listKind: ActivationTaskExecutionList
-    plural: activationtaskexecutions
-    singular: activationtaskexecution
+    kind: StageSync
+    listKind: StageSyncList
+    plural: stagesyncs
+    singular: stagesync
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The type of the task execution
-      jsonPath: .spec.type
-      name: Type
+    - description: Applied status
+      jsonPath: .status.conditions[?(@.type=='Applied')].status
+      name: Applied
       type: string
-    - description: The associated VectorActivation
-      jsonPath: .spec.vectorActivation
-      name: Vector-Activation
-      type: string
-    - description: The latest condition type
-      jsonPath: .status.conditions[-1:].type
-      name: Condition
-      type: string
-    - description: The latest condition status
-      jsonPath: .status.conditions[-1:].status
-      name: Condition-Status
-      type: string
+    - description: Age
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ActivationTaskExecution is the Schema for the ActivationTaskExecutions
-          API
+        description: StageSync is the Schema for the stageSyncs API.
         properties:
           apiVersion:
             description: |-
@@ -58,24 +50,23 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of ActivationTaskExecution
+            description: StageSyncSpec defines the desired state of a StageSync.
             properties:
-              spec:
+              reconcileInterval:
+                description: |-
+                  ReconcileInterval defines how often the sync controller should reconcile the StageSync resource.
+                  If not set, the controller's default reconcile interval will be used.
+                type: string
+              stageTemplate:
+                description: StageTemplate contains the template of the stage to be
+                  created on the Star cluster.
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
-              type:
-                type: string
-              vectorActivation:
-                description: VectorActivation is a temporary field that contains the
-                  name of the associated vectorActivation
-                type: string
             required:
-            - spec
-            - type
-            - vectorActivation
+            - stageTemplate
             type: object
           status:
-            description: status defines the observed state of ActivationTaskExecution
+            description: StageSyncStatus defines the observed state of a StageSync.
             properties:
               conditions:
                 items:
@@ -133,11 +124,13 @@ spec:
                   - type
                   type: object
                 type: array
+              stageStatus:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             type: object
-        required:
-        - spec
         type: object
     served: true
     storage: true
     subresources:
       status: {}
+{{- end }}

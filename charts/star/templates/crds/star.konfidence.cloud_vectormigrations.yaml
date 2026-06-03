@@ -1,32 +1,47 @@
+{{- if .Values.crd.install -}}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+{{- include "star.crdAnnotations" . | nindent 4 }}
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: stagesyncs.galaxy.konfidence.cloud
+  labels:
+{{- include "star.crdLabels" . | nindent 4 }}
+  name: vectormigrations.star.konfidence.cloud
 spec:
-  group: galaxy.konfidence.cloud
+  group: star.konfidence.cloud
   names:
-    kind: StageSync
-    listKind: StageSyncList
-    plural: stagesyncs
-    singular: stagesync
+    categories:
+    - konfidence
+    - kden
+    kind: VectorMigration
+    listKind: VectorMigrationList
+    plural: vectormigrations
+    singular: vectormigration
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Applied status
-      jsonPath: .status.conditions[?(@.type=='Applied')].status
-      name: Applied
+    - description: The stage version
+      jsonPath: .spec.stageVersion
+      name: Stage-Version
       type: string
-    - description: Age
-      jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
+    - description: The deployment vector
+      jsonPath: .spec.vector
+      name: Vector
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: StageSync is the Schema for the stageSyncs API.
+        description: VectorMigration is the Schema for the vectormigrations API
         properties:
           apiVersion:
             description: |-
@@ -46,23 +61,20 @@ spec:
           metadata:
             type: object
           spec:
-            description: StageSyncSpec defines the desired state of a StageSync.
+            description: spec defines the desired state of VectorMigration
             properties:
-              reconcileInterval:
-                description: |-
-                  ReconcileInterval defines how often the sync controller should reconcile the StageSync resource.
-                  If not set, the controller's default reconcile interval will be used.
+              stageVersion:
                 type: string
-              stageTemplate:
-                description: StageTemplate contains the template of the stage to be
-                  created on the Star cluster.
-                type: object
-                x-kubernetes-preserve-unknown-fields: true
+              vector:
+                description: Vector points to the OCM component version that contains
+                  the deployment vector for this stage.
+                type: string
             required:
-            - stageTemplate
+            - stageVersion
+            - vector
             type: object
           status:
-            description: StageSyncStatus defines the observed state of a StageSync.
+            description: status defines the observed state of VectorMigration
             properties:
               conditions:
                 items:
@@ -120,12 +132,12 @@ spec:
                   - type
                   type: object
                 type: array
-              stageStatus:
-                type: object
-                x-kubernetes-preserve-unknown-fields: true
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
     subresources:
       status: {}
+{{- end }}

@@ -1,45 +1,36 @@
+{{- if .Values.crd.install -}}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+{{- include "star.crdAnnotations" . | nindent 4 }}
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectortemplates.galaxy.konfidence.cloud
+  labels:
+{{- include "star.crdLabels" . | nindent 4 }}
+  name: activationtaskregistrations.star.konfidence.cloud
 spec:
-  group: galaxy.konfidence.cloud
+  group: star.konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: VectorTemplate
-    listKind: VectorTemplateList
-    plural: vectortemplates
-    singular: vectortemplate
+    kind: ActivationTaskRegistration
+    listKind: ActivationTaskRegistrationList
+    plural: activationtaskregistrations
+    singular: activationtaskregistration
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Indicates if the vector template is ready
-      jsonPath: .status.conditions[?(@.type=="Ready")].status
-      name: Ready
+    - description: The type of registered activation task
+      jsonPath: .spec.type
+      name: Type
       type: string
-    - description: The reason of the Ready condition
-      jsonPath: .status.conditions[?(@.type=="Ready")].reason
-      name: Reason
-      type: string
-    - description: The upload target of the vector template
-      jsonPath: .spec.uploadTarget
-      name: Upload-Target
-      type: string
-    - description: Time since creation of the vector template
-      jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: |-
-          VectorTemplate represents a template for assembling OCM components into an OCM component
-          that represents a vector.
+        description: ActivationTaskRegistration is the Schema for the activationtaskregistrations
+          API
         properties:
           apiVersion:
             description: |-
@@ -59,66 +50,44 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of VectorTemplate
+            description: spec defines the desired state of ActivationTaskRegistration
             properties:
-              base:
-                description: Base represents an optional base component version to
-                  build upon.
-                type: string
-              components:
-                description: Components lists the components to be included in the
-                  vector.
+              precedes:
                 items:
-                  description: |-
-                    Component defines a component of a VectorTemplate.
-                    A struct is used for future expansion.
-                  properties:
-                    name:
-                      type: string
-                  required:
-                  - name
-                  type: object
-                minItems: 1
+                  type: string
                 type: array
-              config:
+              spec:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              succeeds:
                 items:
-                  description: CredentialsConfig defines a credential reference to
-                    a secret or configMap used to access OCM backends (like OCI registry).
-                  properties:
-                    apiVersion:
-                      description: APIVersion is the api version of the of configuration
-                        resource, e.g. v1.
-                      type: string
-                    kind:
-                      description: Kind of the configuration resource. Allowed values
-                        are Secret or ConfigMap.
-                      type: string
-                    name:
-                      description: "Name is the name\t of the of configuration resource."
-                      type: string
-                  required:
-                  - apiVersion
-                  - kind
-                  - name
-                  type: object
+                  type: string
                 type: array
-              reconcileInterval:
+              type:
                 description: |-
-                  ReconcileInterval defines how often the assembly controller should check for drift.
-                  If not set, the controller's default reconcile interval will be used.
-                type: string
-              uploadTarget:
-                description: UploadTarget defines the target OCM component where the
-                  assembled vector will be uploaded.
+                  INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                  Important: Run "make" to regenerate code after modifying this file
+                  The following markers will use OpenAPI v3 schema to validate the value
+                  More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
                 type: string
             required:
-            - components
-            - uploadTarget
+            - spec
+            - type
             type: object
           status:
-            description: status defines the observed state of VectorTemplate
+            description: status defines the observed state of ActivationTaskRegistration
             properties:
               conditions:
+                description: |-
+                  conditions represent the current state of the ActivationTaskRegistration resource.
+                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
+
+                  Standard condition types include:
+                  - "Available": the resource is fully functional
+                  - "Progressing": the resource is being created or updated
+                  - "Degraded": the resource failed to reach or maintain its desired state
+
+                  The status of each condition is one of True, False, or Unknown.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -174,6 +143,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
             type: object
         required:
         - spec
@@ -182,3 +154,4 @@ spec:
     storage: true
     subresources:
       status: {}
+{{- end }}

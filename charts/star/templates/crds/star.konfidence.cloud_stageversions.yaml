@@ -1,40 +1,47 @@
+{{- if .Values.crd.install -}}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+{{- include "star.crdAnnotations" . | nindent 4 }}
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: vectorassignments.star.konfidence.cloud
+  labels:
+{{- include "star.crdLabels" . | nindent 4 }}
+  name: stageversions.star.konfidence.cloud
 spec:
   group: star.konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: VectorAssignment
-    listKind: VectorAssignmentList
-    plural: vectorassignments
-    singular: vectorassignment
+    kind: StageVersion
+    listKind: StageVersionList
+    plural: stageversions
+    singular: stageversion
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The name of the ArtifactDeployment
-      jsonPath: .spec.artifactDeploymentRef.name
-      name: Artifact-Deployment
+    - description: Name of the referenced Stage
+      jsonPath: .spec.stageRef.name
+      name: Stage
       type: string
-    - description: The name of the VectorDeployment
-      jsonPath: .spec.vectorDeploymentRef.name
-      name: Vector-Deployment
+    - description: The object generation of the stage
+      jsonPath: .spec.stageGeneration
+      name: Stage-Generation
+      type: integer
+    - description: The deployment vector for this stage
+      jsonPath: .spec.vector
+      name: Vector
       type: string
+    - description: Time since creation of StageVersion
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: |-
-          VectorAssignment is the Schema for the vectorassignments API.
-
-          A VectorAssignment represents a single binding between a VectorDeployment and an ArtifactDeployment. It enables
-          an n:m mapping where a single artifact may be reused across multiple vectors. These objects are automatically
-          managed by the vector-deployment-controller and reconciled by deployers to apply vector-specific configuration.
+        description: StageVersion is the Schema for the stageversions API
         properties:
           apiVersion:
             description: |-
@@ -54,75 +61,42 @@ spec:
           metadata:
             type: object
           spec:
-            description: Spec defines the desired state of the VectorAssignment and
-              is immutable after it has been set
+            description: Spec defines the desired state of the StageVersion and is
+              immutable after it has been set
             properties:
-              artifactDeploymentRef:
-                description: |-
-                  ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The
-                  referenced artifact must exist in the same namespace as this VectorAssignment.
+              stageGeneration:
+                description: the object generation of the stage that created this
+                  stage version
+                format: int64
+                minimum: 1
+                type: integer
+              stageRef:
+                description: stageRef references the Stage this StageVersion belongs
+                  to
                 properties:
                   name:
-                    description: "Name\tis the name of the ArtifactDeployment. Required."
+                    description: Name is the name of the Stage. Required.
                     type: string
                 required:
                 - name
                 type: object
-              manifest:
-                description: |-
-                  Manifest contains the ArtifactManifest describing the artifact to be assigned to the vector. This duplicates the
-                  manifest stored in the ArtifactDeployment for efficiency: deployers often need to filter or select assignments
-                  by artifact type, and embedding the manifest avoids repeated API lookups.
-                properties:
-                  allowReuse:
-                    description: |-
-                      AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.
-                      Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific
-                      runtime context.
-                    type: boolean
-                  type:
-                    description: |-
-                      Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",
-                      "cloud.konfidence.flux.kustomize", or any custom deployer type). Deployers implement their own interpretation
-                      of the artifact's contents.
-                    type: string
-                required:
-                - allowReuse
-                - type
-                type: object
-              vectorDeploymentRef:
-                description: |-
-                  VectorDeploymentRef references the VectorDeployment that this artifact is assigned to. This creates the explicit
-                  mapping "artifact X belongs to vector Y".
-                properties:
-                  name:
-                    description: "Name\tis the name of the VectorDeployment. Required."
-                    type: string
-                required:
-                - name
-                type: object
+              vector:
+                description: Vector points to the OCM component version that contains
+                  the deployment vector for this stage.
+                minLength: 1
+                type: string
             required:
-            - artifactDeploymentRef
-            - manifest
-            - vectorDeploymentRef
+            - stageGeneration
+            - stageRef
+            - vector
             type: object
             x-kubernetes-validations:
-            - message: VectorAssignment spec is immutable after it has been set
+            - message: StageVersion spec is immutable after it has been set
               rule: self == oldSelf
           status:
-            description: |-
-              VectorAssignmentStatus defines the observed state of a VectorAssignment.
-
-              A VectorAssignment progresses through a simple lifecycle driven by the deployer:
-
-               1. VectorAssignment is created by the vector-deployment-controller.
-               2. deployer reconciles it and configures vector-specific integration
-               3. VectorAssignmentReadyCondition is set to True
+            description: status defines the observed state of StageVersion
             properties:
               conditions:
-                description: |-
-                  Conditions describes the latest observed state of the assignment. The primary condition is
-                  VectorAssignmentReadyCondition, which becomes True once the deployer has finished processing the VectorAssignment.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -187,3 +161,4 @@ spec:
     storage: true
     subresources:
       status: {}
+{{- end }}

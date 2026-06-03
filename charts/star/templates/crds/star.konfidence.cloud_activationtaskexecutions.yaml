@@ -1,31 +1,48 @@
+{{- if .Values.crd.install -}}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+{{- include "star.crdAnnotations" . | nindent 4 }}
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: stageconfigurations.galaxy.konfidence.cloud
+  labels:
+{{- include "star.crdLabels" . | nindent 4 }}
+  name: activationtaskexecutions.star.konfidence.cloud
 spec:
-  group: galaxy.konfidence.cloud
+  group: star.konfidence.cloud
   names:
-    kind: StageConfiguration
-    listKind: StageConfigurationList
-    plural: stageconfigurations
-    singular: stageconfiguration
+    categories:
+    - konfidence
+    - kden
+    kind: ActivationTaskExecution
+    listKind: ActivationTaskExecutionList
+    plural: activationtaskexecutions
+    singular: activationtaskexecution
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.name
-      name: Name
+    - description: The type of the task execution
+      jsonPath: .spec.type
+      name: Type
       type: string
-    - jsonPath: .spec.vector
-      name: Vector
+    - description: The associated VectorActivation
+      jsonPath: .spec.vectorActivation
+      name: Vector-Activation
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: StageConfiguration is the Schema for the stageConfigurations
-          API.
+        description: ActivationTaskExecution is the Schema for the ActivationTaskExecutions
+          API
         properties:
           apiVersion:
             description: |-
@@ -45,52 +62,24 @@ spec:
           metadata:
             type: object
           spec:
-            description: StageConfigurationSpec defines the desired state of StageConfiguration.
+            description: spec defines the desired state of ActivationTaskExecution
             properties:
-              config:
-                items:
-                  description: CredentialsConfig defines a credential reference to
-                    a secret or configMap used to access OCM backends (like OCI registry).
-                  properties:
-                    apiVersion:
-                      description: APIVersion is the api version of the of configuration
-                        resource, e.g. v1.
-                      type: string
-                    kind:
-                      description: Kind of the configuration resource. Allowed values
-                        are Secret or ConfigMap.
-                      type: string
-                    name:
-                      description: "Name is the name\t of the of configuration resource."
-                      type: string
-                  required:
-                  - apiVersion
-                  - kind
-                  - name
-                  type: object
-                type: array
-              name:
-                description: Name is the stage name
+              spec:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              type:
                 type: string
-              targetNamespace:
-                description: TargetNamespace is the target namespace where the associated
-                  stage is created or updated
-                type: string
-              targetWorkspace:
-                description: TargetWorkspace is the target workspace where the associated
-                  stage is created or updated
-                type: string
-              vector:
-                description: Vector points to the OCM component that contains the
-                  deployment vector for this stage.
+              vectorActivation:
+                description: VectorActivation is a temporary field that contains the
+                  name of the associated vectorActivation
                 type: string
             required:
-            - name
-            - targetNamespace
-            - vector
+            - spec
+            - type
+            - vectorActivation
             type: object
           status:
-            description: StageConfigurationStatus defines the observed state of StageConfiguration.
+            description: status defines the observed state of ActivationTaskExecution
             properties:
               conditions:
                 items:
@@ -149,8 +138,11 @@ spec:
                   type: object
                 type: array
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
     subresources:
       status: {}
+{{- end }}
