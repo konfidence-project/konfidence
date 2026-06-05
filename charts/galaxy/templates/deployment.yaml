@@ -47,7 +47,7 @@ spec:
             {{- toYaml .Values.env | nindent 12 }}
           ports:
             - name: health
-              containerPort: 8081
+              containerPort: {{ include "galaxy.bindAddressPort" .Values.controller.healthProbeBindAddress }}
               protocol: TCP
             - name: metrics
               containerPort: 8080

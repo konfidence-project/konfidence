@@ -43,6 +43,13 @@ app.kubernetes.io/component: controller
 {{- end -}}
 {{- end -}}
 
+{{- /*
+Extract the port from a `host:port` bind address (e.g. ":8081" -> 8081).
+*/ -}}
+{{- define "galaxy.bindAddressPort" -}}
+{{- regexFind "[0-9]+$" . -}}
+{{- end -}}
+
 {{- define "galaxy.crdAnnotations" -}}
 {{- if .Values.crd.keep -}}
 helm.sh/resource-policy: keep

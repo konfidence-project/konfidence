@@ -40,7 +40,7 @@ spec:
             {{- toYaml .Values.env | nindent 12 }}
           ports:
             - name: health
-              containerPort: 8081
+              containerPort: {{ include "star.bindAddressPort" .Values.controller.healthProbeBindAddress }}
               protocol: TCP
             - name: metrics
               containerPort: 8080

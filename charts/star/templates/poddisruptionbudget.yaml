@@ -7,7 +7,7 @@ metadata:
   labels:
     {{- include "star.labels" . | nindent 4 }}
 spec:
-  minAvailable: {{ Values.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
   maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
   selector:
     matchLabels:
