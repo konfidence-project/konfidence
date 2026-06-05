@@ -14,19 +14,13 @@ spec:
     metadata:
       labels:
         {{- include "galaxy.selectorLabels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      {{- with .Values.podAnnotations }}
+        {{- toYaml .Values.podLabels | nindent 8 }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
     spec:
       serviceAccountName: {{ include "galaxy.serviceAccountName" . }}
-      {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
       containers:
@@ -48,13 +42,9 @@ spec:
             {{- if gt (int .Values.controller.kubernetesPort) 0 }}
             - --kubernetes-port={{ .Values.controller.kubernetesPort }}
             {{- end }}
-            {{- with .Values.extraArgs }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
-          {{- with .Values.env }}
+            {{- toYaml .Values.extraArgs | nindent 12 }}
           env:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- toYaml .Values.env | nindent 12 }}
           ports:
             - name: health
               containerPort: 8081
@@ -78,15 +68,9 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
-      {{- with .Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
+        {{- toYaml .Values.tolerations | nindent 8 }}
       affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- toYaml .Values.affinity | nindent 8 }}

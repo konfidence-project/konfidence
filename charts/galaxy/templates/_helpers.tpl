@@ -47,9 +47,7 @@ app.kubernetes.io/component: controller
 {{- if .Values.crd.keep -}}
 helm.sh/resource-policy: keep
 {{ end -}}
-{{- with .Values.crd.annotations }}
-{{ toYaml . | trim }}
-{{- end }}
+{{ toYaml .Values.crd.annotations | trim }}
 {{- end -}}
 
 {{- define "galaxy.crdLabels" -}}
@@ -57,7 +55,5 @@ app.kubernetes.io/name: galaxy-crds
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/part-of: konfidence
 helm.sh/chart: {{ include "galaxy.chart" . }}
-{{- with .Values.crd.labels }}
-{{ toYaml . }}
-{{- end }}
+{{ toYaml .Values.crd.labels }}
 {{- end -}}

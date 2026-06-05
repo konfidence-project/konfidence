@@ -14,19 +14,13 @@ spec:
     metadata:
       labels:
         {{- include "star.selectorLabels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      {{- with .Values.podAnnotations }}
+        {{- toYaml .Values.podLabels | nindent 8 }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
     spec:
       serviceAccountName: {{ include "star.serviceAccountName" . }}
-      {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
       containers:
@@ -39,15 +33,11 @@ spec:
             - --leader-elect={{ .Values.controller.leaderElection }}
             - --lease-id={{ .Values.controller.leaseId }}
             - --health-probe-bind-address={{ .Values.controller.healthProbeBindAddress }}
-            {{- with .Values.extraArgs }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+            {{- toYaml .Values.extraArgs | nindent 12 }}
           env:
             - name: CONTROLLER_NAMESPACE
               value: {{ .Values.controller.controllerNamespace | default .Release.Namespace | quote }}
-            {{- with .Values.env }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+            {{- toYaml .Values.env | nindent 12 }}
           ports:
             - name: health
               containerPort: 8081
@@ -71,15 +61,9 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
-      {{- with .Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
+        {{- toYaml .Values.tolerations | nindent 8 }}
       affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- toYaml .Values.affinity | nindent 8 }}
