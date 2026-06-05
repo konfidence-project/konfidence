@@ -14,6 +14,18 @@ crd:
   annotations: {}
   labels: {}
 
+# Forwarded as flags to the operator binary (cmd/star).
+controller:
+  # Comma-separated list of sub-controllers, or "*" for all.
+  controllers: "*"
+  leaderElection: true
+  leaseId: "star-operator.konfidence.cloud"
+  healthProbeBindAddress: ":8081"
+  metricsBindAddress: ":8080"
+  # Set this when the galaxysync controller is enabled — it uses this
+  # namespace to scope its bookkeeping.
+  controllerNamespace: ""
+
 nameOverride: ""
 fullnameOverride: ""
 
@@ -26,6 +38,17 @@ image:
 imagePullSecrets: []
 
 replicas: 1
+
+# PodDisruptionBudget for the controller. Only meaningful when running
+# replicas >= 2 (with leader election a single active replica handles
+# reconciliation; the others stand by). Disabled by default to match the
+# default replicas: 1.
+podDisruptionBudget:
+  enabled: false
+  # Set exactly one of minAvailable or maxUnavailable. Both accept an
+  # integer or a percentage string (e.g. "50%").
+  minAvailable: ~
+  maxUnavailable: 1
 
 resources:
   limits:
@@ -42,18 +65,6 @@ serviceAccount:
 
 podAnnotations: {}
 podLabels: {}
-
-# Forwarded as flags to the operator binary (cmd/star).
-controller:
-  # Comma-separated list of sub-controllers, or "*" for all.
-  controllers: "*"
-  leaderElection: true
-  leaseId: "star-operator.konfidence.cloud"
-  healthProbeBindAddress: ":8081"
-  metricsBindAddress: ":8080"
-  # Set this when the galaxysync controller is enabled — it uses this
-  # namespace to scope its bookkeeping.
-  controllerNamespace: ""
 
 env: []
 extraArgs: []
