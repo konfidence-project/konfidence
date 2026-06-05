@@ -29,6 +29,10 @@ controller:
 nameOverride: ""
 fullnameOverride: ""
 
+# Domain of the target cluster. Required — helm will fail if this is not set.
+# Example: showroom.konfidence.cloud
+targetClusterDomain: ""
+
 image:
   repository: ghcr.io/konfidence-project/star-operator
   # tag defaults to .Chart.AppVersion when empty.
