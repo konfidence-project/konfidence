@@ -39,6 +39,7 @@ spec:
             - --leader-elect={{ .Values.controller.leaderElection }}
             - --lease-id={{ .Values.controller.leaseId }}
             - --health-probe-bind-address={{ .Values.controller.healthProbeBindAddress }}
+            - --metrics-bind-address={{ .Values.controller.metricsBindAddress }}
             {{- with .Values.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -52,9 +53,11 @@ spec:
             - name: health
               containerPort: {{ include "star.bindAddressPort" .Values.controller.healthProbeBindAddress }}
               protocol: TCP
+            {{- if ne (.Values.controller.metricsBindAddress | toString) "0" }}
             - name: metrics
-              containerPort: 8080
+              containerPort: {{ include "star.bindAddressPort" .Values.controller.metricsBindAddress }}
               protocol: TCP
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

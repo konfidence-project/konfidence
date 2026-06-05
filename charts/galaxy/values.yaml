@@ -21,6 +21,9 @@ controller:
   leaderElection: true
   leaseId: "galaxy-operator.konfidence.cloud"
   healthProbeBindAddress: ":8081"
+  # Bind address for the Prometheus /metrics endpoint. Set to "0" to
+  # disable the metrics server entirely (also suppresses the metrics
+  # container port, Service, and ServiceMonitor).
   metricsBindAddress: ":8080"
   # Optional: if set, overrides the Kubernetes API endpoint discovery.
   kcpEndpointSliceName: ""
@@ -29,6 +32,23 @@ controller:
 
 nameOverride: ""
 fullnameOverride: ""
+
+# Prometheus Operator ServiceMonitor for the controller's /metrics
+# endpoint. Requires the monitoring.coreos.com CRDs to be installed in
+# the cluster; off by default.
+serviceMonitor:
+  enabled: false
+  # Namespace to create the ServiceMonitor in. Defaults to the release
+  # namespace. Override when your Prometheus instance only watches a
+  # specific namespace.
+  namespace: ""
+  # Extra labels merged onto the ServiceMonitor — typically the label
+  # selector your Prometheus instance uses (e.g. release: kube-prometheus).
+  labels: {}
+  interval: 30s
+  scrapeTimeout: 10s
+  relabelings: []
+  metricRelabelings: []
 
 image:
   repository: ghcr.io/konfidence-project/galaxy-operator
