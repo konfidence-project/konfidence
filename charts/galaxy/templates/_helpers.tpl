@@ -54,7 +54,9 @@ Extract the port from a `host:port` bind address (e.g. ":8081" -> 8081).
 {{- if .Values.crd.keep -}}
 helm.sh/resource-policy: keep
 {{ end -}}
-{{ toYaml .Values.crd.annotations | trim }}
+{{- with .Values.crd.annotations }}
+{{ toYaml . | trim }}
+{{- end }}
 {{- end -}}
 
 {{- define "galaxy.crdLabels" -}}
@@ -62,5 +64,7 @@ app.kubernetes.io/name: galaxy-crds
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/part-of: konfidence
 helm.sh/chart: {{ include "galaxy.chart" . }}
-{{ toYaml .Values.crd.labels }}
+{{- with .Values.crd.labels }}
+{{ toYaml . }}
+{{- end }}
 {{- end -}}
