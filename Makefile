@@ -38,6 +38,7 @@ KUSTOMIZE      ?= kustomize
 CONTROLLER_GEN ?= controller-gen
 ENVTEST        ?= setup-envtest
 GOLANGCI_LINT   = golangci-lint
+HELM_DOCS      ?= helm-docs
 
 ## Image names
 STAR_IMAGE   = $(REGISTRY)/star-operator:$(TAG)
@@ -67,6 +68,7 @@ manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator
 	for f in charts/star/templates/crds/*.yaml; do \
 		charts/patch-crd.sh star "$$f" "$$f"; \
 	done
+	$(HELM_DOCS) -c charts/star > charts/star/README.md
 
 .PHONY: manifests-galaxy
 manifests-galaxy: hermit ## Generate CRDs and RBAC manifests for the galaxy operator.
@@ -78,6 +80,7 @@ manifests-galaxy: hermit ## Generate CRDs and RBAC manifests for the galaxy oper
 	for f in charts/galaxy/templates/crds/*.yaml; do \
 		charts/patch-crd.sh galaxy "$$f" "$$f"; \
 	done
+	$(HELM_DOCS) -c charts/galaxy > charts/galaxy/README.md
 
 .PHONY: generate
 generate: hermit generate-star generate-galaxy ## Generate DeepCopy implementations for all operators.
