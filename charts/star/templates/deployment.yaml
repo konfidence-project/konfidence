@@ -45,8 +45,6 @@ spec:
           env:
             - name: CONTROLLER_NAMESPACE
               value: {{ .Values.controller.controllerNamespace | default .Release.Namespace | quote }}
-            - name: TARGET_CLUSTER_DOMAIN
-              value: {{ required "targetClusterDomain is required" .Values.targetClusterDomain | quote }}
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
