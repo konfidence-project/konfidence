@@ -40,3 +40,6 @@ bin/ginkgo
 !bin/.hermit/
 !bin/*.pkg
 !bin/.*pkg
+
+# Ignore Helm chart packages
+*.tgz
