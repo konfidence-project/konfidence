@@ -162,7 +162,7 @@ docs-galaxy: hermit ## Generate CRD reference documentation for the galaxy API.
 .PHONY: schemas-star
 schemas-star: hermit ## Extract JSON schemas for each star CRD version.
 	@mkdir -p api/star/config/schemas
-	@for crd in api/star/config/bases/crd/*.yaml; do \
+	@for crd in test/data/crds/star/*.yaml; do \
 		crd_kind=$$(yq ".spec.names.kind" $$crd | tr '[:upper:]' '[:lower:]'); \
 		crd_group="$$(yq ".spec.group" $$crd)"; \
 		for ver in $$(yq -r '.spec.versions[].name' $$crd); do \
@@ -174,7 +174,7 @@ schemas-star: hermit ## Extract JSON schemas for each star CRD version.
 .PHONY: schemas-galaxy
 schemas-galaxy: hermit ## Extract JSON schemas for each galaxy CRD version.
 	@mkdir -p api/galaxy/config/schemas
-	@for crd in api/galaxy/config/bases/crd/*.yaml; do \
+	@for crd in test/data/crds/galaxy/*.yaml; do \
 		crd_kind=$$(yq ".spec.names.kind" $$crd | tr '[:upper:]' '[:lower:]'); \
 		crd_group="$$(yq ".spec.group" $$crd)"; \
 		for ver in $$(yq -r '.spec.versions[].name' $$crd); do \
