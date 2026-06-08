@@ -23,6 +23,7 @@ var (
 var (
 	enableLeaderElection bool
 	probeAddr            string
+	metricsAddr          string
 	controllersSpec      string
 	leaseID              string
 )
@@ -64,6 +65,7 @@ func init() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&loggerOpts)))
 
 	rootCmd.PersistentFlags().StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	rootCmd.PersistentFlags().StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metrics endpoint binds to. Use \"0\" to disable.")
 	rootCmd.PersistentFlags().BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	rootCmd.Flags().StringVar(&controllersSpec, "controllers", "*",

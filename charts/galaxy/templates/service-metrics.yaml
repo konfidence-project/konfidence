@@ -1,0 +1,19 @@
+{{- if and .Values.controller.install (ne (.Values.controller.metricsBindAddress | toString) "0") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "galaxy.fullname" . }}-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "galaxy.labels" . | nindent 4 }}
+    konfidence.cloud/service: metrics
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: {{ include "galaxy.bindAddressPort" .Values.controller.metricsBindAddress }}
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{- include "galaxy.selectorLabels" . | nindent 4 }}
+{{- end }}

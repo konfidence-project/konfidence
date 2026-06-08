@@ -40,3 +40,9 @@ bin/ginkgo
 !bin/.hermit/
 !bin/*.pkg
 !bin/.*pkg
+
+# Ignore Helm chart packages
+*.tgz
+
+# Generated plain CRDs used by envtest suites
+test/data/crds/
