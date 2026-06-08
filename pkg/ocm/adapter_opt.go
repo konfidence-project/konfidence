@@ -4,10 +4,18 @@ import (
 	"fmt"
 
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
 
 // AdapterOption is a functional option for configuring the Adapter.
 type AdapterOption func(*Adapter)
+
+// WithClient sets the OCM repository client the Adapter uses to interact with OCM repositories.
+func WithClient(client repository.Client) AdapterOption {
+	return func(a *Adapter) {
+		a.ocmClient = client
+	}
+}
 
 // WithVectorSigner sets a Signer used to sign vectors. If no signer is provided vector signing is disabled.
 // This is useful for testing purposes, e.g. to inject a mock Signer that does not perform actual signing.
