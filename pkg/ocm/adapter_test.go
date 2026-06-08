@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
-	mocks2 "github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ocm/mocks"
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/vector"
+	"github.com/konfidence-project/konfidence/pkg/ocm/internal/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -25,10 +25,10 @@ var _ = Describe("Adapter", func() {
 	Describe("CreateVector", func() {
 		var (
 			ctrl         *gomock.Controller
-			mockClient   *mocks2.MockClient
-			mockSigner   *mocks2.MockSigner
-			mockDigester *mocks2.MockDigester
-			mockVerifier *mocks2.MockVerifier
+			mockClient   *mocks.MockClient
+			mockSigner   *mocks.MockSigner
+			mockDigester *mocks.MockDigester
+			mockVerifier *mocks.MockVerifier
 			adapter      Adapter
 			ctx          context.Context
 			repoSpec     runtime.Typed
@@ -37,10 +37,10 @@ var _ = Describe("Adapter", func() {
 
 		BeforeEach(func() {
 			ctrl = gomock.NewController(GinkgoT())
-			mockClient = mocks2.NewMockClient(ctrl)
-			mockSigner = mocks2.NewMockSigner(ctrl)
-			mockDigester = mocks2.NewMockDigester(ctrl)
-			mockVerifier = mocks2.NewMockVerifier(ctrl)
+			mockClient = mocks.NewMockClient(ctrl)
+			mockSigner = mocks.NewMockSigner(ctrl)
+			mockDigester = mocks.NewMockDigester(ctrl)
+			mockVerifier = mocks.NewMockVerifier(ctrl)
 
 			adapter = Adapter{
 				ocmClient:        mockClient,

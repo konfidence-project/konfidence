@@ -1,9 +1,9 @@
 package ocm
 
-//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_client.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/repository Client
-//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_verifier.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Verifier
-//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_signer.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Signer
-//go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_digester.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Digester
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_client.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/repository Client
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_verifier.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Verifier
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_signer.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Signer
+//go:generate go run go.uber.org/mock/mockgen -destination=internal/mocks/mock_digester.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Digester
 
 import (
 	"context"
@@ -16,8 +16,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ports"
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/vector"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"golang.org/x/sync/errgroup"
@@ -27,11 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var (
-	_ ports.OcmPort = (*Adapter)(nil)
-)
-
-// Adapter is an implementation of the VectorOcmPort interface that interacts
+// Adapter is an implementation of the vector assembly OCM port that interacts
 // with OCM repositories to manage vectors and their associated artifacts.
 type Adapter struct {
 	vectorVerifier, artifactVerifier crypto.Verifier
@@ -139,7 +134,7 @@ func (a Adapter) GetVector(ctx context.Context, vectorRef compref.Ref) (vector.V
 	descriptor, err := a.ocmClient.Get(ctx, vectorRef)
 	if err != nil {
 		if errors.Is(err, pkgocm.ErrNotFound) {
-			return vector.Vector{}, ports.ErrVectorNotFound
+			return vector.Vector{}, vector.ErrVectorNotFound
 		}
 		return vector.Vector{}, fmt.Errorf("unable to get latest ocm descriptor for vector (%s): %w", vectorRef, err)
 	}
@@ -272,16 +267,6 @@ func NewAdapter(options ...AdapterOption) Adapter {
 	}
 	applyDefaults(&a)
 	return a
-}
-
-// NewPortProvider creates a VectorOcmPortProviderFunc that builds an Adapter
-// with the given options and plugs in the provided client at call time.
-func NewPortProvider(opts ...AdapterOption) ports.OcmPortProviderFunc {
-	return func(client pkgocm.Client) ports.OcmPort {
-		a := NewAdapter(opts...)
-		a.ocmClient = client
-		return a
-	}
 }
 
 func applyDefaults(a *Adapter) {

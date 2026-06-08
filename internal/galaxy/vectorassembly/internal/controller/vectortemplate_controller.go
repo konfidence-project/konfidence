@@ -8,10 +8,9 @@ import (
 	"time"
 
 	"github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ports"
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/assembly"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/vector"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
-	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,27 +38,25 @@ const (
 
 // VectorTemplateReconciler reconciles a VectorTemplate object
 type VectorTemplateReconciler struct {
-	Mgr                   mcmanager.Manager
-	Scheme                *runtime.Scheme
-	OcmClientProvider     repository.ClientProvider
-	VectorOcmPortProvider ports.OcmPortProvider
-	VersionGenerator      vector.VersionGenerator
+	Mgr                mcmanager.Manager
+	Scheme             *runtime.Scheme
+	RepositoryProvider assembly.VectorRepositoryProvider
+	VersionGenerator   vector.VersionGenerator
 }
 
 // NewVectorTemplateReconciler creates a VectorTemplateReconciler wired with the
-// default OCM client provider and version generator. The vector OCM port provider
-// is injected by the caller (composition root).
+// default version generator. The vector repository provider is injected by the caller
+// (composition root).
 func NewVectorTemplateReconciler(
 	mgr mcmanager.Manager,
 	scheme *runtime.Scheme,
-	vectorOcmPortProvider ports.OcmPortProvider,
+	repositoryProvider assembly.VectorRepositoryProvider,
 ) *VectorTemplateReconciler {
 	return &VectorTemplateReconciler{
-		Mgr:                   mgr,
-		Scheme:                scheme,
-		OcmClientProvider:     repository.DefaultOciClientProvider,
-		VectorOcmPortProvider: vectorOcmPortProvider,
-		VersionGenerator:      vector.TimestampVectorVersionGenerator,
+		Mgr:                mgr,
+		Scheme:             scheme,
+		RepositoryProvider: repositoryProvider,
+		VersionGenerator:   vector.TimestampVectorVersionGenerator,
 	}
 }
 
@@ -116,12 +113,10 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 ) error {
 	log := logf.FromContext(ctx)
 
-	ocmClient, err := r.OcmClientProvider.NewClient(ctx, clusterClient, template.GetNamespace(), template.Spec.Config)
+	vectorRepo, err := r.RepositoryProvider.VectorRepositoryFor(ctx, clusterClient, template.GetNamespace(), template.Spec.Config)
 	if err != nil {
-		return fmt.Errorf("unable to create OCM client: %w", err)
+		return fmt.Errorf("unable to obtain vector repository: %w", err)
 	}
-
-	ocmAdapter := r.VectorOcmPortProvider.NewVectorOcmPort(ocmClient)
 
 	ocmComponentsFromComponentList, err := mapComponentsToOCMReferences(template.Spec.Components)
 	if err != nil {
@@ -156,12 +151,12 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 
 	var desiredArtifacts []vector.Artifact
 	if template.Spec.Base != nil {
-		if desiredArtifacts, err = r.getArtifactsFromBaseVector(ctx, ocmAdapter, template, vectorOCMComponent.Component, recorder); err != nil {
+		if desiredArtifacts, err = r.getArtifactsFromBaseVector(ctx, vectorRepo, template, vectorOCMComponent.Component, recorder); err != nil {
 			return err
 		}
 	}
 
-	latestArtifactsFromComponentList, err := ocmAdapter.GetArtifacts(ctx, ocmComponentsFromComponentList)
+	latestArtifactsFromComponentList, err := vectorRepo.GetArtifacts(ctx, ocmComponentsFromComponentList)
 	if err != nil {
 		err = fmt.Errorf("unable to get desired artifacts for vector (%s): %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -178,8 +173,8 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 
 	desiredArtifacts = combineBaseArtifactsAndComponentArtifacts(desiredArtifacts, latestArtifactsFromComponentList)
 
-	actualVector, err := ocmAdapter.GetVector(ctx, *vectorOCMComponent)
-	if errors.Is(err, ports.ErrVectorNotFound) {
+	actualVector, err := vectorRepo.GetVector(ctx, *vectorOCMComponent)
+	if errors.Is(err, assembly.ErrVectorNotFound) {
 		msg := "Vector not found in OCM repository - creating new vector"
 		recorder.Eventf(template, nil, corev1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
 		log.Info(msg, "VectorOCMComponent", vectorOCMComponent.Component)
@@ -219,7 +214,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		Artifacts: desiredArtifacts,
 	}
 
-	err = ocmAdapter.CreateVector(ctx, vectorOCMComponent.Repository, newVector, vectorOCMComponent.Version)
+	err = vectorRepo.CreateVector(ctx, vectorOCMComponent.Repository, newVector, vectorOCMComponent.Version)
 	if err != nil {
 		err = fmt.Errorf("unable to create new vector (%s) on drift: %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -249,7 +244,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 }
 
 func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
-	ctx context.Context, ocmAdapter ports.OcmPort, template *v1alpha1.VectorTemplate,
+	ctx context.Context, vectorRepo assembly.VectorRepository, template *v1alpha1.VectorTemplate,
 	vectorOCMComponentName string, recorder events.EventRecorder,
 ) ([]vector.Artifact, error) {
 	baseVectorOCMComponent, err := konfcompref.Parse(*template.Spec.Base)
@@ -267,7 +262,7 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
 		return nil, err
 	}
 
-	baseVector, err := ocmAdapter.GetVector(ctx, *baseVectorOCMComponent)
+	baseVector, err := vectorRepo.GetVector(ctx, *baseVectorOCMComponent)
 	if err != nil {
 		err = fmt.Errorf("unable to get artifacts from base vector (%s): %w", baseVectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{

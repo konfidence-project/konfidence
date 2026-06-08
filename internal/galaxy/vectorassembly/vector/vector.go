@@ -1,8 +1,13 @@
 package vector
 
 import (
+	"errors"
+
 	"ocm.software/open-component-model/bindings/go/runtime"
 )
+
+// ErrVectorNotFound indicates that a requested vector could not be found in the OCM repository.
+var ErrVectorNotFound = errors.New("vector not found")
 
 type Vector struct {
 	Version   string
