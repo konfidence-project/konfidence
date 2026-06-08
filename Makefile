@@ -206,12 +206,12 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 test: hermit test-star test-galaxy test-pkg ## Run all unit tests.
 
 .PHONY: test-star
-test-star: hermit manifests-star generate-star fmt vet setup-envtest ginkgo ## Run unit tests for the star operator only.
+test-star: hermit manifests generate-star fmt vet setup-envtest ginkgo ## Run unit tests for the star operator only.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		$(GINKGO) --coverprofile=cover-star.out -v ./internal/star/...
 
 .PHONY: test-galaxy
-test-galaxy: hermit manifests-galaxy generate-galaxy fmt vet setup-envtest ginkgo ## Run unit tests for the galaxy operator only.
+test-galaxy: hermit manifests generate-galaxy fmt vet setup-envtest ginkgo ## Run unit tests for the galaxy operator only.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		$(GINKGO) --coverprofile=cover-galaxy.out -v ./internal/galaxy/...
 
