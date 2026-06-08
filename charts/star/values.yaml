@@ -1,0 +1,111 @@
+# CRD lifecycle configuration.
+# install:        apply CRDs alongside the controller. Disable for GitOps
+#                 setups that manage CRDs out-of-band.
+# keep:           on `helm uninstall`, retain CRDs to protect existing CRs.
+#                 Strongly recommended.
+# annotations,
+# labels:         extra metadata merged onto every CRD. Useful for tools
+#                 that inspect CRD metadata (e.g. Argo CD:
+#                 `argocd.argoproj.io/sync-options: ServerSideApply=true`
+#                 to avoid the client-side apply size limit).
+crd:
+  install: true
+  keep: true
+  annotations: {}
+  labels: {}
+
+# Forwarded as flags to the operator binary (cmd/star).
+controller:
+  # When false, the chart renders only the CRDs (gated by crd.install)
+  # and skips Deployment, ServiceAccount, RBAC, Service, ServiceMonitor,
+  # and PodDisruptionBudget. Useful for installing CRDs into a local
+  # development cluster without running the controller.
+  install: true
+  # Comma-separated list of sub-controllers, or "*" for all.
+  controllers: "*"
+  leaderElection: true
+  leaseId: "star-operator.konfidence.cloud"
+  healthProbeBindAddress: ":8081"
+  # Bind address for the Prometheus /metrics endpoint. Set to "0" to
+  # disable the metrics server entirely (also suppresses the metrics
+  # container port, Service, and ServiceMonitor).
+  metricsBindAddress: ":8080"
+  # Set this when the galaxysync controller is enabled — it uses this
+  # namespace to scope its bookkeeping.
+  controllerNamespace: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Prometheus Operator ServiceMonitor for the controller's /metrics
+# endpoint. Requires the monitoring.coreos.com CRDs to be installed in
+# the cluster; off by default.
+serviceMonitor:
+  enabled: false
+  # Namespace to create the ServiceMonitor in. Defaults to the release
+  # namespace. Override when your Prometheus instance only watches a
+  # specific namespace.
+  namespace: ""
+  # Extra labels merged onto the ServiceMonitor — typically the label
+  # selector your Prometheus instance uses (e.g. release: kube-prometheus).
+  labels: {}
+  interval: 30s
+  scrapeTimeout: 10s
+  relabelings: []
+  metricRelabelings: []
+
+image:
+  repository: ghcr.io/konfidence-project/star-operator
+  # tag defaults to .Chart.AppVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicas: 1
+
+# PodDisruptionBudget for the controller. Only meaningful when running
+# replicas >= 2 (with leader election a single active replica handles
+# reconciliation; the others stand by). Disabled by default to match the
+# default replicas: 1.
+podDisruptionBudget:
+  enabled: false
+  # Set exactly one of minAvailable or maxUnavailable. Both accept an
+  # integer or a percentage string (e.g. "50%").
+  minAvailable: ~
+  maxUnavailable: 1
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+env: []
+extraArgs: []
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

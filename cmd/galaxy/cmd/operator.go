@@ -10,6 +10,7 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration"
@@ -44,6 +45,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	mgr, err := mcmanager.New(cfg, provider, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
+		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       leaseID,
 		LeaderElectionConfig:   leaderElectionCfg,

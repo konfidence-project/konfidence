@@ -1,0 +1,27 @@
+{{- if .Values.controller.install }}
+Konfidence Galaxy controllers {{ .Chart.AppVersion }} installed in namespace {{ .Release.Namespace }}.
+
+Verify the controller is running:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Tail logs:
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/instance={{ .Release.Name }} -f
+{{- else if .Values.crd.install }}
+Konfidence Galaxy CRDs {{ .Chart.AppVersion }} installed (controller.install=false).
+The controller workload was NOT deployed. Bring it up later with:
+  helm upgrade {{ .Release.Name }} <chart> --set controller.install=true
+{{- else }}
+Nothing was installed: controller.install and crd.install are both false.
+{{- end }}
+
+{{- if and .Values.crd.install .Values.crd.keep }}
+
+With crd.keep=true (default), CRDs are retained on `helm uninstall` to
+protect existing custom resources.
+{{- end }}
+{{- if and .Values.controller.install (not .Values.crd.install) }}
+
+CRD installation was disabled (crd.install=false). Make sure the galaxy
+CRDs are present in the cluster, otherwise reconciliation will fail:
+  kubectl get crd | grep galaxy.konfidence.cloud
+{{- end }}
