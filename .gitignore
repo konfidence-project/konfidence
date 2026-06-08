@@ -43,3 +43,6 @@ bin/ginkgo
 
 # Ignore Helm chart packages
 *.tgz
+
+# Generated plain CRDs used by envtest suites
+test/data/crds/

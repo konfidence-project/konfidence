@@ -62,24 +62,24 @@ manifests: hermit manifests-star manifests-galaxy ## Generate CRDs and RBAC mani
 .PHONY: manifests-star
 manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator.
 	@echo "Generating manifests for star..."
-	@mkdir -p charts/star/templates/crds
+	@mkdir -p test/data/crds/star charts/star/templates/crds
 	$(CONTROLLER_GEN) rbac:roleName=star-manager crd webhook \
 		paths="./internal/star/..." paths="./api/star/..." \
-		output:crd:artifacts:config=charts/star/templates/crds
-	for f in charts/star/templates/crds/*.yaml; do \
-		charts/patch-crd.sh star "$$f" "$$f"; \
+		output:crd:artifacts:config=test/data/crds/star
+	for f in test/data/crds/star/*.yaml; do \
+		charts/patch-crd.sh star "$$f" "charts/star/templates/crds/$$(basename $$f)"; \
 	done
 	$(HELM_DOCS) -c charts/star > charts/star/README.md
 
 .PHONY: manifests-galaxy
 manifests-galaxy: hermit ## Generate CRDs and RBAC manifests for the galaxy operator.
 	@echo "Generating manifests for galaxy..."
-	@mkdir -p charts/galaxy/templates/crds
+	@mkdir -p test/data/crds/galaxy charts/galaxy/templates/crds
 	$(CONTROLLER_GEN) rbac:roleName=galaxy-manager crd webhook \
 		paths="./internal/galaxy/..." paths="./api/galaxy/..." \
-		output:crd:artifacts:config=charts/galaxy/templates/crds
-	for f in charts/galaxy/templates/crds/*.yaml; do \
-		charts/patch-crd.sh galaxy "$$f" "$$f"; \
+		output:crd:artifacts:config=test/data/crds/galaxy
+	for f in test/data/crds/galaxy/*.yaml; do \
+		charts/patch-crd.sh galaxy "$$f" "charts/galaxy/templates/crds/$$(basename $$f)"; \
 	done
 	$(HELM_DOCS) -c charts/galaxy > charts/galaxy/README.md
 
