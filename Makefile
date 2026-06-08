@@ -38,6 +38,7 @@ KUSTOMIZE      ?= kustomize
 CONTROLLER_GEN ?= controller-gen
 ENVTEST        ?= setup-envtest
 GOLANGCI_LINT   = golangci-lint
+HELM           ?= helm
 HELM_DOCS      ?= helm-docs
 
 ## Image names
@@ -289,22 +290,22 @@ install: install-star install-galaxy ## Install CRDs for all operators into the 
 
 .PHONY: install-star
 install-star: hermit manifests-star ## Install star CRDs into the cluster specified in ~/.kube/config.
-	$(KUBECTL) apply -f api/star/config/release/install.yaml
+	$(HELM) upgrade --install star charts/star --set controller.install=false --set crd.keep=false
 
 .PHONY: install-galaxy
 install-galaxy: hermit manifests-galaxy ## Install galaxy CRDs into the cluster specified in ~/.kube/config.
-	$(KUBECTL) apply -f api/galaxy/config/release/install.yaml
+	$(HELM) upgrade --install galaxy charts/galaxy --set controller.install=false --set crd.keep=false
 
 .PHONY: uninstall
 uninstall: uninstall-star uninstall-galaxy ## Uninstall CRDs for all operators. Use ignore-not-found=true to suppress errors.
 
 .PHONY: uninstall-star
-uninstall-star: hermit manifests-star ## Uninstall star CRDs from the cluster. Use ignore-not-found=true to suppress errors.
-	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f api/star/config/release/install.yaml
+uninstall-star: hermit ## Uninstall star CRDs from the cluster. Use ignore-not-found=true to suppress errors.
+	$(HELM) uninstall star --ignore-not-found
 
 .PHONY: uninstall-galaxy
-uninstall-galaxy: hermit manifests-galaxy ## Uninstall galaxy CRDs from the cluster. Use ignore-not-found=true to suppress errors.
-	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f api/galaxy/config/release/install.yaml
+uninstall-galaxy: hermit ## Uninstall galaxy CRDs from the cluster. Use ignore-not-found=true to suppress errors.
+	$(HELM) uninstall galaxy --ignore-not-found
 
 .PHONY: deploy
 deploy: deploy-star deploy-galaxy ## Deploy all operators to the cluster specified in ~/.kube/config.
