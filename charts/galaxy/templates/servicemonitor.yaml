@@ -1,4 +1,4 @@
-{{- if and .Values.serviceMonitor.enabled (ne (.Values.controller.metricsBindAddress | toString) "0") }}
+{{- if and .Values.controller.install .Values.serviceMonitor.enabled (ne (.Values.controller.metricsBindAddress | toString) "0") }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

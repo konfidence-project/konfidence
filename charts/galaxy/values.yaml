@@ -16,6 +16,11 @@ crd:
 
 # Forwarded as flags to the operator binary (cmd/galaxy).
 controller:
+  # When false, the chart renders only the CRDs (gated by crd.install)
+  # and skips Deployment, ServiceAccount, RBAC, Service, ServiceMonitor,
+  # and PodDisruptionBudget. Useful for installing CRDs into a local
+  # development cluster without running the controller.
+  install: true
   # Comma-separated list of sub-controllers, or "*" for all.
   controllers: "*"
   leaderElection: true
