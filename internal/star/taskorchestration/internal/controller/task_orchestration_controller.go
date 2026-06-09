@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/star/taskorchestration/internal/graph"
@@ -78,23 +77,19 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	originalVectorMigration := vectorMigration.DeepCopy()
-	patch := client.MergeFrom(originalVectorMigration)
 	err := r.reconcileVectorMigration(ctx, req, vectorMigration)
 
-	if !reflect.DeepEqual(vectorMigration.Status, originalVectorMigration.Status) {
-		if patchError := r.Client.Status().Patch(ctx, vectorMigration, patch); patchError != nil {
-			patchErrorMessage := "unable to update vectorMigration status"
-
-			if err != nil {
-				reconcileError := fmt.Errorf("an error occurred while reconciling vectorMigration: %w", err)
-				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
-			}
-
-			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
-		}
-	}
-
-	return ctrl.Result{}, err
+	return ctrl.Result{}, pkgctrl.PatchStatusIfChanged(
+		ctx,
+		r.Client,
+		vectorMigration,
+		originalVectorMigration,
+		vectorMigration.Status,
+		originalVectorMigration.Status,
+		"unable to update vectorMigration status",
+		err,
+		"an error occurred while reconciling vectorMigration",
+	)
 }
 
 func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Context, req ctrl.Request, vectorMigration *star.VectorMigration) error {
