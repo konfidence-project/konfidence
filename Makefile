@@ -126,10 +126,10 @@ lint-config: hermit ## Verify the golangci-lint configuration.
 api: hermit api-star api-galaxy ## Run full API generation pipeline for all operators (manifests, generate, docs, schemas).
 
 .PHONY: api-star
-api-star: hermit manifests-star generate-star docs-star schemas-star ## Run full API generation pipeline for the star operator.
+api-star: hermit manifests-star generate-star docs-star schemas-star helm-lint-star ## Run full API generation pipeline for the star operator.
 
 .PHONY: api-galaxy
-api-galaxy: hermit manifests-galaxy generate-galaxy docs-galaxy schemas-galaxy ## Run full API generation pipeline for the galaxy operator.
+api-galaxy: hermit manifests-galaxy generate-galaxy docs-galaxy schemas-galaxy helm-lint-galaxy ## Run full API generation pipeline for the galaxy operator.
 
 .PHONY: docs-star
 docs-star: hermit ## Generate CRD reference documentation for the star API.
@@ -196,6 +196,17 @@ validate-galaxy: schemas-galaxy ## Validate galaxy sample resources against thei
 		-schema-location default \
 		-schema-location "api/galaxy/config/schemas/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
 		api/galaxy/config/samples
+
+.PHONY: helm-lint
+helm-lint: helm-lint-star helm-lint-galaxy ## Run helm lint against all charts.
+
+.PHONY: helm-lint-star
+helm-lint-star: hermit ## Run helm lint against the star chart.
+	$(HELM) lint charts/star
+
+.PHONY: helm-lint-galaxy
+helm-lint-galaxy: hermit ## Run helm lint against the galaxy chart.
+	$(HELM) lint charts/galaxy
 
 ## Tool Binaries (Testing)
 GINKGO ?= $(LOCALBIN)/ginkgo
