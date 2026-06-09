@@ -10,6 +10,7 @@ import (
 
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -95,22 +96,19 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 	}
 
 	originalStageConfiguration := stageConfiguration.DeepCopy()
-	patch := client.MergeFrom(originalStageConfiguration)
 	err = r.reconcileStageConfiguration(ctx, clusterClient, stageConfiguration, recorder)
 
-	if !reflect.DeepEqual(stageConfiguration.Status, originalStageConfiguration.Status) {
-		if patchError := clusterClient.Status().Patch(ctx, stageConfiguration, patch); patchError != nil {
-			patchErrorMessage := "unable to update stageConfiguration status"
-
-			if err != nil {
-				reconcileError := fmt.Errorf("an error occurred while reconciling stageConfiguration: %w", err)
-				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
-			}
-
-			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
-		}
-	}
-
+	err = pkgctrl.PatchStatusIfChanged(
+		ctx,
+		clusterClient,
+		stageConfiguration,
+		originalStageConfiguration,
+		stageConfiguration.Status,
+		originalStageConfiguration.Status,
+		"unable to update stageConfiguration status",
+		err,
+		"an error occurred while reconciling stageConfiguration",
+	)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

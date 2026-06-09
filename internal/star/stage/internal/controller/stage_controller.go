@@ -41,8 +41,7 @@ type StageReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
-//
-//nolint:dupl // TODO(konfidence-project#689): factor shared reconcile/status-patch boilerplate.
+
 func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Reconcile stage started...")
@@ -54,23 +53,19 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	originalStage := stage.DeepCopy()
-	patch := client.MergeFrom(originalStage)
 	err := r.reconcileStage(ctx, req, stage)
 
-	if !reflect.DeepEqual(stage.Status, originalStage.Status) {
-		if patchError := r.Client.Status().Patch(ctx, stage, patch); patchError != nil {
-			patchErrorMessage := "unable to update stage status"
-
-			if err != nil {
-				reconcileError := fmt.Errorf("an error occurred while reconciling stage: %w", err)
-				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
-			}
-
-			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
-		}
-	}
-
-	return ctrl.Result{}, err
+	return ctrl.Result{}, pkgctrl.PatchStatusIfChanged(
+		ctx,
+		r.Client,
+		stage,
+		originalStage,
+		stage.Status,
+		originalStage.Status,
+		"unable to update stage status",
+		err,
+		"an error occurred while reconciling stage",
+	)
 
 }
 
@@ -167,7 +162,7 @@ func (r *StageReconciler) getOrCreateTargetStageVersionUsage(
 	return stageVersionUsage, nil
 }
 
-//nolint:dupl // TODO(konfidence-project#689): factor shared create-or-update boilerplate.
+//nolint:dupl // Mirrors child reconciliation in stage_version_controller.go; keeping explicit resource-specific flow is clearer than a generic helper.
 func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *star.Stage) (*star.StageVersion, error) {
 	log := logf.FromContext(ctx)
 	stageVersion, err := r.constructStageVersion(stage)
