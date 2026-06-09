@@ -3,10 +3,10 @@ package controller
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sort"
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,8 +37,7 @@ type StageVersionUsageReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
-//
-//nolint:dupl // TODO(konfidence-project#689): factor shared reconcile/status-patch boilerplate.
+
 func (r *StageVersionUsageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Reconcile stageVersionUsage started...")
@@ -50,23 +49,19 @@ func (r *StageVersionUsageReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	originalStageVersionUsage := stageVersionUsage.DeepCopy()
-	patch := client.MergeFrom(originalStageVersionUsage)
 	err := r.reconcileStageVersionUsage(ctx, req, stageVersionUsage)
 
-	if !reflect.DeepEqual(stageVersionUsage.Status, originalStageVersionUsage.Status) {
-		if patchError := r.Client.Status().Patch(ctx, stageVersionUsage, patch); patchError != nil {
-			patchErrorMessage := "unable to update stageVersionUsage status"
-
-			if err != nil {
-				reconcileError := fmt.Errorf("an error occurred while reconciling stageVersionUsage: %w", err)
-				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
-			}
-
-			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
-		}
-	}
-
-	return ctrl.Result{}, err
+	return ctrl.Result{}, pkgctrl.PatchStatusIfChanged(
+		ctx,
+		r.Client,
+		stageVersionUsage,
+		originalStageVersionUsage,
+		stageVersionUsage.Status,
+		originalStageVersionUsage.Status,
+		"unable to update stageVersionUsage status",
+		err,
+		"an error occurred while reconciling stageVersionUsage",
+	)
 }
 
 func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Context, req ctrl.Request, stageVersionUsage *star.StageVersionUsage) error {

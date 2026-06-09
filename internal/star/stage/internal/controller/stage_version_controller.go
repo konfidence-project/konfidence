@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
@@ -57,23 +56,19 @@ func (r *StageVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	originalStageVersion := stageVersion.DeepCopy()
-	patch := client.MergeFrom(originalStageVersion)
 	err := r.reconcileStageVersion(ctx, stageVersion)
 
-	if !reflect.DeepEqual(stageVersion.Status, originalStageVersion.Status) {
-		if patchError := r.Client.Status().Patch(ctx, stageVersion, patch); patchError != nil {
-			patchErrorMessage := "unable to update stageVersion status"
-
-			if err != nil {
-				reconcileError := fmt.Errorf("an error occurred while reconciling stageVersion: %w", err)
-				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
-			}
-
-			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
-		}
-	}
-
-	return ctrl.Result{}, err
+	return ctrl.Result{}, pkgctrl.PatchStatusIfChanged(
+		ctx,
+		r.Client,
+		stageVersion,
+		originalStageVersion,
+		stageVersion.Status,
+		originalStageVersion.Status,
+		"unable to update stageVersion status",
+		err,
+		"an error occurred while reconciling stageVersion",
+	)
 }
 
 func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stageVersion *star.StageVersion) error {
@@ -169,7 +164,7 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 	return nil
 }
 
-//nolint:dupl // TODO(konfidence-project#689): factor shared create-or-update boilerplate.
+//nolint:dupl // Mirrors child reconciliation in stage_controller.go; keeping explicit resource-specific flow is clearer than a generic helper.
 func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context, stageVersion *star.StageVersion) (*star.VectorDeployment, error) {
 	log := logf.FromContext(ctx)
 	vectorDeployment, err := r.constructVectorDeployment(stageVersion)
