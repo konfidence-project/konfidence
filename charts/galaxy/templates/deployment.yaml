@@ -35,7 +35,6 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
-            - operator
             - --controllers={{ .Values.controller.controllers }}
             - --leader-elect={{ .Values.controller.leaderElection }}
             - --lease-id={{ .Values.controller.leaseId }}
