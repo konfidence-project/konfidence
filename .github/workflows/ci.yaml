@@ -128,8 +128,7 @@ jobs:
       - test-galaxy
       - test-pkg
       - build
-      - apply-api-resource-schemas
-    if: always()
+    if: always() && github.event_name == 'pull_request'
     steps:
       - name: Fail if any job failed or cancelled
         env:
