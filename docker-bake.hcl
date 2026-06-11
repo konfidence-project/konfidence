@@ -7,7 +7,7 @@ variable "COMMIT_SHA" {
 }
 
 variable "REGISTRY" {
-  default = "ghcr.io/konfidence-project"
+  default = "ghcr.io"
 }
 
 group "default" {
@@ -19,8 +19,8 @@ target "star-operator" {
   dockerfile = "Dockerfile"
   platforms  = ["linux/amd64", "linux/arm64"]
   tags       = concat(
-    ["${REGISTRY}/star-operator:${TAG}"],
-    COMMIT_SHA != "" ? ["${REGISTRY}/star-operator:${COMMIT_SHA}"] : [],
+    ["${REGISTRY}/konfidence-project/star-operator:${TAG}"],
+    COMMIT_SHA != "" ? ["${REGISTRY}/konfidence-project/star-operator:${COMMIT_SHA}"] : [],
   )
   args       = { OPERATOR_NAME = "star" }
 }
@@ -30,8 +30,8 @@ target "galaxy-operator" {
   dockerfile = "Dockerfile"
   platforms  = ["linux/amd64", "linux/arm64"]
   tags       = concat(
-    ["${REGISTRY}/galaxy-operator:${TAG}"],
-    COMMIT_SHA != "" ? ["${REGISTRY}/galaxy-operator:${COMMIT_SHA}"] : [],
+    ["${REGISTRY}/konfidence-project/galaxy-operator:${TAG}"],
+    COMMIT_SHA != "" ? ["${REGISTRY}/konfidence-project/galaxy-operator:${COMMIT_SHA}"] : [],
   )
   args       = { OPERATOR_NAME = "galaxy" }
 }
