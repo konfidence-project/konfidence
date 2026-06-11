@@ -37,6 +37,8 @@ jobs:
     name: Build
     runs-on: konfidence-large
     needs: [test-star, test-galaxy, test-pkg] # TODO: add lint dependency back when linting is fixed
+    permissions:
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -57,15 +59,19 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Docker Bake
         uses: docker/bake-action@v6
         with:
           files: docker-bake.hcl
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          set: |
-            *.secrets=id=gh_token,env=GH_TOKEN
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
   ci-gate:
     name: CI Gate
