@@ -65,7 +65,7 @@ jobs:
           set: |
             *.secrets=id=gh_token,env=GH_TOKEN
         env:
-          GH_TOKEN: ${{ env.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
   ci-gate:
     name: CI Gate
