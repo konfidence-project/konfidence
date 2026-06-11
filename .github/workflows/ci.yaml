@@ -62,7 +62,10 @@ jobs:
         with:
           files: docker-bake.hcl
           push: true
-          github-token: ${{ secrets.GH_TOKEN }}
+          set: |
+            *.secrets=id=gh_token,env=GH_TOKEN
+        env:
+          GH_TOKEN: ${{ env.GH_TOKEN }}
 
   ci-gate:
     name: CI Gate
