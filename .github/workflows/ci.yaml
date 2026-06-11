@@ -38,6 +38,7 @@ jobs:
     runs-on: konfidence-large
     needs: [test-star, test-galaxy, test-pkg] # TODO: add lint dependency back when linting is fixed
     permissions:
+      contents: read
       packages: write
     steps:
       - name: Checkout code
