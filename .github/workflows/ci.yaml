@@ -61,7 +61,7 @@ jobs:
         uses: docker/bake-action@v6
         with:
           files: docker-bake.hcl
-          push: true
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           set: |
             *.secrets=id=gh_token,env=GH_TOKEN
         env:
