@@ -57,11 +57,12 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker Bake (build only)
+      - name: Docker Bake
         uses: docker/bake-action@v6
         with:
           files: docker-bake.hcl
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          github-token: ${{ secrets.GH_TOKEN }}
 
   ci-gate:
     name: CI Gate
