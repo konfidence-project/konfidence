@@ -36,7 +36,7 @@ jobs:
   build:
     name: Build
     runs-on: konfidence-large
-    needs: [test-star, test-galaxy, test-pkg] # TODO: add lint dependency back when linting is fixed
+    needs: [lint, test-star, test-galaxy, test-pkg]
     permissions:
       contents: read
       packages: write
