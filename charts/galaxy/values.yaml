@@ -34,6 +34,19 @@ controller:
   kcpEndpointSliceName: ""
   kubernetesHost: ""
   kubernetesPort: 0
+  # Mount a kubeconfig from an existing Secret and point the controller
+  # at it via the KUBECONFIG env var. Required when the controller must
+  # talk to a kcp workspace (e.g. when kcpEndpointSliceName is set): the
+  # kubeconfig must target the APIExport virtual workspace so the
+  # controller can resolve apis.kcp.io/v1alpha1 against kcp rather than
+  # the host cluster's API server.
+  #
+  # Leave secretName empty to fall back to in-cluster config (the pod's
+  # ServiceAccount), which only works in single-cluster mode.
+  kubeconfig:
+    secretName: ""
+    secretKey: kubeconfig
+    mountPath: /etc/kcp_kubeconfig
 
 nameOverride: ""
 fullnameOverride: ""
@@ -94,6 +107,13 @@ podLabels: {}
 
 env: []
 extraArgs: []
+
+# Extra volumes mounted onto the manager Pod, and the corresponding
+# mounts on the manager container. Use these for additional secrets,
+# CA bundles, or other files the controller needs at runtime. The
+# controller.kubeconfig block above is rendered in addition to these.
+volumes: []
+volumeMounts: []
 
 securityContext:
   runAsNonRoot: true

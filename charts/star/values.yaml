@@ -94,6 +94,12 @@ podLabels: {}
 env: []
 extraArgs: []
 
+# Extra volumes mounted onto the manager Pod, and the corresponding
+# mounts on the manager container. Use these for additional secrets,
+# CA bundles, or other files the controller needs at runtime.
+volumes: []
+volumeMounts: []
+
 securityContext:
   runAsNonRoot: true
   runAsUser: 65532
