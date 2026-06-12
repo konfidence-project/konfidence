@@ -52,9 +52,26 @@ spec:
             {{- with .Values.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- with .Values.env }}
+          {{- if or .Values.env .Values.controller.kubeconfig.secretName }}
           env:
+            {{- if .Values.controller.kubeconfig.secretName }}
+            - name: KUBECONFIG
+              value: {{ printf "%s/%s" .Values.controller.kubeconfig.mountPath .Values.controller.kubeconfig.secretKey | quote }}
+            {{- end }}
+            {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- if or .Values.volumeMounts .Values.controller.kubeconfig.secretName }}
+          volumeMounts:
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if .Values.controller.kubeconfig.secretName }}
+            - name: kcp-kubeconfig
+              mountPath: {{ .Values.controller.kubeconfig.mountPath }}
+              readOnly: true
+            {{- end }}
           {{- end }}
           ports:
             - name: health
@@ -81,6 +98,17 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+      {{- if or .Values.volumes .Values.controller.kubeconfig.secretName }}
+      volumes:
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.controller.kubeconfig.secretName }}
+        - name: kcp-kubeconfig
+          secret:
+            secretName: {{ .Values.controller.kubeconfig.secretName }}
+        {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
