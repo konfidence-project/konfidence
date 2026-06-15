@@ -282,7 +282,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _string_ | Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",<br />"cloud.konfidence.flux.kustomize", or any custom deployer type). Deployers implement their own interpretation<br />of the artifact's contents. |  |  |
+| `type` _string_ | Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",<br />or any custom deployer type). Deployers implement their own interpretation<br />of the artifact's contents. |  |  |
 | `allowReuse` _boolean_ | AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.<br />Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific<br />runtime context. |  |  |
 
 

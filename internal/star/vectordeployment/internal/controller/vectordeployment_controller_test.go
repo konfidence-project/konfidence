@@ -156,7 +156,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ocmName,
 				Namespace: testNamespace,
-				Labels:    map[string]string{"app.kubernetes.io/name": "crds", "app.kubernetes.io/managed-by": "kustomize"},
+				Labels:    map[string]string{"app.kubernetes.io/name": "crds"},
 			},
 			Spec: star.VectorDeploymentSpec{
 				Vector: vectorReference,

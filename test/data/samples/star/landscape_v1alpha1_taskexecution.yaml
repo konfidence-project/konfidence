@@ -3,7 +3,6 @@ kind: TaskExecution
 metadata:
   labels:
     app.kubernetes.io/name: crds
-    app.kubernetes.io/managed-by: kustomize
   name: taskexecution-sample
 spec:
   name: service2-task-1

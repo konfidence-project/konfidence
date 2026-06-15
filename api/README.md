@@ -25,7 +25,7 @@ api/
 1. Implement your changes in the Go types of your module, e.g. `api/star/v1alpha1/stage_types.go`.
 Make sure to follow the [kubebuilder conventions](https://book.kubebuilder.io/reference/markers/crd-validation.html) for defining CRD fields validation.
 Always add a comment to each field/struct to describe its purpose and to generate meaningful documentation.
-2. Update the examples for the CRDs that you changed, e.g. `api/star/v1alpha1/config/samples/stage.yaml`.
+2. Update the validation samples for the CRDs that you changed, e.g. `test/data/samples/star/landscape_v1alpha1_stageversion.yaml`.
 3. Run `make all` to update the generated code and run schema validations.
 4. Commit and push your changes.
 
@@ -33,11 +33,13 @@ Always add a comment to each field/struct to describe its purpose and to generat
 
 ### Installation
 
-Apply the CRDs to your Kubernetes cluster using kustomize:
+Apply the CRDs to your Kubernetes cluster using the Helm charts:
 ```bash
-kubectl apply -f api/star/config/release
-kubectl apply -f api/galaxy/config/release
+helm upgrade --install star charts/star --set controller.install=false --set crd.keep=false
+helm upgrade --install galaxy charts/galaxy --set controller.install=false --set crd.keep=false
 ```
+
+The generated CRD manifests are maintained in the chart templates under `charts/star/templates/crds` and `charts/galaxy/templates/crds`.
 
 ### Integration with Kubebuilder Projects
 
@@ -68,18 +70,7 @@ manifests: controller-gen ## Generate ClusterRole and CustomResourceDefinition o
 	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/konfidence/api/galaxy/..." output:crd:artifacts:config=config/crd/galaxy
 ```
 
-This will:
-- Generate your project's own CRDs and RBAC in `config/crd/bases/`
-- Generate Konfidence Star CRDs in `config/crd/star/`
-- Generate Konfidence Galaxy CRDs in `config/crd/galaxy/`
-
-Then reference them in your `config/default/kustomization.yaml`:
-```yaml
-resources:
-- ../crd/bases
-- ../crd/star
-- ../crd/galaxy
-```
+This will generate your project's own CRDs and RBAC in `config/crd/bases/`, plus optional local copies of the Konfidence Star and Galaxy CRDs in `config/crd/star/` and `config/crd/galaxy/`.
 
 ### Development
 
@@ -88,6 +79,7 @@ resources:
 make all          # Generate manifests, code, format, lint, validate, and docs
 make manifests    # Generate CRD manifests only
 make generate     # Generate Go code (deepcopy, etc.)
+make api          # Generate CRDs, code, docs, and schemas
 ```
 
 #### Validation and quality
@@ -99,7 +91,8 @@ make lint         # Run golangci-lint
 
 #### Documentation
 ```bash
-make docs         # Generate CRD reference documentation
+make docs-star    # Generate Star CRD reference documentation
+make docs-galaxy  # Generate Galaxy CRD reference documentation
 ```
 
 #### Setup Git hooks

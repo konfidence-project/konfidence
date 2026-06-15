@@ -20,8 +20,8 @@ const (
 
 	// LandscapeNameEnvVar is the name of the environment variable that
 	// holds the human-readable name of the local (Star) cluster (star name).
-	// It is injected via a patch on the Flux Kustomization CR in the per-cluster
-	// GitOps overlay and must not be set in the base deployment manifest.
+	// It is injected by the per-cluster GitOps configuration and must not be set
+	// in the base deployment manifest.
 	LandscapeNameEnvVar = "LANDSCAPE_NAME"
 )
 
@@ -66,8 +66,7 @@ func FromSecret(c client.Client, namespace string) (*rest.Config, error) {
 
 // LandscapeName returns the human-readable name of the local (Star) cluster.
 // It reads the value from the LANDSCAPE_NAME environment variable, which is
-// expected to be injected via a patch on the Flux Kustomization CR in the
-// per-cluster GitOps overlay.
+// expected to be injected by the per-cluster GitOps configuration.
 // Returns an empty string when the variable is not set.
 func LandscapeName() string {
 	return os.Getenv(LandscapeNameEnvVar)

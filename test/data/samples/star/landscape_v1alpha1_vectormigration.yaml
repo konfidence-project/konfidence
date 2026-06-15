@@ -3,7 +3,6 @@ kind: VectorMigration
 metadata:
   labels:
     app.kubernetes.io/name: crds
-    app.kubernetes.io/managed-by: kustomize
   name: vectormigration-dev-985434
 spec:
   stageVersion: stageversion-dev-475124

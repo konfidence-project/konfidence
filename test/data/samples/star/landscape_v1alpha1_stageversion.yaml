@@ -3,7 +3,6 @@ kind: StageVersion
 metadata:
   labels:
     app.kubernetes.io/name: crds
-    app.kubernetes.io/managed-by: kustomize
   name: stageversion-dev-475124
   ownerReferences:
     - apiVersion: star.konfidence.cloud/v1alpha1

@@ -3,7 +3,6 @@ kind: VectorActivation
 metadata:
   labels:
     app.kubernetes.io/name: crds
-    app.kubernetes.io/managed-by: kustomize
   name: vectoractivation-sample
   ownerReferences:
     - apiVersion: star.konfidence.cloud/v1alpha1
