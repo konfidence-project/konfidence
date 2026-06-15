@@ -60,7 +60,7 @@ help: ## Display this help.
 manifests: hermit manifests-star manifests-galaxy ## Generate CRDs and RBAC manifests for all operators.
 
 .PHONY: manifests-star
-manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator.
+manifests-star: hermit manifests-galaxy ## Generate CRDs and RBAC manifests for the star operator.
 	@echo "Generating manifests for star..."
 	@mkdir -p test/data/crds/star charts/star/templates/crds
 	$(CONTROLLER_GEN) rbac:roleName=star-manager crd webhook \
@@ -69,6 +69,7 @@ manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator
 	for f in test/data/crds/star/*.yaml; do \
 		charts/patch-crd.sh star "$$f" "charts/star/templates/crds/$$(basename $$f)"; \
 	done
+	charts/patch-crd.sh star "test/data/crds/galaxy/galaxy.konfidence.cloud_stagesyncs.yaml" "charts/star/templates/crds/galaxy.konfidence.cloud_stagesyncs.yaml"
 	$(HELM_DOCS) -c charts/star > charts/star/README.md
 
 .PHONY: manifests-galaxy
