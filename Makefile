@@ -23,6 +23,13 @@ export PATH := $(shell pwd)/bin:$(PATH)
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 
+STAR_SAMPLE_DIR ?= test/data/samples/star
+GALAXY_SAMPLE_DIR ?= test/data/samples/galaxy
+STAR_CRD_DIR ?= test/data/crds/star
+GALAXY_CRD_DIR ?= test/data/crds/galaxy
+STAR_SCHEMA_DIR ?= $(REPO_ROOT)/.tmp/schemas/star
+GALAXY_SCHEMA_DIR ?= $(REPO_ROOT)/.tmp/schemas/galaxy
+
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
 
@@ -34,7 +41,6 @@ $(LOCALBIN):
 ## Tool Binaries
 KUBECTL        ?= kubectl
 KIND           ?= kind
-KUSTOMIZE      ?= kustomize
 CONTROLLER_GEN ?= controller-gen
 ENVTEST        ?= setup-envtest
 GOLANGCI_LINT   = golangci-lint
@@ -62,11 +68,11 @@ manifests: hermit manifests-star manifests-galaxy ## Generate CRDs and RBAC mani
 .PHONY: manifests-star
 manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator.
 	@echo "Generating manifests for star..."
-	@mkdir -p test/data/crds/star charts/star/templates/crds
+	@mkdir -p $(STAR_CRD_DIR) charts/star/templates/crds
 	$(CONTROLLER_GEN) rbac:roleName=star-manager crd webhook \
 		paths="./internal/star/..." paths="./api/star/..." \
-		output:crd:artifacts:config=test/data/crds/star
-	for f in test/data/crds/star/*.yaml; do \
+		output:crd:artifacts:config=$(STAR_CRD_DIR)
+	for f in $(STAR_CRD_DIR)/*.yaml; do \
 		charts/patch-crd.sh star "$$f" "charts/star/templates/crds/$$(basename $$f)"; \
 	done
 	$(HELM_DOCS) -c charts/star > charts/star/README.md
@@ -74,11 +80,11 @@ manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator
 .PHONY: manifests-galaxy
 manifests-galaxy: hermit ## Generate CRDs and RBAC manifests for the galaxy operator.
 	@echo "Generating manifests for galaxy..."
-	@mkdir -p test/data/crds/galaxy charts/galaxy/templates/crds
+	@mkdir -p $(GALAXY_CRD_DIR) charts/galaxy/templates/crds
 	$(CONTROLLER_GEN) rbac:roleName=galaxy-manager crd webhook \
 		paths="./internal/galaxy/..." paths="./api/galaxy/..." \
-		output:crd:artifacts:config=test/data/crds/galaxy
-	for f in test/data/crds/galaxy/*.yaml; do \
+		output:crd:artifacts:config=$(GALAXY_CRD_DIR)
+	for f in $(GALAXY_CRD_DIR)/*.yaml; do \
 		charts/patch-crd.sh galaxy "$$f" "charts/galaxy/templates/crds/$$(basename $$f)"; \
 	done
 	$(HELM_DOCS) -c charts/galaxy > charts/galaxy/README.md
@@ -160,42 +166,47 @@ docs-galaxy: hermit ## Generate CRD reference documentation for the galaxy API.
 	fi
 
 .PHONY: schemas-star
-schemas-star: hermit ## Extract JSON schemas for each star CRD version.
-	@mkdir -p api/star/config/schemas
-	@for crd in test/data/crds/star/*.yaml; do \
+schemas-star: hermit manifests-star ## Extract JSON schemas for each star CRD version.
+	@rm -rf $(STAR_SCHEMA_DIR)
+	@mkdir -p $(STAR_SCHEMA_DIR)
+	@for crd in $(STAR_CRD_DIR)/*.yaml; do \
 		crd_kind=$$(yq ".spec.names.kind" $$crd | tr '[:upper:]' '[:lower:]'); \
 		crd_group="$$(yq ".spec.group" $$crd)"; \
 		for ver in $$(yq -r '.spec.versions[].name' $$crd); do \
 			yq -o=json ".spec.versions[] | select(.name == \"$$ver\") | .schema.openAPIV3Schema" $$crd \
-				> "api/star/config/schemas/$${crd_group}_$${crd_kind}_$${ver}.json"; \
+				> "$(STAR_SCHEMA_DIR)/$${crd_group}_$${crd_kind}_$${ver}.json"; \
 		done; \
 	done
 
 .PHONY: schemas-galaxy
-schemas-galaxy: hermit ## Extract JSON schemas for each galaxy CRD version.
-	@mkdir -p api/galaxy/config/schemas
-	@for crd in test/data/crds/galaxy/*.yaml; do \
+schemas-galaxy: hermit manifests-galaxy ## Extract JSON schemas for each galaxy CRD version.
+	@rm -rf $(GALAXY_SCHEMA_DIR)
+	@mkdir -p $(GALAXY_SCHEMA_DIR)
+	@for crd in $(GALAXY_CRD_DIR)/*.yaml; do \
 		crd_kind=$$(yq ".spec.names.kind" $$crd | tr '[:upper:]' '[:lower:]'); \
 		crd_group="$$(yq ".spec.group" $$crd)"; \
 		for ver in $$(yq -r '.spec.versions[].name' $$crd); do \
 			yq -o=json ".spec.versions[] | select(.name == \"$$ver\") | .schema.openAPIV3Schema" $$crd \
-				> "api/galaxy/config/schemas/$${crd_group}_$${crd_kind}_$${ver}.json"; \
+				> "$(GALAXY_SCHEMA_DIR)/$${crd_group}_$${crd_kind}_$${ver}.json"; \
 		done; \
 	done
+
+.PHONY: validate
+validate: validate-star validate-galaxy ## Validate all sample resources against their JSON schemas.
 
 .PHONY: validate-star
 validate-star: schemas-star ## Validate star sample resources against their JSON schemas.
 	@kubeconform -summary \
 		-schema-location default \
-		-schema-location "api/star/config/schemas/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
-		api/star/config/samples
+		-schema-location "$(STAR_SCHEMA_DIR)/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+		$(STAR_SAMPLE_DIR)
 
 .PHONY: validate-galaxy
 validate-galaxy: schemas-galaxy ## Validate galaxy sample resources against their JSON schemas.
 	@kubeconform -summary \
 		-schema-location default \
-		-schema-location "api/galaxy/config/schemas/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
-		api/galaxy/config/samples
+		-schema-location "$(GALAXY_SCHEMA_DIR)/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+		$(GALAXY_SAMPLE_DIR)
 
 .PHONY: helm-lint
 helm-lint: helm-lint-star helm-lint-galaxy ## Run helm lint against all charts.
@@ -218,12 +229,12 @@ test: hermit test-star test-galaxy test-pkg ## Run all unit tests.
 
 .PHONY: test-star
 test-star: hermit manifests generate-star fmt vet setup-envtest ginkgo ## Run unit tests for the star operator only.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		$(GINKGO) --coverprofile=cover-star.out -v ./internal/star/...
 
 .PHONY: test-galaxy
 test-galaxy: hermit manifests generate-galaxy fmt vet setup-envtest ginkgo ## Run unit tests for the galaxy operator only.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		$(GINKGO) --coverprofile=cover-galaxy.out -v ./internal/galaxy/...
 
 .PHONY: test-pkg
@@ -323,24 +334,28 @@ deploy: deploy-star deploy-galaxy ## Deploy all operators to the cluster specifi
 
 .PHONY: deploy-star
 deploy-star: hermit manifests-star ## Deploy the star operator to the cluster specified in ~/.kube/config.
-	cd config/star && $(KUSTOMIZE) edit set image konfidence-project/star-operator=$(STAR_IMAGE)
-	$(KUSTOMIZE) build config/star | $(KUBECTL) apply -f -
+	$(HELM) upgrade --install star charts/star \
+		--set image.repository=$(REGISTRY)/star-operator \
+		--set image.tag=$(TAG) \
+		--set crd.keep=false
 
 .PHONY: deploy-galaxy
 deploy-galaxy: hermit manifests-galaxy ## Deploy the galaxy operator to the cluster specified in ~/.kube/config.
-	cd config/galaxy && $(KUSTOMIZE) edit set image konfidence-project/galaxy-operator=$(GALAXY_IMAGE)
-	$(KUSTOMIZE) build config/galaxy | $(KUBECTL) apply -f -
+	$(HELM) upgrade --install galaxy charts/galaxy \
+		--set image.repository=$(REGISTRY)/galaxy-operator \
+		--set image.tag=$(TAG) \
+		--set crd.keep=false
 
 .PHONY: undeploy
 undeploy: undeploy-star undeploy-galaxy ## Undeploy all operators. Use ignore-not-found=true to suppress errors.
 
 .PHONY: undeploy-star
 undeploy-star: hermit ## Undeploy the star operator. Use ignore-not-found=true to suppress errors.
-	$(KUSTOMIZE) build config/star | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(HELM) uninstall star --ignore-not-found
 
 .PHONY: undeploy-galaxy
 undeploy-galaxy: hermit ## Undeploy the galaxy operator. Use ignore-not-found=true to suppress errors.
-	$(KUSTOMIZE) build config/galaxy | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(HELM) uninstall galaxy --ignore-not-found
 
 ##@ Developer Setup
 

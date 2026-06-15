@@ -3,7 +3,6 @@ kind: ActivationTaskExecution
 metadata:
   labels:
     app.kubernetes.io/name: crds
-    app.kubernetes.io/managed-by: kustomize
   name: activationtaskexecution-sample
 spec:
   type: k8s-job
@@ -11,4 +10,3 @@ spec:
     "template": "refine-me"
   }
   vectorActivation: "activation-1"
-

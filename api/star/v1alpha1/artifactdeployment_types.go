@@ -137,7 +137,7 @@ type ArtifactDeployment struct {
 // for handling it.
 type ArtifactManifest struct {
 	// Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",
-	// "cloud.konfidence.flux.kustomize", or any custom deployer type). Deployers implement their own interpretation
+	// or any custom deployer type). Deployers implement their own interpretation
 	// of the artifact's contents.
 	Type string `json:"type"`
 

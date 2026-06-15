@@ -44,5 +44,8 @@ bin/ginkgo
 # Ignore Helm chart packages
 *.tgz
 
-# Generated plain CRDs used by envtest suites
+# Generated plain CRDs used by envtest suites and sample validation
 test/data/crds/
+
+# Generated validation schemas
+.tmp/

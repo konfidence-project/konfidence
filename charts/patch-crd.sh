@@ -7,9 +7,9 @@
 #
 # Usage: patch-crd.sh <chart-name> <src.yaml> <dst.yaml>
 #
-# Example (regenerate galaxy CRDs after `make manifests`):
-#   for f in api/galaxy/config/bases/crd/*.yaml; do
-#     charts/patch-crd.sh galaxy "$f" "charts/galaxy/templates/crds/$(basename "$f")"
+# Example (patch generated galaxy CRDs in place):
+#   for f in charts/galaxy/templates/crds/*.yaml; do
+#     charts/patch-crd.sh galaxy "$f" "$f"
 #   done
 
 set -euo pipefail
