@@ -27,7 +27,7 @@ Kubernetes: `>=1.27.0-0`
 | affinity | object | `{}` |  |
 | containerSecurityContext.allowPrivilegeEscalation | bool | `false` |  |
 | containerSecurityContext.capabilities.drop[0] | string | `"ALL"` |  |
-| containerSecurityContext.readOnlyRootFilesystem | bool | `true` |  |
+| containerSecurityContext.readOnlyRootFilesystem | bool | `false` |  |
 | controller.controllers | string | `"*"` |  |
 | controller.healthProbeBindAddress | string | `":8081"` |  |
 | controller.install | bool | `true` |  |
