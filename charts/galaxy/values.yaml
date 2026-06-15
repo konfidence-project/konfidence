@@ -123,7 +123,7 @@ securityContext:
 
 containerSecurityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
+  readOnlyRootFilesystem: false # files are written to /tmp by the OCM transfer; enable only if no transfers are performed
   capabilities:
     drop: [ALL]
 
