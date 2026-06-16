@@ -34,6 +34,6 @@ type NoopCredentialResolver struct{}
 //
 // The identity parameter is ignored. All credential lookups return no credentials,
 // which causes the OCI client to attempt anonymous access to repositories.
-func (n NoopCredentialResolver) Resolve(ctx context.Context, identity runtime.Identity) (map[string]string, error) {
+func (n NoopCredentialResolver) Resolve(_ context.Context, _ runtime.Identity) (runtime.Typed, error) {
 	return nil, nil
 }

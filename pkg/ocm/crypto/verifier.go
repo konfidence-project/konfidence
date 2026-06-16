@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
+	credv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
 	ocm "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	rsahandler "ocm.software/open-component-model/bindings/go/rsa/signing/handler"
 	"ocm.software/open-component-model/bindings/go/runtime"
@@ -84,18 +85,22 @@ func (o *RSAVerifier) Verify(ctx context.Context, descs ...*ocm.Descriptor) erro
 			return fmt.Errorf("get credentials from provider: %w", err)
 		}
 	}
+	var typedCreds runtime.Typed
+	if creds != nil {
+		typedCreds = &credv1.DirectCredentials{Properties: creds}
+	}
 	if len(descs) == 1 {
-		return o.verify(ctx, creds, descs[0])
+		return o.verify(ctx, typedCreds, descs[0])
 	}
 	verifierPool, ctx2 := errgroup.WithContext(ctx)
 	verifierPool.SetLimit(min(sysruntime.GOMAXPROCS(0), len(descs))) // no oversubscription on CPU bound verification tasks
 	for _, t := range descs {
-		verifierPool.Go(func() error { return o.verify(ctx2, creds, t) })
+		verifierPool.Go(func() error { return o.verify(ctx2, typedCreds, t) })
 	}
 	return verifierPool.Wait()
 }
 
-func (o *RSAVerifier) verify(ctx context.Context, creds map[string]string, desc *ocm.Descriptor) error {
+func (o *RSAVerifier) verify(ctx context.Context, creds runtime.Typed, desc *ocm.Descriptor) error {
 	if err := isSafelyDigestible(&desc.Component); err != nil {
 		return fmt.Errorf("ocm descriptor verification failed: descriptor is not safely digestible: %w", err)
 	}

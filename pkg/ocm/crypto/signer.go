@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
+	credv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
 	ocmdescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	rsahandler "ocm.software/open-component-model/bindings/go/rsa/signing/handler"
 	rsav1alpha1 "ocm.software/open-component-model/bindings/go/rsa/signing/v1alpha1"
@@ -95,10 +96,11 @@ func (s *RSASigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) er
 	if creds == nil {
 		return fmt.Errorf("signing credentials are not available")
 	}
+	typedCreds := &credv1.DirectCredentials{Properties: creds}
 	// results is an all or nothing buffer for the signing results
 	results := make([]ocmdescriptor.Signature, len(s.targetSignatures))
 	if len(s.targetSignatures) == 1 {
-		if err := s.sign(ctx, results, 0, creds, dig, s.targetSignatures[0]); err != nil {
+		if err := s.sign(ctx, results, 0, typedCreds, dig, s.targetSignatures[0]); err != nil {
 			return err
 		}
 	} else {
@@ -106,7 +108,7 @@ func (s *RSASigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) er
 		// no oversubscription on CPU bound signing tasks
 		signerPool.SetLimit(min(sysruntime.GOMAXPROCS(0), len(s.targetSignatures)))
 		for idx, sig := range s.targetSignatures {
-			signerPool.Go(func() error { return s.sign(ctx2, results, idx, creds, dig, sig) })
+			signerPool.Go(func() error { return s.sign(ctx2, results, idx, typedCreds, dig, sig) })
 		}
 		if err := signerPool.Wait(); err != nil {
 			return fmt.Errorf("signing failed: %w", err)
@@ -120,7 +122,7 @@ func (s *RSASigner) sign(
 	ctx context.Context,
 	results []ocmdescriptor.Signature,
 	idx int,
-	creds map[string]string,
+	creds runtime.Typed,
 	dig *ocmdescriptor.Digest,
 	signatureName string) error {
 	signatureInfo, err := s.rsaSigner.Sign(ctx, *dig, s.rsaConfig, creds)
