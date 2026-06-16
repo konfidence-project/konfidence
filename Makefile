@@ -68,25 +68,29 @@ manifests: hermit manifests-star manifests-galaxy ## Generate CRDs and RBAC mani
 .PHONY: manifests-star
 manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator.
 	@echo "Generating manifests for star..."
-	@mkdir -p $(STAR_CRD_DIR) charts/star/templates/crds
+	@mkdir -p $(STAR_CRD_DIR) charts/star/templates/crds config/rbac/star
 	$(CONTROLLER_GEN) rbac:roleName=star-manager crd webhook \
 		paths="./internal/star/..." paths="./api/star/..." \
-		output:crd:artifacts:config=$(STAR_CRD_DIR)
+		output:crd:artifacts:config=$(STAR_CRD_DIR) \
+		output:rbac:artifacts:config=config/rbac/star
 	for f in $(STAR_CRD_DIR)/*.yaml; do \
 		charts/patch-crd.sh star "$$f" "charts/star/templates/crds/$$(basename $$f)"; \
 	done
+	charts/patch-rbac.sh star "config/rbac/star/role.yaml" "charts/star/templates/role.yaml"
 	$(HELM_DOCS) -c charts/star > charts/star/README.md
 
 .PHONY: manifests-galaxy
 manifests-galaxy: hermit ## Generate CRDs and RBAC manifests for the galaxy operator.
 	@echo "Generating manifests for galaxy..."
-	@mkdir -p $(GALAXY_CRD_DIR) charts/galaxy/templates/crds
+	@mkdir -p $(GALAXY_CRD_DIR) charts/galaxy/templates/crds config/rbac/galaxy
 	$(CONTROLLER_GEN) rbac:roleName=galaxy-manager crd webhook \
 		paths="./internal/galaxy/..." paths="./api/galaxy/..." \
-		output:crd:artifacts:config=$(GALAXY_CRD_DIR)
+		output:crd:artifacts:config=$(GALAXY_CRD_DIR) \
+		output:rbac:artifacts:config=config/rbac/galaxy
 	for f in $(GALAXY_CRD_DIR)/*.yaml; do \
 		charts/patch-crd.sh galaxy "$$f" "charts/galaxy/templates/crds/$$(basename $$f)"; \
 	done
+	charts/patch-rbac.sh galaxy "config/rbac/galaxy/role.yaml" "charts/galaxy/templates/role.yaml"
 	$(HELM_DOCS) -c charts/galaxy > charts/galaxy/README.md
 
 .PHONY: generate

@@ -1,8 +1,11 @@
+{{- if .Values.controller.install -}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: galaxy-manager
+  labels:
+{{- include "galaxy.labels" . | nindent 4 }}
+  name: {{ include "galaxy.fullname" . }}-manager
 rules:
 - apiGroups:
   - ""
@@ -13,6 +16,33 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - events.k8s.io
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
 - apiGroups:
   - galaxy.konfidence.cloud
   resources:
@@ -48,3 +78,4 @@ rules:
   - get
   - list
   - watch
+{{- end }}
