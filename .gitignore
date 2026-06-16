@@ -49,3 +49,6 @@ test/data/crds/
 
 # Generated validation schemas
 .tmp/
+
+# Generated ClusterRole manifests fed to charts/patch-rbac.sh
+config/rbac/
