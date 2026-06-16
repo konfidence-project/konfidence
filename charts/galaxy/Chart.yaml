@@ -2,8 +2,8 @@ apiVersion: v2
 name: galaxy
 description: Konfidence Galaxy controllers (with bundled CRDs).
 type: application
-version: 0.1.2
-appVersion: "0.1.2"
+version: 0.0.0
+appVersion: "0.0.0"
 kubeVersion: ">=1.27.0-0"
 keywords:
   - konfidence
