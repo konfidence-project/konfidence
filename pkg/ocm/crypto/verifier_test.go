@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto/internal/mocks"
 	"go.uber.org/mock/gomock"
+	credv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
 	"ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/signing"
 )
@@ -20,6 +21,7 @@ var _ = Describe("RSAVerifier", func() {
 		log = logr.Discard()
 		// mock credentials to verify they are passed through
 		creds        = map[string]string{"public_key_pem": "test-cert"}
+		typedCreds   = &credv1.DirectCredentials{Properties: creds}
 		verifierMock *mocks.MockVerifier
 		providerMock *mocks.MockRSACredentialProvider
 		mockCtrl     *gomock.Controller
@@ -53,7 +55,7 @@ var _ = Describe("RSAVerifier", func() {
 		}
 		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
 			Return(nil)
 		Expect(verifier.Verify(context.Background(), desc)).To(Succeed())
 	})
@@ -79,9 +81,9 @@ var _ = Describe("RSAVerifier", func() {
 		}
 		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
 			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), typedCreds).
 			Return(nil)
 		Expect(verifier.Verify(context.Background(), desc)).To(Succeed())
 	})
@@ -107,9 +109,9 @@ var _ = Describe("RSAVerifier", func() {
 		}
 		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc1.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc1.Signatures[0], gomock.Nil(), typedCreds).
 			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), typedCreds).
 			Return(nil)
 		Expect(verifier.Verify(context.Background(), desc1, desc2)).To(Succeed())
 	})
@@ -143,7 +145,7 @@ var _ = Describe("RSAVerifier", func() {
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
 		for _, desc := range []*runtime.Descriptor{desc1, desc2} {
 			for _, sig := range desc.Signatures {
-				verifierMock.EXPECT().Verify(gomock.Any(), sig, gomock.Nil(), creds).
+				verifierMock.EXPECT().Verify(gomock.Any(), sig, gomock.Nil(), typedCreds).
 					Return(nil)
 			}
 		}
@@ -188,7 +190,7 @@ var _ = Describe("RSAVerifier", func() {
 		}
 		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), typedCreds).
 			Return(nil)
 		Expect(verifier.Verify(context.Background(), desc1, desc2)).To(MatchError(
 			"ocm descriptor verification failed: digest verification failed for signature with name \"sig1\": " +
@@ -213,7 +215,7 @@ var _ = Describe("RSAVerifier", func() {
 		}
 		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
 			Return(fmt.Errorf("signature verification failed"))
 		Expect(verifier.Verify(context.Background(), desc)).
 			To(MatchError(
@@ -286,9 +288,9 @@ var _ = Describe("RSAVerifier", func() {
 		}
 		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc1.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc1.Signatures[0], gomock.Nil(), typedCreds).
 			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), typedCreds).
 			Return(fmt.Errorf("signature verification failed"))
 		err := verifier.Verify(context.Background(), desc1, desc2)
 		Expect(err).To(HaveOccurred())
@@ -316,9 +318,9 @@ var _ = Describe("RSAVerifier", func() {
 		}
 		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
 			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), typedCreds).
 			Return(fmt.Errorf("signature verification failed"))
 		err := verifier.Verify(context.Background(), desc)
 		Expect(err).To(HaveOccurred())
@@ -347,9 +349,9 @@ var _ = Describe("RSAVerifier", func() {
 		}
 		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
 			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), creds).
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), typedCreds).
 			Return(nil)
 		Expect(verifier.Verify(context.Background(), desc)).To(Succeed())
 	})

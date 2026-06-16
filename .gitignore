@@ -52,3 +52,9 @@ test/data/crds/
 
 # Generated ClusterRole manifests fed to charts/patch-clusterrole.sh
 config/rbac/
+
+### Local development ###
+local/
+
+.DS_Store
+

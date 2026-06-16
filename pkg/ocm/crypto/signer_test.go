@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto/internal/mocks"
 	"go.uber.org/mock/gomock"
+	credv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
 	"ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	rsav1alpha1 "ocm.software/open-component-model/bindings/go/rsa/signing/v1alpha1"
 )
@@ -19,6 +20,7 @@ var _ = Describe("RSASigner", func() {
 	var (
 		log          = logr.Discard()
 		creds        = map[string]string{"public_key_pem": "test-cert", "private_key_pem": "test-key"}
+		typedCreds   = &credv1.DirectCredentials{Properties: creds}
 		digesterMock *mocks.MockDigester
 		signerMock   *mocks.MockSigner
 		providerMock *mocks.MockRSACredentialProvider
@@ -50,7 +52,7 @@ var _ = Describe("RSASigner", func() {
 		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).
 			Times(1).Return(&dig, nil)
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, creds).Times(1).Return(sig, nil)
+		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(1).Return(sig, nil)
 		signer := &RSASigner{
 			log:              log,
 			rsaSigner:        signerMock,
@@ -83,7 +85,7 @@ var _ = Describe("RSASigner", func() {
 		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).
 			Times(1).Return(&dig, nil)
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, creds).Times(3).Return(sig, nil)
+		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(3).Return(sig, nil)
 		signer := &RSASigner{
 			log:              log,
 			rsaSigner:        signerMock,
@@ -129,7 +131,7 @@ var _ = Describe("RSASigner", func() {
 		}
 		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, creds).
+		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).
 			Times(2).
 			Return(runtime.SignatureInfo{}, fmt.Errorf("signing failed"))
 		signer := &RSASigner{
@@ -155,7 +157,7 @@ var _ = Describe("RSASigner", func() {
 		}
 		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, creds).
+		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).
 			Times(1).
 			Return(runtime.SignatureInfo{}, fmt.Errorf("signing failed"))
 		signer := &RSASigner{
@@ -199,13 +201,13 @@ var _ = Describe("RSASigner", func() {
 		}
 		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, creds).Times(1).
+		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(1).
 			Return(runtime.SignatureInfo{
 				Algorithm: string(rsav1alpha1.AlgorithmRSASSAPSS),
 				Value:     "sig_data",
 				MediaType: string(rsav1alpha1.SignatureEncodingPolicyPEM),
 			}, nil)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, creds).Times(1).
+		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(1).
 			Return(runtime.SignatureInfo{}, fmt.Errorf("signing failed"))
 		signer := &RSASigner{
 			log:              log,
@@ -315,7 +317,7 @@ var _ = Describe("RSASigner", func() {
 		}
 		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, creds).Times(1).Return(sig, nil)
+		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(1).Return(sig, nil)
 		signer := &RSASigner{
 			log:              log,
 			rsaSigner:        signerMock,
@@ -348,7 +350,7 @@ var _ = Describe("RSASigner", func() {
 		}
 		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
 		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, creds).Times(2).Return(sig, nil)
+		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(2).Return(sig, nil)
 		signer := &RSASigner{
 			log:              log,
 			rsaSigner:        signerMock,

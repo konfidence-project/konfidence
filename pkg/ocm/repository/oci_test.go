@@ -14,6 +14,7 @@ import (
 	"github.com/konfidence-project/konfidence/pkg/ocm/repository/internal/mocks"
 	"go.uber.org/mock/gomock"
 	"ocm.software/open-component-model/bindings/go/credentials"
+	credv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ocispec "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
@@ -77,7 +78,7 @@ var _ = Describe("OciClient", func() {
 		var (
 			repoSpec *runtime.Unstructured
 			identity runtime.Identity
-			creds    map[string]string
+			creds    runtime.Typed
 		)
 
 		BeforeEach(func() {
@@ -87,7 +88,7 @@ var _ = Describe("OciClient", func() {
 				},
 			}
 			identity = runtime.Identity{"type": "ociRegistry", "hostname": "ghcr.io"}
-			creds = map[string]string{"username": "user", "password": "pass"}
+			creds = &credv1.DirectCredentials{Properties: map[string]string{"username": "user", "password": "pass"}}
 		})
 
 		Context("with specific version", func() {
@@ -302,7 +303,7 @@ var _ = Describe("OciClient", func() {
 		var (
 			repoSpec *runtime.Unstructured
 			identity runtime.Identity
-			creds    map[string]string
+			creds    runtime.Typed
 			desc     descruntime.Descriptor
 		)
 
@@ -313,7 +314,7 @@ var _ = Describe("OciClient", func() {
 				},
 			}
 			identity = runtime.Identity{"type": "ociRegistry", "hostname": "ghcr.io"}
-			creds = map[string]string{"username": "user", "password": "pass"}
+			creds = &credv1.DirectCredentials{Properties: map[string]string{"username": "user", "password": "pass"}}
 			desc = descruntime.Descriptor{
 				Component: descruntime.Component{
 					ComponentMeta: descruntime.ComponentMeta{
@@ -475,7 +476,7 @@ var _ = Describe("OciClient", func() {
 			sourceRepoSpec *runtime.Unstructured
 			targetRepoSpec *runtime.Unstructured
 			identity       runtime.Identity
-			creds          map[string]string
+			creds          runtime.Typed
 		)
 
 		BeforeEach(func() {
@@ -492,7 +493,7 @@ var _ = Describe("OciClient", func() {
 				},
 			}
 			identity = runtime.Identity{"type": "ociRegistry", "hostname": "ghcr.io"}
-			creds = map[string]string{"username": "user", "password": "pass"}
+			creds = &credv1.DirectCredentials{Properties: map[string]string{"username": "user", "password": "pass"}}
 		})
 
 		Context("repository resolution errors", func() {
@@ -776,7 +777,7 @@ var _ = Describe("OciClient", func() {
 		var (
 			repoSpec *runtime.Unstructured
 			identity runtime.Identity
-			creds    map[string]string
+			creds    runtime.Typed
 		)
 
 		BeforeEach(func() {
@@ -786,7 +787,7 @@ var _ = Describe("OciClient", func() {
 				},
 			}
 			identity = runtime.Identity{"type": "ociRegistry", "hostname": "ghcr.io"}
-			creds = map[string]string{"username": "user", "password": "pass"}
+			creds = &credv1.DirectCredentials{Properties: map[string]string{"username": "user", "password": "pass"}}
 		})
 
 		Context("reference and alias validation", func() {
@@ -991,7 +992,7 @@ var _ = Describe("OciClient", func() {
 		var (
 			repoSpec    *runtime.Unstructured
 			identity    runtime.Identity
-			creds       map[string]string
+			creds       runtime.Typed
 			ref         compref.Ref
 			resIdentity runtime.Identity
 		)
@@ -1003,7 +1004,7 @@ var _ = Describe("OciClient", func() {
 				},
 			}
 			identity = runtime.Identity{"type": "ociRegistry", "hostname": "ghcr.io"}
-			creds = map[string]string{"username": "user", "password": "pass"}
+			creds = &credv1.DirectCredentials{Properties: map[string]string{"username": "user", "password": "pass"}}
 			ref = compref.Ref{
 				Repository: repoSpec,
 				Component:  "github.com/acme/backend",
