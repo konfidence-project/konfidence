@@ -6,10 +6,10 @@
 # metadata block carries the chart labels, and whose document is wrapped
 # in a `controller.install` guard.
 #
-# Usage: patch-rbac.sh <chart-name> <src.yaml> <dst.yaml>
+# Usage: patch-clusterrole.sh <chart-name> <src.yaml> <dst.yaml>
 #
 # Example (regenerate the star ClusterRole after `make manifests-star`):
-#   charts/patch-rbac.sh star "config/rbac/star/role.yaml" \
+#   charts/patch-clusterrole.sh star "config/rbac/star/role.yaml" \
 #       "charts/star/templates/role.yaml"
 
 set -euo pipefail

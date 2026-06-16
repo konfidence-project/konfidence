@@ -76,7 +76,7 @@ manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator
 	for f in $(STAR_CRD_DIR)/*.yaml; do \
 		charts/patch-crd.sh star "$$f" "charts/star/templates/crds/$$(basename $$f)"; \
 	done
-	charts/patch-rbac.sh star "config/rbac/star/role.yaml" "charts/star/templates/clusterrole.yaml"
+	charts/patch-clusterrole.sh star "config/rbac/star/role.yaml" "charts/star/templates/clusterrole.yaml"
 	$(HELM_DOCS) -c charts/star > charts/star/README.md
 
 .PHONY: manifests-galaxy
@@ -90,7 +90,7 @@ manifests-galaxy: hermit ## Generate CRDs and RBAC manifests for the galaxy oper
 	for f in $(GALAXY_CRD_DIR)/*.yaml; do \
 		charts/patch-crd.sh galaxy "$$f" "charts/galaxy/templates/crds/$$(basename $$f)"; \
 	done
-	charts/patch-rbac.sh galaxy "config/rbac/galaxy/role.yaml" "charts/galaxy/templates/clusterrole.yaml"
+	charts/patch-clusterrole.sh galaxy "config/rbac/galaxy/role.yaml" "charts/galaxy/templates/clusterrole.yaml"
 	$(HELM_DOCS) -c charts/galaxy > charts/galaxy/README.md
 
 .PHONY: generate
