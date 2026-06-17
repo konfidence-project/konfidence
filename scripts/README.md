@@ -5,8 +5,8 @@ Developer scripts for the konfidence release process.
 ## `release.sh`
 
 Bumps the Helm chart versions, creates a conventional commit, tags the release,
-and pushes to origin. Also supports creating pre-release tags without touching
-the charts.
+and pushes to origin. Also supports creating pre-release tags with the same
+chart update + commit + tag + push flow.
 
 ### Prerequisites
 
@@ -24,7 +24,7 @@ scripts/release.sh patch            # 0.1.1 -> 0.1.2 — bug fix or non-function
 scripts/release.sh minor            # 0.1.1 -> 0.2.0 — new backwards-compatible feature
 scripts/release.sh major            # 0.1.1 -> 1.0.0 — breaking change
 
-# Pre-release tag — no Chart.yaml changes, no commit, just tags and pushes
+# Pre-release tag — updates Chart.yaml, commits, tags, and pushes
 scripts/release.sh tag 1.0.0-rc.1
 scripts/release.sh tag 0.2.0-beta.1
 
@@ -57,5 +57,9 @@ scripts/release.sh tag 1.0.0-rc.1 --dry-run
 1. Verifies the working tree is clean.
 2. Validates the tag matches `X.Y.Z-<suffix>` (e.g. `1.0.0-rc.1`).
    Bare `X.Y.Z` tags are reserved for `major|minor|patch` releases.
-3. Creates an annotated git tag on the current `HEAD` — no Chart.yaml changes, no commit.
-4. Runs `git push --tags`.
+3. Writes the pre-release version to both `version` and `appVersion` in:
+   - `charts/star/Chart.yaml`
+   - `charts/galaxy/Chart.yaml`
+4. Creates a commit: `chore(release): X.Y.Z-<suffix>`.
+5. Creates an annotated git tag `X.Y.Z-<suffix>` on that commit.
+6. Runs `git push` and `git push --tags`.

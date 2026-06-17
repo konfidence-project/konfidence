@@ -229,21 +229,25 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit test-star test-galaxy test-pkg ## Run all unit tests.
+test: hermit manifests generate fmt vet test-star test-galaxy test-pkg test-kden-cli ## Run all unit tests.
 
 .PHONY: test-star
-test-star: hermit manifests generate-star fmt vet setup-envtest ginkgo ## Run unit tests for the star operator only.
+test-star: hermit manifests setup-envtest ginkgo ## Run unit tests for the star operator only.
 	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		$(GINKGO) --coverprofile=cover-star.out -v ./internal/star/...
 
 .PHONY: test-galaxy
-test-galaxy: hermit manifests generate-galaxy fmt vet setup-envtest ginkgo ## Run unit tests for the galaxy operator only.
+test-galaxy: hermit manifests setup-envtest ginkgo ## Run unit tests for the galaxy operator only.
 	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		$(GINKGO) --coverprofile=cover-galaxy.out -v ./internal/galaxy/...
 
 .PHONY: test-pkg
-test-pkg: hermit fmt vet ginkgo ## Run unit tests for shared pkg packages.
+test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.
 	$(GINKGO) --coverprofile=cover-pkg.out -v ./pkg/...
+
+.PHONY: test-kden-cli
+test-kden-cli: hermit
+	go test ./cmd/kden/... ./internal/kden/...
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
@@ -260,15 +264,19 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet build-star build-galaxy ## Build all operator binaries.
+build: manifests generate fmt vet build-star build-galaxy build-kden-cli ## Build all operator binaries.
 
 .PHONY: build-star
 build-star: hermit ## Build the star operator binary.
-	go build -o bin/star ./cmd/star/main.go
+	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --id star -o bin/star
 
 .PHONY: build-galaxy
 build-galaxy: hermit ## Build the galaxy operator binary.
-	go build -o bin/galaxy ./cmd/galaxy/main.go
+	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --id galaxy -o bin/galaxy
+
+.PHONY: build-kden-cli
+build-kden-cli: hermit ## Build the kden cli binary.
+	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --id kden -o bin/kden
 
 .PHONY: run-star
 run-star: manifests-star generate-star fmt vet ## Run the star operator from your host.

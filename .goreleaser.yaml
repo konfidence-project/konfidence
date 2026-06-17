@@ -1,0 +1,154 @@
+version: 2
+
+project_name: konfidence
+
+retry:
+  # Set max retry count.
+  # Setting to 1 disables retries (single attempt).
+  #
+  # Default: 10
+  attempts: 5
+
+  # Set delay between retry
+  #
+  # Default: 10s
+  delay: 10s
+
+  # Default: 5m
+  max_delay: 3m
+
+snapshot:
+  version_template: '{{ .Env.GORELEASER_CURRENT_TAG }}'
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: star
+    binary: star
+    main: ./cmd/star
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: amd64
+    ldflags:
+      - -s -w -X github.com/konfidence-project/konfidence/pkg/build.Version={{.Version}} -X github.com/konfidence-project/konfidence/pkg/build.GitCommit={{.Commit}}
+
+  - id: galaxy
+    binary: galaxy
+    main: ./cmd/galaxy
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: amd64
+    ldflags:
+      - -s -w -X github.com/konfidence-project/konfidence/pkg/build.Version={{.Version}} -X github.com/konfidence-project/konfidence/pkg/build.GitCommit={{.Commit}}
+
+  - id: kden
+    binary: kden
+    main: ./cmd/kden
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: amd64
+    ldflags:
+      - -s -w -X github.com/konfidence-project/konfidence/cmd/version.version={{.Version}}
+
+archives:
+  - id: star
+    ids: [star]
+    formats: [none]
+
+  - id: galaxy
+    ids: [galaxy]
+    formats: [none]
+
+  - id: kden
+    ids: [kden]
+    formats: [tar.gz]
+    name_template: >-
+      kden-cli-
+      {{- .Os }}-
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+
+checksum:
+  name_template: checksums.txt
+
+dockers_v2:
+  - id: star-operator
+    ids: [star]
+    dockerfile: Dockerfile
+    images:
+      - ghcr.io/konfidence-project/star-operator
+    tags:
+      - "{{ .Version }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    build_args:
+      OPERATOR_NAME: star
+
+  - id: galaxy-operator
+    ids: [galaxy]
+    dockerfile: Dockerfile
+    images:
+      - ghcr.io/konfidence-project/galaxy-operator
+    tags:
+      - "{{ .Version }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    build_args:
+      OPERATOR_NAME: galaxy
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: "Features"
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "Bug Fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "Performance Improvements"
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: "Maintenance"
+      regexp: '^.*?chore(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: "Other Changes"
+      order: 999
+  filters:
+    exclude:
+      - '^.*?chore\(release\):.+$'
+      - "^docs:"
+      - "^test:"
+      - '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      - '^.*?build(\([[:word:]]+\))??!?:.+$'
+      - '^.*?style(\([[:word:]]+\))??!?:.+$'
+      - '^.*?ci(\([[:word:]]+\))??!?:.+$'
