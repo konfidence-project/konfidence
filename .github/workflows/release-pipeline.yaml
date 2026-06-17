@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
+
+jobs:
+  version:
+    name: Validate Release Tag
+    uses: konfidence-project/.github/.github/workflows/validate-release-tag.yaml@v4
+    secrets: inherit
+
+  lint-test-build:
+    name: Release
+    needs: [version]
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    uses: konfidence-project/konfidence/.github/workflows/lint-test-build.yaml@main
+    secrets: inherit
+    with:
+      mode: release
+      # snapshot-tag is intentionally omitted — goreleaser uses the actual git tag in release mode
+
+  publish-helm-charts:
+    name: Publish Helm Charts
+    needs: [version, lint-test-build]
+    permissions:
+      packages: write
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
+    secrets: inherit
+    with:
+      version: ${{ needs.version.outputs.version }}
+      charts: charts/star charts/galaxy

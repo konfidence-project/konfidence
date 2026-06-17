@@ -1,0 +1,64 @@
+name: Lint, Test and Build
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: 'Build mode: "pr" (compile only), "main" (build + push images tagged with SHA), "release" (full release via goreleaser)'
+        required: true
+        type: string
+      snapshot-tag:
+        description: Tag to use for snapshot builds (e.g. git SHA). Leave empty for release mode with actual git version tag.
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  lint:
+    name: Lint
+    uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v4
+    secrets: inherit
+
+  test-star:
+    name: Test / Star
+    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    secrets: inherit
+    with:
+      test-cmd: test-star
+
+  test-galaxy:
+    name: Test / Galaxy
+    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    secrets: inherit
+    with:
+      test-cmd: test-galaxy
+
+  test-pkg:
+    name: Test / Pkg
+    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    secrets: inherit
+    with:
+      test-cmd: test-pkg
+
+  test-kden-cli:
+    name: Test / kden CLI
+    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    secrets: inherit
+    with:
+      test-cmd: test-kden-cli
+
+  build:
+    name: Build / Konfidence
+    needs: [lint, test-star, test-galaxy, test-pkg, test-kden-cli]
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@v4
+    secrets: inherit
+    with:
+      runner: konfidence-large
+      registry: ghcr.io
+      mode: ${{ inputs.mode }}
+      snapshot-tag: ${{ inputs.snapshot-tag }}

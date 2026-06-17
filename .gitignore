@@ -58,3 +58,5 @@ local/
 
 .DS_Store
 
+# GoReleaser temporary files
+dist/
