@@ -40,6 +40,9 @@ type VectorTemplateSpec struct {
 	Components []Component `json:"components"`
 
 	Config []CredentialsConfig `json:"config,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	VectorConfig *VectorConfig `json:"vectorConfig,omitempty"`
 }
 
 // Component defines a component of a VectorTemplate.

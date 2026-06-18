@@ -2,13 +2,15 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"time"
 
 	"github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	domain2 "github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	corev1 "k8s.io/api/core/v1"
@@ -27,13 +29,11 @@ import (
 )
 
 const (
-	defaultReconcileInterval = time.Minute
-
+	defaultReconcileInterval     = time.Minute
 	VectorAssemblyControllerName = "galaxy-vector-assembly-controller"
-
-	EventActionStatusPatch    = "StatusPatch"
-	EventActionDriftDetection = "DriftDetection"
-	EventActionVectorCreation = "VectorCreation"
+	EventActionStatusPatch       = "StatusPatch"
+	EventActionDriftDetection    = "DriftDetection"
+	EventActionVectorCreation    = "VectorCreation"
 )
 
 // VectorTemplateReconciler reconciles a VectorTemplate object
@@ -41,8 +41,8 @@ type VectorTemplateReconciler struct {
 	Mgr                   mcmanager.Manager
 	Scheme                *runtime.Scheme
 	OcmClientProvider     repository.ClientProvider
-	VectorOcmPortProvider domain2.OcmPortProvider
-	VersionGenerator      domain2.VersionGenerator
+	VectorOcmPortProvider vector.OcmPortProvider
+	VersionGenerator      vector.VersionGenerator
 }
 
 // +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
@@ -100,11 +100,20 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 
 	ocmClient, err := r.OcmClientProvider.NewClient(ctx, clusterClient, template.GetNamespace(), template.Spec.Config)
 	if err != nil {
-		return fmt.Errorf("unable to create OCM client: %w", err)
+		err = fmt.Errorf("unable to create OCM client: %w", err)
+		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Status:             metav1.ConditionUnknown,
+			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Message:            err.Error(),
+			ObservedGeneration: template.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		return err
 	}
 
 	ocmAdapter := r.VectorOcmPortProvider.NewVectorOcmPort(ocmClient)
-
 	ocmComponentsFromComponentList, err := mapComponentsToOCMReferences(template.Spec.Components)
 	if err != nil {
 		err = fmt.Errorf("unable to map vector template components to ocm references: %w", err)
@@ -136,7 +145,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		return err
 	}
 
-	var desiredArtifacts []domain2.Artifact
+	var desiredArtifacts []vector.Artifact
 	if template.Spec.Base != nil {
 		if desiredArtifacts, err = r.getArtifactsFromBaseVector(ctx, ocmAdapter, template, vectorOCMComponent.Component, recorder); err != nil {
 			return err
@@ -159,14 +168,33 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	}
 
 	desiredArtifacts = combineBaseArtifactsAndComponentArtifacts(desiredArtifacts, latestArtifactsFromComponentList)
+	desiredVectorConfiguration, err := getVectorConfiguration(*template)
+	if err != nil {
+		err = fmt.Errorf("unable to build desired vector configuration: %w", err)
+		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Status:             metav1.ConditionUnknown,
+			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Message:            err.Error(),
+			ObservedGeneration: template.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		return err
+	}
+	desiredVector := vector.Vector{
+		Name:         vectorOCMComponent.Component,
+		Artifacts:    desiredArtifacts,
+		VectorConfig: desiredVectorConfiguration,
+	}
 
-	actualVector, err := ocmAdapter.GetVector(ctx, *vectorOCMComponent)
-	if errors.Is(err, domain2.ErrVectorNotFound) {
+	currentVector, err := ocmAdapter.GetVector(ctx, *vectorOCMComponent)
+	if errors.Is(err, vector.ErrVectorNotFound) {
 		msg := "Vector not found in OCM repository - creating new vector"
 		recorder.Eventf(template, nil, corev1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
 		log.Info(msg, "VectorOCMComponent", vectorOCMComponent.Component)
 	} else if err != nil {
-		err = fmt.Errorf("unable to get actual artifacts from vector (%s): %w", vectorOCMComponent, err)
+		err = fmt.Errorf("unable to get current artifacts from vector (%s): %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
 			Type:               v1alpha1.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
@@ -179,9 +207,9 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		return err
 	}
 
-	driftDetected := domain2.HasDrift(desiredArtifacts, actualVector.Artifacts)
+	driftDetected := vector.HasDrift(currentVector, desiredVector)
 	if !driftDetected {
-		msg := fmt.Sprintf("No drift detected for vector - vector version is still %s", actualVector.Version)
+		msg := fmt.Sprintf("No drift detected for vector - vector version is still %s", currentVector.Version)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
 			Type:               v1alpha1.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionTrue,
@@ -191,14 +219,15 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 			LastTransitionTime: metav1.Now(),
 		})
 		recorder.Eventf(template, nil, corev1.EventTypeNormal, v1alpha1.VectorTemplateNoDriftDetectedReason, EventActionDriftDetection, msg)
-		log.Info(msg, "VectorVersion", actualVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
+		log.Info(msg, "VectorVersion", currentVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
 		return nil
 	}
 
-	newVector := domain2.Vector{
-		Version:   r.VersionGenerator.Generate(),
-		Name:      vectorOCMComponent.Component,
-		Artifacts: desiredArtifacts,
+	newVector := vector.Vector{
+		Version:      r.VersionGenerator.Generate(),
+		Name:         vectorOCMComponent.Component,
+		Artifacts:    desiredArtifacts,
+		VectorConfig: desiredVectorConfiguration,
 	}
 
 	err = ocmAdapter.CreateVector(ctx, vectorOCMComponent.Repository, newVector, vectorOCMComponent.Version)
@@ -231,9 +260,9 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 }
 
 func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
-	ctx context.Context, ocmAdapter domain2.OcmPort, template *v1alpha1.VectorTemplate,
+	ctx context.Context, ocmAdapter vector.OcmPort, template *v1alpha1.VectorTemplate,
 	vectorOCMComponentName string, recorder events.EventRecorder,
-) ([]domain2.Artifact, error) {
+) ([]vector.Artifact, error) {
 	baseVectorOCMComponent, err := konfcompref.Parse(*template.Spec.Base)
 	if err != nil {
 		err = fmt.Errorf("unable to create ocm reference from vector template base (%s): %w", *template.Spec.Base, err)
@@ -272,7 +301,7 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
 	return baseVector.Artifacts, nil
 }
 
-func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []domain2.Artifact) []domain2.Artifact {
+func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []vector.Artifact) []vector.Artifact {
 	if len(baseArtifacts) == 0 {
 		return componentArtifacts
 	}
@@ -323,6 +352,33 @@ func requeueAfterFromSpecOrDefault(vectorTemplate *v1alpha1.VectorTemplate) time
 		return vectorTemplate.Spec.ReconcileInterval.Duration
 	}
 	return defaultReconcileInterval
+}
+
+func getVectorConfiguration(vectorTemplate v1alpha1.VectorTemplate) (*vector.VectorConfiguration, error) {
+	if vectorTemplate.Spec.VectorConfig == nil ||
+		(vectorTemplate.Spec.VectorConfig.Features == nil && vectorTemplate.Spec.VectorConfig.Authored == nil) {
+		return nil, nil
+	}
+
+	vectorConfig := vectorTemplate.Spec.VectorConfig
+	var features json.RawMessage
+	if vectorConfig.Features != nil {
+		features = vectorConfig.Features.Raw
+	}
+	var authored json.RawMessage
+	if vectorConfig.Authored != nil {
+		authored = vectorConfig.Authored.Raw
+	}
+	vectorConfigSchema := jsonschema.NewVectorConfigurationV1(features, authored)
+
+	content, err := json.Marshal(vectorConfigSchema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize vectorConfigSchema: %w", err)
+	}
+
+	return &vector.VectorConfiguration{
+		Content: content,
+	}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

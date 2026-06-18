@@ -58,6 +58,21 @@ func (mr *MockClientMockRecorder) AddAlias(ctx, ref, alias any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAlias", reflect.TypeOf((*MockClient)(nil).AddAlias), ctx, ref, alias)
 }
 
+// AddLocalResource mocks base method.
+func (m *MockClient) AddLocalResource(ctx context.Context, repoSpec runtime0.Typed, desc runtime.Descriptor, resource runtime.Resource, content blob.ReadOnlyBlob) (*runtime.Resource, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddLocalResource", ctx, repoSpec, desc, resource, content)
+	ret0, _ := ret[0].(*runtime.Resource)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddLocalResource indicates an expected call of AddLocalResource.
+func (mr *MockClientMockRecorder) AddLocalResource(ctx, repoSpec, desc, resource, content any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddLocalResource", reflect.TypeOf((*MockClient)(nil).AddLocalResource), ctx, repoSpec, desc, resource, content)
+}
+
 // Copy mocks base method.
 func (m *MockClient) Copy(ctx context.Context, artifactReferences []compref.Ref, targetRepoSpec runtime0.Typed) error {
 	m.ctrl.T.Helper()

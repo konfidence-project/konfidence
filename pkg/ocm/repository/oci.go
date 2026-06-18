@@ -140,6 +140,27 @@ func (c OciClient) getRepo(ctx context.Context, repoSpec runtime.Typed) (oci.Com
 	return ociRepo, nil
 }
 
+func (c OciClient) AddLocalResource(
+	ctx context.Context,
+	repoSpec runtime.Typed,
+	desc descruntime.Descriptor,
+	resource descruntime.Resource,
+	content blob.ReadOnlyBlob,
+) (*descruntime.Resource, error) {
+	identity := desc.Component.ToIdentity()
+	repo, err := c.getRepo(ctx, repoSpec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository %s for component %s: %w", repoSpec, identity, err)
+	}
+
+	res, err := repo.AddLocalResource(ctx, desc.Component.Name, desc.Component.Version, &resource, content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add local resource for component %s: %w", identity, err)
+	}
+
+	return res, nil
+}
+
 // Save persists a component descriptor to an OCI registry.
 //
 // # Immutability Check

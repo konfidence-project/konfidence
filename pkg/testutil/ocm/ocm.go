@@ -1,13 +1,17 @@
 package ocm
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"github.com/onsi/gomega"
+	"github.com/opencontainers/go-digest"
+	"ocm.software/open-component-model/bindings/go/blob/inmemory"
 	ocmdescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
+	v2 "ocm.software/open-component-model/bindings/go/descriptor/v2"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 )
 
@@ -57,7 +61,7 @@ func PushComponent(ctx context.Context, client pkgocm.Client, ref compref.Ref, a
 //
 // The function fails the current Gomega test on any error, reporting the failure
 // at the caller's location (offset 1).
-func PushVector(ctx context.Context, client pkgocm.Client, vector compref.Ref, artifacts []compref.Ref, alias string) {
+func PushVector(ctx context.Context, client pkgocm.Client, vector compref.Ref, artifacts []compref.Ref, alias string, vectorConfig []byte) {
 	references := make([]ocmdescriptor.Reference, 0, len(artifacts))
 	for i, artifact := range artifacts {
 		references = append(references, ocmdescriptor.Reference{
@@ -70,7 +74,8 @@ func PushVector(ctx context.Context, client pkgocm.Client, vector compref.Ref, a
 			Component: artifact.Component,
 		})
 	}
-	descriptor := ocmdescriptor.Descriptor{
+
+	vectorDescriptor := ocmdescriptor.Descriptor{
 		Meta: ocmdescriptor.Meta{Version: "v2"},
 		Component: ocmdescriptor.Component{
 			ComponentMeta: ocmdescriptor.ComponentMeta{
@@ -83,8 +88,31 @@ func PushVector(ctx context.Context, client pkgocm.Client, vector compref.Ref, a
 			References: references,
 		},
 	}
+
+	if vectorConfig != nil {
+		resource := &ocmdescriptor.Resource{
+			Relation: ocmdescriptor.LocalRelation,
+			ElementMeta: ocmdescriptor.ElementMeta{
+				ObjectMeta: ocmdescriptor.ObjectMeta{
+					Name:    "cloud-konfidence-vector-config",
+					Version: "1.0.0",
+				},
+			},
+			Type: "json",
+			Access: &v2.LocalBlob{
+				LocalReference: digest.FromBytes(vectorConfig).String(),
+				MediaType:      "application/json",
+			},
+		}
+
+		content := inmemory.New(bytes.NewReader(vectorConfig))
+		updatedResource, err := client.AddLocalResource(ctx, vector.Repository, vectorDescriptor, *resource, content)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		vectorDescriptor.Component.Resources = append(vectorDescriptor.Component.Resources, *updatedResource)
+	}
+
 	gomega.ExpectWithOffset(1,
-		client.Save(ctx, vector.Repository, descriptor)).
+		client.Save(ctx, vector.Repository, vectorDescriptor)).
 		NotTo(gomega.HaveOccurred(), "failed to push vector %s", vector)
 	gomega.ExpectWithOffset(1,
 		client.AddAlias(ctx, vector, alias)).

@@ -115,6 +115,19 @@ spec:
                 description: UploadTarget defines the target OCM component where the
                   assembled vector will be uploaded.
                 type: string
+              vectorConfig:
+                description: VectorConfig defines feature flags and authored configuration
+                  values for a vector.
+                properties:
+                  authored:
+                    description: Authored define the authored configuration values.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  features:
+                    description: Features define the feature flags.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                type: object
             required:
             - components
             - uploadTarget
