@@ -213,6 +213,23 @@ _Appears in:_
 | `stageStatus` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ |  |  |  |
 
 
+#### VectorConfig
+
+
+
+VectorConfig defines feature flags and authored configuration values for a vector.
+
+
+
+_Appears in:_
+- [VectorTemplateSpec](#vectortemplatespec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `features` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Features define the feature flags. |  |  |
+| `authored` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Authored define the authored configuration values. |  |  |
+
+
 #### VectorPromotion
 
 
@@ -428,6 +445,7 @@ _Appears in:_
 | `base` _string_ | Base represents an optional base component version to build upon. |  | Optional: \{\} <br />Optional: \{\} <br /> |
 | `components` _[Component](#component) array_ | Components lists the components to be included in the vector. |  | MinItems: 1 <br /> |
 | `config` _[CredentialsConfig](#credentialsconfig) array_ |  |  |  |
+| `vectorConfig` _[VectorConfig](#vectorconfig)_ |  |  | Optional: \{\} <br /> |
 
 
 #### VectorTemplateStatus

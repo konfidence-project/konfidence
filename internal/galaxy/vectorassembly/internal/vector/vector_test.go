@@ -15,13 +15,17 @@ func TestDomainVector(t *testing.T) {
 
 var _ = Describe("HasDrift", func() {
 
-	It("has drift when lengths differ", func() {
-		desiredArtifacts := make([]Artifact, 3)
-		actualArtifacts := make([]Artifact, 2)
-		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeTrue())
+	It("has drift when artifacts lengths differ", func() {
+		currentVector := Vector{
+			Artifacts: make([]Artifact, 2),
+		}
+		desiredVector := Vector{
+			Artifacts: make([]Artifact, 3),
+		}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeTrue())
 	})
 
-	It("no drift when lengths are same and artifacts match", func() {
+	It("no drift when artifacts lengths are same and artifacts match", func() {
 		desiredArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
@@ -33,7 +37,7 @@ var _ = Describe("HasDrift", func() {
 			},
 		}
 
-		actualArtifacts := []Artifact{
+		currentArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
 				Name:    "component-a",
@@ -43,10 +47,16 @@ var _ = Describe("HasDrift", func() {
 				Name:    "component-b",
 			},
 		}
-		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeFalse())
+		currentVector := Vector{
+			Artifacts: currentArtifacts,
+		}
+		desiredVector := Vector{
+			Artifacts: desiredArtifacts,
+		}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeFalse())
 	})
 
-	It("has drift when lengths are same but artifacts differ", func() {
+	It("has drift when artifacts lengths are same but artifacts differ", func() {
 		desiredArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
@@ -57,7 +67,7 @@ var _ = Describe("HasDrift", func() {
 				Name:    "component-b",
 			},
 		}
-		actualArtifacts := []Artifact{
+		currentArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
 				Name:    "component-a",
@@ -67,10 +77,16 @@ var _ = Describe("HasDrift", func() {
 				Name:    "component-b",
 			},
 		}
-		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeTrue())
+		currentVector := Vector{
+			Artifacts: currentArtifacts,
+		}
+		desiredVector := Vector{
+			Artifacts: desiredArtifacts,
+		}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeTrue())
 	})
 
-	It("has drift when an artifact is missing in actual", func() {
+	It("has drift when an artifact is missing in current artifacts", func() {
 		desiredArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
@@ -82,7 +98,7 @@ var _ = Describe("HasDrift", func() {
 			},
 		}
 
-		actualArtifacts := []Artifact{
+		currentArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
 				Name:    "component-a",
@@ -92,7 +108,13 @@ var _ = Describe("HasDrift", func() {
 				Name:    "component-c",
 			},
 		}
-		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeTrue())
+		currentVector := Vector{
+			Artifacts: currentArtifacts,
+		}
+		desiredVector := Vector{
+			Artifacts: desiredArtifacts,
+		}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeTrue())
 	})
 
 	It("no drift when SourceRepo differs but Name and Version match", func() {
@@ -109,7 +131,7 @@ var _ = Describe("HasDrift", func() {
 			},
 		}
 
-		actualArtifacts := []Artifact{
+		currentArtifacts := []Artifact{
 			{
 				Version: "1.2.3",
 				Name:    "component-a",
@@ -119,6 +141,58 @@ var _ = Describe("HasDrift", func() {
 				Name:    "component-b",
 			},
 		}
-		Expect(HasDrift(desiredArtifacts, actualArtifacts)).To(BeFalse())
+		currentVector := Vector{
+			Artifacts: currentArtifacts,
+		}
+		desiredVector := Vector{
+			Artifacts: desiredArtifacts,
+		}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeFalse())
+	})
+
+	It("has no drift when vector config does not exist and no new config should be created", func() {
+		currentVector := Vector{
+			Artifacts:    nil,
+			VectorConfig: nil,
+		}
+		desiredVector := Vector{}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeFalse())
+	})
+	It("has drift when current vector config exists and no new config should be created", func() {
+		currentVector := Vector{
+			Artifacts:    nil,
+			VectorConfig: &VectorConfiguration{Content: []byte("test")},
+		}
+		desiredVector := Vector{}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeTrue())
+	})
+	It("has drift when no current vector config exists and a new config should be created", func() {
+		currentVector := Vector{
+			Artifacts: nil,
+		}
+		desiredVector := Vector{
+			VectorConfig: &VectorConfiguration{Content: []byte("test")},
+		}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeTrue())
+	})
+	It("has drift when current vector config exists and content of new config differs", func() {
+		currentVector := Vector{
+			Artifacts:    nil,
+			VectorConfig: &VectorConfiguration{Content: []byte("test2")},
+		}
+		desiredVector := Vector{
+			VectorConfig: &VectorConfiguration{Content: []byte("test")},
+		}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeTrue())
+	})
+	It("has no drift when current vector config equals new config", func() {
+		currentVector := Vector{
+			Artifacts:    nil,
+			VectorConfig: &VectorConfiguration{Content: []byte("test")},
+		}
+		desiredVector := Vector{
+			VectorConfig: &VectorConfiguration{Content: []byte("test")},
+		}
+		Expect(HasDrift(currentVector, desiredVector)).To(BeFalse())
 	})
 })

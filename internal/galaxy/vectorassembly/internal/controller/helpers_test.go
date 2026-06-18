@@ -2,9 +2,11 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +26,8 @@ func createVectorTemplateCR(
 	name, namespace string,
 	artifacts []compref.Ref,
 	vector compref.Ref,
-	base *compref.Ref) *galaxy.VectorTemplate {
+	base *compref.Ref,
+	vectorConfig *galaxy.VectorConfig) *galaxy.VectorTemplate {
 	components := make([]galaxy.Component, 0, len(artifacts))
 	for _, artifact := range artifacts {
 		components = append(components, galaxy.Component{
@@ -45,8 +48,28 @@ func createVectorTemplateCR(
 			UploadTarget:      vector.String(),
 			Base:              baseRef,
 			Components:        components,
+			VectorConfig:      vectorConfig,
 		},
 	}
 	Expect(k8sClient.Create(ctx, vectorTemplate)).To(Succeed())
 	return vectorTemplate
+}
+
+func getVectorConfigurationContent(vectorConfig galaxy.VectorConfig) ([]byte, error) {
+	var features json.RawMessage
+	if vectorConfig.Features != nil {
+		features = json.RawMessage(vectorConfig.Features.Raw)
+	}
+	var authored json.RawMessage
+	if vectorConfig.Authored != nil {
+		authored = json.RawMessage(vectorConfig.Authored.Raw)
+	}
+	vectorConfigSchema := jsonschema.NewVectorConfigurationV1(features, authored)
+
+	content, err := json.Marshal(vectorConfigSchema)
+	if err != nil {
+		return nil, err
+	}
+
+	return content, nil
 }

@@ -1,15 +1,19 @@
 package controller
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	ocm2 "github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"ocm.software/open-component-model/bindings/go/blob"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -49,10 +53,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{
 			createReference("konfidence.io/sample/drift/service1:v5.0.0"),
 			createReference("konfidence.io/sample/drift/service2:v3.2.1"), // older version: drift
-		}, "dev-eu10")
+		}, "dev-eu10", nil)
 
 		By("creating a VectorTemplate CR")
-		vectorTemplate := createVectorTemplateCR(ctx, "drift-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil)
+		vectorTemplate := createVectorTemplateCR(ctx, "drift-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil, nil)
 
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
@@ -91,10 +95,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushComponent(ctx, ocmClient, svc2, new("stable"))
 
 		By("creating a mock vector with matching versions")
-		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable")
+		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable", nil)
 
 		By("creating a VectorTemplate CR")
-		vectorTemplate := createVectorTemplateCR(ctx, "nodrift-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil)
+		vectorTemplate := createVectorTemplateCR(ctx, "nodrift-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil, nil)
 
 		By("verifying CR status shows NoDriftDetected")
 		Eventually(func(g Gomega) {
@@ -124,7 +128,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushComponent(ctx, ocmClient, svc2, new("latest"))
 
 		By("creating a VectorTemplate CR")
-		vectorTemplate := createVectorTemplateCR(ctx, "first-create-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil)
+		vectorTemplate := createVectorTemplateCR(ctx, "first-create-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil, nil)
 
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
@@ -156,14 +160,14 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 
 		By("creating a mock base vector with service3")
 		ocm.PushComponent(ctx, ocmClient, svc3, new("prod"))
-		ocm.PushVector(ctx, ocmClient, versionBaseVector, []compref.Ref{svc3}, "base")
+		ocm.PushVector(ctx, ocmClient, versionBaseVector, []compref.Ref{svc3}, "base", nil)
 
 		By("creating mock component descriptors for service1 and service2")
 		ocm.PushComponent(ctx, ocmClient, svc1, new("prod"))
 		ocm.PushComponent(ctx, ocmClient, svc2, new("prod"))
 
 		By("creating a VectorTemplate CR with base")
-		vectorTemplate := createVectorTemplateCR(ctx, "inherit-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, &aliasBaseVector)
+		vectorTemplate := createVectorTemplateCR(ctx, "inherit-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, &aliasBaseVector, nil)
 
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
@@ -196,7 +200,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		nonExistentAlias := createReference("konfidence.io/sample/notfound/does-not-exist:latest")
 
 		By("creating a VectorTemplate CR referencing a non-existent component (no mock data)")
-		vectorTemplate := createVectorTemplateCR(ctx, "notfound-test", testNamespace, []compref.Ref{nonExistentAlias}, aliasVector, nil)
+		vectorTemplate := createVectorTemplateCR(ctx, "notfound-test", testNamespace, []compref.Ref{nonExistentAlias}, aliasVector, nil, nil)
 
 		By("verifying CR status shows DriftDetectionFailed")
 		Eventually(func(g Gomega) {
@@ -222,7 +226,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 
 		By("creating a VectorTemplate CR with duplicate components")
 		components := []compref.Ref{svc1Alias, svc1Alias, svc2Alias, svc1Alias, svc2Alias}
-		vectorTemplate := createVectorTemplateCR(ctx, "dedup-test", testNamespace, components, aliasVector, nil)
+		vectorTemplate := createVectorTemplateCR(ctx, "dedup-test", testNamespace, components, aliasVector, nil, nil)
 
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
@@ -251,7 +255,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 
 		By("creating a mock base vector with semver component")
 		ocm.PushComponent(ctx, ocmClient, svc3, nil)
-		ocm.PushVector(ctx, ocmClient, versionBaseVector, []compref.Ref{svc3}, "stable")
+		ocm.PushVector(ctx, ocmClient, versionBaseVector, []compref.Ref{svc3}, "stable", nil)
 
 		By("creating mock component descriptors with mixed semver and tag versions")
 		ocm.PushComponent(ctx, ocmClient, svc1, nil)         // semver component, no alias
@@ -263,7 +267,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 			testNamespace,
 			[]compref.Ref{svc1, svc2Alias},
 			aliasVector,
-			&versionBaseVector)
+			&versionBaseVector, nil)
 
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
@@ -300,7 +304,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushComponent(ctx, ocmClient, svc1, new("latest"))
 
 		By("creating a VectorTemplate CR with semver uploadTarget")
-		vectorTemplate := createVectorTemplateCR(ctx, "semver-fail-test", testNamespace, []compref.Ref{svc1Alias}, semverVector, nil)
+		vectorTemplate := createVectorTemplateCR(ctx, "semver-fail-test", testNamespace, []compref.Ref{svc1Alias}, semverVector, nil, nil)
 
 		By("verifying CR status shows failure due to semver uploadTarget")
 		Eventually(func(g Gomega) {
@@ -313,5 +317,190 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 			g.Expect(statusCondition.Message).To(ContainSubstring("semver"))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
+	})
+
+	It("should report no drift when vector configuration matches", func() {
+		svc1 := createReference("konfidence.io/sample/conf-no-drift/service1:1.0.0")
+		svc1Alias := createReference("konfidence.io/sample/conf-no-drift/service1:stable")
+		svc2 := createReference("konfidence.io/sample/conf-no-drift/service2:2.0.0")
+		svc2Alias := createReference("konfidence.io/sample/conf-no-drift/service2:stable")
+		versionVector := createReference(fmt.Sprintf("konfidence.io/sample/vectors/conf-no-drift-test:%s", oldTestVersion))
+		aliasVector := createReference("konfidence.io/sample/vectors/conf-no-drift-test:stable")
+
+		By("creating mock component descriptors in OCI registry")
+		ocm.PushComponent(ctx, ocmClient, svc1, new("stable"))
+		ocm.PushComponent(ctx, ocmClient, svc2, new("stable"))
+
+		vectorConfig := galaxy.VectorConfig{
+			Features: &runtime.RawExtension{Raw: []byte(`{"test":"1234"}`)},
+			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc"}`)},
+		}
+		vectorConfigContent, err := getVectorConfigurationContent(vectorConfig)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("creating a mock vector with matching versions but different vector configuration")
+		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable", vectorConfigContent)
+
+		By("creating a VectorTemplate CR")
+		vectorTemplate := createVectorTemplateCR(ctx, "conf-nodrift-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil, &vectorConfig)
+
+		By("verifying CR status shows NoDriftDetected")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
+			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
+			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateNoDriftDetectedReason))
+			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
+		}, timeout, interval).Should(Succeed())
+
+		By("verifying vector in OCI registry still has the original version")
+		descriptor, err := ocmClient.Get(ctx, aliasVector)
+		Expect(err).NotTo(HaveOccurred(), "failed to get vector descriptor from registry")
+		Expect(descriptor.Component.Version).To(Equal(oldTestVersion), "vector version should not have changed")
+	})
+
+	It("should report drift when vector configuration has changed", func() {
+		svc1 := createReference("konfidence.io/sample/conf-drift/service1:1.0.0")
+		svc1Alias := createReference("konfidence.io/sample/conf-drift/service1:stable")
+		svc2 := createReference("konfidence.io/sample/conf-drift/service2:2.0.0")
+		svc2Alias := createReference("konfidence.io/sample/conf-drift/service2:stable")
+		versionVector := createReference(fmt.Sprintf("konfidence.io/sample/vectors/conf-drift-test:%s", oldTestVersion))
+		aliasVector := createReference("konfidence.io/sample/vectors/conf-drift-test:stable")
+
+		By("creating mock component descriptors in OCI registry")
+		ocm.PushComponent(ctx, ocmClient, svc1, new("stable"))
+		ocm.PushComponent(ctx, ocmClient, svc2, new("stable"))
+
+		vectorConfig := galaxy.VectorConfig{
+			Features: &runtime.RawExtension{Raw: []byte(`{"test":"1234"}`)},
+			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc"}`)},
+		}
+		vectorConfigContent, err := getVectorConfigurationContent(vectorConfig)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("creating a mock vector with matching versions but different vector configuration")
+		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable", vectorConfigContent)
+
+		By("creating a VectorTemplate CR")
+		newVectorConfig := galaxy.VectorConfig{
+			Features: &runtime.RawExtension{Raw: []byte(`{"label":"Test"}`)},
+			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc", "dbPort":3306}`)},
+		}
+		newVectorConfigContent, err := getVectorConfigurationContent(newVectorConfig)
+		Expect(err).NotTo(HaveOccurred())
+		vectorTemplate := createVectorTemplateCR(ctx, "conf-drift-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil, &newVectorConfig)
+
+		By("verifying CR status shows VectorCreated")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
+			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
+			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
+		}, timeout, interval).Should(Succeed())
+
+		By("verifying vector in oci contains updated vector config")
+		readBlob, _, err := ocmClient.GetLocalResource(ctx, aliasVector, map[string]string{
+			"name":    ocm2.DefaultVectorConfigName,
+			"version": ocm2.DefaultVectorConfigVersion,
+		})
+		Expect(err).NotTo(HaveOccurred(), "failed to get vector configuration local resource from oci")
+
+		var buf bytes.Buffer
+		err = blob.Copy(&buf, readBlob)
+		Expect(err).NotTo(HaveOccurred(), "failed to read vector configuration local resource")
+		Expect(newVectorConfigContent).To(Equal(buf.Bytes()), "new vector should have updated vector config")
+	})
+	It("should report drift when existing vector has no configuration and a new config is added", func() {
+		svc1 := createReference("konfidence.io/sample/conf-drift-2/service1:1.0.0")
+		svc1Alias := createReference("konfidence.io/sample/conf-drift-2/service1:stable")
+		svc2 := createReference("konfidence.io/sample/conf-drift-2/service2:2.0.0")
+		svc2Alias := createReference("konfidence.io/sample/conf-drift-2/service2:stable")
+		versionVector := createReference(fmt.Sprintf("konfidence.io/sample/vectors/conf-drift-2-test:%s", oldTestVersion))
+		aliasVector := createReference("konfidence.io/sample/vectors/conf-drift-2-test:stable")
+
+		By("creating mock component descriptors in OCI registry")
+		ocm.PushComponent(ctx, ocmClient, svc1, new("stable"))
+		ocm.PushComponent(ctx, ocmClient, svc2, new("stable"))
+
+		By("creating a mock vector with matching versions but different vector configuration")
+		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable", nil)
+
+		By("creating a VectorTemplate CR")
+		newVectorConfig := galaxy.VectorConfig{
+			Features: &runtime.RawExtension{Raw: []byte(`{"label":"Test"}`)},
+			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc", "dbPort":3306}`)},
+		}
+		newVectorConfigContent, err := getVectorConfigurationContent(newVectorConfig)
+		Expect(err).NotTo(HaveOccurred())
+		vectorTemplate := createVectorTemplateCR(ctx, "conf-drift-2-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil, &newVectorConfig)
+
+		By("verifying CR status shows VectorCreated")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
+			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
+			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
+		}, timeout, interval).Should(Succeed())
+
+		By("verifying vector in oci contains updated vector config")
+		readBlob, _, err := ocmClient.GetLocalResource(ctx, aliasVector, map[string]string{
+			"name":    ocm2.DefaultVectorConfigName,
+			"version": ocm2.DefaultVectorConfigVersion,
+		})
+		Expect(err).NotTo(HaveOccurred(), "failed to get vector configuration local resource from oci")
+
+		var buf bytes.Buffer
+		err = blob.Copy(&buf, readBlob)
+		Expect(err).NotTo(HaveOccurred(), "failed to read vector configuration local resource")
+		Expect(newVectorConfigContent).To(Equal(buf.Bytes()), "new vector should have updated vector config")
+	})
+
+	It("should report drift when existing vector has vector config but new vector does not", func() {
+		svc1 := createReference("konfidence.io/sample/conf-drift-3/service1:1.0.0")
+		svc1Alias := createReference("konfidence.io/sample/conf-drift-3/service1:stable")
+		svc2 := createReference("konfidence.io/sample/conf-drift-3/service2:2.0.0")
+		svc2Alias := createReference("konfidence.io/sample/conf-drift-3/service2:stable")
+		versionVector := createReference(fmt.Sprintf("konfidence.io/sample/vectors/conf-drift-3-test:%s", oldTestVersion))
+		aliasVector := createReference("konfidence.io/sample/vectors/conf-drift-3-test:stable")
+
+		By("creating mock component descriptors in OCI registry")
+		ocm.PushComponent(ctx, ocmClient, svc1, new("stable"))
+		ocm.PushComponent(ctx, ocmClient, svc2, new("stable"))
+
+		vectorConfig := galaxy.VectorConfig{
+			Features: &runtime.RawExtension{Raw: []byte(`{"test":"1234"}`)},
+			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc"}`)},
+		}
+		vectorConfigContent, err := getVectorConfigurationContent(vectorConfig)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("creating a mock vector with matching versions but different vector configuration")
+		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable", vectorConfigContent)
+
+		By("creating a VectorTemplate CR")
+		vectorTemplate := createVectorTemplateCR(ctx, "conf-drift-3-test", testNamespace, []compref.Ref{svc1Alias, svc2Alias}, aliasVector, nil, nil)
+
+		By("verifying CR status shows VectorCreated")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
+			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
+			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
+		}, timeout, interval).Should(Succeed())
+
+		By("verifying vector in oci contains no vector config")
+		_, _, err = ocmClient.GetLocalResource(ctx, aliasVector, map[string]string{
+			"name":    ocm2.DefaultVectorConfigName,
+			"version": ocm2.DefaultVectorConfigVersion,
+		})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("found 0 candidates"))
 	})
 })

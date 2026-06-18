@@ -6,6 +6,7 @@ package ocm
 //go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_digester.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/crypto Digester
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -19,11 +20,20 @@ import (
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	"github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
+	"ocm.software/open-component-model/bindings/go/blob"
+	"ocm.software/open-component-model/bindings/go/blob/inmemory"
 	ocmdescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
+	v2 "ocm.software/open-component-model/bindings/go/descriptor/v2"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+)
+
+const (
+	DefaultVectorConfigName    = "cloud-konfidence-vector-config"
+	DefaultVectorConfigVersion = "1.0.0"
 )
 
 var (
@@ -143,14 +153,67 @@ func (a Adapter) GetVector(ctx context.Context, vectorRef compref.Ref) (vector.V
 		return vector.Vector{}, fmt.Errorf("unable to verify ocm descriptor for vector (%s) version (%s): %w",
 			vectorRef, descriptor.Component.Version, err)
 	}
-	return mapToDomain(descriptor, vectorRef.Repository), nil
+
+	// get vector configuration if existent
+	vectorConfiguration, err := a.getVectorConfiguration(ctx, vectorRef, descriptor)
+	if err != nil {
+		return vector.Vector{}, err
+	}
+
+	return mapToDomain(descriptor, vectorRef.Repository, vectorConfiguration), nil
+}
+
+func (a Adapter) getVectorConfiguration(ctx context.Context, vectorRef compref.Ref, descriptor ocmdescriptor.Descriptor) (*vector.VectorConfiguration, error) {
+	var vectorConfigResource *ocmdescriptor.Resource
+	for _, res := range descriptor.Component.Resources {
+		if res.Name == DefaultVectorConfigName {
+			vectorConfigResource = &res
+			break
+		}
+	}
+
+	var vectorConfiguration *vector.VectorConfiguration
+	if vectorConfigResource != nil {
+		readBlob, _, err := a.ocmClient.GetLocalResource(ctx, vectorRef, vectorConfigResource.ToIdentity())
+		if err != nil {
+			return nil, fmt.Errorf("unable to get vector configuration for vector (%s) version (%s): %w",
+				vectorRef, descriptor.Component.Version, err)
+		}
+
+		var content bytes.Buffer
+		err = blob.Copy(&content, readBlob)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read vector configuration for vector (%s) version (%s): %w",
+				vectorRef, descriptor.Component.Version, err)
+		}
+
+		vectorConfiguration = &vector.VectorConfiguration{
+			Content: content.Bytes(),
+		}
+	}
+
+	return vectorConfiguration, nil
 }
 
 func (a Adapter) CreateVector(ctx context.Context, repoSpec runtime.Typed, v vector.Vector, alias string) error {
 	if err := a.copyArtifacts(ctx, v.Artifacts, repoSpec); err != nil {
 		return fmt.Errorf("unable to copy artifact components to target repository: %w", err)
 	}
+
 	vectorDescriptor := mapToDescriptor(v, a.digester.GetHashAlgorithm().String(), a.digester.GetNormalisationAlgorithm())
+	if v.VectorConfig != nil {
+		// upload vector configuration as local resource
+		content := inmemory.New(bytes.NewReader(v.VectorConfig.Content))
+		vectorConfigResource := mapToVectorConfigResource(v)
+		updatedResource, err := a.ocmClient.AddLocalResource(ctx, repoSpec, vectorDescriptor, *vectorConfigResource, content)
+		if err != nil {
+			return fmt.Errorf("unable to add vector configuration as local resource for vector (%s): %w", v.Name, err)
+		}
+
+		// add updated resource to vector descriptor
+		vectorDescriptor.Component.Resources = append(vectorDescriptor.Component.Resources, *updatedResource)
+	}
+
 	if err := a.vectorSigner.Sign(ctx, &vectorDescriptor); err != nil {
 		return fmt.Errorf("unable to Sign ocm descriptor for vector (%s): %w", v.Name, err)
 	}
@@ -172,8 +235,7 @@ func (a Adapter) CreateVector(ctx context.Context, repoSpec runtime.Typed, v vec
 	return nil
 }
 
-func mapToDomain(descriptor ocmdescriptor.Descriptor, vectorRepository runtime.Typed) vector.Vector {
-
+func mapToDomain(descriptor ocmdescriptor.Descriptor, vectorRepository runtime.Typed, vectorConfig *vector.VectorConfiguration) vector.Vector {
 	artifacts := make([]vector.Artifact, 0, len(descriptor.Component.References))
 	for _, ref := range descriptor.Component.References {
 		artifact := vector.Artifact{
@@ -185,9 +247,10 @@ func mapToDomain(descriptor ocmdescriptor.Descriptor, vectorRepository runtime.T
 		artifacts = append(artifacts, artifact)
 	}
 	return vector.Vector{
-		Version:   descriptor.Component.Version,
-		Name:      descriptor.Component.Name,
-		Artifacts: artifacts,
+		Version:      descriptor.Component.Version,
+		Name:         descriptor.Component.Name,
+		Artifacts:    artifacts,
+		VectorConfig: vectorConfig,
 	}
 }
 
@@ -196,6 +259,7 @@ func mapToDescriptor(v vector.Vector, hashAlgo, normAlgo string) ocmdescriptor.D
 	for _, artifact := range v.Artifacts {
 		latestArtifacts = append(latestArtifacts, mapToReference(artifact, hashAlgo, normAlgo))
 	}
+
 	return ocmdescriptor.Descriptor{
 		Meta: ocmdescriptor.Meta{
 			Version: "v2",
@@ -214,6 +278,23 @@ func mapToDescriptor(v vector.Vector, hashAlgo, normAlgo string) ocmdescriptor.D
 			Resources:  nil,
 			Sources:    nil,
 			References: latestArtifacts,
+		},
+	}
+}
+
+func mapToVectorConfigResource(v vector.Vector) *ocmdescriptor.Resource {
+	return &ocmdescriptor.Resource{
+		Relation: ocmdescriptor.LocalRelation,
+		ElementMeta: ocmdescriptor.ElementMeta{
+			ObjectMeta: ocmdescriptor.ObjectMeta{
+				Name:    DefaultVectorConfigName,
+				Version: DefaultVectorConfigVersion,
+			},
+		},
+		Type: "json",
+		Access: &v2.LocalBlob{
+			LocalReference: digest.FromBytes(v.VectorConfig.Content).String(),
+			MediaType:      "application/json",
 		},
 	}
 }

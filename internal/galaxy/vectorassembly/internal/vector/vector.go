@@ -1,6 +1,7 @@
 package vector
 
 import (
+	"bytes"
 	"context"
 
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -38,9 +39,10 @@ var (
 )
 
 type Vector struct {
-	Version   string
-	Name      string
-	Artifacts []Artifact
+	Version      string
+	Name         string
+	Artifacts    []Artifact
+	VectorConfig *VectorConfiguration
 }
 
 type Artifact struct {
@@ -50,25 +52,50 @@ type Artifact struct {
 	SourceRepo runtime.Typed
 }
 
-func HasDrift(desired, actual []Artifact) bool {
-	if len(desired) != len(actual) {
+type VectorConfiguration struct {
+	Content []byte
+}
+
+func HasDrift(currentVector, desiredVector Vector) bool {
+	return hasArtifactDrift(currentVector.Artifacts, desiredVector.Artifacts) ||
+		hasVectorConfigDrift(currentVector.VectorConfig, desiredVector.VectorConfig)
+}
+
+func hasArtifactDrift(currentArtifacts, desiredArtifacts []Artifact) bool {
+	if len(desiredArtifacts) != len(currentArtifacts) {
 		return true
 	}
 
-	for _, desiredElement := range desired {
-		desiredElementFound := false
-		for _, actualElement := range actual {
-			if desiredElement.Name == actualElement.Name {
-				if desiredElement.Version != actualElement.Version {
+	for _, desiredArtifact := range desiredArtifacts {
+		desiredArtifactFound := false
+
+		for _, currentArtifact := range currentArtifacts {
+			if desiredArtifact.Name == currentArtifact.Name {
+				if desiredArtifact.Version != currentArtifact.Version {
 					return true
 				}
-				desiredElementFound = true
+				desiredArtifactFound = true
 				break
 			}
 		}
-		if !desiredElementFound {
+
+		if !desiredArtifactFound {
 			return true
 		}
 	}
+
 	return false
+}
+
+func hasVectorConfigDrift(currentVectorConfig, desiredVectorConfig *VectorConfiguration) bool {
+	if desiredVectorConfig == nil && currentVectorConfig == nil {
+		return false
+	}
+
+	if desiredVectorConfig != nil && desiredVectorConfig.Content != nil &&
+		currentVectorConfig != nil && currentVectorConfig.Content != nil {
+		return !bytes.Equal(desiredVectorConfig.Content, currentVectorConfig.Content)
+	}
+
+	return true
 }

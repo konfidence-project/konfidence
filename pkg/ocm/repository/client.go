@@ -94,6 +94,19 @@ type ReadClient interface {
 	ResourceReadClient
 }
 
+// ResourceWriteClient defines write operations for local resources stored in
+// OCM component versions.
+type ResourceWriteClient interface {
+	// AddLocalResource adds a local resource to the repository.
+	AddLocalResource(
+		ctx context.Context,
+		repoSpec runtime.Typed,
+		desc descruntime.Descriptor,
+		resource descruntime.Resource,
+		content blob.ReadOnlyBlob,
+	) (*descruntime.Resource, error)
+}
+
 // WriteClient defines write operations for persisting component descriptors to OCM repositories.
 type WriteClient interface {
 	// Save persists a component descriptor to the specified repository.
@@ -178,6 +191,8 @@ type WriteClient interface {
 	//	}
 	//	desc, err := client.Get(ctx, aliasRef)
 	AddAlias(ctx context.Context, ref compref.Ref, alias string) error
+
+	ResourceWriteClient
 }
 
 // Client combines read and write access to component descriptors in OCM repositories.
