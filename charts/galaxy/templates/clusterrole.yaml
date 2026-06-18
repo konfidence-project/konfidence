@@ -17,6 +17,14 @@ rules:
   - list
   - watch
 - apiGroups:
+  - ""
+  - events.k8s.io
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
@@ -36,13 +44,6 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - events.k8s.io
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
 - apiGroups:
   - galaxy.konfidence.cloud
   resources:
