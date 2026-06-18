@@ -17,6 +17,15 @@ type VectorOcmPort interface {
 type VectorDescriptor struct {
 	References     []compref.Ref
 	DescriptorJSON []byte
+
+	// Configuration carries the raw bytes of the optional vector-scoped configuration
+	// resource (the OCM resource named "cloud-konfidence-vector-config" on the vector
+	// component, produced by the galaxy assembly side). The resource is optional and
+	// at most one is permitted per vector. The value is nil when the vector descriptor
+	// does not declare such a resource. The byte slice is opaque to the controller;
+	// downstream consumers (currently the per-landscape vector data service, future)
+	// interpret it.
+	Configuration []byte
 }
 
 type ArtifactManifest struct {

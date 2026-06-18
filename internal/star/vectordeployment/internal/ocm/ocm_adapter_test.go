@@ -137,6 +137,110 @@ var _ = Describe("OcmAdapter", func() {
 				gomega.Expect(err.Error()).To(gomega.ContainSubstring("registry unavailable"))
 			})
 		})
+
+		Context("vector-scoped configuration resource", func() {
+			// configResource builds a descriptor resource that matches the vector-config contract on the assembly side
+			// (galaxy/vectorassembly): the discriminator is the resource Name, set to
+			// KonfidenceResourceTypeVectorConfig. Type is intentionally left to the caller because the producer leaves
+			// it as a vector-author-defined value (e.g. application/json).
+			// No Access spec is needed: GetVectorDescriptor extracts and prunes vector-config resources before the
+			// runtime->V2 conversion, mirroring how Konfidence-typed artifact resources are handled separately from
+			// the public OCM contract.
+			configResource := func(version string) descruntime.Resource {
+				return descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{
+						ObjectMeta: descruntime.ObjectMeta{
+							Name:    "cloud-konfidence-vector-config",
+							Version: version,
+						},
+					},
+					Type: "application/json",
+				}
+			}
+
+			It("returns nil Configuration when the vector declares no such resource", func() {
+				descriptor := descruntime.Descriptor{
+					Component: descruntime.Component{
+						ComponentMeta: descruntime.ComponentMeta{
+							ObjectMeta: descruntime.ObjectMeta{Name: vectorRef.Component, Version: vectorRef.Version},
+						},
+						Provider: descruntime.Provider{Name: "example-org"},
+					},
+				}
+				mockClient.EXPECT().Get(gomock.Any(), vectorRef).Return(descriptor, nil)
+
+				vd, err := adapter.GetVectorDescriptor(ctx, vectorRef)
+
+				gomega.Expect(err).ToNot(gomega.HaveOccurred())
+				gomega.Expect(vd.Configuration).To(gomega.BeNil())
+			})
+
+			It("returns the resolved blob bytes when the vector declares exactly one config resource", func() {
+				resource := configResource("1.0.0")
+				configBlob := []byte(`{"featureFlags":{"darkMode":true}}`)
+
+				descriptor := descruntime.Descriptor{
+					Component: descruntime.Component{
+						ComponentMeta: descruntime.ComponentMeta{
+							ObjectMeta: descruntime.ObjectMeta{Name: vectorRef.Component, Version: vectorRef.Version},
+						},
+						Provider:  descruntime.Provider{Name: "example-org"},
+						Resources: []descruntime.Resource{resource},
+					},
+				}
+				mockClient.EXPECT().Get(gomock.Any(), vectorRef).Return(descriptor, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), vectorRef, resource.ToIdentity()).
+					Return(inmemory.New(bytes.NewReader(configBlob)), &resource, nil)
+
+				vd, err := adapter.GetVectorDescriptor(ctx, vectorRef)
+
+				gomega.Expect(err).ToNot(gomega.HaveOccurred())
+				gomega.Expect(string(vd.Configuration)).To(gomega.Equal(string(configBlob)))
+			})
+
+			It("returns an error when the vector declares more than one config resource", func() {
+				descriptor := descruntime.Descriptor{
+					Component: descruntime.Component{
+						ComponentMeta: descruntime.ComponentMeta{
+							ObjectMeta: descruntime.ObjectMeta{Name: vectorRef.Component, Version: vectorRef.Version},
+						},
+						Provider: descruntime.Provider{Name: "example-org"},
+						Resources: []descruntime.Resource{
+							configResource("1.0.0"),
+							configResource("1.0.1"),
+						},
+					},
+				}
+				mockClient.EXPECT().Get(gomock.Any(), vectorRef).Return(descriptor, nil)
+
+				_, err := adapter.GetVectorDescriptor(ctx, vectorRef)
+
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("more than one"))
+			})
+
+			It("propagates blob read errors with context", func() {
+				resource := configResource("1.0.0")
+				descriptor := descruntime.Descriptor{
+					Component: descruntime.Component{
+						ComponentMeta: descruntime.ComponentMeta{
+							ObjectMeta: descruntime.ObjectMeta{Name: vectorRef.Component, Version: vectorRef.Version},
+						},
+						Provider:  descruntime.Provider{Name: "example-org"},
+						Resources: []descruntime.Resource{resource},
+					},
+				}
+				mockClient.EXPECT().Get(gomock.Any(), vectorRef).Return(descriptor, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), vectorRef, resource.ToIdentity()).
+					Return(nil, nil, errors.New("blob unavailable"))
+
+				_, err := adapter.GetVectorDescriptor(ctx, vectorRef)
+
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("vector config blob"))
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("blob unavailable"))
+			})
+		})
 	})
 
 	Describe("GetArtifactManifestByReference", func() {

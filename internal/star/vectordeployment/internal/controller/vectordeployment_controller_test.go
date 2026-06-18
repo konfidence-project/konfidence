@@ -2,14 +2,17 @@ package controller_test
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/star/vectordeployment/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/star/vectordeployment/internal/controller/mocks"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,7 +25,6 @@ import (
 var _ = Describe("VectorDeployment Controller", func() {
 
 	const (
-		controllerName  = "vectordeployment"
 		vectorReference = "https://registry.kdenv.lab/sample-project//github.com/konfidence-project/sample-vector:0.3.0"
 		ocmName         = "common.konfidence.cloud.example.vector-0.3.0"
 		testNamespace   = "default"
@@ -42,13 +44,15 @@ var _ = Describe("VectorDeployment Controller", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		ocmAdapterMock = mocks.NewMockVectorOcmPort(mockCtrl)
 
-		// Controller setup
+		// Controller setup. Each spec registers under a unique controller name so that controller-runtime's
+		// global metrics-name validator does not reject re-registration when running multiple specs in one suite.
 		reconciler = &VectorDeploymentReconciler{
 			Client:     k8sManager.GetClient(),
 			Scheme:     k8sManager.GetScheme(),
 			Recorder:   k8sManager.GetEventRecorder(VectorDeploymentControllerName),
 			OcmAdapter: ocmAdapterMock,
 		}
+		controllerName := "vectordeployment-" + CurrentSpecReport().LeafNodeLocation.String()
 		err := reconciler.SetupWithManager(k8sManager, controllerName)
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	})
@@ -68,6 +72,15 @@ var _ = Describe("VectorDeployment Controller", func() {
 
 		// Cleanup VectorAssignments
 		err = managerClient.DeleteAllOf(ctx, &star.VectorAssignment{}, client.InNamespace(testNamespace))
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+		// Cleanup the vector data ConfigMaps written by handleVectorConfig. The ones that are owned by a
+		// VectorDeployment will already cascade-delete, but a manual sweep here keeps the suite deterministic for
+		// edge cases that exercise re-creation explicitly.
+		err = managerClient.DeleteAllOf(ctx, &corev1.ConfigMap{},
+			client.InNamespace(testNamespace),
+			client.MatchingLabels{pkgctrl.ManagedByLabel: VectorDeploymentControllerName},
+		)
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		if mockCtrl != nil {
@@ -267,7 +280,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 			g.Expect(ad.OwnerReferences).ToNot(gomega.BeEmpty())
 			foundOwner := false
 			for _, ref := range ad.OwnerReferences {
-				if ref.UID == vectorDeployment.UID && ref.Kind == "VectorDeployment" {
+				if ref.UID == vectorDeployment.UID && ref.Kind == star.VectorDeploymentKind {
 					foundOwner = true
 				}
 			}
@@ -284,7 +297,7 @@ var _ = Describe("VectorDeployment Controller", func() {
 			g.Expect(va.OwnerReferences).ToNot(gomega.BeEmpty())
 			foundControllerOwner := false
 			for _, ref := range va.OwnerReferences {
-				if ref.UID == vectorDeployment.UID && ref.Kind == "VectorDeployment" && ref.Controller != nil && *ref.Controller {
+				if ref.UID == vectorDeployment.UID && ref.Kind == star.VectorDeploymentKind && ref.Controller != nil && *ref.Controller {
 					foundControllerOwner = true
 				}
 			}
@@ -314,6 +327,41 @@ var _ = Describe("VectorDeployment Controller", func() {
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
 			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorReadyCondition)).To(gomega.BeTrue())
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Verifying VectorConfigCommitted condition and the vector data ConfigMap")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorConfigCommittedCondition)).To(gomega.BeTrue())
+
+			cm := &corev1.ConfigMap{}
+			cmName := VectorDataConfigMapNamePrefix + ocmName
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: testNamespace}, cm)).To(gomega.Succeed())
+			g.Expect(cm.Immutable).ToNot(gomega.BeNil())
+			g.Expect(*cm.Immutable).To(gomega.BeTrue())
+			g.Expect(cm.Labels).To(gomega.HaveKeyWithValue(pkgctrl.ManagedByLabel, VectorDeploymentControllerName))
+			g.Expect(cm.Labels).To(gomega.HaveKeyWithValue(pkgctrl.VectorDeploymentNameLabel, ocmName))
+			g.Expect(cm.Labels).To(gomega.HaveKey(pkgctrl.VectorDeploymentUIDLabel))
+
+			By("payload contains aggregated DeploymentResults")
+			payload := map[string]json.RawMessage{}
+			g.Expect(json.Unmarshal([]byte(cm.Data[VectorConfigDataKey]), &payload)).To(gomega.Succeed())
+			g.Expect(payload).To(gomega.HaveKey("config"))
+			g.Expect(payload).To(gomega.HaveKey("deploymentResults"))
+
+			results := map[string]star.DeploymentResult{}
+			g.Expect(json.Unmarshal(payload["deploymentResults"], &results)).To(gomega.Succeed())
+			g.Expect(results).To(gomega.HaveLen(1))
+
+			By("ConfigMap is owned by the VectorDeployment for cascade-delete")
+			g.Expect(cm.OwnerReferences).ToNot(gomega.BeEmpty())
+			foundOwner := false
+			for _, ref := range cm.OwnerReferences {
+				if ref.UID == actualVectorDeployment.UID && ref.Kind == star.VectorDeploymentKind && ref.Controller != nil && *ref.Controller {
+					foundOwner = true
+				}
+			}
+			g.Expect(foundOwner).To(gomega.BeTrue(), "vector data ConfigMap should be controller-owned by VectorDeployment")
 		}, timeout, interval).Should(gomega.Succeed())
 	})
 })

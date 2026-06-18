@@ -6,6 +6,47 @@
 
 The Deployment Controller is responsible for managing the lifecycle of VectorDeployments, including downloading the vector image from the OCI repository and creating the related ArtifactDeployments and VectorAssignments.
 
+### Lifecycle phases
+
+1. **VectorDownloaded** — pull the vector OCM ComponentVersion from the OCI registry and persist its V2-serialized descriptor on the VectorDeployment status.
+2. **ArtifactDeploymentsCreated / VectorDeployed** — create one ArtifactDeployment per artifact reference, then wait until each underlying deployer marks its ArtifactDeployment Ready.
+3. **VectorAssignmentsCreated** — create the per-artifact VectorAssignment resources that the routing layer reconciles.
+4. **VectorConfigCommitted** — materialize the vector-scoped configuration ConfigMap (see below). This step is a singleton action per vector and runs after all artifact deployments are Ready, so that aggregated `DeploymentResults` are observable.
+5. **VectorReady** — set when all of the above have completed.
+
+### Vector-scoped configuration ConfigMap
+
+A vector may carry an optional, singleton OCM resource named `cloud-konfidence-vector-config` (matched on the resource Name; the OCM Type field is left to the vector author and is not used for discovery; dots are not permitted in OCM resource names per the schema, hence the dashes). The deployment controller materializes that resource (together with the aggregated deployment results from all underlying ArtifactDeployments) as a Kubernetes ConfigMap in the **landscape namespace** — that is, the same namespace as the `VectorDeployment` itself, per [ADR-0007](../../../../docs/pages/arc42/09-decisions/adrs/0007-lcp-multi-landscape-support.md). The LCP's own namespace (`konfidence-system`) is **not** used; one LCP installation can serve many landscapes, and each landscape sees only its own ConfigMaps.
+
+Both inputs that feed the payload are immutable for the lifetime of a `VectorDeployment` (the OCM ComponentVersion is immutable and `ArtifactDeployment.spec` is immutable per the CRD's XValidation rule), so the controller writes the ConfigMap **at most once** per VectorDeployment. If a ConfigMap with the expected name already exists the controller honors it as-is; if it is missing — first reconcile after `VectorDeployed`, or removed out-of-band — it is created.
+
+On VectorDeployment teardown the controller deletes the ConfigMap explicitly via the `konfidence.cloud/vector-data-cleanup` finalizer, and only then removes the finalizer so that the API server can finalize the VD object. The controller-owner reference is also set on the ConfigMap so that Kubernetes garbage collection cascades as a fallback.
+
+| Property | Value |
+|---|---|
+| Name | `vector-data-<vectorDeploymentName>` |
+| Namespace | `<vectorDeployment.Namespace>` |
+| `Immutable` | `true` |
+| Owner reference | controller-owner ref to the `VectorDeployment` (cascade delete on VD removal). |
+| Finalizer on the VD | `konfidence.cloud/vector-data-cleanup`, drives explicit teardown. |
+| Data key | single key `data.json` carrying the canonical JSON payload. |
+| Labels | `konfidence.cloud/managed-by=vector-deployment-controller`, `konfidence.cloud/vector-deployment-name=<vd.Name>`, `konfidence.cloud/vector-deployment-uid=<vd.UID>`. |
+
+Payload shape:
+
+```json
+{
+  "config": <opaque JSON forwarded from the cloud.konfidence.vector.config OCM blob, or null>,
+  "deploymentResults": {
+    "<componentName>/<resultName>": { "name": "...", "type": "...", "spec": { ... } }
+  }
+}
+```
+
+The ConfigMap is **always written** (even when there is neither authored configuration nor any deployment results) so that downstream consumers can rely on its presence after `VectorReady` flips True.
+
+The ConfigMap is consumed by a per-landscape vector data service (planned, see [ADR-0024](../../../../docs/pages/arc42/09-decisions/adrs/0024-vector-scoped-configuration-distribution.md)). Application pods are not expected to read the ConfigMap directly.
+
 ## Requirements and Setup
 
 ### OCM Authentication Setup

@@ -1012,7 +1012,8 @@ The lifecycle consists of:
  2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition
  3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition
  4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition
- 5. Marking the vector as ready for use -> VectorReadyCondition
+ 5. Writing the vector-scoped configuration ConfigMap into the landscape namespace -> VectorConfigCommittedCondition
+ 6. Marking the vector as ready for use -> VectorReadyCondition
 
 
 
@@ -1023,6 +1024,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions represents the current set of status conditions for this vector<br />deployment. These conditions track progress through the lifecycle stages. |  |  |
 | `resolvedVectorOcm` _string_ | ResolvedVectorOcm contains the fully materialized content of the OCM ComponentVersion after it has been<br />downloaded and resolved from the OCI registry. Unlike the Spec.Vector value, which is only a reference (URL),<br />this field stores the actual resolved vector content as provided by OCM, including all artifacts and metadata.<br />It is not a reference but the inlined representation of the component version at reconciliation time. |  |  |
+| `resolvedVectorConfig` _string_ | ResolvedVectorConfig contains the raw bytes of the optional vector-scoped configuration resource carried in the<br />vector OCM ComponentVersion (the singleton resource named "cloud-konfidence-vector-config" produced by the<br />galaxy assembly side). The field is empty when the vector does not declare such a resource. Persisted on the<br />status to avoid re-fetching the blob from OCM on every reconciliation. The value is fixed for the lifetime of<br />the VectorDeployment because the referenced vector is immutable. |  |  |
 | `resultingArtifactDeployments` _object (keys:string, values:[LocalArtifactDeploymentReference](#localartifactdeploymentreference))_ | ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The<br />map key is the component name of the artifact as defined inside the vector. Keys remain stable across<br />reconciliations and re-creations. |  |  |
 | `resultingVectorAssignments` _object (keys:string, values:[LocalVectorAssignmentReference](#localvectorassignmentreference))_ | ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are<br />not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of<br />assignments.<br />The map key is the component name of the artifact. Keys are stable across reconcilations. |  |  |
 | `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults exposes an aggregated view of the deployment results produced<br />by all underlying ArtifactDeployments. The map key is composed of the component<br />name and the individual result name, ensuring uniqueness. |  |  |
