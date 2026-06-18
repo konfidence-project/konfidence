@@ -88,7 +88,8 @@ spec:
                2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition
                3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition
                4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition
-               5. Marking the vector as ready for use -> VectorReadyCondition
+               5. Writing the vector-scoped configuration ConfigMap into the landscape namespace -> VectorConfigCommittedCondition
+               6. Marking the vector as ready for use -> VectorReadyCondition
             properties:
               conditions:
                 description: |-
@@ -178,6 +179,14 @@ spec:
                   by all underlying ArtifactDeployments. The map key is composed of the component
                   name and the individual result name, ensuring uniqueness.
                 type: object
+              resolvedVectorConfig:
+                description: |-
+                  ResolvedVectorConfig contains the raw bytes of the optional vector-scoped configuration resource carried in the
+                  vector OCM ComponentVersion (the singleton resource named "cloud-konfidence-vector-config" produced by the
+                  galaxy assembly side). The field is empty when the vector does not declare such a resource. Persisted on the
+                  status to avoid re-fetching the blob from OCM on every reconciliation. The value is fixed for the lifetime of
+                  the VectorDeployment because the referenced vector is immutable.
+                type: string
               resolvedVectorOcm:
                 description: |-
                   ResolvedVectorOcm contains the fully materialized content of the OCM ComponentVersion after it has been

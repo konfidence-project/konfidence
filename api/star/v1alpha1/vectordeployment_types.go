@@ -17,8 +17,21 @@ const (
 	// VectorAssignmentsCreatedCondition indicates that all VectorAssignment resources have been created successfully.
 	VectorAssignmentsCreatedCondition = "VectorAssignmentsCreated"
 
+	// VectorConfigCommittedCondition indicates that the vector-scoped configuration ConfigMap has been written to the
+	// landscape namespace and reflects both the optional authored configuration carried in the vector OCM
+	// ComponentVersion and the aggregated DeploymentResults of the underlying ArtifactDeployments. The condition is set
+	// to True even when neither authored data nor deployment results are present, so that downstream gating can be
+	// expressed without special-casing the empty case.
+	VectorConfigCommittedCondition = "VectorConfigCommitted"
+
 	// VectorReadyCondition indicates that the vector deployment is ready for use.
 	VectorReadyCondition = "Ready"
+
+	// VectorDataFinalizer guards the vector-scoped configuration ConfigMap that the deployment controller writes
+	// during the VectorConfigCommitted phase. The controller adds this finalizer on first reconciliation and removes
+	// it only after the corresponding ConfigMap has been explicitly deleted, so that teardown happens deterministically
+	// even when the controller-owner reference cascade is delayed or unobservable.
+	VectorDataFinalizer = "konfidence.cloud/vector-data-cleanup"
 )
 
 // VectorDeploymentSpec defines the desired state of a VectorDeployment.
@@ -43,7 +56,8 @@ type VectorDeploymentSpec struct {
 //  2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition
 //  3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition
 //  4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition
-//  5. Marking the vector as ready for use -> VectorReadyCondition
+//  5. Writing the vector-scoped configuration ConfigMap into the landscape namespace -> VectorConfigCommittedCondition
+//  6. Marking the vector as ready for use -> VectorReadyCondition
 type VectorDeploymentStatus struct {
 
 	// Conditions represents the current set of status conditions for this vector
@@ -55,6 +69,13 @@ type VectorDeploymentStatus struct {
 	// this field stores the actual resolved vector content as provided by OCM, including all artifacts and metadata.
 	// It is not a reference but the inlined representation of the component version at reconciliation time.
 	ResolvedVectorOcm string `json:"resolvedVectorOcm,omitempty"`
+
+	// ResolvedVectorConfig contains the raw bytes of the optional vector-scoped configuration resource carried in the
+	// vector OCM ComponentVersion (the singleton resource named "cloud-konfidence-vector-config" produced by the
+	// galaxy assembly side). The field is empty when the vector does not declare such a resource. Persisted on the
+	// status to avoid re-fetching the blob from OCM on every reconciliation. The value is fixed for the lifetime of
+	// the VectorDeployment because the referenced vector is immutable.
+	ResolvedVectorConfig string `json:"resolvedVectorConfig,omitempty"`
 
 	// ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The
 	// map key is the component name of the artifact as defined inside the vector. Keys remain stable across

@@ -43,7 +43,7 @@ type VectorDeploymentReconciler struct {
 // +kubebuilder:rbac:groups=star.konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectorassignments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;delete
 
 func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
@@ -55,6 +55,24 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	log.Info("Found vector deployment")
+
+	// Handle deletion. The controller-owner reference on the vector data ConfigMap normally cascades on VD deletion via
+	// Kubernetes garbage collection, but we still drive the deletion explicitly here so that teardown is deterministic
+	// and observable (e.g. when the cascade is racing with another reconciler, or the ConfigMap was somehow detached
+	// from its owner). The finalizer guarantees we get a final reconcile pass before the VD object is removed.
+	if !vectorDeployment.DeletionTimestamp.IsZero() {
+		return r.handleVectorDeploymentDeletion(ctx, vectorDeployment, log)
+	}
+
+	// Ensure the vector-data finalizer is present on first reconcile so that we can run the cleanup hook above on
+	// teardown. The patch is a no-op when the finalizer is already on the object.
+	if !controllerutil.ContainsFinalizer(vectorDeployment, star.VectorDataFinalizer) {
+		patchBeforeFinalizer := client.MergeFrom(vectorDeployment.DeepCopy())
+		controllerutil.AddFinalizer(vectorDeployment, star.VectorDataFinalizer)
+		if err := r.Patch(ctx, vectorDeployment, patchBeforeFinalizer); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to add vector-data finalizer to %s: %w", req.NamespacedName, err)
+		}
+	}
 
 	originalVectorDeployment := vectorDeployment.DeepCopy()
 	patch := client.MergeFrom(originalVectorDeployment)
@@ -76,6 +94,10 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 		// 2. persist descriptor JSON in status and extract artifact refs
 		vectorDeployment.Status.ResolvedVectorOcm = string(fetchedVectorDescriptor.DescriptorJSON)
+		// Cache the optional vector-scoped configuration blob alongside the descriptor so that subsequent
+		// reconciliations don't have to re-fetch it from the OCI registry. The string is empty when the vector
+		// did not declare a resource named "cloud-konfidence-vector-config".
+		vectorDeployment.Status.ResolvedVectorConfig = string(fetchedVectorDescriptor.Configuration)
 		artifactRefs = fetchedVectorDescriptor.References
 
 		// 3. update status condition VectorDownloadedCondition to True
@@ -138,6 +160,18 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if !allAssignmentsReady {
 		log.Info("waiting for vector assignments to be ready")
 		return ctrl.Result{}, nil
+	}
+
+	// Materialize the vector-scoped configuration ConfigMap. This step runs after artifact deployments are
+	// ready (so that aggregated DeploymentResults are observable) and is a singleton action per vector,
+	// distinct from the per-artifact VectorAssignment work above.
+	if err := r.handleVectorConfig(ctx, vectorDeployment, log); err != nil {
+		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
+			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; %w", patchError, err)
+			}
+		}
+		return ctrl.Result{}, fmt.Errorf("failed to materialize vector config for vector deployment %s: %w", vectorDeployment.Name, err)
 	}
 
 	// set status condition VectorReadyCondition to True

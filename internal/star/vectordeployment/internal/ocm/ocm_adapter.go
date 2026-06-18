@@ -49,6 +49,14 @@ func NewAdapterWithClient(client pkgocm.Client) Adapter {
 const (
 	konfidenceResourceTypeArtifactManifest     = "cloud.konfidence.artifact.manifest"
 	konfidenceResourceTypeArtifactTaskManifest = "cloud.konfidence.artifact.task.manifest"
+
+	// KonfidenceResourceTypeVectorConfig is the OCM resource Name used by the assembly side
+	// (galaxy/vectorassembly) to mark the optional, singleton vector-scoped configuration resource on a vector
+	// ComponentVersion. Note that this value is matched against `Resource.Name`, not `Resource.Type` -- the Type field
+	// is left to the vector author. The character set is constrained to lowercase letters, digits and dashes because
+	// dots are not permitted in OCM resource names per the schema. The constant is exported so that the assembly and
+	// deployment sides can reuse the exact same identifier.
+	KonfidenceResourceTypeVectorConfig = "cloud-konfidence-vector-config"
 )
 
 func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (controller.VectorDescriptor, error) {
@@ -62,6 +70,16 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 		return controller.VectorDescriptor{}, fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w",
 			ref.String(), err)
 	}
+
+	// Extract the optional, singleton vector-scoped configuration resource and strip it from the descriptor before V2
+	// serialization. The resource is a Konfidence-internal concern, not part of the public OCM contract that is later
+	// re-read from the persisted JSON, so removing it keeps the V2 representation clean and avoids serialization
+	// problems for access types that may not be wired into the runtime registry of every consumer (e.g. tests).
+	vectorConfig, prunedResources, err := extractVectorConfigResource(ctx, a, ref, descriptor.Component.Resources)
+	if err != nil {
+		return controller.VectorDescriptor{}, err
+	}
+	descriptor.Component.Resources = prunedResources
 
 	// Convert runtime descriptor to v2 and then marshal to JSON.
 	// descruntime.Descriptor.MarshalJSON() is intentionally unsupported; ConvertToV2 is required.
@@ -90,7 +108,52 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 	return controller.VectorDescriptor{
 		References:     refs,
 		DescriptorJSON: v2DescriptorJSON,
+		Configuration:  vectorConfig,
 	}, nil
+}
+
+// extractVectorConfigResource scans the given resource slice for the optional, singleton vector-scoped configuration
+// resource. The match is performed on the resource Name (KonfidenceResourceTypeVectorConfig), mirroring the producer
+// side in galaxy/vectorassembly which sets that field to the same constant. When present, the resource's blob is
+// fetched and the resource is removed from the slice that is returned to the caller. The function returns the blob
+// bytes (or nil), the pruned resource slice, and any error encountered. Multiple matches are an authoring mistake and
+// produce an error rather than a silently-chosen winner.
+func extractVectorConfigResource(
+	ctx context.Context,
+	a Adapter,
+	ref compref.Ref,
+	resources []descruntime.Resource,
+) ([]byte, []descruntime.Resource, error) {
+	var (
+		blob   []byte
+		picked *descruntime.Resource
+		pruned = make([]descruntime.Resource, 0, len(resources))
+	)
+	for i := range resources {
+		resource := resources[i]
+		if resource.Name != KonfidenceResourceTypeVectorConfig {
+			pruned = append(pruned, resource)
+			continue
+		}
+		if picked != nil {
+			return nil, nil, fmt.Errorf(
+				"vector component %s declares more than one resource named %q (versions %q and %q); at most one is permitted",
+				ref.String(), KonfidenceResourceTypeVectorConfig, picked.Version, resource.Version,
+			)
+		}
+		picked = &resources[i]
+	}
+	if picked != nil {
+		data, err := a.getLocalResourceBlob(ctx, ref, picked)
+		if err != nil {
+			return nil, nil, fmt.Errorf(
+				"failed to read vector config blob for resource %s in vector %s: %w",
+				picked.Name, ref.String(), err,
+			)
+		}
+		blob = data
+	}
+	return blob, pruned, nil
 }
 
 // GetArtifactManifestByReference fetches the artifact manifest for the given artifact reference.
