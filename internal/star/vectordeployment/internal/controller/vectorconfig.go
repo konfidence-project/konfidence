@@ -33,8 +33,8 @@ const (
 // and ArtifactDeployment.spec is also immutable -- both inputs that feed this struct are therefore fixed by the time
 // handleVectorConfig is invoked). Field ordering is fixed for stable JSON marshalling.
 type vectorConfigPayload struct {
-	// Config carries the optional authored vector-scoped configuration blob (the "cloud.konfidence.vector.config" OCM
-	// resource bytes) verbatim. It is null when the vector did not declare such a resource.
+	// Config carries the optional authored vector-scoped configuration blob (the bytes of the OCM resource named
+	// "cloud-konfidence-vector-config") verbatim. It is null when the vector did not declare such a resource.
 	Config json.RawMessage `json:"config"`
 	// DeploymentResults is the aggregated set of results produced by all underlying ArtifactDeployments, keyed
 	// "<componentName>/<resultName>". An empty map is materialized as "{}" rather than null so that consumers do not
