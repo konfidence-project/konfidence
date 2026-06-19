@@ -29,10 +29,21 @@ On VectorDeployment teardown the controller deletes the ConfigMap explicitly via
 | `Immutable` | `true` |
 | Owner reference | controller-owner ref to the `VectorDeployment` (cascade delete on VD removal). |
 | Finalizer on the VD | `konfidence.cloud/vector-data-cleanup`, drives explicit teardown. |
-| Data key | single key `data.json` carrying the canonical JSON payload. |
+| Data keys | two independently-accessible JSON documents (see below). |
 | Labels | `konfidence.cloud/managed-by=vector-deployment-controller`, `konfidence.cloud/vector-deployment-name=<vd.Name>`, `konfidence.cloud/vector-deployment-uid=<vd.UID>`. |
 
-Payload shape:
+Data layout:
+
+| Key | Content |
+|---|---|
+| `config.json` | The optional authored configuration blob, forwarded byte-for-byte from the OCM resource. The literal `null` when the vector did not declare such a resource. |
+| `deployment-results.json` | The aggregated `DeploymentResults` of all underlying ArtifactDeployments, keyed `<componentName>/<resultName>`. Always materialized; an empty map (`{}`) when no artifact has produced any results. |
+
+Two distinct keys (instead of a single bundled `data.json`) keep the two semantically-independent concerns separately accessible — both for `kubectl get cm -o jsonpath='{.data.config\.json}'` and for the future per-landscape vector data service which can serve them on independent endpoints.
+
+The authored blob itself is **not** persisted on the `VectorDeployment.status` — only its SHA-256 hash (`status.resolvedVectorConfigHash`) is, as a small etcd-friendly fingerprint for traceability. On the rare path where the controller has to recreate a missing ConfigMap on a later reconcile, the blob is re-fetched lazily via the OCM adapter.
+
+Payload shape (for reference; not persisted as a single document — see *Data layout* above):
 
 ```json
 {
@@ -43,7 +54,7 @@ Payload shape:
 }
 ```
 
-The ConfigMap is **always written** (even when there is neither authored configuration nor any deployment results) so that downstream consumers can rely on its presence after `VectorReady` flips True.
+The two keys are **always written** (even when there is neither authored configuration nor any deployment results) so that downstream consumers can rely on their presence after `VectorReady` flips True.
 
 The ConfigMap is consumed by a per-landscape vector data service (planned, see [ADR-0024](../../../../docs/pages/arc42/09-decisions/adrs/0024-vector-scoped-configuration-distribution.md)). Application pods are not expected to read the ConfigMap directly.
 

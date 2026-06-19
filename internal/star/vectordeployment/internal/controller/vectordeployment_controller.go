@@ -83,6 +83,11 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	var artifactRefs []compref.Ref
+	// freshConfig holds the optional vector-scoped configuration blob if it was just resolved from OCM in this
+	// reconcile pass (i.e. on the first reconcile that fills `Status.ResolvedVectorOcm`). On subsequent reconciles
+	// it is nil and `handleVectorConfig` re-fetches lazily only if it actually needs the bytes — keeping the
+	// (potentially large) blob out of the VD `Status` and out of the etcd watch path.
+	var freshConfig []byte
 
 	// if ResolvedVectorOcm is empty then fetch Vector from OCI Repository
 	if vectorDeployment.Status.ResolvedVectorOcm == "" {
@@ -92,12 +97,12 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vectorDeployment.Name, err)
 		}
 
-		// 2. persist descriptor JSON in status and extract artifact refs
+		// 2. persist descriptor JSON in status and extract artifact refs. The configuration blob is intentionally
+		//    NOT persisted on the status — only its hash is stored later (in handleVectorConfig) for traceability.
+		//    Keeping the blob in a local variable instead of `Status.ResolvedVectorConfig` avoids putting potentially
+		//    large opaque bytes on the etcd watch path.
 		vectorDeployment.Status.ResolvedVectorOcm = string(fetchedVectorDescriptor.DescriptorJSON)
-		// Cache the optional vector-scoped configuration blob alongside the descriptor so that subsequent
-		// reconciliations don't have to re-fetch it from the OCI registry. The string is empty when the vector
-		// did not declare a resource named "cloud-konfidence-vector-config".
-		vectorDeployment.Status.ResolvedVectorConfig = string(fetchedVectorDescriptor.Configuration)
+		freshConfig = fetchedVectorDescriptor.Configuration
 		artifactRefs = fetchedVectorDescriptor.References
 
 		// 3. update status condition VectorDownloadedCondition to True
@@ -165,7 +170,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// Materialize the vector-scoped configuration ConfigMap. This step runs after artifact deployments are
 	// ready (so that aggregated DeploymentResults are observable) and is a singleton action per vector,
 	// distinct from the per-artifact VectorAssignment work above.
-	if err := r.handleVectorConfig(ctx, vectorDeployment, log); err != nil {
+	if err := r.handleVectorConfig(ctx, vectorDeployment, *vectorRef, freshConfig, log); err != nil {
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; %w", patchError, err)
