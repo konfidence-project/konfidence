@@ -343,14 +343,16 @@ var _ = Describe("VectorDeployment Controller", func() {
 			g.Expect(cm.Labels).To(gomega.HaveKeyWithValue(pkgctrl.VectorDeploymentNameLabel, ocmName))
 			g.Expect(cm.Labels).To(gomega.HaveKey(pkgctrl.VectorDeploymentUIDLabel))
 
-			By("payload contains aggregated DeploymentResults")
-			payload := map[string]json.RawMessage{}
-			g.Expect(json.Unmarshal([]byte(cm.Data[VectorConfigDataKey]), &payload)).To(gomega.Succeed())
-			g.Expect(payload).To(gomega.HaveKey("config"))
-			g.Expect(payload).To(gomega.HaveKey("deploymentResults"))
+			By("ConfigMap carries config.json and deployment-results.json as separate keys")
+			g.Expect(cm.Data).To(gomega.HaveKey(VectorConfigDataKey))
+			g.Expect(cm.Data).To(gomega.HaveKey(VectorDeploymentResultsDataKey))
+
+			By("config.json is the authored blob (or null), deployment-results.json holds the aggregation")
+			// This vector did not declare a vector-config resource, so the authored payload is null.
+			g.Expect(cm.Data[VectorConfigDataKey]).To(gomega.Equal("null"))
 
 			results := map[string]star.DeploymentResult{}
-			g.Expect(json.Unmarshal(payload["deploymentResults"], &results)).To(gomega.Succeed())
+			g.Expect(json.Unmarshal([]byte(cm.Data[VectorDeploymentResultsDataKey]), &results)).To(gomega.Succeed())
 			g.Expect(results).To(gomega.HaveLen(1))
 
 			By("ConfigMap is owned by the VectorDeployment for cascade-delete")

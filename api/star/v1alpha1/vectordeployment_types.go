@@ -70,12 +70,13 @@ type VectorDeploymentStatus struct {
 	// It is not a reference but the inlined representation of the component version at reconciliation time.
 	ResolvedVectorOcm string `json:"resolvedVectorOcm,omitempty"`
 
-	// ResolvedVectorConfig contains the raw bytes of the optional vector-scoped configuration resource carried in the
-	// vector OCM ComponentVersion (the singleton resource named "cloud-konfidence-vector-config" produced by the
-	// galaxy assembly side). The field is empty when the vector does not declare such a resource. Persisted on the
-	// status to avoid re-fetching the blob from OCM on every reconciliation. The value is fixed for the lifetime of
-	// the VectorDeployment because the referenced vector is immutable.
-	ResolvedVectorConfig string `json:"resolvedVectorConfig,omitempty"`
+	// ResolvedVectorConfigHash is a hex-encoded SHA-256 hash of the optional vector-scoped configuration blob
+	// (the singleton OCM resource named "cloud-konfidence-vector-config" produced by the galaxy assembly side),
+	// computed once when the blob is first resolved from OCM and persisted here as a small, etcd-friendly
+	// fingerprint instead of the (potentially large) bytes themselves. Empty when the vector does not declare such
+	// a resource. Used purely for traceability / observability; the controller never compares against this value
+	// for drift detection because the vector ComponentVersion is immutable.
+	ResolvedVectorConfigHash string `json:"resolvedVectorConfigHash,omitempty"`
 
 	// ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The
 	// map key is the component name of the artifact as defined inside the vector. Keys remain stable across

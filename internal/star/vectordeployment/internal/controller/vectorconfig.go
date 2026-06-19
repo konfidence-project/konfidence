@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -13,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -24,23 +27,18 @@ const (
 	// VectorDeployment itself, per ADR-0007).
 	VectorDataConfigMapNamePrefix = "vector-data-"
 
-	// VectorConfigDataKey is the single key under which the canonical JSON payload is stored in the ConfigMap.
-	VectorConfigDataKey = "data.json"
-)
+	// VectorConfigDataKey carries the optional authored configuration blob (the bytes of the OCM resource named
+	// "cloud-konfidence-vector-config") verbatim. It is written as `null` when the vector does not declare such
+	// a resource. Two distinct keys (instead of one bundled `data.json`) keep the two semantically-independent
+	// concerns separately accessible — both for `kubectl get cm -o jsonpath` and for the future per-landscape
+	// vector data service which can serve them on independent endpoints.
+	VectorConfigDataKey = "config.json"
 
-// vectorConfigPayload is the on-wire shape persisted into the ConfigMap. The payload is computed once per
-// VectorDeployment and is immutable for the lifetime of that deployment (the vector OCM ComponentVersion is immutable
-// and ArtifactDeployment.spec is also immutable -- both inputs that feed this struct are therefore fixed by the time
-// handleVectorConfig is invoked). Field ordering is fixed for stable JSON marshalling.
-type vectorConfigPayload struct {
-	// Config carries the optional authored vector-scoped configuration blob (the bytes of the OCM resource named
-	// "cloud-konfidence-vector-config") verbatim. It is null when the vector did not declare such a resource.
-	Config json.RawMessage `json:"config"`
-	// DeploymentResults is the aggregated set of results produced by all underlying ArtifactDeployments, keyed
-	// "<componentName>/<resultName>". An empty map is materialized as "{}" rather than null so that consumers do not
-	// have to special-case the zero state.
-	DeploymentResults map[string]star.DeploymentResult `json:"deploymentResults"`
-}
+	// VectorDeploymentResultsDataKey carries the aggregated DeploymentResults of all underlying ArtifactDeployments,
+	// keyed "<componentName>/<resultName>". Always present, materialized as `{}` when no artifact has produced any
+	// results, so consumers do not have to special-case the zero state.
+	VectorDeploymentResultsDataKey = "deployment-results.json"
+)
 
 // handleVectorConfig materializes the vector-scoped configuration ConfigMap in the landscape namespace.
 //
@@ -53,13 +51,19 @@ type vectorConfigPayload struct {
 //   - ArtifactDeployment.Spec is immutable and DeploymentResults are documented as immutable per generation, so the
 //     aggregated results gathered by handleArtifactDeployments are stable from the moment all artifacts go Ready.
 //
-// Consequently the function never needs to update an existing ConfigMap. If one is already present we trust it and
-// no-op; if it is missing (first reconcile after VectorReady, or it was deleted out-of-band) we create it as
-// Immutable=true with a controller-owner reference back to the VectorDeployment so that cleanup cascades on VD
-// deletion.
+// Consequently the function never updates an existing ConfigMap. If one is already present we trust it and no-op; if
+// it is missing (first reconcile after VectorReady, or it was deleted out-of-band) we create it as Immutable=true with
+// a controller-owner reference back to the VectorDeployment so that cleanup cascades on VD deletion.
+//
+// The “freshConfig“ parameter carries the authored configuration blob if it was just fetched from OCM in this
+// reconcile pass; on subsequent reconciles the caller passes nil and we re-fetch via the OCM adapter only when needed
+// (i.e. when the ConfigMap is missing). This keeps the (potentially large) authored blob out of the VD “Status“ —
+// only its hash is persisted there for traceability.
 func (r *VectorDeploymentReconciler) handleVectorConfig(
 	ctx context.Context,
 	vd *star.VectorDeployment,
+	vectorRef compref.Ref,
+	freshConfig []byte,
 	log logr.Logger,
 ) error {
 	cmName := vectorConfigConfigMapName(vd.Name)
@@ -78,7 +82,20 @@ func (r *VectorDeploymentReconciler) handleVectorConfig(
 		return fmt.Errorf("failed to get vector data ConfigMap %s: %w", cmKey, getErr)
 	}
 
-	payload, err := buildVectorConfigPayload(vd)
+	// Lazy re-fetch path: if we don't already have the blob in scope (later reconciles where Reconcile took the
+	// cached `Status.ResolvedVectorOcm` shortcut), pull the descriptor again. Cheap on the happy path because we
+	// only enter this branch when the ConfigMap is genuinely missing.
+	configBlob := freshConfig
+	if configBlob == nil && vd.Status.ResolvedVectorConfigHash != "" {
+		descr, err := r.OcmAdapter.GetVectorDescriptor(ctx, vectorRef)
+		if err != nil {
+			r.setVectorConfigCondition(vd, metav1.ConditionFalse, "ConfigBlobRefetchFailed", err.Error())
+			return fmt.Errorf("failed to re-fetch vector config blob from OCM for %s: %w", cmKey, err)
+		}
+		configBlob = descr.Configuration
+	}
+
+	configValue, resultsValue, err := buildVectorConfigPayload(configBlob, vd.Status.DeploymentResults)
 	if err != nil {
 		r.setVectorConfigCondition(vd, metav1.ConditionFalse, "PayloadBuildFailed", err.Error())
 		return err
@@ -97,7 +114,8 @@ func (r *VectorDeploymentReconciler) handleVectorConfig(
 		},
 		Immutable: &immutable,
 		Data: map[string]string{
-			VectorConfigDataKey: string(payload),
+			VectorConfigDataKey:            configValue,
+			VectorDeploymentResultsDataKey: resultsValue,
 		},
 	}
 
@@ -111,6 +129,14 @@ func (r *VectorDeploymentReconciler) handleVectorConfig(
 		return fmt.Errorf("failed to create vector data ConfigMap %s: %w", cmKey, err)
 	}
 
+	// Persist the small fingerprint so operators can correlate `ResolvedVectorConfigHash` on the VD with the
+	// `konfidence.cloud/vector-config-hash`-style annotation that future tooling may add. We never compare against
+	// this value for drift detection (the vector is immutable, so by construction the hash on a successfully
+	// committed CM is stable).
+	if configBlob != nil {
+		vd.Status.ResolvedVectorConfigHash = sha256Hex(configBlob)
+	}
+
 	r.setVectorConfigCondition(vd, metav1.ConditionTrue, "Committed",
 		fmt.Sprintf("Vector data ConfigMap %s materialized", cmName))
 	r.Recorder.Eventf(vd, nil, corev1.EventTypeNormal,
@@ -120,34 +146,45 @@ func (r *VectorDeploymentReconciler) handleVectorConfig(
 	return nil
 }
 
-// buildVectorConfigPayload assembles the canonical JSON written to the vector data ConfigMap. The authored configuration
-// blob is forwarded unchanged when present and treated as null otherwise. DeploymentResults are materialized as an empty
-// map (rather than null) when no artifact has produced any.
-func buildVectorConfigPayload(vd *star.VectorDeployment) ([]byte, error) {
-	payload := vectorConfigPayload{
-		DeploymentResults: vd.Status.DeploymentResults,
-	}
-	if payload.DeploymentResults == nil {
-		payload.DeploymentResults = map[string]star.DeploymentResult{}
-	}
-	if vd.Status.ResolvedVectorConfig != "" {
-		raw := json.RawMessage(vd.Status.ResolvedVectorConfig)
-		// Validate that the authored payload is itself valid JSON; otherwise the resulting ConfigMap content would be
-		// undecodable for downstream consumers.
-		if !json.Valid(raw) {
-			return nil, fmt.Errorf("vector configuration payload is not valid JSON")
-		}
-		payload.Config = raw
+// buildVectorConfigPayload renders the two ConfigMap data values from the in-memory inputs.
+//
+// The authored configuration blob is forwarded unchanged when present and treated as the JSON literal `null`
+// otherwise. DeploymentResults are materialized as `{}` (rather than null) when no artifact has produced any.
+// Both return values are valid JSON documents on every code path.
+func buildVectorConfigPayload(
+	configBlob []byte,
+	deploymentResults map[string]star.DeploymentResult,
+) (string, string, error) {
+	var configValue string
+	if len(configBlob) == 0 {
+		configValue = "null"
 	} else {
-		payload.Config = json.RawMessage("null")
+		if !json.Valid(configBlob) {
+			return "", "", fmt.Errorf("vector configuration payload is not valid JSON")
+		}
+		configValue = string(configBlob)
 	}
-	return json.Marshal(payload)
+
+	if deploymentResults == nil {
+		deploymentResults = map[string]star.DeploymentResult{}
+	}
+	resultsBytes, err := json.Marshal(deploymentResults)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to marshal deployment results: %w", err)
+	}
+
+	return configValue, string(resultsBytes), nil
 }
 
 // vectorConfigConfigMapName returns the deterministic ConfigMap name for a given VectorDeployment. Names are unique
 // per landscape namespace, mirroring how VectorAssignment is keyed by the VectorDeployment name.
 func vectorConfigConfigMapName(vdName string) string {
 	return VectorDataConfigMapNamePrefix + vdName
+}
+
+func sha256Hex(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
 }
 
 // setVectorConfigCondition is a small helper to keep the condition shape consistent across the success and failure
