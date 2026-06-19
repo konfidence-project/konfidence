@@ -36,7 +36,7 @@ Payload shape:
 
 ```json
 {
-  "config": <opaque JSON forwarded from the cloud.konfidence.vector.config OCM blob, or null>,
+  "config": <opaque JSON forwarded from the cloud-konfidence-vector-config OCM blob, or null>,
   "deploymentResults": {
     "<componentName>/<resultName>": { "name": "...", "type": "...", "spec": { ... } }
   }
