@@ -343,17 +343,25 @@ var _ = Describe("VectorDeployment Controller", func() {
 			g.Expect(cm.Labels).To(gomega.HaveKeyWithValue(pkgctrl.VectorDeploymentNameLabel, ocmName))
 			g.Expect(cm.Labels).To(gomega.HaveKey(pkgctrl.VectorDeploymentUIDLabel))
 
-			By("ConfigMap carries config.json and deployment-results.json as separate keys")
-			g.Expect(cm.Data).To(gomega.HaveKey(VectorConfigDataKey))
-			g.Expect(cm.Data).To(gomega.HaveKey(VectorDeploymentResultsDataKey))
+			By("ConfigMap carries features.json and authored.json as separate keys per the central service contract")
+			g.Expect(cm.Data).To(gomega.HaveKey(FeaturesConfigKey))
+			g.Expect(cm.Data).To(gomega.HaveKey(AuthoredConfigKey))
+			// This vector did not declare a vector-config OCM resource, so both top-level keys are JSON null.
+			g.Expect(cm.Data[FeaturesConfigKey]).To(gomega.Equal("null"))
+			g.Expect(cm.Data[AuthoredConfigKey]).To(gomega.Equal("null"))
 
-			By("config.json is the authored blob (or null), deployment-results.json holds the aggregation")
-			// This vector did not declare a vector-config resource, so the authored payload is null.
-			g.Expect(cm.Data[VectorConfigDataKey]).To(gomega.Equal("null"))
+			By("ConfigMap carries one deploymentResults.<component>.json key per artifact, value = Spec JSON verbatim")
+			// The single artifact in this scenario has component name
+			// `github.com/konfidence-project/sample-service-1`; only the last `/`-segment is used as the CM key
+			// suffix because the K8s ConfigMap data-key charset does not permit `/`.
+			const artifactBasename = "sample-service-1"
+			resultKey := DeploymentResultsKeyPrefix + artifactBasename + JSONSuffix
+			g.Expect(cm.Data).To(gomega.HaveKey(resultKey))
 
-			results := map[string]star.DeploymentResult{}
-			g.Expect(json.Unmarshal([]byte(cm.Data[VectorDeploymentResultsDataKey]), &results)).To(gomega.Succeed())
-			g.Expect(results).To(gomega.HaveLen(1))
+			// Value should be the deployer-emitted Spec JSON, forwarded verbatim.
+			var spec map[string]any
+			g.Expect(json.Unmarshal([]byte(cm.Data[resultKey]), &spec)).To(gomega.Succeed())
+			g.Expect(spec).To(gomega.HaveKeyWithValue("test-deployment-result", true))
 
 			By("ConfigMap is owned by the VectorDeployment for cascade-delete")
 			g.Expect(cm.OwnerReferences).ToNot(gomega.BeEmpty())

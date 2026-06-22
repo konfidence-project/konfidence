@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
@@ -25,20 +26,44 @@ const (
 	// VectorDataConfigMapNamePrefix is the fixed prefix used for the per-vector data ConfigMap. The full name is
 	// "vector-data-<vectorDeploymentName>", written into the landscape namespace (the namespace of the
 	// VectorDeployment itself, per ADR-0007).
+	//
+	// NB: the merged per-landscape vector configuration service (kubernetes-landscape-orchestrator PR #12) currently
+	// expects the ConfigMap name to be the bare `vectorId` (the OFREP `targetingKey`). The producer side intentionally
+	// keeps the `vector-data-` prefix for now — the service will be aligned in a follow-up.
 	VectorDataConfigMapNamePrefix = "vector-data-"
 
-	// VectorConfigDataKey carries the optional authored configuration blob (the bytes of the OCM resource named
-	// "cloud-konfidence-vector-config") verbatim. It is written as `null` when the vector does not declare such
-	// a resource. Two distinct keys (instead of one bundled `data.json`) keep the two semantically-independent
-	// concerns separately accessible — both for `kubectl get cm -o jsonpath` and for the future per-landscape
-	// vector data service which can serve them on independent endpoints.
-	VectorConfigDataKey = "config.json"
+	// FeaturesConfigKey carries the OFREP feature flag map extracted from the `features` field of the OCM envelope
+	// (the singleton resource named "cloud-konfidence-vector-config" produced by the galaxy assembly side). Always
+	// present; written as the JSON literal `null` when the envelope did not declare features.
+	FeaturesConfigKey = "features.json"
 
-	// VectorDeploymentResultsDataKey carries the aggregated DeploymentResults of all underlying ArtifactDeployments,
-	// keyed "<componentName>/<resultName>". Always present, materialized as `{}` when no artifact has produced any
-	// results, so consumers do not have to special-case the zero state.
-	VectorDeploymentResultsDataKey = "deployment-results.json"
+	// AuthoredConfigKey carries the authored configuration map extracted from the `authored` field of the OCM
+	// envelope. Always present; written as the JSON literal `null` when the envelope did not declare authored data.
+	AuthoredConfigKey = "authored.json"
+
+	// DeploymentResultsKeyPrefix is the prefix under which per-artifact deployment results are written. Each artifact
+	// contributes one key of the form "deploymentResults.<component>.json", carrying the deployer-emitted spec JSON
+	// verbatim. No key is written when an artifact produced no results. The layout mirrors the merged per-landscape
+	// vector configuration service (kubernetes-landscape-orchestrator PR #12) so that the service can address each
+	// deployment independently.
+	DeploymentResultsKeyPrefix = "deploymentResults."
+
+	// JSONSuffix is the trailing suffix used for every JSON-valued ConfigMap key in this package.
+	JSONSuffix = ".json"
+
+	// jsonNull is the JSON literal written into ConfigMap keys whose source field is absent or empty (e.g. a vector
+	// that declared no `features` block in its OCM envelope still gets a `features.json: null` entry). Always-present
+	// keys keep the consumer side simple.
+	jsonNull = "null"
 )
+
+// configEnvelope is the on-wire shape of the `cloud-konfidence-vector-config` OCM resource produced by the galaxy
+// assembly side (see api/galaxy/v1alpha1/vector_config_types.go). Both fields are optional; the galaxy side omits
+// the resource entirely when neither is set, but defensively we still accept either being nil on the consume side.
+type configEnvelope struct {
+	Features json.RawMessage `json:"features,omitempty"`
+	Authored json.RawMessage `json:"authored,omitempty"`
+}
 
 // handleVectorConfig materializes the vector-scoped configuration ConfigMap in the landscape namespace.
 //
@@ -47,7 +72,7 @@ const (
 // the lifetime of the VectorDeployment:
 //
 //   - VectorDeployment.Spec is immutable (XValidation rule), so the referenced vector cannot change.
-//   - The vector OCM ComponentVersion is immutable, so the optional authored configuration blob is fixed.
+//   - The vector OCM ComponentVersion is immutable, so the optional authored configuration envelope is fixed.
 //   - ArtifactDeployment.Spec is immutable and DeploymentResults are documented as immutable per generation, so the
 //     aggregated results gathered by handleArtifactDeployments are stable from the moment all artifacts go Ready.
 //
@@ -55,10 +80,10 @@ const (
 // it is missing (first reconcile after VectorReady, or it was deleted out-of-band) we create it as Immutable=true with
 // a controller-owner reference back to the VectorDeployment so that cleanup cascades on VD deletion.
 //
-// The “freshConfig“ parameter carries the authored configuration blob if it was just fetched from OCM in this
+// The “freshConfig“ parameter carries the authored configuration envelope if it was just fetched from OCM in this
 // reconcile pass; on subsequent reconciles the caller passes nil and we re-fetch via the OCM adapter only when needed
-// (i.e. when the ConfigMap is missing). This keeps the (potentially large) authored blob out of the VD “Status“ —
-// only its hash is persisted there for traceability.
+// (i.e. when the ConfigMap is missing). This keeps the (potentially large) envelope out of the VD “Status“ — only
+// its hash is persisted there for traceability.
 func (r *VectorDeploymentReconciler) handleVectorConfig(
 	ctx context.Context,
 	vd *star.VectorDeployment,
@@ -82,7 +107,7 @@ func (r *VectorDeploymentReconciler) handleVectorConfig(
 		return fmt.Errorf("failed to get vector data ConfigMap %s: %w", cmKey, getErr)
 	}
 
-	// Lazy re-fetch path: if we don't already have the blob in scope (later reconciles where Reconcile took the
+	// Lazy re-fetch path: if we don't already have the envelope in scope (later reconciles where Reconcile took the
 	// cached `Status.ResolvedVectorOcm` shortcut), pull the descriptor again. Cheap on the happy path because we
 	// only enter this branch when the ConfigMap is genuinely missing.
 	configBlob := freshConfig
@@ -95,7 +120,7 @@ func (r *VectorDeploymentReconciler) handleVectorConfig(
 		configBlob = descr.Configuration
 	}
 
-	configValue, resultsValue, err := buildVectorConfigPayload(configBlob, vd.Status.DeploymentResults)
+	data, err := buildVectorConfigPayload(configBlob, vd.Status.DeploymentResults)
 	if err != nil {
 		r.setVectorConfigCondition(vd, metav1.ConditionFalse, "PayloadBuildFailed", err.Error())
 		return err
@@ -113,10 +138,7 @@ func (r *VectorDeploymentReconciler) handleVectorConfig(
 			},
 		},
 		Immutable: &immutable,
-		Data: map[string]string{
-			VectorConfigDataKey:            configValue,
-			VectorDeploymentResultsDataKey: resultsValue,
-		},
+		Data:      data,
 	}
 
 	if err := controllerutil.SetControllerReference(vd, cm, r.Scheme); err != nil {
@@ -146,34 +168,140 @@ func (r *VectorDeploymentReconciler) handleVectorConfig(
 	return nil
 }
 
-// buildVectorConfigPayload renders the two ConfigMap data values from the in-memory inputs.
+// buildVectorConfigPayload assembles the ConfigMap `Data` map from the in-memory inputs.
 //
-// The authored configuration blob is forwarded unchanged when present and treated as the JSON literal `null`
-// otherwise. DeploymentResults are materialized as `{}` (rather than null) when no artifact has produced any.
-// Both return values are valid JSON documents on every code path.
+// The OCM envelope is unmarshalled into its two top-level fields and each is written to its own key (`features.json`,
+// `authored.json`). Both keys are always present; absent fields become the JSON literal `null`. Each artifact's
+// DeploymentResult is written to `deploymentResults.<component-basename>.json` carrying the deployer-emitted spec
+// JSON verbatim. No `deploymentResults.*.json` key is written when an artifact produced no results.
+//
+// Component identifier: the OCM component name (e.g. `github.com/konfidence-project/sample-service-1`) cannot be used
+// as a ConfigMap data key because the K8s key charset is `[-._a-zA-Z0-9]+` and most component names contain slashes.
+// We use the last path segment instead (`sample-service-1`), mirroring how `ConstructArtifactDeploymentName` already
+// derives the per-artifact identifier (see util.go). The merged per-landscape vector configuration service
+// (kubernetes-landscape-orchestrator PR #12) treats the suffix as an opaque "deployment name" so any K8s-safe
+// identifier works as long as it stays unique within the vector.
+//
+// Aggregation invariant: each artifact (i.e. each `component`) emits at most one `DeploymentResult`. The aggregated
+// `vd.Status.DeploymentResults` is therefore keyed `"<component>/<resultName>"` with at most one entry per
+// `<component>` (see internal/star/vectordeployment/internal/controller/vectordeployment_controller.go:289). We
+// additionally guard against two distinct components collapsing to the same basename — that would silently overwrite
+// one result with another and is treated as an error.
 func buildVectorConfigPayload(
 	configBlob []byte,
 	deploymentResults map[string]star.DeploymentResult,
-) (string, string, error) {
-	var configValue string
-	if len(configBlob) == 0 {
-		configValue = "null"
-	} else {
-		if !json.Valid(configBlob) {
-			return "", "", fmt.Errorf("vector configuration payload is not valid JSON")
-		}
-		configValue = string(configBlob)
-	}
+) (map[string]string, error) {
+	data := make(map[string]string, 2+len(deploymentResults))
 
-	if deploymentResults == nil {
-		deploymentResults = map[string]star.DeploymentResult{}
-	}
-	resultsBytes, err := json.Marshal(deploymentResults)
+	// Envelope split.
+	featuresValue, authoredValue, err := splitConfigEnvelope(configBlob)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to marshal deployment results: %w", err)
+		return nil, err
+	}
+	data[FeaturesConfigKey] = featuresValue
+	data[AuthoredConfigKey] = authoredValue
+
+	// Deployment results: one CM key per component, value is the result's Spec JSON verbatim.
+	//
+	// `seenComponents` maps the K8s-safe basename back to the full component name that produced it, so collisions
+	// produce an informative error rather than silent data loss.
+	seenComponents := make(map[string]string, len(deploymentResults))
+	for compositeKey, result := range deploymentResults {
+		component, _, err := splitDeploymentResultKey(compositeKey)
+		if err != nil {
+			return nil, err
+		}
+		basename := componentBasename(component)
+		if prev, exists := seenComponents[basename]; exists {
+			if prev == component {
+				// Two DeploymentResults under the same component is an invariant violation (one-result-per-artifact)
+				// that the per-result loop guards against; we should never get here, but the diagnostic is clearer.
+				return nil, fmt.Errorf(
+					"component %q emitted more than one DeploymentResult; expected at most one per artifact", component,
+				)
+			}
+			return nil, fmt.Errorf(
+				"components %q and %q share the same ConfigMap-key basename %q; rename one of them or address them by full name",
+				prev, component, basename,
+			)
+		}
+		seenComponents[basename] = component
+
+		cmKey := DeploymentResultsKeyPrefix + basename + JSONSuffix
+		value, err := deploymentResultValue(result)
+		if err != nil {
+			return nil, fmt.Errorf("invalid deployment result spec for component %q: %w", component, err)
+		}
+		data[cmKey] = value
 	}
 
-	return configValue, string(resultsBytes), nil
+	return data, nil
+}
+
+// componentBasename returns the last `/`-separated segment of an OCM component name so the result is K8s-safe for use
+// as a ConfigMap data key. Mirrors the basename heuristic in ConstructArtifactDeploymentName (util.go:49-54).
+func componentBasename(component string) string {
+	idx := strings.LastIndex(component, "/")
+	if idx < 0 || idx == len(component)-1 {
+		return component
+	}
+	return component[idx+1:]
+}
+
+// splitConfigEnvelope unmarshals the OCM envelope and returns the verbatim JSON for `features` and `authored`.
+// Either may be the literal "null" when the corresponding field is absent or itself JSON null. When the input is
+// empty (the vector did not declare a config resource at all) both return values are "null".
+func splitConfigEnvelope(configBlob []byte) (features, authored string, err error) {
+	if len(configBlob) == 0 {
+		return jsonNull, jsonNull, nil
+	}
+	if !json.Valid(configBlob) {
+		return "", "", fmt.Errorf("vector configuration payload is not valid JSON")
+	}
+	var env configEnvelope
+	if err := json.Unmarshal(configBlob, &env); err != nil {
+		return "", "", fmt.Errorf("vector configuration payload is not a JSON object with the expected envelope shape: %w", err)
+	}
+	features = rawOrNull(env.Features)
+	authored = rawOrNull(env.Authored)
+	return features, authored, nil
+}
+
+// rawOrNull renders a json.RawMessage as its verbatim text, or "null" when the field was absent.
+func rawOrNull(r json.RawMessage) string {
+	if len(r) == 0 {
+		return jsonNull
+	}
+	return string(r)
+}
+
+// splitDeploymentResultKey splits the aggregated key produced in handleArtifactDeployments
+// (`<component>/<resultName>`). The result name is currently discarded for the ConfigMap layout because the central
+// vector configuration service addresses by component, but we still return it so the caller can include it in any
+// future error message or diagnostic.
+func splitDeploymentResultKey(compositeKey string) (component, resultName string, err error) {
+	idx := strings.LastIndex(compositeKey, "/")
+	if idx < 0 {
+		return "", "", fmt.Errorf("malformed deployment result key %q: expected <component>/<resultName>", compositeKey)
+	}
+	component = compositeKey[:idx]
+	resultName = compositeKey[idx+1:]
+	if component == "" || resultName == "" {
+		return "", "", fmt.Errorf("malformed deployment result key %q: empty component or result name", compositeKey)
+	}
+	return component, resultName, nil
+}
+
+// deploymentResultValue renders the deployer-emitted spec JSON for the ConfigMap value. When the deployer left Spec
+// empty, "null" is written so the CM value is still valid JSON.
+func deploymentResultValue(result star.DeploymentResult) (string, error) {
+	if len(result.Spec.Raw) == 0 {
+		return jsonNull, nil
+	}
+	if !json.Valid(result.Spec.Raw) {
+		return "", fmt.Errorf("spec is not valid JSON")
+	}
+	return string(result.Spec.Raw), nil
 }
 
 // vectorConfigConfigMapName returns the deterministic ConfigMap name for a given VectorDeployment. Names are unique

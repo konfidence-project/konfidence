@@ -16,7 +16,16 @@ The Deployment Controller is responsible for managing the lifecycle of VectorDep
 
 ### Vector-scoped configuration ConfigMap
 
-A vector may carry an optional, singleton OCM resource named `cloud-konfidence-vector-config` (matched on the resource Name; the OCM Type field is left to the vector author and is not used for discovery; dots are not permitted in OCM resource names per the schema, hence the dashes). The deployment controller materializes that resource (together with the aggregated deployment results from all underlying ArtifactDeployments) as a Kubernetes ConfigMap in the **landscape namespace** — that is, the same namespace as the `VectorDeployment` itself, per [ADR-0007](../../../../docs/pages/arc42/09-decisions/adrs/0007-lcp-multi-landscape-support.md). The LCP's own namespace (`konfidence-system`) is **not** used; one LCP installation can serve many landscapes, and each landscape sees only its own ConfigMaps.
+A vector may carry an optional, singleton OCM resource named `cloud-konfidence-vector-config` (matched on the resource Name; the OCM Type field is left to the vector author and is not used for discovery; dots are not permitted in OCM resource names per the schema, hence the dashes). The galaxy assembly side packs two top-level fields into that resource's blob:
+
+```json
+{
+  "features":  <OFREP feature flag map, optional>,
+  "authored":  <generic authored configuration, optional>
+}
+```
+
+The deployment controller unpacks the envelope, combines it with the aggregated deployment results from all underlying ArtifactDeployments, and materializes a Kubernetes ConfigMap in the **landscape namespace** — the same namespace as the `VectorDeployment` itself, per [ADR-0007](../../../../docs/pages/arc42/09-decisions/adrs/0007-lcp-multi-landscape-support.md). The LCP's own namespace (`konfidence-system`) is **not** used; one LCP installation can serve many landscapes, and each landscape sees only its own ConfigMaps.
 
 Both inputs that feed the payload are immutable for the lifetime of a `VectorDeployment` (the OCM ComponentVersion is immutable and `ArtifactDeployment.spec` is immutable per the CRD's XValidation rule), so the controller writes the ConfigMap **at most once** per VectorDeployment. If a ConfigMap with the expected name already exists the controller honors it as-is; if it is missing — first reconcile after `VectorDeployed`, or removed out-of-band — it is created.
 
@@ -29,32 +38,36 @@ On VectorDeployment teardown the controller deletes the ConfigMap explicitly via
 | `Immutable` | `true` |
 | Owner reference | controller-owner ref to the `VectorDeployment` (cascade delete on VD removal). |
 | Finalizer on the VD | `konfidence.cloud/vector-data-cleanup`, drives explicit teardown. |
-| Data keys | two independently-accessible JSON documents (see below). |
+| Data keys | see *Data layout* below — fixed, K8s-safe, mirroring the merged per-landscape vector configuration service. |
 | Labels | `konfidence.cloud/managed-by=vector-deployment-controller`, `konfidence.cloud/vector-deployment-name=<vd.Name>`, `konfidence.cloud/vector-deployment-uid=<vd.UID>`. |
 
 Data layout:
 
 | Key | Content |
 |---|---|
-| `config.json` | The optional authored configuration blob, forwarded byte-for-byte from the OCM resource. The literal `null` when the vector did not declare such a resource. |
-| `deployment-results.json` | The aggregated `DeploymentResults` of all underlying ArtifactDeployments, keyed `<componentName>/<resultName>`. Always materialized; an empty map (`{}`) when no artifact has produced any results. |
+| `features.json` | The `features` subset of the OCM envelope, forwarded byte-for-byte. The JSON literal `null` when the vector did not declare features. Always present. |
+| `authored.json` | The `authored` subset of the OCM envelope, forwarded byte-for-byte. The JSON literal `null` when the vector did not declare authored data. Always present. |
+| `deploymentResults.<component>.json` | One key per underlying ArtifactDeployment; the value is the deployer-emitted `DeploymentResult.Spec` JSON, forwarded byte-for-byte. Each artifact contributes at most one entry. |
 
-Two distinct keys (instead of a single bundled `data.json`) keep the two semantically-independent concerns separately accessible — both for `kubectl get cm -o jsonpath='{.data.config\.json}'` and for the future per-landscape vector data service which can serve them on independent endpoints.
+The three classes match the data contract of the merged per-landscape vector configuration service ([kubernetes-landscape-orchestrator PR #12](https://github.com/konfidence-project/kubernetes-landscape-orchestrator/pull/12)) so that the service can address features, authored configuration and per-deployment results on independent OFREP/REST endpoints.
 
-The authored blob itself is **not** persisted on the `VectorDeployment.status` — only its SHA-256 hash (`status.resolvedVectorConfigHash`) is, as a small etcd-friendly fingerprint for traceability. On the rare path where the controller has to recreate a missing ConfigMap on a later reconcile, the blob is re-fetched lazily via the OCM adapter.
+#### Notes on the `<component>` suffix
 
-Payload shape (for reference; not persisted as a single document — see *Data layout* above):
+The K8s ConfigMap data-key charset is `[-._a-zA-Z0-9]+`, which rules out `/`. Most OCM component names look like `github.com/konfidence-project/sample-service-1` and therefore cannot be used as-is. The controller writes under the **last path segment** of the component name (`sample-service-1`), mirroring the basename heuristic already used by `ConstructArtifactDeploymentName` for the ArtifactDeployment K8s object name. If two distinct components in the same vector ever collapse to the same basename, the controller errors out at write time rather than silently overwriting one of the results.
 
-```json
-{
-  "config": <opaque JSON forwarded from the cloud-konfidence-vector-config OCM blob, or null>,
-  "deploymentResults": {
-    "<componentName>/<resultName>": { "name": "...", "type": "...", "spec": { ... } }
-  }
-}
-```
+The aggregation invariant on the Star side is **one `DeploymentResult` per artifact**. If a deployer ever emits more than one, the controller likewise errors out — the per-component CM layout has no way to represent a second result without reintroducing composite keys.
 
-The two keys are **always written** (even when there is neither authored configuration nor any deployment results) so that downstream consumers can rely on their presence after `VectorReady` flips True.
+#### Status fingerprint
+
+The authored OCM blob itself is **not** persisted on the `VectorDeployment.status` — only its SHA-256 hash (`status.resolvedVectorConfigHash`) is, as a small etcd-friendly fingerprint for traceability. On the rare path where the controller has to recreate a missing ConfigMap on a later reconcile, the blob is re-fetched lazily via the OCM adapter.
+
+#### Always-present guarantee
+
+`features.json` and `authored.json` are **always** written after the `VectorConfigCommitted` condition flips True, even when the vector declared neither, so that downstream consumers can rely on their presence. `deploymentResults.<component>.json` keys are written only for components that actually produced a result.
+
+#### ConfigMap name
+
+The ConfigMap name uses the `vector-data-` prefix (see *Property* table above). The merged per-landscape vector configuration service currently looks up by the bare `vectorId`; the producer side intentionally keeps the prefix for now and the service will be aligned in a follow-up.
 
 The ConfigMap is consumed by a per-landscape vector data service (planned, see [ADR-0024](../../../../docs/pages/arc42/09-decisions/adrs/0024-vector-scoped-configuration-distribution.md)). Application pods are not expected to read the ConfigMap directly.
 
