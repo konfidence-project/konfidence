@@ -1,48 +1,79 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "cloud.konfidence/konfidence-artifact-schema.json",
-  "title": "Konfidence Artifact",
-  "description": "Konfidence-specific validation rules layered on top of the OCM component constructor schema.",
-  "oneOf": [
-    {
-      "required": ["components"],
-      "properties": {
-        "components": {
-          "type": "array",
-          "items": {
-            "properties": {
-              "resources": { "$ref": "#/$defs/manifestResourcesArray" }
-            }
-          }
-        }
-      }
-    },
-    {
-      "required": ["resources"],
-      "properties": {
-        "resources": { "$ref": "#/$defs/manifestResourcesArray" }
-      }
-    }
-  ],
   "$defs": {
-    "manifestResourcesArray": {
-      "type": "array",
-      "contains": {
-        "type": "object",
-        "required": ["type", "input"],
-        "properties": {
-          "type": { "const": "cloud.konfidence.artifact.manifest" },
-          "input": {
-            "type": "object",
-            "required": ["type"],
-            "properties": {
-              "type": { "enum": ["file/v1", "File/v1"] }
-            }
-          }
+    "component": {
+      "properties": {
+        "resources": {
+          "$ref": "#/$defs/manifestResourcesArray"
         }
       },
-      "minContains": 1,
-      "maxContains": 1
+      "type": "object"
+    },
+    "manifestInput": {
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "file/v1",
+            "File/v1"
+          ]
+        }
+      },
+      "type": "object",
+      "required": [
+        "type"
+      ]
+    },
+    "manifestResource": {
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "cloud.konfidence.artifact.manifest"
+        },
+        "input": {
+          "$ref": "#/$defs/manifestInput"
+        }
+      },
+      "type": "object",
+      "required": [
+        "type",
+        "input"
+      ]
+    },
+    "manifestResourcesArray": {
+      "contains": {
+        "$ref": "#/$defs/manifestResource"
+      },
+      "type": "array",
+      "maxContains": 1,
+      "minContains": 1
     }
-  }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "components"
+      ]
+    },
+    {
+      "required": [
+        "resources"
+      ]
+    }
+  ],
+  "properties": {
+    "components": {
+      "items": {
+        "$ref": "#/$defs/component"
+      },
+      "type": "array"
+    },
+    "resources": {
+      "$ref": "#/$defs/manifestResourcesArray"
+    }
+  },
+  "type": "object",
+  "title": "Konfidence Artifact",
+  "description": "Konfidence-specific validation rules layered on top of the OCM component constructor schema."
 }
