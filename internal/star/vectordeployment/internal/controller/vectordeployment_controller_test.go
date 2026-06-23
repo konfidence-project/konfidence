@@ -2,17 +2,14 @@ package controller_test
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/star/vectordeployment/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/star/vectordeployment/internal/controller/mocks"
-	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -74,13 +71,9 @@ var _ = Describe("VectorDeployment Controller", func() {
 		err = managerClient.DeleteAllOf(ctx, &star.VectorAssignment{}, client.InNamespace(testNamespace))
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-		// Cleanup the vector data ConfigMaps written by handleVectorConfig. The ones that are owned by a
-		// VectorDeployment will already cascade-delete, but a manual sweep here keeps the suite deterministic for
-		// edge cases that exercise re-creation explicitly.
-		err = managerClient.DeleteAllOf(ctx, &corev1.ConfigMap{},
-			client.InNamespace(testNamespace),
-			client.MatchingLabels{pkgctrl.ManagedByLabel: VectorDeploymentControllerName},
-		)
+		// Cleanup VectorData CRs. The owner-reference cascade from the VD deletion above would handle this
+		// eventually, but a manual sweep keeps the suite deterministic for re-runs.
+		err = managerClient.DeleteAllOf(ctx, &star.VectorData{}, client.InNamespace(testNamespace))
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		if mockCtrl != nil {
@@ -323,55 +316,59 @@ var _ = Describe("VectorDeployment Controller", func() {
 		})
 		gomega.Expect(k8sClient.Status().Update(ctx, vectorAssignment)).To(gomega.Succeed())
 
-		By("Verifying VectorReady condition is set on VectorDeployment")
+		By("Verifying VectorData CR was created with the inlined payload")
+		// The Star controller no longer materialises the ConfigMap directly. Its responsibility now ends at
+		// emitting a runtime-agnostic VectorData CR with the OCM-resolved bytes + aggregated DeploymentResults.
+		// A runtime-specific orchestrator (e.g. kubernetes-landscape-orchestrator) consumes the CR and writes the
+		// ConfigMap (or another runtime-shaped artefact). We simulate the orchestrator below.
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorReadyCondition)).To(gomega.BeTrue())
-		}, timeout, interval).Should(gomega.Succeed())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorDataCreatedCondition)).To(gomega.BeTrue())
+			g.Expect(actualVectorDeployment.Status.ResultingVectorData).ToNot(gomega.BeNil())
+			g.Expect(actualVectorDeployment.Status.ResultingVectorData.Name).To(gomega.Equal(ocmName))
 
-		By("Verifying VectorConfigCommitted condition and the vector data ConfigMap")
-		gomega.Eventually(func(g gomega.Gomega) {
-			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorConfigCommittedCondition)).To(gomega.BeTrue())
+			vectorData := &star.VectorData{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, vectorData)).To(gomega.Succeed())
 
-			cm := &corev1.ConfigMap{}
-			cmName := VectorDataConfigMapNamePrefix + ocmName
-			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: testNamespace}, cm)).To(gomega.Succeed())
-			g.Expect(cm.Immutable).ToNot(gomega.BeNil())
-			g.Expect(*cm.Immutable).To(gomega.BeTrue())
-			g.Expect(cm.Labels).To(gomega.HaveKeyWithValue(pkgctrl.ManagedByLabel, VectorDeploymentControllerName))
-			g.Expect(cm.Labels).To(gomega.HaveKeyWithValue(pkgctrl.VectorDeploymentNameLabel, ocmName))
-			g.Expect(cm.Labels).To(gomega.HaveKey(pkgctrl.VectorDeploymentUIDLabel))
+			By("VectorData inlines the aggregated DeploymentResults from all ArtifactDeployments")
+			g.Expect(vectorData.Spec.DeploymentResults).To(gomega.HaveLen(1))
 
-			By("ConfigMap carries features.json and authored.json as separate keys per the central service contract")
-			g.Expect(cm.Data).To(gomega.HaveKey(FeaturesConfigKey))
-			g.Expect(cm.Data).To(gomega.HaveKey(AuthoredConfigKey))
-			// This vector did not declare a vector-config OCM resource, so both top-level keys are JSON null.
-			g.Expect(cm.Data[FeaturesConfigKey]).To(gomega.Equal("null"))
-			g.Expect(cm.Data[AuthoredConfigKey]).To(gomega.Equal("null"))
+			By("VectorData has Spec.Config empty because this vector did not declare a vector-config OCM resource")
+			g.Expect(vectorData.Spec.Config).To(gomega.BeEmpty())
 
-			By("ConfigMap carries one deploymentResults.<component>.json key per artifact, value = Spec JSON verbatim")
-			// The single artifact in this scenario has component name
-			// `github.com/konfidence-project/sample-service-1`; only the last `/`-segment is used as the CM key
-			// suffix because the K8s ConfigMap data-key charset does not permit `/`.
-			const artifactBasename = "sample-service-1"
-			resultKey := DeploymentResultsKeyPrefix + artifactBasename + JSONSuffix
-			g.Expect(cm.Data).To(gomega.HaveKey(resultKey))
-
-			// Value should be the deployer-emitted Spec JSON, forwarded verbatim.
-			var spec map[string]any
-			g.Expect(json.Unmarshal([]byte(cm.Data[resultKey]), &spec)).To(gomega.Succeed())
-			g.Expect(spec).To(gomega.HaveKeyWithValue("test-deployment-result", true))
-
-			By("ConfigMap is owned by the VectorDeployment for cascade-delete")
-			g.Expect(cm.OwnerReferences).ToNot(gomega.BeEmpty())
+			By("VectorData is owned by the VectorDeployment for cascade-delete")
+			g.Expect(vectorData.OwnerReferences).ToNot(gomega.BeEmpty())
 			foundOwner := false
-			for _, ref := range cm.OwnerReferences {
+			for _, ref := range vectorData.OwnerReferences {
 				if ref.UID == actualVectorDeployment.UID && ref.Kind == star.VectorDeploymentKind && ref.Controller != nil && *ref.Controller {
 					foundOwner = true
 				}
 			}
-			g.Expect(foundOwner).To(gomega.BeTrue(), "vector data ConfigMap should be controller-owned by VectorDeployment")
+			g.Expect(foundOwner).To(gomega.BeTrue(), "VectorData should be controller-owned by VectorDeployment")
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Simulating the landscape orchestrator: flipping VectorData.Status.Ready=True")
+		// Without the orchestrator the VectorDeployment lifecycle stalls at "waiting for VectorData to be
+		// materialized" — which is itself the correct, desired behaviour. We unblock it by hand here so the rest
+		// of the assertions run.
+		gomega.Eventually(func(g gomega.Gomega) {
+			vectorData := &star.VectorData{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, vectorData)).To(gomega.Succeed())
+			meta.SetStatusCondition(&vectorData.Status.Conditions, metav1.Condition{
+				Type:               star.VectorDataReadyCondition,
+				Status:             metav1.ConditionTrue,
+				Reason:             star.VectorDataReasonMaterialized,
+				Message:            "simulated by envtest",
+				ObservedGeneration: vectorData.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
+			g.Expect(k8sClient.Status().Update(ctx, vectorData)).To(gomega.Succeed())
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Verifying VectorReady condition is set on VectorDeployment")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorReadyCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 	})
 })

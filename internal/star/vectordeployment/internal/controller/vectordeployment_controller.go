@@ -42,8 +42,9 @@ type VectorDeploymentReconciler struct {
 // +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments/finalizers,verbs=update
 // +kubebuilder:rbac:groups=star.konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectorassignments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordata,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
 func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
@@ -167,16 +168,40 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	// Materialize the vector-scoped configuration ConfigMap. This step runs after artifact deployments are
-	// ready (so that aggregated DeploymentResults are observable) and is a singleton action per vector,
-	// distinct from the per-artifact VectorAssignment work above.
-	if err := r.handleVectorConfig(ctx, vectorDeployment, *vectorRef, freshConfig, log); err != nil {
+	// Create (or re-use) the VectorData CR carrying the resolved authored configuration and aggregated
+	// DeploymentResults. This step is a singleton action per vector, distinct from the per-artifact VectorAssignment
+	// work above. The runtime-specific implementor (e.g. the in-tree Kubernetes adapter in `internal/star/vectordata`)
+	// watches VectorData and materialises it on the target runtime (e.g. as a ConfigMap).
+	if err := r.handleVectorData(ctx, vectorDeployment, *vectorRef, freshConfig, log); err != nil {
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; %w", patchError, err)
 			}
 		}
-		return ctrl.Result{}, fmt.Errorf("failed to materialize vector config for vector deployment %s: %w", vectorDeployment.Name, err)
+		return ctrl.Result{}, fmt.Errorf("failed to create VectorData for vector deployment %s: %w", vectorDeployment.Name, err)
+	}
+
+	// Gate VectorReady on the runtime-specific implementor having reported VectorData.Ready=True. If it is still
+	// pending (CR just created, implementor hasn't observed it yet, or the implementor is reporting a transient
+	// error), keep the VectorReady condition unset and rely on the controller's Owns(&VectorData{}) watch to retrigger
+	// reconciliation when the implementor updates the VectorData status.
+	vectorDataReady, vdErr := r.vectorDataIsReady(ctx, vectorDeployment)
+	if vdErr != nil {
+		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
+			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; %w", patchError, vdErr)
+			}
+		}
+		return ctrl.Result{}, fmt.Errorf("failed to read VectorData readiness for vector deployment %s: %w", vectorDeployment.Name, vdErr)
+	}
+	if !vectorDataReady {
+		log.Info("waiting for VectorData to be materialized by the runtime implementor")
+		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
+			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w", patchError)
+			}
+		}
+		return ctrl.Result{}, nil
 	}
 
 	// set status condition VectorReadyCondition to True
@@ -424,7 +449,9 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 		vectorDeployment.Status.ResultingVectorAssignments = nil
 	}
 
-	// set status condition ArtifactDeploymentsCreatedCondition to created
+	// set status condition VectorAssignmentsCreatedCondition. VectorReady is intentionally NOT set here any more
+	// — it now exclusively flips after VectorData has been materialised by the runtime-specific orchestrator,
+	// see the post-handleVectorData block in Reconcile().
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               star.VectorAssignmentsCreatedCondition,
 		Status:             metav1.ConditionTrue,
@@ -433,17 +460,6 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
-
-	if allReady {
-		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-			Type:               star.VectorReadyCondition,
-			Status:             metav1.ConditionTrue,
-			Reason:             star.VectorReadyCondition,
-			Message:            fmt.Sprintf("Vector deployment %s fully deployed", vectorDeployment.Name),
-			ObservedGeneration: vectorDeployment.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-	}
 
 	return allReady, nil
 }
@@ -479,6 +495,9 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controll
 		For(&star.VectorDeployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&star.ArtifactDeployment{}, builder.MatchEveryOwner).
 		Owns(&star.VectorAssignment{}, builder.MatchEveryOwner).
+		// Re-reconcile the parent VectorDeployment when the runtime-specific implementor flips
+		// VectorData.Status.Ready, so the lifecycle can progress to VectorReady without polling.
+		Owns(&star.VectorData{}).
 		Named(controllerName).
 		Complete(r)
 }
