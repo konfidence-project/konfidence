@@ -31,15 +31,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: |-
-          VectorData is the Schema for the vectordata API.
-
-          VectorData is created by the Star vector-deployment-controller as the last lifecycle step of a VectorDeployment.
-          A runtime-specific implementor — referred to as the "landscape orchestrator" in Konfidence's architecture —
-          watches VectorData resources and materialises them on the target runtime. On Kubernetes the
-          `kubernetes-landscape-orchestrator` writes a ConfigMap into the landscape namespace; other runtimes (e.g. Cloud
-          Foundry) ship their own orchestrator with a different materialisation. The contract between Star and the
-          orchestrator is the VectorData CR itself and its Ready condition.
+        description: VectorData is the schema for the vectordata API.
         properties:
           apiVersion:
             description: |-
@@ -60,19 +52,16 @@ spec:
             type: object
           spec:
             description: |-
-              Spec is immutable: the inputs (vector OCM ComponentVersion and per-AD DeploymentResults) are themselves
-              immutable, so the Star controller writes the Spec exactly once per VectorDeployment.
+              VectorDataSpec is the LCP→landscape-orchestrator contract for vector-scoped data.
+              Star resolves the OCM envelope `{features, authored}` and aggregates per-AD
+              DeploymentResults; the landscape orchestrator materialises the payload on its
+              target runtime (ConfigMap on K8s, etc.).
             properties:
-              config:
-                description: |-
-                  Config carries the optional authored vector-scoped configuration blob (the verbatim bytes of the OCM resource
-                  named "cloud-konfidence-vector-config" on the vector ComponentVersion, resolved by the Star side). The field is
-                  empty when the vector did not declare such a resource.
-
-                  The Star controller never parses the bytes; the implementor is free to interpret them in whatever way is
-                  appropriate for the consumer (typically JSON forwarded verbatim to the application).
-                format: byte
-                type: string
+              authored:
+                description: Authored carries the optional "authored" subset of the
+                  OCM envelope, verbatim JSON.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               deploymentResults:
                 additionalProperties:
                   description: |-
@@ -98,24 +87,21 @@ spec:
                   - type
                   type: object
                 description: |-
-                  DeploymentResults is the aggregated set of structured outputs produced by all underlying ArtifactDeployments of
-                  the owning VectorDeployment, keyed "<componentName>/<resultName>". May be empty when no artifact produced any
-                  results.
+                  DeploymentResults aggregated from underlying ArtifactDeployments, keyed
+                  "<componentName>/<resultName>".
                 type: object
+              features:
+                description: Features carries the optional "features" subset of the
+                  OCM envelope, verbatim JSON.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             type: object
             x-kubernetes-validations:
             - message: VectorData spec is immutable after it has been set
               rule: self == oldSelf
           status:
-            description: |-
-              VectorDataStatus carries the observed state of the runtime-specific materialisation. A VectorData is considered
-              fulfilled once VectorDataReadyCondition flips to True; the implementor is responsible for setting that condition.
             properties:
               conditions:
-                description: |-
-                  Conditions reports the materialisation state. Implementors should set VectorDataReadyCondition to True after
-                  successfully writing the underlying artefact on the target runtime, or to False with a descriptive Reason on
-                  failure paths.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.

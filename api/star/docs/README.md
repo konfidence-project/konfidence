@@ -956,14 +956,7 @@ _Appears in:_
 
 
 
-VectorData is the Schema for the vectordata API.
-
-VectorData is created by the Star vector-deployment-controller as the last lifecycle step of a VectorDeployment.
-A runtime-specific implementor — referred to as the "landscape orchestrator" in Konfidence's architecture —
-watches VectorData resources and materialises them on the target runtime. On Kubernetes the
-`kubernetes-landscape-orchestrator` writes a ConfigMap into the landscape namespace; other runtimes (e.g. Cloud
-Foundry) ship their own orchestrator with a different materialisation. The contract between Star and the
-orchestrator is the VectorData CR itself and its Ready condition.
+VectorData is the schema for the vectordata API.
 
 
 
@@ -977,7 +970,7 @@ _Appears in:_
 | `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
 | `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[VectorDataSpec](#vectordataspec)_ | Spec is immutable: the inputs (vector OCM ComponentVersion and per-AD DeploymentResults) are themselves<br />immutable, so the Star controller writes the Spec exactly once per VectorDeployment. |  | Optional: \{\} <br /> |
+| `spec` _[VectorDataSpec](#vectordataspec)_ |  |  | Optional: \{\} <br /> |
 | `status` _[VectorDataStatus](#vectordatastatus)_ |  |  |  |
 
 
@@ -985,7 +978,7 @@ _Appears in:_
 
 
 
-VectorDataList contains a list of VectorData.
+
 
 
 
@@ -1005,19 +998,10 @@ VectorDataList contains a list of VectorData.
 
 
 
-VectorDataSpec describes the vector-scoped data that needs to be made available to applications inside a vector at
-runtime. It is populated by the Star vector-deployment-controller after all ArtifactDeployments of the vector have
-reached Ready (so DeploymentResults are observable) and the optional authored configuration blob has been resolved
-from OCM.
-
-VectorDataSpec is intentionally runtime-agnostic: the runtime-specific implementor reads the bytes out of this CR
-and writes them in whatever shape its runtime expects (a Kubernetes ConfigMap, a Cloud Foundry user-provided service
-instance, a file in a per-vector PV, etc.). Centralising OCM resolution in the Star controller keeps OCM
-credentials, schemas and crypto verifiers in one place and lets runtime adapters stay thin.
-
-Both fields are typically populated together and stay immutable for the lifetime of the VectorData object: the
-VectorDeployment that owns it has an immutable Spec, the referenced vector OCM ComponentVersion is immutable, and
-DeploymentResults are documented as immutable per ArtifactDeployment generation.
+VectorDataSpec is the LCP→landscape-orchestrator contract for vector-scoped data.
+Star resolves the OCM envelope `{features, authored}` and aggregates per-AD
+DeploymentResults; the landscape orchestrator materialises the payload on its
+target runtime (ConfigMap on K8s, etc.).
 
 
 
@@ -1026,16 +1010,16 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `config` _integer array_ | Config carries the optional authored vector-scoped configuration blob (the verbatim bytes of the OCM resource<br />named "cloud-konfidence-vector-config" on the vector ComponentVersion, resolved by the Star side). The field is<br />empty when the vector did not declare such a resource.<br />The Star controller never parses the bytes; the implementor is free to interpret them in whatever way is<br />appropriate for the consumer (typically JSON forwarded verbatim to the application). |  | Optional: \{\} <br /> |
-| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults is the aggregated set of structured outputs produced by all underlying ArtifactDeployments of<br />the owning VectorDeployment, keyed "<componentName>/<resultName>". May be empty when no artifact produced any<br />results. |  | Optional: \{\} <br /> |
+| `features` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Features carries the optional "features" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
+| `authored` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Authored carries the optional "authored" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
+| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults aggregated from underlying ArtifactDeployments, keyed<br />"<componentName>/<resultName>". |  | Optional: \{\} <br /> |
 
 
 #### VectorDataStatus
 
 
 
-VectorDataStatus carries the observed state of the runtime-specific materialisation. A VectorData is considered
-fulfilled once VectorDataReadyCondition flips to True; the implementor is responsible for setting that condition.
+
 
 
 
@@ -1044,7 +1028,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions reports the materialisation state. Implementors should set VectorDataReadyCondition to True after<br />successfully writing the underlying artefact on the target runtime, or to False with a descriptive Reason on<br />failure paths. |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  | Optional: \{\} <br /> |
 
 
 #### VectorDeployment
