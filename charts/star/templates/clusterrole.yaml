@@ -11,15 +11,6 @@ rules:
   - ""
   resources:
   - configmaps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - namespaces
   - secrets
   verbs:
@@ -114,6 +105,16 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - star.konfidence.cloud
+  resources:
+  - vectordata
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
 - apiGroups:
   - star.konfidence.cloud
   resources:

@@ -17,20 +17,20 @@ const (
 	// VectorAssignmentsCreatedCondition indicates that all VectorAssignment resources have been created successfully.
 	VectorAssignmentsCreatedCondition = "VectorAssignmentsCreated"
 
-	// VectorConfigCommittedCondition indicates that the vector-scoped configuration ConfigMap has been written to the
-	// landscape namespace and reflects both the optional authored configuration carried in the vector OCM
-	// ComponentVersion and the aggregated DeploymentResults of the underlying ArtifactDeployments. The condition is set
-	// to True even when neither authored data nor deployment results are present, so that downstream gating can be
-	// expressed without special-casing the empty case.
-	VectorConfigCommittedCondition = "VectorConfigCommitted"
+	// VectorDataCreatedCondition indicates that the Star vector-deployment-controller has created (or re-used) the
+	// VectorData CR carrying the optional authored configuration and the aggregated DeploymentResults for this vector.
+	// It does NOT imply that the runtime-specific implementor has finished materialising the data — that is reported
+	// separately on the VectorData object via its own Ready condition, and reflected on the parent VectorDeployment
+	// through VectorReadyCondition.
+	VectorDataCreatedCondition = "VectorDataCreated"
 
 	// VectorReadyCondition indicates that the vector deployment is ready for use.
 	VectorReadyCondition = "Ready"
 
-	// VectorDataFinalizer guards the vector-scoped configuration ConfigMap that the deployment controller writes
-	// during the VectorConfigCommitted phase. The controller adds this finalizer on first reconciliation and removes
-	// it only after the corresponding ConfigMap has been explicitly deleted, so that teardown happens deterministically
-	// even when the controller-owner reference cascade is delayed or unobservable.
+	// VectorDataFinalizer guards the runtime-side cleanup of the VectorData CR (and through it, the runtime-specific
+	// materialisation such as a Kubernetes ConfigMap). The vector-deployment-controller adds this finalizer on first
+	// reconciliation and removes it only after the owned VectorData object has been explicitly deleted, so that
+	// teardown happens deterministically rather than relying solely on Kubernetes garbage collection.
 	VectorDataFinalizer = "konfidence.cloud/vector-data-cleanup"
 )
 
@@ -56,8 +56,9 @@ type VectorDeploymentSpec struct {
 //  2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition
 //  3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition
 //  4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition
-//  5. Writing the vector-scoped configuration ConfigMap into the landscape namespace -> VectorConfigCommittedCondition
-//  6. Marking the vector as ready for use -> VectorReadyCondition
+//  5. Creating the VectorData CR with the resolved authored configuration + aggregated DeploymentResults; the
+//     runtime-specific implementor then materialises it (e.g. as a ConfigMap on Kubernetes) -> VectorDataCreatedCondition
+//  6. Marking the vector as ready for use once VectorData reports its own Ready=True -> VectorReadyCondition
 type VectorDeploymentStatus struct {
 
 	// Conditions represents the current set of status conditions for this vector
@@ -70,13 +71,11 @@ type VectorDeploymentStatus struct {
 	// It is not a reference but the inlined representation of the component version at reconciliation time.
 	ResolvedVectorOcm string `json:"resolvedVectorOcm,omitempty"`
 
-	// ResolvedVectorConfigHash is a hex-encoded SHA-256 hash of the optional vector-scoped configuration blob
-	// (the singleton OCM resource named "cloud-konfidence-vector-config" produced by the galaxy assembly side),
-	// computed once when the blob is first resolved from OCM and persisted here as a small, etcd-friendly
-	// fingerprint instead of the (potentially large) bytes themselves. Empty when the vector does not declare such
-	// a resource. Used purely for traceability / observability; the controller never compares against this value
-	// for drift detection because the vector ComponentVersion is immutable.
-	ResolvedVectorConfigHash string `json:"resolvedVectorConfigHash,omitempty"`
+	// ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData
+	// CR is the contract between the Star side (which resolves the OCM payload) and the runtime-specific implementor
+	// (which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the
+	// CR. Names are stable across reconciliations.
+	ResultingVectorData *LocalObjectReference `json:"resultingVectorData,omitempty"`
 
 	// ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The
 	// map key is the component name of the artifact as defined inside the vector. Keys remain stable across
@@ -94,6 +93,12 @@ type VectorDeploymentStatus struct {
 	// by all underlying ArtifactDeployments. The map key is composed of the component
 	// name and the individual result name, ensuring uniqueness.
 	DeploymentResults map[string]DeploymentResult `json:"deploymentResults,omitempty"`
+}
+
+// LocalObjectReference references an object by name within the same namespace as the parent.
+type LocalObjectReference struct {
+	// Name of the referenced object.
+	Name string `json:"name"`
 }
 
 // VectorDeployment is the Schema for the vectordeployments API.
