@@ -50,29 +50,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling VectorDeployment")
 
-	// get vector deployment usage
 	vectorDeployment := &star.VectorDeployment{}
 	if err := r.Get(ctx, req.NamespacedName, vectorDeployment); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-	log.Info("Found vector deployment")
-
-	// Handle deletion. The controller-owner reference on the vector data ConfigMap normally cascades on VD deletion via
-	// Kubernetes garbage collection, but we still drive the deletion explicitly here so that teardown is deterministic
-	// and observable (e.g. when the cascade is racing with another reconciler, or the ConfigMap was somehow detached
-	// from its owner). The finalizer guarantees we get a final reconcile pass before the VD object is removed.
-	if !vectorDeployment.DeletionTimestamp.IsZero() {
-		return r.handleVectorDeploymentDeletion(ctx, vectorDeployment, log)
-	}
-
-	// Ensure the vector-data finalizer is present on first reconcile so that we can run the cleanup hook above on
-	// teardown. The patch is a no-op when the finalizer is already on the object.
-	if !controllerutil.ContainsFinalizer(vectorDeployment, star.VectorDataFinalizer) {
-		patchBeforeFinalizer := client.MergeFrom(vectorDeployment.DeepCopy())
-		controllerutil.AddFinalizer(vectorDeployment, star.VectorDataFinalizer)
-		if err := r.Patch(ctx, vectorDeployment, patchBeforeFinalizer); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to add vector-data finalizer to %s: %w", req.NamespacedName, err)
-		}
 	}
 
 	originalVectorDeployment := vectorDeployment.DeepCopy()
@@ -84,29 +64,20 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	var artifactRefs []compref.Ref
-	// freshConfig holds the optional vector-scoped configuration blob if it was just resolved from OCM in this
-	// reconcile pass (i.e. on the first reconcile that fills `Status.ResolvedVectorOcm`). On subsequent reconciles
-	// it is nil and `handleVectorConfig` re-fetches lazily only if it actually needs the bytes — keeping the
-	// (potentially large) blob out of the VD `Status` and out of the etcd watch path.
+	// freshConfig holds the OCM-resolved authored blob from this reconcile's fetch (nil on subsequent reconciles
+	// where ResolvedVectorOcm is cached). handleVectorData refetches if needed.
 	var freshConfig []byte
 
-	// if ResolvedVectorOcm is empty then fetch Vector from OCI Repository
 	if vectorDeployment.Status.ResolvedVectorOcm == "" {
-		// 1. Fetch vector from OCI repository
 		fetchedVectorDescriptor, err := r.OcmAdapter.GetVectorDescriptor(ctx, *vectorRef)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vectorDeployment.Name, err)
 		}
 
-		// 2. persist descriptor JSON in status and extract artifact refs. The configuration blob is intentionally
-		//    NOT persisted on the status — only its hash is stored later (in handleVectorConfig) for traceability.
-		//    Keeping the blob in a local variable instead of `Status.ResolvedVectorConfig` avoids putting potentially
-		//    large opaque bytes on the etcd watch path.
 		vectorDeployment.Status.ResolvedVectorOcm = string(fetchedVectorDescriptor.DescriptorJSON)
 		freshConfig = fetchedVectorDescriptor.Configuration
 		artifactRefs = fetchedVectorDescriptor.References
 
-		// 3. update status condition VectorDownloadedCondition to True
 		meta.SetStatusCondition(
 			&vectorDeployment.Status.Conditions,
 			metav1.Condition{
@@ -119,7 +90,6 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			},
 		)
 	} else {
-		// parse artifact refs from cached status
 		artifactRefs, err = artifactRefsFromStatus(vectorDeployment.Status.ResolvedVectorOcm, *vectorRef)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to parse artifact refs from status for vector deployment %s: %w", vectorDeployment.Name, err)

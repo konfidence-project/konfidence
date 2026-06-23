@@ -333,8 +333,9 @@ var _ = Describe("VectorDeployment Controller", func() {
 			By("VectorData inlines the aggregated DeploymentResults from all ArtifactDeployments")
 			g.Expect(vectorData.Spec.DeploymentResults).To(gomega.HaveLen(1))
 
-			By("VectorData has Spec.Config empty because this vector did not declare a vector-config OCM resource")
-			g.Expect(vectorData.Spec.Config).To(gomega.BeEmpty())
+			By("VectorData has Spec.Features/Spec.Authored nil because this vector did not declare a vector-config OCM resource")
+			g.Expect(vectorData.Spec.Features).To(gomega.BeNil())
+			g.Expect(vectorData.Spec.Authored).To(gomega.BeNil())
 
 			By("VectorData is owned by the VectorDeployment for cascade-delete")
 			g.Expect(vectorData.OwnerReferences).ToNot(gomega.BeEmpty())

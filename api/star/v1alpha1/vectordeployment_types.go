@@ -17,21 +17,13 @@ const (
 	// VectorAssignmentsCreatedCondition indicates that all VectorAssignment resources have been created successfully.
 	VectorAssignmentsCreatedCondition = "VectorAssignmentsCreated"
 
-	// VectorDataCreatedCondition indicates that the Star vector-deployment-controller has created (or re-used) the
-	// VectorData CR carrying the optional authored configuration and the aggregated DeploymentResults for this vector.
-	// It does NOT imply that the runtime-specific implementor has finished materialising the data — that is reported
-	// separately on the VectorData object via its own Ready condition, and reflected on the parent VectorDeployment
-	// through VectorReadyCondition.
+	// VectorDataCreatedCondition indicates that Star has created the VectorData CR. Materialisation of the data
+	// (e.g. as a ConfigMap on Kubernetes) is reported separately on the VectorData object and reflected on the
+	// parent VectorDeployment through VectorReadyCondition.
 	VectorDataCreatedCondition = "VectorDataCreated"
 
 	// VectorReadyCondition indicates that the vector deployment is ready for use.
 	VectorReadyCondition = "Ready"
-
-	// VectorDataFinalizer guards the runtime-side cleanup of the VectorData CR (and through it, the runtime-specific
-	// materialisation such as a Kubernetes ConfigMap). The vector-deployment-controller adds this finalizer on first
-	// reconciliation and removes it only after the owned VectorData object has been explicitly deleted, so that
-	// teardown happens deterministically rather than relying solely on Kubernetes garbage collection.
-	VectorDataFinalizer = "konfidence.cloud/vector-data-cleanup"
 )
 
 // VectorDeploymentSpec defines the desired state of a VectorDeployment.
