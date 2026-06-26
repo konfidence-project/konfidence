@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -86,18 +87,20 @@ func (r *VectorDeploymentReconciler) handleVectorData(
 	return nil
 }
 
-// splitEnvelope parses the OCM envelope `{features, authored}` into two RawExtension pointers preserving the verbatim
-// JSON of each subset. An empty blob yields (nil, nil, nil). Unknown sibling fields on the envelope are tolerated.
+// splitEnvelope parses an OCM-resolved vector configuration envelope into structured Spec.Features and Spec.Authored.
+// Uses the shared `jsonschema.VectorConfigurationV1` contract that galaxy serialises on the producer side. Unknown
+// schemaVersion is rejected so a future v2 envelope is caught before it silently misroutes.
 func splitEnvelope(blob []byte) (*runtime.RawExtension, *runtime.RawExtension, error) {
 	if len(blob) == 0 {
 		return nil, nil, nil
 	}
-	var env struct {
-		Features json.RawMessage `json:"features"`
-		Authored json.RawMessage `json:"authored"`
-	}
+	var env jsonschema.VectorConfigurationV1
 	if err := json.Unmarshal(blob, &env); err != nil {
 		return nil, nil, fmt.Errorf("vector config envelope is not a JSON object: %w", err)
+	}
+	if env.SchemaVersion != "" && env.SchemaVersion != jsonschema.VectorConfigurationV1SchemaVersion {
+		return nil, nil, fmt.Errorf("unsupported vector config schemaVersion %q (want %q)",
+			env.SchemaVersion, jsonschema.VectorConfigurationV1SchemaVersion)
 	}
 	var features, authored *runtime.RawExtension
 	if len(env.Features) > 0 {
