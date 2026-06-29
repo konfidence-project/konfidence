@@ -12,8 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
-	"ocm.software/open-component-model/bindings/go/oci/compref"
-	ociv1 "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -24,12 +22,6 @@ type noopRecorder struct{}
 func (noopRecorder) Eventf(_ runtime.Object, _ runtime.Object, _, _, _, _ string, _ ...interface{}) {}
 
 var _ events.EventRecorder = noopRecorder{}
-
-var testVectorRef = compref.Ref{
-	Repository: &ociv1.Repository{BaseUrl: "https://example.test"},
-	Component:  "github.com/example/test/vector",
-	Version:    "v0.0.1",
-}
 
 func newReconciler(t *testing.T, objects ...client.Object) (*VectorDeploymentReconciler, client.Client) {
 	t.Helper()
@@ -66,7 +58,7 @@ func TestHandleVectorData_CreatesWithSplitEnvelope(t *testing.T) {
 	vd := newVD("vd-1", results)
 	r, c := newReconciler(t, vd)
 
-	if err := r.handleVectorData(context.Background(), vd, testVectorRef, envelope, logf.Log); err != nil {
+	if err := r.handleVectorData(context.Background(), vd, envelope, logf.Log); err != nil {
 		t.Fatalf("handleVectorData: %v", err)
 	}
 
@@ -100,7 +92,7 @@ func TestHandleVectorData_NoOpWhenPresent(t *testing.T) {
 	}
 	r, c := newReconciler(t, vd, preExisting)
 
-	if err := r.handleVectorData(context.Background(), vd, testVectorRef, []byte(`{"features":{"new":true}}`), logf.Log); err != nil {
+	if err := r.handleVectorData(context.Background(), vd, []byte(`{"features":{"new":true}}`), logf.Log); err != nil {
 		t.Fatalf("handleVectorData: %v", err)
 	}
 
@@ -118,7 +110,7 @@ func TestHandleVectorData_RejectsInvalidEnvelope(t *testing.T) {
 	vd := newVD("vd-bad", nil)
 	r, _ := newReconciler(t, vd)
 
-	err := r.handleVectorData(context.Background(), vd, testVectorRef, []byte("not json"), logf.Log)
+	err := r.handleVectorData(context.Background(), vd, []byte("not json"), logf.Log)
 	if err == nil {
 		t.Fatalf("expected error")
 	}

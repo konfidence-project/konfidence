@@ -14,18 +14,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // handleVectorData creates the VectorData CR carrying the OCM-resolved envelope and aggregated DeploymentResults.
 // The owning VectorDeployment is set as the controller-owner so K8s GC cascades teardown; no finalizer here. The
 // landscape orchestrator materialises the payload for the target runtime.
+//
+// Caller is responsible for resolving `configBlob` (i.e. fetching from OCM) before calling. This function only
+// observes-or-creates given an already-resolved blob; it has no awareness of cache or refetch semantics.
 func (r *VectorDeploymentReconciler) handleVectorData(
 	ctx context.Context,
 	vd *star.VectorDeployment,
-	vectorRef compref.Ref,
-	freshConfig []byte,
+	configBlob []byte,
 	log logr.Logger,
 ) error {
 	key := types.NamespacedName{Namespace: vd.Namespace, Name: vd.Name}
@@ -40,18 +41,6 @@ func (r *VectorDeploymentReconciler) handleVectorData(
 	case !apierrors.IsNotFound(err):
 		setVectorDataCreatedCondition(vd, metav1.ConditionFalse, "VectorDataGetFailed", err.Error())
 		return fmt.Errorf("get VectorData %s: %w", key, err)
-	}
-
-	// VectorData missing: this is either the first reconcile (freshConfig is in scope from the OCM fetch) or a later
-	// reconcile after the CR was deleted out-of-band. In the latter case we don't have the blob in memory, so refetch.
-	configBlob := freshConfig
-	if configBlob == nil && vd.Status.ResolvedVectorOcm != "" {
-		descr, err := r.OcmAdapter.GetVectorDescriptor(ctx, vectorRef)
-		if err != nil {
-			setVectorDataCreatedCondition(vd, metav1.ConditionFalse, "ConfigBlobRefetchFailed", err.Error())
-			return fmt.Errorf("refetch OCM config blob for %s: %w", key, err)
-		}
-		configBlob = descr.Configuration
 	}
 
 	features, authored, err := splitEnvelope(configBlob)
