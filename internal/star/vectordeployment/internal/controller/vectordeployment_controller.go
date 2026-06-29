@@ -37,6 +37,13 @@ type VectorDeploymentReconciler struct {
 	OcmAdapter VectorOcmPort
 }
 
+type resolvedVector struct {
+	descriptorJSON []byte
+	artifactRefs   []compref.Ref
+	config         []byte
+	configResolved bool
+}
+
 // +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments/finalizers,verbs=update
@@ -63,21 +70,13 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, fmt.Errorf("failed to parse vector reference %s: %w", vectorDeployment.Spec.Vector, err)
 	}
 
-	var artifactRefs []compref.Ref
-	// freshConfig holds the OCM-resolved authored blob from this reconcile's fetch (nil on subsequent reconciles
-	// where ResolvedVectorOcm is cached). handleVectorData refetches if needed.
-	var freshConfig []byte
+	resolvedVector, err := r.resolveVector(ctx, vectorDeployment, *vectorRef)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
-	if vectorDeployment.Status.ResolvedVectorOcm == "" {
-		fetchedVectorDescriptor, err := r.OcmAdapter.GetVectorDescriptor(ctx, *vectorRef)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vectorDeployment.Name, err)
-		}
-
-		vectorDeployment.Status.ResolvedVectorOcm = string(fetchedVectorDescriptor.DescriptorJSON)
-		freshConfig = fetchedVectorDescriptor.Configuration
-		artifactRefs = fetchedVectorDescriptor.References
-
+	if len(resolvedVector.descriptorJSON) > 0 {
+		vectorDeployment.Status.ResolvedVectorOcm = string(resolvedVector.descriptorJSON)
 		meta.SetStatusCondition(
 			&vectorDeployment.Status.Conditions,
 			metav1.Condition{
@@ -89,14 +88,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				LastTransitionTime: metav1.Now(),
 			},
 		)
-	} else {
-		artifactRefs, err = artifactRefsFromStatus(vectorDeployment.Status.ResolvedVectorOcm, *vectorRef)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to parse artifact refs from status for vector deployment %s: %w", vectorDeployment.Name, err)
-		}
 	}
 
-	allDeploymentsReady, err := r.handleArtifactDeployments(ctx, artifactRefs, vectorDeployment, log)
+	allDeploymentsReady, err := r.handleArtifactDeployments(ctx, resolvedVector.artifactRefs, vectorDeployment, log)
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 			patchErrorMessage := "unable to update vectorDeployment status"
@@ -142,7 +136,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// DeploymentResults. This step is a singleton action per vector, distinct from the per-artifact VectorAssignment
 	// work above. The runtime-specific implementor (e.g. the in-tree Kubernetes adapter in `internal/star/vectordata`)
 	// watches VectorData and materialises it on the target runtime (e.g. as a ConfigMap).
-	configBlob, err := r.resolveVectorConfigForVectorData(ctx, vectorDeployment, *vectorRef, freshConfig)
+	resolvedVector, err = r.ensureVectorDataConfigResolved(ctx, vectorDeployment, *vectorRef, resolvedVector)
 	if err != nil {
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
@@ -151,7 +145,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 		return ctrl.Result{}, fmt.Errorf("resolve vector config for vector deployment %s: %w", vectorDeployment.Name, err)
 	}
-	if err := r.handleVectorData(ctx, vectorDeployment, configBlob, log); err != nil {
+	if err := r.handleVectorData(ctx, vectorDeployment, resolvedVector.config, log); err != nil {
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; %w", patchError, err)
@@ -510,29 +504,55 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 	}
 }
 
-// resolveVectorConfigForVectorData returns the OCM-resolved vector config blob to hand to handleVectorData.
-// On the first reconcile freshConfig is already in scope; on later reconciles where the VectorData CR is missing
-// (deleted out-of-band, fresh cluster after status was cached, etc.) we refetch the descriptor so handleVectorData
-// only ever sees an already-resolved blob and has no awareness of cache/refetch semantics. May return nil if the
-// VectorData already exists (handleVectorData ignores the input in that case).
-func (r *VectorDeploymentReconciler) resolveVectorConfigForVectorData(
+// resolveVector returns the vector data needed by the reconcile flow. Artifact references can be reconstructed from
+// the cached descriptor status, but the config blob is only available when the descriptor is fetched from OCM.
+func (r *VectorDeploymentReconciler) resolveVector(
 	ctx context.Context,
 	vd *star.VectorDeployment,
 	vectorRef compref.Ref,
-	freshConfig []byte,
-) ([]byte, error) {
-	if freshConfig != nil {
-		return freshConfig, nil
+) (resolvedVector, error) {
+	if vd.Status.ResolvedVectorOcm == "" {
+		descr, err := r.OcmAdapter.GetVectorDescriptor(ctx, vectorRef)
+		if err != nil {
+			return resolvedVector{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vd.Name, err)
+		}
+		return resolvedVector{
+			descriptorJSON: descr.DescriptorJSON,
+			artifactRefs:   descr.References,
+			config:         descr.Configuration,
+			configResolved: true,
+		}, nil
 	}
-	vdKey := types.NamespacedName{Name: vd.Name, Namespace: vd.Namespace}
-	if err := r.Get(ctx, vdKey, &star.VectorData{}); err == nil {
-		return nil, nil
+
+	artifactRefs, err := artifactRefsFromStatus(vd.Status.ResolvedVectorOcm, vectorRef)
+	if err != nil {
+		return resolvedVector{}, fmt.Errorf("failed to parse artifact refs from status for vector deployment %s: %w", vd.Name, err)
+	}
+	return resolvedVector{artifactRefs: artifactRefs}, nil
+}
+
+func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
+	ctx context.Context,
+	vd *star.VectorDeployment,
+	vectorRef compref.Ref,
+	resolved resolvedVector,
+) (resolvedVector, error) {
+	if resolved.configResolved {
+		return resolved, nil
+	}
+	// Cheap kube-apiserver read to avoid the more expensive OCM refetch: if the VectorData CR already exists,
+	// handleVectorData only observes it and never needs the config blob, so skip resolution entirely.
+	if err := r.Get(ctx, types.NamespacedName{Name: vd.Name, Namespace: vd.Namespace}, &star.VectorData{}); err == nil {
+		resolved.configResolved = true
+		return resolved, nil
 	} else if !apierrors.IsNotFound(err) {
-		return nil, fmt.Errorf("get VectorData %s: %w", vdKey, err)
+		return resolvedVector{}, fmt.Errorf("get VectorData %s/%s: %w", vd.Namespace, vd.Name, err)
 	}
 	descr, err := r.OcmAdapter.GetVectorDescriptor(ctx, vectorRef)
 	if err != nil {
-		return nil, fmt.Errorf("refetch OCM config blob: %w", err)
+		return resolvedVector{}, fmt.Errorf("refetch OCM config blob: %w", err)
 	}
-	return descr.Configuration, nil
+	resolved.config = descr.Configuration
+	resolved.configResolved = true
+	return resolved, nil
 }
