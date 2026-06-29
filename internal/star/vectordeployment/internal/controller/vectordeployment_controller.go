@@ -142,7 +142,16 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// DeploymentResults. This step is a singleton action per vector, distinct from the per-artifact VectorAssignment
 	// work above. The runtime-specific implementor (e.g. the in-tree Kubernetes adapter in `internal/star/vectordata`)
 	// watches VectorData and materialises it on the target runtime (e.g. as a ConfigMap).
-	if err := r.handleVectorData(ctx, vectorDeployment, *vectorRef, freshConfig, log); err != nil {
+	configBlob, err := r.resolveVectorConfigForVectorData(ctx, vectorDeployment, *vectorRef, freshConfig)
+	if err != nil {
+		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
+			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; %w", patchError, err)
+			}
+		}
+		return ctrl.Result{}, fmt.Errorf("resolve vector config for vector deployment %s: %w", vectorDeployment.Name, err)
+	}
+	if err := r.handleVectorData(ctx, vectorDeployment, configBlob, log); err != nil {
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; %w", patchError, err)
@@ -499,4 +508,31 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 			},
 		},
 	}
+}
+
+// resolveVectorConfigForVectorData returns the OCM-resolved vector config blob to hand to handleVectorData.
+// On the first reconcile freshConfig is already in scope; on later reconciles where the VectorData CR is missing
+// (deleted out-of-band, fresh cluster after status was cached, etc.) we refetch the descriptor so handleVectorData
+// only ever sees an already-resolved blob and has no awareness of cache/refetch semantics. May return nil if the
+// VectorData already exists (handleVectorData ignores the input in that case).
+func (r *VectorDeploymentReconciler) resolveVectorConfigForVectorData(
+	ctx context.Context,
+	vd *star.VectorDeployment,
+	vectorRef compref.Ref,
+	freshConfig []byte,
+) ([]byte, error) {
+	if freshConfig != nil {
+		return freshConfig, nil
+	}
+	vdKey := types.NamespacedName{Name: vd.Name, Namespace: vd.Namespace}
+	if err := r.Get(ctx, vdKey, &star.VectorData{}); err == nil {
+		return nil, nil
+	} else if !apierrors.IsNotFound(err) {
+		return nil, fmt.Errorf("get VectorData %s: %w", vdKey, err)
+	}
+	descr, err := r.OcmAdapter.GetVectorDescriptor(ctx, vectorRef)
+	if err != nil {
+		return nil, fmt.Errorf("refetch OCM config blob: %w", err)
+	}
+	return descr.Configuration, nil
 }
