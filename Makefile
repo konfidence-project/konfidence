@@ -115,6 +115,14 @@ generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
 fmt: hermit ## Run go fmt against the entire codebase.
 	go fmt ./...
 
+.PHONY: fmt-check
+fmt-check: hermit ## Verify go formatting across the entire codebase.
+	@test -z "$$(gofmt -l .)" || { \
+		echo "Go files need formatting:"; \
+		gofmt -l .; \
+		exit 1; \
+	}
+
 .PHONY: vet
 vet: hermit ## Run go vet against the entire codebase.
 	go vet ./...
@@ -130,6 +138,17 @@ lint-fix: hermit ## Run golangci-lint and apply automatic fixes.
 .PHONY: lint-config
 lint-config: hermit ## Verify the golangci-lint configuration.
 	$(GOLANGCI_LINT) config verify
+
+.PHONY: lint-ui
+lint-ui: hermit ## Run UI linting.
+	$(PNPM) ui:lint
+
+.PHONY: fmt-check-ui
+fmt-check-ui: hermit ## Verify UI formatting.
+	$(PNPM) ui:fmt:check
+
+.PHONY: verify
+verify: fmt-check lint lint-config lint-ui fmt-check-ui test ## Run formatting checks, linting, and all tests.
 
 ##@ API
 
@@ -248,7 +267,7 @@ test-pkg: hermit fmt vet ginkgo ## Run unit tests for shared pkg packages.
 
 .PHONY: test-ui
 test-ui: hermit ## Run UI tests.
-	$(PNPM) --filter konfidence-ui test
+	$(PNPM) ui:test
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
@@ -277,11 +296,11 @@ build-galaxy: hermit ## Build the galaxy operator binary.
 
 .PHONY: build-ui
 build-ui: hermit ## Build the UI app.
-	$(PNPM) --filter konfidence-ui build
+	$(PNPM) ui:build
 
 .PHONY: dev-ui
 dev-ui: hermit ## Run the UI development server.
-	$(PNPM) --filter konfidence-ui dev
+	$(PNPM) ui:dev
 
 .PHONY: run-star
 run-star: manifests-star generate-star fmt vet ## Run the star operator from your host.
