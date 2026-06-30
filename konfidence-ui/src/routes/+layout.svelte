@@ -22,6 +22,8 @@
     setTheme("konfidence");
 
     let { children } = $props();
+
+    import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
 </script>
 
 <svelte:head>
@@ -31,9 +33,9 @@
     />
 </svelte:head>
 
-<ui5-navigation-layout id="nl1">
+<ui5-navigation-layout id="nl1" mode="{sidebar.mode}">
     <ui5-shellbar slot="header" notifications-count="3" show-notifications>
-        <ui5-button icon="menu2" slot="startButton" id="startButton"
+        <ui5-button icon="menu2" slot="startButton" id="startButton" onclick={toggleSidebar}
         ></ui5-button>
         <ui5-shellbar-branding slot="branding" class="brand">
             <img
