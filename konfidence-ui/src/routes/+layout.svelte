@@ -1,7 +1,6 @@
 <script lang="ts">
-    import "../theme/konfidence.css";
     import { goto } from "$app/navigation";
-    import { setTheme } from "@ui5/webcomponents-base/dist/config/Theme.js";
+    import { page } from "$app/state";
     import "@ui5/webcomponents/dist/Button.js";
     import "@ui5/webcomponents/dist/ToggleButton.js";
     import "@ui5/webcomponents/dist/Avatar.js";
@@ -19,13 +18,27 @@
     import "@ui5/webcomponents-icons/dist/menu2.js";
     import "@ui5/webcomponents-icons/dist/sys-help.js";
     import "@ui5/webcomponents-icons/dist/da.js";
+    import "@ui5/webcomponents-icons/dist/action-settings.js";
     import type { SideNavigationItemClickEventDetail } from "@ui5/webcomponents-fiori/dist/SideNavigationItemBase.js";
-
-    setTheme("konfidence");
+    import konfidenceDarkThemeHref from "../theme/konfidence-dark.css?url";
+    import konfidenceThemeHref from "../theme/konfidence.css?url";
 
     let { children } = $props();
 
     import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
+    import {
+        initTheme,
+        markCustomThemeStylesheetLoaded,
+        themePreference,
+        type UITheme,
+    } from "$lib/stores/theme.svelte";
+
+    const customThemeLinks = [
+        { id: "konfidence", href: konfidenceThemeHref },
+        { id: "konfidence-dark", href: konfidenceDarkThemeHref },
+    ] as const satisfies ReadonlyArray<{ id: UITheme; href: string }>;
+
+    initTheme();
 </script>
 
 <svelte:head>
@@ -33,6 +46,15 @@
         rel="icon"
         href="/assets/logo/Icon_only/SVG/32_konfidence_icon_color.svg"
     />
+    {#each customThemeLinks as customTheme (customTheme.id)}
+        <link
+            rel="stylesheet"
+            href={customTheme.href}
+            media={themePreference.selected === customTheme.id ? "all" : "not all"}
+            data-konfidence-theme={customTheme.id}
+            onload={() => markCustomThemeStylesheetLoaded(customTheme.id)}
+        />
+    {/each}
 </svelte:head>
 
 <ui5-navigation-layout id="nl1" mode={sidebar.mode}>
@@ -54,7 +76,9 @@
             <img
                 slot="logo"
                 class="brand-logo"
-                src="/assets/logo/full/SVG/400_konfidence_logo_light.svg"
+                src={themePreference.selected === "konfidence-dark"
+                    ? "/assets/logo/full/SVG/400_konfidence_logo_dark.svg"
+                    : "/assets/logo/full/SVG/400_konfidence_logo_light.svg"}
                 alt="Konfidence"
             />
         </ui5-shellbar-branding>
@@ -71,11 +95,26 @@
                 text="All Stages"
                 href="/stages"
                 icon="upstacked-chart"
+                selected={page.url.pathname === "/stages"}
                 onui5-click={(
                     event: CustomEvent<SideNavigationItemClickEventDetail>,
                 ) => {
                     event.preventDefault();
                     goto("/stages");
+                }}
+            ></ui5-side-navigation-item>
+        </ui5-side-navigation-group>
+        <ui5-side-navigation-group text="Administration" expanded>
+            <ui5-side-navigation-item
+                text="Settings"
+                href="/settings"
+                icon="action-settings"
+                selected={page.url.pathname === "/settings"}
+                onui5-click={(
+                    event: CustomEvent<SideNavigationItemClickEventDetail>,
+                ) => {
+                    event.preventDefault();
+                    goto("/settings");
                 }}
             ></ui5-side-navigation-item>
         </ui5-side-navigation-group>
@@ -87,8 +126,7 @@
 
 <style>
     :global(:root) {
-        --sapFontFamily:
-            "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --konfidence-sidebar-status-color: var(--sapPositiveElementColor);
     }
 
     :global(html),
@@ -96,28 +134,25 @@
         min-height: 100%;
         margin: 0;
         font-family:
-            "Inter",
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
+            var(--sapFontFamily),
             sans-serif;
         background:
             radial-gradient(
                 circle at top left,
-                rgba(128, 210, 224, 0.18),
+                color-mix(in srgb, var(--sapHighlightColor) 14%, transparent),
                 transparent 34rem
             ),
-            linear-gradient(180deg, #f7fbfc 0%, #eef7f9 100%);
-        color: #102a38;
+            var(--sapBackgroundColor);
+        color: var(--sapTextColor);
     }
 
     :global(ui5-shellbar) {
-        border-bottom: 1px solid rgba(19, 156, 199, 0.16);
-        box-shadow: 0 18px 44px rgba(14, 127, 163, 0.08);
+        border-bottom: 1px solid var(--sapList_BorderColor);
+        box-shadow: var(--sapContent_Shadow0);
     }
 
     :global(ui5-side-navigation) {
-        border-right: 1px solid rgba(19, 156, 199, 0.14);
+        border-right: 1px solid var(--sapList_BorderColor);
     }
 
     .brand-logo {

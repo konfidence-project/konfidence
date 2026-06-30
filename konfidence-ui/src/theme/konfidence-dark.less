@@ -1,0 +1,81 @@
+@import "@sap-theming/theming-base-content/content/Base/baseLib/sap_horizon_dark/css_variables.less";
+
+@konfidenceSidebarBackground: #111111;
+@konfidenceSidebarItemBackground: #1e1e1e;
+@konfidenceSidebarMuted: rgba(255, 255, 255, 0.5);
+@konfidenceSidebarSection: rgba(255, 255, 255, 0.28);
+@konfidenceSidebarBorder: rgba(255, 255, 255, 0.08);
+@konfidenceSuccessGreen: #4caf50;
+
+@sapFontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+@sapFontHeaderFamily: @sapFontFamily;
+@sapFontLightFamily: @sapFontFamily;
+@sapFontBoldFamily: @sapFontFamily;
+@sapFontSemiboldFamily: @sapFontFamily;
+@sapFontSemiboldDuplexFamily: @sapFontFamily;
+@sapFontBlackFamily: @sapFontFamily;
+@sapBrandColor: #ffffff;
+@sapHighlightColor: #ffffff;
+@sapSelectedColor: #ffffff;
+@sapBaseColor: @konfidenceSidebarBackground;
+@sapShellColor: @konfidenceSidebarBackground;
+@sapShell_Background: @konfidenceSidebarBackground;
+@sapShell_Navigation_Background: @konfidenceSidebarBackground;
+@sapShell_TextColor: #ffffff;
+@sapShell_InteractiveTextColor: #ffffff;
+@sapShell_InteractiveBackground: @konfidenceSidebarItemBackground;
+@sapShell_Hover_Background: rgba(255, 255, 255, 0.07);
+@sapShell_Active_Background: rgba(255, 255, 255, 0.12);
+@sapShell_BorderColor: @konfidenceSidebarBorder;
+@sapBackgroundColor: #0f1115;
+@sapGroup_ContentBackground: #17191f;
+@sapTile_Background: #17191f;
+@sapList_Background: @konfidenceSidebarBackground;
+@sapList_TextColor: @konfidenceSidebarMuted;
+@sapList_GroupHeaderTextColor: @konfidenceSidebarSection;
+@sapList_BorderColor: @konfidenceSidebarBorder;
+@sapList_Hover_Background: rgba(255, 255, 255, 0.04);
+@sapList_SelectionBackgroundColor: rgba(255, 255, 255, 0.07);
+@sapList_SelectionBorderColor: #ffffff;
+@sapContent_LabelColor: @konfidenceSidebarMuted;
+@sapContent_IconColor: @konfidenceSidebarMuted;
+@sapContent_NonInteractiveIconColor: @konfidenceSidebarMuted;
+@sapContent_FocusColor: #ffffff;
+@sapButton_FontFamily: @sapFontFamily;
+@sapButton_Emphasized_FontFamily: @sapFontFamily;
+@sapPositiveColor: @konfidenceSuccessGreen;
+@sapPositiveElementColor: @konfidenceSuccessGreen;
+
+:root {
+  --konfidence-sidebar-background: @konfidenceSidebarBackground;
+  --konfidence-sidebar-item-background: @konfidenceSidebarItemBackground;
+  --konfidence-sidebar-muted: @konfidenceSidebarMuted;
+  --konfidence-sidebar-section: @konfidenceSidebarSection;
+  --konfidence-sidebar-border: @konfidenceSidebarBorder;
+  --konfidence-sidebar-status-color: @konfidenceSuccessGreen;
+  --_ui5_side_navigation_width: 13.75rem;
+  --_ui5_side_navigation_box_shadow: none;
+  --_ui5_side_navigation_border_right: 0;
+  --_ui5_side_navigation_navigation_separator_background_color: @konfidenceSidebarBorder;
+  --_ui5_side_navigation_group_border_width: 0;
+  --_ui5_side_navigation_group_padding: 1rem 1.25rem 0.375rem;
+  --_ui5_side_navigation_item_height: 2.375rem;
+  --_ui5_side_navigation_item_margin: 0;
+  --_ui5_side_navigation_item_bottom_margin: 0;
+  --_ui5_side_navigation_item_border_radius: 0;
+  --_ui5_side_navigation_item_padding_left: 1.25rem;
+  --_ui5_side_navigation_item_font_family: @sapFontFamily;
+  --_ui5_side_navigation_parent_item_font_family: @sapFontSemiboldFamily;
+  --_ui5_side_navigation_icon_color: @konfidenceSidebarMuted;
+  --_ui5_side_navigation_expand_icon_color: @konfidenceSidebarMuted;
+  --_ui5_side_navigation_selected_item_border_color: #ffffff;
+  --_ui5_side_navigation_selected_border_width: 0 0 0 0.15625rem;
+  --_ui5_side_navigation_selected_border_style_color: #ffffff;
+  --_ui5_side_navigation_selected_and_focused_border_style_color: #ffffff;
+  --_ui5_side_navigation_collapsed_selected_item_background:
+    0 100% / 0.15625rem 100% no-repeat linear-gradient(0deg, #ffffff, #ffffff),
+    rgba(255, 255, 255, 0.07);
+  --_ui5_side_navigation_collapsed_selected_item_background_hover:
+    0 100% / 0.15625rem 100% no-repeat linear-gradient(0deg, #ffffff, #ffffff),
+    rgba(255, 255, 255, 0.09);
+}
