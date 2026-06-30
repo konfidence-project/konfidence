@@ -11,25 +11,28 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test:unit": "vitest",
-    "test": "npm run test:unit -- --run && npm run test:e2e",
+    "test": "pnpm test:unit -- --run && pnpm test:e2e",
     "test:e2e": "playwright install && playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "@sap-theming/theming-base-content": "^11.36.4",
     "@sveltejs/adapter-node": "^5.5.4",
     "@sveltejs/kit": "^2.63.0",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@vitest/browser-playwright": "^4.1.8",
+    "less": "^4.6.7",
     "playwright": "^1.60.0",
     "svelte": "^5.56.1",
     "svelte-check": "^4.6.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.8",
-    "vitest-browser-svelte": "^2.1.1"
+    "vitest-browser-svelte": "2.1.1"
   },
   "dependencies": {
     "@ui5/webcomponents": "^2.23.2",
+    "@ui5/webcomponents-base": "^2.23.2",
     "@ui5/webcomponents-fiori": "^2.23.2",
     "@ui5/webcomponents-icons": "^2.23.2"
   }

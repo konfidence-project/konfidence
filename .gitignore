@@ -58,3 +58,7 @@ local/
 
 .DS_Store
 
+# Node / SvelteKit
+node_modules/
+.svelte-kit/
+build/

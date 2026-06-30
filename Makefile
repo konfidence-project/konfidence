@@ -22,6 +22,7 @@ SHELL = /usr/bin/env bash -o pipefail
 export PATH := $(shell pwd)/bin:$(PATH)
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
+PNPM ?= pnpm
 
 STAR_SAMPLE_DIR ?= test/data/samples/star
 GALAXY_SAMPLE_DIR ?= test/data/samples/galaxy
@@ -229,7 +230,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit test-star test-galaxy test-pkg ## Run all unit tests.
+test: hermit test-star test-galaxy test-pkg test-ui ## Run all unit tests.
 
 .PHONY: test-star
 test-star: hermit manifests generate-star fmt vet setup-envtest ginkgo ## Run unit tests for the star operator only.
@@ -244,6 +245,10 @@ test-galaxy: hermit manifests generate-galaxy fmt vet setup-envtest ginkgo ## Ru
 .PHONY: test-pkg
 test-pkg: hermit fmt vet ginkgo ## Run unit tests for shared pkg packages.
 	$(GINKGO) --coverprofile=cover-pkg.out -v ./pkg/...
+
+.PHONY: test-ui
+test-ui: hermit ## Run UI tests.
+	$(PNPM) --filter konfidence-ui test
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
@@ -260,7 +265,7 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet build-star build-galaxy ## Build all operator binaries.
+build: manifests generate fmt vet build-star build-galaxy build-ui ## Build all binaries and UI assets.
 
 .PHONY: build-star
 build-star: hermit ## Build the star operator binary.
@@ -269,6 +274,14 @@ build-star: hermit ## Build the star operator binary.
 .PHONY: build-galaxy
 build-galaxy: hermit ## Build the galaxy operator binary.
 	go build -o bin/galaxy ./cmd/galaxy/main.go
+
+.PHONY: build-ui
+build-ui: hermit ## Build the UI app.
+	$(PNPM) --filter konfidence-ui build
+
+.PHONY: dev-ui
+dev-ui: hermit ## Run the UI development server.
+	$(PNPM) --filter konfidence-ui dev
 
 .PHONY: run-star
 run-star: manifests-star generate-star fmt vet ## Run the star operator from your host.
