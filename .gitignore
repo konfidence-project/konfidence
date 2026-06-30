@@ -61,3 +61,8 @@ local/
 dist/
 # oapi-codegen binary (built by go install into api/ dir)
 api/api
+
+# Node / SvelteKit
+node_modules/
+.svelte-kit/
+build/
