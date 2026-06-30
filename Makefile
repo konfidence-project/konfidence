@@ -22,6 +22,7 @@ SHELL = /usr/bin/env bash -o pipefail
 export PATH := $(shell pwd)/bin:$(PATH)
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
+PNPM ?= pnpm
 
 STAR_SAMPLE_DIR ?= test/data/samples/star
 GALAXY_SAMPLE_DIR ?= test/data/samples/galaxy
@@ -228,7 +229,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api ## Run all unit tests.
+test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api test-ui ## Run all unit tests.
 
 .PHONY: test-operators
 test-operators: hermit manifests setup-envtest ginkgo ## Run unit tests for the konfidence operator.
@@ -247,6 +248,10 @@ test-kden-cli: hermit
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
 	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
 
+.PHONY: test-ui
+test-ui: hermit ## Run UI tests.
+	$(PNPM) --filter konfidence-ui test
+
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
 	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
@@ -262,7 +267,7 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet build-operator build-kden-cli ## Build all binaries.
+build: manifests generate fmt vet build-operator build-kden-cli build-ui ## Build all binaries and UI assets.
 
 .PHONY: build-operator
 build-operator: hermit ## Build the konfidence operator binary.
@@ -275,6 +280,14 @@ build-kden-cli: hermit ## Build the kden cli binary.
 .PHONY: run
 run: manifests generate fmt vet ## Run the konfidence operator from your host.
 	go run ./cmd/konfidence/main.go
+
+.PHONY: build-ui
+build-ui: hermit ## Build the UI app.
+	$(PNPM) --filter konfidence-ui build
+
+.PHONY: dev-ui
+dev-ui: hermit ## Run the UI development server.
+	$(PNPM) --filter konfidence-ui dev
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
