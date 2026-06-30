@@ -22,6 +22,7 @@ SHELL = /usr/bin/env bash -o pipefail
 export PATH := $(shell pwd)/bin:$(PATH)
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
+PNPM ?= pnpm
 
 STAR_SAMPLE_DIR ?= test/data/samples/star
 GALAXY_SAMPLE_DIR ?= test/data/samples/galaxy
@@ -250,7 +251,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit manifests generate fmt vet test-star test-galaxy test-pkg test-kden-cli test-api ## Run all unit tests.
+test: hermit manifests generate fmt vet test-star test-galaxy test-pkg test-kden-cli test-api test-ui ## Run all unit tests.
 
 .PHONY: test-star
 test-star: hermit manifests setup-envtest ginkgo ## Run unit tests for the star operator only.
@@ -269,9 +270,14 @@ test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.
 .PHONY: test-kden-cli
 test-kden-cli: hermit
 	go test ./cmd/kden/... ./internal/kden/...
+
 .PHONY: test-api
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
 	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
+
+.PHONY: test-ui
+test-ui: hermit ## Run UI tests.
+	$(PNPM) --filter konfidence-ui test
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
@@ -288,9 +294,7 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet build-star build-galaxy build-kden-cli build-api ## Build all operator binaries.
-build: manifests generate fmt vet build-star build-galaxy build-kden-cli ## Build all operator binaries.
-build: manifests generate fmt vet build-star build-galaxy build-api ## Build all operator binaries.
+build: manifests generate fmt vet build-star build-galaxy build-kden-cli build-api build-ui ## Build all binaries and UI assets.
 
 .PHONY: build-star
 build-star: hermit ## Build the star operator binary.
@@ -307,6 +311,14 @@ build-kden-cli: hermit ## Build the kden cli binary.
 .PHONY: build-api
 build-api: hermit ## Build the Konfidence API server binary.
 	go build -o bin/api ./cmd/api/main.go
+
+.PHONY: build-ui
+build-ui: hermit ## Build the UI app.
+	$(PNPM) --filter konfidence-ui build
+
+.PHONY: dev-ui
+dev-ui: hermit ## Run the UI development server.
+	$(PNPM) --filter konfidence-ui dev
 
 .PHONY: run-star
 run-star: manifests-star generate-star fmt vet ## Run the star operator from your host.

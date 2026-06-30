@@ -1,0 +1,10 @@
+{
+  "name": "konfidence",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "ui:dev": "pnpm --filter konfidence-ui dev",
+    "ui:build": "pnpm --filter konfidence-ui build",
+    "ui:test": "pnpm --filter konfidence-ui test"
+  }
+}
