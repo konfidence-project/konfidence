@@ -1,5 +1,6 @@
 <script lang="ts">
     import "../theme/konfidence.css";
+    import { goto } from "$app/navigation";
     import { setTheme } from "@ui5/webcomponents-base/dist/config/Theme.js";
     import "@ui5/webcomponents/dist/Button.js";
     import "@ui5/webcomponents/dist/ToggleButton.js";
@@ -18,6 +19,7 @@
     import "@ui5/webcomponents-icons/dist/menu2.js";
     import "@ui5/webcomponents-icons/dist/sys-help.js";
     import "@ui5/webcomponents-icons/dist/da.js";
+    import type { SideNavigationItemClickEventDetail } from "@ui5/webcomponents-fiori/dist/SideNavigationItemBase.js";
 
     setTheme("konfidence");
 
@@ -33,11 +35,22 @@
     />
 </svelte:head>
 
-<ui5-navigation-layout id="nl1" mode="{sidebar.mode}">
+<ui5-navigation-layout id="nl1" mode={sidebar.mode}>
     <ui5-shellbar slot="header" notifications-count="3" show-notifications>
-        <ui5-button icon="menu2" slot="startButton" id="startButton" onclick={toggleSidebar}
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button is an interactive web component with built-in keyboard handling) -->
+        <ui5-button
+            icon="menu2"
+            slot="startButton"
+            id="startButton"
+            onclick={toggleSidebar}
         ></ui5-button>
-        <ui5-shellbar-branding slot="branding" class="brand">
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-shellbar-branding is an interactive web component with built-in keyboard handling) -->
+        <ui5-shellbar-branding
+            slot="branding"
+            class="brand"
+            accessible-name="Konfidence home"
+            onclick={() => goto("/")}
+        >
             <img
                 slot="logo"
                 class="brand-logo"
@@ -56,8 +69,14 @@
         <ui5-side-navigation-group text="Stages" expanded>
             <ui5-side-navigation-item
                 text="All Stages"
-                href="/"
+                href="/stages"
                 icon="upstacked-chart"
+                onui5-click={(
+                    event: CustomEvent<SideNavigationItemClickEventDetail>,
+                ) => {
+                    event.preventDefault();
+                    goto("/stages");
+                }}
             ></ui5-side-navigation-item>
         </ui5-side-navigation-group>
     </ui5-side-navigation>
