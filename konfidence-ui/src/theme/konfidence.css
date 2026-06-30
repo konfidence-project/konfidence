@@ -1,5 +1,5 @@
 .sapThemeMetaData-Base-baseLib {
-	background-image: url('data:text/plain;utf-8, { "Path": "Base.baseLib.konfidence.css_variables", "Extends": ["sap_horizon","baseTheme"]}');
+  background-image: url('data:text/plain;utf-8, { "Path": "Base.baseLib.konfidence.css_variables", "Extends": ["sap_horizon","baseTheme"]}');
 }
 /**
 * Copyright (c) 2012-2025 SAP SE or an SAP affiliate company and Theming Base Content contributors. Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
@@ -136,7 +136,14 @@
   --sapContent_MeasureIndicatorColor: #556b81;
   --sapContent_Selected_MeasureIndicatorColor: #139cc7;
   --sapContent_Placeholderloading_Background: #cccccc;
-  --sapContent_Placeholderloading_Gradient: linear-gradient(to right, #cccccc 0%, #cccccc 20%, #999999 50%, #cccccc 80%, #cccccc 100%);
+  --sapContent_Placeholderloading_Gradient: linear-gradient(
+    to right,
+    #cccccc 0%,
+    #cccccc 20%,
+    #999999 50%,
+    #cccccc 80%,
+    #cccccc 100%
+  );
   --sapContent_ImagePlaceholderBackground: #eaecee;
   --sapContent_ImagePlaceholderForegroundColor: #556b82;
   --sapContent_RatedColor: #d27700;
@@ -148,13 +155,18 @@
   --sapContent_ContrastFocusColor: #fff;
   --sapContent_ShadowColor: #223548;
   --sapContent_ContrastShadowColor: #fff;
-  --sapContent_Shadow0: 0 0 0.125rem 0 rgba(34, 53, 72, 0.2), 0 0.125rem 0.25rem 0 rgba(34, 53, 72, 0.2);
-  --sapContent_Shadow1: 0 0 0 0.0625rem rgba(34, 53, 72, 0.48), 0 0.125rem 0.5rem 0 rgba(34, 53, 72, 0.3);
-  --sapContent_Shadow2: 0 0 0 0.0625rem rgba(34, 53, 72, 0.48), 0 0.625rem 1.875rem 0 rgba(34, 53, 72, 0.25);
-  --sapContent_Shadow3: 0 0 0 0.0625rem rgba(34, 53, 72, 0.48), 0 1.25rem 5rem 0 rgba(34, 53, 72, 0.25);
+  --sapContent_Shadow0:
+    0 0 0.125rem 0 rgba(34, 53, 72, 0.2), 0 0.125rem 0.25rem 0 rgba(34, 53, 72, 0.2);
+  --sapContent_Shadow1:
+    0 0 0 0.0625rem rgba(34, 53, 72, 0.48), 0 0.125rem 0.5rem 0 rgba(34, 53, 72, 0.3);
+  --sapContent_Shadow2:
+    0 0 0 0.0625rem rgba(34, 53, 72, 0.48), 0 0.625rem 1.875rem 0 rgba(34, 53, 72, 0.25);
+  --sapContent_Shadow3:
+    0 0 0 0.0625rem rgba(34, 53, 72, 0.48), 0 1.25rem 5rem 0 rgba(34, 53, 72, 0.25);
   --sapContent_TextShadow: 0 0 0.125rem #fff;
   --sapContent_ContrastTextShadow: 0 0 0.0625rem rgba(0, 0, 0, 0.7);
-  --sapContent_HeaderShadow: 0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #d9d9d9;
+  --sapContent_HeaderShadow:
+    0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #d9d9d9;
   --sapContent_Interaction_Shadow: inset 0 0 0 0.0625rem rgba(85, 107, 129, 0.25);
   --sapContent_Selected_Shadow: inset 0 0 0 0.0625rem rgba(96, 205, 240, 0.5);
   --sapContent_Negative_Shadow: inset 0 0 0 0.0625rem rgba(255, 142, 196, 0.45);
@@ -237,10 +249,14 @@
   --sapContent_Padding_L: 2rem;
   --sapContent_Padding_XL: 3rem;
   --sapContent_Gap: 1rem;
-  --sapContent_Success_HeaderShadow: 0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #30914c;
-  --sapContent_Warning_HeaderShadow: 0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #dd6100;
-  --sapContent_Error_HeaderShadow: 0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #e90b0b;
-  --sapContent_Information_HeaderShadow: 0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #0070f2;
+  --sapContent_Success_HeaderShadow:
+    0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #30914c;
+  --sapContent_Warning_HeaderShadow:
+    0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #dd6100;
+  --sapContent_Error_HeaderShadow:
+    0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #e90b0b;
+  --sapContent_Information_HeaderShadow:
+    0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.05), inset 0 -0.0625rem 0 0 #0070f2;
   --sapFontLightFamily: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --sapFontBoldFamily: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --sapFontSemiboldFamily: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -288,7 +304,8 @@
   --sapShell_Navigation_TextColor: #131e29;
   --sapShell_Navigation_Active_TextColor: #139cc7;
   --sapShell_Navigation_Active_Background: #ffffff;
-  --sapShell_Shadow: 0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.15), inset 0 -0.0625rem 0 0 rgba(34, 53, 72, 0.2);
+  --sapShell_Shadow:
+    0 0.125rem 0.125rem 0 rgba(34, 53, 72, 0.15), inset 0 -0.0625rem 0 0 rgba(34, 53, 72, 0.2);
   --sapShell_NegativeColor: #aa0808;
   --sapShell_CriticalColor: #b44f00;
   --sapShell_PositiveColor: #256f3a;
@@ -297,7 +314,11 @@
   --sapShell_Assistant_ForegroundColor: #ff960c;
   --sapShell_SubBrand_TextColor: #0a4f65;
   --sapShell_HeroBanner_Background: #0070f2;
-  --sapShell_HeroBanner_BackgroundImage: linear-gradient(135deg, transparent 45%, rgba(0, 0, 0, 0.45) 75%);
+  --sapShell_HeroBanner_BackgroundImage: linear-gradient(
+    135deg,
+    transparent 45%,
+    rgba(0, 0, 0, 0.45) 75%
+  );
   --sapShell_HeroBanner_TextColor: #fff;
   --sapShell_Category_1_Background: #0057d2;
   --sapShell_Category_1_BorderColor: #0057d2;
@@ -453,7 +474,8 @@
   --sapButton_Emphasized_BorderColor: #139cc7;
   --sapButton_Emphasized_BorderWidth: 0.0625rem;
   --sapButton_Emphasized_TextColor: #fff;
-  --sapButton_Emphasized_FontFamily: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sapButton_Emphasized_FontFamily:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --sapButton_Emphasized_Hover_Background: #0e7fa3;
   --sapButton_Emphasized_Hover_BorderColor: #0e7fa3;
   --sapButton_Emphasized_Hover_TextColor: #fff;
@@ -608,7 +630,8 @@
   --sapButton_ReadOnly_TokenBackground: #ffffff;
   --sapButton_Segment_BorderCornerRadius: 0.5rem;
   --sapField_Background: #ffffff;
-  --sapField_BackgroundStyle: 0 100% / 100% 0.0625rem no-repeat linear-gradient(0deg, #556b81, #556b81) border-box;
+  --sapField_BackgroundStyle: 0 100% / 100% 0.0625rem no-repeat
+    linear-gradient(0deg, #556b81, #556b81) border-box;
   --sapField_TextColor: #131e29;
   --sapField_PlaceholderTextColor: #556b82;
   --sapField_BorderColor: #556b81;
@@ -618,7 +641,8 @@
   --sapField_BorderCornerRadius: 0.25rem;
   --sapField_Shadow: inset 0 0 0 0.0625rem rgba(85, 107, 129, 0.25);
   --sapField_Hover_Background: #fff;
-  --sapField_Hover_BackgroundStyle: 0 100% / 100% 0.0625rem no-repeat linear-gradient(0deg, #139cc7, #139cc7) border-box;
+  --sapField_Hover_BackgroundStyle: 0 100% / 100% 0.0625rem no-repeat
+    linear-gradient(0deg, #139cc7, #139cc7) border-box;
   --sapField_Hover_BorderColor: #139cc7;
   --sapField_Hover_HelpBackground: #fff;
   --sapField_Hover_Shadow: inset 0 0 0 0.0625rem rgba(96, 205, 240, 0.5);
@@ -631,32 +655,37 @@
   --sapField_Focus_BorderColor: #0032a5;
   --sapField_Focus_HelpBackground: #fff;
   --sapField_ReadOnly_Background: #eaecee;
-  --sapField_ReadOnly_BackgroundStyle: 0 100% / 0.375rem 0.0625rem repeat-x linear-gradient(90deg, #556b81 0, #556b81 0.25rem, transparent 0.25rem) border-box;
+  --sapField_ReadOnly_BackgroundStyle: 0 100% / 0.375rem 0.0625rem repeat-x
+    linear-gradient(90deg, #556b81 0, #556b81 0.25rem, transparent 0.25rem) border-box;
   --sapField_ReadOnly_BorderColor: #556b81;
   --sapField_ReadOnly_BorderStyle: none;
   --sapField_ReadOnly_HelpBackground: #eaecee;
   --sapField_RequiredColor: #ba066c;
   --sapField_InvalidColor: #e90b0b;
   --sapField_InvalidBackground: #ffeaf4;
-  --sapField_InvalidBackgroundStyle: 0 100% / 100% 0.125rem no-repeat linear-gradient(0deg, #e90b0b, #e90b0b) border-box;
+  --sapField_InvalidBackgroundStyle: 0 100% / 100% 0.125rem no-repeat
+    linear-gradient(0deg, #e90b0b, #e90b0b) border-box;
   --sapField_InvalidBorderWidth: 0.125rem;
   --sapField_InvalidBorderStyle: none;
   --sapField_InvalidShadow: inset 0 0 0 0.0625rem rgba(255, 142, 196, 0.45);
   --sapField_WarningColor: #dd6100;
   --sapField_WarningBackground: #fff8d6;
-  --sapField_WarningBackgroundStyle: 0 100% / 100% 0.125rem no-repeat linear-gradient(0deg, #dd6100, #dd6100) border-box;
+  --sapField_WarningBackgroundStyle: 0 100% / 100% 0.125rem no-repeat
+    linear-gradient(0deg, #dd6100, #dd6100) border-box;
   --sapField_WarningBorderWidth: 0.125rem;
   --sapField_WarningBorderStyle: none;
   --sapField_WarningShadow: inset 0 0 0 0.0625rem rgba(255, 213, 10, 0.4);
   --sapField_SuccessColor: #30914c;
   --sapField_SuccessBackground: #f5fae5;
-  --sapField_SuccessBackgroundStyle: 0 100% / 100% 0.0625rem no-repeat linear-gradient(0deg, #30914c, #30914c) border-box;
+  --sapField_SuccessBackgroundStyle: 0 100% / 100% 0.0625rem no-repeat
+    linear-gradient(0deg, #30914c, #30914c) border-box;
   --sapField_SuccessBorderWidth: 0.0625rem;
   --sapField_SuccessBorderStyle: none;
   --sapField_SuccessShadow: inset 0 0 0 0.0625rem rgba(48, 145, 76, 0.18);
   --sapField_InformationColor: #0070f2;
   --sapField_InformationBackground: #e1f4ff;
-  --sapField_InformationBackgroundStyle: 0 100% / 100% 0.125rem no-repeat linear-gradient(0deg, #0070f2, #0070f2) border-box;
+  --sapField_InformationBackgroundStyle: 0 100% / 100% 0.125rem no-repeat
+    linear-gradient(0deg, #0070f2, #0070f2) border-box;
   --sapField_InformationBorderWidth: 0.125rem;
   --sapField_InformationBorderStyle: none;
   --sapField_InformationShadow: inset 0 0 0 0.0625rem rgba(104, 174, 255, 0.5);
@@ -787,7 +816,8 @@
   --sapObjectHeader_Title_TextColor: #131e29;
   --sapObjectHeader_Title_FontSize: 1.5rem;
   --sapObjectHeader_Title_SnappedFontSize: 1.25rem;
-  --sapObjectHeader_Title_FontFamily: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sapObjectHeader_Title_FontFamily:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --sapObjectHeader_Subtitle_TextColor: #556b82;
   --sapBlockLayer_Background: #000;
   --sapBlockLayer_Opacity: 0.2;
@@ -1545,7 +1575,8 @@
   --sapBreakpoint_S_Min: 0;
   --sapBreakpoint_M_Min: 600px;
   --sapBreakpoint_L_Min: 1024px;
-  --sapBreakpoint_XL_Min: 1440px;  --sapSapThemeId: sap_horizon;
+  --sapBreakpoint_XL_Min: 1440px;
+  --sapSapThemeId: sap_horizon;
   --sapHighlightTextColor: #fff;
   --sapButton_Emphasized_FontWeight: bold;
   --sapShell_BackgroundGradient: linear-gradient(to bottom, #eff1f2, #eff1f2);
