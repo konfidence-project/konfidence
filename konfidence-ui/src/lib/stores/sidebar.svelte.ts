@@ -4,19 +4,17 @@ const STORAGE_KEY = "konfidence.ui.sidebarMode";
 export type SidebarMode = "Expanded" | "Collapsed";
 
 function load(): SidebarMode {
-    return localStorage.getItem(STORAGE_KEY) === "Collapsed"
-        ? "Collapsed"
-        : "Expanded";
+  return localStorage.getItem(STORAGE_KEY) === "Collapsed" ? "Collapsed" : "Expanded";
 }
 
 export const sidebar = $state<{ mode: SidebarMode }>({ mode: load() });
 
 $effect.root(() => {
-    $effect(() => {
-        localStorage.setItem(STORAGE_KEY, sidebar.mode);
-    });
+  $effect(() => {
+    localStorage.setItem(STORAGE_KEY, sidebar.mode);
+  });
 });
 
 export function toggleSidebar() {
-    sidebar.mode = sidebar.mode === "Expanded" ? "Collapsed" : "Expanded";
+  sidebar.mode = sidebar.mode === "Expanded" ? "Collapsed" : "Expanded";
 }
