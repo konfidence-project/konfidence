@@ -38,6 +38,36 @@
         { id: "konfidence-dark", href: konfidenceDarkThemeHref },
     ] as const satisfies ReadonlyArray<{ id: UITheme; href: string }>;
 
+    const navGroups = [
+        {
+            text: "Stages",
+            items: [
+                {
+                    text: "All Stages",
+                    href: "/stages",
+                    icon: "upstacked-chart",
+                },
+            ],
+        },
+        {
+            text: "Administration",
+            items: [
+                {
+                    text: "Settings",
+                    href: "/settings",
+                    icon: "action-settings",
+                },
+            ],
+        },
+    ] as const satisfies ReadonlyArray<{
+        text: string;
+        items: ReadonlyArray<{
+            text: string;
+            href: string;
+            icon: string;
+        }>;
+    }>;
+
     initTheme();
 </script>
 
@@ -90,34 +120,24 @@
         </ui5-avatar>
     </ui5-shellbar>
     <ui5-side-navigation id="sn1" slot="sideContent">
-        <ui5-side-navigation-group text="Stages" expanded>
-            <ui5-side-navigation-item
-                text="All Stages"
-                href="/stages"
-                icon="upstacked-chart"
-                selected={page.url.pathname === "/stages"}
-                onui5-click={(
-                    event: CustomEvent<SideNavigationItemClickEventDetail>,
-                ) => {
-                    event.preventDefault();
-                    goto("/stages");
-                }}
-            ></ui5-side-navigation-item>
-        </ui5-side-navigation-group>
-        <ui5-side-navigation-group text="Administration" expanded>
-            <ui5-side-navigation-item
-                text="Settings"
-                href="/settings"
-                icon="action-settings"
-                selected={page.url.pathname === "/settings"}
-                onui5-click={(
-                    event: CustomEvent<SideNavigationItemClickEventDetail>,
-                ) => {
-                    event.preventDefault();
-                    goto("/settings");
-                }}
-            ></ui5-side-navigation-item>
-        </ui5-side-navigation-group>
+        {#each navGroups as navGroup (navGroup.text)}
+            <ui5-side-navigation-group text={navGroup.text} expanded>
+                {#each navGroup.items as navItem (navItem.href)}
+                    <ui5-side-navigation-item
+                        text={navItem.text}
+                        href={navItem.href}
+                        icon={navItem.icon}
+                        selected={page.url.pathname === navItem.href}
+                        onui5-click={(
+                            event: CustomEvent<SideNavigationItemClickEventDetail>,
+                        ) => {
+                            event.preventDefault();
+                            goto(navItem.href);
+                        }}
+                    ></ui5-side-navigation-item>
+                {/each}
+            </ui5-side-navigation-group>
+        {/each}
     </ui5-side-navigation>
     <div class="content">
         {@render children()}
