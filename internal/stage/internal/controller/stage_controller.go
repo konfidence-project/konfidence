@@ -7,6 +7,7 @@ import (
 
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
+	"github.com/konfidence-project/konfidence/pkg/hash"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -188,15 +189,9 @@ func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *st
 }
 
 func (r *StageReconciler) constructStageVersion(stage *star.Stage) (*star.StageVersion, error) {
-	name, err := getStageVersionName(stage)
-	if err != nil {
-		return nil, err
-	}
+	name := getStageVersionName(stage)
 
-	stageVersionLabels, err := getStageVersionLabels(stage)
-	if err != nil {
-		return nil, err
-	}
+	stageVersionLabels := getStageVersionLabels(stage)
 
 	stageVersion := &star.StageVersion{
 		ObjectMeta: metav1.ObjectMeta{
@@ -222,10 +217,7 @@ func (r *StageReconciler) constructStageVersion(stage *star.Stage) (*star.StageV
 
 func (r *StageReconciler) constructStageVersionUsage(stage *star.Stage) (*star.StageVersionUsage, error) {
 	name := fmt.Sprintf("%s-target-%s", stage.Name, rand.String(8))
-	stageVersionLabels, err := getStageVersionLabels(stage)
-	if err != nil {
-		return nil, err
-	}
+	stageVersionLabels := getStageVersionLabels(stage)
 
 	stageVersionUsage := &star.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
@@ -249,10 +241,7 @@ func (r *StageReconciler) constructStageVersionUsage(stage *star.Stage) (*star.S
 }
 
 func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, stageVersionUsage *star.StageVersionUsage, stage *star.Stage) error {
-	stageVersionLabels, err := getStageVersionLabels(stage)
-	if err != nil {
-		return err
-	}
+	stageVersionLabels := getStageVersionLabels(stage)
 
 	originalStageVersionUsage := stageVersionUsage.DeepCopy()
 	patch := client.MergeFrom(originalStageVersionUsage)
@@ -281,17 +270,14 @@ func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, sta
 	return nil
 }
 
-func getStageVersionLabels(stage *star.Stage) (map[string]string, error) {
+func getStageVersionLabels(stage *star.Stage) map[string]string {
 	// use vector hash as vector ref for now
-	digest, err := ComputeFnv128Digest(stage.Spec.Vector)
-	if err != nil {
-		return nil, fmt.Errorf("unable to compute digest for stage vector: %w", err)
-	}
+	digest := hash.Fnv128(stage.Spec.Vector)
 
 	return map[string]string{
 		pkgctrl.StageNameLabel:       stage.Name,
 		pkgctrl.VectorReferenceLabel: digest,
-	}, nil
+	}
 }
 
 func getTargetStageVersionUsageLabels(stage *star.Stage) map[string]string {
@@ -300,14 +286,10 @@ func getTargetStageVersionUsageLabels(stage *star.Stage) map[string]string {
 	}
 }
 
-func getStageVersionName(stage *star.Stage) (string, error) {
+func getStageVersionName(stage *star.Stage) string {
 	content := fmt.Sprintf("%s-%s-%d", stage.Name, stage.Spec.Vector, stage.Generation)
-	digest, err := ComputeFnv64Digest(content)
-	if err != nil {
-		return "", fmt.Errorf("unable to compute digest for stageVersion name: %w", err)
-	}
-
-	return fmt.Sprintf("%s-%s", stage.Name, digest), nil
+	digest := hash.Fnv64(content)
+	return fmt.Sprintf("%s-%s", stage.Name, digest)
 }
 
 // SetupWithManager sets up the controller with the Manager.
