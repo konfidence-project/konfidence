@@ -245,12 +245,13 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 
 		By("Verifying VectorAssignment was created")
 		vectorAssignmentList := &star.VectorAssignmentList{}
+		vectorAssignmentName := ""
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.List(ctx, vectorAssignmentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
 			g.Expect(vectorAssignmentList.Items).To(gomega.HaveLen(1))
 
 			vectorAssignment := vectorAssignmentList.Items[0]
-			g.Expect(vectorAssignment.Name).To(gomega.Equal(vectorDeployment.Name))
+			vectorAssignmentName = vectorAssignment.Name
 			g.Expect(vectorAssignment.Spec.VectorDeploymentRef.Name).To(gomega.Equal(vectorDeployment.Name))
 			g.Expect(vectorAssignment.Spec.ArtifactDeploymentRef.Name).To(gomega.Equal(artifactDeployment.Name))
 		}, timeout, interval).Should(gomega.Succeed())
@@ -282,7 +283,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		gomega.Eventually(func(g gomega.Gomega) {
 			va := &star.VectorAssignment{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Name:      vectorDeployment.Name,
+				Name:      vectorAssignmentName,
 				Namespace: testNamespace,
 			}, va)).To(gomega.Succeed())
 			g.Expect(va.OwnerReferences).ToNot(gomega.BeEmpty())
@@ -299,7 +300,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		vectorAssignment := &star.VectorAssignment{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Name:      vectorDeployment.Name,
+				Name:      vectorAssignmentName,
 				Namespace: testNamespace,
 			}, vectorAssignment)).To(gomega.Succeed())
 		}, timeout, interval).Should(gomega.Succeed())

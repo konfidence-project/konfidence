@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
+	"github.com/konfidence-project/konfidence/pkg/hash"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -336,7 +337,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 	for componentName, artifactDeployment := range vectorDeployment.Status.ResultingArtifactDeployments {
 		// fetch existing artifact assignment from k8s api
 		vectorAssignment := &star.VectorAssignment{}
-		assignmentName := vectorDeployment.Name
+		assignmentName := constructVectorAssignmentName(vectorDeployment.Name, artifactDeployment.Name)
 		err := r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: assignmentName}, vectorAssignment)
 		if err != nil {
 			// if error is not NotFound then return error
@@ -555,4 +556,9 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 	resolved.config = descr.Configuration
 	resolved.configResolved = true
 	return resolved, nil
+}
+
+func constructVectorAssignmentName(vectorName string, artifactName string) string {
+	h := hash.Fnv64(fmt.Sprintf("%s-%s", vectorName, artifactName))
+	return fmt.Sprintf("%s-%s", vectorName, h)
 }
