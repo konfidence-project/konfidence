@@ -19,7 +19,7 @@ func CreateActivationUsage(
 
 	stageVersionUsage := &star.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s-activation", stage.Name, activation.Name),
+			Name:      activationUsageName(stage, activation),
 			Namespace: stage.Namespace,
 			Labels:    map[string]string{ActivationStageVersionUsage: stage.Name},
 		},
@@ -41,11 +41,26 @@ func CreateActivationUsage(
 	return stageVersionUsage, nil
 }
 
-func DeleteActivationUsage(ctx context.Context, c client.Client, activationUsage *star.StageVersionUsage) error {
+func DeleteActivationUsage(
+	ctx context.Context, c client.Client, stage *star.Stage, activation *star.VectorActivation,
+) error {
 	log := logf.FromContext(ctx)
+	activationUsage := &star.StageVersionUsage{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      activationUsageName(stage, activation),
+			Namespace: stage.Namespace,
+		},
+	}
 	if err := c.Delete(ctx, activationUsage); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
 		return fmt.Errorf("unable to delete activation stageVersionUsage: %w", err)
 	}
 	log.Info("Deleted activation stageVersionUsage", "stageVersionUsage", activationUsage)
 	return nil
+}
+
+func activationUsageName(stage *star.Stage, activation *star.VectorActivation) string {
+	return fmt.Sprintf("%s-%s-activation", stage.Name, activation.Name)
 }

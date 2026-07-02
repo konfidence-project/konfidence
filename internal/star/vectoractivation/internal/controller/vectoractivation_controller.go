@@ -166,7 +166,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 		r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "UsagesUpdated", "UsagesUpdated",
 			fmt.Sprintf("Active StageVersionUsage updated to %s", stageVersion.Name))
-		if err = usage.DeleteActivationUsage(ctx, r.Client, activationUsage); err != nil {
+		if err = usage.DeleteActivationUsage(ctx, r.Client, stage, vectorActivation); err != nil {
 			return ctrl.Result{}, err
 		}
 		r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "ActivationUsageDeleted", "ActivationUsageDeleted",
@@ -277,6 +277,9 @@ func (r *VectorActivationReconciler) cleanupVectorActivation(
 	stage *star.Stage,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+	if err := usage.DeleteActivationUsage(ctx, r.Client, stage, vectorActivation); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to delete activation usage: %w", err)
+	}
 	log.Info("release lease for vectorActivation")
 	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "LeaseReleased", "LeaseReleased",
 		fmt.Sprintf("Lease released by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
