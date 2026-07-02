@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -46,6 +47,80 @@ var _ = Describe("VectorActivation Controller", func() {
 	})
 
 	Context("When reconciling a vector activation", func() {
+		It("should delete activation usage during final cleanup", func() {
+			stage := &star.Stage{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "star.konfidence.cloud/v1alpha1",
+					Kind:       "Stage",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cleanup-stage",
+					Namespace: Namespace,
+				},
+			}
+			vectorActivation := &star.VectorActivation{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "star.konfidence.cloud/v1alpha1",
+					Kind:       "VectorActivation",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cleanup-activation",
+					Namespace: Namespace,
+					UID:       "cleanup-activation-uid",
+				},
+				Spec: star.VectorActivationSpec{
+					Stage:        stage.Name,
+					StageVersion: StageVersionName,
+				},
+				Status: star.VectorActivationStatus{
+					Conditions: []metav1.Condition{{
+						Type:               star.ActivationSucceeded,
+						Status:             metav1.ConditionTrue,
+						Reason:             star.ActivationSucceeded,
+						ObservedGeneration: 1,
+						LastTransitionTime: metav1.Now(),
+					}},
+				},
+			}
+
+			activationUsage := &star.StageVersionUsage{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "star.konfidence.cloud/v1alpha1",
+					Kind:       "StageVersionUsage",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("%s-%s-activation", stage.Name, vectorActivation.Name),
+					Namespace: Namespace,
+					Labels: map[string]string{
+						usage.ActivationStageVersionUsage: stage.Name,
+					},
+				},
+				Spec: star.StageVersionUsageSpec{
+					Reason:          usage.StageVersionUsageActivationType,
+					StageVersionRef: &star.StageVersionReference{Name: StageVersionName},
+				},
+			}
+			Create(ctx, k8sClient, activationUsage)
+
+			reconciler := &VectorActivationReconciler{
+				Client:       k8sClient,
+				Scheme:       k8sManager.GetScheme(),
+				ControllerID: ActivationControllerName,
+				Recorder:     k8sManager.GetEventRecorder(ActivationControllerName),
+			}
+
+			_, err := reconciler.cleanupVectorActivation(ctx, ctrl.Request{NamespacedName: types.NamespacedName{
+				Name:      vectorActivation.Name,
+				Namespace: Namespace,
+			}}, vectorActivation, stage)
+			Expect(err).ToNot(HaveOccurred())
+
+			activationUsageLabels := client.MatchingLabels{usage.ActivationStageVersionUsage: stage.Name}
+			usageList := &star.StageVersionUsageList{}
+			Expect(k8sClient.List(ctx, usageList, client.InNamespace(Namespace), activationUsageLabels)).To(Succeed())
+			Expect(usageList.Items).To(BeEmpty(), "expected final cleanup to delete activation usage")
+		})
+
 		It("should successfully reconcile the vector activation", func() {
 
 			SetupResources()

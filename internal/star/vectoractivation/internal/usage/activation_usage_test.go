@@ -63,7 +63,7 @@ var _ = Describe("active usage tests", func() {
 		It("should delete", func() {
 			clientMock.EXPECT().Delete(ctx, gomock.Any()).Return(nil)
 
-			err := DeleteActivationUsage(ctx, clientMock, &star.StageVersionUsage{})
+			err := DeleteActivationUsage(ctx, clientMock, stage, activation)
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})
