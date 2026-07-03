@@ -6,7 +6,7 @@
     import "@ui5/webcomponents/dist/Select.js";
     import type { SelectChangeEventDetail } from "@ui5/webcomponents/dist/Select.js";
 
-    import { STAGE_CARD_VARIANTS } from "$lib/components/StageCard.svelte";
+    import { STAGE_CARD_VARIANTS } from "$lib/stage-card-variants.js";
     import { getStageCardVariantPreference } from "$lib/stores/stage-card-variant.svelte";
 
     let { id = "stage-card-variant-picker" } = $props<{ id?: string }>();
