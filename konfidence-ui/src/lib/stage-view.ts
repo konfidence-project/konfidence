@@ -58,52 +58,29 @@ const getStageHealth = (stage: Stage): StageHealth => {
   return stageHealthFromReady(stage, findCondition(stage, "Ready"));
 };
 
-const statusLabel = (tone: StageHealth): string => {
-  if (tone === "healthy") {
-    return "Live";
-  }
-  if (tone === "deploying") {
-    return "Deploying";
-  }
-  if (tone === "error") {
-    return "Failed";
-  }
-  return "Pending";
+const STATUS_LABELS: Record<StageHealth, string> = {
+  deploying: "Deploying",
+  error: "Failed",
+  healthy: "Live",
+  warning: "Pending",
 };
 
 const getStageStatusLabel = (stage: Stage): { label: string; tone: StageHealth } => {
   const tone = getStageHealth(stage);
-  return { label: statusLabel(tone), tone };
+  return { label: STATUS_LABELS[tone], tone };
 };
 
-const invertedPhaseState = (value: StageCondition["status"]): StagePhaseState => {
-  if (value === "True") {
-    return "err";
-  }
-  if (value === "False") {
-    return "done";
-  }
-  return "cur";
+const PHASE_STATE: Record<StageCondition["status"], StagePhaseState> = {
+  False: "err",
+  True: "done",
+  Unknown: "cur",
 };
 
-const normalPhaseState = (value: StageCondition["status"]): StagePhaseState => {
-  if (value === "True") {
-    return "done";
-  }
-  if (value === "False") {
-    return "err";
-  }
-  return "cur";
-};
-
-const phaseStateFrom = (condition: StageCondition | undefined, invert = false): StagePhaseState => {
+const phaseStateFrom = (condition: StageCondition | undefined): StagePhaseState => {
   if (!condition) {
     return "idle";
   }
-  if (invert) {
-    return invertedPhaseState(condition.status);
-  }
-  return normalPhaseState(condition.status);
+  return PHASE_STATE[condition.status];
 };
 
 const deployCondition = (

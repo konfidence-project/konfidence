@@ -5,7 +5,7 @@
     import LandscapeView from "$lib/components/LandscapeView.svelte";
     import LoadingView from "$lib/components/LoadingView.svelte";
 
-    import getStages from "./stages.remote";
+    import { getStages } from "./stages.remote";
 
     const stagesQuery = $derived(getStages());
 </script>
