@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { resolve } from "$app/paths";
     import "@ui5/webcomponents/dist/MessageStrip.js";
     import "@ui5/webcomponents/dist/Title.js";
+    import { resolve } from "$app/paths";
 
     const {
         title = "Something went wrong",
@@ -20,7 +20,7 @@
     }>();
 
     const detail = $derived.by(() => {
-        if (error instanceof Error) return error.message;
+        if (error instanceof Error) {return error.message;}
 
         if (error && typeof error === "object" && "message" in error) {
             return String(error.message);
