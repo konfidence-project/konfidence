@@ -1,7 +1,7 @@
 import svelte from "eslint-plugin-svelte";
 import tsParser from "@typescript-eslint/parser";
 
-export default [
+const config = [
   ...svelte.configs["flat/recommended"],
   {
     files: ["src/**/*.svelte"],
@@ -12,3 +12,5 @@ export default [
     },
   },
 ];
+
+export default config;

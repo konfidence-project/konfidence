@@ -1,14 +1,16 @@
 <script lang="ts">
-    import { Handle, Position, type NodeProps } from "@xyflow/svelte";
+    import { Handle, Position } from "@xyflow/svelte";
 
     import StageCard from "$lib/components/StageCard.svelte";
-    import type { StageCardVariant } from "$lib/stage-card-variants.js";
-    import type { Stage } from "$lib/stages.js";
 
-    type StageNodeData = {
+    type NodeProps = import("@xyflow/svelte").NodeProps;
+    type Stage = import("$lib/stages.js").Stage;
+    type StageCardVariant = import("$lib/stage-card-variants.js").StageCardVariant;
+
+    interface StageNodeData {
         stage: Stage;
         variant: StageCardVariant;
-    };
+    }
 
     const { data, selected = false } = $props<NodeProps & { data: StageNodeData }>();
 </script>

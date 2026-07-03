@@ -1,46 +1,48 @@
 import { getTheme, setTheme } from "@ui5/webcomponents-base/dist/config/Theme.js";
 
 const STORAGE_KEY = "konfidence.ui.theme";
-
-export const themes = [
+const themes = [
   { id: "konfidence", label: "Konfidence" },
   { id: "konfidence-dark", label: "Konfidence Dark" },
   { id: "sap_horizon", label: "SAP Horizon" },
 ] as const;
 
-export type UITheme = (typeof themes)[number]["id"];
+type UITheme = (typeof themes)[number]["id"];
 
-function isUITheme(theme: string | null): theme is UITheme {
-  return themes.some((option) => option.id === theme);
-}
+const isUITheme = (theme: string | undefined): theme is UITheme =>
+  themes.some((option) => option.id === theme);
 
-function load(): UITheme {
-  const storedTheme = localStorage.getItem(STORAGE_KEY);
+const load = (): UITheme => {
+  const storedTheme = globalThis.localStorage?.getItem(STORAGE_KEY) ?? undefined;
 
   if (isUITheme(storedTheme)) {
     return storedTheme;
   }
 
   const currentTheme = getTheme();
-  return isUITheme(currentTheme) ? currentTheme : "konfidence";
-}
+  if (isUITheme(currentTheme)) {
+    return currentTheme;
+  }
 
-export const themePreference = $state<{ selected: UITheme }>({ selected: load() });
-export const theme = themePreference;
+  return "konfidence";
+};
+
+const themePreference = $state<{ selected: UITheme }>({ selected: load() });
+const theme = themePreference;
 
 let initialized = false;
 const customThemes = new Set<UITheme>(["konfidence", "konfidence-dark"]);
 const loadedCustomThemes = new Set<UITheme>();
 
-async function applySelectedTheme(selectedTheme: UITheme) {
+const applySelectedTheme = async (selectedTheme: UITheme) => {
   if (customThemes.has(selectedTheme) && !loadedCustomThemes.has(selectedTheme)) {
     return;
   }
 
   await setTheme(selectedTheme);
-}
+};
 
-export function initTheme() {
+const initTheme = () => {
   if (initialized) {
     return;
   }
@@ -51,13 +53,13 @@ export function initTheme() {
 
   $effect.root(() => {
     $effect(() => {
-      localStorage.setItem(STORAGE_KEY, themePreference.selected);
+      globalThis.localStorage?.setItem(STORAGE_KEY, themePreference.selected);
       void applySelectedTheme(themePreference.selected);
     });
   });
-}
+};
 
-export function markCustomThemeStylesheetLoaded(loadedTheme: UITheme) {
+const markCustomThemeStylesheetLoaded = (loadedTheme: UITheme) => {
   if (!customThemes.has(loadedTheme)) {
     return;
   }
@@ -67,10 +69,13 @@ export function markCustomThemeStylesheetLoaded(loadedTheme: UITheme) {
   if (themePreference.selected === loadedTheme) {
     void applySelectedTheme(loadedTheme);
   }
-}
+};
 
-export function selectTheme(selectedTheme: string) {
+const selectTheme = (selectedTheme: string) => {
   if (isUITheme(selectedTheme)) {
     themePreference.selected = selectedTheme;
   }
-}
+};
+
+export { initTheme, markCustomThemeStylesheetLoaded, selectTheme, theme, themePreference, themes };
+export type { UITheme };
