@@ -1,8 +1,7 @@
+import type { StageList } from "$lib/stages";
 import { error } from "@sveltejs/kit";
 
-import type { StageList } from "$lib/stages";
-
-export const fetchStages = async () => {
+const fetchStages = async () => {
   const response = await fetch("/api/stages");
   console.log("stages.ts: fetching stages");
   if (!response.ok) {
@@ -11,3 +10,5 @@ export const fetchStages = async () => {
 
   return ((await response.json()) as StageList).items;
 };
+
+export default fetchStages;

@@ -1,9 +1,8 @@
 import { getRequestEvent, query } from "$app/server";
+import type { StageList } from "$lib/stages";
 import { error } from "@sveltejs/kit";
 
-import type { StageList } from "$lib/stages";
-
-export const getStages = query(async () => {
+const getStages = query(async () => {
   const { fetch } = getRequestEvent();
   const response = await fetch("/api/stages");
 
@@ -13,3 +12,5 @@ export const getStages = query(async () => {
 
   return (await response.json()) as StageList;
 });
+
+export default getStages;

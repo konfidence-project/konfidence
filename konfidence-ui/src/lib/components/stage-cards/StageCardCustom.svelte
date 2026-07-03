@@ -1,5 +1,4 @@
 <script lang="ts">
-    import type { Stage } from "$lib/stages.js";
     import {
         getChips,
         getLandscapeLabel,
@@ -7,6 +6,7 @@
         getStageStatusLabel,
         splitVector,
     } from "$lib/stage-view.js";
+    import type { Stage } from "$lib/stages.js";
     import StageStatusPill from "$lib/components/StageStatusPill.svelte";
 
     const { stage, selected = false } = $props<{
@@ -21,7 +21,7 @@
     const landscape = $derived(getLandscapeLabel(stage));
 
     let menuOpen = $state(false);
-    let cardEl = $state<HTMLElement | null>(null);
+    const cardEl = $state<HTMLElement>();
 
     const toggleMenu = (event: MouseEvent) => {
         event.stopPropagation();
@@ -34,21 +34,25 @@
 
     const copyName = async () => {
         try {
-            await navigator.clipboard?.writeText(stage.metadata.name);
+            await globalThis.navigator?.clipboard?.writeText(
+                stage.metadata.name,
+            );
         } catch {
             // Clipboard not available (e.g. SSR/tests) — silently ignore.
         }
         closeMenu();
     };
 
-    const phaseTitle = (
-        label: string,
-        reason?: string,
-        message?: string,
-    ) => {
-        if (reason && message) return `${label}: ${reason} — ${message}`;
-        if (reason) return `${label}: ${reason}`;
-        if (message) return `${label}: ${message}`;
+    const phaseTitle = (label: string, reason?: string, message?: string) => {
+        if (reason && message) {
+            return `${label}: ${reason} — ${message}`;
+        }
+        if (reason) {
+            return `${label}: ${reason}`;
+        }
+        if (message) {
+            return `${label}: ${message}`;
+        }
         return label;
     };
 </script>
@@ -72,8 +76,7 @@
             <StageStatusPill
                 status={status.tone}
                 label={status.label}
-                pulse={status.tone === "deploying" ||
-                    status.tone === "error"}
+                pulse={status.tone === "deploying" || status.tone === "error"}
             />
         </div>
         <div class="st-ls">{landscape}</div>
