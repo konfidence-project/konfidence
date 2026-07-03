@@ -143,14 +143,7 @@ const stages: Stage[] = [
 ];
 
 export const GET = async () => {
-  await wait(2000 + Math.random() * 500);
-
-  if (Math.random() < 0.25) {
-    return json(
-      { message: "Mock stage API failed while fetching stages." },
-      { status: 500 },
-    );
-  }
+  await wait(100 + Math.random() * 500);
 
   return json({
     apiVersion: "star.konfidence.cloud/v1alpha1",
