@@ -29,13 +29,23 @@
         themePreference,
         type UITheme,
     } from "$lib/stores/theme.svelte";
+    import { resolve } from "$app/paths";
 
     const customThemeLinks = [
         { id: "konfidence", href: konfidenceThemeHref },
         { id: "konfidence-dark", href: konfidenceDarkThemeHref },
     ] as const satisfies ReadonlyArray<{ id: UITheme; href: string }>;
 
-    const navGroups = [
+    type NavGroup = {
+        text: string;
+        items: ReadonlyArray<{
+            text: string;
+            href: ReturnType<typeof resolve>;
+            icon: string;
+        }>;
+    };
+
+    const navGroups: ReadonlyArray<NavGroup> = [
         {
             text: "Delivery",
             items: [
@@ -71,14 +81,7 @@
                 },
             ],
         },
-    ] as const satisfies ReadonlyArray<{
-        text: string;
-        items: ReadonlyArray<{
-            text: string;
-            href: string;
-            icon: string;
-        }>;
-    }>;
+    ];
 
     initTheme();
 </script>
@@ -115,7 +118,7 @@
             slot="branding"
             class="brand"
             accessible-name="Konfidence home"
-            onclick={() => goto("/")}
+            onclick={() => goto(resolve("/"))}
         >
             <img
                 slot="logo"
@@ -146,7 +149,7 @@
                             event: CustomEvent<SideNavigationItemClickEventDetail>,
                         ) => {
                             event.preventDefault();
-                            goto(navItem.href);
+                            goto(resolve(navItem.href));
                         }}
                     ></ui5-side-navigation-item>
                 {/each}
