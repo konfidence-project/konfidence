@@ -7,7 +7,7 @@
 <ErrorView
     status={page.status}
     error={page.error}
-    message={"This is the default Error Message"}
+    message="This is the default Error Message"
     actionHref="/"
     actionText="Back to dashboard"
 />
