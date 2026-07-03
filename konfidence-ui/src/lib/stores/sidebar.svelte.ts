@@ -1,20 +1,33 @@
-// Note: global store like e.g. uiPreferences.svelte.ts could also be an option
+// Note: global store like e.g. uiPreferences.svelte.ts could also be an option.
 
 const STORAGE_KEY = "konfidence.ui.sidebarMode";
-export type SidebarMode = "Expanded" | "Collapsed";
 
-function load(): SidebarMode {
-  return localStorage.getItem(STORAGE_KEY) === "Collapsed" ? "Collapsed" : "Expanded";
-}
+type SidebarMode = "Expanded" | "Collapsed";
 
-export const sidebar = $state<{ mode: SidebarMode }>({ mode: load() });
+const load = (): SidebarMode => {
+  if (globalThis.localStorage?.getItem(STORAGE_KEY) === "Collapsed") {
+    return "Collapsed";
+  }
+
+  return "Expanded";
+};
+
+const sidebar = $state<{ mode: SidebarMode }>({ mode: load() });
 
 $effect.root(() => {
   $effect(() => {
-    localStorage.setItem(STORAGE_KEY, sidebar.mode);
+    globalThis.localStorage?.setItem(STORAGE_KEY, sidebar.mode);
   });
 });
 
-export function toggleSidebar() {
-  sidebar.mode = sidebar.mode === "Expanded" ? "Collapsed" : "Expanded";
-}
+const toggleSidebar = () => {
+  if (sidebar.mode === "Expanded") {
+    sidebar.mode = "Collapsed";
+    return;
+  }
+
+  sidebar.mode = "Expanded";
+};
+
+export { sidebar, toggleSidebar };
+export type { SidebarMode };

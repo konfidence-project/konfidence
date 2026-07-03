@@ -1,84 +1,84 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { page } from "$app/state";
+    import "@ui5/webcomponents/dist/Avatar.js";
     import "@ui5/webcomponents/dist/Button.js";
     import "@ui5/webcomponents/dist/ToggleButton.js";
-    import "@ui5/webcomponents/dist/Avatar.js";
 
     import "@ui5/webcomponents-fiori/dist/NavigationLayout.js";
+    import "@ui5/webcomponents-fiori/dist/ShellBar.js";
+    import "@ui5/webcomponents-fiori/dist/ShellBarBranding.js";
+    import "@ui5/webcomponents-fiori/dist/ShellBarItem.js";
+    import "@ui5/webcomponents-fiori/dist/ShellBarSearch.js";
     import "@ui5/webcomponents-fiori/dist/SideNavigation.js";
     import "@ui5/webcomponents-fiori/dist/SideNavigationGroup.js";
     import "@ui5/webcomponents-fiori/dist/SideNavigationItem.js";
-    import "@ui5/webcomponents-fiori/dist/ShellBar.js";
-    import "@ui5/webcomponents-fiori/dist/ShellBarBranding.js";
-    import "@ui5/webcomponents-fiori/dist/ShellBarSearch.js";
-    import "@ui5/webcomponents-fiori/dist/ShellBarItem.js";
 
     import "@ui5/webcomponents-icons/dist/AllIcons.js";
 
-    import type { SideNavigationItemClickEventDetail } from "@ui5/webcomponents-fiori/dist/SideNavigationItemBase.js";
-    import konfidenceDarkThemeHref from "../theme/konfidence-dark.css?url";
-    import konfidenceThemeHref from "../theme/konfidence.css?url";
-
-    let { children } = $props();
-
-    import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
+    import {
+        StageCardVariantPreference,
+        setStageCardVariantPreference,
+    } from "$lib/stores/stage-card-variant.svelte";
     import {
         initTheme,
         markCustomThemeStylesheetLoaded,
         themePreference,
-        type UITheme,
     } from "$lib/stores/theme.svelte";
+    import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
+    import { goto } from "$app/navigation";
+    import konfidenceDarkThemeHref from "../theme/konfidence-dark.css?url";
+    import konfidenceThemeHref from "../theme/konfidence.css?url";
+    import { page } from "$app/state";
     import { resolve } from "$app/paths";
-    import {
-        setStageCardVariantPreference,
-        StageCardVariantPreference,
-    } from "$lib/stores/stage-card-variant.svelte";
+
+    type SideNavigationItemClickEventDetail = import("@ui5/webcomponents-fiori/dist/SideNavigationItemBase.js").SideNavigationItemClickEventDetail;
+    type UITheme = import("$lib/stores/theme.svelte").UITheme;
+
+    const { children } = $props();
 
     const customThemeLinks = [
-        { id: "konfidence", href: konfidenceThemeHref },
-        { id: "konfidence-dark", href: konfidenceDarkThemeHref },
-    ] as const satisfies ReadonlyArray<{ id: UITheme; href: string }>;
+        { href: konfidenceThemeHref, id: "konfidence" },
+        { href: konfidenceDarkThemeHref, id: "konfidence-dark" },
+    ] as const satisfies readonly { id: UITheme; href: string }[];
 
-    type NavGroup = {
+    interface NavGroup {
         text: string;
-        items: ReadonlyArray<{
+        items: readonly {
             text: string;
             href: "/" | "/landscape" | "/vectors" | "/promotions" | "/settings";
             icon: string;
-        }>;
-    };
+        }[];
+    }
 
-    const navGroups: ReadonlyArray<NavGroup> = [
+    const navGroups: readonly NavGroup[] = [
         {
-            text: "Delivery",
             items: [
                 {
-                    text: "Landscape",
                     href: "/landscape",
                     icon: "upstacked-chart",
+                    text: "Landscape",
                 },
                 {
-                    text: "Vectors",
                     href: "/vectors",
                     icon: "radar-chart",
+                    text: "Vectors",
                 },
                 {
-                    text: "Promotions",
                     href: "/promotions",
                     icon: "process",
+                    text: "Promotions",
                 },
             ],
+            text: "Delivery",
         },
         {
-            text: "Administration",
             items: [
                 {
-                    text: "Settings",
                     href: "/settings",
                     icon: "action-settings",
+                    text: "Settings",
                 },
             ],
+            text: "Administration",
         },
     ];
 

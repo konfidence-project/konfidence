@@ -1,7 +1,6 @@
 <script lang="ts">
-    import { page } from "$app/state";
-
     import ErrorView from "$lib/components/ErrorView.svelte";
+    import { page } from "$app/state";
 </script>
 
 <ErrorView
