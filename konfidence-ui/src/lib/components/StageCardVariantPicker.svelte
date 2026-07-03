@@ -4,18 +4,19 @@
     import "@ui5/webcomponents/dist/Label.js";
     import "@ui5/webcomponents/dist/Option.js";
     import "@ui5/webcomponents/dist/Select.js";
-    import type { SelectChangeEventDetail } from "@ui5/webcomponents/dist/Select.js";
 
     import { STAGE_CARD_VARIANTS } from "$lib/stage-card-variants.js";
     import { getStageCardVariantPreference } from "$lib/stores/stage-card-variant.svelte";
 
-    let { id = "stage-card-variant-picker" } = $props<{ id?: string }>();
+    type SelectChangeEventDetail = import("@ui5/webcomponents/dist/Select.js").SelectChangeEventDetail;
+
+    const { id = "stage-card-variant-picker" } = $props<{ id?: string }>();
 
     const stageCardVariant = getStageCardVariantPreference();
 
-    function handleVariantChange(event: CustomEvent<SelectChangeEventDetail>) {
+    const handleVariantChange = (event: CustomEvent<SelectChangeEventDetail>) => {
         stageCardVariant.select(event.detail.selectedOption.value ?? "");
-    }
+    };
 </script>
 
 <ui5-card accessible-name="Stage card settings">

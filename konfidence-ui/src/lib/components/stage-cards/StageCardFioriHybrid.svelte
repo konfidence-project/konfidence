@@ -7,7 +7,6 @@
     import "@ui5/webcomponents/dist/ListItemStandard.js";
     import "@ui5/webcomponents-icons/dist/overflow.js";
 
-    import type { Stage } from "$lib/stages.js";
     import {
         getChips,
         getLandscapeLabel,
@@ -15,6 +14,26 @@
         getStageStatusLabel,
         splitVector,
     } from "$lib/stage-view.js";
+    import type { Stage } from "$lib/stages.js";
+
+    type StageChip = import("$lib/stage-view.js").StageChip;
+    type StageHealth = import("$lib/stage-view.js").StageHealth;
+
+    type TagDesign = "Critical" | "Information" | "Negative" | "Neutral" | "Positive";
+
+    const STATUS_DESIGN: Record<StageHealth, TagDesign> = {
+        deploying: "Information",
+        error: "Negative",
+        healthy: "Positive",
+        warning: "Critical",
+    };
+
+    const CHIP_DESIGN: Record<NonNullable<StageChip["tone"]>, TagDesign> = {
+        "": "Neutral",
+        alert: "Negative",
+        info: "Information",
+        warn: "Critical",
+    };
 
     const { stage, selected = false } = $props<{
         stage: Stage;
@@ -27,33 +46,15 @@
     const vector = $derived(splitVector(stage.spec.vector));
     const landscape = $derived(getLandscapeLabel(stage));
 
-    let menuBtn = $state<HTMLElement | null>(null);
-    let popover = $state<(HTMLElement & { open?: boolean }) | null>(null);
+    const menuBtn = $state<HTMLElement>();
+    const popover = $state<HTMLElement & { open?: boolean }>();
 
     const btnId = $derived(
         `stage-card-hybrid-menu-${stage.metadata.name}`,
     );
 
-    const statusDesign = $derived(
-        status.tone === "healthy"
-            ? "Positive"
-            : status.tone === "deploying"
-              ? "Information"
-              : status.tone === "warning"
-                ? "Critical"
-                : status.tone === "error"
-                  ? "Negative"
-                  : "Neutral",
-    );
-
-    const chipDesign = (tone: string | undefined) =>
-        tone === "alert"
-            ? "Negative"
-            : tone === "info"
-              ? "Information"
-              : tone === "warn"
-                ? "Critical"
-                : "Neutral";
+    const statusDesign = $derived(STATUS_DESIGN[status.tone]);
+    const chipDesign = (tone: StageChip["tone"]) => CHIP_DESIGN[tone ?? ""];
 
     const openMenu = (event: Event) => {
         event.stopPropagation();
@@ -64,7 +65,7 @@
     };
 
     const closeMenu = () => {
-        if (popover) popover.open = false;
+        if (popover) {popover.open = false;}
     };
 
     const onMenuKey = (event: KeyboardEvent) => {
@@ -79,9 +80,9 @@
         reason?: string,
         message?: string,
     ) => {
-        if (reason && message) return `${label}: ${reason} — ${message}`;
-        if (reason) return `${label}: ${reason}`;
-        if (message) return `${label}: ${message}`;
+        if (reason && message) {return `${label}: ${reason} — ${message}`;}
+        if (reason) {return `${label}: ${reason}`;}
+        if (message) {return `${label}: ${message}`;}
         return label;
     };
 </script>
