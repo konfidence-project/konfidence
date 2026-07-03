@@ -5,6 +5,8 @@
   "scripts": {
     "ui:dev": "pnpm --filter konfidence-ui dev",
     "ui:build": "pnpm --filter konfidence-ui build",
+    "ui:check": "pnpm --filter konfidence-ui check",
+    "ui:check:tsgo": "pnpm --filter konfidence-ui check:tsgo",
     "ui:lint": "pnpm --filter konfidence-ui lint",
     "ui:fmt:check": "pnpm --filter konfidence-ui fmt:check",
     "ui:test": "pnpm --filter konfidence-ui test"
