@@ -1,5 +1,4 @@
 packages:
   - konfidence-ui
-
-onlyBuiltDependencies:
-  - esbuild
+allowBuilds:
+  esbuild: true
