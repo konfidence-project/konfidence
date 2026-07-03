@@ -21,7 +21,9 @@
     :global(.svelte-flow__handle) {
         width: 0.6rem;
         height: 0.6rem;
-        border-color: var(--sapContent_ForegroundBorderColor);
-        background: var(--sapHighlightColor);
+        border: 0;
+        background: transparent;
+        opacity: 0;
+        pointer-events: none;
     }
 </style>
