@@ -25,6 +25,8 @@ export default defineConfig({
         $state: "readonly",
       },
       rules: {
+        // Svelte 5 `bind:this` requires `let`; the compiler assigns internally even if user code never reassigns, so `const` is rejected.
+        "prefer-const": "off",
         // Svelte components conventionally use PascalCase filenames in this project.
         "unicorn/filename-case": "off",
       },
@@ -36,6 +38,13 @@ export default defineConfig({
         "import/exports-last": "off",
         "import/group-exports": "off",
         "import/no-named-export": "off",
+        "import/prefer-default-export": "off",
+      },
+    },
+    {
+      files: ["src/**/*.remote.ts"],
+      rules: {
+        // SvelteKit remote modules forbid `export default` — must use named exports.
         "import/prefer-default-export": "off",
       },
     },
