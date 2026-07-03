@@ -46,8 +46,8 @@
     const vector = $derived(splitVector(stage.spec.vector));
     const landscape = $derived(getLandscapeLabel(stage));
 
-    const menuBtn = $state<HTMLElement>();
-    const popover = $state<HTMLElement & { open?: boolean }>();
+    let menuBtn = $state<HTMLElement>();
+    let popover = $state<HTMLElement & { open?: boolean }>();
 
     const btnId = $derived(
         `stage-card-hybrid-menu-${stage.metadata.name}`,
