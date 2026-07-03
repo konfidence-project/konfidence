@@ -14,11 +14,8 @@
     import "@ui5/webcomponents-fiori/dist/ShellBarSearch.js";
     import "@ui5/webcomponents-fiori/dist/ShellBarItem.js";
 
-    import "@ui5/webcomponents-icons/dist/upstacked-chart.js";
-    import "@ui5/webcomponents-icons/dist/menu2.js";
-    import "@ui5/webcomponents-icons/dist/sys-help.js";
-    import "@ui5/webcomponents-icons/dist/da.js";
-    import "@ui5/webcomponents-icons/dist/action-settings.js";
+    import "@ui5/webcomponents-icons/dist/AllIcons.js";
+
     import type { SideNavigationItemClickEventDetail } from "@ui5/webcomponents-fiori/dist/SideNavigationItemBase.js";
     import konfidenceDarkThemeHref from "../theme/konfidence-dark.css?url";
     import konfidenceThemeHref from "../theme/konfidence.css?url";
@@ -40,12 +37,27 @@
 
     const navGroups = [
         {
-            text: "Stages",
+            text: "Delivery",
             items: [
                 {
-                    text: "All Stages",
-                    href: "/stages",
+                    text: "Landscape",
+                    href: "/landscape",
                     icon: "upstacked-chart",
+                },
+                {
+                    text: "Vectors",
+                    href: "/vectors",
+                    icon: "radar-chart",
+                },
+                {
+                    text: "Promotions",
+                    href: "/promotions",
+                    icon: "process",
+                },
+                {
+                    text: "Aritfacts",
+                    href: "/artifacts",
+                    icon: "product",
                 },
             ],
         },
@@ -80,7 +92,9 @@
         <link
             rel="stylesheet"
             href={customTheme.href}
-            media={themePreference.selected === customTheme.id ? "all" : "not all"}
+            media={themePreference.selected === customTheme.id
+                ? "all"
+                : "not all"}
             data-konfidence-theme={customTheme.id}
             onload={() => markCustomThemeStylesheetLoaded(customTheme.id)}
         />
@@ -151,11 +165,10 @@
 
     :global(html),
     :global(body) {
-        min-height: 100%;
+        height: 100vh;
         margin: 0;
-        font-family:
-            var(--sapFontFamily),
-            sans-serif;
+        padding: 0;
+        font-family: var(--sapFontFamily), sans-serif;
         background:
             radial-gradient(
                 circle at top left,
@@ -164,6 +177,10 @@
             ),
             var(--sapBackgroundColor);
         color: var(--sapTextColor);
+    }
+
+    :global(ui5-navigation-layout) {
+        height: 100%;
     }
 
     :global(ui5-shellbar) {
@@ -183,8 +200,11 @@
     }
 
     .content {
-        min-height: calc(100vh - 4rem);
-        padding: 2.5rem clamp(1rem, 3vw, 3rem);
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        margin: 0;
+        height: 100%;
         box-sizing: border-box;
     }
 </style>
