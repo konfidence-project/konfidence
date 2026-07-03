@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { resolve } from "$app/paths";
     import "@ui5/webcomponents/dist/MessageStrip.js";
     import "@ui5/webcomponents/dist/Title.js";
 
@@ -14,7 +15,7 @@
         message?: string;
         error?: unknown;
         status?: number;
-        actionHref?: string;
+        actionHref?: ReturnType<typeof resolve>;
         actionText?: string;
     }>();
 
@@ -45,7 +46,7 @@
     {/if}
 
     {#if actionHref}
-        <a class="action-link" href={actionHref}>{actionText}</a>
+        <a class="action-link" href={resolve(actionHref)}>{actionText}</a>
     {/if}
 </section>
 
