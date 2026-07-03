@@ -3,8 +3,12 @@
   "plugins": ["typescript", "unicorn", "oxc", "eslint", "import", "vitest"],
   "categories": {
     "correctness": "error",
+    "perf": "warn",
     "suspicious": "warn",
-    "perf": "warn"
+    "style": "warn",
+    "pedantic": "off",
+    "restriction": "off",
+    "nursery": "warn"
   },
   "rules": {
     "import/no-unassigned-import": [
