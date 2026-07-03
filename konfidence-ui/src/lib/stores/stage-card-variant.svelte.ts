@@ -1,26 +1,27 @@
+import type { StageCardVariant } from "$lib/stage-card-variants.js";
 import { createContext } from "svelte";
 
-import type { StageCardVariant } from "$lib/stage-card-variants.js";
-
 const STORAGE_KEY = "konfidence.ui.stageCardVariant";
-
 const variants = new Set<StageCardVariant>(["fiori", "fiori-mockup", "custom"]);
 
-function isStageCardVariant(value: string | null): value is StageCardVariant {
-  return variants.has(value as StageCardVariant);
-}
+const isStageCardVariant = (value: string | undefined): value is StageCardVariant =>
+  variants.has(value as StageCardVariant);
 
-function load(): StageCardVariant {
-  const storedVariant = localStorage.getItem(STORAGE_KEY);
-  return isStageCardVariant(storedVariant) ? storedVariant : "custom";
-}
+const load = (): StageCardVariant => {
+  const storedVariant = globalThis.localStorage?.getItem(STORAGE_KEY) ?? undefined;
+  if (isStageCardVariant(storedVariant)) {
+    return storedVariant;
+  }
 
-export class StageCardVariantPreference {
+  return "custom";
+};
+
+class StageCardVariantPreference {
   selected = $state<StageCardVariant>(load());
 
   constructor() {
     $effect(() => {
-      localStorage.setItem(STORAGE_KEY, this.selected);
+      globalThis.localStorage?.setItem(STORAGE_KEY, this.selected);
     });
   }
 
@@ -31,5 +32,7 @@ export class StageCardVariantPreference {
   }
 }
 
-export const [getStageCardVariantPreference, setStageCardVariantPreference] =
+const [getStageCardVariantPreference, setStageCardVariantPreference] =
   createContext<StageCardVariantPreference>();
+
+export { getStageCardVariantPreference, setStageCardVariantPreference, StageCardVariantPreference };

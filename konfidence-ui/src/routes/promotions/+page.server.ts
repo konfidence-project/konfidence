@@ -1,5 +1,9 @@
 import { error } from "@sveltejs/kit";
 
-export function load() {
-  error(420, "Enhance your calm");
-}
+const ENHANCE_YOUR_CALM = 420;
+
+const load = () => {
+  error(ENHANCE_YOUR_CALM, "Enhance your calm");
+};
+
+export { load };

@@ -10,14 +10,40 @@
     import "@ui5/webcomponents-icons/dist/upstacked-chart.js";
     import "@ui5/webcomponents-icons/dist/overflow.js";
 
-    import type { Stage } from "$lib/stages.js";
     import {
         getChips,
         getPhases,
         getStageStatusLabel,
         splitVector,
     } from "$lib/stage-view.js";
-    import type { StagePhaseState } from "$lib/stage-view.js";
+    import type { Stage } from "$lib/stages.js";
+
+    type StageChip = import("$lib/stage-view.js").StageChip;
+    type StageHealth = import("$lib/stage-view.js").StageHealth;
+    type StagePhaseState = import("$lib/stage-view.js").StagePhaseState;
+
+    type TagDesign = "Critical" | "Information" | "Negative" | "Neutral" | "Positive";
+
+    const STATUS_DESIGN: Record<StageHealth, TagDesign> = {
+        deploying: "Information",
+        error: "Negative",
+        healthy: "Positive",
+        warning: "Critical",
+    };
+
+    const PHASE_DESIGN: Record<StagePhaseState, TagDesign> = {
+        cur: "Information",
+        done: "Positive",
+        err: "Negative",
+        idle: "Neutral",
+    };
+
+    const CHIP_DESIGN: Record<NonNullable<StageChip["tone"]>, TagDesign> = {
+        "": "Neutral",
+        alert: "Negative",
+        info: "Information",
+        warn: "Critical",
+    };
 
     const { stage } = $props<{ stage: Stage }>();
 
@@ -26,8 +52,8 @@
     const chips = $derived(getChips(stage));
     const vector = $derived(splitVector(stage.spec.vector));
 
-    let menuBtn = $state<HTMLElement | null>(null);
-    let popover = $state<(HTMLElement & { open?: boolean }) | null>(null);
+    const menuBtn = $state<HTMLElement>();
+    const popover = $state<HTMLElement & { open?: boolean }>();
 
     const btnId = $derived(`stage-card-fiori-menu-${stage.metadata.name}`);
 
@@ -35,35 +61,9 @@
         status.tone === "deploying" || status.tone === "error",
     );
 
-    /** Map our tone → ui5-tag `design`. */
-    const tagDesign = (tone: string) =>
-        tone === "healthy"
-            ? "Positive"
-            : tone === "deploying"
-              ? "Information"
-              : tone === "warning"
-                ? "Critical"
-                : tone === "error"
-                  ? "Negative"
-                  : "Neutral";
-
-    const phaseTagDesign = (state: StagePhaseState) =>
-        state === "done"
-            ? "Positive"
-            : state === "cur"
-              ? "Information"
-              : state === "err"
-                ? "Negative"
-                : "Neutral";
-
-    const chipDesign = (tone: string | undefined) =>
-        tone === "alert"
-            ? "Negative"
-            : tone === "info"
-              ? "Information"
-              : tone === "warn"
-                ? "Critical"
-                : "Neutral";
+    const tagDesign = (tone: StageHealth) => STATUS_DESIGN[tone];
+    const phaseTagDesign = (state: StagePhaseState) => PHASE_DESIGN[state];
+    const chipDesign = (tone: StageChip["tone"]) => CHIP_DESIGN[tone ?? ""];
 
     const openMenu = () => {
         if (popover && menuBtn) {
@@ -73,7 +73,7 @@
     };
 
     const closeMenu = () => {
-        if (popover) popover.open = false;
+        if (popover) {popover.open = false;}
     };
 
     const onMenuKey = (event: KeyboardEvent) => {

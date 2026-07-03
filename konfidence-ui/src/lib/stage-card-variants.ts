@@ -1,23 +1,26 @@
-export type StageCardVariant = "fiori" | "fiori-mockup" | "custom";
+type StageCardVariant = "fiori" | "fiori-mockup" | "custom";
 
-export const STAGE_CARD_VARIANTS: {
+const STAGE_CARD_VARIANTS: {
+  description: string;
   id: StageCardVariant;
   label: string;
-  description: string;
 }[] = [
   {
+    description: "Pure UI5 Web Components; inherits SAP theming.",
     id: "fiori",
     label: "Fiori",
-    description: "Pure UI5 Web Components; inherits SAP theming.",
   },
   {
+    description: "UI5 primitives (Card, Menu, Tag, Icon) laid out to match the Konfidence mockup.",
     id: "fiori-mockup",
     label: "Fiori · Mockup",
-    description: "UI5 primitives (Card, Menu, Tag, Icon) laid out to match the Konfidence mockup.",
   },
   {
+    description: "No UI5 wc — hand-rolled markup, closest to the mockup.",
     id: "custom",
     label: "Custom",
-    description: "No UI5 wc — hand-rolled markup, closest to the mockup.",
   },
 ];
+
+export { STAGE_CARD_VARIANTS };
+export type { StageCardVariant };

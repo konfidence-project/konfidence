@@ -1,13 +1,15 @@
 <script lang="ts">
-    import {
-        BaseEdge,
-        EdgeLabel,
-        type EdgeProps,
-    } from "@xyflow/svelte";
+    import { BaseEdge, EdgeLabel } from "@xyflow/svelte";
 
-    type PromotionEdgeData = {
+    type EdgeProps = import("@xyflow/svelte").EdgeProps;
+
+    const MIN_CURVE = 120;
+    const CURVE_FACTOR = 0.55;
+    const MIDPOINT_DIVISOR = 2;
+
+    interface PromotionEdgeData {
         status?: "healthy" | "running" | "failed";
-    };
+    }
 
     const {
         id,
@@ -23,7 +25,7 @@
     const status = $derived(data?.status ?? "healthy");
     const path = $derived.by(() => {
         const distance = Math.abs(targetX - sourceX);
-        const curve = Math.max(120, distance * 0.55);
+        const curve = Math.max(MIN_CURVE, distance * CURVE_FACTOR);
 
         return [
             `M ${sourceX} ${sourceY}`,
@@ -32,8 +34,8 @@
             `${targetX} ${targetY}`,
         ].join(" ");
     });
-    const labelX = $derived((sourceX + targetX) / 2);
-    const labelY = $derived((sourceY + targetY) / 2);
+    const labelX = $derived((sourceX + targetX) / MIDPOINT_DIVISOR);
+    const labelY = $derived((sourceY + targetY) / MIDPOINT_DIVISOR);
 </script>
 
 <BaseEdge {id} {path} {markerEnd} class={`promotion-edge ${status}`} />

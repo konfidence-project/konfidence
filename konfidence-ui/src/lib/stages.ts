@@ -1,29 +1,29 @@
-export type ConditionStatus = "True" | "False" | "Unknown";
+type ConditionStatus = "True" | "False" | "Unknown";
 
-export type StageConditionType =
+type StageConditionType =
   | "FetchFailed"
   | "VectorDeploymentCreated"
   | "VectorDeployed"
   | "VectorMigrated"
   | "Ready";
 
-export type StageCondition = {
-  type: StageConditionType;
-  status: ConditionStatus;
-  observedGeneration?: number;
+interface StageCondition {
   lastTransitionTime: string;
-  reason: string;
   message: string;
-};
+  observedGeneration?: number;
+  reason: string;
+  status: ConditionStatus;
+  type: StageConditionType;
+}
 
-export type TypedObjectReference = {
+interface TypedObjectReference {
   apiGroup?: string;
   kind: string;
   name: string;
   namespace?: string;
-};
+}
 
-export type Stage = {
+interface Stage {
   apiVersion: "star.konfidence.cloud/v1alpha1";
   kind: "Stage";
   metadata: {
@@ -40,10 +40,19 @@ export type Stage = {
     vectorHistory?: string[];
     latestVectorDeploymentRef?: TypedObjectReference;
   };
-};
+}
 
-export type StageList = {
+interface StageList {
   apiVersion: "star.konfidence.cloud/v1alpha1";
-  kind: "StageList";
   items: Stage[];
+  kind: "StageList";
+}
+
+export type {
+  ConditionStatus,
+  Stage,
+  StageCondition,
+  StageConditionType,
+  StageList,
+  TypedObjectReference,
 };

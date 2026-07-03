@@ -4,19 +4,19 @@
     import "@ui5/webcomponents/dist/Label.js";
     import "@ui5/webcomponents/dist/Option.js";
     import "@ui5/webcomponents/dist/Select.js";
-    import type { SelectChangeEventDetail } from "@ui5/webcomponents/dist/Select.js";
 
     import {
         selectTheme,
         themePreference,
         themes,
     } from "$lib/stores/theme.svelte";
+    import type { SelectChangeEventDetail } from "@ui5/webcomponents/dist/Select.js";
 
-    let { id = "theme-picker" } = $props<{ id?: string }>();
+    const { id = "theme-picker" } = $props<{ id?: string }>();
 
-    function handleThemeChange(event: CustomEvent<SelectChangeEventDetail>) {
+    const handleThemeChange = (event: CustomEvent<SelectChangeEventDetail>) => {
         selectTheme(event.detail.selectedOption.value ?? "");
-    }
+    };
 </script>
 
 <ui5-card accessible-name="Theme settings">
