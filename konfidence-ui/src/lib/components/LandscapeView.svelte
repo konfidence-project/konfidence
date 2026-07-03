@@ -8,9 +8,13 @@
     } from "@xyflow/svelte";
     import "@xyflow/svelte/dist/style.css";
 
+    import LandscapeStageNode from "$lib/components/LandscapeStageNode.svelte";
+    import { getStageCardVariantPreference } from "$lib/stores/stage-card-variant.svelte";
     import type { Stage } from "$lib/stages.js";
 
     const { stages } = $props<{ stages: Stage[] }>();
+    const stageCardVariant = getStageCardVariantPreference();
+    const nodeTypes = { stage: LandscapeStageNode };
 
     const version = (stage: Stage) =>
         stage.spec.vector.split(":").at(-1) ?? stage.spec.vector;
@@ -22,9 +26,11 @@
     const buildNodes = (items: Stage[]): Node[] =>
         items.map((stage, index) => ({
             id: stage.metadata.name,
-            position: { x: index * 280, y: 0 },
+            type: "stage",
+            position: { x: index * 360, y: 0 },
             data: {
-                label: `${stage.metadata.name}\n${version(stage)} · ${readyStatus(stage)}`,
+                stage,
+                variant: stageCardVariant.selected,
             },
             sourcePosition: Position.Right,
             targetPosition: Position.Left,
@@ -48,6 +54,7 @@
     <SvelteFlow
         {nodes}
         {edges}
+        {nodeTypes}
         fitView
         colorMode="system"
         nodesDraggable={false}
@@ -62,15 +69,14 @@
         overflow: hidden;
     }
 
-    :global(.svelte-flow__node-default) {
-        width: 12rem;
-        border-color: var(--sapList_BorderColor);
-        border-radius: 0.75rem;
-        box-shadow: var(--sapContent_Shadow0);
+    :global(.svelte-flow__node-stage) {
+        width: 20rem;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
         color: var(--sapTextColor);
-        background: var(--sapTile_Background);
         font-family: var(--sapFontFamily), sans-serif;
-        white-space: pre-line;
+        padding: 0;
     }
 
     :global(.svelte-flow__edge-path) {

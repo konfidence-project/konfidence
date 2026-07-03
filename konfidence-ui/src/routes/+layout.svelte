@@ -30,6 +30,10 @@
         type UITheme,
     } from "$lib/stores/theme.svelte";
     import { resolve } from "$app/paths";
+    import {
+        setStageCardVariantPreference,
+        StageCardVariantPreference,
+    } from "$lib/stores/stage-card-variant.svelte";
 
     const customThemeLinks = [
         { id: "konfidence", href: konfidenceThemeHref },
@@ -40,7 +44,7 @@
         text: string;
         items: ReadonlyArray<{
             text: string;
-            href: ReturnType<typeof resolve>;
+            href: "/" | "/landscape" | "/vectors" | "/promotions" | "/settings";
             icon: string;
         }>;
     };
@@ -64,11 +68,6 @@
                     href: "/promotions",
                     icon: "process",
                 },
-                {
-                    text: "Aritfacts",
-                    href: "/artifacts",
-                    icon: "product",
-                },
             ],
         },
         {
@@ -84,6 +83,7 @@
     ];
 
     initTheme();
+    setStageCardVariantPreference(new StageCardVariantPreference());
 </script>
 
 <svelte:head>
