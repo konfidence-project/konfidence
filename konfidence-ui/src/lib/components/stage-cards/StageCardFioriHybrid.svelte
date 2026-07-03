@@ -181,7 +181,8 @@
 <style>
     .stage {
         position: relative;
-        width: 270px;
+        width: 100%;
+        box-sizing: border-box;
         background: var(--sapTile_Background, #fff);
         border: 1.5px solid var(--sapTile_BorderColor, #e4e4e2);
         border-radius: 10px;
