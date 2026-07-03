@@ -21,7 +21,7 @@
     const landscape = $derived(getLandscapeLabel(stage));
 
     let menuOpen = $state(false);
-    const cardEl = $state<HTMLElement>();
+    let cardEl = $state<HTMLElement>();
 
     const toggleMenu = (event: MouseEvent) => {
         event.stopPropagation();
