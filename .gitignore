@@ -62,3 +62,4 @@ local/
 node_modules/
 .svelte-kit/
 build/
+*.tsbuildinfo

@@ -1,9 +1,8 @@
 <script lang="ts">
     import { Handle, Position, type NodeProps } from "@xyflow/svelte";
 
-    import StageCard, {
-        type StageCardVariant,
-    } from "$lib/components/StageCard.svelte";
+    import StageCard from "$lib/components/StageCard.svelte";
+    import type { StageCardVariant } from "$lib/stage-card-variants.js";
     import type { Stage } from "$lib/stages.js";
 
     type StageNodeData = {
