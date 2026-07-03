@@ -52,8 +52,8 @@
     const chips = $derived(getChips(stage));
     const vector = $derived(splitVector(stage.spec.vector));
 
-    const menuBtn = $state<HTMLElement>();
-    const popover = $state<HTMLElement & { open?: boolean }>();
+    let menuBtn = $state<HTMLElement>();
+    let popover = $state<HTMLElement & { open?: boolean }>();
 
     const btnId = $derived(`stage-card-fiori-menu-${stage.metadata.name}`);
 
