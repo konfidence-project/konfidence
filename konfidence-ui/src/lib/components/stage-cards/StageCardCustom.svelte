@@ -176,7 +176,8 @@
         --stage-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
 
         position: relative;
-        width: 270px;
+        width: 100%;
+        box-sizing: border-box;
         background: var(--stage-surface);
         border: 1.5px solid var(--stage-border);
         border-radius: var(--stage-radius);
