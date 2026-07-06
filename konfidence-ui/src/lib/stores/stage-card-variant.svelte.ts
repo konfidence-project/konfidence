@@ -1,4 +1,4 @@
-import type { StageCardVariant } from "$lib/stage-card-variants.js";
+import type { StageCardVariant } from "$lib/components/stage/variants.js";
 import { createContext } from "svelte";
 
 const STORAGE_KEY = "konfidence.ui.stageCardVariant";

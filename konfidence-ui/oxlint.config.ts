@@ -57,6 +57,10 @@ export default defineConfig({
   ],
   plugins: ["typescript", "unicorn", "oxc", "eslint", "import"],
   rules: {
+    // Conflicts with `no-duplicate-imports` and `typescript/consistent-type-imports`:
+    // Those two already force inline `type` specifiers when importing both values and types from one module.
+    "import/consistent-type-specifier-style": "off",
+
     // The app uses named exports intentionally for shared utilities, stores, and route-adjacent modules.
     "import/no-named-export": "off",
 
