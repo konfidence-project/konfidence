@@ -113,7 +113,7 @@ var _ = Describe("RunValidate", func() {
 	})
 
 	Context("when files have schema validation errors", func() {
-		It("formats and prints them without returning an error", func() {
+		It("returns a SchemaValidationError", func() {
 			p := writeFile(GinkgoT(), "input.yaml")
 			cfg := validation.ValidateConfig{
 				DefaultFile:         "artifact",
@@ -122,7 +122,12 @@ var _ = Describe("RunValidate", func() {
 				ValidateFn:          schemaErrors,
 			}
 			err := validation.RunValidate([]string{p}, cfg)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).To(HaveOccurred())
+			var schemaErr *validation.SchemaValidationError
+			ok := errors.As(err, &schemaErr)
+			Expect(ok).To(BeTrue())
+			Expect(err.Error()).To(Not(BeEmpty()))
+			Expect(schemaErr.ErrorMessage).To(Not(BeEmpty()))
 		})
 
 		It("returns an error when output format is invalid", func() {
@@ -160,7 +165,8 @@ var _ = Describe("RunValidate", func() {
 				ValidateFn:          validateFn,
 			}
 			err := validation.RunValidate([]string{p1, p2}, cfg)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("missing type"))
 			Expect(callCount).To(Equal(2))
 		})
 	})

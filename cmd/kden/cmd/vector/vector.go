@@ -22,5 +22,6 @@ func NewVectorCmd() *cobra.Command {
 		panic(err)
 	}
 	vectorCmd.AddCommand(pushCmd)
+	vectorCmd.AddCommand(NewSignCmd())
 	return vectorCmd
 }

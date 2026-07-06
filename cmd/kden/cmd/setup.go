@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"os"
+	"fmt"
 	"os/signal"
 	"syscall"
 
@@ -10,11 +10,19 @@ import (
 )
 
 func Execute() {
+	if err := execute(); err != nil {
+		log.Error(err.Error())
+	}
+}
+
+func execute() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 	initCmd()
-	if err := executeWith(ctx); err != nil {
-		log.Errorf("failed to start kden CLI: %v", err)
-		os.Exit(1)
-	}
+	return executeWith(ctx)
 }
