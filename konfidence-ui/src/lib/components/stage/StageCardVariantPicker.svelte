@@ -5,7 +5,7 @@
     import "@ui5/webcomponents/dist/Option.js";
     import "@ui5/webcomponents/dist/Select.js";
 
-    import { STAGE_CARD_VARIANTS } from "$lib/stage-card-variants.js";
+    import { STAGE_CARD_VARIANTS } from "./variants.js";
     import { getStageCardVariantPreference } from "$lib/stores/stage-card-variant.svelte";
 
     type SelectChangeEventDetail = import("@ui5/webcomponents/dist/Select.js").SelectChangeEventDetail;
