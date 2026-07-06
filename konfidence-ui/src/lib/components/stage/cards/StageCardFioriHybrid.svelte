@@ -13,11 +13,11 @@
         getPhases,
         getStageStatusLabel,
         splitVector,
-    } from "$lib/stage-view.js";
+    } from "../utils/stage-view.js";
     import type { Stage } from "$lib/stages.js";
 
-    type StageChip = import("$lib/stage-view.js").StageChip;
-    type StageHealth = import("$lib/stage-view.js").StageHealth;
+    type StageChip = import("../utils/stage-view.js").StageChip;
+    type StageHealth = import("../utils/stage-view.js").StageHealth;
 
     type TagDesign = "Critical" | "Information" | "Negative" | "Neutral" | "Positive";
 
