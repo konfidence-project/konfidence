@@ -2,7 +2,7 @@
     import "@ui5/webcomponents/dist/Title.js";
     import "@ui5/webcomponents-fiori/dist/Page.js";
 
-    import StageCardVariantPicker from "$lib/components/StageCardVariantPicker.svelte";
+    import StageCardVariantPicker from "$lib/components/stage/StageCardVariantPicker.svelte";
     import ThemePicker from "$lib/components/ThemePicker.svelte";
 </script>
 
