@@ -5,9 +5,9 @@
         getPhases,
         getStageStatusLabel,
         splitVector,
-    } from "$lib/stage-view.js";
+    } from "../utils/stage-view.js";
     import type { Stage } from "$lib/stages.js";
-    import StageStatusPill from "$lib/components/StageStatusPill.svelte";
+    import StageStatusPill from "../StageStatusPill.svelte";
 
     const { stage, selected = false } = $props<{
         stage: Stage;

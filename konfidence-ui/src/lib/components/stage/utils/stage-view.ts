@@ -35,18 +35,13 @@ const isInFlightCondition = (condition: StageCondition) =>
   condition.type !== "Ready" &&
   (condition.status === "True" || condition.status === "Unknown");
 
-const stageHealthFromReady = (stage: Stage, ready: StageCondition | undefined): StageHealth => {
+const readyHealth = (ready: StageCondition | undefined): StageHealth | undefined => {
   if (ready?.status === "False") {
     return "error";
   }
   if (ready?.status === "True") {
     return "healthy";
   }
-  if (stage.status.conditions?.some(isInFlightCondition)) {
-    return "deploying";
-  }
-
-  return "warning";
 };
 
 const getStageHealth = (stage: Stage): StageHealth => {
@@ -55,7 +50,15 @@ const getStageHealth = (stage: Stage): StageHealth => {
     return "error";
   }
 
-  return stageHealthFromReady(stage, findCondition(stage, "Ready"));
+  const health = readyHealth(findCondition(stage, "Ready"));
+  if (health) {
+    return health;
+  }
+  if (stage.status.conditions?.some(isInFlightCondition)) {
+    return "deploying";
+  }
+
+  return "warning";
 };
 
 const STATUS_LABELS: Record<StageHealth, string> = {
@@ -83,24 +86,25 @@ const phaseStateFrom = (condition: StageCondition | undefined): StagePhaseState 
   return PHASE_STATE[condition.status];
 };
 
-const deployCondition = (
+const deployPhase = (
   deploy: StageCondition | undefined,
   fetchFailed: StageCondition | undefined,
-) => {
-  if (fetchFailed?.status === "True") {
-    return fetchFailed;
-  }
-  return deploy;
-};
+): StagePhase => {
+  let deployStatus = deploy;
+  let deployState = phaseStateFrom(deploy);
 
-const deployPhaseState = (
-  deploy: StageCondition | undefined,
-  fetchFailed: StageCondition | undefined,
-): StagePhaseState => {
   if (fetchFailed?.status === "True") {
-    return "err";
+    deployStatus = fetchFailed;
+    deployState = "err";
   }
-  return phaseStateFrom(deploy);
+
+  return {
+    id: "VectorDeploymentCreated",
+    label: "Deploy",
+    message: deployStatus?.message,
+    reason: deployStatus?.reason,
+    state: deployState,
+  };
 };
 
 const getPhases = (stage: Stage): StagePhase[] => {
@@ -109,16 +113,9 @@ const getPhases = (stage: Stage): StagePhase[] => {
   const migrate = findCondition(stage, "VectorMigrated");
   const active = findCondition(stage, "Ready");
   const fetchFailed = findCondition(stage, "FetchFailed");
-  const deployStatus = deployCondition(deploy, fetchFailed);
 
   return [
-    {
-      id: "VectorDeploymentCreated",
-      label: "Deploy",
-      message: deployStatus?.message,
-      reason: deployStatus?.reason,
-      state: deployPhaseState(deploy, fetchFailed),
-    },
+    deployPhase(deploy, fetchFailed),
     {
       id: "Tasks",
       label: "Tasks",
@@ -184,9 +181,10 @@ const splitVector = (vector: string): VectorParts => {
 };
 
 const versionLabel = (historyCount: number): string => {
-  if (historyCount === 1) {
+  if (historyCount + 1 === 1) {
     return "version";
   }
+
   return "versions";
 };
 

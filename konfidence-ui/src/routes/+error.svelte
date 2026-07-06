@@ -6,7 +6,5 @@
 <ErrorView
     status={page.status}
     error={page.error}
-    message="This is the default Error Message"
-    actionHref="/"
-    actionText="Back to dashboard"
+    message="The dashboard hit an unexpected state while rendering this view. The prototype may still be wired to a missing route, loader, or API response."
 />

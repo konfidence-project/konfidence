@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { ConditionStatus } from "$lib/stages.js";
-    import type { StageHealth } from "$lib/stage-view.js";
+    import type { StageHealth } from "./utils/stage-view.js";
 
     type Tone = ConditionStatus | "Info" | StageHealth;
 
