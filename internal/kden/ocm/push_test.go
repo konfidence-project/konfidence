@@ -35,31 +35,28 @@ func (f *failingConstructor) GetGraph() *syncdag.SyncedDirectedAcyclicGraph[stri
 }
 
 var _ = BeforeEach(func() {
-
-	OcmMethodsImpl = OcmMethods{
-		GetPluginManager: func(_ context.Context) (*manager.PluginManager, error) {
-			return &manager.PluginManager{}, nil
-		},
-		GetRepositorySpec: func(_ string) (runtime.Typed, error) {
-			return nil, nil
-		},
-		GetComponentRepositoryResolver: func(
-			_ context.Context,
-			_ repository.ComponentVersionRepositoryProvider,
-			_ credentials.Resolver,
-			_ ...RepositoryResolverOption,
-		) (resolvers.ComponentVersionRepositoryResolver, error) {
-			return nil, nil
-		},
-		GetCredentialGraph: func(_ *manager.PluginManager, _ context.Context, _ *ocmgenericspecv1.Config) (credentials.Resolver, error) {
-			return nil, nil
-		},
-		ConvertToRuntimeConstructor: func(_ *ocmconstructorspecv1.ComponentConstructor) *ocmconstructorruntime.ComponentConstructor {
-			return &ocmconstructorruntime.ComponentConstructor{}
-		},
-		CreateConstructor: func(_ *ocmconstructorruntime.ComponentConstructor, _ ocmconstructor.Options) ocmconstructor.Constructor {
-			return &mockConstructor{}
-		},
+	ocmGetPluginManager = func(_ context.Context) (*manager.PluginManager, error) {
+		return &manager.PluginManager{}, nil
+	}
+	ocmGetRepositorySpec = func(_ string) (runtime.Typed, error) {
+		return nil, nil
+	}
+	ocmGetComponentRepositoryResolver = func(
+		_ context.Context,
+		_ repository.ComponentVersionRepositoryProvider,
+		_ credentials.Resolver,
+		_ ...RepositoryResolverOption,
+	) (resolvers.ComponentVersionRepositoryResolver, error) {
+		return nil, nil
+	}
+	ocmGetCredentialGraph = func(_ context.Context, _ *manager.PluginManager, _ *ocmgenericspecv1.Config) (credentials.Resolver, error) {
+		return nil, nil
+	}
+	ocmConvertToRuntimeConstructor = func(_ *ocmconstructorspecv1.ComponentConstructor) *ocmconstructorruntime.ComponentConstructor {
+		return &ocmconstructorruntime.ComponentConstructor{}
+	}
+	ocmCreateConstructor = func(_ *ocmconstructorruntime.ComponentConstructor, _ ocmconstructor.Options) ocmconstructor.Constructor {
+		return &mockConstructor{}
 	}
 })
 
@@ -85,7 +82,7 @@ var _ = Describe("PushComponentConstructor", func() {
 
 	Context("with failing OCM Library methods", func() {
 		It("returns an error when getting the plugin manager throws an error", func() {
-			OcmMethodsImpl.GetPluginManager = func(_ context.Context) (*manager.PluginManager, error) {
+			ocmGetPluginManager = func(_ context.Context) (*manager.PluginManager, error) {
 				return nil, fmt.Errorf("ocm library fails")
 			}
 			err := PushComponentConstructor(&ocmConfig, ctx, registry, &constructor)
@@ -94,7 +91,7 @@ var _ = Describe("PushComponentConstructor", func() {
 		})
 
 		It("returns an error when getting the repository spec throws an error", func() {
-			OcmMethodsImpl.GetRepositorySpec = func(_ string) (runtime.Typed, error) {
+			ocmGetRepositorySpec = func(_ string) (runtime.Typed, error) {
 				return nil, fmt.Errorf("ocm library fails")
 			}
 			err := PushComponentConstructor(&ocmConfig, ctx, registry, &constructor)
@@ -103,7 +100,7 @@ var _ = Describe("PushComponentConstructor", func() {
 		})
 
 		It("returns an error when getting the component repository resolver throws an error", func() {
-			OcmMethodsImpl.GetComponentRepositoryResolver = func(
+			ocmGetComponentRepositoryResolver = func(
 				_ context.Context,
 				_ repository.ComponentVersionRepositoryProvider,
 				_ credentials.Resolver,
@@ -117,7 +114,7 @@ var _ = Describe("PushComponentConstructor", func() {
 		})
 
 		It("returns an error when getting the credential graph throws an error", func() {
-			OcmMethodsImpl.GetCredentialGraph = func(_ *manager.PluginManager, _ context.Context, _ *ocmgenericspecv1.Config) (credentials.Resolver, error) {
+			ocmGetCredentialGraph = func(_ context.Context, _ *manager.PluginManager, _ *ocmgenericspecv1.Config) (credentials.Resolver, error) {
 				return nil, fmt.Errorf("ocm library fails")
 			}
 			err := PushComponentConstructor(&ocmConfig, ctx, registry, &constructor)
@@ -126,7 +123,7 @@ var _ = Describe("PushComponentConstructor", func() {
 		})
 
 		It("returns an error when the conversion to a runtime constructor fails", func() {
-			OcmMethodsImpl.ConvertToRuntimeConstructor = func(_ *ocmconstructorspecv1.ComponentConstructor) *ocmconstructorruntime.ComponentConstructor {
+			ocmConvertToRuntimeConstructor = func(_ *ocmconstructorspecv1.ComponentConstructor) *ocmconstructorruntime.ComponentConstructor {
 				return nil
 			}
 			err := PushComponentConstructor(&ocmConfig, ctx, registry, &constructor)
@@ -135,7 +132,7 @@ var _ = Describe("PushComponentConstructor", func() {
 		})
 
 		It("returns an error when getting the repository spec throws an error", func() {
-			OcmMethodsImpl.CreateConstructor = func(_ *ocmconstructorruntime.ComponentConstructor, _ ocmconstructor.Options) ocmconstructor.Constructor {
+			ocmCreateConstructor = func(_ *ocmconstructorruntime.ComponentConstructor, _ ocmconstructor.Options) ocmconstructor.Constructor {
 				return &failingConstructor{}
 			}
 			err := PushComponentConstructor(&ocmConfig, ctx, registry, &constructor)

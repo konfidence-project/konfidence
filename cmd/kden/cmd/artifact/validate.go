@@ -1,8 +1,10 @@
 package artifact
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/konfidence-project/konfidence/internal/kden/output"
 	"github.com/konfidence-project/konfidence/internal/kden/validation"
 	"github.com/spf13/cobra"
 )
@@ -25,12 +27,19 @@ func runValidateCmd(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get %s files flag: %w", ArtifactIdentifier, err)
 	}
-	return validation.RunValidate(filePaths, validation.ValidateConfig{
+	err = validation.RunValidate(filePaths, validation.ValidateConfig{
 		CmdDisplayName:      cmd.DisplayName(),
 		DefaultFile:         DefaultArtifactFileName,
 		ComponentIdentifier: ArtifactIdentifier,
 		ValidateFn:          validation.ValidateArtifact,
 	})
+
+	var schemaError *validation.SchemaValidationError
+	if err != nil && errors.As(err, &schemaError) {
+		output.PrintMessage(schemaError.ErrorMessage)
+		return nil
+	}
+	return err
 }
 
 func newValidateCmd() *cobra.Command {

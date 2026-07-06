@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/konfidence-project/konfidence/internal/kden/log"
+
 	"github.com/spf13/cobra"
 	ocmgenericspecv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
 	ocmconstructorspecv1 "ocm.software/open-component-model/bindings/go/constructor/spec/v1"
@@ -87,7 +88,19 @@ func WithRepository(repo runtime.Typed) RepositoryResolverOption {
 	}
 }
 
-func GetCredentialGraph(pluginManager *manager.PluginManager, ctx context.Context, config *ocmgenericspecv1.Config) (credentials.Resolver, error) {
+func WithComponentRef(ref *compref.Ref) RepositoryResolverOption {
+	return func(o *RepositoryResolverOptions) {
+		if ref == nil {
+			return
+		}
+		o.repository = ref.Repository
+		if ref.Component != "" {
+			o.componentPatterns = []string{ref.Component}
+		}
+	}
+}
+
+func GetCredentialGraph(ctx context.Context, pluginManager *manager.PluginManager, config *ocmgenericspecv1.Config) (credentials.Resolver, error) {
 	opts := credentials.Options{
 		RepositoryPluginProvider: pluginManager.CredentialRepositoryRegistry,
 		CredentialPluginProvider: credentials.GetCredentialPluginFn(
@@ -130,4 +143,31 @@ func GetOcmConfiguration(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
 		}
 	}
 	return cfg, nil
+}
+
+func NewComponentRepositoryResolver(
+	ctx context.Context,
+	repoProvider ocmrepository.ComponentVersionRepositoryProvider,
+	credentialGraph credentials.Resolver,
+	opts ...RepositoryResolverOption,
+) (resolvers.ComponentVersionRepositoryResolver, error) {
+	options := &RepositoryResolverOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	fallbackResolvers, pathMatchers, err := resolvers.ExtractResolvers(options.config, ocmocirepository.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	providerOpts := resolvers.Options{
+		RepoProvider:      repoProvider,
+		CredentialGraph:   credentialGraph,
+		PathMatchers:      pathMatchers,
+		FallbackResolvers: fallbackResolvers,
+		ComponentPatterns: options.componentPatterns,
+	}
+
+	return resolvers.New(ctx, providerOpts, options.repository)
 }

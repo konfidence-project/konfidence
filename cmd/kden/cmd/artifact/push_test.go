@@ -17,24 +17,22 @@ import (
 var rootCmd *cobra.Command
 
 var _ = BeforeEach(func() {
-	artifact.PushCmdMethodsImpl = artifact.PushCmdMethods{
-		ReadConstructorFromFile: func(filePath string) (*ocmconstructorspecv1.ComponentConstructor, error) {
-			return &ocmconstructorspecv1.ComponentConstructor{}, nil
-		},
-		GetOcmConfiguration: func(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
-			return &ocmgenericspecv1.Config{}, nil
-		},
-		ValidateArtifact: func(filePaths []string, cfg validation.ValidateConfig) error {
-			return nil
-		},
-		PushComponentConstructor: func(
-			ocmConfiguration *ocmgenericspecv1.Config,
-			ctx context.Context,
-			registry string,
-			constructor *ocmconstructorspecv1.ComponentConstructor,
-		) error {
-			return nil
-		},
+	artifact.ReadConstructorFromFile = func(filePath string) (*ocmconstructorspecv1.ComponentConstructor, error) {
+		return &ocmconstructorspecv1.ComponentConstructor{}, nil
+	}
+	artifact.GetOcmConfiguration = func(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
+		return &ocmgenericspecv1.Config{}, nil
+	}
+	artifact.ValidateArtifact = func(filePaths []string, cfg validation.ValidateConfig) error {
+		return nil
+	}
+	artifact.PushComponentConstructor = func(
+		ocmConfiguration *ocmgenericspecv1.Config,
+		ctx context.Context,
+		registry string,
+		constructor *ocmconstructorspecv1.ComponentConstructor,
+	) error {
+		return nil
 	}
 
 	rootCmd = &cobra.Command{Use: "kden"}
@@ -82,7 +80,7 @@ var _ = Describe("push", func() {
 
 		Context("with failing submethods", func() {
 			It("when ReadConstructorFromFile returns an error", func() {
-				artifact.PushCmdMethodsImpl.ReadConstructorFromFile = func(filePath string) (*ocmconstructorspecv1.ComponentConstructor, error) {
+				artifact.ReadConstructorFromFile = func(filePath string) (*ocmconstructorspecv1.ComponentConstructor, error) {
 					return nil, fmt.Errorf("some error")
 				}
 				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
@@ -92,7 +90,7 @@ var _ = Describe("push", func() {
 			})
 
 			It("when GetOcmConfiguration returns an error", func() {
-				artifact.PushCmdMethodsImpl.GetOcmConfiguration = func(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
+				artifact.GetOcmConfiguration = func(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
 					return nil, fmt.Errorf("some error")
 				}
 				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
@@ -102,17 +100,18 @@ var _ = Describe("push", func() {
 			})
 
 			It("when ValidateArtifact returns an error", func() {
-				artifact.PushCmdMethodsImpl.ValidateArtifact = func(filePaths []string, cfg validation.ValidateConfig) error {
+				artifact.ValidateArtifact = func(filePaths []string, cfg validation.ValidateConfig) error {
 					return fmt.Errorf("some error")
 				}
 				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
 				err := rootCmd.Execute()
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("some error"))
+				Expect(err.Error()).To(ContainSubstring("validation failed"))
 			})
 
-			It("when ReadConstructorFromFile returns an error", func() {
-				artifact.PushCmdMethodsImpl.PushComponentConstructor = func(
+			It("when PushComponentConstructor returns an error", func() {
+				artifact.PushComponentConstructor = func(
 					ocmConfiguration *ocmgenericspecv1.Config,
 					ctx context.Context,
 					registry string,

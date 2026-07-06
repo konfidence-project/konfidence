@@ -22,5 +22,6 @@ func NewArtifactCmd() *cobra.Command {
 		panic(err)
 	}
 	artifactCmd.AddCommand(pushCmd)
+	artifactCmd.AddCommand(NewSignCmd())
 	return artifactCmd
 }

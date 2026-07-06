@@ -17,24 +17,22 @@ import (
 var rootCmd *cobra.Command
 
 var _ = BeforeEach(func() {
-	vector.PushCmdMethodsImpl = vector.PushCmdMethods{
-		ReadConstructorFromFile: func(filePath string) (*ocmconstructorspecv1.ComponentConstructor, error) {
-			return &ocmconstructorspecv1.ComponentConstructor{}, nil
-		},
-		GetOcmConfiguration: func(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
-			return &ocmgenericspecv1.Config{}, nil
-		},
-		ValidateVector: func(filePaths []string, cfg validation.ValidateConfig) error {
-			return nil
-		},
-		PushComponentConstructor: func(
-			ocmConfiguration *ocmgenericspecv1.Config,
-			ctx context.Context,
-			registry string,
-			constructor *ocmconstructorspecv1.ComponentConstructor,
-		) error {
-			return nil
-		},
+	vector.ReadConstructorFromFile = func(filePath string) (*ocmconstructorspecv1.ComponentConstructor, error) {
+		return &ocmconstructorspecv1.ComponentConstructor{}, nil
+	}
+	vector.GetOcmConfiguration = func(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
+		return &ocmgenericspecv1.Config{}, nil
+	}
+	vector.ValidateVector = func(filePaths []string, cfg validation.ValidateConfig) error {
+		return nil
+	}
+	vector.PushComponentConstructor = func(
+		ocmConfiguration *ocmgenericspecv1.Config,
+		ctx context.Context,
+		registry string,
+		constructor *ocmconstructorspecv1.ComponentConstructor,
+	) error {
+		return nil
 	}
 
 	rootCmd = &cobra.Command{Use: "kden"}
@@ -82,7 +80,7 @@ var _ = Describe("push", func() {
 
 		Context("with failing submethods", func() {
 			It("when ReadConstructorFromFile returns an error", func() {
-				vector.PushCmdMethodsImpl.ReadConstructorFromFile = func(filePath string) (*ocmconstructorspecv1.ComponentConstructor, error) {
+				vector.ReadConstructorFromFile = func(filePath string) (*ocmconstructorspecv1.ComponentConstructor, error) {
 					return nil, fmt.Errorf("some error")
 				}
 				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
@@ -92,7 +90,7 @@ var _ = Describe("push", func() {
 			})
 
 			It("when GetOcmConfiguration returns an error", func() {
-				vector.PushCmdMethodsImpl.GetOcmConfiguration = func(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
+				vector.GetOcmConfiguration = func(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
 					return nil, fmt.Errorf("some error")
 				}
 				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
@@ -102,17 +100,18 @@ var _ = Describe("push", func() {
 			})
 
 			It("when ValidateVector returns an error", func() {
-				vector.PushCmdMethodsImpl.ValidateVector = func(filePaths []string, cfg validation.ValidateConfig) error {
+				vector.ValidateVector = func(filePaths []string, cfg validation.ValidateConfig) error {
 					return fmt.Errorf("some error")
 				}
 				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
 				err := rootCmd.Execute()
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("some error"))
+				Expect(err.Error()).To(ContainSubstring("validation failed"))
 			})
 
 			It("when PushComponentConstructor returns an error", func() {
-				vector.PushCmdMethodsImpl.PushComponentConstructor = func(
+				vector.PushComponentConstructor = func(
 					ocmConfiguration *ocmgenericspecv1.Config,
 					ctx context.Context,
 					registry string,

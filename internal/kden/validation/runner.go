@@ -17,6 +17,14 @@ type ValidateConfig struct {
 	ValidateFn          func([]byte, string, map[string]bool) ([]voutput.SchemaValidationError, error)
 }
 
+type SchemaValidationError struct {
+	ErrorMessage string
+}
+
+func (s SchemaValidationError) Error() string {
+	return s.ErrorMessage
+}
+
 // RunValidate executes the common validate loop for any resource type.
 func RunValidate(filePaths []string, cfg ValidateConfig) error {
 	if len(filePaths) == 0 {
@@ -49,7 +57,7 @@ func RunValidate(filePaths []string, cfg ValidateConfig) error {
 		if err != nil {
 			return fmt.Errorf("failed to resolve output format for validate command: %w", err)
 		}
-		output.PrintMessage(result)
+		return &SchemaValidationError{ErrorMessage: result}
 	}
 
 	return nil
