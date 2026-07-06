@@ -1,9 +1,9 @@
 <script lang="ts">
     import type { Stage } from "$lib/stages.js";
-    import StageCardCustom from "$lib/components/stage-cards/StageCardCustom.svelte";
-    import StageCardFiori from "$lib/components/stage-cards/StageCardFiori.svelte";
-    import StageCardFioriHybrid from "$lib/components/stage-cards/StageCardFioriHybrid.svelte";
-    import type { StageCardVariant } from "$lib/stage-card-variants.js";
+    import StageCardCustom from "./cards/StageCardCustom.svelte";
+    import StageCardFiori from "./cards/StageCardFiori.svelte";
+    import StageCardFioriHybrid from "./cards/StageCardFioriHybrid.svelte";
+    import type { StageCardVariant } from "./variants.js";
 
     const {
         stage,
