@@ -44,28 +44,6 @@ spec:
               may reject unrecognized values.
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
-          config:
-            items:
-              description: CredentialsConfig defines a credential reference to a secret
-                or configMap used to access OCM backends (like OCI registry).
-              properties:
-                apiVersion:
-                  description: APIVersion is the api version of the of configuration
-                    resource, e.g. v1.
-                  type: string
-                kind:
-                  description: Kind of the configuration resource. Allowed values
-                    are Secret or ConfigMap.
-                  type: string
-                name:
-                  description: "Name is the name\t of the of configuration resource."
-                  type: string
-              required:
-              - apiVersion
-              - kind
-              - name
-              type: object
-            type: array
           kind:
             description: |-
               Kind is a string value representing the REST resource this object represents.
@@ -79,6 +57,35 @@ spec:
           spec:
             description: Spec defines the desired state of the VectorPromotionConfig.
             properties:
+              credentials:
+                description: Credentials supplies credentials for OCM repository access
+                  and vector verification key material.
+                properties:
+                  ocm:
+                    description: |-
+                      OCMCredentials lists Secrets holding `.ocmconfig` or `.dockerconfigjson` data.
+                      All references are same-namespace.
+                    properties:
+                      refs:
+                        items:
+                          description: CredentialRef references a Secret in the same
+                            namespace as the holding resource.
+                          properties:
+                            name:
+                              minLength: 1
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        minItems: 1
+                        type: array
+                    required:
+                    - refs
+                    type: object
+                type: object
+                x-kubernetes-validations:
+                - message: at least one credential surface must be set
+                  rule: has(self.ocm)
               source:
                 description: |-
                   Source is the OCM component reference to promote from.
@@ -101,6 +108,85 @@ spec:
                 x-kubernetes-validations:
                 - message: target is immutable after it has been set
                   rule: self == oldSelf
+              verifyVector:
+                description: |-
+                  VerifyVector lists candidate signatures evaluated against the
+                  source vector before promotion proceeds. Absence disables vector
+                  verification.
+                properties:
+                  signatures:
+                    items:
+                      description: |-
+                        Signature pins parameters of one named signature on a component
+                        descriptor. Used both for verification (matched against the fetched
+                        descriptor) and for signing (overrides defaults of the emitted
+                        signature).
+                      properties:
+                        algorithm:
+                          description: |-
+                            Algorithm specifies the RSA signing algorithm.
+                            When omitted, RSASSA-PSS is used.
+                            Valid values: RSASSA-PSS, RSASSA-PKCS1-V1_5.
+                          type: string
+                        hashAlgorithm:
+                          description: |-
+                            HashAlgorithm specifies the digest algorithm used when hashing the component descriptor.
+                            When omitted, SHA-256 is used.
+                            Valid values: SHA-256, SHA-512.
+                          type: string
+                        issuer:
+                          description: |-
+                            Issuer pins the expected certificate issuer DN for PEM-encoded signatures.
+                            On the sign path the value is stamped into the descriptor alongside the signature,
+                            so it is enforced automatically on the verify path even without an explicit pin here.
+                            On the verify path, when set, this value overrides whatever the descriptor stored and
+                            the handler rejects any signature whose leaf certificate issuer DN does not match.
+                            When omitted on both paths the issuer field stays empty and no DN check is performed.
+                            Must be non-empty when present.
+                          type: string
+                        name:
+                          description: Name is the unique identifier for this signature.
+                          minLength: 1
+                          type: string
+                        normalisationAlgorithm:
+                          description: |-
+                            NormalisationAlgorithm specifies the normalisation scheme applied to the descriptor
+                            before hashing.
+                            When omitted, jsonNormalisation/v4alpha1 is used.
+                            Valid values: jsonNormalisation/v4alpha1.
+                          type: string
+                        signatureMediaType:
+                          description: |-
+                            SignatureMediaType specifies the encoding format for the signature bytes.
+                            When omitted, application/x-pem-file (PEM) is used.
+                            Valid values: application/x-pem-file, application/vnd.ocm.signature.rsa.pss,
+                            application/vnd.ocm.signature.rsa.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                      x-kubernetes-validations:
+                      - message: 'algorithm must be one of: RSASSA-PSS, RSASSA-PKCS1-V1_5'
+                        rule: '!has(self.algorithm) || self.algorithm in [''RSASSA-PSS'',
+                          ''RSASSA-PKCS1-V1_5'']'
+                      - message: 'signatureMediaType must be one of: application/x-pem-file,
+                          application/vnd.ocm.signature.rsa.pss, application/vnd.ocm.signature.rsa'
+                        rule: '!has(self.signatureMediaType) || self.signatureMediaType
+                          in [''application/x-pem-file'', ''application/vnd.ocm.signature.rsa.pss'',
+                          ''application/vnd.ocm.signature.rsa'']'
+                      - message: 'hashAlgorithm must be one of: SHA-256, SHA-512'
+                        rule: '!has(self.hashAlgorithm) || self.hashAlgorithm in [''SHA-256'',
+                          ''SHA-512'']'
+                      - message: 'normalisationAlgorithm must be: jsonNormalisation/v4alpha1'
+                        rule: '!has(self.normalisationAlgorithm) || self.normalisationAlgorithm
+                          in [''jsonNormalisation/v4alpha1'']'
+                      - message: issuer must be non-empty when set
+                        rule: '!has(self.issuer) || size(self.issuer) > 0'
+                    minItems: 1
+                    type: array
+                required:
+                - signatures
+                type: object
             required:
             - source
             - target

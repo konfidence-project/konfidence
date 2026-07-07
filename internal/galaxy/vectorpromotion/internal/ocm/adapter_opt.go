@@ -1,9 +1,8 @@
 package ocm
 
 import (
-	"fmt"
-
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	pkgrepository "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
 
 // PromotionAdapterOption is a functional option for configuring the PromotionAdapter.
@@ -16,18 +15,9 @@ func WithVectorVerifier(verifier crypto.Verifier) PromotionAdapterOption {
 	}
 }
 
-// WithDefaultVectorVerification enables verification of vectors.
-// It will use crypto.VectorAssemblySignature as the target signature name for verification
-// and the given crypto.ConfigMapTrustAnchorProvider as trust anchor config.
-// If setup fails this option will panic.
-func WithDefaultVectorVerification(provider *crypto.ConfigMapTrustAnchorProvider) PromotionAdapterOption {
+// WithOCMClient sets the underlying OCI/OCM repository client on the PromotionAdapter.
+func WithOCMClient(c pkgrepository.Client) PromotionAdapterOption {
 	return func(a *PromotionAdapter) {
-		rsaVerifier, err := crypto.NewRSAVerifier([]string{crypto.VectorAssemblySignature},
-			crypto.WithCredentialProvider(provider))
-		if err != nil {
-			panic(fmt.Sprintf("unable to set up default ocm vector verification: %v", err))
-		}
-
-		a.vectorVerifier = rsaVerifier
+		a.ocmClient = c
 	}
 }

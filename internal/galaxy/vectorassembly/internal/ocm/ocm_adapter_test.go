@@ -87,7 +87,7 @@ var _ = Describe("Adapter", func() {
 
 			// Setup expectations
 			mockClient.EXPECT().Copy(ctx, gomock.Any(), repoSpec).Return(nil)
-			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256).AnyTimes()
+			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256.String()).AnyTimes()
 			mockDigester.EXPECT().GetNormalisationAlgorithm().Return(norm.Algorithm).AnyTimes()
 			mockSigner.EXPECT().Sign(ctx, gomock.Any()).Return(nil)
 			mockClient.EXPECT().Save(ctx, repoSpec, gomock.Any()).Return(nil)
@@ -113,7 +113,7 @@ var _ = Describe("Adapter", func() {
 			aliasErr := errors.New("alias creation failed")
 
 			mockClient.EXPECT().Copy(ctx, gomock.Any(), repoSpec).Return(nil)
-			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256).AnyTimes()
+			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256.String()).AnyTimes()
 			mockDigester.EXPECT().GetNormalisationAlgorithm().Return(norm.Algorithm).AnyTimes()
 			mockSigner.EXPECT().Sign(ctx, gomock.Any()).Return(nil)
 			mockClient.EXPECT().Save(ctx, repoSpec, gomock.Any()).Return(nil)
@@ -143,7 +143,7 @@ var _ = Describe("Adapter", func() {
 			signErr := errors.New("signing failed")
 
 			mockClient.EXPECT().Copy(ctx, gomock.Any(), repoSpec).Return(nil)
-			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256).AnyTimes()
+			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256.String()).AnyTimes()
 			mockDigester.EXPECT().GetNormalisationAlgorithm().Return(norm.Algorithm).AnyTimes()
 			mockSigner.EXPECT().Sign(ctx, gomock.Any()).Return(signErr)
 
@@ -159,7 +159,7 @@ var _ = Describe("Adapter", func() {
 			saveErr := errors.New("repository unavailable")
 
 			mockClient.EXPECT().Copy(ctx, gomock.Any(), repoSpec).Return(nil)
-			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256).AnyTimes()
+			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256.String()).AnyTimes()
 			mockDigester.EXPECT().GetNormalisationAlgorithm().Return(norm.Algorithm).AnyTimes()
 			mockSigner.EXPECT().Sign(ctx, gomock.Any()).Return(nil)
 			mockClient.EXPECT().Save(ctx, repoSpec, gomock.Any()).Return(saveErr)

@@ -58,7 +58,7 @@ func (mr *MockSignerMockRecorder) GetSigningCredentialConsumerIdentity(ctx, name
 }
 
 // Sign mocks base method.
-func (m *MockSigner) Sign(ctx context.Context, unsigned runtime.Digest, config runtime0.Typed, credentials runtime0.Typed) (runtime.SignatureInfo, error) {
+func (m *MockSigner) Sign(ctx context.Context, unsigned runtime.Digest, config, credentials runtime0.Typed) (runtime.SignatureInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Sign", ctx, unsigned, config, credentials)
 	ret0, _ := ret[0].(runtime.SignatureInfo)

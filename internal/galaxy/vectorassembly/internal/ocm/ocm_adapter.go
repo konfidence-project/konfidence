@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"maps"
-	goruntime "runtime"
 	"slices"
 	"strconv"
 	"sync"
@@ -79,7 +78,7 @@ func (a Adapter) fetchAndCollectDescriptors(ctx context.Context, references []co
 		return result, nil
 	}
 	pool, ctx2 := errgroup.WithContext(ctx)
-	pool.SetLimit(min(32, len(references))) // limit to keep parallel requests bounded
+	pool.SetLimit(min(128, len(references))) // limit to keep parallel requests bounded
 	for _, ref := range references {
 		pool.Go(func() error { return a.fetchAndCollectDescriptor(ctx2, &mux, ref, result) })
 	}
@@ -102,46 +101,20 @@ func (a Adapter) fetchAndCollectDescriptor(
 }
 
 func (a Adapter) digestAndCollectArtifacts(ctx context.Context, references map[compref.Ref]*ocmdescriptor.Descriptor) ([]vector.Artifact, error) {
-	results := make([]vector.Artifact, len(references))
-	keys := slices.Collect(maps.Keys(references))
-	if len(references) == 1 {
-		key := slices.Collect(maps.Keys(references))[0]
-		value := slices.Collect(maps.Values(references))[0]
-		if err := a.digestAndCollectSingleArtifact(ctx, 0, key, value, results); err != nil {
-			return nil, err
+	results := make([]vector.Artifact, 0, len(references))
+	for ref, desc := range references {
+		dig, err := a.digester.GenerateDigest(ctx, desc)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate digest for ocm descriptor (%s) version (%s): %w", ref, desc.Component.Version, err)
 		}
-		return results, nil
-	}
-	pool, ctx2 := errgroup.WithContext(ctx)
-	pool.SetLimit(min(goruntime.GOMAXPROCS(0), len(references))) // no oversubscription on CPU bound digest generation tasks
-	for i, ref := range keys {
-		pool.Go(func() error {
-			return a.digestAndCollectSingleArtifact(ctx2, i, ref, references[ref], results)
+		results = append(results, vector.Artifact{
+			Version:    desc.Component.Version,
+			Name:       desc.Component.Name,
+			Digest:     dig.Value,
+			SourceRepo: ref.Repository,
 		})
 	}
-	if err := pool.Wait(); err != nil {
-		return nil, err
-	}
 	return results, nil
-}
-
-func (a Adapter) digestAndCollectSingleArtifact(
-	ctx context.Context,
-	index int,
-	ref compref.Ref,
-	desc *ocmdescriptor.Descriptor,
-	results []vector.Artifact) error {
-	dig, err := a.digester.GenerateDigest(ctx, desc)
-	if err != nil {
-		return fmt.Errorf("unable to generate digest for ocm descriptor (%s) version (%s): %w", ref, desc.Component.Version, err)
-	}
-	results[index] = vector.Artifact{
-		Version:    desc.Component.Version,
-		Name:       desc.Component.Name,
-		Digest:     dig.Value,
-		SourceRepo: ref.Repository,
-	}
-	return nil
 }
 
 func (a Adapter) GetVector(ctx context.Context, vectorRef compref.Ref) (vector.Vector, error) {
@@ -200,7 +173,7 @@ func (a Adapter) CreateVector(ctx context.Context, repoSpec runtime.Typed, v vec
 		return fmt.Errorf("unable to copy artifact components to target repository: %w", err)
 	}
 
-	vectorDescriptor := mapToDescriptor(v, a.digester.GetHashAlgorithm().String(), a.digester.GetNormalisationAlgorithm())
+	vectorDescriptor := mapToDescriptor(v, a.digester.GetHashAlgorithm(), a.digester.GetNormalisationAlgorithm())
 	if v.VectorConfig != nil {
 		// upload vector configuration as local resource
 		content := inmemory.New(bytes.NewReader(v.VectorConfig.Content))
@@ -349,16 +322,6 @@ func NewAdapter(options ...AdapterOption) Adapter {
 	}
 	applyDefaults(&a)
 	return a
-}
-
-// NewPortProvider creates a VectorOcmPortProviderFunc that builds an Adapter
-// with the given options and plugs in the provided client at call time.
-func NewPortProvider(opts ...AdapterOption) vector.OcmPortProviderFunc {
-	return func(client pkgocm.Client) vector.OcmPort {
-		a := NewAdapter(opts...)
-		a.ocmClient = client
-		return a
-	}
 }
 
 func applyDefaults(a *Adapter) {

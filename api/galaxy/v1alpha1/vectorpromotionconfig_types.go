@@ -26,6 +26,16 @@ type VectorPromotionConfigSpec struct {
 	// +kubebuilder:validation:Pattern=`^[^/].+//.+:.+$`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="target is immutable after it has been set"
 	Target string `json:"target"`
+
+	// Credentials supplies credentials for OCM repository access and vector verification key material.
+	// +optional
+	Credentials *Credentials `json:"credentials,omitempty"`
+
+	// VerifyVector lists candidate signatures evaluated against the
+	// source vector before promotion proceeds. Absence disables vector
+	// verification.
+	// +optional
+	VerifyVector *Verify `json:"verifyVector,omitempty"`
 }
 
 // VectorPromotionConfigStatus defines the observed state of VectorPromotionConfig.
@@ -53,8 +63,6 @@ type VectorPromotionConfig struct {
 	// +kubebuilder:validation:Optional
 	Spec   VectorPromotionConfigSpec   `json:"spec,omitempty"`
 	Status VectorPromotionConfigStatus `json:"status,omitempty"`
-
-	Config []CredentialsConfig `json:"config,omitempty"`
 }
 
 // +kubebuilder:object:root=true

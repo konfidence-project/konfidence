@@ -11,7 +11,6 @@ import (
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
-	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,10 +27,9 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/ports"
 	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration/internal/template"
-	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 )
 
 const (
@@ -45,27 +43,23 @@ var clusterRegex = regexp.MustCompile(clusterPattern)
 
 // StageConfigurationReconciler reconciles a StageConfiguration object
 type StageConfigurationReconciler struct {
-	Mgr                mcmanager.Manager
-	OcmClientProvider  repository.ClientProvider
-	VectorPortProvider ports.VectorPortProvider
-	Scheme             *runtime.Scheme
-	RestConfig         *rest.Config
-	OcmVerifier        crypto.Verifier
+	Mgr        mcmanager.Manager
+	Cache      *clientcache.Cache[*galaxy.StageConfiguration, ports.VectorPort]
+	Scheme     *runtime.Scheme
+	RestConfig *rest.Config
 }
 
 func NewStageConfigurationReconciler(
 	mgr mcmanager.Manager,
 	scheme *runtime.Scheme,
 	restConfig *rest.Config,
-	vectorVerifier crypto.Verifier,
+	cache *clientcache.Cache[*galaxy.StageConfiguration, ports.VectorPort],
 ) *StageConfigurationReconciler {
 	return &StageConfigurationReconciler{
-		Mgr:                mgr,
-		OcmClientProvider:  repository.DefaultOciClientProvider,
-		VectorPortProvider: ocm.DefaultPortProvider,
-		Scheme:             scheme,
-		RestConfig:         restConfig,
-		OcmVerifier:        vectorVerifier,
+		Mgr:        mgr,
+		Cache:      cache,
+		Scheme:     scheme,
+		RestConfig: restConfig,
 	}
 }
 
@@ -100,7 +94,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 	}
 
 	originalStageConfiguration := stageConfiguration.DeepCopy()
-	err = r.reconcileStageConfiguration(ctx, clusterClient, stageConfiguration, recorder)
+	err = r.reconcileStageConfiguration(ctx, clusterClient, req.ClusterName, stageConfiguration, recorder)
 
 	err = pkgctrl.PatchStatusIfChanged(
 		ctx,
@@ -122,6 +116,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 	ctx context.Context,
 	clusterClient client.Client,
+	clusterName string,
 	stageConfiguration *galaxy.StageConfiguration,
 	recorder events.EventRecorder,
 ) error {
@@ -129,15 +124,13 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 	log.Info("Reconciling stageConfiguration")
 	r.updateStageConfigurationReadyStatus(stageConfiguration, false, "")
 
-	ocmClient, err := r.OcmClientProvider.NewClient(ctx, clusterClient, stageConfiguration.GetNamespace(), stageConfiguration.Spec.Config)
+	adapter, err := r.Cache.Lookup(ctx, clusterClient, clusterName, stageConfiguration)
 	if err != nil {
-		return fmt.Errorf("unable to create OCM client: %w", err)
+		return fmt.Errorf("building OCM clients: %w", err)
 	}
 
-	vectorPort := r.VectorPortProvider.NewVectorPort(r.OcmVerifier, ocmClient)
-
 	// get vector with specific version or alias
-	vector, err := vectorPort.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
+	vector, err := adapter.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
 	if err != nil {
 		return fmt.Errorf("unable to get vector component version %s: %w", stageConfiguration.Spec.Vector, err)
 	}

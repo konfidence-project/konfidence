@@ -16,15 +16,7 @@ import (
 
 var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func() {
 
-	BeforeEach(func() {
-		Expect(k8sClient.DeleteAllOf(ctx, &galaxy.VectorPromotion{}, client.InNamespace(testNamespace))).To(Succeed())
-		Expect(k8sClient.DeleteAllOf(ctx, &galaxy.VectorPromotionConfig{}, client.InNamespace(testNamespace))).To(Succeed())
-		Eventually(func(g Gomega) {
-			list := &galaxy.VectorPromotionList{}
-			g.Expect(k8sClient.List(ctx, list, client.InNamespace(testNamespace))).To(Succeed())
-			g.Expect(list.Items).To(BeEmpty())
-		}, timeout, interval).Should(Succeed())
-	})
+	BeforeEach(func() { cleanupPromotions() })
 
 	It("should delete VectorPromotion after TTL expires (successful promotion)", func() {
 		By("pushing component to source registry")

@@ -21,7 +21,7 @@ var _ = Describe("ConfigurableDigester", func() {
 	})
 	It("Returns the correct hash algorithm", func() {
 		digester := NewDefaultDigester(logr.Discard())
-		Expect(digester.GetHashAlgorithm()).To(Equal(crypto.SHA256))
+		Expect(digester.GetHashAlgorithm()).To(Equal(crypto.SHA256.String()))
 	})
 	It("Returns the correct normalisation algorithm", func() {
 		digester := NewDefaultDigester(logr.Discard())

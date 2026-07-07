@@ -17,6 +17,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion"
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 )
 
 func startOperator(cmd *cobra.Command, args []string) error {
@@ -57,29 +58,22 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	// Resolve all crypto dependencies from env vars
-	cryptoCfg, err := pkgcmd.ResolveCryptoConfig(ctx, mgr.GetLocalManager(), setupLog)
-	if err != nil {
-		setupLog.Error(err, "unable to resolve crypto configuration")
-		return err
-	}
+	limiter := crypto.NewLimiter(0)
 
 	controllerSetups := map[string]func() error{
 		stageconfiguration.OperatorFlagName: func() error {
 			return stageconfiguration.SetupControllers(mgr, scheme, cfg, stageconfiguration.Options{
-				VectorVerifier: cryptoCfg.VectorVerifier,
+				Limiter: limiter,
 			})
 		},
 		vectorassembly.OperatorFlagName: func() error {
 			return vectorassembly.SetupControllers(mgr, scheme, vectorassembly.Options{
-				ArtifactVerifier: cryptoCfg.ArtifactVerifier,
-				VectorVerifier:   cryptoCfg.VectorVerifier,
-				VectorSigner:     cryptoCfg.VectorSigner,
+				Limiter: limiter,
 			})
 		},
 		vectorpromotion.OperatorFlagName: func() error {
 			return vectorpromotion.SetupControllers(ctx, mgr, scheme, vectorpromotion.Options{
-				VectorVerifier: cryptoCfg.VectorVerifier,
+				Limiter: limiter,
 			})
 		},
 	}

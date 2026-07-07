@@ -10,8 +10,8 @@ import (
 	"github.com/konfidence-project/konfidence/internal/star/taskorchestration"
 	"github.com/konfidence-project/konfidence/internal/star/vectoractivation"
 	"github.com/konfidence-project/konfidence/internal/star/vectordeployment"
-
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -39,20 +39,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	signalContext, cancel := context.WithCancel(ctrl.SetupSignalHandler())
 	defer cancel()
 
-	// Resolve crypto and OcmAdapter for vector-deployment.
-	// TODO: resolve lazily based on which controllers are enabled
-	cryptoCfg, err := pkgcmd.ResolveCryptoConfig(signalContext, mgr, setupLog)
-	if err != nil {
-		setupLog.Error(err, "unable to resolve crypto config")
-		return err
-	}
-
-	registrySecret, err := resolveRegistryCredentials(signalContext, mgr)
-	if err != nil {
-		setupLog.Error(err, "unable to load registry credentials secret")
-		return err
-	}
-
 	controllerSetups := map[string]func() error{
 		stage.OperatorFlagName: func() error {
 			if err := stage.SetupControllers(mgr, setupLog); err != nil {
@@ -75,10 +61,14 @@ func startOperator(cmd *cobra.Command, args []string) error {
 			return vectoractivation.SetupControllers(mgr, setupLog)
 		},
 		vectordeployment.OperatorFlagName: func() error {
+			registrySecret, err := resolveRegistryCredentials(signalContext, mgr)
+			if err != nil {
+				setupLog.Error(err, "unable to load registry credentials secret")
+				return err
+			}
 			return vectordeployment.SetupControllers(signalContext, mgr, setupLog, vectordeployment.Options{
-				RegistrySecret:   registrySecret,
-				VectorVerifier:   cryptoCfg.VectorVerifier,
-				ArtifactVerifier: cryptoCfg.ArtifactVerifier,
+				OCISecret: registrySecret,
+				Limiter:   crypto.NewLimiter(0),
 			})
 		},
 		galaxysync.OperatorFlagName: func() error {
@@ -126,7 +116,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// TODO: the credentials for accessing OCI registries should be configured in a controller-specific configuration.
 // resolveRegistryCredentials loads the registry credentials secret from the k8s cluster.
 // Returns nil if the secret is not found.
 func resolveRegistryCredentials(ctx context.Context, mgr manager.Manager) (*corev1.Secret, error) {

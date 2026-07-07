@@ -43,7 +43,7 @@ func (m *MockComponentVersionRepositoryProvider) EXPECT() *MockComponentVersionR
 }
 
 // GetComponentVersionRepository mocks base method.
-func (m *MockComponentVersionRepositoryProvider) GetComponentVersionRepository(ctx context.Context, repositorySpecification runtime.Typed, credentials runtime.Typed) (repository.ComponentVersionRepository, error) {
+func (m *MockComponentVersionRepositoryProvider) GetComponentVersionRepository(ctx context.Context, repositorySpecification, credentials runtime.Typed) (repository.ComponentVersionRepository, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetComponentVersionRepository", ctx, repositorySpecification, credentials)
 	ret0, _ := ret[0].(repository.ComponentVersionRepository)

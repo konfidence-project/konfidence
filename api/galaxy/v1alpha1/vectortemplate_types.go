@@ -39,7 +39,27 @@ type VectorTemplateSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	Components []Component `json:"components"`
 
-	Config []CredentialsConfig `json:"config,omitempty"`
+	// Credentials supplies credentials for OCM repositories
+	// and signing/verification key material.
+	// +optional
+	Credentials *Credentials `json:"credentials,omitempty"`
+
+	// VerifyArtifacts lists candidate signatures evaluated against every
+	// artifact pulled into the assembly. Absence disables artifact
+	// verification.
+	// +optional
+	VerifyArtifacts *Verify `json:"verifyArtifacts,omitempty"`
+
+	// VerifyVector lists candidate signatures evaluated against any
+	// vector the assembly fetches (base or pre-existing upload target).
+	// Absence disables vector verification.
+	// +optional
+	VerifyVector *Verify `json:"verifyVector,omitempty"`
+
+	// SignVector lists signatures the controller produces on the emitted
+	// vector. Absence disables signing.
+	// +optional
+	SignVector *Sign `json:"signVector,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	VectorConfig *VectorConfig `json:"vectorConfig,omitempty"`

@@ -39,24 +39,98 @@ _Appears in:_
 | `name` _string_ |  |  |  |
 
 
-#### CredentialsConfig
+#### CredentialRef
 
 
 
-CredentialsConfig defines a credential reference to a secret or configMap used to access OCM backends (like OCI registry).
+CredentialRef references a Secret in the same namespace as the holding resource.
+
+
+
+_Appears in:_
+- [OCMCredentials](#ocmcredentials)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ |  |  | MinLength: 1 <br /> |
+
+
+#### Credentials
+
+
+
+Credentials holds credentials for various purposes — for example OCM
+repository access and signing/verification key material.
 
 
 
 _Appears in:_
 - [StageConfigurationSpec](#stageconfigurationspec)
-- [VectorPromotionConfig](#vectorpromotionconfig)
+- [VectorPromotionConfigSpec](#vectorpromotionconfigspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `kind` _string_ | Kind of the configuration resource. Allowed values are Secret or ConfigMap. |  |  |
-| `apiVersion` _string_ | APIVersion is the api version of the of configuration resource, e.g. v1. |  |  |
-| `name` _string_ | Name is the name	 of the of configuration resource. |  |  |
+| `ocm` _[OCMCredentials](#ocmcredentials)_ |  |  | Optional: \{\} <br /> |
+
+
+#### OCMCredentials
+
+
+
+OCMCredentials lists Secrets holding `.ocmconfig` or `.dockerconfigjson` data.
+All references are same-namespace.
+
+
+
+_Appears in:_
+- [Credentials](#credentials)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `refs` _[CredentialRef](#credentialref) array_ |  |  | MinItems: 1 <br /> |
+
+
+#### Sign
+
+
+
+Sign lists signatures the controller produces on every descriptor it
+writes. Absence on a spec disables signing.
+
+
+
+_Appears in:_
+- [VectorTemplateSpec](#vectortemplatespec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `signatures` _[Signature](#signature) array_ |  |  | MinItems: 1 <br /> |
+
+
+#### Signature
+
+
+
+Signature pins parameters of one named signature on a component
+descriptor. Used both for verification (matched against the fetched
+descriptor) and for signing (overrides defaults of the emitted
+signature).
+
+
+
+_Appears in:_
+- [Sign](#sign)
+- [Verify](#verify)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name is the unique identifier for this signature. |  | MinLength: 1 <br /> |
+| `algorithm` _string_ | Algorithm specifies the RSA signing algorithm.<br />When omitted, RSASSA-PSS is used.<br />Valid values: RSASSA-PSS, RSASSA-PKCS1-V1_5. |  | Optional: \{\} <br /> |
+| `signatureMediaType` _string_ | SignatureMediaType specifies the encoding format for the signature bytes.<br />When omitted, application/x-pem-file (PEM) is used.<br />Valid values: application/x-pem-file, application/vnd.ocm.signature.rsa.pss,<br />application/vnd.ocm.signature.rsa. |  | Optional: \{\} <br /> |
+| `hashAlgorithm` _string_ | HashAlgorithm specifies the digest algorithm used when hashing the component descriptor.<br />When omitted, SHA-256 is used.<br />Valid values: SHA-256, SHA-512. |  | Optional: \{\} <br /> |
+| `normalisationAlgorithm` _string_ | NormalisationAlgorithm specifies the normalisation scheme applied to the descriptor<br />before hashing.<br />When omitted, jsonNormalisation/v4alpha1 is used.<br />Valid values: jsonNormalisation/v4alpha1. |  | Optional: \{\} <br /> |
+| `issuer` _string_ | Issuer pins the expected certificate issuer DN for PEM-encoded signatures.<br />On the sign path the value is stamped into the descriptor alongside the signature,<br />so it is enforced automatically on the verify path even without an explicit pin here.<br />On the verify path, when set, this value overrides whatever the descriptor stored and<br />the handler rejects any signature whose leaf certificate issuer DN does not match.<br />When omitted on both paths the issuer field stays empty and no DN check is performed.<br />Must be non-empty when present. |  | Optional: \{\} <br /> |
 
 
 #### StageConfiguration
@@ -114,11 +188,12 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is the stage name |  |  |
+| `name` _string_ | Name is the stage name. |  |  |
 | `vector` _string_ | Vector points to the OCM component that contains the deployment vector for this stage. |  |  |
 | `targetNamespace` _string_ | TargetNamespace is the target namespace where the associated stage is created or updated |  |  |
 | `targetWorkspace` _string_ | TargetWorkspace is the target workspace where the associated stage is created or updated |  | Optional: \{\} <br />Optional: \{\} <br /> |
-| `config` _[CredentialsConfig](#credentialsconfig) array_ |  |  |  |
+| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repository access<br />and vector verification key material. |  | Optional: \{\} <br /> |
+| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against the<br />fetched vector descriptor. Absence disables vector verification. |  | Optional: \{\} <br /> |
 
 
 #### StageConfigurationStatus
@@ -272,7 +347,6 @@ _Appears in:_
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[VectorPromotionConfigSpec](#vectorpromotionconfigspec)_ | Spec defines the desired state of the VectorPromotionConfig. |  | Optional: \{\} <br /> |
 | `status` _[VectorPromotionConfigStatus](#vectorpromotionconfigstatus)_ |  |  |  |
-| `config` _[CredentialsConfig](#credentialsconfig) array_ |  |  |  |
 
 
 #### VectorPromotionConfigList
@@ -310,6 +384,8 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `source` _string_ | Source is the OCM component reference to promote from.<br />This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.<br />The format is <registry>//<component-name>:<version>. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
 | `target` _string_ | Target is the OCM component reference to promote to.<br />This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.<br />The format is <registry>//<component-name>:<version>. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
+| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repository access and vector verification key material. |  | Optional: \{\} <br /> |
+| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against the<br />source vector before promotion proceeds. Absence disables vector<br />verification. |  | Optional: \{\} <br /> |
 
 
 #### VectorPromotionConfigStatus
@@ -444,7 +520,10 @@ _Appears in:_
 | `uploadTarget` _string_ | UploadTarget defines the target OCM component where the assembled vector will be uploaded. |  |  |
 | `base` _string_ | Base represents an optional base component version to build upon. |  | Optional: \{\} <br />Optional: \{\} <br /> |
 | `components` _[Component](#component) array_ | Components lists the components to be included in the vector. |  | MinItems: 1 <br /> |
-| `config` _[CredentialsConfig](#credentialsconfig) array_ |  |  |  |
+| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories<br />and signing/verification key material. |  | Optional: \{\} <br /> |
+| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every<br />artifact pulled into the assembly. Absence disables artifact<br />verification. |  | Optional: \{\} <br /> |
+| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against any<br />vector the assembly fetches (base or pre-existing upload target).<br />Absence disables vector verification. |  | Optional: \{\} <br /> |
+| `signVector` _[Sign](#sign)_ | SignVector lists signatures the controller produces on the emitted<br />vector. Absence disables signing. |  | Optional: \{\} <br /> |
 | `vectorConfig` _[VectorConfig](#vectorconfig)_ |  |  | Optional: \{\} <br /> |
 
 
@@ -462,5 +541,24 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+
+
+#### Verify
+
+
+
+Verify lists candidate signatures evaluated against every fetched
+descriptor. Absence on a spec disables verification.
+
+
+
+_Appears in:_
+- [StageConfigurationSpec](#stageconfigurationspec)
+- [VectorPromotionConfigSpec](#vectorpromotionconfigspec)
+- [VectorTemplateSpec](#vectortemplatespec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `signatures` _[Signature](#signature) array_ |  |  | MinItems: 1 <br /> |
 
 

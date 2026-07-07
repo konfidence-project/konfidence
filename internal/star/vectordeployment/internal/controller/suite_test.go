@@ -10,13 +10,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	// +kubebuilder:scaffold:imports
 )
 
 var (
@@ -41,64 +41,43 @@ var _ = BeforeSuite(func() {
 	var err error
 
 	By("bootstrapping test environment")
-
 	useExternalCluster := false
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "..", "..", "test", "data", "crds", "star")},
 		ErrorIfCRDPathMissing: true,
 		UseExistingCluster:    &useExternalCluster,
 	}
-
-	// Retrieve the first found binary directory to allow running tests from IDEs
-	if getFirstFoundEnvTestBinaryDir() != "" {
-		testEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
+	if dir := getFirstFoundEnvTestBinaryDir(); dir != "" {
+		testEnv.BinaryAssetsDirectory = dir
 	}
-
-	// cfg is defined in this file globally.
-	// start k8s api server with the defined crds
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	// setup the k8s manager
 	k8sManager, err = manager.New(cfg, manager.Options{
-		Metrics: metricsserver.Options{
-			BindAddress: "0",
-		},
+		Metrics: metricsserver.Options{BindAddress: "0"},
+		Cache:   cache.Options{DefaultNamespaces: map[string]cache.Config{"default": {}}},
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = star.AddToScheme(k8sManager.GetScheme())
-	Expect(err).ToNot(HaveOccurred())
+	Expect(star.AddToScheme(k8sManager.GetScheme())).To(Succeed())
 
-	// setup the k8s client
 	k8sClient, err = client.New(cfg, client.Options{Scheme: k8sManager.GetScheme()})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	// start the manager
 	go func() {
 		defer GinkgoRecover()
-		err = k8sManager.Start(ctx)
-		Expect(err).ToNot(HaveOccurred(), "failed to run k8s manager")
+		Expect(k8sManager.Start(ctx)).ToNot(HaveOccurred(), "failed to run k8s manager")
 	}()
 })
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
 	cancel()
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
+	Expect(testEnv.Stop()).To(Succeed())
 })
 
-// getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
-// ENVTEST-based tests depend on specific binaries, usually located in paths set by
-// controller-runtime. When running tests directly (e.g., via an IDE) without using
-// Makefile targets, the 'BinaryAssetsDirectory' must be explicitly configured.
-//
-// This function streamlines the process by finding the required binaries, similar to
-// setting the 'KUBEBUILDER_ASSETS' environment variable. To ensure the binaries are
-// properly set up, run 'make setup-envtest' beforehand.
 func getFirstFoundEnvTestBinaryDir() string {
 	basePath := filepath.Join("..", "..", "..", "..", "..", "bin", "k8s")
 	entries, err := os.ReadDir(basePath)

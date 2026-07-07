@@ -14,7 +14,7 @@ const (
 
 // StageConfigurationSpec defines the desired state of StageConfiguration.
 type StageConfigurationSpec struct {
-	// Name is the stage name
+	// Name is the stage name.
 	Name string `json:"name"`
 
 	// Vector points to the OCM component that contains the deployment vector for this stage.
@@ -28,7 +28,15 @@ type StageConfigurationSpec struct {
 	// +optional
 	TargetWorkspace *string `json:"targetWorkspace,omitempty"`
 
-	Config []CredentialsConfig `json:"config,omitempty"`
+	// Credentials supplies credentials for OCM repository access
+	// and vector verification key material.
+	// +optional
+	Credentials *Credentials `json:"credentials,omitempty"`
+
+	// VerifyVector lists candidate signatures evaluated against the
+	// fetched vector descriptor. Absence disables vector verification.
+	// +optional
+	VerifyVector *Verify `json:"verifyVector,omitempty"`
 }
 
 // StageConfigurationStatus defines the observed state of StageConfiguration.

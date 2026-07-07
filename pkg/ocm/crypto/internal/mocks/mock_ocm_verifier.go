@@ -58,7 +58,7 @@ func (mr *MockVerifierMockRecorder) GetVerifyingCredentialConsumerIdentity(ctx, 
 }
 
 // Verify mocks base method.
-func (m *MockVerifier) Verify(ctx context.Context, signed runtime.Signature, config runtime0.Typed, credentials runtime0.Typed) error {
+func (m *MockVerifier) Verify(ctx context.Context, signed runtime.Signature, config, credentials runtime0.Typed) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Verify", ctx, signed, config, credentials)
 	ret0, _ := ret[0].(error)

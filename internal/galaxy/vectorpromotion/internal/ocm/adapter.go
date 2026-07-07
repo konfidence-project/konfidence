@@ -39,16 +39,6 @@ func NewPromotionAdapter(opts ...PromotionAdapterOption) *PromotionAdapter {
 	return adapter
 }
 
-// NewPromotionPortProvider creates a PromotionPortProvider that builds a PromotionAdapter
-// with the given options and plugs in the provided client at call time.
-func NewPromotionPortProvider(opts ...PromotionAdapterOption) promotion.OcmPortProviderFunc {
-	return func(client pkgrepository.Client) promotion.OcmPort {
-		a := NewPromotionAdapter(opts...)
-		a.ocmClient = client
-		return a
-	}
-}
-
 func (a *PromotionAdapter) Promote(ctx context.Context, source, target compref.Ref) error {
 	sourceDesc, err := a.ocmClient.Get(ctx, source)
 	if err != nil {

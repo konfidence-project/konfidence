@@ -5,12 +5,10 @@ package crypto
 import (
 	"context"
 	"fmt"
-	sysruntime "runtime"
-	"slices"
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
-	credv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
+	"ocm.software/open-component-model/bindings/go/credentials"
 	ocmdescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	rsahandler "ocm.software/open-component-model/bindings/go/rsa/signing/handler"
 	rsav1alpha1 "ocm.software/open-component-model/bindings/go/rsa/signing/v1alpha1"
@@ -18,97 +16,115 @@ import (
 	"ocm.software/open-component-model/bindings/go/signing"
 )
 
-const (
-	signingAlgorithm = rsav1alpha1.AlgorithmRSASSAPSS
-)
-
 var (
-	_ Signer = (*RSASigner)(nil)
+	_ Signer = (*OCMSigner)(nil)
 	_ Signer = (*NoopSigner)(nil)
 )
 
 // Signer is an interface for signing OCM descriptors.
 type Signer interface {
-	// Sign signs the given OCM descriptor and adds the signatures to the descriptor's signatures.
+	// Sign signs the given OCM descriptor and adds signatures to the descriptor's signatures.
 	// If signing fails or the signature already exists, a non-nil error is returned.
+	// In case of multiple signatures being applied, parallel work should abort
+	// as soon as the first failure is observed. Changes apply only on Sign's success.
 	Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error
 }
 
-// RSASigner is the default implementation of the Signer interface for signing OCM descriptors.
-// It uses the rsav1alpha1.AlgorithmRSASSAPSS RSA Probabilistic Signature Scheme.
-type RSASigner struct {
-	log              logr.Logger
-	provider         RSACredentialProvider
-	rsaSigner        signing.Signer
-	targetSignatures []string
-	rsaConfig        *rsav1alpha1.Config
-	digester         Digester
+// OCMSigner signs OCM descriptors against a configurable set of SignatureSpecs.
+// Each spec carries its own algorithm, media type, hash, and normalisation algorithm.
+// Credentials are resolved per signature through the required credentials.Resolver.
+// A missing key for any target signature aborts the entire signing operation.
+type OCMSigner struct {
+	log       logr.Logger
+	resolver  credentials.Resolver
+	rsaSigner signing.Signer
+	specs     []SignatureSpec
+	limiter   Limiter
 }
 
-// RSASignerOption configures an RSASigner.
-type RSASignerOption func(*RSASigner)
+// OCMSignerOption configures an OCMSigner.
+type OCMSignerOption func(*OCMSigner)
 
 // WithSignerLogger sets the logger for the signer.
-// The constructor automatically appends signature names as log values.
-func WithSignerLogger(log logr.Logger) RSASignerOption {
-	return func(s *RSASigner) {
+func WithSignerLogger(log logr.Logger) OCMSignerOption {
+	return func(s *OCMSigner) {
 		s.log = log
 	}
 }
 
-// WithNamedSignerLogger decorates the logger with the standard signer name "ocm-rsa-signer".
-// The constructor automatically appends signature names as log values.
-func WithNamedSignerLogger(log logr.Logger) RSASignerOption {
-	return func(s *RSASigner) {
-		s.log = log.WithName("ocm-rsa-signer")
+// WithNamedSignerLogger decorates the logger with the standard signer name "ocm-signer".
+func WithNamedSignerLogger(log logr.Logger) OCMSignerOption {
+	return func(s *OCMSigner) {
+		s.log = log.WithName("ocm-signer")
 	}
 }
 
-// WithDigester sets the digester for the signer.
-// If not provided, a digester with default values is used.
-func WithDigester(digester Digester) RSASignerOption {
-	return func(s *RSASigner) {
-		s.digester = digester
-	}
-}
-
-func defaultRSASignerOptions() *RSASigner {
-	return &RSASigner{
-		log:      logr.Discard(),
-		digester: NewDigester(),
-	}
-}
-
-func (s *RSASigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error {
-	for _, signatureName := range s.targetSignatures {
-		if slices.ContainsFunc(desc.Signatures, func(sig ocmdescriptor.Signature) bool { return sig.Name == signatureName }) {
-			return fmt.Errorf("signature with name %q already exists", signatureName)
+// WithSignerLimiter installs a Limiter that bounds the number of concurrent
+// signing operations. Pass the same Limiter to every Signer and Verifier in the
+// process to share the budget. Without this option a NoopLimiter is used —
+// signings run unbounded.
+func WithSignerLimiter(l Limiter) OCMSignerOption {
+	return func(s *OCMSigner) {
+		if l != nil {
+			s.limiter = l
 		}
 	}
-	dig, err := s.digester.GenerateDigest(ctx, desc)
+}
+
+func defaultOCMSignerOptions() *OCMSigner {
+	return &OCMSigner{
+		log:     logr.Discard(),
+		limiter: NoopLimiter{},
+	}
+}
+
+// NewOCMSigner creates a new OCMSigner instance.
+// A non-nil credentials.Resolver and at least one SignatureSpec must be provided.
+func NewOCMSigner(resolver credentials.Resolver, specs []SignatureSpec, opts ...OCMSignerOption) (*OCMSigner, error) {
+	if resolver == nil {
+		return nil, fmt.Errorf("create signer: credentials resolver is required")
+	}
+	if err := specPreFlightSanityCheck(specs); err != nil {
+		return nil, fmt.Errorf("create signer: %w", err)
+	}
+	rsaHandler, err := rsahandler.New(runtime.NewScheme(), false)
 	if err != nil {
-		return fmt.Errorf("generate digest: %w", err)
+		return nil, fmt.Errorf("create rsa handler: %w", err)
 	}
-	creds, err := s.provider.Get(ctx)
-	if err != nil {
-		return fmt.Errorf("get credentials from provider: %w", err)
+	s := defaultOCMSignerOptions()
+	for _, opt := range opts {
+		opt(s)
 	}
-	if creds == nil {
-		return fmt.Errorf("signing credentials are not available")
+	names := make([]string, len(specs))
+	for i, spec := range specs {
+		names[i] = spec.Name
 	}
-	typedCreds := &credv1.DirectCredentials{Properties: creds}
-	// results is an all or nothing buffer for the signing results
-	results := make([]ocmdescriptor.Signature, len(s.targetSignatures))
-	if len(s.targetSignatures) == 1 {
-		if err := s.sign(ctx, results, 0, typedCreds, dig, s.targetSignatures[0]); err != nil {
+	s.log = s.log.WithValues("signatures", fmt.Sprintf("%v", names))
+	s.rsaSigner = rsaHandler
+	s.resolver = resolver
+	s.specs = specs
+	return s, nil
+}
+
+func (s *OCMSigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error {
+	for _, spec := range s.specs {
+		if containsSignature(desc.Signatures, spec.Name) {
+			return fmt.Errorf("signature with name %q already exists", spec.Name)
+		}
+	}
+	results := make([]ocmdescriptor.Signature, len(s.specs))
+	if len(s.specs) == 1 {
+		if err := s.sign(ctx, results, 0, desc, s.specs[0]); err != nil {
 			return err
 		}
 	} else {
-		signerPool, ctx2 := errgroup.WithContext(ctx)
-		// no oversubscription on CPU bound signing tasks
-		signerPool.SetLimit(min(sysruntime.GOMAXPROCS(0), len(s.targetSignatures)))
-		for idx, sig := range s.targetSignatures {
-			signerPool.Go(func() error { return s.sign(ctx2, results, idx, typedCreds, dig, sig) })
+		// errgroup solves error aggregation and fail-fast: any spec failure cancels
+		// gctx, so siblings short-circuit at the next ctx-aware operation. Per-call
+		// SetLimit is intentionally absent — concurrency is bounded process-wide by
+		// the Limiter installed via WithSignerLimiter.
+		signerPool, gctx := errgroup.WithContext(ctx)
+		for idx, spec := range s.specs {
+			signerPool.Go(func() error { return s.sign(gctx, results, idx, desc, spec) })
 		}
 		if err := signerPool.Wait(); err != nil {
 			return fmt.Errorf("signing failed: %w", err)
@@ -118,56 +134,78 @@ func (s *RSASigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) er
 	return nil
 }
 
-func (s *RSASigner) sign(
+func (s *OCMSigner) sign(
 	ctx context.Context,
 	results []ocmdescriptor.Signature,
 	idx int,
-	creds runtime.Typed,
-	dig *ocmdescriptor.Digest,
-	signatureName string) error {
-	signatureInfo, err := s.rsaSigner.Sign(ctx, *dig, s.rsaConfig, creds)
+	desc *ocmdescriptor.Descriptor,
+	spec SignatureSpec,
+) error {
+	release, err := s.limiter.Acquire(ctx)
 	if err != nil {
-		return fmt.Errorf("sign %q: %w", signatureName, err)
+		return fmt.Errorf("sign %q: %w", spec.Name, err)
 	}
+	defer release()
+
+	rsaConfig, digester := rsaConfigFromSpec(spec), digesterFromSpec(spec)
+
+	dig, err := digester.GenerateDigest(ctx, desc)
+	if err != nil {
+		return fmt.Errorf("generate digest for %q: %w", spec.Name, err)
+	}
+
+	id, err := s.rsaSigner.GetSigningCredentialConsumerIdentity(ctx, spec.Name, *dig, rsaConfig)
+	if err != nil {
+		return fmt.Errorf("derive consumer identity for %q: %w", spec.Name, err)
+	}
+
+	creds, err := s.resolver.Resolve(ctx, id)
+	if err != nil {
+		return fmt.Errorf("resolve signing credentials for %q: %w", spec.Name, err)
+	}
+
+	sigInfo, err := s.rsaSigner.Sign(ctx, *dig, rsaConfig, creds)
+	if err != nil {
+		return fmt.Errorf("sign %q: %w", spec.Name, err)
+	}
+	if spec.Issuer != nil {
+		sigInfo.Issuer = *spec.Issuer
+	}
+
 	results[idx] = ocmdescriptor.Signature{
-		Name:      signatureName,
+		Name:      spec.Name,
 		Digest:    *dig,
-		Signature: signatureInfo,
+		Signature: sigInfo,
 	}
 	return nil
 }
 
-// NewRSASigner creates a new RSASigner instance.
-// At least one signature name must be provided.
-func NewRSASigner(
-	provider RSACredentialProvider,
-	signatures []string,
-	opts ...RSASignerOption,
-) (*RSASigner, error) {
-	if provider == nil {
-		return nil, fmt.Errorf("create signer: credential provider is required")
+// rsaConfigFromSpec builds an rsav1alpha1.Config from a SignatureSpec.
+// MediaTypePEM maps to SignatureEncodingPolicyPEM; everything else maps to Plain.
+func rsaConfigFromSpec(spec SignatureSpec) *rsav1alpha1.Config {
+	policy := rsav1alpha1.SignatureEncodingPolicyPlain
+	if spec.MediaType == rsav1alpha1.MediaTypePEM {
+		policy = rsav1alpha1.SignatureEncodingPolicyPEM
 	}
-	if err := signaturePreFlightSanityCheck(signatures); err != nil {
-		return nil, fmt.Errorf("create signer: %w", err)
-	}
-	rsaHandler, err := rsahandler.New(runtime.NewScheme(), false)
-	if err != nil {
-		return nil, fmt.Errorf("create rsa handler: %w", err)
-	}
-	s := defaultRSASignerOptions()
-	for _, opt := range opts {
-		opt(s)
-	}
-	s.log = s.log.WithValues("signatures", fmt.Sprintf("%v", signatures))
-	s.rsaSigner = rsaHandler
-	s.targetSignatures = signatures
-	s.provider = provider
-	s.rsaConfig = &rsav1alpha1.Config{
+	return &rsav1alpha1.Config{
 		Type:                    runtime.NewVersionedType(rsav1alpha1.ConfigType, rsav1alpha1.Version),
-		SignatureAlgorithm:      signingAlgorithm,
-		SignatureEncodingPolicy: rsav1alpha1.SignatureEncodingPolicyPEM,
+		SignatureAlgorithm:      spec.Algorithm,
+		SignatureEncodingPolicy: policy,
 	}
-	return s, nil
+}
+
+// digesterFromSpec builds a ConfigurableDigester from a SignatureSpec.
+func digesterFromSpec(spec SignatureSpec) ConfigurableDigester {
+	return NewDigester(WithHashAlgorithm(spec.HashAlgorithm), WithNormalizationAlgorithm(spec.NormalisationAlgorithm))
+}
+
+func containsSignature(sigs []ocmdescriptor.Signature, name string) bool {
+	for _, s := range sigs {
+		if s.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // NoopSigner is a Signer implementation that does not perform any signing and returns nil for all operations.

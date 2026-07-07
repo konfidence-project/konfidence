@@ -24,16 +24,6 @@ type OcmPort interface {
 	CreateVector(ctx context.Context, repoSpec runtime.Typed, vector Vector, alias string) error
 }
 
-type OcmPortProvider interface {
-	NewVectorOcmPort(client pkgocm.Client) OcmPort
-}
-
-type OcmPortProviderFunc func(client pkgocm.Client) OcmPort
-
-func (f OcmPortProviderFunc) NewVectorOcmPort(client pkgocm.Client) OcmPort {
-	return f(client)
-}
-
 var (
 	ErrVectorNotFound = pkgocm.ErrNotFound
 )
