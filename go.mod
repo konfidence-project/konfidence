@@ -9,7 +9,7 @@ require (
 	github.com/adrg/xdg v0.5.3
 	github.com/fatih/color v1.19.0
 	github.com/go-logr/logr v1.4.3
-	github.com/invopop/jsonschema v0.14.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/kcp-dev/multicluster-provider v0.5.0
 	github.com/kcp-dev/sdk v0.30.0
 	github.com/knadh/koanf/parsers/json v1.0.0
@@ -141,6 +141,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20251118225945-96ee0021ea0f // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/invopop/jsonschema v0.14.0 // indirect
 	github.com/jedib0t/go-pretty/v6 v6.7.9 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kcp-dev/apimachinery/v2 v2.30.0 // indirect

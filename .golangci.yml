@@ -42,6 +42,10 @@ linters:
           - unused
           - ineffassign
           - revive
+      # kubebuilder marker annotations cannot be split across lines
+      - path: "api/galaxy/v1alpha1/signing_types\\.go"
+        linters:
+          - lll
       # Allow dot-imports in test files (conventional for ginkgo/gomega)
       - path: "_test\\.go"
         text: "should not use dot imports"

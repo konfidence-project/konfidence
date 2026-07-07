@@ -2,6 +2,8 @@ package crypto
 
 import (
 	"context"
+	"crypto"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -11,387 +13,430 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto/internal/mocks"
 	"go.uber.org/mock/gomock"
-	credv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
+	"ocm.software/open-component-model/bindings/go/credentials"
+	norm "ocm.software/open-component-model/bindings/go/descriptor/normalisation/json/v4alpha1"
 	"ocm.software/open-component-model/bindings/go/descriptor/runtime"
+	rsav1alpha1 "ocm.software/open-component-model/bindings/go/rsa/signing/v1alpha1"
+	rsacredentialsv1 "ocm.software/open-component-model/bindings/go/rsa/spec/credentials/v1"
+	identityv1 "ocm.software/open-component-model/bindings/go/rsa/spec/identity/v1"
+	ocmruntime "ocm.software/open-component-model/bindings/go/runtime"
 	"ocm.software/open-component-model/bindings/go/signing"
 )
 
-var _ = Describe("RSAVerifier", func() {
+// rsaIdentity builds an OCM RSA consumer identity that mirrors what
+// rsa/signing/handler emits — versioned RSA/v1 type plus algorithm and
+// signature attributes — so test mocks accept the exact map a real handler
+// would produce in production.
+func rsaIdentity(name, algorithm string) ocmruntime.Identity {
+	id := ocmruntime.Identity{
+		identityv1.IdentityAttributeAlgorithm: algorithm,
+		identityv1.IdentityAttributeSignature: name,
+	}
+	id.SetType(identityv1.VersionedType)
+	return id
+}
+
+// matchingSig returns a Signature whose pin fields match the given SignatureSpec.
+func matchingSig(name string, spec SignatureSpec) runtime.Signature {
+	return runtime.Signature{
+		Name: name,
+		Digest: runtime.Digest{
+			HashAlgorithm:          spec.HashAlgorithm,
+			NormalisationAlgorithm: spec.NormalisationAlgorithm,
+		},
+		Signature: runtime.SignatureInfo{
+			MediaType: spec.MediaType,
+		},
+	}
+}
+
+// defaultSpec returns a SignatureSpec with secure defaults and no issuer pin.
+func defaultSpec(name string) SignatureSpec {
+	return DefaultSignatureSpec(name, nil)
+}
+
+var _ = Describe("OCMVerifier", func() {
 	var (
 		log = logr.Discard()
-		// mock credentials to verify they are passed through
-		creds        = map[string]string{"public_key_pem": "test-cert"}
-		typedCreds   = &credv1.DirectCredentials{Properties: creds}
+
+		creds = &rsacredentialsv1.RSACredentials{
+			Type:         rsacredentialsv1.VersionedType,
+			PublicKeyPEM: "test-cert",
+		}
+		identity  = rsaIdentity("sig1", string(rsav1alpha1.AlgorithmRSASSAPSS))
+		identity2 = rsaIdentity("sig2", string(rsav1alpha1.AlgorithmRSASSAPSS))
+
 		verifierMock *mocks.MockVerifier
-		providerMock *mocks.MockRSACredentialProvider
+		resolverMock *mocks.MockResolver
 		mockCtrl     *gomock.Controller
 	)
+
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		verifierMock = mocks.NewMockVerifier(mockCtrl)
-		providerMock = mocks.NewMockRSACredentialProvider(mockCtrl)
+		resolverMock = mocks.NewMockResolver(mockCtrl)
+		verifyDigestMatchesDescriptor = func(_ context.Context, _ *runtime.Descriptor, _ runtime.Signature, _ *slog.Logger) error {
+			return nil
+		}
+		isSafelyDigestible = func(_ *runtime.Component) error { return nil }
 	})
+
 	AfterEach(func() {
 		mockCtrl.Finish()
 		isSafelyDigestible = signing.IsSafelyDigestible
 		verifyDigestMatchesDescriptor = signing.VerifyDigestMatchesDescriptor
 	})
+
+	// helper: build an OCMVerifier wired with test doubles
+	makeVerifier := func(resolver credentials.Resolver, specs []SignatureSpec) *OCMVerifier {
+		return &OCMVerifier{
+			log:         log,
+			rsaVerifier: verifierMock,
+			resolver:    resolver,
+			specs:       specs,
+			limiter:     NoopLimiter{},
+		}
+	}
+
 	It("works with 1 signature", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
-			return nil
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
-			Return(nil)
-		Expect(verifier.Verify(context.Background(), desc)).To(Succeed())
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).Return(nil)
+
+		Expect(v.Verify(context.Background(), desc)).To(Succeed())
 	})
-	It("works with multiple signatures", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{
-				{Name: "sig1"},
-				{Name: "sig2"},
-			},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1", "sig2"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
-			return nil
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
-			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), typedCreds).
-			Return(nil)
-		Expect(verifier.Verify(context.Background(), desc)).To(Succeed())
+
+	It("works with multiple signatures, resolving creds per signature", func() {
+		spec1, spec2 := defaultSpec("sig1"), defaultSpec("sig2")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{
+			matchingSig("sig1", spec1),
+			matchingSig("sig2", spec2),
+		}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec1, spec2})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).Return(identity, nil)
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[1], gomock.Nil()).Return(identity2, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity2).Return(creds, nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).Return(nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), creds).Return(nil)
+
+		Expect(v.Verify(context.Background(), desc)).To(Succeed())
 	})
+
 	It("works with 2 descriptors and 1 signature each", func() {
-		desc1 := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		desc2 := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
-			return nil
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc1.Signatures[0], gomock.Nil(), typedCreds).
-			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), typedCreds).
-			Return(nil)
-		Expect(verifier.Verify(context.Background(), desc1, desc2)).To(Succeed())
+		spec := defaultSpec("sig1")
+		desc1 := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		desc2 := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), gomock.Any(), gomock.Nil()).Times(2).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil).Times(2)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc1.Signatures[0], gomock.Nil(), creds).Return(nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), creds).Return(nil)
+
+		Expect(v.Verify(context.Background(), desc1, desc2)).To(Succeed())
 	})
+
 	It("works with 2 descriptors and multiple signatures each", func() {
-		desc1 := &runtime.Descriptor{
-			Signatures: []runtime.Signature{
-				{Name: "sig1"},
-				{Name: "sig2"},
-			},
-		}
-		desc2 := &runtime.Descriptor{
-			Signatures: []runtime.Signature{
-				{Name: "sig1"},
-				{Name: "sig2"},
-			},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1", "sig2"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
-			return nil
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
+		spec1, spec2 := defaultSpec("sig1"), defaultSpec("sig2")
+		desc1 := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec1), matchingSig("sig2", spec2)}}
+		desc2 := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec1), matchingSig("sig2", spec2)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec1, spec2})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), gomock.Any(), gomock.Nil()).Times(4).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil).Times(4)
 		for _, desc := range []*runtime.Descriptor{desc1, desc2} {
 			for _, sig := range desc.Signatures {
-				verifierMock.EXPECT().Verify(gomock.Any(), sig, gomock.Nil(), typedCreds).
-					Return(nil)
+				verifierMock.EXPECT().Verify(gomock.Any(), sig, gomock.Nil(), creds).Return(nil)
 			}
 		}
-		Expect(verifier.Verify(context.Background(), desc1, desc2)).To(Succeed())
+
+		Expect(v.Verify(context.Background(), desc1, desc2)).To(Succeed())
 	})
+
 	It("fails when signature is missing in descriptor", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1", "sig2"},
-			provider:         providerMock,
-		}
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		Expect(verifier.Verify(context.Background(), desc)).To(MatchError(
-			"ocm descriptor verification failed: signature with name \"sig2\" not found in descriptor"))
+		// spec1 is first — it fails immediately before any creds call, no concurrency involved
+		spec1 := defaultSpec("sig1")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{}}
+		v := makeVerifier(nil, []SignatureSpec{spec1})
+
+		Expect(v.Verify(context.Background(), desc)).To(MatchError(
+			`ocm descriptor verification failed: signature "sig1" not found in descriptor`))
 	})
+
 	It("fails when digest verification fails", func() {
-		desc1 := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		desc2 := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
+		spec := defaultSpec("sig1")
+		desc1 := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		desc2 := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec})
+
+		verifyDigestMatchesDescriptor = func(_ context.Context, desc *runtime.Descriptor, _ runtime.Signature, _ *slog.Logger) error {
 			if desc == desc1 {
 				return fmt.Errorf("digest does not match descriptor")
 			}
 			return nil
 		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), typedCreds).
-			Return(nil)
-		Expect(verifier.Verify(context.Background(), desc1, desc2)).To(MatchError(
-			"ocm descriptor verification failed: digest verification failed for signature with name \"sig1\": " +
-				"digest does not match descriptor"))
+		// only desc2 reaches creds/handler
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc2.Signatures[0], gomock.Nil()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), creds).Return(nil)
+
+		Expect(v.Verify(context.Background(), desc1, desc2)).To(MatchError(
+			`ocm descriptor verification failed: digest mismatch for "sig1": digest does not match descriptor`))
 	})
+
 	It("fails when signature verification fails", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
-			return nil
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
-			Return(fmt.Errorf("signature verification failed"))
-		Expect(verifier.Verify(context.Background(), desc)).
-			To(MatchError(
-				"ocm descriptor verification failed: signature verification failed for signature with name \"sig1\": " +
-					"signature verification failed"))
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).Return(fmt.Errorf("invalid signature"))
+
+		Expect(v.Verify(context.Background(), desc)).To(MatchError(
+			`ocm descriptor verification failed: signature verification failed for "sig1": invalid signature`))
 	})
-	It("NewRSAVerifier errors with nil signature slice", func() {
-		verifier, err := NewRSAVerifier(nil)
+
+	It("NewOCMVerifier errors with nil specs slice", func() {
+		v, err := NewOCMVerifier(nil, nil)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("at least one target signature name must be provided"))
-		Expect(verifier).To(BeNil())
+		Expect(err.Error()).To(ContainSubstring("at least one signature spec must be provided"))
+		Expect(v).To(BeNil())
 	})
-	It("NewRSAVerifier errors with empty target signatures", func() {
-		var sigs []string
-		verifier, err := NewRSAVerifier(sigs)
+
+	It("NewOCMVerifier errors with empty specs slice", func() {
+		v, err := NewOCMVerifier(nil, []SignatureSpec{})
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("at least one target signature name must be provided"))
-		Expect(verifier).To(BeNil())
+		Expect(err.Error()).To(ContainSubstring("at least one signature spec must be provided"))
+		Expect(v).To(BeNil())
 	})
-	It("NewRSAVerifier errors with empty string as target signature", func() {
-		sigs := []string{" ", "", "sig3"}
-		verifier, err := NewRSAVerifier(sigs)
+
+	It("NewOCMVerifier errors with empty spec name", func() {
+		v, err := NewOCMVerifier(nil, []SignatureSpec{{Name: "  "}, defaultSpec("sig1")})
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("signature names cannot be empty or whitespace"))
-		Expect(verifier).To(BeNil())
+		Expect(v).To(BeNil())
 	})
-	It("NewRSAVerifier errors with duplicate target signatures", func() {
-		sigs := []string{"sig1", "sig2", "sig1"}
-		verifier, err := NewRSAVerifier(sigs)
+
+	It("NewOCMVerifier errors with duplicate spec names", func() {
+		v, err := NewOCMVerifier(nil, []SignatureSpec{defaultSpec("sig1"), defaultSpec("sig2"), defaultSpec("sig1")})
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("duplicate signature name detected: \"sig1\""))
-		Expect(verifier).To(BeNil())
+		Expect(err.Error()).To(ContainSubstring(`duplicate signature name detected: "sig1"`))
+		Expect(v).To(BeNil())
 	})
+
+	It("NewOCMVerifier errors when spec has non-nil empty issuer pin", func() {
+		empty := ""
+		v, err := NewOCMVerifier(nil, []SignatureSpec{DefaultSignatureSpec("sig1", &empty)})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(`issuer pin for "sig1" must not be empty`))
+		Expect(v).To(BeNil())
+	})
+
 	It("fails when descriptor is not safely digestible", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error {
-			return fmt.Errorf("descriptor not safely digestible")
-		}
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		Expect(verifier.Verify(context.Background(), desc)).To(MatchError(
-			"ocm descriptor verification failed: descriptor is not safely digestible: descriptor not safely digestible"))
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec})
+
+		isSafelyDigestible = func(_ *runtime.Component) error { return fmt.Errorf("not safely digestible") }
+
+		Expect(v.Verify(context.Background(), desc)).To(MatchError(
+			"ocm descriptor verification failed: descriptor is not safely digestible: not safely digestible"))
 	})
+
 	It("one failed verification in multi-descriptor batch fails entire operation", func() {
-		desc1 := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		desc2 := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
-			return nil
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc1.Signatures[0], gomock.Nil(), typedCreds).
-			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), typedCreds).
-			Return(fmt.Errorf("signature verification failed"))
-		err := verifier.Verify(context.Background(), desc1, desc2)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("signature verification failed"))
+		spec := defaultSpec("sig1")
+		desc1 := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		desc2 := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), gomock.Any(), gomock.Nil()).Times(2).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil).Times(2)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc1.Signatures[0], gomock.Nil(), creds).Return(nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc2.Signatures[0], gomock.Nil(), creds).Return(fmt.Errorf("bad sig"))
+
+		Expect(v.Verify(context.Background(), desc1, desc2)).To(HaveOccurred())
 	})
+
 	It("verification with multiple signatures where one fails", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{
-				{Name: "sig1"},
-				{Name: "sig2"},
-			},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1", "sig2"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
-			return nil
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
-			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), typedCreds).
-			Return(fmt.Errorf("signature verification failed"))
-		err := verifier.Verify(context.Background(), desc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("signature verification failed"))
+		spec1, spec2 := defaultSpec("sig1"), defaultSpec("sig2")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{
+			matchingSig("sig1", spec1),
+			matchingSig("sig2", spec2),
+		}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec1, spec2})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).Return(identity, nil)
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[1], gomock.Nil()).Return(identity2, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity2).Return(creds, nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).Return(nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), creds).Return(fmt.Errorf("bad sig"))
+
+		Expect(v.Verify(context.Background(), desc)).To(HaveOccurred())
 	})
+
 	It("verifies only target signatures when descriptor has additional signatures", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{
-				{Name: "sig1"},
-				{Name: "sig2"},
-				{Name: "sig3"},
-			},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1", "sig2"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
-			return nil
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), typedCreds).
-			Return(nil)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), typedCreds).
-			Return(nil)
-		Expect(verifier.Verify(context.Background(), desc)).To(Succeed())
+		spec1, spec2 := defaultSpec("sig1"), defaultSpec("sig2")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{
+			matchingSig("sig1", spec1),
+			matchingSig("sig2", spec2),
+			matchingSig("sig3", defaultSpec("sig3")), // extra — must be ignored
+		}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec1, spec2})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).Return(identity, nil)
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[1], gomock.Nil()).Return(identity2, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity2).Return(creds, nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), creds).Return(nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[1], gomock.Nil(), creds).Return(nil)
+
+		Expect(v.Verify(context.Background(), desc)).To(Succeed())
 	})
-	It("passes nil credentials when provider returns nil", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-		}
-		verifyDigestMatchesDescriptor = func(
-			ctx context.Context,
-			desc *runtime.Descriptor,
-			sig runtime.Signature,
-			log *slog.Logger) error {
-			return nil
-		}
-		isSafelyDigestible = func(desc *runtime.Component) error { return nil }
-		providerMock.EXPECT().Get(gomock.Any()).Return(nil, nil).Times(1)
-		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), gomock.Nil()).
-			Return(nil)
-		Expect(verifier.Verify(context.Background(), desc)).To(Succeed())
+
+	It("treats ErrNotFound from the resolver as nil credentials", func() {
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(nil, credentials.ErrNotFound)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), gomock.Nil()).Return(nil)
+
+		Expect(v.Verify(context.Background(), desc)).To(Succeed())
 	})
-	It("fails when provider returns an error", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		verifier := &RSAVerifier{
-			log:              log,
-			rsaVerifier:      verifierMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-		}
-		providerMock.EXPECT().Get(gomock.Any()).Return(nil, fmt.Errorf("provider stopped")).Times(1)
-		err := verifier.Verify(context.Background(), desc)
+
+	It("passes nil credentials when no resolver is configured", func() {
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(credentials.NewStaticCredentialsResolver(nil), []SignatureSpec{spec})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).Return(identity, nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), desc.Signatures[0], gomock.Nil(), gomock.Nil()).Return(nil)
+
+		Expect(v.Verify(context.Background(), desc)).To(Succeed())
+	})
+
+	It("fails when resolver returns an error other than ErrNotFound", func() {
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec})
+		boom := fmt.Errorf("resolver stopped")
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(nil, boom)
+
+		err := v.Verify(context.Background(), desc)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("get credentials from provider"))
-		Expect(err.Error()).To(ContainSubstring("provider stopped"))
+		Expect(errors.Is(err, boom)).To(BeTrue())
+		Expect(err.Error()).To(ContainSubstring("resolve credentials"))
+	})
+
+	It("fails when GetVerifyingCredentialConsumerIdentity errors", func() {
+		spec := defaultSpec("sig1")
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
+		v := makeVerifier(resolverMock, []SignatureSpec{spec})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), desc.Signatures[0], gomock.Nil()).
+			Return(nil, fmt.Errorf("identity build failed"))
+
+		err := v.Verify(context.Background(), desc)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("derive consumer identity"))
+		Expect(err.Error()).To(ContainSubstring("identity build failed"))
+	})
+
+	// ── Pin-field mismatch cases (steps 2–4, NO mock calls) ──────────────────
+
+	It("fails when MediaType in descriptor does not match spec", func() {
+		spec := defaultSpec("sig1")
+		sig := matchingSig("sig1", spec)
+		sig.Signature.MediaType = "application/vnd.ocm.signature.rsa.pss" // wrong
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{sig}}
+		v := makeVerifier(nil, []SignatureSpec{spec})
+
+		Expect(v.Verify(context.Background(), desc)).To(MatchError(
+			ContainSubstring("media type mismatch")))
+	})
+
+	It("fails when HashAlgorithm in descriptor does not match spec", func() {
+		spec := defaultSpec("sig1")
+		sig := matchingSig("sig1", spec)
+		sig.Digest.HashAlgorithm = "SHA-512" // wrong
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{sig}}
+		v := makeVerifier(nil, []SignatureSpec{spec})
+
+		Expect(v.Verify(context.Background(), desc)).To(MatchError(
+			ContainSubstring("hash algorithm mismatch")))
+	})
+
+	It("fails when NormalisationAlgorithm in descriptor does not match spec", func() {
+		spec := defaultSpec("sig1")
+		sig := matchingSig("sig1", spec)
+		sig.Digest.NormalisationAlgorithm = "jsonNormalisation/v1" // wrong
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{sig}}
+		v := makeVerifier(nil, []SignatureSpec{spec})
+
+		Expect(v.Verify(context.Background(), desc)).To(MatchError(
+			ContainSubstring("normalisation algorithm mismatch")))
+	})
+
+	// ── Issuer injection cases (step 7) ──────────────────────────────────────
+
+	It("verify signature with issuer", func() {
+		issuer := "CN=my-ca,O=Acme"
+		spec := DefaultSignatureSpec("sig1", &issuer)
+		sig := matchingSig("sig1", spec)
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{sig}}
+		v := makeVerifier(credentials.NewStaticCredentialsResolver(nil), []SignatureSpec{spec})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), gomock.Any(), gomock.Nil()).Return(identity, nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), gomock.AssignableToTypeOf(runtime.Signature{}), gomock.Nil(), gomock.Nil()).
+			DoAndReturn(func(_ context.Context, gotSig runtime.Signature, _ ocmruntime.Typed, _ ocmruntime.Typed) error {
+				Expect(gotSig.Signature.Issuer).To(Equal(issuer))
+				return nil
+			})
+
+		Expect(v.Verify(context.Background(), desc)).To(Succeed())
+	})
+
+	It("does not inject issuer when spec.Issuer is nil", func() {
+		spec := defaultSpec("sig1") // Issuer == nil
+		sig := matchingSig("sig1", spec)
+		sig.Signature.Issuer = "original-issuer"
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{sig}}
+		v := makeVerifier(credentials.NewStaticCredentialsResolver(nil), []SignatureSpec{spec})
+
+		verifierMock.EXPECT().GetVerifyingCredentialConsumerIdentity(gomock.Any(), gomock.Any(), gomock.Nil()).Return(identity, nil)
+		verifierMock.EXPECT().Verify(gomock.Any(), gomock.AssignableToTypeOf(runtime.Signature{}), gomock.Nil(), gomock.Nil()).
+			DoAndReturn(func(_ context.Context, gotSig runtime.Signature, _ ocmruntime.Typed, _ ocmruntime.Typed) error {
+				Expect(gotSig.Signature.Issuer).To(Equal("original-issuer"))
+				return nil
+			})
+
+		Expect(v.Verify(context.Background(), desc)).To(Succeed())
+	})
+
+	It("NewOCMVerifier rejects a spec with non-nil empty issuer pin at construction time", func() {
+		empty := ""
+		spec := NewSignatureSpec(
+			"sig1",
+			rsav1alpha1.AlgorithmRSASSAPSS,
+			rsav1alpha1.MediaTypePEM,
+			crypto.SHA256.String(),
+			norm.Algorithm,
+			&empty,
+		)
+		v, err := NewOCMVerifier(nil, []SignatureSpec{spec})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("issuer pin"))
+		Expect(v).To(BeNil())
 	})
 })

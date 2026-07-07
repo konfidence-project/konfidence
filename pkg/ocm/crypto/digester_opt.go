@@ -1,7 +1,6 @@
 package crypto
 
 import (
-	"crypto"
 	"log/slog"
 
 	"github.com/go-logr/logr"
@@ -18,11 +17,10 @@ func WithLog(log logr.Logger) DigestOption {
 }
 
 // WithHashAlgorithm sets the hash algorithm used for calculating the digest.
-// If no algorithm is provided crypto.SHA256 is used as default.
-func WithHashAlgorithm(hashAlgorithm crypto.Hash) DigestOption {
+// If no algorithm is provided crypto.SHA256.String() is used as default.
+func WithHashAlgorithm(hashAlgorithm string) DigestOption {
 	return func(d *ConfigurableDigester) {
-		hashAlgo := hashAlgorithm
-		d.hashAlgorithm = &hashAlgo
+		d.hashAlgorithm = hashAlgorithm
 	}
 }
 
@@ -30,6 +28,6 @@ func WithHashAlgorithm(hashAlgorithm crypto.Hash) DigestOption {
 // If no algorithm is provided norm.Algorithm is used as default.
 func WithNormalizationAlgorithm(normalizationAlgorithm string) DigestOption {
 	return func(d *ConfigurableDigester) {
-		d.normalisationAlgorithm = &normalizationAlgorithm
+		d.normalisationAlgorithm = normalizationAlgorithm
 	}
 }

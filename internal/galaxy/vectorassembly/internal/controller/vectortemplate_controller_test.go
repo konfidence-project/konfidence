@@ -295,6 +295,34 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		Expect(refVersions).To(HaveKeyWithValue(svc3.Component, "v3.1.0"))
 	})
 
+	It("should set DriftDetectionFailed when the credential Secret does not exist", func() {
+		svc1 := createReference("konfidence.io/sample/missing-creds/service1:v1.0.0")
+		svc1Alias := createReference("konfidence.io/sample/missing-creds/service1:edge")
+		aliasVector := createReference("konfidence.io/sample/vectors/missing-creds:edge")
+
+		By("pushing a plain component")
+		ocm.PushComponent(ctx, ocmClient, svc1, new("edge"))
+
+		By("creating a VectorTemplate CR referencing a non-existent credential Secret")
+		vectorTemplate := createPKIVectorTemplateCR(
+			ctx, "missing-creds-test", testNamespace,
+			[]compref.Ref{svc1Alias},
+			aliasVector, nil,
+			pkiVectorTemplateOptions{credSecretNames: []string{"non-existent-secret"}},
+		)
+
+		By("verifying CR status shows DriftDetectionFailed mentioning the missing secret")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
+			cond := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			g.Expect(cond).NotTo(BeNil(), "Ready condition should be set")
+			g.Expect(cond.Status).NotTo(Equal(metav1.ConditionTrue))
+			g.Expect(cond.Reason).To(Equal(galaxy.VectorTemplateDriftDetectionFailedReason))
+			g.Expect(cond.Message).To(ContainSubstring("non-existent-secret"))
+			g.Expect(cond.ObservedGeneration).To(Equal(vectorTemplate.Generation))
+		}, timeout, interval).Should(Succeed())
+	})
+
 	It("should fail when uploadTarget uses a semver version instead of an alias", func() {
 		svc1 := createReference("konfidence.io/sample/semver-fail/service1:v1.0.0")
 		svc1Alias := createReference("konfidence.io/sample/semver-fail/service1:latest")
@@ -426,7 +454,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushComponent(ctx, ocmClient, svc2, new("stable"))
 
 		By("creating a mock vector with matching versions but different vector configuration")
-		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable", nil)
+		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable", ocm.SampleVectorConfig())
 
 		By("creating a VectorTemplate CR")
 		newVectorConfig := galaxy.VectorConfig{

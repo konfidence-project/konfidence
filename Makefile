@@ -110,6 +110,11 @@ generate-galaxy: hermit ## Generate DeepCopy implementations for the galaxy oper
 generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
 	go generate ./...
 
+.PHONY: regenerate-mocks
+regenerate-mocks: hermit ## Wipe every mocks/ directory's contents, then regenerate from go:generate directives.
+	find . -path ./vendor -prune -o -type d -name mocks -print -exec sh -c 'rm -rf "$$0"/*' {} \;
+	$(MAKE) generate-mocks
+
 .PHONY: fmt
 fmt: hermit ## Run go fmt against the entire codebase.
 	go fmt ./...

@@ -214,14 +214,6 @@ var _ = Describe("PromotionAdapter", func() {
 		})
 	})
 
-	Describe("PromotionPortProvider", func() {
-		It("returns a valid OcmPromotionPort", func() {
-			port := NewPromotionPortProvider().NewOcmPromotionPort(mockClient)
-
-			Expect(port).ToNot(BeNil())
-			Expect(port).To(BeAssignableToTypeOf(&PromotionAdapter{}))
-		})
-	})
 })
 
 var _ = Describe("sameLocation", func() {

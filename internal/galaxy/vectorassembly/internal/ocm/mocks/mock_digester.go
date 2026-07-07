@@ -11,7 +11,6 @@ package mocks
 
 import (
 	context "context"
-	crypto "crypto"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -58,10 +57,10 @@ func (mr *MockDigesterMockRecorder) GenerateDigest(ctx, desc any) *gomock.Call {
 }
 
 // GetHashAlgorithm mocks base method.
-func (m *MockDigester) GetHashAlgorithm() crypto.Hash {
+func (m *MockDigester) GetHashAlgorithm() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHashAlgorithm")
-	ret0, _ := ret[0].(crypto.Hash)
+	ret0, _ := ret[0].(string)
 	return ret0
 }
 

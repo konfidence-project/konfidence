@@ -1,11 +1,8 @@
 // Package cmd provides shared startup wiring for the konfidence operator
-// binaries (galaxy and star). It currently exposes two concerns:
+// binaries (galaxy and star). It exposes one concern:
 //
 //   - FilterEnabledControllers — selecting which controllers an operator binary runs at startup,
 //     driven by the operator's --controllers flag.
-//   - ResolveCryptoConfig — resolving OCM signing/verification dependencies
-//     from environment variables and registering the necessary watches with a
-//     controller-runtime manager.
 //
 // # Selecting controllers with --controllers
 //
@@ -92,14 +89,4 @@
 // example the stageVersion garbage collector goroutine, which is owned by the
 // star Stage controller) should be launched from inside that controller's
 // Setup closure so it is naturally gated on the same flag.
-//
-// # Crypto configuration
-//
-// ResolveCryptoConfig is described on its own declaration. Briefly: it reads
-// OCM_VECTOR_VERIFY, OCM_ARTIFACT_VERIFY, OCM_VECTOR_SIGN and the associated
-// trust-anchor / signing-credential references from the environment, sets up
-// the corresponding ConfigMap and Secret watches with the supplied
-// controller-runtime manager, and returns a CryptoConfig with verifier and
-// signer implementations (or noop implementations when the corresponding
-// feature is disabled).
 package cmd

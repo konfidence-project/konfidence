@@ -21,22 +21,13 @@ const (
 
 var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 
-	BeforeEach(func() {
-		Expect(k8sClient.DeleteAllOf(ctx, &galaxy.VectorPromotion{}, client.InNamespace(testNamespace))).To(Succeed())
-		Expect(k8sClient.DeleteAllOf(ctx, &galaxy.VectorPromotionConfig{}, client.InNamespace(testNamespace))).To(Succeed())
-		Eventually(func(g Gomega) {
-			list := &galaxy.VectorPromotionList{}
-			g.Expect(k8sClient.List(ctx, list, client.InNamespace(testNamespace))).To(Succeed())
-			g.Expect(list.Items).To(BeEmpty())
-		}, timeout, interval).Should(Succeed())
-	})
+	BeforeEach(func() { cleanupPromotions() })
 
 	//nolint:dupl // Test cases are intentionally similar but test different scenarios
 	It("should successfully promote cross-registry", func() {
 		By("pushing component to source registry")
 		ref := sourceRef("konfidence.io/promo/svc1:v1.0.0")
 		pushComponent(ctx, ref, new("latest"))
-
 		By("creating VectorPromotionConfig")
 		source := fmt.Sprintf("http://%s//konfidence.io/promo/svc1:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/promo/svc1:promoted", targetRegistryEndpoint)
@@ -68,7 +59,6 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 		By("pushing component to source registry")
 		ref := sourceRef("konfidence.io/promo/same:v2.0.0")
 		pushComponent(ctx, ref, new("latest"))
-
 		By("creating VectorPromotionConfig with same registry for source and target")
 		source := fmt.Sprintf("http://%s//konfidence.io/promo/same:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/promo/same:stable", sourceRegistryEndpoint)
@@ -99,7 +89,6 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 		By("pushing component to source registry")
 		ref := sourceRef("konfidence.io/promo/subpath:v1.0.0")
 		pushComponent(ctx, ref, new("latest"))
-
 		By("creating VectorPromotionConfig with different sub path")
 		source := fmt.Sprintf("http://%s//konfidence.io/promo/subpath:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s/different-subpath//konfidence.io/promo/subpath:promoted", sourceRegistryEndpoint)
@@ -151,8 +140,8 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 		By("creating VectorPromotionConfig with credentials that trigger client creation failure")
 		source := fmt.Sprintf("http://%s//konfidence.io/promo/client-fail:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/promo/client-fail:promoted", targetRegistryEndpoint)
-		config := createConfigWithCredentials("client-fail-config", source, target, []galaxy.CredentialsConfig{
-			{Kind: "Secret", APIVersion: "v1", Name: failClientCreationSecret},
+		config := createConfigWithCredentials("client-fail-config", source, target, &galaxy.Credentials{
+			OCM: &galaxy.OCMCredentials{Refs: []galaxy.CredentialRef{{Name: failClientCreationSecret}}},
 		})
 
 		By("creating VectorPromotion")
@@ -191,7 +180,6 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 		By("pushing component to source registry")
 		ref := sourceRef("konfidence.io/promo/invalid:v1.0.0")
 		pushComponent(ctx, ref, new("latest"))
-
 		By("creating VectorPromotionConfig with semver target version")
 		source := fmt.Sprintf("http://%s//konfidence.io/promo/invalid:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/promo/invalid:v1.0.0", targetRegistryEndpoint)
@@ -238,7 +226,6 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 		By("pushing component to source registry")
 		ref := sourceRef("konfidence.io/promo/terminal:v4.0.0")
 		pushComponent(ctx, ref, new("latest"))
-
 		By("creating VectorPromotionConfig")
 		source := fmt.Sprintf("http://%s//konfidence.io/promo/terminal:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/promo/terminal:promoted", targetRegistryEndpoint)
@@ -366,7 +353,6 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 		By("pushing component with alias")
 		ref := sourceRef("konfidence.io/promo/identical:v1.0.0")
 		pushComponent(ctx, ref, new("latest"))
-
 		By("creating VectorPromotionConfig where source and target are 100% identical")
 		source := fmt.Sprintf("http://%s//konfidence.io/promo/identical:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/promo/identical:latest", sourceRegistryEndpoint)

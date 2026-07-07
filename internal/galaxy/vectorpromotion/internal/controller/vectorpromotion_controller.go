@@ -9,7 +9,6 @@ import (
 	"github.com/go-logr/logr"
 	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
-	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -28,6 +27,7 @@ import (
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion/internal/promotion"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 )
 
 const (
@@ -40,10 +40,9 @@ const (
 
 // VectorPromotionReconciler reconciles a VectorPromotion object.
 type VectorPromotionReconciler struct {
-	Mgr               mcmanager.Manager
-	Scheme            *runtime.Scheme
-	OcmClientProvider repository.ClientProvider
-	PortProvider      promotion.OcmPortProvider
+	Mgr    mcmanager.Manager
+	Scheme *runtime.Scheme
+	Cache  *clientcache.Cache[*galaxy.VectorPromotionConfig, promotion.OcmPort]
 }
 
 // +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch
@@ -119,10 +118,10 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		return ctrl.Result{}, reconcile.TerminalError(err)
 	}
 
-	ocmClient, err := r.OcmClientProvider.NewClient(ctx, clusterClient, config.GetNamespace(), config.Config)
+	adapter, err := r.Cache.Lookup(ctx, clusterClient, req.ClusterName, config)
 	if err != nil {
-		log.Error(err, "failed to create OCM client")
-		err = fmt.Errorf("failed to create OCM client: %w", err)
+		log.Error(err, "failed to build OCM clients")
+		err = fmt.Errorf("failed to build OCM clients: %w", err)
 		if patchErr := setAndPatchPromotionCondition(
 			ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
 			galaxy.ReasonPromotionFailed, err.Error()); patchErr != nil {
@@ -140,7 +139,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		return ctrl.Result{}, err
 	}
 
-	if err := r.PortProvider.NewOcmPromotionPort(ocmClient).Promote(ctx, *src, *dst); err != nil {
+	if err := adapter.Promote(ctx, *src, *dst); err != nil {
 		log.Error(err, "Promotion failed")
 		if patchError := setAndPatchPromotionCondition(
 			ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,

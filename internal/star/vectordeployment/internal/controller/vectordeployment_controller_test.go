@@ -19,9 +19,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("VectorDeployment Controller", func() {
+var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 
 	const (
+		controllerName  = "vectordeployment"
 		vectorReference = "https://registry.kdenv.lab/sample-project//github.com/konfidence-project/sample-vector:0.3.0"
 		ocmName         = "common.konfidence.cloud.example.vector-0.3.0"
 		testNamespace   = "default"
@@ -36,22 +37,19 @@ var _ = Describe("VectorDeployment Controller", func() {
 		mockCtrl       *gomock.Controller
 	)
 
+	BeforeAll(func() {
+		reconciler = &VectorDeploymentReconciler{
+			Client:   k8sManager.GetClient(),
+			Scheme:   k8sManager.GetScheme(),
+			Recorder: k8sManager.GetEventRecorder(VectorDeploymentControllerName),
+		}
+		gomega.Expect(reconciler.SetupWithManager(k8sManager, controllerName)).To(gomega.Succeed())
+	})
+
 	BeforeEach(func() {
-		// Mock setup
 		mockCtrl = gomock.NewController(GinkgoT())
 		ocmAdapterMock = mocks.NewMockVectorOcmPort(mockCtrl)
-
-		// Controller setup. Each spec registers under a unique controller name so that controller-runtime's
-		// global metrics-name validator does not reject re-registration when running multiple specs in one suite.
-		reconciler = &VectorDeploymentReconciler{
-			Client:     k8sManager.GetClient(),
-			Scheme:     k8sManager.GetScheme(),
-			Recorder:   k8sManager.GetEventRecorder(VectorDeploymentControllerName),
-			OcmAdapter: ocmAdapterMock,
-		}
-		controllerName := "vectordeployment-" + CurrentSpecReport().LeafNodeLocation.String()
-		err := reconciler.SetupWithManager(k8sManager, controllerName)
-		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		reconciler.OcmAdapter = ocmAdapterMock
 	})
 
 	AfterEach(func() {

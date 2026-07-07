@@ -2,8 +2,9 @@ package crypto
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"slices"
+	"log/slog"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -11,380 +12,311 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto/internal/mocks"
 	"go.uber.org/mock/gomock"
-	credv1 "ocm.software/open-component-model/bindings/go/credentials/spec/config/v1"
+	"ocm.software/open-component-model/bindings/go/credentials"
+	norm "ocm.software/open-component-model/bindings/go/descriptor/normalisation/json/v4alpha1"
 	"ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	rsav1alpha1 "ocm.software/open-component-model/bindings/go/rsa/signing/v1alpha1"
+	rsacredentialsv1 "ocm.software/open-component-model/bindings/go/rsa/spec/credentials/v1"
+	ocmruntime "ocm.software/open-component-model/bindings/go/runtime"
+	"ocm.software/open-component-model/bindings/go/signing"
 )
 
-var _ = Describe("RSASigner", func() {
+var _ = Describe("OCMSigner", func() {
 	var (
-		log          = logr.Discard()
-		creds        = map[string]string{"public_key_pem": "test-cert", "private_key_pem": "test-key"}
-		typedCreds   = &credv1.DirectCredentials{Properties: creds}
-		digesterMock *mocks.MockDigester
+		log = logr.Discard()
+
+		creds = &rsacredentialsv1.RSACredentials{
+			Type:          rsacredentialsv1.VersionedType,
+			PrivateKeyPEM: "test-key",
+		}
+		identity = rsaIdentity("sig1", string(rsav1alpha1.AlgorithmRSASSAPSS))
+
 		signerMock   *mocks.MockSigner
-		providerMock *mocks.MockRSACredentialProvider
+		resolverMock *mocks.MockResolver
 		mockCtrl     *gomock.Controller
+
+		stubDig = runtime.Digest{
+			HashAlgorithm:          "SHA-256",
+			NormalisationAlgorithm: norm.Algorithm,
+			Value:                  "test-digest",
+		}
+		stubSig = runtime.SignatureInfo{
+			Algorithm: string(rsav1alpha1.AlgorithmRSASSAPSS),
+			Value:     "sig_data",
+			MediaType: rsav1alpha1.MediaTypePEM,
+		}
 	)
+
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
-		digesterMock = mocks.NewMockDigester(mockCtrl)
 		signerMock = mocks.NewMockSigner(mockCtrl)
-		providerMock = mocks.NewMockRSACredentialProvider(mockCtrl)
+		resolverMock = mocks.NewMockResolver(mockCtrl)
+		generateDigest = func(_ context.Context, _ *runtime.Descriptor, _ *slog.Logger, normAlgo, hashAlgo string) (*runtime.Digest, error) {
+			return &runtime.Digest{
+				HashAlgorithm:          hashAlgo,
+				NormalisationAlgorithm: normAlgo,
+				Value:                  "test-digest",
+			}, nil
+		}
+		isSafelyDigestible = func(_ *runtime.Component) error { return nil }
 	})
+
 	AfterEach(func() {
 		mockCtrl.Finish()
+		generateDigest = signing.GenerateDigest
+		isSafelyDigestible = signing.IsSafelyDigestible
 	})
+
+	makeOCMSigner := func(resolver credentials.Resolver, specs []SignatureSpec) *OCMSigner {
+		return &OCMSigner{
+			log:       log,
+			rsaSigner: signerMock,
+			resolver:  resolver,
+			specs:     specs,
+			limiter:   NoopLimiter{},
+		}
+	}
+
 	It("works with 1 signature", func() {
-		sigs := []string{"sig1"}
+		spec := DefaultSignatureSpec("sig1", nil)
 		desc := &runtime.Descriptor{}
-		cfg := &rsav1alpha1.Config{}
-		dig := runtime.Digest{
-			HashAlgorithm:          "SHA256",
-			NormalisationAlgorithm: "json/v4alpha1",
-			Value:                  "test-digest",
-		}
-		sig := runtime.SignatureInfo{
-			Algorithm: string(rsav1alpha1.AlgorithmRSASSAPSS),
-			Value:     "sig_data",
-			MediaType: string(rsav1alpha1.SignatureEncodingPolicyPEM),
-		}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).
-			Times(1).Return(&dig, nil)
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(1).Return(sig, nil)
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: sigs,
-			provider:         providerMock,
-			rsaConfig:        cfg,
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(desc.Signatures).To(HaveLen(len(sigs)))
-		Expect(desc.Signatures[0].Signature).To(Equal(sig))
-		Expect(desc.Signatures[0].Digest).To(Equal(dig))
-		Expect(desc.Signatures[0].Name).To(Equal(sigs[0]))
-	})
-	It("works with 3 signatures", func() {
-		sigs := []string{"sig1", "sig2", "sig3"}
-		desc := &runtime.Descriptor{}
-		cfg := &rsav1alpha1.Config{}
-		dig := runtime.Digest{
-			HashAlgorithm:          "SHA256",
-			NormalisationAlgorithm: "json/v4alpha1",
-			Value:                  "test-digest",
-		}
-		sig := runtime.SignatureInfo{
-			Algorithm: string(rsav1alpha1.AlgorithmRSASSAPSS),
-			Value:     "sig_data",
-			MediaType: string(rsav1alpha1.SignatureEncodingPolicyPEM),
-		}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).
-			Times(1).Return(&dig, nil)
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(3).Return(sig, nil)
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: sigs,
-			provider:         providerMock,
-			rsaConfig:        cfg,
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(desc.Signatures).To(HaveLen(len(sigs)))
-		for i := 0; i < len(sigs); i++ {
-			Expect(desc.Signatures[i].Signature).To(Equal(sig))
-			Expect(desc.Signatures[i].Digest).To(Equal(dig))
-			Expect(slices.ContainsFunc(desc.Signatures, func(s runtime.Signature) bool {
-				return s.Name == sigs[i]
-			})).To(BeTrue())
-		}
-	})
-	It("will return an error if generating the digest fails", func() {
-		desc := &runtime.Descriptor{}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(nil, fmt.Errorf("digest generation failed"))
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: []string{"sig1", "sig"},
-			provider:         providerMock,
-			rsaConfig:        &rsav1alpha1.Config{},
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("digest generation failed"))
-		Expect(desc.Signatures).To(BeEmpty())
-	})
-	It("will return an error if signing fails", func() {
-		desc := &runtime.Descriptor{}
-		cfg := &rsav1alpha1.Config{}
-		dig := runtime.Digest{
-			HashAlgorithm:          "SHA256",
-			NormalisationAlgorithm: "json/v4alpha1",
-			Value:                  "test-digest",
-		}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).
-			Times(2).
-			Return(runtime.SignatureInfo{}, fmt.Errorf("signing failed"))
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: []string{"sig1", "sig2"},
-			provider:         providerMock,
-			rsaConfig:        cfg,
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("signing failed"))
-		Expect(desc.Signatures).To(BeEmpty())
-	})
-	It("no signature will be added when signing fails with 1 signature", func() {
-		desc := &runtime.Descriptor{}
-		cfg := &rsav1alpha1.Config{}
-		dig := runtime.Digest{
-			HashAlgorithm:          "SHA256",
-			NormalisationAlgorithm: "json/v4alpha1",
-			Value:                  "test-digest",
-		}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).
-			Times(1).
-			Return(runtime.SignatureInfo{}, fmt.Errorf("signing failed"))
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-			rsaConfig:        cfg,
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("signing failed"))
-		Expect(desc.Signatures).To(BeEmpty())
-	})
-	It("will return an error if the signature already exists in the descriptor", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "sig1"}},
-		}
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: []string{"sig1", "sig2"},
-			provider:         providerMock,
-			rsaConfig:        &rsav1alpha1.Config{},
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("signature with name \"sig1\" already exists"))
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "sig1", stubDig, gomock.Any()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		signerMock.EXPECT().Sign(gomock.Any(), stubDig, gomock.Any(), creds).Return(stubSig, nil)
+
+		Expect(s.Sign(context.Background(), desc)).To(Succeed())
 		Expect(desc.Signatures).To(HaveLen(1))
 		Expect(desc.Signatures[0].Name).To(Equal("sig1"))
+		Expect(desc.Signatures[0].Digest).To(Equal(stubDig))
+		Expect(desc.Signatures[0].Signature).To(Equal(stubSig))
 	})
-	It("one failed signature will cause the whole signing process - no signatures added", func() {
+
+	It("injects issuer into SignatureInfo when spec.Issuer is set", func() {
+		issuer := "CN=my-ca,O=acme"
+		spec := DefaultSignatureSpec("sig1", &issuer)
 		desc := &runtime.Descriptor{}
-		cfg := &rsav1alpha1.Config{}
-		dig := runtime.Digest{
-			HashAlgorithm:          "SHA256",
-			NormalisationAlgorithm: "json/v4alpha1",
-			Value:                  "test-digest",
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "sig1", stubDig, gomock.Any()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		signerMock.EXPECT().Sign(gomock.Any(), stubDig, gomock.Any(), creds).Return(stubSig, nil)
+
+		Expect(s.Sign(context.Background(), desc)).To(Succeed())
+		Expect(desc.Signatures).To(HaveLen(1))
+		Expect(desc.Signatures[0].Signature.Issuer).To(Equal(issuer))
+	})
+
+	It("leaves Issuer empty in SignatureInfo when spec.Issuer is nil", func() {
+		spec := DefaultSignatureSpec("sig1", nil)
+		desc := &runtime.Descriptor{}
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "sig1", stubDig, gomock.Any()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		signerMock.EXPECT().Sign(gomock.Any(), stubDig, gomock.Any(), creds).Return(stubSig, nil)
+
+		Expect(s.Sign(context.Background(), desc)).To(Succeed())
+		Expect(desc.Signatures).To(HaveLen(1))
+		Expect(desc.Signatures[0].Signature.Issuer).To(BeEmpty())
+	})
+
+	It("works with 3 signatures", func() {
+		specs := []SignatureSpec{
+			DefaultSignatureSpec("sig1", nil),
+			DefaultSignatureSpec("sig2", nil),
+			DefaultSignatureSpec("sig3", nil),
 		}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(1).
-			Return(runtime.SignatureInfo{
-				Algorithm: string(rsav1alpha1.AlgorithmRSASSAPSS),
-				Value:     "sig_data",
-				MediaType: string(rsav1alpha1.SignatureEncodingPolicyPEM),
-			}, nil)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(1).
-			Return(runtime.SignatureInfo{}, fmt.Errorf("signing failed"))
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: []string{"sig1", "sig2"},
-			provider:         providerMock,
-			rsaConfig:        cfg,
-			digester:         digesterMock,
+		desc := &runtime.Descriptor{}
+		s := makeOCMSigner(resolverMock, specs)
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), gomock.Any(), stubDig, gomock.Any()).
+			Times(3).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil).Times(3)
+		signerMock.EXPECT().Sign(gomock.Any(), stubDig, gomock.Any(), creds).Times(3).Return(stubSig, nil)
+
+		Expect(s.Sign(context.Background(), desc)).To(Succeed())
+		Expect(desc.Signatures).To(HaveLen(3))
+		for _, spec := range specs {
+			found := false
+			for _, sig := range desc.Signatures {
+				if sig.Name == spec.Name {
+					found = true
+					break
+				}
+			}
+			Expect(found).To(BeTrue(), "expected signature %q in descriptor", spec.Name)
 		}
-		err := signer.Sign(context.Background(), desc)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("signing failed"))
+	})
+
+	It("each spec uses its own rsaConfig", func() {
+		spec1 := NewSignatureSpec("sig1", rsav1alpha1.AlgorithmRSASSAPSS, rsav1alpha1.MediaTypePEM, "SHA-256", norm.Algorithm, nil)
+		spec2 := NewSignatureSpec("sig2", rsav1alpha1.AlgorithmRSASSAPKCS1V15, rsav1alpha1.MediaTypePEM, "SHA-256", norm.Algorithm, nil)
+		desc := &runtime.Descriptor{}
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec1, spec2})
+
+		dig1 := runtime.Digest{HashAlgorithm: "SHA-256", NormalisationAlgorithm: norm.Algorithm, Value: "test-digest"}
+		dig2 := dig1
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "sig1", dig1, gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ string, _ runtime.Digest, cfg *rsav1alpha1.Config) (ocmruntime.Identity, error) {
+				Expect(cfg.SignatureAlgorithm).To(Equal(rsav1alpha1.AlgorithmRSASSAPSS))
+				return identity, nil
+			})
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "sig2", dig2, gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ string, _ runtime.Digest, cfg *rsav1alpha1.Config) (ocmruntime.Identity, error) {
+				Expect(cfg.SignatureAlgorithm).To(Equal(rsav1alpha1.AlgorithmRSASSAPKCS1V15))
+				return identity, nil
+			})
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil).Times(2)
+		signerMock.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any(), creds).Times(2).Return(stubSig, nil)
+
+		Expect(s.Sign(context.Background(), desc)).To(Succeed())
+		Expect(desc.Signatures).To(HaveLen(2))
+	})
+
+	It("fails when signature already exists in descriptor", func() {
+		spec := DefaultSignatureSpec("sig1", nil)
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{{Name: "sig1"}}}
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		Expect(s.Sign(context.Background(), desc)).To(MatchError(ContainSubstring(`signature with name "sig1" already exists`)))
+		Expect(desc.Signatures).To(HaveLen(1))
+	})
+
+	It("fails when digest generation fails", func() {
+		spec := DefaultSignatureSpec("sig1", nil)
+		desc := &runtime.Descriptor{}
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		generateDigest = func(_ context.Context, _ *runtime.Descriptor, _ *slog.Logger, _, _ string) (*runtime.Digest, error) {
+			return nil, fmt.Errorf("digest generation failed")
+		}
+
+		Expect(s.Sign(context.Background(), desc)).To(MatchError(ContainSubstring("digest generation failed")))
 		Expect(desc.Signatures).To(BeEmpty())
 	})
-	It("NewRSASigner errors with nil provider", func() {
-		signer, err := NewRSASigner(nil, []string{"sig1"})
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("credential provider is required"))
-		Expect(signer).To(BeNil())
-	})
-	It("NewRSASigner errors with nil signature slice", func() {
-		signer, err := NewRSASigner(providerMock, nil)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("at least one target signature name must be provided"))
-		Expect(signer).To(BeNil())
-	})
-	It("NewRSASigner errors with empty target signatures", func() {
-		var sigs []string
-		signer, err := NewRSASigner(providerMock, sigs)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("at least one target signature name must be provided"))
-		Expect(signer).To(BeNil())
-	})
-	It("NewRSASigner errors with empty string as target signature", func() {
-		sigs := []string{" ", "", "sig3"}
-		signer, err := NewRSASigner(providerMock, sigs)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("signature names cannot be empty or whitespace"))
-		Expect(signer).To(BeNil())
-	})
-	It("NewRSASigner errors with duplicate target signatures", func() {
-		sigs := []string{"sig1", "sig2", "sig1"}
-		signer, err := NewRSASigner(providerMock, sigs)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("duplicate signature name detected: \"sig1\""))
-		Expect(signer).To(BeNil())
-	})
-	It("fails when credentials are nil", func() {
+
+	It("fails when GetSigningCredentialConsumerIdentity errors", func() {
+		spec := DefaultSignatureSpec("sig1", nil)
 		desc := &runtime.Descriptor{}
-		dig := runtime.Digest{
-			HashAlgorithm:          "SHA256",
-			NormalisationAlgorithm: "json/v4alpha1",
-			Value:                  "test-digest",
-		}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
-		providerMock.EXPECT().Get(gomock.Any()).Return(nil, nil).Times(1)
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-			rsaConfig:        &rsav1alpha1.Config{},
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "sig1", stubDig, gomock.Any()).
+			Return(nil, fmt.Errorf("identity build failed"))
+
+		err := s.Sign(context.Background(), desc)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("signing credentials are not available"))
+		Expect(err.Error()).To(ContainSubstring("derive consumer identity"))
+		Expect(err.Error()).To(ContainSubstring("identity build failed"))
 		Expect(desc.Signatures).To(BeEmpty())
 	})
-	It("fails when provider returns an error", func() {
+
+	It("fails when resolver returns an error", func() {
+		spec := DefaultSignatureSpec("sig1", nil)
 		desc := &runtime.Descriptor{}
-		dig := runtime.Digest{
-			HashAlgorithm:          "SHA256",
-			NormalisationAlgorithm: "json/v4alpha1",
-			Value:                  "test-digest",
-		}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
-		providerMock.EXPECT().Get(gomock.Any()).Return(nil, fmt.Errorf("provider stopped")).Times(1)
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: []string{"sig1"},
-			provider:         providerMock,
-			rsaConfig:        &rsav1alpha1.Config{},
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "sig1", stubDig, gomock.Any()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(nil, fmt.Errorf("resolver stopped"))
+
+		err := s.Sign(context.Background(), desc)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("get credentials from provider"))
-		Expect(err.Error()).To(ContainSubstring("provider stopped"))
+		Expect(err.Error()).To(ContainSubstring("resolve signing credentials"))
+		Expect(err.Error()).To(ContainSubstring("resolver stopped"))
 		Expect(desc.Signatures).To(BeEmpty())
 	})
-	It("appends signatures to existing signatures in descriptor", func() {
-		desc := &runtime.Descriptor{
-			Signatures: []runtime.Signature{{Name: "existing-sig"}},
-		}
-		cfg := &rsav1alpha1.Config{}
-		dig := runtime.Digest{
-			HashAlgorithm:          "SHA256",
-			NormalisationAlgorithm: "json/v4alpha1",
-			Value:                  "test-digest",
-		}
-		sig := runtime.SignatureInfo{
-			Algorithm: string(rsav1alpha1.AlgorithmRSASSAPSS),
-			Value:     "sig_data",
-			MediaType: string(rsav1alpha1.SignatureEncodingPolicyPEM),
-		}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(1).Return(sig, nil)
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: []string{"new-sig"},
-			provider:         providerMock,
-			rsaConfig:        cfg,
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
-		Expect(err).ToNot(HaveOccurred())
+
+	It("ErrNotFound from resolver is a hard failure", func() {
+		spec := DefaultSignatureSpec("sig1", nil)
+		desc := &runtime.Descriptor{}
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "sig1", stubDig, gomock.Any()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(nil, credentials.ErrNotFound)
+
+		err := s.Sign(context.Background(), desc)
+		Expect(err).To(HaveOccurred())
+		Expect(errors.Is(err, credentials.ErrNotFound)).To(BeTrue())
+		Expect(desc.Signatures).To(BeEmpty())
+	})
+
+	It("fails when Sign (crypto) fails", func() {
+		spec := DefaultSignatureSpec("sig1", nil)
+		desc := &runtime.Descriptor{}
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "sig1", stubDig, gomock.Any()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		signerMock.EXPECT().Sign(gomock.Any(), stubDig, gomock.Any(), creds).Return(runtime.SignatureInfo{}, fmt.Errorf("signing failed"))
+
+		Expect(s.Sign(context.Background(), desc)).To(MatchError(ContainSubstring("signing failed")))
+		Expect(desc.Signatures).To(BeEmpty())
+	})
+
+	It("appends to existing signatures in descriptor", func() {
+		spec := DefaultSignatureSpec("new-sig", nil)
+		desc := &runtime.Descriptor{Signatures: []runtime.Signature{{Name: "existing-sig"}}}
+		s := makeOCMSigner(resolverMock, []SignatureSpec{spec})
+
+		signerMock.EXPECT().GetSigningCredentialConsumerIdentity(gomock.Any(), "new-sig", stubDig, gomock.Any()).Return(identity, nil)
+		resolverMock.EXPECT().Resolve(gomock.Any(), identity).Return(creds, nil)
+		signerMock.EXPECT().Sign(gomock.Any(), stubDig, gomock.Any(), creds).Return(stubSig, nil)
+
+		Expect(s.Sign(context.Background(), desc)).To(Succeed())
 		Expect(desc.Signatures).To(HaveLen(2))
 		Expect(desc.Signatures[0].Name).To(Equal("existing-sig"))
 		Expect(desc.Signatures[1].Name).To(Equal("new-sig"))
-		Expect(desc.Signatures[1].Signature).To(Equal(sig))
-		Expect(desc.Signatures[1].Digest).To(Equal(dig))
 	})
-	It("works with 2 signatures using parallel path", func() {
-		sigs := []string{"sig1", "sig2"}
-		desc := &runtime.Descriptor{}
-		cfg := &rsav1alpha1.Config{}
-		dig := runtime.Digest{
-			HashAlgorithm:          "SHA256",
-			NormalisationAlgorithm: "json/v4alpha1",
-			Value:                  "test-digest",
-		}
-		sig := runtime.SignatureInfo{
-			Algorithm: string(rsav1alpha1.AlgorithmRSASSAPSS),
-			Value:     "sig_data",
-			MediaType: string(rsav1alpha1.SignatureEncodingPolicyPEM),
-		}
-		digesterMock.EXPECT().GenerateDigest(gomock.Any(), desc).Times(1).Return(&dig, nil)
-		providerMock.EXPECT().Get(gomock.Any()).Return(creds, nil).Times(1)
-		signerMock.EXPECT().Sign(gomock.Any(), dig, cfg, typedCreds).Times(2).Return(sig, nil)
-		signer := &RSASigner{
-			log:              log,
-			rsaSigner:        signerMock,
-			targetSignatures: sigs,
-			provider:         providerMock,
-			rsaConfig:        cfg,
-			digester:         digesterMock,
-		}
-		err := signer.Sign(context.Background(), desc)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(desc.Signatures).To(HaveLen(2))
-		for i := 0; i < len(sigs); i++ {
-			Expect(desc.Signatures[i].Signature).To(Equal(sig))
-			Expect(desc.Signatures[i].Digest).To(Equal(dig))
-			Expect(slices.ContainsFunc(desc.Signatures, func(s runtime.Signature) bool {
-				return s.Name == sigs[i]
-			})).To(BeTrue())
-		}
+
+	It("NewOCMSigner errors with nil resolver", func() {
+		s, err := NewOCMSigner(nil, []SignatureSpec{DefaultSignatureSpec("sig1", nil)})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("credentials resolver is required"))
+		Expect(s).To(BeNil())
 	})
-	It("NewRSASigner applies WithSignerLogger option", func() {
-		customLog := logr.Discard().WithName("custom")
-		signer, err := NewRSASigner(providerMock, []string{"sig1"}, WithSignerLogger(customLog))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(signer).ToNot(BeNil())
+
+	It("NewOCMSigner errors with empty specs slice", func() {
+		s, err := NewOCMSigner(resolverMock, []SignatureSpec{})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("at least one signature spec must be provided"))
+		Expect(s).To(BeNil())
 	})
-	It("NewRSASigner applies WithNamedSignerLogger option", func() {
-		signer, err := NewRSASigner(providerMock, []string{"sig1"}, WithNamedSignerLogger(logr.Discard()))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(signer).ToNot(BeNil())
+
+	It("NewOCMSigner errors with nil specs slice", func() {
+		s, err := NewOCMSigner(resolverMock, nil)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("at least one signature spec must be provided"))
+		Expect(s).To(BeNil())
 	})
-	It("NewRSASigner applies WithDigester option", func() {
-		signer, err := NewRSASigner(providerMock, []string{"sig1"}, WithDigester(digesterMock))
+
+	It("NewOCMSigner errors with duplicate spec names", func() {
+		s, err := NewOCMSigner(resolverMock, []SignatureSpec{
+			DefaultSignatureSpec("sig1", nil),
+			DefaultSignatureSpec("sig1", nil),
+		})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(`duplicate signature name detected: "sig1"`))
+		Expect(s).To(BeNil())
+	})
+
+	It("NewOCMSigner errors with empty spec name", func() {
+		s, err := NewOCMSigner(resolverMock, []SignatureSpec{DefaultSignatureSpec("  ", nil)})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("signature names cannot be empty or whitespace"))
+		Expect(s).To(BeNil())
+	})
+
+	It("NewOCMSigner applies WithSignerLogger option", func() {
+		s, err := NewOCMSigner(resolverMock, []SignatureSpec{DefaultSignatureSpec("sig1", nil)}, WithSignerLogger(logr.Discard().WithName("custom")))
 		Expect(err).ToNot(HaveOccurred())
-		Expect(signer).ToNot(BeNil())
-		Expect(signer.digester).To(Equal(digesterMock))
+		Expect(s).ToNot(BeNil())
+	})
+
+	It("NewOCMSigner applies WithNamedSignerLogger option", func() {
+		s, err := NewOCMSigner(resolverMock, []SignatureSpec{DefaultSignatureSpec("sig1", nil)}, WithNamedSignerLogger(logr.Discard()))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(s).ToNot(BeNil())
 	})
 })

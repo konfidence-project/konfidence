@@ -11,8 +11,8 @@ import (
 	"github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
-	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,11 +38,10 @@ const (
 
 // VectorTemplateReconciler reconciles a VectorTemplate object
 type VectorTemplateReconciler struct {
-	Mgr                   mcmanager.Manager
-	Scheme                *runtime.Scheme
-	OcmClientProvider     repository.ClientProvider
-	VectorOcmPortProvider vector.OcmPortProvider
-	VersionGenerator      vector.VersionGenerator
+	Mgr              mcmanager.Manager
+	Scheme           *runtime.Scheme
+	Cache            *clientcache.Cache[*v1alpha1.VectorTemplate, vector.OcmPort]
+	VersionGenerator vector.VersionGenerator
 }
 
 // +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
@@ -73,7 +72,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req mcreconcil
 	originalVectorTemplate := vectorTemplate.DeepCopy()
 	patch := client.MergeFrom(originalVectorTemplate)
 
-	if err = r.detectAndActOnDrift(ctx, clusterClient, vectorTemplate, recorder); err != nil {
+	if err = r.detectAndActOnDrift(ctx, clusterClient, req.ClusterName, vectorTemplate, recorder); err != nil {
 		log.Error(err, "error detecting or acting on drift for Vector template")
 	}
 
@@ -93,14 +92,14 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req mcreconcil
 }
 
 func (r *VectorTemplateReconciler) detectAndActOnDrift(
-	ctx context.Context, clusterClient client.Client,
+	ctx context.Context, clusterClient client.Client, clusterName string,
 	template *v1alpha1.VectorTemplate, recorder events.EventRecorder,
 ) error {
 	log := logf.FromContext(ctx)
 
-	ocmClient, err := r.OcmClientProvider.NewClient(ctx, clusterClient, template.GetNamespace(), template.Spec.Config)
+	ocmAdapter, err := r.Cache.Lookup(ctx, clusterClient, clusterName, template)
 	if err != nil {
-		err = fmt.Errorf("unable to create OCM client: %w", err)
+		err = fmt.Errorf("building OCM clients: %w", err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
 			Type:               v1alpha1.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
@@ -113,7 +112,6 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		return err
 	}
 
-	ocmAdapter := r.VectorOcmPortProvider.NewVectorOcmPort(ocmClient)
 	ocmComponentsFromComponentList, err := mapComponentsToOCMReferences(template.Spec.Components)
 	if err != nil {
 		err = fmt.Errorf("unable to map vector template components to ocm references: %w", err)
