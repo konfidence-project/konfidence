@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vector"
+	"github.com/konfidence-project/konfidence/internal/kden/ocm"
 	"github.com/konfidence-project/konfidence/internal/kden/validation"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -26,11 +27,26 @@ var _ = BeforeEach(func() {
 	vector.ValidateVector = func(filePaths []string, cfg validation.ValidateConfig) error {
 		return nil
 	}
-	vector.PushComponentConstructor = func(
+	vector.GetOcmConstructorProvider = func(
 		ocmConfiguration *ocmgenericspecv1.Config,
 		ctx context.Context,
 		registry string,
+	) (*ocm.ConstructorProvider, error) {
+		return &ocm.ConstructorProvider{}, nil
+	}
+	vector.PushComponentConstructor = func(
+		ctx context.Context,
+		constructorOptionProvider *ocm.ConstructorProvider,
 		constructor *ocmconstructorspecv1.ComponentConstructor,
+	) error {
+		return nil
+	}
+	vector.AddComponentVersionAlias = func(
+		ctx context.Context,
+		component,
+		versionOrAlias,
+		alias string,
+		constructorOptionsProvider *ocm.ConstructorProvider,
 	) error {
 		return nil
 	}
@@ -46,6 +62,11 @@ var _ = Describe("push", func() {
 		Context("with valid input", func() {
 			It("pushes the component version successfully", func() {
 				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
+				err := rootCmd.Execute()
+				Expect(err).ToNot(HaveOccurred())
+			})
+			It("pushes the component version successfully with an alias", func() {
+				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component", "--alias", "latest"})
 				err := rootCmd.Execute()
 				Expect(err).ToNot(HaveOccurred())
 			})
@@ -75,6 +96,12 @@ var _ = Describe("push", func() {
 				err := rootCmd.Execute()
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("flag needs an argument: --file"))
+			})
+			It("with missing value for alias flag", func() {
+				rootCmd.SetArgs([]string{"push", "--registry", "my-registry.com", "--file", "anyfile.yaml", "--alias"})
+				err := rootCmd.Execute()
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("flag needs an argument: --alias"))
 			})
 		})
 
@@ -112,12 +139,55 @@ var _ = Describe("push", func() {
 
 			It("when PushComponentConstructor returns an error", func() {
 				vector.PushComponentConstructor = func(
-					ocmConfiguration *ocmgenericspecv1.Config,
 					ctx context.Context,
-					registry string,
+					constructorOptionsProvider *ocm.ConstructorProvider,
 					constructor *ocmconstructorspecv1.ComponentConstructor,
 				) error {
 					return fmt.Errorf("some error")
+				}
+				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
+				err := rootCmd.Execute()
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("some error"))
+			})
+
+			It("when AddComponentVersionAlias returns an error", func() {
+				vector.ReadConstructorFromFile = func(filePath string) (*ocmconstructorspecv1.ComponentConstructor, error) {
+					return &ocmconstructorspecv1.ComponentConstructor{
+						Components: []ocmconstructorspecv1.Component{
+							{
+								ComponentMeta: ocmconstructorspecv1.ComponentMeta{
+									ObjectMeta: ocmconstructorspecv1.ObjectMeta{
+										Name:    "my-component",
+										Version: "1.0.0",
+									},
+								},
+							},
+						},
+					}, nil
+				}
+				vector.AddComponentVersionAlias = func(
+					ctx context.Context,
+					component,
+					versionOrAlias,
+					alias string,
+					constructorOptionsProvider *ocm.ConstructorProvider,
+				) error {
+					return fmt.Errorf("alias 1.0.0 uses semantic version format and cannot be used as an alias")
+				}
+				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component", "--alias", "1.0.0"})
+				err := rootCmd.Execute()
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("alias 1.0.0 uses semantic version format and cannot be used as an alias"))
+			})
+
+			It("when GetOcmConstructorProvider returns an error", func() {
+				vector.GetOcmConstructorProvider = func(
+					ocmConfiguration *ocmgenericspecv1.Config,
+					ctx context.Context,
+					registry string,
+				) (*ocm.ConstructorProvider, error) {
+					return nil, fmt.Errorf("some error")
 				}
 				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
 				err := rootCmd.Execute()

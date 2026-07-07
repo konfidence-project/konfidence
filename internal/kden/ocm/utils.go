@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/konfidence-project/konfidence/internal/kden/log"
+	"ocm.software/open-component-model/bindings/go/constructor"
+	constructorruntime "ocm.software/open-component-model/bindings/go/constructor/runtime"
 
 	"github.com/spf13/cobra"
 	ocmgenericspecv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
@@ -170,4 +172,12 @@ func NewComponentRepositoryResolver(
 	}
 
 	return resolvers.New(ctx, providerOpts, options.repository)
+}
+
+func GetTargetRepository(
+	ctx context.Context,
+	constructorRuntime *constructorruntime.Component,
+	provider *ConstructorProvider,
+) (constructor.TargetRepository, error) {
+	return provider.GetTargetRepository(ctx, constructorRuntime)
 }

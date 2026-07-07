@@ -21,6 +21,7 @@ var (
 	ocmNewComponentRepositoryResolver = NewComponentRepositoryResolver
 	ocmGenerateDigestForSigning       = ocmsigning.GenerateDigest
 	ocmParseComponentReference        = ocmcompref.Parse
+	ocmGetTargetRepository            = GetTargetRepository
 	ocmGetSigningHandler              = func(ctx context.Context, registry *ocmsigninghandler.SigningRegistry, spec ocmruntime.Typed) (ocmsigning.Handler, error) {
 		return registry.GetPlugin(ctx, spec)
 	}
