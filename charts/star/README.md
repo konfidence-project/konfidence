@@ -26,11 +26,14 @@ Kubernetes: `>=1.27.0-0`
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
 | api.enabled | bool | `true` |  |
+| api.addr | string | `":8090"` |  |
 | api.env | list | `[]` |  |
 | api.extraArgs | list | `[]` |  |
 | api.image.pullPolicy | string | `"IfNotPresent"` |  |
 | api.image.repository | string | `"ghcr.io/konfidence-project/api"` |  |
 | api.image.tag | string | `""` |  |
+| api.install | bool | `false` |  |
+| api.logLevel | string | `"info"` |  |
 | api.podAnnotations | object | `{}` |  |
 | api.podDisruptionBudget.enabled | bool | `false` |  |
 | api.podDisruptionBudget.maxUnavailable | int | `1` |  |
@@ -43,12 +46,22 @@ Kubernetes: `>=1.27.0-0`
 | api.server.readTimeout | string | `"10s"` |  |
 | api.server.shutdownTimeout | string | `"15s"` |  |
 | api.server.writeTimeout | string | `"10s"` |  |
+| api.readTimeout | string | `"10s"` |  |
+| api.replicas | int | `1` |  |
+| api.resources.limits.cpu | string | `"200m"` |  |
+| api.resources.limits.memory | string | `"128Mi"` |  |
+| api.resources.requests.cpu | string | `"50m"` |  |
+| api.resources.requests.memory | string | `"64Mi"` |  |
 | api.service.annotations | object | `{}` |  |
 | api.service.nodePort | string | `""` |  |
 | api.service.port | int | `8090` |  |
 | api.service.type | string | `"ClusterIP"` |  |
 | api.volumeMounts | list | `[]` |  |
 | api.volumes | list | `[]` |  |
+| api.shutdownTimeout | string | `"15s"` |  |
+| api.volumeMounts | list | `[]` |  |
+| api.volumes | list | `[]` |  |
+| api.writeTimeout | string | `"10s"` |  |
 | containerSecurityContext.allowPrivilegeEscalation | bool | `false` |  |
 | containerSecurityContext.capabilities.drop[0] | string | `"ALL"` |  |
 | containerSecurityContext.readOnlyRootFilesystem | bool | `true` |  |

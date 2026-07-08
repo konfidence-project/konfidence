@@ -23,7 +23,7 @@ var _ = Describe("Server", func() {
 				ShutdownTimeout: "2s",
 			}
 
-			srv := server.New(cfg, nil)
+			srv := server.New(cfg)
 
 			ctx, cancel := context.WithCancel(context.Background())
 
@@ -50,7 +50,7 @@ var _ = Describe("Server", func() {
 				ShutdownTimeout: "2s",
 			}
 
-			srv := server.New(cfg, nil)
+			srv := server.New(cfg)
 			ctx, cancel := context.WithCancel(context.Background())
 			DeferCleanup(cancel)
 

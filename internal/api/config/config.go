@@ -9,20 +9,17 @@ import (
 // Values are populated from CLI flags (see cmd/api/cmd/root.go).
 // The flag → env → default precedence is handled at the cobra layer.
 type Config struct {
-	// Addr is the TCP address the server listens on, e.g. ":8090".
-	Addr string
-
-	// ReadTimeout is the raw duration string for http.Server.ReadTimeout.
-	ReadTimeout string
-
-	// WriteTimeout is the raw duration string for http.Server.WriteTimeout.
-	WriteTimeout string
-
-	// ShutdownTimeout is the raw duration string for the graceful shutdown window.
+	Addr            string
+	ReadTimeout     string
+	WriteTimeout    string
 	ShutdownTimeout string
-
-	// LogLevel controls verbosity: debug, info, warn, error.
-	LogLevel string
+	LogLevel        string
+	// Kubeconfig is the path to a kubeconfig file for local development.
+	// Empty means in-cluster config, which is used when deployed as a pod.
+	// The k8s client is built lazily — omitting this does not prevent the
+	// server from starting; only domain endpoints that talk to the cluster
+	// will fail if neither kubeconfig nor in-cluster config is available
+	Kubeconfig string
 }
 
 // Parsed returns duration values already parsed from the string fields.

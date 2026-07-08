@@ -322,7 +322,17 @@ run-galaxy: manifests-galaxy generate fmt vet ## Run the galaxy operator from yo
 .PHONY: run-api
 run-api: hermit ## Run the API server locally. Set KUBECONFIG for domain endpoints, not needed for probes.
 run-api: hermit ## Run the Konfidence API server from your host (source bin/activate-hermit first).
+run-api: hermit ## Run the API server locally — no cluster needed, probe endpoints only.
 	go run ./cmd/api/main.go
+
+.PHONY: run-api-k8s
+run-api-k8s: hermit ## Run the API server locally with a real cluster (requires API_KUBECONFIG or ~/.kube/config).
+	@if [ -z "$$API_KUBECONFIG" ] && [ ! -f "$$HOME/.kube/config" ]; then \
+		echo "Error: no kubeconfig found."; \
+		echo "  Set API_KUBECONFIG=<path> or ensure ~/.kube/config exists."; \
+		exit 1; \
+	fi
+	go run ./cmd/api/main.go --kubeconfig $${API_KUBECONFIG:-$$HOME/.kube/config}
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build

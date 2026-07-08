@@ -10,36 +10,33 @@ import (
 	"os/signal"
 	"syscall"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/router"
 )
 
-// Server wraps an http.Server with graceful shutdown support
+// Server wraps an http.Server with graceful shutdown support.
 type Server struct {
 	cfg    config.Config
-	k8s    client.Client
 	logger *slog.Logger
 }
 
-// New creates a Server from the given config and a ready-to-use Kubernetes client.
-// The client is passed through to the router so that handlers can read and write
-// Konfidence CRDs (Stage, VectorDeployment, VectorPromotion, etc.) on the star cluster
-func New(cfg config.Config, k8s client.Client) *Server {
+// New creates a Server from the given config.
+// The Kubernetes client is built lazily when a domain handler first needs it —
+// this allows the server to start and serve probe endpoints without a cluster.
+func New(cfg config.Config) *Server {
 	level := resolveLogLevel(cfg.LogLevel)
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
-	return &Server{cfg: cfg, k8s: k8s, logger: logger}
+	return &Server{cfg: cfg, logger: logger}
 }
 
 // Run starts the HTTP server and blocks until the context is cancelled or a
-// termination signal is received, then attempts a graceful shutdown
+// termination signal is received, then attempts a graceful shutdown.
 func (s *Server) Run(ctx context.Context) error {
 	parsed := s.cfg.Parse()
 
 	srv := &http.Server{
 		Addr:         s.cfg.Addr,
-		Handler:      router.New(s.logger, s.k8s),
+		Handler:      router.New(s.logger, s.cfg.Kubeconfig),
 		ReadTimeout:  parsed.ReadTimeout,
 		WriteTimeout: parsed.WriteTimeout,
 	}

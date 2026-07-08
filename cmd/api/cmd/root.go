@@ -7,7 +7,6 @@ import (
 
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/server"
-	pkgk8s "github.com/konfidence-project/konfidence/pkg/k8s"
 )
 
 var rootCmd = &cobra.Command{
@@ -88,18 +87,14 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		ReadTimeout:     readTimeout,
 		WriteTimeout:    writeTimeout,
 		ShutdownTimeout: shutdownTimeout,
+		Kubeconfig:      kubeconfig,
 	}
 
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
 
-	k8sClient, err := pkgk8s.NewClient(kubeconfig)
-	if err != nil {
-		return err
-	}
-
-	return server.New(cfg, k8sClient).Run(cmd.Context())
+	return server.New(cfg).Run(cmd.Context())
 }
 
 // envOr returns the value of the environment variable key, or fallback if unset.
