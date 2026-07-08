@@ -30,7 +30,16 @@ func validParsed(addr string) config.Parsed {
 var _ = Describe("Server", func() {
 	Describe("Run", func() {
 		It("starts and stops cleanly when context is cancelled", func() {
-			srv := server.New(validParsed("127.0.0.1:0"))
+			cfg := config.Config{
+				Addr:            "127.0.0.1:0",
+				LogLevel:        "error",
+				ReadTimeout:     "5s",
+				WriteTimeout:    "5s",
+				ShutdownTimeout: "2s",
+			}
+
+			srv := server.New(cfg)
+
 			ctx, cancel := context.WithCancel(context.Background())
 
 			errCh := make(chan error, 1)
@@ -43,7 +52,15 @@ var _ = Describe("Server", func() {
 		})
 
 		It("serves /healthz while running", func() {
-			srv := server.New(validParsed("127.0.0.1:19090"))
+			cfg := config.Config{
+				Addr:            "127.0.0.1:19090",
+				LogLevel:        "error",
+				ReadTimeout:     "5s",
+				WriteTimeout:    "5s",
+				ShutdownTimeout: "2s",
+			}
+
+			srv := server.New(cfg)
 			ctx, cancel := context.WithCancel(context.Background())
 			DeferCleanup(cancel)
 

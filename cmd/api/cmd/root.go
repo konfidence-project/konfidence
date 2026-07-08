@@ -10,28 +10,6 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/server"
-	stageapi "github.com/konfidence-project/konfidence/internal/stage/api"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-)
-
-var (
-	scheme = runtime.NewScheme()
-)
-
-var (
-	addr             string
-	logLevel         string
-	readTimeout      string
-	writeTimeout     string
-	shutdownTimeout  string
-	authAuthorizeURL string
-	authTokenURL     string
-	authUserInfoURL  string
-	authClientID     string
-	authRedirectURI  string
-	authScopes       string
 )
 
 var rootCmd = &cobra.Command{
@@ -107,26 +85,14 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		ReadTimeout:     readTimeout,
 		WriteTimeout:    writeTimeout,
 		ShutdownTimeout: shutdownTimeout,
-		Auth: config.AuthConfig{
-			AuthorizeURL: authAuthorizeURL,
-			TokenURL:     authTokenURL,
-			UserInfoURL:  authUserInfoURL,
-			ClientID:     authClientID,
-			RedirectURI:  authRedirectURI,
-			Scopes:       authScopes,
-		},
-		Scheme: scheme,
+		Kubeconfig:      kubeconfig,
 	}
 
-	parsed, err := cfg.Validate()
-	if err != nil {
+	if err := cfg.Validate(); err != nil {
 		return err
 	}
 
-	ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	return server.New(parsed, stageapi.Mount).Run(ctx)
+	return server.New(cfg).Run(cmd.Context())
 }
 
 // envOr returns the value of the environment variable key, or fallback if unset.

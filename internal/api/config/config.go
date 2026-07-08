@@ -15,8 +15,12 @@ type Config struct {
 	WriteTimeout    string
 	ShutdownTimeout string
 	LogLevel        string
-	Auth            AuthConfig
-	Scheme          *runtime.Scheme
+	// Kubeconfig is the path to a kubeconfig file for local development.
+	// Empty means in-cluster config, which is used when deployed as a pod.
+	// The k8s client is built lazily — omitting this does not prevent the
+	// server from starting; only domain endpoints that talk to the cluster
+	// will fail if neither kubeconfig nor in-cluster config is available
+	Kubeconfig string
 }
 
 // AuthConfig holds OIDC configuration for the auth middleware.
