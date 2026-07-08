@@ -272,6 +272,10 @@ test-kden-cli: hermit
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
 	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
 
+.PHONY: test-api
+test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
+	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
+
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
 	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
@@ -289,6 +293,7 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 .PHONY: build
 build: manifests generate fmt vet build-star build-galaxy build-kden-cli ## Build all operator binaries.
 build: manifests generate fmt vet build-star build-galaxy build-api ## Build all operator binaries.
+build: manifests generate fmt vet build-star build-galaxy build-kden-cli build-api ## Build all operator binaries.
 
 .PHONY: build-star
 build-star: hermit ## Build the star operator binary.
@@ -316,6 +321,7 @@ run-galaxy: manifests-galaxy generate fmt vet ## Run the galaxy operator from yo
 
 .PHONY: run-api
 run-api: hermit ## Run the API server locally. Set KUBECONFIG for domain endpoints, not needed for probes.
+run-api: hermit ## Run the Konfidence API server from your host (source bin/activate-hermit first).
 	go run ./cmd/api/main.go
 
 # These targets are only used for local environments (not in pipeline)
@@ -382,7 +388,7 @@ uninstall-galaxy: hermit ## Uninstall galaxy CRDs from the cluster. Use ignore-n
 	$(HELM) uninstall galaxy --ignore-not-found
 
 .PHONY: deploy
-deploy: deploy-star deploy-galaxy ## Deploy all operators to the cluster specified in ~/.kube/config.
+deploy: deploy-star deploy-galaxy deploy-api ## Deploy all operators to the cluster specified in ~/.kube/config.
 
 .PHONY: deploy-star
 deploy-star: hermit manifests-star ## Deploy the star operator to the cluster specified in ~/.kube/config.
@@ -398,8 +404,17 @@ deploy-galaxy: hermit manifests-galaxy ## Deploy the galaxy operator to the clus
 		--set image.tag=$(TAG) \
 		--set crd.keep=false
 
+.PHONY: deploy-api
+deploy-api: hermit ## Deploy the Konfidence API server (via the star chart) to the cluster specified in ~/.kube/config.
+	$(HELM) upgrade --install star charts/star \
+		--set controller.install=false \
+		--set crd.install=false \
+		--set api.install=true \
+		--set api.image.repository=$(REGISTRY)/api \
+		--set api.image.tag=$(TAG)
+
 .PHONY: undeploy
-undeploy: undeploy-star undeploy-galaxy ## Undeploy all operators. Use ignore-not-found=true to suppress errors.
+undeploy: undeploy-star undeploy-galaxy undeploy-api ## Undeploy all operators. Use ignore-not-found=true to suppress errors.
 
 .PHONY: undeploy-star
 undeploy-star: hermit ## Undeploy the star operator. Use ignore-not-found=true to suppress errors.
@@ -408,6 +423,10 @@ undeploy-star: hermit ## Undeploy the star operator. Use ignore-not-found=true t
 .PHONY: undeploy-galaxy
 undeploy-galaxy: hermit ## Undeploy the galaxy operator. Use ignore-not-found=true to suppress errors.
 	$(HELM) uninstall galaxy --ignore-not-found
+
+.PHONY: undeploy-api
+undeploy-api: hermit ## Disable the Konfidence API server in the star chart. Use ignore-not-found=true to suppress errors.
+	$(HELM) upgrade star charts/star --reuse-values --set api.install=false
 
 ##@ Developer Setup
 

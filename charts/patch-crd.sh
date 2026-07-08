@@ -34,9 +34,9 @@ ANNOT_INCLUDE="{{- include \"${CHART}.crdAnnotations\" . | nindent 4 }}"
 LABEL_INCLUDE="{{- include \"${CHART}.crdLabels\" . | nindent 4 }}"
 
 # The metadata block has two shapes:
-#   1. controller-gen emits `annotations:` (with its version stamp) — we
+#   1. controller-gen emits `annotations:` (with its version stamp) - we
 #      insert the templated annotation include as the first entry.
-#   2. some CRDs only have `name:` — we still inject `labels:` before it.
+#   2. some CRDs only have `name:` - we still inject `labels:` before it.
 # In both cases we add the labels block immediately above `name:`.
 awk -v annot="$ANNOT_INCLUDE" -v label="$LABEL_INCLUDE" '
   BEGIN { in_meta = 0; in_annot = 0 }

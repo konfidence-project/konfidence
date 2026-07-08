@@ -15,14 +15,14 @@ import (
 
 var _ = Describe("Client", func() {
 	var srv *httptest.Server
-	var client *apiclient.LegacyClient
+	var client *apiclient.Client
 
 	BeforeEach(func() {
 		srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		}))
-		client = apiclient.NewLegacy(srv.URL, 5*time.Second)
+		client = apiclient.New(srv.URL, 5*time.Second)
 	})
 
 	AfterEach(func() { srv.Close() })
@@ -50,14 +50,14 @@ var _ = Describe("Client", func() {
 			}))
 			defer errSrv.Close()
 
-			c := apiclient.NewLegacy(errSrv.URL, 5*time.Second)
+			c := apiclient.New(errSrv.URL, 5*time.Second)
 			_, err := c.Healthz(context.Background())
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("503"))
 		})
 
 		It("returns an error when the server is unreachable", func() {
-			c := apiclient.NewLegacy("http://127.0.0.1:1", 100*time.Millisecond)
+			c := apiclient.New("http://127.0.0.1:1", 100*time.Millisecond)
 			_, err := c.Healthz(context.Background())
 			Expect(err).To(HaveOccurred())
 		})

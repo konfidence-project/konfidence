@@ -243,7 +243,7 @@ spec:
                 type: array
               deploymentResult:
                 description: |-
-                  DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as
+                  DeploymentResults captures structured outputs produced by the deployer during the deployment process-such as
                   computed DNS names, service endpoints, generated configuration, or other workload-specific details.
 
                   Results should be treated as immutable for a given generation and may be consumed by later stages of a vector

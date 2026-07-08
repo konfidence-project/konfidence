@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/router"
 )
 
@@ -16,7 +15,7 @@ var _ = Describe("Router", func() {
 	var h http.Handler
 
 	BeforeEach(func() {
-		// nil scheme is acceptable in unit tests - no handler exercises the k8s client yet.
+		// nil client is acceptable in unit tests - no handler exercises the k8s client yet.
 		h = router.New(slog.Default(), nil)
 	})
 

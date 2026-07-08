@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
-	handler "github.com/konfidence-project/konfidence/internal/api/handler/dto"
 )
 
 type Client struct {
@@ -32,20 +30,15 @@ type StatusResponse struct {
 // It can be used by kden commands to verify the gateway is reachable before
 // sending domain requests.
 func (c *Client) Healthz(ctx context.Context) (*StatusResponse, error) {
-	return getJSON[StatusResponse](c, ctx, "/healthz")
+	return c.getJSON(ctx, "/healthz")
 }
 
 // Readyz calls GET /readyz and returns the response body.
 func (c *Client) Readyz(ctx context.Context) (*StatusResponse, error) {
-	return getJSON[StatusResponse](c, ctx, "/readyz")
+	return c.getJSON(ctx, "/readyz")
 }
 
-// ListStages calls GET /stages and returns the mock response body.
-func (c *Client) ListStages(ctx context.Context) (*handler.StageListResponse, error) {
-	return getJSON[handler.StageListResponse](c, ctx, "/api/v1/stages")
-}
-
-func getJSON[T any](c *Client, ctx context.Context, path string) (*T, error) {
+func (c *Client) getJSON(ctx context.Context, path string) (*StatusResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
@@ -55,13 +48,13 @@ func getJSON[T any](c *Client, ctx context.Context, path string) (*T, error) {
 	if err != nil {
 		return nil, fmt.Errorf("GET %s%s: %w", c.base, path, err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET %s%s: unexpected status %d", c.base, path, resp.StatusCode)
 	}
 
-	var body T
+	var body StatusResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
