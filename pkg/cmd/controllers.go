@@ -18,7 +18,7 @@ import (
 // Errors:
 //   - a malformed glob (path.ErrBadPattern), and
 //   - a literal token (no glob meta-characters) that matches zero registered
-//     names - guards against typos and stale references to removed controllers.
+//     names — guards against typos and stale references to removed controllers.
 func FilterEnabledControllers(spec string, controllerSetups map[string]func() error) (map[string]bool, error) {
 	enabled := make(map[string]bool, len(controllerSetups))
 
