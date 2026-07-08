@@ -48,7 +48,7 @@ func (c *Client) getJSON(ctx context.Context, path string) (*StatusResponse, err
 	if err != nil {
 		return nil, fmt.Errorf("GET %s%s: %w", c.base, path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET %s%s: unexpected status %d", c.base, path, resp.StatusCode)

@@ -7,6 +7,8 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/config"
 )
 
+const invalidDuration = "bad"
+
 var _ = Describe("Config.Validate", func() {
 	valid := func() config.Config {
 		return config.Config{
@@ -34,9 +36,9 @@ var _ = Describe("Config.Validate", func() {
 			mutate(&c)
 			Expect(c.Validate()).To(MatchError(ContainSubstring(field)))
 		},
-		Entry("read-timeout", "read-timeout", func(c *config.Config) { c.ReadTimeout = "bad" }),
-		Entry("write-timeout", "write-timeout", func(c *config.Config) { c.WriteTimeout = "bad" }),
-		Entry("shutdown-timeout", "shutdown-timeout", func(c *config.Config) { c.ShutdownTimeout = "bad" }),
+		Entry("read-timeout", "read-timeout", func(c *config.Config) { c.ReadTimeout = invalidDuration }),
+		Entry("write-timeout", "write-timeout", func(c *config.Config) { c.WriteTimeout = invalidDuration }),
+		Entry("shutdown-timeout", "shutdown-timeout", func(c *config.Config) { c.ShutdownTimeout = invalidDuration }),
 	)
 
 	It("rejects an unknown log level", func() {

@@ -58,17 +58,17 @@ var _ = Describe("Server", func() {
 
 			// Wait for the server to be ready.
 			Eventually(func() error {
-				resp, err := http.Get("http://127.0.0.1:19090/healthz")
+				resp, err := http.Get("http://127.0.0.1:19090/healthz") //nolint:noctx
 				if err != nil {
 					return err
 				}
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				return nil
 			}, "3s", "50ms").Should(Succeed())
 
-			resp, err := http.Get("http://127.0.0.1:19090/healthz")
+			resp, err := http.Get("http://127.0.0.1:19090/healthz") //nolint:noctx
 			Expect(err).NotTo(HaveOccurred())
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 	})

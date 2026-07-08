@@ -390,7 +390,7 @@ var _ = Describe("validateConfiguration", func() {
 
 		DescribeTable("should reject an invalid api-addr",
 			func(addr, expectedErrFragment string) {
-				Config.LogLevel = "info"
+				Config.LogLevel = fileLogLevel
 				Config.LogFormat = jsonLiteral
 				Config.Output = jsonLiteral
 				Config.APIAddr = addr
@@ -407,7 +407,7 @@ var _ = Describe("validateConfiguration", func() {
 
 		DescribeTable("should accept a valid api-addr",
 			func(addr string) {
-				Config.LogLevel = "info"
+				Config.LogLevel = fileLogLevel
 				Config.LogFormat = jsonLiteral
 				Config.Output = jsonLiteral
 				Config.APIAddr = addr

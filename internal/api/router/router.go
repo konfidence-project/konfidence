@@ -13,9 +13,10 @@ import (
 
 // New returns the root chi.Router with all routes and middleware registered.
 //
-// Middleware stack (outermost → innermost):
-//   Recovery  — last-resort panic safety net; keeps the process alive
-//   Logging   — logs method, path, status, duration after the handler returns
+// Middleware stack (outermost to innermost):
+//
+//	Recovery - last-resort panic safety net; keeps the process alive
+//	Logging  - logs method, path, status, duration after the handler returns
 //
 // Each route is wrapped with middleware.Handle(logger, h) which calls the
 // handler.Handler directly and translates any returned error into a JSON
