@@ -27,39 +27,12 @@ STAR_SAMPLE_DIR ?= test/data/samples/star
 GALAXY_SAMPLE_DIR ?= test/data/samples/galaxy
 STAR_CRD_DIR ?= test/data/crds/star
 GALAXY_CRD_DIR ?= test/data/crds/galaxy
-SCHEMA_DIR ?= $(REPO_ROOT)/.tmp/schemas
-# Staging dir for the full CRD set. galaxy and star share one API group
-# (konfidence.cloud), so all CRDs are generated once here and then split into
-# the per-operator dirs / charts by kind (see STAR_CRD_FILES / GALAXY_CRD_FILES).
-CRD_STAGING_DIR ?= $(REPO_ROOT)/.tmp/crds
-
-# Merged API package (single group konfidence.cloud).
-API_PATHS = paths="./api/v1alpha1/..."
-
-# Which generated CRD files belong to which operator chart. All are in the
-# konfidence.cloud group; galaxy vs. star stays a code/deployment convention.
-GALAXY_CRD_FILES = \
-	konfidence.cloud_stageconfigurations.yaml \
-	konfidence.cloud_vectorpromotions.yaml \
-	konfidence.cloud_vectorpromotionconfigs.yaml \
-	konfidence.cloud_vectortemplates.yaml
-STAR_CRD_FILES = \
-	konfidence.cloud_stages.yaml \
-	konfidence.cloud_stageversions.yaml \
-	konfidence.cloud_stageversionusages.yaml \
-	konfidence.cloud_artifactdeployments.yaml \
-	konfidence.cloud_vectoractivations.yaml \
-	konfidence.cloud_vectorassignments.yaml \
-	konfidence.cloud_vectordata.yaml \
-	konfidence.cloud_vectordeployments.yaml \
-	konfidence.cloud_vectormigrations.yaml \
-	konfidence.cloud_taskexecutions.yaml \
-	konfidence.cloud_activationtaskexecutions.yaml \
-	konfidence.cloud_activationtaskregistrations.yaml
+STAR_SCHEMA_DIR ?= $(REPO_ROOT)/.tmp/schemas/star
+GALAXY_SCHEMA_DIR ?= $(REPO_ROOT)/.tmp/schemas/galaxy
 
 # Internal controller packages per operator. internal/ is flat (no galaxy/star
 # grouping dir), so each operator's controllers are enumerated explicitly.
-STAR_INTERNAL_DIRS    = ./internal/stage/... ./internal/taskorchestration/... ./internal/vectoractivation/... ./internal/vectordeployment/...
+STAR_INTERNAL_DIRS    = ./internal/stage/... ./internal/taskorchestration/... ./internal/vectoractivation/... ./internal/vectordeployment/... ./internal/galaxysync/...
 GALAXY_INTERNAL_DIRS  = ./internal/stageconfiguration/... ./internal/vectorassembly/... ./internal/vectorpromotion/...
 STAR_INTERNAL_PATHS   = $(foreach d,$(STAR_INTERNAL_DIRS),paths="$(d)")
 GALAXY_INTERNAL_PATHS = $(foreach d,$(GALAXY_INTERNAL_DIRS),paths="$(d)")
@@ -100,35 +73,14 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: hermit manifests-star manifests-galaxy ## Generate CRDs and RBAC manifests for all operators.
 
-.PHONY: manifests-crds
-manifests-crds: hermit ## Generate the full CRD set (single konfidence.cloud group) into the staging dir.
-	@echo "Generating CRDs for the konfidence.cloud group..."
-	@rm -rf $(CRD_STAGING_DIR)
-	@mkdir -p $(CRD_STAGING_DIR)
-	$(CONTROLLER_GEN) crd $(API_PATHS) output:crd:artifacts:config=$(CRD_STAGING_DIR)
-	@# Guard: every generated CRD must be assigned to exactly one operator chart.
-	@# Without this, a newly added CRD kind would be silently dropped from both
-	@# charts (galaxy vs. star membership is enumerated, not inferred).
-	@assigned=" $(STAR_CRD_FILES) $(GALAXY_CRD_FILES) "; unassigned=""; \
-	for f in $(CRD_STAGING_DIR)/*.yaml; do \
-		b=$$(basename "$$f"); \
-		case "$$assigned" in *" $$b "*) ;; *) unassigned="$$unassigned $$b";; esac; \
-	done; \
-	if [ -n "$$unassigned" ]; then \
-		echo "ERROR: generated CRD(s) not assigned to STAR_CRD_FILES or GALAXY_CRD_FILES:$$unassigned" >&2; \
-		echo "Add each to the matching list in the Makefile." >&2; \
-		exit 1; \
-	fi
-
 .PHONY: manifests-star
-manifests-star: hermit manifests-crds ## Generate star RBAC and distribute star CRDs to the star chart.
+manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator.
 	@echo "Generating manifests for star..."
 	@mkdir -p $(STAR_CRD_DIR) charts/star/templates/crds config/rbac/star
-	$(CONTROLLER_GEN) rbac:roleName=star-manager \
-		$(STAR_INTERNAL_PATHS) \
+	$(CONTROLLER_GEN) rbac:roleName=star-manager crd webhook \
+		$(STAR_INTERNAL_PATHS) paths="./api/star/..." \
+		output:crd:artifacts:config=$(STAR_CRD_DIR) \
 		output:rbac:artifacts:config=config/rbac/star
-	@rm -f $(STAR_CRD_DIR)/*.yaml charts/star/templates/crds/*.yaml
-	@for f in $(STAR_CRD_FILES); do cp "$(CRD_STAGING_DIR)/$$f" "$(STAR_CRD_DIR)/$$f"; done
 	for f in $(STAR_CRD_DIR)/*.yaml; do \
 		charts/patch-crd.sh star "$$f" "charts/star/templates/crds/$$(basename $$f)"; \
 	done
@@ -136,14 +88,13 @@ manifests-star: hermit manifests-crds ## Generate star RBAC and distribute star 
 	$(HELM_DOCS) -c charts/star > charts/star/README.md
 
 .PHONY: manifests-galaxy
-manifests-galaxy: hermit manifests-crds ## Generate galaxy RBAC and distribute galaxy CRDs to the galaxy chart.
+manifests-galaxy: hermit ## Generate CRDs and RBAC manifests for the galaxy operator.
 	@echo "Generating manifests for galaxy..."
 	@mkdir -p $(GALAXY_CRD_DIR) charts/galaxy/templates/crds config/rbac/galaxy
-	$(CONTROLLER_GEN) rbac:roleName=galaxy-manager \
-		$(GALAXY_INTERNAL_PATHS) \
+	$(CONTROLLER_GEN) rbac:roleName=galaxy-manager crd webhook \
+		$(GALAXY_INTERNAL_PATHS) paths="./api/galaxy/..." \
+		output:crd:artifacts:config=$(GALAXY_CRD_DIR) \
 		output:rbac:artifacts:config=config/rbac/galaxy
-	@rm -f $(GALAXY_CRD_DIR)/*.yaml charts/galaxy/templates/crds/*.yaml
-	@for f in $(GALAXY_CRD_FILES); do cp "$(CRD_STAGING_DIR)/$$f" "$(GALAXY_CRD_DIR)/$$f"; done
 	for f in $(GALAXY_CRD_DIR)/*.yaml; do \
 		charts/patch-crd.sh galaxy "$$f" "charts/galaxy/templates/crds/$$(basename $$f)"; \
 	done
@@ -151,8 +102,17 @@ manifests-galaxy: hermit manifests-crds ## Generate galaxy RBAC and distribute g
 	$(HELM_DOCS) -c charts/galaxy > charts/galaxy/README.md
 
 .PHONY: generate
-generate: hermit ## Generate DeepCopy implementations for the merged API package.
-	$(CONTROLLER_GEN) object $(API_PATHS)
+generate: hermit generate-star generate-galaxy ## Generate DeepCopy implementations for all operators.
+
+.PHONY: generate-star
+generate-star: hermit ## Generate DeepCopy implementations for the star operator.
+	$(CONTROLLER_GEN) object \
+		$(STAR_INTERNAL_PATHS) paths="./api/star/..."
+
+.PHONY: generate-galaxy
+generate-galaxy: hermit ## Generate DeepCopy implementations for the galaxy operator.
+	$(CONTROLLER_GEN) object \
+		$(GALAXY_INTERNAL_PATHS) paths="./api/galaxy/..."
 
 .PHONY: generate-mocks
 generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
@@ -186,32 +146,65 @@ lint-config: hermit ## Verify the golangci-lint configuration.
 ##@ API
 
 .PHONY: api
-api: hermit manifests generate docs schemas helm-lint ## Run full API generation pipeline (manifests, deepcopy, docs, schemas, helm lint).
+api: hermit api-star api-galaxy ## Run full API generation pipeline for all operators (manifests, generate, docs, schemas).
 
-.PHONY: docs
-docs: hermit ## Generate CRD reference documentation for the konfidence.cloud API.
-	@echo "Generating CRD documentation..."
-	@mkdir -p api/docs
+.PHONY: api-star
+api-star: hermit manifests-star generate-star docs-star schemas-star helm-lint-star ## Run full API generation pipeline for the star operator.
+
+.PHONY: api-galaxy
+api-galaxy: hermit manifests-galaxy generate-galaxy docs-galaxy schemas-galaxy helm-lint-galaxy ## Run full API generation pipeline for the galaxy operator.
+
+.PHONY: docs-star
+docs-star: hermit ## Generate CRD reference documentation for the star API.
+	@echo "Generating CRD documentation for star..."
+	@mkdir -p api/star/docs
 	@crd-ref-docs \
-		--source-path="api/v1alpha1" \
+		--source-path="api/star" \
 		--config="$(REPO_ROOT)/api/.crd-ref-docs.config.yaml" \
-		--output-path="api/docs" \
+		--output-path="api/star/docs" \
 		--output-mode=group \
 		--renderer=markdown
-	@if [ -f "api/docs/konfidence.cloud.md" ]; then \
-		mv "api/docs/konfidence.cloud.md" "api/docs/README.md"; \
+	@if [ -f "api/star/docs/star.konfidence.cloud.md" ]; then \
+		mv "api/star/docs/star.konfidence.cloud.md" "api/star/docs/README.md"; \
 	fi
 
-.PHONY: schemas
-schemas: hermit manifests ## Extract JSON schemas for each CRD version.
-	@rm -rf $(SCHEMA_DIR)
-	@mkdir -p $(SCHEMA_DIR)
-	@for crd in $(STAR_CRD_DIR)/*.yaml $(GALAXY_CRD_DIR)/*.yaml; do \
+.PHONY: docs-galaxy
+docs-galaxy: hermit ## Generate CRD reference documentation for the galaxy API.
+	@echo "Generating CRD documentation for galaxy..."
+	@mkdir -p api/galaxy/docs
+	@crd-ref-docs \
+		--source-path="api/galaxy" \
+		--config="$(REPO_ROOT)/api/.crd-ref-docs.config.yaml" \
+		--output-path="api/galaxy/docs" \
+		--output-mode=group \
+		--renderer=markdown
+	@if [ -f "api/galaxy/docs/galaxy.konfidence.cloud.md" ]; then \
+		mv "api/galaxy/docs/galaxy.konfidence.cloud.md" "api/galaxy/docs/README.md"; \
+	fi
+
+.PHONY: schemas-star
+schemas-star: hermit manifests-star ## Extract JSON schemas for each star CRD version.
+	@rm -rf $(STAR_SCHEMA_DIR)
+	@mkdir -p $(STAR_SCHEMA_DIR)
+	@for crd in $(STAR_CRD_DIR)/*.yaml; do \
 		crd_kind=$$(yq ".spec.names.kind" $$crd | tr '[:upper:]' '[:lower:]'); \
 		crd_group="$$(yq ".spec.group" $$crd)"; \
 		for ver in $$(yq -r '.spec.versions[].name' $$crd); do \
 			yq -o=json ".spec.versions[] | select(.name == \"$$ver\") | .schema.openAPIV3Schema" $$crd \
-				> "$(SCHEMA_DIR)/$${crd_group}_$${crd_kind}_$${ver}.json"; \
+				> "$(STAR_SCHEMA_DIR)/$${crd_group}_$${crd_kind}_$${ver}.json"; \
+		done; \
+	done
+
+.PHONY: schemas-galaxy
+schemas-galaxy: hermit manifests-galaxy ## Extract JSON schemas for each galaxy CRD version.
+	@rm -rf $(GALAXY_SCHEMA_DIR)
+	@mkdir -p $(GALAXY_SCHEMA_DIR)
+	@for crd in $(GALAXY_CRD_DIR)/*.yaml; do \
+		crd_kind=$$(yq ".spec.names.kind" $$crd | tr '[:upper:]' '[:lower:]'); \
+		crd_group="$$(yq ".spec.group" $$crd)"; \
+		for ver in $$(yq -r '.spec.versions[].name' $$crd); do \
+			yq -o=json ".spec.versions[] | select(.name == \"$$ver\") | .schema.openAPIV3Schema" $$crd \
+				> "$(GALAXY_SCHEMA_DIR)/$${crd_group}_$${crd_kind}_$${ver}.json"; \
 		done; \
 	done
 
@@ -219,17 +212,17 @@ schemas: hermit manifests ## Extract JSON schemas for each CRD version.
 validate: validate-star validate-galaxy ## Validate all sample resources against their JSON schemas.
 
 .PHONY: validate-star
-validate-star: schemas ## Validate star sample resources against their JSON schemas.
+validate-star: schemas-star ## Validate star sample resources against their JSON schemas.
 	@kubeconform -summary \
 		-schema-location default \
-		-schema-location "$(SCHEMA_DIR)/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+		-schema-location "$(STAR_SCHEMA_DIR)/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
 		$(STAR_SAMPLE_DIR)
 
 .PHONY: validate-galaxy
-validate-galaxy: schemas ## Validate galaxy sample resources against their JSON schemas.
+validate-galaxy: schemas-galaxy ## Validate galaxy sample resources against their JSON schemas.
 	@kubeconform -summary \
 		-schema-location default \
-		-schema-location "$(SCHEMA_DIR)/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+		-schema-location "$(GALAXY_SCHEMA_DIR)/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
 		$(GALAXY_SAMPLE_DIR)
 
 .PHONY: helm-lint
@@ -268,9 +261,6 @@ test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.
 .PHONY: test-kden-cli
 test-kden-cli: hermit
 	go test ./cmd/kden/... ./internal/kden/...
-.PHONY: test-api
-test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
-	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
 
 .PHONY: test-api
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
@@ -291,8 +281,6 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet build-star build-galaxy build-kden-cli ## Build all operator binaries.
-build: manifests generate fmt vet build-star build-galaxy build-api ## Build all operator binaries.
 build: manifests generate fmt vet build-star build-galaxy build-kden-cli build-api ## Build all operator binaries.
 
 .PHONY: build-star
@@ -312,26 +300,15 @@ build-api: hermit ## Build the Konfidence API server binary.
 	go build -o bin/api ./cmd/api/main.go
 
 .PHONY: run-star
-run-star: manifests-star generate fmt vet ## Run the star operator from your host.
+run-star: manifests-star generate-star fmt vet ## Run the star operator from your host.
 	go run ./cmd/star/main.go
 
 .PHONY: run-galaxy
-run-galaxy: manifests-galaxy generate fmt vet ## Run the galaxy operator from your host.
+run-galaxy: manifests-galaxy generate-galaxy fmt vet ## Run the galaxy operator from your host.
 	go run ./cmd/galaxy/main.go
 
 .PHONY: run-api
 run-api: hermit ## Run the API server locally. Set KUBECONFIG for domain endpoints, not needed for probes.
-run-api: hermit ## Run the Konfidence API server from your host (source bin/activate-hermit first).
-run-api: hermit ## Run the API server locally — no cluster needed, probe endpoints only.
-	go run ./cmd/api/main.go
-
-.PHONY: run-api-k8s
-run-api-k8s: hermit ## Run the API server locally with a real cluster (requires KUBECONFIG env var or ~/.kube/config).
-	@if [ -z "$$KUBECONFIG" ] && [ ! -f "$$HOME/.kube/config" ]; then \
-		echo "Error: no kubeconfig found."; \
-		echo "  Set KUBECONFIG=<path> or ensure ~/.kube/config exists."; \
-		exit 1; \
-	fi
 	go run ./cmd/api/main.go
 
 # These targets are only used for local environments (not in pipeline)
@@ -398,7 +375,7 @@ uninstall-galaxy: hermit ## Uninstall galaxy CRDs from the cluster. Use ignore-n
 	$(HELM) uninstall galaxy --ignore-not-found
 
 .PHONY: deploy
-deploy: deploy-star deploy-galaxy deploy-api ## Deploy all operators to the cluster specified in ~/.kube/config.
+deploy: deploy-star deploy-galaxy ## Deploy all operators to the cluster specified in ~/.kube/config.
 
 .PHONY: deploy-star
 deploy-star: hermit manifests-star ## Deploy the star operator to the cluster specified in ~/.kube/config.
@@ -414,17 +391,8 @@ deploy-galaxy: hermit manifests-galaxy ## Deploy the galaxy operator to the clus
 		--set image.tag=$(TAG) \
 		--set crd.keep=false
 
-.PHONY: deploy-api
-deploy-api: hermit ## Deploy the Konfidence API server (via the star chart) to the cluster specified in ~/.kube/config.
-	$(HELM) upgrade --install star charts/star \
-		--set controller.install=false \
-		--set crd.install=false \
-		--set api.install=true \
-		--set api.image.repository=$(REGISTRY)/api \
-		--set api.image.tag=$(TAG)
-
 .PHONY: undeploy
-undeploy: undeploy-star undeploy-galaxy undeploy-api ## Undeploy all operators. Use ignore-not-found=true to suppress errors.
+undeploy: undeploy-star undeploy-galaxy ## Undeploy all operators. Use ignore-not-found=true to suppress errors.
 
 .PHONY: undeploy-star
 undeploy-star: hermit ## Undeploy the star operator. Use ignore-not-found=true to suppress errors.
@@ -433,10 +401,6 @@ undeploy-star: hermit ## Undeploy the star operator. Use ignore-not-found=true t
 .PHONY: undeploy-galaxy
 undeploy-galaxy: hermit ## Undeploy the galaxy operator. Use ignore-not-found=true to suppress errors.
 	$(HELM) uninstall galaxy --ignore-not-found
-
-.PHONY: undeploy-api
-undeploy-api: hermit ## Disable the Konfidence API server in the star chart. Use ignore-not-found=true to suppress errors.
-	$(HELM) upgrade star charts/star --reuse-values --set api.install=false
 
 ##@ Developer Setup
 

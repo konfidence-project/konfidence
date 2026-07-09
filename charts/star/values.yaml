@@ -82,8 +82,7 @@ api:
 # Deployed in the same namespace as the star operator.
 api:
   # When false, all API server resources (Deployment, Service, RBAC) are skipped.
-  # Set to true once the API image is available in the registry.
-  enabled: false
+  enabled: true
 
   image:
     repository: ghcr.io/konfidence-project/api

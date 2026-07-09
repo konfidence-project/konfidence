@@ -20,21 +20,28 @@ var _ = Describe("Config.Validate", func() {
 		}
 	}
 
-	It("accepts a fully valid config", func() {
-		Expect(valid().Validate()).To(Succeed())
+	It("accepts a fully valid config and returns parsed durations", func() {
+		parsed, err := valid().Validate()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(parsed.Addr).To(Equal(":8090"))
+		Expect(parsed.ReadTimeout.Seconds()).To(Equal(10.0))
+		Expect(parsed.WriteTimeout.Seconds()).To(Equal(10.0))
+		Expect(parsed.ShutdownTimeout.Seconds()).To(Equal(15.0))
 	})
 
 	It("rejects an empty addr", func() {
 		c := valid()
 		c.Addr = ""
-		Expect(c.Validate()).To(MatchError(ContainSubstring("addr")))
+		_, err := c.Validate()
+		Expect(err).To(MatchError(ContainSubstring("addr")))
 	})
 
 	DescribeTable("rejects invalid durations",
 		func(field string, mutate func(*config.Config)) {
 			c := valid()
 			mutate(&c)
-			Expect(c.Validate()).To(MatchError(ContainSubstring(field)))
+			_, err := c.Validate()
+			Expect(err).To(MatchError(ContainSubstring(field)))
 		},
 		Entry("read-timeout", "read-timeout", func(c *config.Config) { c.ReadTimeout = invalidDuration }),
 		Entry("write-timeout", "write-timeout", func(c *config.Config) { c.WriteTimeout = invalidDuration }),
@@ -44,12 +51,11 @@ var _ = Describe("Config.Validate", func() {
 	It("rejects an unknown log level", func() {
 		c := valid()
 		c.LogLevel = "verbose"
-		Expect(c.Validate()).To(MatchError(ContainSubstring("log-level")))
+		_, err := c.Validate()
+		Expect(err).To(MatchError(ContainSubstring("log-level")))
 	})
-})
 
-var _ = Describe("Config.Parse", func() {
-	It("returns parsed durations", func() {
+	It("returns parsed durations on success", func() {
 		c := config.Config{
 			Addr:            ":8090",
 			ReadTimeout:     "5s",
@@ -57,9 +63,10 @@ var _ = Describe("Config.Parse", func() {
 			ShutdownTimeout: "20s",
 			LogLevel:        "debug",
 		}
-		p := c.Parse()
-		Expect(p.ReadTimeout.Seconds()).To(Equal(5.0))
-		Expect(p.WriteTimeout.Seconds()).To(Equal(7.0))
-		Expect(p.ShutdownTimeout.Seconds()).To(Equal(20.0))
+		parsed, err := c.Validate()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(parsed.ReadTimeout.Seconds()).To(Equal(5.0))
+		Expect(parsed.WriteTimeout.Seconds()).To(Equal(7.0))
+		Expect(parsed.ShutdownTimeout.Seconds()).To(Equal(20.0))
 	})
 })

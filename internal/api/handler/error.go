@@ -30,8 +30,6 @@ func (e *APIError) Error() string {
 
 func (e *APIError) Unwrap() error { return e.Err }
 
-// Common constructors --------------------------------------------------------
-
 func NewNotFound(resource, name string) *APIError {
 	return &APIError{
 		Status:  http.StatusNotFound,

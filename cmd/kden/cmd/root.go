@@ -69,9 +69,9 @@ func initCmd() {
 		"",
 		"Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'")
 	rootCmd.PersistentFlags().String(
-		"api-addr",
+		"api-endpoint",
 		"",
-		"Address of the Konfidence API gateway. Env: KDEN_API_ADDR (default: http://localhost:8090)")
+		"Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)")
 
 	rootCmd.AddCommand(completion.NewCompletionCmd())
 	rootCmd.AddCommand(config.NewConfigCmd())
