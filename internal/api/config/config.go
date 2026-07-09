@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"time"
+
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // Config holds all runtime configuration for the API server.
@@ -14,16 +16,12 @@ type Config struct {
 	WriteTimeout    string
 	ShutdownTimeout string
 	LogLevel        string
-	// Kubeconfig is the path to a kubeconfig file for local development.
-	// Empty means in-cluster config, which is used when deployed as a pod.
-	// The k8s client is built lazily — omitting this does not prevent the
-	// server from starting; only domain endpoints that talk to the cluster
-	// will fail if neither kubeconfig nor in-cluster config is available
-	Kubeconfig string
+	// Scheme holds the registered API types. Built in cmd/api/cmd/root.go
+	// following the same pattern as the galaxy and star operators.
+	Scheme *runtime.Scheme
 }
 
-// Parsed returns duration values already parsed from the string fields.
-// It assumes Validate has been called first.
+// Parsed holds pre-parsed duration values from Config.
 type Parsed struct {
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration

@@ -1,4 +1,4 @@
-{{- if .Values.api.install -}}
+{{- if .Values.api.enabled -}}
 apiVersion: v1
 kind: Service
 metadata:

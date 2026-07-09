@@ -326,13 +326,13 @@ run-api: hermit ## Run the API server locally — no cluster needed, probe endpo
 	go run ./cmd/api/main.go
 
 .PHONY: run-api-k8s
-run-api-k8s: hermit ## Run the API server locally with a real cluster (requires API_KUBECONFIG or ~/.kube/config).
-	@if [ -z "$$API_KUBECONFIG" ] && [ ! -f "$$HOME/.kube/config" ]; then \
+run-api-k8s: hermit ## Run the API server locally with a real cluster (requires KUBECONFIG env var or ~/.kube/config).
+	@if [ -z "$$KUBECONFIG" ] && [ ! -f "$$HOME/.kube/config" ]; then \
 		echo "Error: no kubeconfig found."; \
-		echo "  Set API_KUBECONFIG=<path> or ensure ~/.kube/config exists."; \
+		echo "  Set KUBECONFIG=<path> or ensure ~/.kube/config exists."; \
 		exit 1; \
 	fi
-	go run ./cmd/api/main.go --kubeconfig $${API_KUBECONFIG:-$$HOME/.kube/config}
+	go run ./cmd/api/main.go
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build

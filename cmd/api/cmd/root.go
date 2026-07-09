@@ -5,8 +5,25 @@ import (
 
 	"github.com/spf13/cobra"
 
+	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/server"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+)
+
+var (
+	scheme = runtime.NewScheme()
+)
+
+var (
+	addr            string
+	logLevel        string
+	readTimeout     string
+	writeTimeout    string
+	shutdownTimeout string
 )
 
 var rootCmd = &cobra.Command{
@@ -27,7 +44,9 @@ primary configuration mechanism. Flags are convenient for local development.
   API_READ_TIMEOUT       HTTP read deadline                 (default: 10s)
   API_WRITE_TIMEOUT      HTTP write deadline                (default: 10s)
   API_SHUTDOWN_TIMEOUT   Graceful shutdown window           (default: 15s)
-  API_KUBECONFIG         Path to kubeconfig (local dev only)`,
+
+Kubernetes client config is resolved automatically via the standard KUBECONFIG
+env var or in-cluster config when deployed as a pod — no flag required.`,
 	RunE: startServer,
 }
 
@@ -39,55 +58,30 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().String("addr", envOr("API_ADDR", ":8090"),
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(galaxy.AddToScheme(scheme))
+	utilruntime.Must(star.AddToScheme(scheme))
+
+	rootCmd.Flags().StringVar(&addr, "addr", envOr("API_ADDR", ":8090"),
 		"TCP address the API server listens on. Env: API_ADDR")
-	rootCmd.Flags().String("log-level", envOr("API_LOG_LEVEL", "info"),
+	rootCmd.Flags().StringVar(&logLevel, "log-level", envOr("API_LOG_LEVEL", "info"),
 		"Log level (debug, info, warn, error). Env: API_LOG_LEVEL")
-	rootCmd.Flags().String("read-timeout", envOr("API_READ_TIMEOUT", "10s"),
+	rootCmd.Flags().StringVar(&readTimeout, "read-timeout", envOr("API_READ_TIMEOUT", "10s"),
 		"Maximum duration for reading an entire request. Env: API_READ_TIMEOUT")
-	rootCmd.Flags().String("write-timeout", envOr("API_WRITE_TIMEOUT", "10s"),
+	rootCmd.Flags().StringVar(&writeTimeout, "write-timeout", envOr("API_WRITE_TIMEOUT", "10s"),
 		"Maximum duration before timing out writes of the response. Env: API_WRITE_TIMEOUT")
-	rootCmd.Flags().String("shutdown-timeout", envOr("API_SHUTDOWN_TIMEOUT", "15s"),
+	rootCmd.Flags().StringVar(&shutdownTimeout, "shutdown-timeout", envOr("API_SHUTDOWN_TIMEOUT", "15s"),
 		"Maximum duration for a graceful shutdown. Env: API_SHUTDOWN_TIMEOUT")
-	rootCmd.Flags().String("kubeconfig", envOr("API_KUBECONFIG", ""),
-		"Path to a kubeconfig file. Defaults to in-cluster config when empty. Env: API_KUBECONFIG")
 }
 
 func startServer(cmd *cobra.Command, _ []string) error {
-	flags := cmd.Flags()
-
-	addr, err := flags.GetString("addr")
-	if err != nil {
-		return err
-	}
-	logLevel, err := flags.GetString("log-level")
-	if err != nil {
-		return err
-	}
-	readTimeout, err := flags.GetString("read-timeout")
-	if err != nil {
-		return err
-	}
-	writeTimeout, err := flags.GetString("write-timeout")
-	if err != nil {
-		return err
-	}
-	shutdownTimeout, err := flags.GetString("shutdown-timeout")
-	if err != nil {
-		return err
-	}
-	kubeconfig, err := flags.GetString("kubeconfig")
-	if err != nil {
-		return err
-	}
-
 	cfg := config.Config{
 		Addr:            addr,
 		LogLevel:        logLevel,
 		ReadTimeout:     readTimeout,
 		WriteTimeout:    writeTimeout,
 		ShutdownTimeout: shutdownTimeout,
-		Kubeconfig:      kubeconfig,
+		Scheme:          scheme,
 	}
 
 	if err := cfg.Validate(); err != nil {

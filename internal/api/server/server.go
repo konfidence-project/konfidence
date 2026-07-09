@@ -36,7 +36,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	srv := &http.Server{
 		Addr:         s.cfg.Addr,
-		Handler:      router.New(s.logger, s.cfg.Kubeconfig),
+		Handler:      router.New(s.logger, s.cfg.Scheme),
 		ReadTimeout:  parsed.ReadTimeout,
 		WriteTimeout: parsed.WriteTimeout,
 	}

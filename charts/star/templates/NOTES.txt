@@ -14,7 +14,7 @@ The controller workload was NOT deployed. Bring it up later with:
 Nothing was installed: controller.install and crd.install are both false.
 {{- end }}
 
-{{- if .Values.api.install }}
+{{- if .Values.api.enabled }}
 
 Konfidence API server installed in namespace {{ .Release.Namespace }}.
 

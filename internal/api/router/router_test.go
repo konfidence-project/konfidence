@@ -15,8 +15,8 @@ var _ = Describe("Router", func() {
 	var h http.Handler
 
 	BeforeEach(func() {
-		// Empty kubeconfig - client is built lazily and probe endpoints don't need it.
-		h = router.New(slog.Default(), "")
+		// nil scheme is acceptable in unit tests - no handler exercises the k8s client yet.
+		h = router.New(slog.Default(), nil)
 	})
 
 	DescribeTable("probe routes return 200",
