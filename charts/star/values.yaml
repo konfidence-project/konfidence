@@ -36,7 +36,7 @@ controller:
 api:
   # When false, all API server resources (Deployment, Service, RBAC) are skipped.
   # Set to true once the API image is available in the registry.
-  install: false
+  enabled: false
 
   image:
     repository: ghcr.io/konfidence-project/api
@@ -44,12 +44,13 @@ api:
     tag: ""
     pullPolicy: IfNotPresent
 
-  # TCP address the API server listens on inside the container.
-  addr: ":8090"
-  logLevel: info
-  readTimeout: "10s"
-  writeTimeout: "10s"
-  shutdownTimeout: "15s"
+  server:
+    # TCP address the API server listens on inside the container.
+    addr: ":8090"
+    logLevel: info
+    readTimeout: "10s"
+    writeTimeout: "10s"
+    shutdownTimeout: "15s"
 
   # Extra CLI arguments appended to the container args list.
   extraArgs: []
@@ -60,20 +61,13 @@ api:
 
   replicas: 1
 
-  resources:
-    limits:
-      cpu: 200m
-      memory: 128Mi
-    requests:
-      cpu: 50m
-      memory: 64Mi
+  resources: {}
 
   podAnnotations: {}
   podLabels: {}
 
   # Kubernetes Service exposing the API server.
   # ClusterIP  - reachable inside the cluster; use port-forward or Ingress externally.
-  # Potentially we could use NodePort or LoadBalancer
   service:
     type: ClusterIP
     port: 8090
