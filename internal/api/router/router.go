@@ -15,6 +15,17 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
 )
 
+// MountFunc registers a domain's routes onto the root router.
+// Each business domain exposes a MountFunc that wires its sub-router:
+//
+//	func Mount(r chi.Router, logger *slog.Logger, k8s func() client.Client) {
+//	    r.Mount("/api/v1/stages", NewRouter(logger, k8s))
+//	}
+//
+// Wiring happens in cmd/api/cmd/root.go, following the same explicit pattern
+// used for controller registration in cmd/star and cmd/galaxy.
+type MountFunc func(r chi.Router, logger *slog.Logger, k8s func() client.Client)
+
 // New returns the root chi.Router with all routes and middleware registered.
 //
 // Middleware stack (outermost to innermost):
@@ -22,12 +33,15 @@ import (
 //	Recovery - last-resort panic safety net; keeps the process alive
 //	Logging  - logs method, path, status, duration after the handler returns
 //
-// The Kubernetes client is built lazily on the first domain request via
-// k8s(). Probe endpoints never trigger client construction, so the server
-// starts cleanly without a cluster (useful for local development).
-// The client is built using ctrl.GetConfigOrDie() which resolves config via
+// The Kubernetes client is built lazily on the first domain request. Probe
+// endpoints never trigger client construction, so the server starts cleanly
+// without a cluster (useful for local development). Config is resolved via
 // the standard KUBECONFIG env var or in-cluster config automatically.
-func New(logger *slog.Logger, scheme *runtime.Scheme) http.Handler {
+//
+// Domain routes are registered by passing MountFunc values — one per domain:
+//
+//	router.New(logger, scheme, stageapi.Mount, vectorpromotionapi.Mount)
+func New(logger *slog.Logger, scheme *runtime.Scheme, mounts ...MountFunc) http.Handler {
 	k8s := lazyClient(logger, scheme)
 
 	r := chi.NewRouter()
@@ -39,15 +53,16 @@ func New(logger *slog.Logger, scheme *runtime.Scheme) http.Handler {
 	r.Method(http.MethodGet, "/healthz", middleware.Handle(logger, handler.Healthz))
 	r.Method(http.MethodGet, "/readyz", middleware.Handle(logger, handler.Readyz))
 
-	// Domain routes are mounted here as sub-routers, e.g.:
-	//   r.Mount("/api/v1", v1.NewRouter(logger, k8s))
-	_ = k8s
+	// Domain routes - each domain registers its own sub-router via MountFunc.
+	for _, mount := range mounts {
+		mount(r, logger, k8s)
+	}
 
 	return r
 }
 
 // lazyClient returns a function that builds the k8s client on first call and
-// caches the result. Config is resolved via ctrl.GetConfigOrDie() which reads
+// caches the result. Config is resolved via ctrl.GetConfig() which reads the
 // KUBECONFIG env var or falls back to in-cluster config automatically.
 func lazyClient(logger *slog.Logger, scheme *runtime.Scheme) func() client.Client {
 	var (

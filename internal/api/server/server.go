@@ -19,11 +19,14 @@ type Server struct {
 	mounts []router.MountFunc
 }
 
-// New creates a Server from a validated Parsed config.
-func New(cfg config.Parsed) *Server {
+// New creates a Server from a validated Parsed config and optional domain
+// mount functions. Domain routes are registered by passing MountFunc values:
+//
+//	server.New(cfg, stageapi.Mount, vectorpromotionapi.Mount)
+func New(cfg config.Parsed, mounts ...router.MountFunc) *Server {
 	level := resolveLogLevel(cfg.LogLevel)
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
-	return &Server{cfg: cfg, logger: logger}
+	return &Server{cfg: cfg, logger: logger, mounts: mounts}
 }
 
 // Run starts the HTTP server and blocks until ctx is cancelled, then performs
@@ -31,7 +34,7 @@ func New(cfg config.Parsed) *Server {
 func (s *Server) Run(ctx context.Context) error {
 	srv := &http.Server{
 		Addr:         s.cfg.Addr,
-		Handler:      router.New(s.logger, s.cfg.Scheme),
+		Handler:      router.New(s.logger, s.cfg.Scheme, s.mounts...),
 		ReadTimeout:  s.cfg.ReadTimeout,
 		WriteTimeout: s.cfg.WriteTimeout,
 	}
