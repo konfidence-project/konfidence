@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/router"
@@ -16,28 +14,26 @@ import (
 
 // Server wraps an http.Server with graceful shutdown support.
 type Server struct {
-	cfg    config.Config
+	cfg    config.Parsed
 	logger *slog.Logger
 	mounts []router.MountFunc
 }
 
-// New creates a Server from the given config.
-// The Kubernetes client is built lazily when a domain handler first needs it —
-// this allows the server to start and serve probe endpoints without a cluster.
-func New(cfg config.Config) *Server {
+// New creates a Server from a validated Parsed config.
+func New(cfg config.Parsed) *Server {
 	level := resolveLogLevel(cfg.LogLevel)
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	return &Server{cfg: cfg, logger: logger}
 }
 
-// Run starts the HTTP server and blocks until the context is cancelled or a
-// termination signal is received, then attempts a graceful shutdown.
+// Run starts the HTTP server and blocks until ctx is cancelled, then performs
+// a graceful shutdown. Signal handling belongs in the caller (cmd layer).
 func (s *Server) Run(ctx context.Context) error {
 	srv := &http.Server{
 		Addr:         s.cfg.Addr,
 		Handler:      router.New(s.logger, s.cfg.Scheme),
-		ReadTimeout:  parsed.ReadTimeout,
-		WriteTimeout: parsed.WriteTimeout,
+		ReadTimeout:  s.cfg.ReadTimeout,
+		WriteTimeout: s.cfg.WriteTimeout,
 	}
 
 	errCh := make(chan error, 1)

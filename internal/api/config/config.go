@@ -21,44 +21,46 @@ type Config struct {
 	Scheme *runtime.Scheme
 }
 
-// Parsed holds pre-parsed duration values from Config.
+// Parsed holds validated, pre-parsed values ready for use by the server.
 type Parsed struct {
+	Addr            string
+	LogLevel        string
+	Scheme          *runtime.Scheme
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
 }
 
-// Validate checks all fields and returns the first error found.
-func (c Config) Validate() error {
+// Validate checks all fields, parses durations, and returns a ready-to-use
+// Parsed on success. Combining validation and parsing avoids calling Parse
+// on an unvalidated Config.
+func (c Config) Validate() (Parsed, error) {
 	if c.Addr == "" {
-		return fmt.Errorf("addr must not be empty")
+		return Parsed{}, fmt.Errorf("addr must not be empty")
 	}
-	if _, err := time.ParseDuration(c.ReadTimeout); err != nil {
-		return fmt.Errorf("invalid read-timeout %q: %w", c.ReadTimeout, err)
+	read, err := time.ParseDuration(c.ReadTimeout)
+	if err != nil {
+		return Parsed{}, fmt.Errorf("invalid read-timeout %q: %w", c.ReadTimeout, err)
 	}
-	if _, err := time.ParseDuration(c.WriteTimeout); err != nil {
-		return fmt.Errorf("invalid write-timeout %q: %w", c.WriteTimeout, err)
+	write, err := time.ParseDuration(c.WriteTimeout)
+	if err != nil {
+		return Parsed{}, fmt.Errorf("invalid write-timeout %q: %w", c.WriteTimeout, err)
 	}
-	if _, err := time.ParseDuration(c.ShutdownTimeout); err != nil {
-		return fmt.Errorf("invalid shutdown-timeout %q: %w", c.ShutdownTimeout, err)
+	shutdown, err := time.ParseDuration(c.ShutdownTimeout)
+	if err != nil {
+		return Parsed{}, fmt.Errorf("invalid shutdown-timeout %q: %w", c.ShutdownTimeout, err)
 	}
 	switch c.LogLevel {
 	case "debug", "info", "warn", "error":
 	default:
-		return fmt.Errorf("invalid log-level %q: must be one of debug, info, warn, error", c.LogLevel)
+		return Parsed{}, fmt.Errorf("invalid log-level %q: must be one of debug, info, warn, error", c.LogLevel)
 	}
-	return nil
-}
-
-// Parse returns the pre-parsed durations. Call Validate first to ensure the
-// string fields are well-formed; invalid values produce zero durations.
-func (c Config) Parse() Parsed {
-	read, _ := time.ParseDuration(c.ReadTimeout)
-	write, _ := time.ParseDuration(c.WriteTimeout)
-	shutdown, _ := time.ParseDuration(c.ShutdownTimeout)
 	return Parsed{
+		Addr:            c.Addr,
+		LogLevel:        c.LogLevel,
+		Scheme:          c.Scheme,
 		ReadTimeout:     read,
 		WriteTimeout:    write,
 		ShutdownTimeout: shutdown,
-	}
+	}, nil
 }

@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -84,11 +86,15 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		Scheme:          scheme,
 	}
 
-	if err := cfg.Validate(); err != nil {
+	parsed, err := cfg.Validate()
+	if err != nil {
 		return err
 	}
 
-	return server.New(cfg).Run(cmd.Context())
+	ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	return server.New(parsed).Run(ctx)
 }
 
 // envOr returns the value of the environment variable key, or fallback if unset.
