@@ -8,8 +8,8 @@
         indexByNamespace,
         landscapeOrder,
     } from "$lib/components/utils/landscape.js";
-    import LandscapePromotionEdge from "$lib/components/LandscapePromotionEdge.svelte";
-    import LandscapeStageNode from "$lib/components/LandscapeStageNode.svelte";
+    import LandscapePromotionEdge from "$lib/components/landscape/LandscapePromotionEdge.svelte";
+    import LandscapeStageNode from "$lib/components/landscape/LandscapeStageNode.svelte";
     import type { Stage } from "$lib/stages.js";
     import { getStageCardVariantPreference } from "$lib/stores/stage-card-variant.svelte";
 
