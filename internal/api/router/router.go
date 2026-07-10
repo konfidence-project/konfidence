@@ -53,6 +53,8 @@ func New(logger *slog.Logger, scheme *runtime.Scheme, mounts ...MountFunc) http.
 	r.Method(http.MethodGet, "/healthz", middleware.Handle(logger, handler.Healthz))
 	r.Method(http.MethodGet, "/readyz", middleware.Handle(logger, handler.Readyz))
 
+	r.Method(http.MethodGet, "/api/v1/stages", middleware.Handle(logger, handler.ListStages))
+
 	// Domain routes - each domain registers its own sub-router via MountFunc.
 	for _, mount := range mounts {
 		mount(r, logger, k8s)
