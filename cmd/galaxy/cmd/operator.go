@@ -13,9 +13,9 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/konfidence-project/konfidence/internal/galaxy/stageconfiguration"
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorassembly"
-	"github.com/konfidence-project/konfidence/internal/galaxy/vectorpromotion"
+	"github.com/konfidence-project/konfidence/internal/stageconfiguration"
+	"github.com/konfidence-project/konfidence/internal/vectorassembly"
+	"github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 )

@@ -30,6 +30,13 @@ GALAXY_CRD_DIR ?= test/data/crds/galaxy
 STAR_SCHEMA_DIR ?= $(REPO_ROOT)/.tmp/schemas/star
 GALAXY_SCHEMA_DIR ?= $(REPO_ROOT)/.tmp/schemas/galaxy
 
+# Internal controller packages per operator. internal/ is flat (no galaxy/star
+# grouping dir), so each operator's controllers are enumerated explicitly.
+STAR_INTERNAL_DIRS    = ./internal/stage/... ./internal/taskorchestration/... ./internal/vectoractivation/... ./internal/vectordeployment/... ./internal/galaxysync/...
+GALAXY_INTERNAL_DIRS  = ./internal/stageconfiguration/... ./internal/vectorassembly/... ./internal/vectorpromotion/...
+STAR_INTERNAL_PATHS   = $(foreach d,$(STAR_INTERNAL_DIRS),paths="$(d)")
+GALAXY_INTERNAL_PATHS = $(foreach d,$(GALAXY_INTERNAL_DIRS),paths="$(d)")
+
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
 
@@ -70,7 +77,7 @@ manifests-star: hermit ## Generate CRDs and RBAC manifests for the star operator
 	@echo "Generating manifests for star..."
 	@mkdir -p $(STAR_CRD_DIR) charts/star/templates/crds config/rbac/star
 	$(CONTROLLER_GEN) rbac:roleName=star-manager crd webhook \
-		paths="./internal/star/..." paths="./api/star/..." \
+		$(STAR_INTERNAL_PATHS) paths="./api/star/..." \
 		output:crd:artifacts:config=$(STAR_CRD_DIR) \
 		output:rbac:artifacts:config=config/rbac/star
 	for f in $(STAR_CRD_DIR)/*.yaml; do \
@@ -84,7 +91,7 @@ manifests-galaxy: hermit ## Generate CRDs and RBAC manifests for the galaxy oper
 	@echo "Generating manifests for galaxy..."
 	@mkdir -p $(GALAXY_CRD_DIR) charts/galaxy/templates/crds config/rbac/galaxy
 	$(CONTROLLER_GEN) rbac:roleName=galaxy-manager crd webhook \
-		paths="./internal/galaxy/..." paths="./api/galaxy/..." \
+		$(GALAXY_INTERNAL_PATHS) paths="./api/galaxy/..." \
 		output:crd:artifacts:config=$(GALAXY_CRD_DIR) \
 		output:rbac:artifacts:config=config/rbac/galaxy
 	for f in $(GALAXY_CRD_DIR)/*.yaml; do \
@@ -99,12 +106,12 @@ generate: hermit generate-star generate-galaxy ## Generate DeepCopy implementati
 .PHONY: generate-star
 generate-star: hermit ## Generate DeepCopy implementations for the star operator.
 	$(CONTROLLER_GEN) object \
-		paths="./internal/star/..." paths="./api/star/..."
+		$(STAR_INTERNAL_PATHS) paths="./api/star/..."
 
 .PHONY: generate-galaxy
 generate-galaxy: hermit ## Generate DeepCopy implementations for the galaxy operator.
 	$(CONTROLLER_GEN) object \
-		paths="./internal/galaxy/..." paths="./api/galaxy/..."
+		$(GALAXY_INTERNAL_PATHS) paths="./api/galaxy/..."
 
 .PHONY: generate-mocks
 generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
@@ -239,12 +246,12 @@ test: hermit test-star test-galaxy test-pkg ## Run all unit tests.
 .PHONY: test-star
 test-star: hermit manifests generate-star fmt vet setup-envtest ginkgo ## Run unit tests for the star operator only.
 	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) --coverprofile=cover-star.out -v ./internal/star/...
+		$(GINKGO) --coverprofile=cover-star.out -v $(STAR_INTERNAL_DIRS)
 
 .PHONY: test-galaxy
 test-galaxy: hermit manifests generate-galaxy fmt vet setup-envtest ginkgo ## Run unit tests for the galaxy operator only.
 	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) --coverprofile=cover-galaxy.out -v ./internal/galaxy/...
+		$(GINKGO) --coverprofile=cover-galaxy.out -v $(GALAXY_INTERNAL_DIRS)
 
 .PHONY: test-pkg
 test-pkg: hermit fmt vet ginkgo ## Run unit tests for shared pkg packages.
