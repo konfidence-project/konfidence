@@ -28,6 +28,7 @@ var _ = Describe("Router", func() {
 		},
 		Entry("/healthz", "/healthz"),
 		Entry("/readyz", "/readyz"),
+		Entry("/readyz", "/api/v1/stages"),
 	)
 
 	It("returns 404 for unknown paths", func() {
