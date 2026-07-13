@@ -35,7 +35,6 @@ var _ = Describe("Router", func() {
 		},
 		Entry("/healthz", "/healthz"),
 		Entry("/readyz", "/readyz"),
-		Entry("/readyz", "/api/v1/stages"),
 	)
 
 	It("returns 404 for unknown paths", func() {
@@ -45,6 +44,22 @@ var _ = Describe("Router", func() {
 	})
 
 	Describe("auth routes", func() {
+		It("rejects stage listing without a session", func() {
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/stages", nil))
+			Expect(rec.Code).To(Equal(http.StatusUnauthorized))
+		})
+
+		It("allows stage listing with a session", func() {
+			sessionID := uiLogin(h)
+
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/stages", nil)
+			req.Header.Set("X-Session-ID", sessionID)
+			h.ServeHTTP(rec, req)
+			Expect(rec.Code).To(Equal(http.StatusOK))
+		})
+
 		It("creates a UI session through the IDP token-handler redirect flow", func() {
 			sessionID := uiLogin(h)
 

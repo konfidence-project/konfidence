@@ -67,15 +67,18 @@ func New(logger *slog.Logger, scheme *runtime.Scheme, authCfg config.AuthConfig,
 	r.Method(http.MethodGet, "/login", middleware.Handle(logger, auth.LoginStart))
 	r.Method(http.MethodGet, "/auth/callback", middleware.Handle(logger, auth.Callback))
 	r.Method(http.MethodPost, "/sessions/exchange", middleware.Handle(logger, auth.Exchange))
-	r.Method(http.MethodPost, "/logout", middleware.Handle(logger, auth.Logout))
-	r.Method(http.MethodGet, "/identity", middleware.Handle(logger, auth.Identity))
 
-	r.Method(http.MethodGet, "/api/v1/stages", middleware.Handle(logger, handler.ListStages))
+	r.Group(func(protected chi.Router) {
+		protected.Use(auth.RequireSession)
+		protected.Method(http.MethodPost, "/logout", middleware.Handle(logger, auth.Logout))
+		protected.Method(http.MethodGet, "/identity", middleware.Handle(logger, auth.Identity))
+		protected.Method(http.MethodGet, "/api/v1/stages", middleware.Handle(logger, handler.ListStages))
 
-	// Domain routes - each domain registers its own sub-router via MountFunc.
-	for _, mount := range mounts {
-		mount(r, logger, k8s)
-	}
+		// Domain routes - each domain registers its own sub-router via MountFunc.
+		for _, mount := range mounts {
+			mount(protected, logger, k8s)
+		}
+	})
 
 	return r
 }
