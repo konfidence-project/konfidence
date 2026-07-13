@@ -222,7 +222,9 @@ func newTestIDP() *httptest.Server {
 	})
 	mux.HandleFunc("/userinfo", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"sub":"dex|alice","preferred_username":"alice","email":"alice@example.com","name":"Alice Admin","email_verified":true,"groups":["admins"]}`))
+		_, _ = w.Write(
+			[]byte(`{"sub":"dex|alice","preferred_username":"alice","email":"alice@example.com","name":"Alice Admin","email_verified":true,"groups":["admins"]}`),
+		)
 	})
 	return httptest.NewServer(mux)
 }
