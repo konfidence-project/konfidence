@@ -13,18 +13,15 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
@@ -40,29 +37,22 @@ const (
 
 // VectorPromotionReconciler reconciles a VectorPromotion object.
 type VectorPromotionReconciler struct {
-	Mgr    mcmanager.Manager
-	Scheme *runtime.Scheme
-	Cache  *clientcache.Cache[*konfidence.VectorPromotionConfig, promotion.OcmPort]
+	client.Client
+	Recorder events.EventRecorder
+	Cache    *clientcache.Cache[*konfidence.VectorPromotionConfig, promotion.OcmPort]
 }
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
 
-func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx).WithValues("cluster", req.ClusterName)
+func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
 	ctx = logf.IntoContext(ctx, log)
 	log.Info("reconciling vector promotion")
 
-	cluster, err := r.Mgr.GetCluster(ctx, req.ClusterName)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get cluster: %w", err)
-	}
-	clusterClient := cluster.GetClient()
-	recorder := cluster.GetEventRecorder(VectorPromotionControllerName)
-
 	vectorPromotion := &konfidence.VectorPromotion{}
-	if err := clusterClient.Get(ctx, req.NamespacedName, vectorPromotion); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, vectorPromotion); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -73,10 +63,10 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		logStr := `Promotion result is unknown probably because the controller failed to patch the promotion ` +
 			`status after starting the promotion. Aborting reconciliation.`
 		log.Info(logStr)
-		recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "EncounteredRunningPromotion", EventActionUnknownPromotionStatus,
+		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "EncounteredRunningPromotion", EventActionUnknownPromotionStatus,
 			fmt.Sprintf("%s Please check previous events for details.", logStr))
 		if err := setAndPatchPromotionCondition(
-			ctx, log, clusterClient, recorder, vectorPromotion, original,
+			ctx, log, r.Client, r.Recorder, vectorPromotion, original,
 			metav1.ConditionUnknown, konfidence.ReasonPromotionStatusUnknown, logStr); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -84,13 +74,13 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		return ctrl.Result{}, nil
 	}
 
-	config, err := getPromotionConfig(ctx, clusterClient, vectorPromotion)
+	config, err := getPromotionConfig(ctx, r.Client, vectorPromotion)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Error(err, fmt.Sprintf("promotion configuration %q not found", vectorPromotion.Spec.VectorPromotionConfigRef))
 			err = fmt.Errorf("promotion configuration %q not found: %w", vectorPromotion.Spec.VectorPromotionConfigRef, err)
 			if patchErr := setAndPatchPromotionCondition(
-				ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
+				ctx, log, r.Client, r.Recorder, vectorPromotion, original, metav1.ConditionFalse,
 				konfidence.ReasonPromotionConfigurationNotFound, err.Error()); patchErr != nil {
 				return ctrl.Result{}, errors.Join(err, patchErr)
 			}
@@ -100,7 +90,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		log.Error(err, fmt.Sprintf("failed to fetch promotion configuration %q", vectorPromotion.Spec.VectorPromotionConfigRef))
 		err = fmt.Errorf("failed to fetch promotion configuration %q: %w", vectorPromotion.Spec.VectorPromotionConfigRef, err)
 		if patchErr := setAndPatchPromotionCondition(
-			ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
+			ctx, log, r.Client, r.Recorder, vectorPromotion, original, metav1.ConditionFalse,
 			konfidence.ReasonPromotionFailed, err.Error()); patchErr != nil {
 			return ctrl.Result{}, errors.Join(err, patchErr)
 		}
@@ -111,19 +101,19 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 	if err != nil {
 		log.Error(err, "failed to parse promotion parameters")
 		if patchError := setAndPatchPromotionCondition(
-			ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
+			ctx, log, r.Client, r.Recorder, vectorPromotion, original, metav1.ConditionFalse,
 			konfidence.ReasonInvalidPromotionConfiguration, err.Error()); patchError != nil {
 			return ctrl.Result{}, errors.Join(err, patchError)
 		}
 		return ctrl.Result{}, reconcile.TerminalError(err)
 	}
 
-	adapter, err := r.Cache.Lookup(ctx, clusterClient, req.ClusterName, config)
+	adapter, err := r.Cache.Lookup(ctx, r.Client, config)
 	if err != nil {
 		log.Error(err, "failed to build OCM clients")
 		err = fmt.Errorf("failed to build OCM clients: %w", err)
 		if patchErr := setAndPatchPromotionCondition(
-			ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
+			ctx, log, r.Client, r.Recorder, vectorPromotion, original, metav1.ConditionFalse,
 			konfidence.ReasonPromotionFailed, err.Error()); patchErr != nil {
 			return ctrl.Result{}, errors.Join(err, patchErr)
 		}
@@ -132,9 +122,9 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 
 	msgStr := "starting promotion"
 	log.Info(msgStr)
-	recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionStarting", EventActionReconciling, msgStr)
+	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionStarting", EventActionReconciling, msgStr)
 	if err := setAndPatchPromotionCondition(
-		ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
+		ctx, log, r.Client, r.Recorder, vectorPromotion, original, metav1.ConditionFalse,
 		konfidence.ReasonPromotionRunning, "Promotion is currently running"); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -142,7 +132,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 	if err := adapter.Promote(ctx, *src, *dst); err != nil {
 		log.Error(err, "Promotion failed")
 		if patchError := setAndPatchPromotionCondition(
-			ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
+			ctx, log, r.Client, r.Recorder, vectorPromotion, original, metav1.ConditionFalse,
 			promotion.ClassifyPromotionError(err), err.Error()); patchError != nil {
 			return ctrl.Result{}, errors.Join(err, patchError)
 		}
@@ -151,9 +141,9 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 
 	msgStr = "promotion succeeded"
 	log.Info(msgStr)
-	recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionSuccessful", EventActionReconciling, msgStr)
+	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionSuccessful", EventActionReconciling, msgStr)
 	if err := setAndPatchPromotionCondition(
-		ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionTrue,
+		ctx, log, r.Client, r.Recorder, vectorPromotion, original, metav1.ConditionTrue,
 		konfidence.ReasonPromotionSucceeded, "Promotion completed successfully"); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -164,7 +154,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 func setAndPatchPromotionCondition(
 	ctx context.Context,
 	log logr.Logger,
-	clusterClient client.Client,
+	c client.Client,
 	recorder events.EventRecorder,
 	vectorPromotion, original *konfidence.VectorPromotion,
 	status metav1.ConditionStatus,
@@ -177,7 +167,7 @@ func setAndPatchPromotionCondition(
 		Message:            message,
 	})
 	if !reflect.DeepEqual(vectorPromotion.Status, original.Status) {
-		if err := clusterClient.Status().Patch(ctx, vectorPromotion, client.MergeFrom(original)); err != nil {
+		if err := c.Status().Patch(ctx, vectorPromotion, client.MergeFrom(original)); err != nil {
 			log.Error(err, fmt.Sprintf("failed to patch promotion status of promotion %q in namespace %q",
 				vectorPromotion.Name, vectorPromotion.Namespace))
 			recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch,
@@ -205,10 +195,22 @@ func parsePromotionParameters(config *konfidence.VectorPromotionConfig) (source,
 	return source, target, nil
 }
 
+// NewVectorPromotionReconciler wires a VectorPromotionReconciler for the given manager.
+func NewVectorPromotionReconciler(
+	mgr ctrl.Manager,
+	cache *clientcache.Cache[*konfidence.VectorPromotionConfig, promotion.OcmPort],
+) *VectorPromotionReconciler {
+	return &VectorPromotionReconciler{
+		Client:   mgr.GetClient(),
+		Recorder: mgr.GetEventRecorder(VectorPromotionControllerName),
+		Cache:    cache,
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
-func (r *VectorPromotionReconciler) SetupWithManager(mgr mcmanager.Manager) error {
-	return mcbuilder.ControllerManagedBy(mgr).
-		For(&konfidence.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
+func (r *VectorPromotionReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&konfidence.VectorPromotion{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc:  func(e event.CreateEvent) bool { return true },
 			UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 			DeleteFunc:  func(e event.DeleteEvent) bool { return false },

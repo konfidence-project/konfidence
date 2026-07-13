@@ -31,7 +31,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 const (
@@ -176,7 +175,7 @@ var _ = BeforeSuite(func() {
 })
 
 func startManager() {
-	mgr, err := mcmanager.New(cfg, nil, ctrl.Options{
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:  scheme.Scheme,
 		Metrics: metricsserver.Options{BindAddress: "0"},
 	})
@@ -211,21 +210,14 @@ func startManager() {
 	)
 	Expect(err).NotTo(HaveOccurred())
 
-	Expect((&VectorPromotionReconciler{
-		Mgr:    mgr,
-		Scheme: mgr.GetLocalManager().GetScheme(),
-		Cache:  promotionCache,
-	}).SetupWithManager(mgr)).To(Succeed())
+	Expect(NewVectorPromotionReconciler(mgr, promotionCache).
+		SetupWithManager(mgr)).To(Succeed())
 
-	Expect((&VectorPromotionTTLReconciler{
-		Mgr:    mgr,
-		Scheme: mgr.GetLocalManager().GetScheme(),
-	}).SetupWithManager(mgr)).To(Succeed())
+	Expect(NewVectorPromotionTTLReconciler(mgr).
+		SetupWithManager(mgr)).To(Succeed())
 
-	Expect((&VectorPromotionStatusPropagationReconciler{
-		Mgr:    mgr,
-		Scheme: mgr.GetLocalManager().GetScheme(),
-	}).SetupWithManager(mgr)).To(Succeed())
+	Expect(NewVectorPromotionStatusPropagationReconciler(mgr).
+		SetupWithManager(mgr)).To(Succeed())
 
 	managerCtx, managerCancel := context.WithCancel(ctx)
 	go func() {
@@ -235,7 +227,7 @@ func startManager() {
 	DeferCleanup(managerCancel)
 
 	Eventually(func() bool {
-		return mgr.GetLocalManager().GetCache().WaitForCacheSync(ctx)
+		return mgr.GetCache().WaitForCacheSync(ctx)
 	}).Should(BeTrue())
 }
 

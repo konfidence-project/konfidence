@@ -9,22 +9,18 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
-// VectorPromotionStatusPropagationReconciler enures that the status condition of the VectorPromotion are propagated to the
+// VectorPromotionStatusPropagationReconciler ensures that the status condition of the VectorPromotion are propagated to the
 // respective VectorPromotionConfig.
 type VectorPromotionStatusPropagationReconciler struct {
-	Mgr    mcmanager.Manager
-	Scheme *runtime.Scheme
+	client.Client
 }
 
 const statusPropagationReconcileInterval = time.Second * 1
@@ -34,18 +30,12 @@ const statusPropagationReconcileInterval = time.Second * 1
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotionconfigs/status,verbs=get;update;patch
 
-func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx).WithValues("cluster", req.ClusterName)
+func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
 	ctx = logf.IntoContext(ctx, log)
 
-	cluster, err := r.Mgr.GetCluster(ctx, req.ClusterName)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get cluster: %w", err)
-	}
-	clusterClient := cluster.GetClient()
-
 	p := &konfidence.VectorPromotion{}
-	if err := clusterClient.Get(ctx, req.NamespacedName, p); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, p); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -53,7 +43,7 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 		return ctrl.Result{RequeueAfter: statusPropagationReconcileInterval}, nil
 	}
 
-	config, err := getPromotionConfig(ctx, clusterClient, p)
+	config, err := getPromotionConfig(ctx, r.Client, p)
 	if apierrors.IsNotFound(err) {
 		return ctrl.Result{RequeueAfter: statusPropagationReconcileInterval}, nil
 	}
@@ -67,7 +57,7 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 		return requeueIfNotTerminal(p), nil
 	}
 
-	if err := patchPromotionConfigStatus(ctx, clusterClient, p, config); err != nil {
+	if err := patchPromotionConfigStatus(ctx, r.Client, p, config); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to patch VectorPromotionConfig status: %w", err)
 	}
 
@@ -82,7 +72,7 @@ func requeueIfNotTerminal(p *konfidence.VectorPromotion) ctrl.Result {
 }
 
 func patchPromotionConfigStatus(
-	ctx context.Context, clusterClient client.Client,
+	ctx context.Context, c client.Client,
 	p *konfidence.VectorPromotion, config *konfidence.VectorPromotionConfig,
 ) error {
 	originalConfig := config.DeepCopy()
@@ -90,16 +80,23 @@ func patchPromotionConfigStatus(
 	if promotion.IsSucceeded(p) {
 		config.Status.LastSuccessfulPromotionConditions = p.Status.Conditions
 	}
-	if err := clusterClient.Status().Patch(ctx, config, client.MergeFrom(originalConfig)); err != nil {
+	if err := c.Status().Patch(ctx, config, client.MergeFrom(originalConfig)); err != nil {
 		return err
 	}
 	return nil
 }
 
+// NewVectorPromotionStatusPropagationReconciler wires a VectorPromotionStatusPropagationReconciler for the given manager.
+func NewVectorPromotionStatusPropagationReconciler(mgr ctrl.Manager) *VectorPromotionStatusPropagationReconciler {
+	return &VectorPromotionStatusPropagationReconciler{
+		Client: mgr.GetClient(),
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
-func (r *VectorPromotionStatusPropagationReconciler) SetupWithManager(mgr mcmanager.Manager) error {
-	return mcbuilder.ControllerManagedBy(mgr).
-		For(&konfidence.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
+func (r *VectorPromotionStatusPropagationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&konfidence.VectorPromotion{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc:  func(e event.CreateEvent) bool { return true },
 			UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 			DeleteFunc:  func(e event.DeleteEvent) bool { return false },

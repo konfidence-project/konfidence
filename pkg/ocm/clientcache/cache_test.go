@@ -15,14 +15,13 @@ import (
 
 // cr is a minimal stand-in for a reconciled CR.
 type cr struct {
-	clusterName string
-	namespace   string
-	name        string
-	generation  int64
+	namespace  string
+	name       string
+	generation int64
 }
 
-func extract(clusterName string, c cr) uint64 {
-	return clientcache.HashKey(clusterName, c.namespace, c.name, c.generation)
+func extract(c cr) uint64 {
+	return clientcache.HashKey(c.namespace, c.name, c.generation)
 }
 
 var _ = Describe("Cache", func() {
@@ -37,7 +36,7 @@ var _ = Describe("Cache", func() {
 		cache, err = clientcache.New(clientcache.DefaultClientCacheSize, extract,
 			func(_ context.Context, _ client.Reader, c cr) (string, error) {
 				calls.Add(1)
-				return fmt.Sprintf("%s/%s/%s@%d", c.clusterName, c.namespace, c.name, c.generation), nil
+				return fmt.Sprintf("%s/%s@%d", c.namespace, c.name, c.generation), nil
 			},
 		)
 		Expect(err).NotTo(HaveOccurred())
@@ -45,40 +44,29 @@ var _ = Describe("Cache", func() {
 
 	Describe("Lookup", func() {
 		It("calls the factory on a miss and returns the value", func() {
-			c := cr{clusterName: "cls", namespace: "ns", name: "foo", generation: 1}
-			v, err := cache.Lookup(context.Background(), nil, c.clusterName, c)
+			c := cr{namespace: "ns", name: "foo", generation: 1}
+			v, err := cache.Lookup(context.Background(), nil, c)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(v).To(Equal("cls/ns/foo@1"))
+			Expect(v).To(Equal("ns/foo@1"))
 			Expect(calls.Load()).To(Equal(int32(1)))
 		})
 
 		It("returns cached value on a hit without calling the factory again", func() {
-			c := cr{clusterName: "cls", namespace: "ns", name: "foo", generation: 1}
-			_, _ = cache.Lookup(context.Background(), nil, c.clusterName, c)
-			v, err := cache.Lookup(context.Background(), nil, c.clusterName, c)
+			c := cr{namespace: "ns", name: "foo", generation: 1}
+			_, _ = cache.Lookup(context.Background(), nil, c)
+			v, err := cache.Lookup(context.Background(), nil, c)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(v).To(Equal("cls/ns/foo@1"))
+			Expect(v).To(Equal("ns/foo@1"))
 			Expect(calls.Load()).To(Equal(int32(1)))
 		})
 
 		It("misses when generation changes", func() {
-			c1 := cr{clusterName: "cls", namespace: "ns", name: "foo", generation: 1}
-			c2 := cr{clusterName: "cls", namespace: "ns", name: "foo", generation: 2}
-			_, _ = cache.Lookup(context.Background(), nil, c1.clusterName, c1)
-			v, err := cache.Lookup(context.Background(), nil, c2.clusterName, c2)
+			c1 := cr{namespace: "ns", name: "foo", generation: 1}
+			c2 := cr{namespace: "ns", name: "foo", generation: 2}
+			_, _ = cache.Lookup(context.Background(), nil, c1)
+			v, err := cache.Lookup(context.Background(), nil, c2)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(v).To(Equal("cls/ns/foo@2"))
-			Expect(calls.Load()).To(Equal(int32(2)))
-		})
-
-		It("isolates entries by clusterName", func() {
-			c := cr{namespace: "ns", name: "foo", generation: 1}
-			c.clusterName = "cluster-a"
-			va, _ := cache.Lookup(context.Background(), nil, c.clusterName, c)
-			c.clusterName = "cluster-b"
-			vb, _ := cache.Lookup(context.Background(), nil, c.clusterName, c)
-			Expect(va).To(Equal("cluster-a/ns/foo@1"))
-			Expect(vb).To(Equal("cluster-b/ns/foo@1"))
+			Expect(v).To(Equal("ns/foo@2"))
 			Expect(calls.Load()).To(Equal(int32(2)))
 		})
 
@@ -91,24 +79,24 @@ var _ = Describe("Cache", func() {
 			)
 			Expect(err).NotTo(HaveOccurred())
 
-			c := cr{clusterName: "cls", namespace: "ns", name: "foo", generation: 1}
-			_, err = errCache.Lookup(context.Background(), nil, c.clusterName, c)
+			c := cr{namespace: "ns", name: "foo", generation: 1}
+			_, err = errCache.Lookup(context.Background(), nil, c)
 			Expect(err).To(MatchError(boom))
 
 			// second call still hits the factory (error was not cached)
-			_, err = errCache.Lookup(context.Background(), nil, c.clusterName, c)
+			_, err = errCache.Lookup(context.Background(), nil, c)
 			Expect(err).To(MatchError(boom))
 		})
 
 		It("is safe for concurrent use on a cold cache", func() {
-			c := cr{clusterName: "cls", namespace: "ns", name: "foo", generation: 1}
+			c := cr{namespace: "ns", name: "foo", generation: 1}
 			const goroutines = 50
 			var wg sync.WaitGroup
 			wg.Add(goroutines)
 			for range goroutines {
 				go func() {
 					defer wg.Done()
-					_, err := cache.Lookup(context.Background(), nil, c.clusterName, c)
+					_, err := cache.Lookup(context.Background(), nil, c)
 					Expect(err).NotTo(HaveOccurred())
 				}()
 			}
@@ -119,9 +107,9 @@ var _ = Describe("Cache", func() {
 		})
 
 		It("calls the factory exactly once when the cache is warm", func() {
-			c := cr{clusterName: "cls", namespace: "ns", name: "foo", generation: 1}
+			c := cr{namespace: "ns", name: "foo", generation: 1}
 			// Prime the cache.
-			_, err := cache.Lookup(context.Background(), nil, c.clusterName, c)
+			_, err := cache.Lookup(context.Background(), nil, c)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(calls.Load()).To(Equal(int32(1)))
 
@@ -131,7 +119,7 @@ var _ = Describe("Cache", func() {
 			for range goroutines {
 				go func() {
 					defer wg.Done()
-					_, err := cache.Lookup(context.Background(), nil, c.clusterName, c)
+					_, err := cache.Lookup(context.Background(), nil, c)
 					Expect(err).NotTo(HaveOccurred())
 				}()
 			}

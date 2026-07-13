@@ -20,7 +20,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	goruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,7 +28,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 const (
@@ -44,8 +42,7 @@ var (
 	testEnv    *envtest.Environment
 	cfg        *rest.Config
 	k8sClient  client.Client
-	k8sManager mcmanager.Manager
-	k8sScheme  *goruntime.Scheme
+	k8sManager ctrl.Manager
 
 	registryEndpoint string
 
@@ -68,7 +65,6 @@ var _ = BeforeSuite(func() {
 
 	var err error
 	Expect(konfidence.AddToScheme(scheme.Scheme)).To(Succeed())
-	k8sScheme = scheme.Scheme
 
 	By("starting OCI registry container")
 	zotConfigDir, err := filepath.Abs(filepath.Join(".", "test", "zot-config"))
@@ -133,7 +129,7 @@ var _ = BeforeSuite(func() {
 	createNamespace(ctx, k8sClient, "target")
 
 	By("creating manager and wiring StageConfiguration controller")
-	k8sManager, err = mcmanager.New(cfg, nil, ctrl.Options{
+	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:  scheme.Scheme,
 		Metrics: metricsserver.Options{BindAddress: "0"},
 	})
@@ -149,7 +145,7 @@ var _ = BeforeSuite(func() {
 	)
 	Expect(err).NotTo(HaveOccurred())
 
-	Expect(NewStageConfigurationReconciler(k8sManager, k8sScheme, cfg, cache).SetupWithManager(k8sManager)).To(Succeed())
+	Expect(NewStageConfigurationReconciler(k8sManager, cache).SetupWithManager(k8sManager)).To(Succeed())
 
 	go func() {
 		defer GinkgoRecover()

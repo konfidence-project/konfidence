@@ -40,38 +40,16 @@ spec:
             - --lease-id={{ .Values.controller.leaseId }}
             - --health-probe-bind-address={{ .Values.controller.healthProbeBindAddress }}
             - --metrics-bind-address={{ .Values.controller.metricsBindAddress }}
-            {{- if .Values.controller.kcpEndpointSliceName }}
-            - --kcp-endpoint-slice-name={{ .Values.controller.kcpEndpointSliceName }}
-            {{- end }}
-            {{- if .Values.controller.kubernetesHost }}
-            - --kubernetes-host={{ .Values.controller.kubernetesHost }}
-            {{- end }}
-            {{- if gt (int .Values.controller.kubernetesPort) 0 }}
-            - --kubernetes-port={{ .Values.controller.kubernetesPort }}
-            {{- end }}
             {{- with .Values.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- if or .Values.env .Values.controller.kubeconfig.secretName }}
+          {{- with .Values.env }}
           env:
-            {{- if .Values.controller.kubeconfig.secretName }}
-            - name: KUBECONFIG
-              value: {{ printf "%s/%s" .Values.controller.kubeconfig.mountPath .Values.controller.kubeconfig.secretKey | quote }}
-            {{- end }}
-            {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
           {{- end }}
-          {{- if or .Values.volumeMounts .Values.controller.kubeconfig.secretName }}
+          {{- with .Values.volumeMounts }}
           volumeMounts:
-            {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
-            {{- if .Values.controller.kubeconfig.secretName }}
-            - name: kcp-kubeconfig
-              mountPath: {{ .Values.controller.kubeconfig.mountPath }}
-              readOnly: true
-            {{- end }}
           {{- end }}
           ports:
             - name: health
@@ -98,16 +76,9 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
-      {{- if or .Values.volumes .Values.controller.kubeconfig.secretName }}
+      {{- with .Values.volumes }}
       volumes:
-        {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.controller.kubeconfig.secretName }}
-        - name: kcp-kubeconfig
-          secret:
-            secretName: {{ .Values.controller.kubeconfig.secretName }}
-        {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

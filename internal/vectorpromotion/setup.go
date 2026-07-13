@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/controller"
@@ -23,7 +22,7 @@ type Options struct {
 }
 
 // SetupControllers registers all vector promotion controllers with the given manager.
-func SetupControllers(ctx context.Context, mgr mcmanager.Manager, scheme *runtime.Scheme, opts Options) error {
+func SetupControllers(ctx context.Context, mgr ctrl.Manager, opts Options) error {
 	if opts.Limiter == nil {
 		return fmt.Errorf("setup: Limiter is required; use crypto.NewLimiter(0) for GOMAXPROCS")
 	}
@@ -39,25 +38,18 @@ func SetupControllers(ctx context.Context, mgr mcmanager.Manager, scheme *runtim
 		return fmt.Errorf("creating clientcache: %w", err)
 	}
 
-	if err := (&controller.VectorPromotionReconciler{
-		Mgr:    mgr,
-		Scheme: scheme,
-		Cache:  cache,
-	}).SetupWithManager(mgr); err != nil {
+	if err := controller.NewVectorPromotionReconciler(mgr, cache).
+		SetupWithManager(mgr); err != nil {
 		return err
 	}
 
-	if err := (&controller.VectorPromotionTTLReconciler{
-		Mgr:    mgr,
-		Scheme: scheme,
-	}).SetupWithManager(mgr); err != nil {
+	if err := controller.NewVectorPromotionTTLReconciler(mgr).
+		SetupWithManager(mgr); err != nil {
 		return err
 	}
 
-	if err := (&controller.VectorPromotionStatusPropagationReconciler{
-		Mgr:    mgr,
-		Scheme: scheme,
-	}).SetupWithManager(mgr); err != nil {
+	if err := controller.NewVectorPromotionStatusPropagationReconciler(mgr).
+		SetupWithManager(mgr); err != nil {
 		return err
 	}
 

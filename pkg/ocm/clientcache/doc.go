@@ -1,6 +1,5 @@
-// Package clientcache provides a process-wide, tenant-isolated LRU registry
-// of OCM clients for controller-runtime reconcilers operating in a
-// multicluster or KCP environment.
+// Package clientcache provides a process-wide LRU registry of OCM clients
+// for controller-runtime reconcilers.
 //
 // # Why This Exists
 //
@@ -11,32 +10,26 @@
 // CachingVerifier's 30-minute TTL window is never realised; every reconcile
 // starts cold and pays the full construction cost again.
 //
-// In a KCP environment the situation compounds: the operator manages N logical
-// clusters simultaneously, each producing a continuous stream of reconcile
-// requests. Without per-tenant durability, crypto warm-up never accumulates.
-//
 // # The Core Invariant
 //
-// A complete set of OCM clients is fully determined by two things:
-// the logical cluster (tenant boundary) and the CR generation (a
+// A complete set of OCM clients is fully determined by the CR generation (a
 // monotonically increasing integer that increments on every spec change).
-// If neither has changed since the last reconcile, the clients are identical
+// If the CR hasn't changed since the last reconcile, the clients are identical
 // to those built last time and can be reused without rebuilding.
 //
 // [Cache] encodes this invariant directly. It is a generic LRU keyed by a
-// uint64 derived from clusterName + namespace + name + generation. Controllers
-// register two functions once at SetupControllers time:
+// uint64 derived from namespace + name + generation. Controllers register two
+// functions once at SetupControllers time:
 //
-//   - extract: maps (clusterName, cr) → uint64 cache key. [DefaultExtract]
+//   - extract: maps (cr) → uint64 cache key. [DefaultExtract]
 //     covers any CR that embeds metav1.ObjectMeta — no wrapper needed.
 //
 //   - factory: called on every cache miss with the reconcile context,
-//     the cluster-scoped k8sClient, and the live CR. It owns the full
-//     construction path: credential resolution, spec extraction, and client
-//     instantiation. Only truly process-wide state (e.g. a shared [crypto.Limiter])
-//     is closed over — k8sClient is cluster-scoped and must come through
-//     [Cache.Lookup]; use logf.FromContext(ctx) for a logger already enriched
-//     with cluster and namespace values.
+//     the k8sClient, and the live CR. It owns the full construction path:
+//     credential resolution, spec extraction, and client instantiation.
+//     Only truly process-wide state (e.g. a shared [crypto.Limiter]) is closed
+//     over — k8sClient is passed through [Cache.Lookup]; use
+//     logf.FromContext(ctx) for a logger already enriched with context values.
 //
 // [Cache.Lookup] is the only call-site in the reconcile loop:
 //
@@ -47,12 +40,6 @@
 // produces a natural miss. The superseded entry becomes unreachable and is
 // evicted under LRU capacity pressure — no explicit invalidation required,
 // no background goroutines, no TTL.
-//
-// # Tenant Isolation
-//
-// clusterName is always the first component of the cache key. Entries from
-// different logical clusters never collide. A CachingVerifier result obtained
-// with tenant A's credentials is never served to tenant B.
 //
 // # Thread Safety
 //
@@ -99,9 +86,9 @@
 //
 // Then in the reconcile loop — one call, everything warm:
 //
-//	adapter, err := r.cache.Lookup(ctx, clusterClient, req.ClusterName, template)
+//	adapter, err := r.cache.Lookup(ctx, k8sClient, template)
 //	if err != nil {
 //	    return fmt.Errorf("building OCM clients: %w", err)
 //	}
-//	// adapter is ready — credential-resolved, verifier-warm, isolated per cluster.
+//	// adapter is ready — credential-resolved and verifier-warm.
 package clientcache
