@@ -37,7 +37,7 @@
         import("@ui5/webcomponents-fiori/dist/UserMenu.js").UserMenuItemClickEventDetail;
 
     interface NavItem {
-        href: "/" | "/landscape" | "/promotions" | "/settings" | "/vectors";
+        href: "/" | "/artifacts" | "/landscape" | "/promotions" | "/settings" | "/vectors";
         icon: string;
         text: string;
     }
@@ -69,6 +69,7 @@
                 { href: "/landscape", icon: "upstacked-chart", text: "Landscape" },
                 { href: "/vectors", icon: "radar-chart", text: "Vectors" },
                 { href: "/promotions", icon: "process", text: "Promotions" },
+                { href: "/artifacts", icon: "database", text: "Artifacts" },
             ],
             text: "Delivery",
         },
