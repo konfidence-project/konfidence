@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	testocm "github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -21,16 +21,16 @@ const (
 	pkiInterval = 250 * time.Millisecond
 )
 
-func scCredentials(names []string) *galaxy.Credentials {
-	refs := make([]galaxy.CredentialRef, len(names))
+func scCredentials(names []string) *konfidence.Credentials {
+	refs := make([]konfidence.CredentialRef, len(names))
 	for i, n := range names {
-		refs[i] = galaxy.CredentialRef{Name: n}
+		refs[i] = konfidence.CredentialRef{Name: n}
 	}
-	return &galaxy.Credentials{OCM: &galaxy.OCMCredentials{Refs: refs}}
+	return &konfidence.Credentials{OCM: &konfidence.OCMCredentials{Refs: refs}}
 }
 
-func scVerify(sigName string) *galaxy.Verify {
-	return &galaxy.Verify{Signatures: []galaxy.Signature{{Name: sigName}}}
+func scVerify(sigName string) *konfidence.Verify {
+	return &konfidence.Verify{Signatures: []konfidence.Signature{{Name: sigName}}}
 }
 
 func scVectorRef(version string) compref.Ref {
@@ -42,11 +42,11 @@ func scVectorAlias(alias string) string {
 }
 
 func assertSCReady(ctx context.Context, name string, expectedStatus metav1.ConditionStatus) {
-	sc := &galaxy.StageConfiguration{}
+	sc := &konfidence.StageConfiguration{}
 	key := types.NamespacedName{Name: name, Namespace: "default"}
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, key, sc)).To(Succeed())
-		cond := apimeta.FindStatusCondition(sc.Status.Conditions, galaxy.StageConfigurationReadyCondition)
+		cond := apimeta.FindStatusCondition(sc.Status.Conditions, konfidence.StageConfigurationReadyCondition)
 		g.Expect(cond).NotTo(BeNil())
 		g.Expect(cond.Status).To(Equal(expectedStatus))
 	}, pkiTimeout, pkiInterval).Should(Succeed())

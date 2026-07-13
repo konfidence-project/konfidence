@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -27,10 +27,10 @@ type StageVersionUsageReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversionusages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversionusages/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversionusages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversionusages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -43,7 +43,7 @@ func (r *StageVersionUsageReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	log.Info("Reconcile stageVersionUsage started...")
 
 	// get stageVersionUsage
-	stageVersionUsage := &star.StageVersionUsage{}
+	stageVersionUsage := &konfidence.StageVersionUsage{}
 	if err := r.Get(ctx, req.NamespacedName, stageVersionUsage); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -64,7 +64,7 @@ func (r *StageVersionUsageReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	)
 }
 
-func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Context, req ctrl.Request, stageVersionUsage *star.StageVersionUsage) error {
+func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Context, req ctrl.Request, stageVersionUsage *konfidence.StageVersionUsage) error {
 	resolvedStageVersions, err := r.resolveStageVersions(ctx, req, stageVersionUsage)
 	if err != nil {
 		return err
@@ -74,11 +74,11 @@ func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Con
 		return nil
 	}
 
-	meta.RemoveStatusCondition(&stageVersionUsage.Status.Conditions, star.StageVersionNotFound)
+	meta.RemoveStatusCondition(&stageVersionUsage.Status.Conditions, konfidence.StageVersionNotFound)
 
 	allStageVersionsReady := true
 	for _, stageVersion := range resolvedStageVersions {
-		if !meta.IsStatusConditionTrue(stageVersion.Status.Conditions, star.StageVersionReady) {
+		if !meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.StageVersionReady) {
 			allStageVersionsReady = false
 			break
 		}
@@ -86,18 +86,18 @@ func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Con
 
 	if allStageVersionsReady {
 		meta.SetStatusCondition(&stageVersionUsage.Status.Conditions, metav1.Condition{
-			Type:               star.StageVersionUsageReady,
+			Type:               konfidence.StageVersionUsageReady,
 			Status:             metav1.ConditionTrue,
-			Reason:             star.StageVersionUsageReady,
+			Reason:             konfidence.StageVersionUsageReady,
 			Message:            "Referenced StageVersion(s) are rolled out and ready for traffic",
 			ObservedGeneration: stageVersionUsage.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
 	} else {
 		meta.SetStatusCondition(&stageVersionUsage.Status.Conditions, metav1.Condition{
-			Type:               star.StageVersionUsageReady,
+			Type:               konfidence.StageVersionUsageReady,
 			Status:             metav1.ConditionFalse,
-			Reason:             star.StageVersionUsageReady,
+			Reason:             konfidence.StageVersionUsageReady,
 			Message:            "Referenced StageVersion(s) are not ready",
 			ObservedGeneration: stageVersionUsage.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -116,20 +116,20 @@ func (r *StageVersionUsageReconciler) reconcileStageVersionUsage(ctx context.Con
 }
 
 func (r *StageVersionUsageReconciler) resolveStageVersions(
-	ctx context.Context, req ctrl.Request, stageVersionUsage *star.StageVersionUsage,
-) ([]star.StageVersion, error) {
+	ctx context.Context, req ctrl.Request, stageVersionUsage *konfidence.StageVersionUsage,
+) ([]konfidence.StageVersion, error) {
 	log := logf.FromContext(ctx)
 	notFoundCondition := metav1.Condition{
-		Type:               star.StageVersionNotFound,
+		Type:               konfidence.StageVersionNotFound,
 		Status:             metav1.ConditionTrue,
-		Reason:             star.StageVersionNotFound,
+		Reason:             konfidence.StageVersionNotFound,
 		Message:            "Referenced StageVersion(s) not found",
 		ObservedGeneration: stageVersionUsage.Generation,
 		LastTransitionTime: metav1.Now(),
 	}
 
 	if stageVersionUsage.Spec.StageVersionRef != nil {
-		stageVersion := &star.StageVersion{}
+		stageVersion := &konfidence.StageVersion{}
 		err := r.Get(ctx, types.NamespacedName{Name: stageVersionUsage.Spec.StageVersionRef.Name, Namespace: req.Namespace}, stageVersion)
 		if err != nil && errors.IsNotFound(err) {
 			meta.SetStatusCondition(&stageVersionUsage.Status.Conditions, notFoundCondition)
@@ -140,7 +140,7 @@ func (r *StageVersionUsageReconciler) resolveStageVersions(
 		if err != nil {
 			return nil, fmt.Errorf("unable to check referenced stageVersion: %w", err)
 		}
-		return []star.StageVersion{
+		return []konfidence.StageVersion{
 			*stageVersion,
 		}, nil
 	} else {
@@ -150,7 +150,7 @@ func (r *StageVersionUsageReconciler) resolveStageVersions(
 			labelMatcher[key] = value
 		}
 
-		stageVersions := &star.StageVersionList{}
+		stageVersions := &konfidence.StageVersionList{}
 		if err := r.List(ctx, stageVersions, client.InNamespace(req.Namespace), labelMatcher); err != nil {
 			return nil, fmt.Errorf("unable to list stageVersions: %w", err)
 		}
@@ -168,9 +168,9 @@ func (r *StageVersionUsageReconciler) resolveStageVersions(
 // SetupWithManager sets up the controller with the Manager.
 func (r *StageVersionUsageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&star.StageVersionUsage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&konfidence.StageVersionUsage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&star.StageVersion{},
+			&konfidence.StageVersion{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileStageVersionUsages),
 		).
 		Named("stageVersionUsage").
@@ -180,7 +180,7 @@ func (r *StageVersionUsageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *StageVersionUsageReconciler) reconcileStageVersionUsages(ctx context.Context, obj client.Object) []reconcile.Request {
 	// get all stageVersionUsages
 	// TODO this is very inefficient and should be changed in a later version
-	stageVersionUsages := &star.StageVersionUsageList{}
+	stageVersionUsages := &konfidence.StageVersionUsageList{}
 	err := r.List(ctx, stageVersionUsages, client.InNamespace(obj.GetNamespace()))
 	if err != nil || len(stageVersionUsages.Items) == 0 {
 		return []reconcile.Request{}

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/coordination/v1"
@@ -43,7 +43,7 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	var err error
-	Expect(star.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(konfidence.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(v1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 
 	By("bootstrapping test environment")
@@ -72,11 +72,11 @@ var _ = BeforeSuite(func() {
 		Client: client.Options{
 			Cache: &client.CacheOptions{
 				DisableFor: []client.Object{
-					&star.ActivationTaskRegistration{},
-					&star.StageVersion{},
-					&star.Stage{},
-					&star.StageVersionUsage{},
-					&star.ActivationTaskExecution{},
+					&konfidence.ActivationTaskRegistration{},
+					&konfidence.StageVersion{},
+					&konfidence.Stage{},
+					&konfidence.StageVersionUsage{},
+					&konfidence.ActivationTaskExecution{},
 				},
 			},
 		},

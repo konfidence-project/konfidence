@@ -8,27 +8,27 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.20.0
   labels:
 {{- include "star.crdLabels" . | nindent 4 }}
-  name: vectoractivations.star.konfidence.cloud
+  name: vectormigrations.konfidence.cloud
 spec:
-  group: star.konfidence.cloud
+  group: konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: VectorActivation
-    listKind: VectorActivationList
-    plural: vectoractivations
-    singular: vectoractivation
+    kind: VectorMigration
+    listKind: VectorMigrationList
+    plural: vectormigrations
+    singular: vectormigration
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The stage of the activation
-      jsonPath: .spec.stage
-      name: Stage
-      type: string
-    - description: The version of the stage
+    - description: The stage version
       jsonPath: .spec.stageVersion
       name: Stage-Version
+      type: string
+    - description: The deployment vector
+      jsonPath: .spec.vector
+      name: Vector
       type: string
     - description: The latest condition type
       jsonPath: .status.conditions[-1:].type
@@ -41,7 +41,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VectorActivation is the Schema for the vectoractivations API
+        description: VectorMigration is the Schema for the vectormigrations API
         properties:
           apiVersion:
             description: |-
@@ -61,26 +61,20 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of VectorActivation
+            description: spec defines the desired state of VectorMigration
             properties:
-              stage:
-                type: string
               stageVersion:
                 type: string
               vector:
                 description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
                 type: string
-              vectorDeployment:
-                type: string
             required:
-            - stage
             - stageVersion
             - vector
-            - vectorDeployment
             type: object
           status:
-            description: status defines the observed state of VectorActivation
+            description: status defines the observed state of VectorMigration
             properties:
               conditions:
                 items:

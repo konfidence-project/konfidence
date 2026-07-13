@@ -14,7 +14,7 @@ import (
 	ocmruntime "ocm.software/open-component-model/bindings/go/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	testocm "github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	"github.com/konfidence-project/konfidence/pkg/testutil/pki"
@@ -28,7 +28,7 @@ var _ = Describe("ResolverFromCredentials", func() {
 	})
 
 	It("returns nil resolver when creds.OCM is nil", func() {
-		r, err := credentials.ResolverFromCredentials(context.Background(), nil, "default", &galaxy.Credentials{OCM: nil})
+		r, err := credentials.ResolverFromCredentials(context.Background(), nil, "default", &konfidence.Credentials{OCM: nil})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(r).To(BeNil())
 	})
@@ -38,9 +38,9 @@ var _ = Describe("ResolverFromCredentials", func() {
 		Expect(corev1.AddToScheme(scheme)).To(Succeed())
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 
-		creds := &galaxy.Credentials{
-			OCM: &galaxy.OCMCredentials{
-				Refs: []galaxy.CredentialRef{{Name: "does-not-exist"}},
+		creds := &konfidence.Credentials{
+			OCM: &konfidence.OCMCredentials{
+				Refs: []konfidence.CredentialRef{{Name: "does-not-exist"}},
 			},
 		}
 		_, err := credentials.ResolverFromCredentials(context.Background(), fakeClient, "default", creds)

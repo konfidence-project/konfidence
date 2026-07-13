@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -32,21 +32,21 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 
 		By("asserting config has both LastPromotionConditions and LastSuccessfulPromotionConditions")
 		Eventually(func(g Gomega) {
-			updatedConfig := &galaxy.VectorPromotionConfig{}
+			updatedConfig := &konfidence.VectorPromotionConfig{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: config.Name, Namespace: testNamespace,
 			}, updatedConfig)).To(Succeed())
 			g.Expect(updatedConfig.Status.LastPromotionConditions).NotTo(BeEmpty())
-			readyCond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, galaxy.ConditionTypeSucceeded)
+			readyCond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(readyCond).NotTo(BeNil())
 			g.Expect(readyCond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(readyCond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(readyCond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 			g.Expect(updatedConfig.Status.LastSuccessfulPromotionConditions).NotTo(BeEmpty())
 			successCond := meta.FindStatusCondition(
-				updatedConfig.Status.LastSuccessfulPromotionConditions, galaxy.ConditionTypeSucceeded)
+				updatedConfig.Status.LastSuccessfulPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(successCond).NotTo(BeNil())
 			g.Expect(successCond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(successCond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(successCond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 		}, timeout, interval).Should(Succeed())
 	})
 
@@ -61,15 +61,15 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 
 		By("asserting config has LastPromotionConditions with failure but no LastSuccessfulPromotionConditions")
 		Eventually(func(g Gomega) {
-			updatedConfig := &galaxy.VectorPromotionConfig{}
+			updatedConfig := &konfidence.VectorPromotionConfig{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: config.Name, Namespace: testNamespace,
 			}, updatedConfig)).To(Succeed())
 			g.Expect(updatedConfig.Status.LastPromotionConditions).NotTo(BeEmpty())
-			readyCond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, galaxy.ConditionTypeSucceeded)
+			readyCond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(readyCond).NotTo(BeNil())
 			g.Expect(readyCond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(readyCond.Reason).To(Equal(galaxy.ReasonPromotionSourceNotFound))
+			g.Expect(readyCond.Reason).To(Equal(konfidence.ReasonPromotionSourceNotFound))
 			g.Expect(updatedConfig.Status.LastSuccessfulPromotionConditions).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
 	})
@@ -90,13 +90,13 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 		By("waiting for config to be updated with first promotion conditions")
 		var firstTransitionTime metav1.Time
 		Eventually(func(g Gomega) {
-			updatedConfig := &galaxy.VectorPromotionConfig{}
+			updatedConfig := &konfidence.VectorPromotionConfig{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: config.Name, Namespace: testNamespace,
 			}, updatedConfig)).To(Succeed())
 			g.Expect(updatedConfig.Status.LastSuccessfulPromotionConditions).NotTo(BeEmpty())
 			cond := meta.FindStatusCondition(
-				updatedConfig.Status.LastSuccessfulPromotionConditions, galaxy.ConditionTypeSucceeded)
+				updatedConfig.Status.LastSuccessfulPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 			firstTransitionTime = cond.LastTransitionTime
@@ -109,13 +109,13 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 
 		By("waiting for config to be updated with second promotion conditions")
 		Eventually(func(g Gomega) {
-			updatedConfig := &galaxy.VectorPromotionConfig{}
+			updatedConfig := &konfidence.VectorPromotionConfig{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: config.Name, Namespace: testNamespace,
 			}, updatedConfig)).To(Succeed())
 			g.Expect(updatedConfig.Status.LastSuccessfulPromotionConditions).NotTo(BeEmpty())
 			cond := meta.FindStatusCondition(
-				updatedConfig.Status.LastSuccessfulPromotionConditions, galaxy.ConditionTypeSucceeded)
+				updatedConfig.Status.LastSuccessfulPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 			g.Expect(cond.LastTransitionTime.Time.After(firstTransitionTime.Time)).To(BeTrue(),
@@ -136,18 +136,18 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 		By("creating first VectorPromotion and waiting for propagation")
 		createPromotion("sp-dedup-first", config.Name)
 		Eventually(func(g Gomega) {
-			updatedConfig := &galaxy.VectorPromotionConfig{}
+			updatedConfig := &konfidence.VectorPromotionConfig{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: config.Name, Namespace: testNamespace,
 			}, updatedConfig)).To(Succeed())
 			g.Expect(updatedConfig.Status.LastPromotionConditions).NotTo(BeEmpty())
-			cond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 		}, timeout, interval).Should(Succeed())
 
 		By("patching config status with a future timestamp to simulate newer conditions")
-		updatedConfig := &galaxy.VectorPromotionConfig{}
+		updatedConfig := &konfidence.VectorPromotionConfig{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: config.Name, Namespace: testNamespace,
 		}, updatedConfig)).To(Succeed())
@@ -155,7 +155,7 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 		futureTime := metav1.NewTime(time.Now().Add(1 * time.Hour).Truncate(time.Second))
 		updatedConfig.Status.LastPromotionConditions = []metav1.Condition{
 			{
-				Type:               galaxy.ConditionTypeSucceeded,
+				Type:               konfidence.ConditionTypeSucceeded,
 				Status:             metav1.ConditionTrue,
 				Reason:             "FuturePromotion",
 				Message:            "Simulated future promotion",
@@ -174,19 +174,19 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion2.Name, Namespace: testNamespace,
 			}, promotion2)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion2.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion2.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 		}, timeout, interval).Should(Succeed())
 
 		By("asserting config conditions were NOT overwritten (future timestamp preserved)")
 		Consistently(func(g Gomega) {
-			latestConfig := &galaxy.VectorPromotionConfig{}
+			latestConfig := &konfidence.VectorPromotionConfig{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: config.Name, Namespace: testNamespace,
 			}, latestConfig)).To(Succeed())
 			g.Expect(latestConfig.Status.LastPromotionConditions).NotTo(BeEmpty())
-			cond := meta.FindStatusCondition(latestConfig.Status.LastPromotionConditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(latestConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond.Reason).To(Equal("FuturePromotion"),
 				"config should still have the manually patched future conditions")
 			g.Expect(cond.LastTransitionTime.Time).To(Equal(futureTime.Time))
@@ -207,9 +207,9 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 		priorSuccessTime := metav1.NewTime(time.Now().Add(-1 * time.Hour).Truncate(time.Second))
 		config.Status.LastSuccessfulPromotionConditions = []metav1.Condition{
 			{
-				Type:               galaxy.ConditionTypeSucceeded,
+				Type:               konfidence.ConditionTypeSucceeded,
 				Status:             metav1.ConditionTrue,
-				Reason:             galaxy.ReasonPromotionSucceeded,
+				Reason:             konfidence.ReasonPromotionSucceeded,
 				Message:            "Prior successful promotion",
 				LastTransitionTime: priorSuccessTime,
 			},
@@ -221,21 +221,21 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 
 		By("asserting config has failure in LastPromotionConditions but preserves LastSuccessfulPromotionConditions")
 		Eventually(func(g Gomega) {
-			updatedConfig := &galaxy.VectorPromotionConfig{}
+			updatedConfig := &konfidence.VectorPromotionConfig{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: config.Name, Namespace: testNamespace,
 			}, updatedConfig)).To(Succeed())
 			g.Expect(updatedConfig.Status.LastPromotionConditions).NotTo(BeEmpty())
-			lastCond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, galaxy.ConditionTypeSucceeded)
+			lastCond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(lastCond).NotTo(BeNil())
 			g.Expect(lastCond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(lastCond.Reason).To(Equal(galaxy.ReasonPromotionSourceNotFound))
+			g.Expect(lastCond.Reason).To(Equal(konfidence.ReasonPromotionSourceNotFound))
 			g.Expect(updatedConfig.Status.LastSuccessfulPromotionConditions).NotTo(BeEmpty())
 			successCond := meta.FindStatusCondition(
-				updatedConfig.Status.LastSuccessfulPromotionConditions, galaxy.ConditionTypeSucceeded)
+				updatedConfig.Status.LastSuccessfulPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(successCond).NotTo(BeNil())
 			g.Expect(successCond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(successCond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(successCond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 			g.Expect(successCond.LastTransitionTime.Time).To(Equal(priorSuccessTime.Time))
 		}, timeout, interval).Should(Succeed())
 	})
@@ -249,10 +249,10 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionConfigurationNotFound))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionConfigurationNotFound))
 		}, timeout, interval).Should(Succeed())
 
 		By("creating VectorPromotionConfig after promotion has already completed")
@@ -262,15 +262,15 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 
 		By("asserting status propagation controller retries and eventually propagates conditions to the config")
 		Eventually(func(g Gomega) {
-			updatedConfig := &galaxy.VectorPromotionConfig{}
+			updatedConfig := &konfidence.VectorPromotionConfig{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: config.Name, Namespace: testNamespace,
 			}, updatedConfig)).To(Succeed())
 			g.Expect(updatedConfig.Status.LastPromotionConditions).NotTo(BeEmpty())
-			cond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionConfigurationNotFound))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionConfigurationNotFound))
 		}, 30*time.Second, interval).Should(Succeed())
 	})
 })

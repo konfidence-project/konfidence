@@ -4,44 +4,33 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-{{- include "star.crdAnnotations" . | nindent 4 }}
+{{- include "galaxy.crdAnnotations" . | nindent 4 }}
     controller-gen.kubebuilder.io/version: v0.20.0
   labels:
-{{- include "star.crdLabels" . | nindent 4 }}
-  name: stageversions.star.konfidence.cloud
+{{- include "galaxy.crdLabels" . | nindent 4 }}
+  name: stagesyncs.konfidence.cloud
 spec:
-  group: star.konfidence.cloud
+  group: konfidence.cloud
   names:
-    categories:
-    - konfidence
-    - kden
-    kind: StageVersion
-    listKind: StageVersionList
-    plural: stageversions
-    singular: stageversion
+    kind: StageSync
+    listKind: StageSyncList
+    plural: stagesyncs
+    singular: stagesync
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Name of the referenced Stage
-      jsonPath: .spec.stageRef.name
-      name: Stage
+    - description: Applied status
+      jsonPath: .status.conditions[?(@.type=='Applied')].status
+      name: Applied
       type: string
-    - description: The object generation of the stage
-      jsonPath: .spec.stageGeneration
-      name: Stage-Generation
-      type: integer
-    - description: The deployment vector for this stage
-      jsonPath: .spec.vector
-      name: Vector
-      type: string
-    - description: Time since creation of StageVersion
+    - description: Age
       jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: StageVersion is the Schema for the stageversions API
+        description: StageSync is the Schema for the stageSyncs API.
         properties:
           apiVersion:
             description: |-
@@ -61,40 +50,23 @@ spec:
           metadata:
             type: object
           spec:
-            description: Spec defines the desired state of the StageVersion and is
-              immutable after it has been set
+            description: StageSyncSpec defines the desired state of a StageSync.
             properties:
-              stageGeneration:
-                description: the object generation of the stage that created this
-                  stage version
-                format: int64
-                minimum: 1
-                type: integer
-              stageRef:
-                description: stageRef references the Stage this StageVersion belongs
-                  to
-                properties:
-                  name:
-                    description: Name is the name of the Stage. Required.
-                    type: string
-                required:
-                - name
-                type: object
-              vector:
-                description: Vector points to the OCM component version that contains
-                  the deployment vector for this stage.
-                minLength: 1
+              reconcileInterval:
+                description: |-
+                  ReconcileInterval defines how often the sync controller should reconcile the StageSync resource.
+                  If not set, the controller's default reconcile interval will be used.
                 type: string
+              stageTemplate:
+                description: StageTemplate contains the template of the stage to be
+                  created on the Star cluster.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             required:
-            - stageGeneration
-            - stageRef
-            - vector
+            - stageTemplate
             type: object
-            x-kubernetes-validations:
-            - message: StageVersion spec is immutable after it has been set
-              rule: self == oldSelf
           status:
-            description: status defines the observed state of StageVersion
+            description: StageSyncStatus defines the observed state of a StageSync.
             properties:
               conditions:
                 items:
@@ -152,11 +124,11 @@ spec:
                   - type
                   type: object
                 type: array
+              stageStatus:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             type: object
         type: object
-        x-kubernetes-validations:
-        - message: Spec is required once set
-          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:

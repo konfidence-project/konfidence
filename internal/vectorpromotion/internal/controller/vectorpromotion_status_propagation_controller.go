@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -29,10 +29,10 @@ type VectorPromotionStatusPropagationReconciler struct {
 
 const statusPropagationReconcileInterval = time.Second * 1
 
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions/status,verbs=get
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotionconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions/status,verbs=get
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotionconfigs/status,verbs=get;update;patch
 
 func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx).WithValues("cluster", req.ClusterName)
@@ -44,7 +44,7 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 	}
 	clusterClient := cluster.GetClient()
 
-	p := &galaxy.VectorPromotion{}
+	p := &konfidence.VectorPromotion{}
 	if err := clusterClient.Get(ctx, req.NamespacedName, p); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -61,8 +61,8 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 		return ctrl.Result{}, fmt.Errorf("failed to get VectorPromotionConfig: %w", err)
 	}
 
-	promotionCondition := meta.FindStatusCondition(p.Status.Conditions, galaxy.ConditionTypeSucceeded)
-	configCondition := meta.FindStatusCondition(config.Status.LastPromotionConditions, galaxy.ConditionTypeSucceeded)
+	promotionCondition := meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
+	configCondition := meta.FindStatusCondition(config.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 	if configCondition != nil && !promotionCondition.LastTransitionTime.After(configCondition.LastTransitionTime.Time) {
 		return requeueIfNotTerminal(p), nil
 	}
@@ -74,7 +74,7 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 	return requeueIfNotTerminal(p), nil
 }
 
-func requeueIfNotTerminal(p *galaxy.VectorPromotion) ctrl.Result {
+func requeueIfNotTerminal(p *konfidence.VectorPromotion) ctrl.Result {
 	if promotion.IsTerminal(p) {
 		return ctrl.Result{}
 	}
@@ -83,7 +83,7 @@ func requeueIfNotTerminal(p *galaxy.VectorPromotion) ctrl.Result {
 
 func patchPromotionConfigStatus(
 	ctx context.Context, clusterClient client.Client,
-	p *galaxy.VectorPromotion, config *galaxy.VectorPromotionConfig,
+	p *konfidence.VectorPromotion, config *konfidence.VectorPromotionConfig,
 ) error {
 	originalConfig := config.DeepCopy()
 	config.Status.LastPromotionConditions = p.Status.Conditions
@@ -99,7 +99,7 @@ func patchPromotionConfigStatus(
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorPromotionStatusPropagationReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
-		For(&galaxy.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
+		For(&konfidence.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
 			CreateFunc:  func(e event.CreateEvent) bool { return true },
 			UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 			DeleteFunc:  func(e event.DeleteEvent) bool { return false },

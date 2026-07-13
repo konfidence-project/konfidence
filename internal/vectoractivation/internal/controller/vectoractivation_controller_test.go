@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectoractivation/internal/usage"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -38,19 +38,19 @@ var _ = Describe("VectorActivation Controller", func() {
 	})
 
 	AfterEach(func() {
-		Delete[*star.Stage](ctx, k8sClient, StageName, Namespace)
-		Delete[*star.StageVersion](ctx, k8sClient, StageVersionName, Namespace)
-		Delete[*star.VectorActivation](ctx, k8sClient, VectorActivationName, Namespace)
+		Delete[*konfidence.Stage](ctx, k8sClient, StageName, Namespace)
+		Delete[*konfidence.StageVersion](ctx, k8sClient, StageVersionName, Namespace)
+		Delete[*konfidence.VectorActivation](ctx, k8sClient, VectorActivationName, Namespace)
 		DeleteAll[*v1.Lease, *v1.LeaseList](ctx, k8sClient, client.InNamespace(Namespace))
-		DeleteAll[*star.StageVersionUsage, *star.StageVersionUsageList](ctx, k8sClient, client.InNamespace(Namespace))
-		Delete[*star.ActivationTaskRegistration](ctx, k8sClient, RegistrationName, Namespace)
+		DeleteAll[*konfidence.StageVersionUsage, *konfidence.StageVersionUsageList](ctx, k8sClient, client.InNamespace(Namespace))
+		Delete[*konfidence.ActivationTaskRegistration](ctx, k8sClient, RegistrationName, Namespace)
 	})
 
 	Context("When reconciling a vector activation", func() {
 		It("should delete activation usage during final cleanup", func() {
-			stage := &star.Stage{
+			stage := &konfidence.Stage{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "star.konfidence.cloud/v1alpha1",
+					APIVersion: "konfidence.cloud/v1alpha1",
 					Kind:       "Stage",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -58,9 +58,9 @@ var _ = Describe("VectorActivation Controller", func() {
 					Namespace: Namespace,
 				},
 			}
-			vectorActivation := &star.VectorActivation{
+			vectorActivation := &konfidence.VectorActivation{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "star.konfidence.cloud/v1alpha1",
+					APIVersion: "konfidence.cloud/v1alpha1",
 					Kind:       "VectorActivation",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -68,24 +68,24 @@ var _ = Describe("VectorActivation Controller", func() {
 					Namespace: Namespace,
 					UID:       "cleanup-activation-uid",
 				},
-				Spec: star.VectorActivationSpec{
+				Spec: konfidence.VectorActivationSpec{
 					Stage:        stage.Name,
 					StageVersion: StageVersionName,
 				},
-				Status: star.VectorActivationStatus{
+				Status: konfidence.VectorActivationStatus{
 					Conditions: []metav1.Condition{{
-						Type:               star.ActivationSucceeded,
+						Type:               konfidence.ActivationSucceeded,
 						Status:             metav1.ConditionTrue,
-						Reason:             star.ActivationSucceeded,
+						Reason:             konfidence.ActivationSucceeded,
 						ObservedGeneration: 1,
 						LastTransitionTime: metav1.Now(),
 					}},
 				},
 			}
 
-			activationUsage := &star.StageVersionUsage{
+			activationUsage := &konfidence.StageVersionUsage{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "star.konfidence.cloud/v1alpha1",
+					APIVersion: "konfidence.cloud/v1alpha1",
 					Kind:       "StageVersionUsage",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -95,9 +95,9 @@ var _ = Describe("VectorActivation Controller", func() {
 						usage.ActivationStageVersionUsage: stage.Name,
 					},
 				},
-				Spec: star.StageVersionUsageSpec{
+				Spec: konfidence.StageVersionUsageSpec{
 					Reason:          usage.StageVersionUsageActivationType,
-					StageVersionRef: &star.StageVersionReference{Name: StageVersionName},
+					StageVersionRef: &konfidence.StageVersionReference{Name: StageVersionName},
 				},
 			}
 			Create(ctx, k8sClient, activationUsage)
@@ -116,7 +116,7 @@ var _ = Describe("VectorActivation Controller", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			activationUsageLabels := client.MatchingLabels{usage.ActivationStageVersionUsage: stage.Name}
-			usageList := &star.StageVersionUsageList{}
+			usageList := &konfidence.StageVersionUsageList{}
 			Expect(k8sClient.List(ctx, usageList, client.InNamespace(Namespace), activationUsageLabels)).To(Succeed())
 			Expect(usageList.Items).To(BeEmpty(), "expected final cleanup to delete activation usage")
 		})
@@ -143,8 +143,8 @@ var _ = Describe("VectorActivation Controller", func() {
 			// assert activation usage
 			Eventually(func(g Gomega) {
 				activationUsageLabels := client.MatchingLabels{usage.ActivationStageVersionUsage: StageName}
-				usageList := List[*star.StageVersionUsageList](
-					ctx, k8sClient, &star.StageVersionUsageList{}, client.InNamespace(Namespace), activationUsageLabels,
+				usageList := List[*konfidence.StageVersionUsageList](
+					ctx, k8sClient, &konfidence.StageVersionUsageList{}, client.InNamespace(Namespace), activationUsageLabels,
 				)
 
 				g.Expect(usageList.Items).To(HaveLen(1))
@@ -159,15 +159,15 @@ var _ = Describe("VectorActivation Controller", func() {
 
 			// assert status is InProgress
 			Eventually(func(g Gomega) {
-				vectorActivation = Get(ctx, k8sClient, VectorActivationName, Namespace, &star.VectorActivation{}, false)
+				vectorActivation = Get(ctx, k8sClient, VectorActivationName, Namespace, &konfidence.VectorActivation{}, false)
 				g.Expect(vectorActivation.Status.Conditions).ToNot(BeEmpty())
 				latestCondition := vectorActivation.Status.Conditions[len(vectorActivation.Status.Conditions)-1]
-				g.Expect(latestCondition.Type).To(Equal(star.ActivationInProgress))
+				g.Expect(latestCondition.Type).To(Equal(konfidence.ActivationInProgress))
 			}, timeout, interval).Should(Succeed())
 
 			// assert activationExecutions are created
 			Eventually(func(g Gomega) {
-				executionList := &star.ActivationTaskExecutionList{}
+				executionList := &konfidence.ActivationTaskExecutionList{}
 				g.Expect(k8sClient.List(ctx, executionList, client.InNamespace(Namespace))).To(Succeed())
 				g.Expect(executionList.Items).ToNot(BeEmpty(), "expected ActivationTaskExecutions to be created for VectorActivationName")
 				for _, execution := range executionList.Items {
@@ -180,15 +180,15 @@ var _ = Describe("VectorActivation Controller", func() {
 
 			// ACT: update status of executions to Succeeded
 			Eventually(func(g Gomega) {
-				executionList := &star.ActivationTaskExecutionList{}
+				executionList := &konfidence.ActivationTaskExecutionList{}
 				g.Expect(k8sClient.List(ctx, executionList, client.InNamespace(Namespace))).To(Succeed())
 				g.Expect(executionList.Items).ToNot(BeEmpty())
 				for _, execution := range executionList.Items {
 					updated := execution.DeepCopy()
 					meta.SetStatusCondition(&updated.Status.Conditions, metav1.Condition{
-						Type:               star.ActivationTaskExecutionSucceeded,
+						Type:               konfidence.ActivationTaskExecutionSucceeded,
 						Status:             metav1.ConditionTrue,
-						Reason:             star.ActivationTaskExecutionSucceeded,
+						Reason:             konfidence.ActivationTaskExecutionSucceeded,
 						Message:            "marked succeeded by test",
 						ObservedGeneration: updated.Generation,
 						LastTransitionTime: metav1.Now(),
@@ -200,7 +200,7 @@ var _ = Describe("VectorActivation Controller", func() {
 			// assert active usage is created (or updated)
 			Eventually(func(g Gomega) {
 				activeUsageLabels := client.MatchingLabels{usage.ActiveStageVersion: StageName}
-				usageList := &star.StageVersionUsageList{}
+				usageList := &konfidence.StageVersionUsageList{}
 				g.Expect(k8sClient.List(ctx, usageList, client.InNamespace(Namespace), activeUsageLabels)).To(Succeed())
 				g.Expect(usageList.Items).To(HaveLen(1))
 				activeUsage := usageList.Items[0]
@@ -214,18 +214,18 @@ var _ = Describe("VectorActivation Controller", func() {
 			// assert activation usage is deleted
 			Eventually(func(g Gomega) {
 				activationUsageLabels := client.MatchingLabels{usage.ActivationStageVersionUsage: StageName}
-				usageList := &star.StageVersionUsageList{}
+				usageList := &konfidence.StageVersionUsageList{}
 				g.Expect(k8sClient.List(ctx, usageList, client.InNamespace(Namespace), activationUsageLabels)).To(Succeed())
 				g.Expect(usageList.Items).To(BeEmpty(), "expected activation usage to be deleted after success")
 			}, timeout, interval).Should(Succeed())
 
 			// assert status is Succeeded
 			Eventually(func(g Gomega) {
-				vectorActivation := &star.VectorActivation{}
+				vectorActivation := &konfidence.VectorActivation{}
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: VectorActivationName, Namespace: Namespace}, vectorActivation)).To(Succeed())
 				g.Expect(vectorActivation).ToNot(BeNil())
 				g.Expect(vectorActivation.Status.Conditions).ToNot(BeEmpty())
-				g.Expect(meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, star.ActivationSucceeded)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, konfidence.ActivationSucceeded)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// assert lock is released
@@ -241,17 +241,17 @@ var _ = Describe("VectorActivation Controller", func() {
 	})
 })
 
-func CreateVectorActivation() *star.VectorActivation {
-	vectorActivation := &star.VectorActivation{
+func CreateVectorActivation() *konfidence.VectorActivation {
+	vectorActivation := &konfidence.VectorActivation{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "star.konfidence.cloud/v1alpha1",
+			APIVersion: "konfidence.cloud/v1alpha1",
 			Kind:       "VectorActivation",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      VectorActivationName,
 			Namespace: Namespace,
 		},
-		Spec: star.VectorActivationSpec{
+		Spec: konfidence.VectorActivationSpec{
 			Vector:           Vector001,
 			StageVersion:     StageVersionName,
 			Stage:            StageName,
@@ -263,7 +263,7 @@ func CreateVectorActivation() *star.VectorActivation {
 	}, timeout, interval).Should(Succeed())
 
 	Eventually(func(g Gomega) {
-		vectorActivation = &star.VectorActivation{}
+		vectorActivation = &konfidence.VectorActivation{}
 		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: VectorActivationName, Namespace: Namespace}, vectorActivation)).To(Succeed())
 	}, timeout, interval).Should(Succeed())
 	return vectorActivation
@@ -272,35 +272,35 @@ func CreateVectorActivation() *star.VectorActivation {
 // SetupResources creates Resources that can be expected to be present when an activation gets reconciled (e.g.  Stage and StageVersion)
 func SetupResources() {
 	Eventually(func(g Gomega) {
-		stage := &star.Stage{
+		stage := &konfidence.Stage{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "star.konfidence.cloud/v1alpha1",
+				APIVersion: "konfidence.cloud/v1alpha1",
 				Kind:       "Stage",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      StageName,
 				Namespace: Namespace,
 			},
-			Spec: star.StageSpec{
+			Spec: konfidence.StageSpec{
 				Vector: Vector001,
 			},
 		}
 		Create(ctx, k8sClient, stage)
 		Get(ctx, k8sClient, StageName, Namespace, stage, false)
 
-		stageVersion := &star.StageVersion{
+		stageVersion := &konfidence.StageVersion{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "star.konfidence.cloud/v1alpha1",
+				APIVersion: "konfidence.cloud/v1alpha1",
 				Kind:       "StageVersion",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      StageVersionName,
 				Namespace: Namespace,
 			},
-			Spec: star.StageVersionSpec{
+			Spec: konfidence.StageVersionSpec{
 				Vector:          Vector001,
 				StageGeneration: 1,
-				StageRef: &star.StageReference{
+				StageRef: &konfidence.StageReference{
 					Name: StageName,
 				},
 			},
@@ -310,23 +310,23 @@ func SetupResources() {
 		g.Expect(controllerutil.SetOwnerReference(stage, stageVersion, k8sClient.Scheme())).To(Succeed())
 		Update(ctx, k8sClient, stageVersion)
 
-		activationTaskRegistration := &star.ActivationTaskRegistration{
+		activationTaskRegistration := &konfidence.ActivationTaskRegistration{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "star.konfidence.cloud/v1alpha1",
+				APIVersion: "konfidence.cloud/v1alpha1",
 				Kind:       "ActivationTaskRegistration",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      RegistrationName,
 				Namespace: Namespace,
 			},
-			Spec: star.ActivationTaskRegistrationSpec{
+			Spec: konfidence.ActivationTaskRegistrationSpec{
 				Type: RegistrationType,
 				Spec: runtime.RawExtension{Raw: []byte("{}")},
 			},
 		}
 		Create(ctx, k8sClient, activationTaskRegistration)
 		Get(ctx, k8sClient, RegistrationName, Namespace, activationTaskRegistration, false)
-		registrationList := &star.ActivationTaskRegistrationList{}
+		registrationList := &konfidence.ActivationTaskRegistrationList{}
 		List(ctx, k8sClient, registrationList)
 		g.Expect(registrationList.Items).ToNot(BeEmpty())
 	}, timeout, interval).Should(Succeed())

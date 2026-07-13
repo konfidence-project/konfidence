@@ -8,23 +8,27 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.20.0
   labels:
 {{- include "star.crdLabels" . | nindent 4 }}
-  name: taskexecutions.star.konfidence.cloud
+  name: activationtaskexecutions.konfidence.cloud
 spec:
-  group: star.konfidence.cloud
+  group: konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: TaskExecution
-    listKind: TaskExecutionList
-    plural: taskexecutions
-    singular: taskexecution
+    kind: ActivationTaskExecution
+    listKind: ActivationTaskExecutionList
+    plural: activationtaskexecutions
+    singular: activationtaskexecution
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - description: The type of the task execution
       jsonPath: .spec.type
       name: Type
+      type: string
+    - description: The associated VectorActivation
+      jsonPath: .spec.vectorActivation
+      name: Vector-Activation
       type: string
     - description: The latest condition type
       jsonPath: .status.conditions[-1:].type
@@ -37,7 +41,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: TaskExecution is the Schema for the taskexecutions API
+        description: ActivationTaskExecution is the Schema for the ActivationTaskExecutions
+          API
         properties:
           apiVersion:
             description: |-
@@ -57,26 +62,24 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of TaskExecution
+            description: spec defines the desired state of ActivationTaskExecution
             properties:
-              dependsOn:
-                items:
-                  type: string
-                type: array
-              name:
-                type: string
               spec:
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
               type:
                 type: string
+              vectorActivation:
+                description: VectorActivation is a temporary field that contains the
+                  name of the associated vectorActivation
+                type: string
             required:
-            - name
             - spec
             - type
+            - vectorActivation
             type: object
           status:
-            description: status defines the observed state of TaskExecution
+            description: status defines the observed state of ActivationTaskExecution
             properties:
               conditions:
                 items:

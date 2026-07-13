@@ -8,9 +8,9 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.20.0
   labels:
 {{- include "galaxy.crdLabels" . | nindent 4 }}
-  name: stageconfigurations.galaxy.konfidence.cloud
+  name: stageconfigurations.konfidence.cloud
 spec:
-  group: galaxy.konfidence.cloud
+  group: konfidence.cloud
   names:
     kind: StageConfiguration
     listKind: StageConfigurationList

@@ -8,41 +8,40 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.20.0
   labels:
 {{- include "star.crdLabels" . | nindent 4 }}
-  name: activationtaskexecutions.star.konfidence.cloud
+  name: stageversions.konfidence.cloud
 spec:
-  group: star.konfidence.cloud
+  group: konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: ActivationTaskExecution
-    listKind: ActivationTaskExecutionList
-    plural: activationtaskexecutions
-    singular: activationtaskexecution
+    kind: StageVersion
+    listKind: StageVersionList
+    plural: stageversions
+    singular: stageversion
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The type of the task execution
-      jsonPath: .spec.type
-      name: Type
+    - description: Name of the referenced Stage
+      jsonPath: .spec.stageRef.name
+      name: Stage
       type: string
-    - description: The associated VectorActivation
-      jsonPath: .spec.vectorActivation
-      name: Vector-Activation
+    - description: The object generation of the stage
+      jsonPath: .spec.stageGeneration
+      name: Stage-Generation
+      type: integer
+    - description: The deployment vector for this stage
+      jsonPath: .spec.vector
+      name: Vector
       type: string
-    - description: The latest condition type
-      jsonPath: .status.conditions[-1:].type
-      name: Condition
-      type: string
-    - description: The latest condition status
-      jsonPath: .status.conditions[-1:].status
-      name: Condition-Status
-      type: string
+    - description: Time since creation of StageVersion
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ActivationTaskExecution is the Schema for the ActivationTaskExecutions
-          API
+        description: StageVersion is the Schema for the stageversions API
         properties:
           apiVersion:
             description: |-
@@ -62,24 +61,40 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of ActivationTaskExecution
+            description: Spec defines the desired state of the StageVersion and is
+              immutable after it has been set
             properties:
-              spec:
+              stageGeneration:
+                description: the object generation of the stage that created this
+                  stage version
+                format: int64
+                minimum: 1
+                type: integer
+              stageRef:
+                description: stageRef references the Stage this StageVersion belongs
+                  to
+                properties:
+                  name:
+                    description: Name is the name of the Stage. Required.
+                    type: string
+                required:
+                - name
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
-              type:
-                type: string
-              vectorActivation:
-                description: VectorActivation is a temporary field that contains the
-                  name of the associated vectorActivation
+              vector:
+                description: Vector points to the OCM component version that contains
+                  the deployment vector for this stage.
+                minLength: 1
                 type: string
             required:
-            - spec
-            - type
-            - vectorActivation
+            - stageGeneration
+            - stageRef
+            - vector
             type: object
+            x-kubernetes-validations:
+            - message: StageVersion spec is immutable after it has been set
+              rule: self == oldSelf
           status:
-            description: status defines the observed state of ActivationTaskExecution
+            description: status defines the observed state of StageVersion
             properties:
               conditions:
                 items:
@@ -138,9 +153,10 @@ spec:
                   type: object
                 type: array
             type: object
-        required:
-        - spec
         type: object
+        x-kubernetes-validations:
+        - message: Spec is required once set
+          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:

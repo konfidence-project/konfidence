@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/rest"
@@ -60,7 +60,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	Expect(star.AddToScheme(k8sManager.GetScheme())).To(Succeed())
+	Expect(konfidence.AddToScheme(k8sManager.GetScheme())).To(Succeed())
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: k8sManager.GetScheme()})
 	Expect(err).NotTo(HaveOccurred())

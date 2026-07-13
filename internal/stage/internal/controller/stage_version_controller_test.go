@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/stage/internal/controller"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
@@ -61,17 +61,17 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			controller.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionDev, Namespace, Vector001, VectorName001)
 
 			// check that the stageVersion has been created and has valid properties
-			stageVersion := &star.StageVersion{}
+			stageVersion := &konfidence.StageVersion{}
 			stageVersionLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersion.Status.Conditions).To(HaveLen(1))
-				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, star.VectorDeploymentCreatedCondition)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorDeploymentCreatedCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// check that the vectorDeployment has been created and has valid properties
-			vectorDeployment := &star.VectorDeployment{}
+			vectorDeployment := &konfidence.VectorDeployment{}
 			vectorDeploymentLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
@@ -79,7 +79,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				g.Expect(vectorDeployment.Labels[pkgctrl.StageVersionNameLabel]).To(Equal(StageVersionDev))
 				g.Expect(vectorDeployment.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(controller.HasOwnerReference(vectorDeployment.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: star.StageVersionKind,
+					Kind: konfidence.StageVersionKind,
 					Name: StageVersionDev,
 				})).To(BeTrue())
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
@@ -87,9 +87,9 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 
 			// mark vectorDeployment as deployed
 			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-				Type:               star.VectorDeployedCondition,
+				Type:               konfidence.VectorDeployedCondition,
 				Status:             metav1.ConditionTrue,
-				Reason:             star.VectorDeployedCondition,
+				Reason:             konfidence.VectorDeployedCondition,
 				Message:            "Vector has been successfully deployed",
 				ObservedGeneration: vectorDeployment.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -98,13 +98,13 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			Expect(k8sClient.Status().Update(ctx, vectorDeployment)).To(Succeed())
 
 			// check that the vectorMigration has been created and has valid properties
-			vectorMigration := &star.VectorMigration{}
+			vectorMigration := &konfidence.VectorMigration{}
 			vectorMigrationLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, vectorMigration)).To(Succeed())
 				g.Expect(vectorMigration.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(controller.HasOwnerReference(vectorMigration.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: star.StageVersionKind,
+					Kind: konfidence.StageVersionKind,
 					Name: StageVersionDev,
 				})).To(BeTrue())
 				g.Expect(vectorMigration.Spec.Vector).To(Equal(Vector001))
@@ -116,14 +116,14 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersion.Status.Conditions).To(HaveLen(2))
-				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, star.VectorMigrationCreatedCondition)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorMigrationCreatedCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// mark vectorMigration as successful
 			meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
-				Type:               star.VectorMigrationSucceeded,
+				Type:               konfidence.VectorMigrationSucceeded,
 				Status:             metav1.ConditionTrue,
-				Reason:             star.VectorMigrationSucceeded,
+				Reason:             konfidence.VectorMigrationSucceeded,
 				Message:            "VectorMigration succeeded",
 				ObservedGeneration: vectorMigration.Generation,
 				LastTransitionTime: metav1.Now()})
@@ -131,7 +131,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			Expect(k8sClient.Status().Update(ctx, vectorMigration)).To(Succeed())
 
 			// check that the vectorActivation has been created and has valid properties
-			vectorActivation := &star.VectorActivation{}
+			vectorActivation := &konfidence.VectorActivation{}
 			vectorActivationLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, vectorActivationLookupKey, vectorActivation)).To(Succeed())
@@ -141,7 +141,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				g.Expect(vectorActivation.Spec.VectorDeployment).To(Equal(StageVersionDev))
 				g.Expect(vectorActivation.GetOwnerReferences()).To(HaveLen(1))
 				g.Expect(controller.HasOwnerReference(vectorActivation.GetOwnerReferences(), metav1.OwnerReference{
-					Kind: star.StageVersionKind,
+					Kind: konfidence.StageVersionKind,
 					Name: StageVersionDev,
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
@@ -151,9 +151,9 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
 				g.Expect(stageVersion.Status.Conditions).To(HaveLen(5))
-				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, star.VectorMigratedCondition)).To(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, star.VectorActivationCreatedCondition)).To(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, star.StageVersionReady)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorMigratedCondition)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorActivationCreatedCondition)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.StageVersionReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 	})

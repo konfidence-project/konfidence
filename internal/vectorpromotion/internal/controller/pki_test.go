@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	testocm "github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,18 +35,18 @@ var _ = Describe("VectorPromotion PKI scenarios", Ordered, Serial, func() {
 		By("creating VectorPromotionConfig with signing credentials and VerifyVector")
 		source := fmt.Sprintf("http://%s//konfidence.io/pki/signed:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/pki/signed:promoted", targetRegistryEndpoint)
-		config := createPKIConfig("pki-signed-config", source, target, &galaxy.Credentials{
-			OCM: &galaxy.OCMCredentials{Refs: refsFromNames(credSecretNames...)},
-		}, &galaxy.Verify{Signatures: []galaxy.Signature{{Name: vectorSigName}}})
+		config := createPKIConfig("pki-signed-config", source, target, &konfidence.Credentials{
+			OCM: &konfidence.OCMCredentials{Refs: refsFromNames(credSecretNames...)},
+		}, &konfidence.Verify{Signatures: []konfidence.Signature{{Name: vectorSigName}}})
 
 		promotion := createPromotion("pki-signed-promotion", config.Name)
 
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: promotion.Name, Namespace: testNamespace}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 		}, timeout, interval).Should(Succeed())
 	})
 
@@ -61,18 +61,18 @@ var _ = Describe("VectorPromotion PKI scenarios", Ordered, Serial, func() {
 		By("creating VectorPromotionConfig with VerifyVector enabled")
 		source := fmt.Sprintf("http://%s//konfidence.io/pki/unsigned:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/pki/unsigned:promoted", targetRegistryEndpoint)
-		config := createPKIConfig("pki-unsigned-config", source, target, &galaxy.Credentials{
-			OCM: &galaxy.OCMCredentials{Refs: refsFromNames(credSecretNames...)},
-		}, &galaxy.Verify{Signatures: []galaxy.Signature{{Name: vectorSigName}}})
+		config := createPKIConfig("pki-unsigned-config", source, target, &konfidence.Credentials{
+			OCM: &konfidence.OCMCredentials{Refs: refsFromNames(credSecretNames...)},
+		}, &konfidence.Verify{Signatures: []konfidence.Signature{{Name: vectorSigName}}})
 
 		promotion := createPromotion("pki-unsigned-promotion", config.Name)
 
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: promotion.Name, Namespace: testNamespace}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSourceVerificationFailed))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSourceVerificationFailed))
 		}, timeout, interval).Should(Succeed())
 	})
 
@@ -91,10 +91,10 @@ var _ = Describe("VectorPromotion PKI scenarios", Ordered, Serial, func() {
 
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: promotion.Name, Namespace: testNamespace}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 		}, timeout, interval).Should(Succeed())
 	})
 
@@ -111,27 +111,27 @@ var _ = Describe("VectorPromotion PKI scenarios", Ordered, Serial, func() {
 
 		source := fmt.Sprintf("http://%s//konfidence.io/pki/badcreds:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/pki/badcreds:promoted", targetRegistryEndpoint)
-		config := createConfigWithCredentials("pki-badcreds-config", source, target, &galaxy.Credentials{
-			OCM: &galaxy.OCMCredentials{Refs: refsFromNames(sourceOnlyCredSecretName, badCredsSecretName)},
+		config := createConfigWithCredentials("pki-badcreds-config", source, target, &konfidence.Credentials{
+			OCM: &konfidence.OCMCredentials{Refs: refsFromNames(sourceOnlyCredSecretName, badCredsSecretName)},
 		})
 		promotion := createPromotion("pki-badcreds-promotion", config.Name)
 
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: promotion.Name, Namespace: testNamespace}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionFailed))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionFailed))
 		}, timeout, interval).Should(Succeed())
 	})
 
 })
 
-// refsFromNames converts a list of Secret names into []galaxy.CredentialRef.
-func refsFromNames(names ...string) []galaxy.CredentialRef {
-	refs := make([]galaxy.CredentialRef, len(names))
+// refsFromNames converts a list of Secret names into []konfidence.CredentialRef.
+func refsFromNames(names ...string) []konfidence.CredentialRef {
+	refs := make([]konfidence.CredentialRef, len(names))
 	for i, n := range names {
-		refs[i] = galaxy.CredentialRef{Name: n}
+		refs[i] = konfidence.CredentialRef{Name: n}
 	}
 	return refs
 }

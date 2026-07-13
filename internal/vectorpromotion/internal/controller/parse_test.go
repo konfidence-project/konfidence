@@ -1,7 +1,7 @@
 package controller
 
 import (
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,9 +10,9 @@ import (
 var _ = Describe("parsePromotionParameters", func() {
 	Context("with valid references", func() {
 		It("returns parsed source and target refs", func() {
-			config := &galaxy.VectorPromotionConfig{
+			config := &konfidence.VectorPromotionConfig{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-config"},
-				Spec: galaxy.VectorPromotionConfigSpec{
+				Spec: konfidence.VectorPromotionConfigSpec{
 					Source: "ghcr.io/org/components//github.com/org/app:1.0.0",
 					Target: "ghcr.io/org/components//github.com/org/app:production",
 				},
@@ -32,9 +32,9 @@ var _ = Describe("parsePromotionParameters", func() {
 
 	Context("with invalid source", func() {
 		It("returns error for malformed source reference", func() {
-			config := &galaxy.VectorPromotionConfig{
+			config := &konfidence.VectorPromotionConfig{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-config"},
-				Spec: galaxy.VectorPromotionConfigSpec{
+				Spec: konfidence.VectorPromotionConfigSpec{
 					Source: "not-a-valid-reference",
 					Target: "ghcr.io/org/components//github.com/org/app:production",
 				},
@@ -47,9 +47,9 @@ var _ = Describe("parsePromotionParameters", func() {
 		})
 
 		It("returns error for source without version", func() {
-			config := &galaxy.VectorPromotionConfig{
+			config := &konfidence.VectorPromotionConfig{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-config"},
-				Spec: galaxy.VectorPromotionConfigSpec{
+				Spec: konfidence.VectorPromotionConfigSpec{
 					Source: "ghcr.io/org/components//github.com/org/app",
 					Target: "ghcr.io/org/components//github.com/org/app:production",
 				},
@@ -64,9 +64,9 @@ var _ = Describe("parsePromotionParameters", func() {
 
 	Context("with mismatched component names", func() {
 		It("returns error when source and target components differ", func() {
-			config := &galaxy.VectorPromotionConfig{
+			config := &konfidence.VectorPromotionConfig{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-config"},
-				Spec: galaxy.VectorPromotionConfigSpec{
+				Spec: konfidence.VectorPromotionConfigSpec{
 					Source: "ghcr.io/org/components//github.com/org/app-a:1.0.0",
 					Target: "ghcr.io/org/components//github.com/org/app-b:production",
 				},
@@ -81,9 +81,9 @@ var _ = Describe("parsePromotionParameters", func() {
 
 	Context("with invalid target", func() {
 		It("returns error for target with semver version", func() {
-			config := &galaxy.VectorPromotionConfig{
+			config := &konfidence.VectorPromotionConfig{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-config"},
-				Spec: galaxy.VectorPromotionConfigSpec{
+				Spec: konfidence.VectorPromotionConfigSpec{
 					Source: "ghcr.io/org/components//github.com/org/app:1.0.0",
 					Target: "ghcr.io/org/components//github.com/org/app:2.0.0",
 				},
@@ -96,9 +96,9 @@ var _ = Describe("parsePromotionParameters", func() {
 		})
 
 		It("returns error for malformed target reference", func() {
-			config := &galaxy.VectorPromotionConfig{
+			config := &konfidence.VectorPromotionConfig{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-config"},
-				Spec: galaxy.VectorPromotionConfigSpec{
+				Spec: konfidence.VectorPromotionConfigSpec{
 					Source: "ghcr.io/org/components//github.com/org/app:1.0.0",
 					Target: "not-a-valid-reference",
 				},

@@ -2,7 +2,7 @@
 package graph
 
 import (
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -21,7 +21,7 @@ var _ = Describe("Graph utility functions", func() {
 
 	Context("When processing a task dependency graph", func() {
 		It("should successfully sort tasks topologically", func() {
-			tasks := []star.TaskManifest{
+			tasks := []konfidence.TaskManifest{
 				{
 					Name: Task0,
 					Type: TaskTypeK8s,
@@ -79,7 +79,7 @@ var _ = Describe("Graph utility functions", func() {
 			Expect(flattenedLayers).To(Equal(expectedTaskNames))
 		})
 		It("should successfully sort tasks topologically if graph is disconnected", func() {
-			tasks := []star.TaskManifest{
+			tasks := []konfidence.TaskManifest{
 				{
 					Name: Task0,
 					Type: TaskTypeK8s,
@@ -132,7 +132,7 @@ var _ = Describe("Graph utility functions", func() {
 			Expect(flattenedLayers).To(Equal(expectedTaskNames))
 		})
 		It("should fail when graph does not have any root nodes (graph is cyclic)", func() {
-			tasks := []star.TaskManifest{
+			tasks := []konfidence.TaskManifest{
 				{
 					Name:      Task0,
 					Type:      TaskTypeK8s,
@@ -154,7 +154,7 @@ var _ = Describe("Graph utility functions", func() {
 			Expect(err).To(MatchError("task dependency graph contains no root nodes"))
 		})
 		It("should fail when graph contains a cycle", func() {
-			tasks := []star.TaskManifest{
+			tasks := []konfidence.TaskManifest{
 				{
 					Name:      Task0,
 					Type:      TaskTypeK8s,
@@ -184,7 +184,7 @@ var _ = Describe("Graph utility functions", func() {
 			Expect(err).To(MatchError("task list is empty"))
 		})
 		It("should fail when task list is empty", func() {
-			tasks := []star.TaskManifest{}
+			tasks := []konfidence.TaskManifest{}
 			_, _, err := SortTasks(tasks)
 			Expect(err).To(MatchError("task list is empty"))
 		})

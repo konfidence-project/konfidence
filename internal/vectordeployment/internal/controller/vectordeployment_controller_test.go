@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/vectordeployment/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/vectordeployment/internal/controller/mocks"
 	. "github.com/onsi/ginkgo/v2"
@@ -58,20 +58,20 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		managerClient := k8sManager.GetClient()
 
 		// Cleanup VectorDeployments
-		err := managerClient.DeleteAllOf(ctx, &star.VectorDeployment{}, client.InNamespace(testNamespace))
+		err := managerClient.DeleteAllOf(ctx, &konfidence.VectorDeployment{}, client.InNamespace(testNamespace))
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Cleanup ArtifactDeployments
-		err = managerClient.DeleteAllOf(ctx, &star.ArtifactDeployment{}, client.InNamespace(testNamespace))
+		err = managerClient.DeleteAllOf(ctx, &konfidence.ArtifactDeployment{}, client.InNamespace(testNamespace))
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Cleanup VectorAssignments
-		err = managerClient.DeleteAllOf(ctx, &star.VectorAssignment{}, client.InNamespace(testNamespace))
+		err = managerClient.DeleteAllOf(ctx, &konfidence.VectorAssignment{}, client.InNamespace(testNamespace))
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Cleanup VectorData CRs. The owner-reference cascade from the VD deletion above would handle this
 		// eventually, but a manual sweep keeps the suite deterministic for re-runs.
-		err = managerClient.DeleteAllOf(ctx, &star.VectorData{}, client.InNamespace(testNamespace))
+		err = managerClient.DeleteAllOf(ctx, &konfidence.VectorData{}, client.InNamespace(testNamespace))
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		if mockCtrl != nil {
@@ -152,20 +152,20 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).Return(artifactManifest, nil).AnyTimes()
 
 		// GIVEN: create a VectorDeployment resource
-		vectorDeployment := &star.VectorDeployment{
+		vectorDeployment := &konfidence.VectorDeployment{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "VectorDeployment",
-				APIVersion: "star.konfidence.cloud/v1alpha1",
+				APIVersion: "konfidence.cloud/v1alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ocmName,
 				Namespace: testNamespace,
 				Labels:    map[string]string{"app.kubernetes.io/name": "crds"},
 			},
-			Spec: star.VectorDeploymentSpec{
+			Spec: konfidence.VectorDeploymentSpec{
 				Vector: vectorReference,
 			},
-			Status: star.VectorDeploymentStatus{},
+			Status: konfidence.VectorDeploymentStatus{},
 		}
 
 		// WHEN: creating the resource will trigger the reconciler automatically
@@ -176,15 +176,15 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		// THEN: Verify that the reconciler processed the resource and updated
 
 		By("Verifying ResolvedVectorOcm and VectorDownloaded condition is set")
-		actualVectorDeployment := &star.VectorDeployment{}
+		actualVectorDeployment := &konfidence.VectorDeployment{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
 			g.Expect(actualVectorDeployment.Status.ResolvedVectorOcm).To(gomega.Not(gomega.BeEmpty()))
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorDownloadedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, konfidence.VectorDownloadedCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying ArtifactDeployment was created")
-		artifactDeploymentList := &star.ArtifactDeploymentList{}
+		artifactDeploymentList := &konfidence.ArtifactDeploymentList{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.List(ctx, artifactDeploymentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
 			g.Expect(artifactDeploymentList.Items).To(gomega.HaveLen(1))
@@ -195,34 +195,34 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 
 		By("Updating ArtifactDeployment.status")
 		// Re-fetch to get the latest resourceVersion (the controller may have added an owner reference since the list).
-		artifactDeployment := &star.ArtifactDeployment{}
+		artifactDeployment := &konfidence.ArtifactDeployment{}
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name:      artifactDeploymentList.Items[0].Name,
 			Namespace: testNamespace,
 		}, artifactDeployment)).To(gomega.Succeed())
 
-		artifactDeployment.Status.DeploymentResults = []star.DeploymentResult{
+		artifactDeployment.Status.DeploymentResults = []konfidence.DeploymentResult{
 			{Name: "result-1", Type: "test", Spec: runtime.RawExtension{Raw: []byte("{\"test-deployment-result\": true}")}},
 		}
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               star.ArtifactDeployedCondition,
-			Reason:             star.ArtifactDeployedCondition,
+			Type:               konfidence.ArtifactDeployedCondition,
+			Reason:             konfidence.ArtifactDeployedCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "",
 			ObservedGeneration: artifactDeployment.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               star.DeploymentResultCreatedCondition,
-			Reason:             star.DeploymentResultCreatedCondition,
+			Type:               konfidence.DeploymentResultCreatedCondition,
+			Reason:             konfidence.DeploymentResultCreatedCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "",
 			ObservedGeneration: artifactDeployment.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               star.ArtifactDeploymentReadyCondition,
-			Reason:             star.ArtifactDeploymentReadyCondition,
+			Type:               konfidence.ArtifactDeploymentReadyCondition,
+			Reason:             konfidence.ArtifactDeploymentReadyCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "",
 			ObservedGeneration: artifactDeployment.Generation,
@@ -234,7 +234,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		By("Verifying VectorDeployed condition is set")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorDeployedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, konfidence.VectorDeployedCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying VectorDeployment.status.deploymentResults is populated")
@@ -244,7 +244,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying VectorAssignment was created")
-		vectorAssignmentList := &star.VectorAssignmentList{}
+		vectorAssignmentList := &konfidence.VectorAssignmentList{}
 		vectorAssignmentName := ""
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.List(ctx, vectorAssignmentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
@@ -259,12 +259,12 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		By("Verifying VectorAssignmentsCreated condition is set")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorAssignmentsCreatedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, konfidence.VectorAssignmentsCreatedCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying ArtifactDeployment has owner reference pointing to VectorDeployment")
 		gomega.Eventually(func(g gomega.Gomega) {
-			ad := &star.ArtifactDeployment{}
+			ad := &konfidence.ArtifactDeployment{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name:      artifactDeploymentList.Items[0].Name,
 				Namespace: testNamespace,
@@ -272,7 +272,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(ad.OwnerReferences).ToNot(gomega.BeEmpty())
 			foundOwner := false
 			for _, ref := range ad.OwnerReferences {
-				if ref.UID == vectorDeployment.UID && ref.Kind == star.VectorDeploymentKind {
+				if ref.UID == vectorDeployment.UID && ref.Kind == konfidence.VectorDeploymentKind {
 					foundOwner = true
 				}
 			}
@@ -281,7 +281,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 
 		By("Verifying VectorAssignment has controller owner reference pointing to VectorDeployment")
 		gomega.Eventually(func(g gomega.Gomega) {
-			va := &star.VectorAssignment{}
+			va := &konfidence.VectorAssignment{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name:      vectorAssignmentName,
 				Namespace: testNamespace,
@@ -289,7 +289,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(va.OwnerReferences).ToNot(gomega.BeEmpty())
 			foundControllerOwner := false
 			for _, ref := range va.OwnerReferences {
-				if ref.UID == vectorDeployment.UID && ref.Kind == star.VectorDeploymentKind && ref.Controller != nil && *ref.Controller {
+				if ref.UID == vectorDeployment.UID && ref.Kind == konfidence.VectorDeploymentKind && ref.Controller != nil && *ref.Controller {
 					foundControllerOwner = true
 				}
 			}
@@ -297,7 +297,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Simulating VectorAssignment readiness")
-		vectorAssignment := &star.VectorAssignment{}
+		vectorAssignment := &konfidence.VectorAssignment{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name:      vectorAssignmentName,
@@ -306,8 +306,8 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		meta.SetStatusCondition(&vectorAssignment.Status.Conditions, metav1.Condition{
-			Type:               star.VectorAssignmentReadyCondition,
-			Reason:             star.VectorAssignmentReadyCondition,
+			Type:               konfidence.VectorAssignmentReadyCondition,
+			Reason:             konfidence.VectorAssignmentReadyCondition,
 			Status:             metav1.ConditionTrue,
 			Message:            "simulated",
 			ObservedGeneration: vectorAssignment.Generation,
@@ -322,11 +322,11 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		// ConfigMap (or another runtime-shaped artefact). We simulate the orchestrator below.
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorDataCreatedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, konfidence.VectorDataCreatedCondition)).To(gomega.BeTrue())
 			g.Expect(actualVectorDeployment.Status.ResultingVectorData).ToNot(gomega.BeNil())
 			g.Expect(actualVectorDeployment.Status.ResultingVectorData.Name).To(gomega.Equal(ocmName))
 
-			vectorData := &star.VectorData{}
+			vectorData := &konfidence.VectorData{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, vectorData)).To(gomega.Succeed())
 
 			By("VectorData inlines the aggregated DeploymentResults from all ArtifactDeployments")
@@ -340,7 +340,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(vectorData.OwnerReferences).ToNot(gomega.BeEmpty())
 			foundOwner := false
 			for _, ref := range vectorData.OwnerReferences {
-				if ref.UID == actualVectorDeployment.UID && ref.Kind == star.VectorDeploymentKind && ref.Controller != nil && *ref.Controller {
+				if ref.UID == actualVectorDeployment.UID && ref.Kind == konfidence.VectorDeploymentKind && ref.Controller != nil && *ref.Controller {
 					foundOwner = true
 				}
 			}
@@ -352,12 +352,12 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		// materialized" — which is itself the correct, desired behaviour. We unblock it by hand here so the rest
 		// of the assertions run.
 		gomega.Eventually(func(g gomega.Gomega) {
-			vectorData := &star.VectorData{}
+			vectorData := &konfidence.VectorData{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, vectorData)).To(gomega.Succeed())
 			meta.SetStatusCondition(&vectorData.Status.Conditions, metav1.Condition{
-				Type:               star.VectorDataReadyCondition,
+				Type:               konfidence.VectorDataReadyCondition,
 				Status:             metav1.ConditionTrue,
-				Reason:             star.VectorDataReasonMaterialized,
+				Reason:             konfidence.VectorDataReasonMaterialized,
 				Message:            "simulated by envtest",
 				ObservedGeneration: vectorData.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -368,7 +368,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		By("Verifying VectorReady condition is set on VectorDeployment")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, star.VectorReadyCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 	})
 })

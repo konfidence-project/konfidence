@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -53,10 +52,7 @@ var _ = BeforeSuite(func() {
 	SetDefaultEventuallyTimeout(10 * time.Second)
 
 	var err error
-	err = galaxy.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = star.AddToScheme(scheme.Scheme)
+	err = konfidence.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	By("bootstrapping local test environment")

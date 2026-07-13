@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/vectoractivation/internal/activation/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -29,18 +29,18 @@ var _ = Describe("status tests", func() {
 
 	Context("InFinalStatusCondition", func() {
 		It("returns false if no conditions", func() {
-			va := &star.VectorActivation{}
+			va := &konfidence.VectorActivation{}
 			Expect(InFinalStatusCondition(va)).To(BeFalse())
 		})
 
 		It("returns true if ActivationSucceeded", func() {
-			va := &star.VectorActivation{
-				Status: star.VectorActivationStatus{
+			va := &konfidence.VectorActivation{
+				Status: konfidence.VectorActivationStatus{
 					Conditions: []metav1.Condition{
 						{
-							Type:               star.ActivationSucceeded,
+							Type:               konfidence.ActivationSucceeded,
 							Status:             metav1.ConditionTrue,
-							Reason:             star.ActivationSucceeded,
+							Reason:             konfidence.ActivationSucceeded,
 							Message:            "",
 							ObservedGeneration: 1,
 							LastTransitionTime: metav1.Now(),
@@ -52,13 +52,13 @@ var _ = Describe("status tests", func() {
 		})
 
 		It("returns true if ActivationFailed", func() {
-			va := &star.VectorActivation{
-				Status: star.VectorActivationStatus{
+			va := &konfidence.VectorActivation{
+				Status: konfidence.VectorActivationStatus{
 					Conditions: []metav1.Condition{
 						{
-							Type:               star.ActivationFailed,
+							Type:               konfidence.ActivationFailed,
 							Status:             metav1.ConditionTrue,
-							Reason:             star.ActivationFailed,
+							Reason:             konfidence.ActivationFailed,
 							Message:            "",
 							ObservedGeneration: 1,
 							LastTransitionTime: metav1.Now(),
@@ -70,13 +70,13 @@ var _ = Describe("status tests", func() {
 		})
 
 		It("returns true if ActivationSkipped", func() {
-			vectorActivation := &star.VectorActivation{
-				Status: star.VectorActivationStatus{
+			vectorActivation := &konfidence.VectorActivation{
+				Status: konfidence.VectorActivationStatus{
 					Conditions: []metav1.Condition{
 						{
-							Type:               star.ActivationSkipped,
+							Type:               konfidence.ActivationSkipped,
 							Status:             metav1.ConditionTrue,
-							Reason:             star.ActivationSkipped,
+							Reason:             konfidence.ActivationSkipped,
 							Message:            "",
 							ObservedGeneration: 1,
 							LastTransitionTime: metav1.Now(),
@@ -91,7 +91,7 @@ var _ = Describe("status tests", func() {
 	Context("UpdateVectorActivationStatus", func() {
 		var (
 			condition        metav1.Condition
-			vectorActivation *star.VectorActivation
+			vectorActivation *konfidence.VectorActivation
 		)
 
 		BeforeEach(func() {
@@ -103,7 +103,7 @@ var _ = Describe("status tests", func() {
 				ObservedGeneration: 1,
 				LastTransitionTime: metav1.Now(),
 			}
-			vectorActivation = &star.VectorActivation{}
+			vectorActivation = &konfidence.VectorActivation{}
 		})
 
 		It("updates status", func() {

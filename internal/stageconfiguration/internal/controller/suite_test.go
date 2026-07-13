@@ -9,8 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
@@ -68,8 +67,7 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	var err error
-	Expect(star.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(galaxy.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(konfidence.AddToScheme(scheme.Scheme)).To(Succeed())
 	k8sScheme = scheme.Scheme
 
 	By("starting OCI registry container")
@@ -146,7 +144,7 @@ var _ = BeforeSuite(func() {
 
 	cache, err := clientcache.New(
 		clientcache.DefaultClientCacheSize,
-		clientcache.DefaultExtract[*galaxy.StageConfiguration],
+		clientcache.DefaultExtract[*konfidence.StageConfiguration],
 		NewCacheFactory(log, limiter),
 	)
 	Expect(err).NotTo(HaveOccurred())

@@ -1,4 +1,4 @@
-apiVersion: star.konfidence.cloud/v1alpha1
+apiVersion: konfidence.cloud/v1alpha1
 kind: ArtifactDeployment
 metadata:
   name: e9cea9b3764b9adda065f85acd63a42f04b69de2d42e9b7e4f9556913bb37abb

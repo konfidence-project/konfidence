@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/hash"
 	corev1 "k8s.io/api/core/v1"
@@ -32,10 +32,10 @@ type StageReconciler struct {
 	Recorder events.EventRecorder
 }
 
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stages/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -48,7 +48,7 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	log.Info("Reconcile stage started...")
 
 	// get stage
-	stage := &star.Stage{}
+	stage := &konfidence.Stage{}
 	if err := r.Get(ctx, req.NamespacedName, stage); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -70,13 +70,13 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 }
 
-func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, stage *star.Stage) error {
+func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, stage *konfidence.Stage) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stage")
 	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{
-		Type:               star.StageReady,
+		Type:               konfidence.StageReady,
 		Status:             metav1.ConditionFalse,
-		Reason:             star.StageReady,
+		Reason:             konfidence.StageReady,
 		Message:            "",
 		ObservedGeneration: stage.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -93,9 +93,9 @@ func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, 
 	}
 
 	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{
-		Type:               star.StageReady,
+		Type:               konfidence.StageReady,
 		Status:             metav1.ConditionTrue,
-		Reason:             star.StageReady,
+		Reason:             konfidence.StageReady,
 		Message:            fmt.Sprintf("Successfully reconciled Stage %s", stage.Name),
 		ObservedGeneration: stage.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -107,11 +107,11 @@ func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, 
 func (r *StageReconciler) getOrCreateTargetStageVersionUsage(
 	ctx context.Context,
 	req ctrl.Request,
-	stage *star.Stage,
-) (*star.StageVersionUsage, error) {
+	stage *konfidence.Stage,
+) (*konfidence.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 
-	stageVersionUsages := &star.StageVersionUsageList{}
+	stageVersionUsages := &konfidence.StageVersionUsageList{}
 	if err := r.List(ctx, stageVersionUsages, client.InNamespace(req.Namespace), client.MatchingLabels(getTargetStageVersionUsageLabels(stage))); err != nil {
 		return nil, fmt.Errorf("unable to list current target stageVersionUsages: %w", err)
 	}
@@ -164,7 +164,7 @@ func (r *StageReconciler) getOrCreateTargetStageVersionUsage(
 }
 
 //nolint:dupl // Mirrors child reconciliation in stage_version_controller.go; keeping explicit resource-specific flow is clearer than a generic helper.
-func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *star.Stage) (*star.StageVersion, error) {
+func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *konfidence.Stage) (*konfidence.StageVersion, error) {
 	log := logf.FromContext(ctx)
 	stageVersion, err := r.constructStageVersion(stage)
 	if err != nil {
@@ -188,21 +188,21 @@ func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *st
 	return stageVersion, nil
 }
 
-func (r *StageReconciler) constructStageVersion(stage *star.Stage) (*star.StageVersion, error) {
+func (r *StageReconciler) constructStageVersion(stage *konfidence.Stage) (*konfidence.StageVersion, error) {
 	name := getStageVersionName(stage)
 
 	stageVersionLabels := getStageVersionLabels(stage)
 
-	stageVersion := &star.StageVersion{
+	stageVersion := &konfidence.StageVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: stage.Namespace,
 			Labels:    stageVersionLabels,
 		},
-		Spec: star.StageVersionSpec{
+		Spec: konfidence.StageVersionSpec{
 			Vector:          stage.Spec.Vector,
 			StageGeneration: stage.Generation,
-			StageRef: &star.StageReference{
+			StageRef: &konfidence.StageReference{
 				Name: stage.Name,
 			},
 		},
@@ -215,17 +215,17 @@ func (r *StageReconciler) constructStageVersion(stage *star.Stage) (*star.StageV
 	return stageVersion, nil
 }
 
-func (r *StageReconciler) constructStageVersionUsage(stage *star.Stage) (*star.StageVersionUsage, error) {
+func (r *StageReconciler) constructStageVersionUsage(stage *konfidence.Stage) (*konfidence.StageVersionUsage, error) {
 	name := fmt.Sprintf("%s-target-%s", stage.Name, rand.String(8))
 	stageVersionLabels := getStageVersionLabels(stage)
 
-	stageVersionUsage := &star.StageVersionUsage{
+	stageVersionUsage := &konfidence.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: stage.Namespace,
 			Labels:    getTargetStageVersionUsageLabels(stage),
 		},
-		Spec: star.StageVersionUsageSpec{
+		Spec: konfidence.StageVersionUsageSpec{
 			Reason: StageVersionUsageTargetType,
 			StageVersionSelector: &metav1.LabelSelector{
 				MatchLabels: stageVersionLabels,
@@ -240,7 +240,7 @@ func (r *StageReconciler) constructStageVersionUsage(stage *star.Stage) (*star.S
 	return stageVersionUsage, nil
 }
 
-func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, stageVersionUsage *star.StageVersionUsage, stage *star.Stage) error {
+func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, stageVersionUsage *konfidence.StageVersionUsage, stage *konfidence.Stage) error {
 	stageVersionLabels := getStageVersionLabels(stage)
 
 	originalStageVersionUsage := stageVersionUsage.DeepCopy()
@@ -270,7 +270,7 @@ func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, sta
 	return nil
 }
 
-func getStageVersionLabels(stage *star.Stage) map[string]string {
+func getStageVersionLabels(stage *konfidence.Stage) map[string]string {
 	// use vector hash as vector ref for now
 	digest := hash.Fnv128(stage.Spec.Vector)
 
@@ -280,13 +280,13 @@ func getStageVersionLabels(stage *star.Stage) map[string]string {
 	}
 }
 
-func getTargetStageVersionUsageLabels(stage *star.Stage) map[string]string {
+func getTargetStageVersionUsageLabels(stage *konfidence.Stage) map[string]string {
 	return map[string]string{
 		pkgctrl.StageVersionUsageTarget: stage.Name,
 	}
 }
 
-func getStageVersionName(stage *star.Stage) string {
+func getStageVersionName(stage *konfidence.Stage) string {
 	content := fmt.Sprintf("%s-%s-%d", stage.Name, stage.Spec.Vector, stage.Generation)
 	digest := hash.Fnv64(content)
 	return fmt.Sprintf("%s-%s", stage.Name, digest)
@@ -316,9 +316,9 @@ func (r *StageReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&star.Stage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&star.StageVersion{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
-		Owns(&star.StageVersionUsage{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
+		For(&konfidence.Stage{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&konfidence.StageVersion{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
+		Owns(&konfidence.StageVersionUsage{}, builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, noUpdatePredicate))).
 		Named("stage").
 		Complete(r)
 }

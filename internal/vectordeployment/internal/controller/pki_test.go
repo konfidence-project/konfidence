@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"time"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectordeployment"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
@@ -67,7 +67,7 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 			Cache:      cache.Options{DefaultNamespaces: map[string]cache.Config{pkiTestNamespace: {}}},
 		})
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		gomega.Expect(star.AddToScheme(pkiManager.GetScheme())).To(gomega.Succeed())
+		gomega.Expect(konfidence.AddToScheme(pkiManager.GetScheme())).To(gomega.Succeed())
 
 		go func() {
 			defer GinkgoRecover()
@@ -160,10 +160,10 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 		vectorURL := fmt.Sprintf("http://%s//github.com/konfidence-project/pki-test/vector-signed:v1.0.0", pkiRegistryEndpoint)
 		vd := createVectorDeployment(pkiCtx, pkiK8sClient, "vd-pki-signed", pkiTestNamespace, vectorURL)
 
-		actualVD := &star.VectorDeployment{}
+		actualVD := &konfidence.VectorDeployment{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(pkiK8sClient.Get(pkiCtx, types.NamespacedName{Name: vd.Name, Namespace: pkiTestNamespace}, actualVD)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVD.Status.Conditions, star.VectorDownloadedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVD.Status.Conditions, konfidence.VectorDownloadedCondition)).To(gomega.BeTrue())
 		}, pkiTimeout, pkiInterval).Should(gomega.Succeed())
 	})
 
@@ -171,10 +171,10 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 		vd := pushUnsignedVectorAndCreateDeployment(pkiCtx, pkiOCMClient, pkiK8sClient,
 			pkiRegistryEndpoint, "pki-test", "vector-unsigned", pkiTestNamespace)
 
-		actualVD := &star.VectorDeployment{}
+		actualVD := &konfidence.VectorDeployment{}
 		gomega.Consistently(func(g gomega.Gomega) {
 			g.Expect(pkiK8sClient.Get(pkiCtx, types.NamespacedName{Name: vd.Name, Namespace: pkiTestNamespace}, actualVD)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVD.Status.Conditions, star.VectorDownloadedCondition)).To(gomega.BeFalse())
+			g.Expect(meta.IsStatusConditionTrue(actualVD.Status.Conditions, konfidence.VectorDownloadedCondition)).To(gomega.BeFalse())
 		}, pkiNegativeWindow, pkiInterval).Should(gomega.Succeed())
 	})
 })
@@ -206,7 +206,7 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 			Cache:      cache.Options{DefaultNamespaces: map[string]cache.Config{noVerifyNamespace: {}}},
 		})
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		gomega.Expect(star.AddToScheme(noVerifyManager.GetScheme())).To(gomega.Succeed())
+		gomega.Expect(konfidence.AddToScheme(noVerifyManager.GetScheme())).To(gomega.Succeed())
 
 		go func() {
 			defer GinkgoRecover()
@@ -270,10 +270,10 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 		vd := pushUnsignedVectorAndCreateDeployment(noVerifyCtx, noVerifyOCMClient, noVerifyK8sClient,
 			noVerifyRegistryEndpoint, "no-verify-test", "vector", noVerifyNamespace)
 
-		actualVD := &star.VectorDeployment{}
+		actualVD := &konfidence.VectorDeployment{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(noVerifyK8sClient.Get(noVerifyCtx, types.NamespacedName{Name: vd.Name, Namespace: noVerifyNamespace}, actualVD)).To(gomega.Succeed())
-			g.Expect(meta.IsStatusConditionTrue(actualVD.Status.Conditions, star.VectorDownloadedCondition)).To(gomega.BeTrue())
+			g.Expect(meta.IsStatusConditionTrue(actualVD.Status.Conditions, konfidence.VectorDownloadedCondition)).To(gomega.BeTrue())
 		}, noVerifyTimeout, noVerifyInterval).Should(gomega.Succeed())
 	})
 })
@@ -282,20 +282,20 @@ func cleanupVectorDeploymentNamespace(
 	ctx context.Context, k8sClient client.Client, namespace string,
 	timeout, interval time.Duration,
 ) {
-	gomega.Expect(k8sClient.DeleteAllOf(ctx, &star.VectorDeployment{}, client.InNamespace(namespace))).To(gomega.Succeed())
-	gomega.Expect(k8sClient.DeleteAllOf(ctx, &star.ArtifactDeployment{}, client.InNamespace(namespace))).To(gomega.Succeed())
-	gomega.Expect(k8sClient.DeleteAllOf(ctx, &star.VectorAssignment{}, client.InNamespace(namespace))).To(gomega.Succeed())
+	gomega.Expect(k8sClient.DeleteAllOf(ctx, &konfidence.VectorDeployment{}, client.InNamespace(namespace))).To(gomega.Succeed())
+	gomega.Expect(k8sClient.DeleteAllOf(ctx, &konfidence.ArtifactDeployment{}, client.InNamespace(namespace))).To(gomega.Succeed())
+	gomega.Expect(k8sClient.DeleteAllOf(ctx, &konfidence.VectorAssignment{}, client.InNamespace(namespace))).To(gomega.Succeed())
 	gomega.Eventually(func(g gomega.Gomega) {
-		list := &star.VectorDeploymentList{}
+		list := &konfidence.VectorDeploymentList{}
 		g.Expect(k8sClient.List(ctx, list, client.InNamespace(namespace))).To(gomega.Succeed())
 		g.Expect(list.Items).To(gomega.BeEmpty())
 	}, timeout, interval).Should(gomega.Succeed())
 }
 
-func createVectorDeployment(ctx context.Context, k8sClient client.Client, name, namespace, vectorURL string) *star.VectorDeployment {
-	vd := &star.VectorDeployment{
+func createVectorDeployment(ctx context.Context, k8sClient client.Client, name, namespace, vectorURL string) *konfidence.VectorDeployment {
+	vd := &konfidence.VectorDeployment{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		Spec:       star.VectorDeploymentSpec{Vector: vectorURL},
+		Spec:       konfidence.VectorDeploymentSpec{Vector: vectorURL},
 	}
 	gomega.Expect(k8sClient.Create(ctx, vd)).To(gomega.Succeed())
 	return vd
@@ -304,7 +304,7 @@ func createVectorDeployment(ctx context.Context, k8sClient client.Client, name, 
 func pushUnsignedVectorAndCreateDeployment(
 	ctx context.Context, ocmClient pkgocm.Client, k8sClient client.Client,
 	registryEndpoint, project, vectorName, namespace string,
-) *star.VectorDeployment {
+) *konfidence.VectorDeployment {
 	artifactRef := testocm.ParseRef(registryEndpoint, fmt.Sprintf("github.com/konfidence-project/%s/artifact:v1.0.0", project))
 	vectorRef := testocm.ParseRef(registryEndpoint, fmt.Sprintf("github.com/konfidence-project/%s/%s:v1.0.0", project, vectorName))
 	testocm.PushComponent(ctx, ocmClient, artifactRef, nil)

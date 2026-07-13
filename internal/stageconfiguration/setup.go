@@ -8,7 +8,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
@@ -32,7 +32,7 @@ func SetupControllers(mgr mcmanager.Manager, scheme *runtime.Scheme, restConfig 
 
 	cache, err := clientcache.New(
 		clientcache.DefaultClientCacheSize,
-		clientcache.DefaultExtract[*galaxy.StageConfiguration],
+		clientcache.DefaultExtract[*konfidence.StageConfiguration],
 		controller.NewCacheFactory(log, opts.Limiter),
 	)
 	if err != nil {
