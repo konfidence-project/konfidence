@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,6 +29,17 @@ func PatchStatusIfChanged(
 
 	patchErr := clusterClient.Status().Patch(ctx, obj, client.MergeFrom(original))
 	if patchErr == nil {
+		return reconcileErr
+	}
+
+	// If the object was deleted between reconciliation and status patching, ignore the patch error.
+	if apierrors.IsNotFound(patchErr) {
+		return reconcileErr
+	}
+
+	// If the patch failed due to conflict (resourceVersion mismatch), another reconciliation
+	// will be triggered, so we can safely return the reconcile error without the patch error.
+	if apierrors.IsConflict(patchErr) {
 		return reconcileErr
 	}
 
