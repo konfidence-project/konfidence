@@ -3,9 +3,8 @@ package vectorassembly
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/controller"
@@ -23,7 +22,7 @@ type Options struct {
 }
 
 // SetupControllers registers all vector assembly controllers with the given manager.
-func SetupControllers(mgr mcmanager.Manager, scheme *runtime.Scheme, opts Options) error {
+func SetupControllers(mgr ctrl.Manager, opts Options) error {
 	if opts.Limiter == nil {
 		return fmt.Errorf("setup: Limiter is required; use crypto.NewLimiter(0) for GOMAXPROCS")
 	}
@@ -39,12 +38,8 @@ func SetupControllers(mgr mcmanager.Manager, scheme *runtime.Scheme, opts Option
 		return fmt.Errorf("creating clientcache: %w", err)
 	}
 
-	if err := (&controller.VectorTemplateReconciler{
-		Mgr:              mgr,
-		Scheme:           scheme,
-		Cache:            cache,
-		VersionGenerator: vector.TimestampVectorVersionGenerator,
-	}).SetupWithManager(mgr); err != nil {
+	if err := controller.NewVectorTemplateReconciler(mgr, cache, vector.TimestampVectorVersionGenerator).
+		SetupWithManager(mgr); err != nil {
 		return err
 	}
 

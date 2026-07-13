@@ -31,12 +31,6 @@ Kubernetes: `>=1.27.0-0`
 | controller.controllers | string | `"*"` |  |
 | controller.healthProbeBindAddress | string | `":8081"` |  |
 | controller.install | bool | `true` |  |
-| controller.kcpEndpointSliceName | string | `""` |  |
-| controller.kubeconfig.mountPath | string | `"/etc/kcp_kubeconfig"` |  |
-| controller.kubeconfig.secretKey | string | `"kubeconfig"` |  |
-| controller.kubeconfig.secretName | string | `""` |  |
-| controller.kubernetesHost | string | `""` |  |
-| controller.kubernetesPort | int | `0` |  |
 | controller.leaderElection | bool | `true` |  |
 | controller.leaseId | string | `"galaxy-operator.konfidence.cloud"` |  |
 | controller.metricsBindAddress | string | `":8080"` |  |

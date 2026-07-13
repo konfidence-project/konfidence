@@ -27,23 +27,22 @@ const DefaultClientCacheSize = 2048
 // The result is stored by Lookup; the factory has no knowledge of caching.
 type Factory[CR, C any] func(ctx context.Context, k8sClient client.Reader, cr CR) (C, error)
 
-// Cache is a process-wide, cluster-isolated LRU registry of OCM clients.
+// Cache is a process-wide LRU registry of OCM clients.
 // Each entry holds the complete set of clients needed by one controller for
-// one cluster at one CR generation. Entries are evicted automatically when the
-// LRU reaches capacity.
+// one CR generation. Entries are evicted automatically when the LRU reaches capacity.
 //
 // CR is the CR type being reconciled. C is the caller-defined client bundle.
 //
 // Cache is safe for concurrent use.
 type Cache[CR, C any] struct {
 	lru     *lru.Cache[uint64, C]
-	extract func(clusterName string, cr CR) uint64
+	extract func(cr CR) uint64
 	factory Factory[CR, C]
 }
 
 // New returns a Cache. extract derives the cache key from a CR; factory builds
 // the client bundle on a miss. Both are registered once at SetupControllers time.
-func New[CR, C any](size int, extract func(clusterName string, cr CR) uint64, factory Factory[CR, C]) (*Cache[CR, C], error) {
+func New[CR, C any](size int, extract func(cr CR) uint64, factory Factory[CR, C]) (*Cache[CR, C], error) {
 	l, err := lru.New[uint64, C](size)
 	if err != nil {
 		return nil, fmt.Errorf("clientcache: create LRU: %w", err)
@@ -59,8 +58,8 @@ func New[CR, C any](size int, extract func(clusterName string, cr CR) uint64, fa
 //
 // A generation change in the CR produces a new key → natural miss. The old entry
 // becomes unreachable at some point and is evicted under LRU pressure. No explicit invalidation.
-func (c *Cache[CR, C]) Lookup(ctx context.Context, k8sClient client.Reader, clusterName string, cr CR) (C, error) {
-	key := c.extract(clusterName, cr)
+func (c *Cache[CR, C]) Lookup(ctx context.Context, k8sClient client.Reader, cr CR) (C, error) {
+	key := c.extract(cr)
 	if v, ok := c.lru.Get(key); ok {
 		return v, nil
 	}
@@ -85,20 +84,19 @@ type KeyableObject interface {
 // metav1.ObjectMeta. Pass it directly to New:
 //
 //	clientcache.New(size, clientcache.DefaultExtract[*v1alpha1.VectorTemplate], factory)
-func DefaultExtract[CR KeyableObject](clusterName string, cr CR) uint64 {
-	return HashKey(clusterName, cr.GetNamespace(), cr.GetName(), cr.GetGeneration())
+func DefaultExtract[CR KeyableObject](cr CR) uint64 {
+	return HashKey(cr.GetNamespace(), cr.GetName(), cr.GetGeneration())
 }
 
 // HashKey hashes the standard cache key fields via FNV-64a.
 // Controllers that need no custom key logic use this via DefaultExtract.
-func HashKey(clusterName, namespace, name string, generation int64) uint64 {
+func HashKey(namespace, name string, generation int64) uint64 {
 	h := fnv.New64a()
 	sep := []byte{0}
 	write := func(s string) {
 		_, _ = io.WriteString(h, s)
 		_, _ = h.Write(sep)
 	}
-	write(clusterName)
 	write(namespace)
 	write(name)
 	_ = binary.Write(h, binary.LittleEndian, generation)

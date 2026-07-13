@@ -2,16 +2,12 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"github.com/kcp-dev/multicluster-provider/apiexport"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly"
@@ -21,35 +17,12 @@ import (
 )
 
 func startOperator(cmd *cobra.Command, args []string) error {
-	cfg := ctrl.GetConfigOrDie()
-	leaderElectionCfg := cfg
-	if kubernetesServiceHost != "" && kubernetesServicePort != 0 {
-		inClusterCfg, err := rest.InClusterConfig()
-		if err != nil {
-			setupLog.Error(err, "unable to get in-cluster config for leader election")
-			return err
-		}
-
-		leaderElectionCfg = inClusterCfg
-	}
-
-	var err error
-	var provider multicluster.Provider
-	if kcpEndpointSlice != "" {
-		provider, err = apiexport.New(cfg, kcpEndpointSlice, apiexport.Options{Scheme: scheme, Log: &setupLog})
-		if err != nil {
-			setupLog.Error(err, "unable to construct cluster provider")
-			return err
-		}
-	}
-
-	mgr, err := mcmanager.New(cfg, provider, ctrl.Options{
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       leaseID,
-		LeaderElectionConfig:   leaderElectionCfg,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -62,17 +35,17 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	controllerSetups := map[string]func() error{
 		stageconfiguration.OperatorFlagName: func() error {
-			return stageconfiguration.SetupControllers(mgr, scheme, cfg, stageconfiguration.Options{
+			return stageconfiguration.SetupControllers(mgr, stageconfiguration.Options{
 				Limiter: limiter,
 			})
 		},
 		vectorassembly.OperatorFlagName: func() error {
-			return vectorassembly.SetupControllers(mgr, scheme, vectorassembly.Options{
+			return vectorassembly.SetupControllers(mgr, vectorassembly.Options{
 				Limiter: limiter,
 			})
 		},
 		vectorpromotion.OperatorFlagName: func() error {
-			return vectorpromotion.SetupControllers(ctx, mgr, scheme, vectorpromotion.Options{
+			return vectorpromotion.SetupControllers(ctx, mgr, vectorpromotion.Options{
 				Limiter: limiter,
 			})
 		},

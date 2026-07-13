@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"regexp"
-	"strings"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -15,16 +13,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/ports"
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/template"
@@ -34,32 +29,13 @@ import (
 const (
 	defaultReconcileInterval         = 30 * time.Second
 	stageConfigurationControllerName = "stage-configuration-controller"
-	clusterMarker                    = "/clusters/"
-	clusterPattern                   = "\\/clusters\\/[^/]+$"
 )
-
-var clusterRegex = regexp.MustCompile(clusterPattern)
 
 // StageConfigurationReconciler reconciles a StageConfiguration object
 type StageConfigurationReconciler struct {
-	Mgr        mcmanager.Manager
-	Cache      *clientcache.Cache[*konfidence.StageConfiguration, ports.VectorPort]
-	Scheme     *runtime.Scheme
-	RestConfig *rest.Config
-}
-
-func NewStageConfigurationReconciler(
-	mgr mcmanager.Manager,
-	scheme *runtime.Scheme,
-	restConfig *rest.Config,
-	cache *clientcache.Cache[*konfidence.StageConfiguration, ports.VectorPort],
-) *StageConfigurationReconciler {
-	return &StageConfigurationReconciler{
-		Mgr:        mgr,
-		Cache:      cache,
-		Scheme:     scheme,
-		RestConfig: restConfig,
-	}
+	client.Client
+	Recorder events.EventRecorder
+	Cache    *clientcache.Cache[*konfidence.StageConfiguration, ports.VectorPort]
 }
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -73,31 +49,21 @@ func NewStageConfigurationReconciler(
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
-func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Reconcile stageConfiguration started...")
-	log.Info(fmt.Sprintf("Cluster: %s", req.ClusterName))
 
-	cluster, err := r.Mgr.GetCluster(ctx, req.ClusterName)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get cluster: %w", err)
-	}
-
-	clusterClient := cluster.GetClient()
-	recorder := cluster.GetEventRecorder(stageConfigurationControllerName)
-
-	// get stageConfiguration
 	stageConfiguration := &konfidence.StageConfiguration{}
-	if err := clusterClient.Get(ctx, req.NamespacedName, stageConfiguration); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, stageConfiguration); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	originalStageConfiguration := stageConfiguration.DeepCopy()
-	err = r.reconcileStageConfiguration(ctx, clusterClient, req.ClusterName, stageConfiguration, recorder)
+	err := r.reconcileStageConfiguration(ctx, stageConfiguration)
 
 	err = pkgctrl.PatchStatusIfChanged(
 		ctx,
-		clusterClient,
+		r.Client,
 		stageConfiguration,
 		originalStageConfiguration,
 		stageConfiguration.Status,
@@ -114,77 +80,46 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 
 func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 	ctx context.Context,
-	clusterClient client.Client,
-	clusterName string,
 	stageConfiguration *konfidence.StageConfiguration,
-	recorder events.EventRecorder,
 ) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageConfiguration")
 	r.updateStageConfigurationReadyStatus(stageConfiguration, false, "")
 
-	adapter, err := r.Cache.Lookup(ctx, clusterClient, clusterName, stageConfiguration)
+	adapter, err := r.Cache.Lookup(ctx, r.Client, stageConfiguration)
 	if err != nil {
 		return fmt.Errorf("building OCM clients: %w", err)
 	}
 
-	// get vector with specific version or alias
 	vector, err := adapter.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
 	if err != nil {
 		return fmt.Errorf("unable to get vector component version %s: %w", stageConfiguration.Spec.Vector, err)
 	}
 
-	// write to cluster or workspace
-	var targetClient client.Client
-	if r.Mgr.GetProvider() == nil {
-		targetClient = clusterClient
-	} else {
-		// copy the default kubeconfig and change the server url
-		targetCfg := rest.CopyConfig(r.RestConfig)
-
-		targetWorkspaceHost, err := r.getTargetWorkspaceHost(targetCfg.Host, stageConfiguration)
-		if err != nil {
-			return fmt.Errorf("unable to get target workspace host: %w", err)
-		}
-
-		targetCfg.Host = targetWorkspaceHost
-
-		// create a new client for the target cluster
-		cl, err := client.New(targetCfg, client.Options{
-			Scheme: r.Scheme,
-		})
-		if err != nil {
-			return fmt.Errorf("could not create target client from rest config %w", err)
-		}
-
-		targetClient = cl
-	}
-
-	// create or update stageSync
-	stageSync, operationResult, err := r.createOrUpdateStageSync(ctx, targetClient, stageConfiguration, vector)
+	stageSync, operationResult, err := r.createOrUpdateStageSync(ctx, stageConfiguration, vector)
 	if err != nil {
 		return err
 	}
 
-	// mark stageConfiguration as ready
 	r.updateStageConfigurationReadyStatus(stageConfiguration, true, fmt.Sprintf("StageConfiguration %s reconciled", stageConfiguration.Name))
 
 	msg := fmt.Sprintf("StageSync %s %s with StageConfiguration %s", stageSync.Name, operationResult, stageConfiguration.Name)
-	recorder.Eventf(stageConfiguration, nil, corev1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
+	r.Recorder.Eventf(stageConfiguration, nil, corev1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
 	log.Info(msg)
 	return nil
 }
 
 func (r *StageConfigurationReconciler) createOrUpdateStageSync(
-	ctx context.Context, targetClient client.Client,
-	stageConfiguration *konfidence.StageConfiguration, vector string,
+	ctx context.Context,
+	stageConfiguration *konfidence.StageConfiguration,
+	vector string,
 ) (*konfidence.StageSync, controllerutil.OperationResult, error) {
 	stageSync, stageTemplateBytes, err := r.constructStageSync(stageConfiguration, vector)
 	if err != nil {
 		return nil, controllerutil.OperationResultNone, err
 	}
 
-	operationResult, err := controllerutil.CreateOrUpdate(ctx, targetClient, stageSync, func() error {
+	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, stageSync, func() error {
 		var originalTemplate, stageTemplate template.StageTemplate
 		if err := json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &originalTemplate); err != nil {
 			return err
@@ -246,24 +181,6 @@ func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration
 	}
 }
 
-func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stageConfiguration *konfidence.StageConfiguration) (string, error) {
-	// if kcp is used the target workspace is mandatory
-	if stageConfiguration.Spec.TargetWorkspace == nil || len(*stageConfiguration.Spec.TargetWorkspace) == 0 {
-		return "", fmt.Errorf("stage configuration does not contain a target workspace")
-	}
-
-	if !clusterRegex.MatchString(host) {
-		return "", fmt.Errorf("could not match clusters entry at end of config host %s", host)
-	}
-
-	separatorIdx := strings.LastIndex(host, clusterMarker)
-	if separatorIdx == -1 {
-		return "", fmt.Errorf("missing clusters entry in config host %s", host)
-	}
-
-	return host[:separatorIdx] + clusterMarker + *stageConfiguration.Spec.TargetWorkspace, nil
-}
-
 func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stageConfiguration *konfidence.StageConfiguration, ready bool, message string) {
 	status := metav1.ConditionFalse
 	if ready {
@@ -281,9 +198,21 @@ func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stage
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StageConfigurationReconciler) SetupWithManager(mgr mcmanager.Manager) error {
-	return mcbuilder.ControllerManagedBy(mgr).
-		For(&konfidence.StageConfiguration{}, mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
+func (r *StageConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&konfidence.StageConfiguration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named(stageConfigurationControllerName).
 		Complete(r)
+}
+
+// NewStageConfigurationReconciler wires a StageConfigurationReconciler for the given manager.
+func NewStageConfigurationReconciler(
+	mgr ctrl.Manager,
+	cache *clientcache.Cache[*konfidence.StageConfiguration, ports.VectorPort],
+) *StageConfigurationReconciler {
+	return &StageConfigurationReconciler{
+		Client:   mgr.GetClient(),
+		Recorder: mgr.GetEventRecorder(stageConfigurationControllerName),
+		Cache:    cache,
+	}
 }

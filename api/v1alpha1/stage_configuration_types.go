@@ -23,11 +23,6 @@ type StageConfigurationSpec struct {
 	// TargetNamespace is the target namespace where the associated stage is created or updated
 	TargetNamespace string `json:"targetNamespace"`
 
-	// TargetWorkspace is the target workspace where the associated stage is created or updated
-	// +kubebuilder:validation:Optional
-	// +optional
-	TargetWorkspace *string `json:"targetWorkspace,omitempty"`
-
 	// Credentials supplies credentials for OCM repository access
 	// and vector verification key material.
 	// +optional
