@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/hash"
 	corev1 "k8s.io/api/core/v1"
@@ -45,12 +45,12 @@ type resolvedVector struct {
 	configResolved bool
 }
 
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments/finalizers,verbs=update
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectorassignments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordata,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments/finalizers,verbs=update
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorassignments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordata,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
@@ -58,7 +58,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling VectorDeployment")
 
-	vectorDeployment := &star.VectorDeployment{}
+	vectorDeployment := &konfidence.VectorDeployment{}
 	if err := r.Get(ctx, req.NamespacedName, vectorDeployment); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -81,9 +81,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		meta.SetStatusCondition(
 			&vectorDeployment.Status.Conditions,
 			metav1.Condition{
-				Type:               star.VectorDownloadedCondition,
+				Type:               konfidence.VectorDownloadedCondition,
 				Status:             metav1.ConditionTrue,
-				Reason:             star.VectorDownloadedCondition,
+				Reason:             konfidence.VectorDownloadedCondition,
 				Message:            fmt.Sprintf("Successfully downloaded vector %s from OCM repository", vectorDeployment.Spec.Vector),
 				ObservedGeneration: vectorDeployment.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -180,9 +180,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// set status condition VectorReadyCondition to True
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-		Type:               star.VectorReadyCondition,
+		Type:               konfidence.VectorReadyCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             star.VectorReadyCondition,
+		Reason:             konfidence.VectorReadyCondition,
 		Message:            fmt.Sprintf("Vector deployment %s is ready", vectorDeployment.Name),
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -201,15 +201,15 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	ctx context.Context,
 	artifactReferences []compref.Ref,
-	vectorDeployment *star.VectorDeployment,
+	vectorDeployment *konfidence.VectorDeployment,
 	log logr.Logger,
 ) (bool, error) {
 	// Build fresh maps from scratch so removed artifacts are no longer referenced.
 	// We use nil initially and allocate lazily to avoid spurious status patches when
 	// DeepEqual compares nil (server value after omitempty round-trip) vs. empty map.
 	var (
-		resultingArtifactDeployments = make(map[string]star.LocalArtifactDeploymentReference, len(artifactReferences))
-		deploymentResults            = make(map[string]star.DeploymentResult)
+		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifactReferences))
+		deploymentResults            = make(map[string]konfidence.DeploymentResult)
 	)
 	allReady := true
 
@@ -232,7 +232,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		}
 
 		// fetch existing artifact deployment from k8s api
-		artifactDeployment := &star.ArtifactDeployment{}
+		artifactDeployment := &konfidence.ArtifactDeployment{}
 		err = r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: deploymentName}, artifactDeployment)
 		if err != nil {
 			// if error is not NotFound then return error
@@ -277,18 +277,18 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		}
 
 		// Update the artifact deployment to the status map of the VectorDeployment
-		resultingArtifactDeployments[artifactRef.Component] = star.LocalArtifactDeploymentReference{
+		resultingArtifactDeployments[artifactRef.Component] = konfidence.LocalArtifactDeploymentReference{
 			Name: artifactDeployment.Name,
 		}
 
 		// state management for VectorDeployedCondition
-		if meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, star.DeploymentResultCreatedCondition) {
+		if meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.DeploymentResultCreatedCondition) {
 			// collect deployment results
 			for _, result := range artifactDeployment.Status.DeploymentResults {
 				deploymentResults[artifactRef.Component+"/"+result.Name] = result
 			}
 		}
-		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, star.ArtifactDeploymentReadyCondition) {
+		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.ArtifactDeploymentReadyCondition) {
 			allReady = false
 		}
 	}
@@ -308,9 +308,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 
 	// set status condition ArtifactDeploymentsCreatedCondition to created
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-		Type:               star.ArtifactDeploymentsCreatedCondition,
+		Type:               konfidence.ArtifactDeploymentsCreatedCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             star.ArtifactDeploymentsCreatedCondition,
+		Reason:             konfidence.ArtifactDeploymentsCreatedCondition,
 		Message:            fmt.Sprintf("Successfully created Artifact deployments for vector deployment %s", vectorDeployment.Name),
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -318,9 +318,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 
 	if allReady {
 		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-			Type:               star.VectorDeployedCondition,
+			Type:               konfidence.VectorDeployedCondition,
 			Status:             metav1.ConditionTrue,
-			Reason:             star.VectorDeployedCondition,
+			Reason:             konfidence.VectorDeployedCondition,
 			Message:            fmt.Sprintf("All artifacts of vector deployment %s are deployed", vectorDeployment.Name),
 			ObservedGeneration: vectorDeployment.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -330,13 +330,15 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	return allReady, nil
 }
 
-func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context, vectorDeployment *star.VectorDeployment, log logr.Logger) (bool, error) {
-	resultingVectorAssignments := make(map[string]star.LocalVectorAssignmentReference, len(vectorDeployment.Status.ResultingArtifactDeployments))
+func (r *VectorDeploymentReconciler) handleVectorAssignments(
+	ctx context.Context, vectorDeployment *konfidence.VectorDeployment, log logr.Logger,
+) (bool, error) {
+	resultingVectorAssignments := make(map[string]konfidence.LocalVectorAssignmentReference, len(vectorDeployment.Status.ResultingArtifactDeployments))
 	allReady := true
 
 	for componentName, artifactDeployment := range vectorDeployment.Status.ResultingArtifactDeployments {
 		// fetch existing artifact assignment from k8s api
-		vectorAssignment := &star.VectorAssignment{}
+		vectorAssignment := &konfidence.VectorAssignment{}
 		assignmentName := constructVectorAssignmentName(vectorDeployment.Name, artifactDeployment.Name)
 		err := r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: assignmentName}, vectorAssignment)
 		if err != nil {
@@ -346,7 +348,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 			}
 
 			// create a new VectorAssignment
-			ad := &star.ArtifactDeployment{}
+			ad := &konfidence.ArtifactDeployment{}
 			err = r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: artifactDeployment.Name}, ad)
 			if err != nil {
 				return false, fmt.Errorf("failed to get artifact deployment %q for vector assignment %q: %w", artifactDeployment.Name, assignmentName, err)
@@ -354,7 +356,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 
 			log.Info("VectorAssignment not found, create new one", "name", assignmentName)
 
-			vectorAssignment = &star.VectorAssignment{
+			vectorAssignment = &konfidence.VectorAssignment{
 				ObjectMeta: ctrl.ObjectMeta{
 					Name:      assignmentName,
 					Namespace: vectorDeployment.Namespace,
@@ -362,10 +364,10 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 						pkgctrl.ArtifactReferenceLabel: artifactDeployment.Name,
 					},
 				},
-				Spec: star.VectorAssignmentSpec{
+				Spec: konfidence.VectorAssignmentSpec{
 					Manifest:              ad.Spec.Manifest,
 					ArtifactDeploymentRef: artifactDeployment,
-					VectorDeploymentRef: star.LocalVectorDeploymentReference{
+					VectorDeploymentRef: konfidence.LocalVectorDeploymentReference{
 						Name: vectorDeployment.Name,
 					},
 				},
@@ -405,12 +407,12 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 		}
 
 		// Update the artifact assignment to the status map of the VectorDeployment
-		resultingVectorAssignments[componentName] = star.LocalVectorAssignmentReference{
+		resultingVectorAssignments[componentName] = konfidence.LocalVectorAssignmentReference{
 			Name: vectorAssignment.Name,
 		}
 
 		// state management for VectorAssignmentsCreatedCondition
-		if !meta.IsStatusConditionTrue(vectorAssignment.Status.Conditions, star.VectorReadyCondition) {
+		if !meta.IsStatusConditionTrue(vectorAssignment.Status.Conditions, konfidence.VectorReadyCondition) {
 			allReady = false
 		}
 	}
@@ -427,9 +429,9 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 	// — it now exclusively flips after VectorData has been materialised by the runtime-specific orchestrator,
 	// see the post-handleVectorData block in Reconcile().
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-		Type:               star.VectorAssignmentsCreatedCondition,
+		Type:               konfidence.VectorAssignmentsCreatedCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             star.VectorAssignmentsCreatedCondition,
+		Reason:             konfidence.VectorAssignmentsCreatedCondition,
 		Message:            fmt.Sprintf("Successfully created vector assignments for vector deployment %s", vectorDeployment.Name),
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -438,10 +440,10 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(ctx context.Context
 	return allReady, nil
 }
 
-func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []star.TaskManifest {
-	landscapeTaskManifests := make([]star.TaskManifest, len(taskManifests))
+func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []konfidence.TaskManifest {
+	landscapeTaskManifests := make([]konfidence.TaskManifest, len(taskManifests))
 	for i, taskManifest := range taskManifests {
-		landscapeTaskManifests[i] = star.TaskManifest{
+		landscapeTaskManifests[i] = konfidence.TaskManifest{
 			Name:      taskManifest.Name,
 			Type:      taskManifest.Type,
 			DependsOn: taskManifest.DependsOn,
@@ -451,10 +453,10 @@ func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []star.TaskManife
 	return landscapeTaskManifests
 }
 
-func mapArtifactResourcesToLandscape(resources []OCMResource) []star.OCMResource {
-	landscapeResources := make([]star.OCMResource, 0, len(resources))
+func mapArtifactResourcesToLandscape(resources []OCMResource) []konfidence.OCMResource {
+	landscapeResources := make([]konfidence.OCMResource, 0, len(resources))
 	for _, resource := range resources {
-		landscapeResources = append(landscapeResources, star.OCMResource{
+		landscapeResources = append(landscapeResources, konfidence.OCMResource{
 			Name:    resource.Name,
 			Content: runtime.RawExtension{Raw: resource.Content},
 			Type:    resource.Type,
@@ -466,12 +468,12 @@ func mapArtifactResourcesToLandscape(resources []OCMResource) []star.OCMResource
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controllerName string) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&star.VectorDeployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&star.ArtifactDeployment{}, builder.MatchEveryOwner).
-		Owns(&star.VectorAssignment{}, builder.MatchEveryOwner).
+		For(&konfidence.VectorDeployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&konfidence.ArtifactDeployment{}, builder.MatchEveryOwner).
+		Owns(&konfidence.VectorAssignment{}, builder.MatchEveryOwner).
 		// Re-reconcile the parent VectorDeployment when the runtime-specific implementor flips
 		// VectorData.Status.Ready, so the lifecycle can progress to VectorReady without polling.
-		Owns(&star.VectorData{}).
+		Owns(&konfidence.VectorData{}).
 		Named(controllerName).
 		Complete(r)
 }
@@ -479,24 +481,24 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controll
 func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 	ref compref.Ref,
 	artifactManifest ArtifactManifest,
-	vectorDeployment *star.VectorDeployment,
+	vectorDeployment *konfidence.VectorDeployment,
 	deploymentName string,
-) *star.ArtifactDeployment {
-	// map task manifests from domain.TaskManifest to star.TaskManifest
+) *konfidence.ArtifactDeployment {
+	// map task manifests from domain.TaskManifest to konfidence.TaskManifest
 	taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
 	artifactResources := mapArtifactResourcesToLandscape(artifactManifest.Resources)
-	return &star.ArtifactDeployment{
+	return &konfidence.ArtifactDeployment{
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:      deploymentName,
 			Namespace: vectorDeployment.Namespace,
 		},
-		Spec: star.ArtifactDeploymentSpec{
-			Manifest: star.ArtifactManifest{
+		Spec: konfidence.ArtifactDeploymentSpec{
+			Manifest: konfidence.ArtifactManifest{
 				Type:       artifactManifest.Type,
 				AllowReuse: artifactManifest.AllowReuse,
 			},
 			TaskManifests: taskManifests,
-			Component: star.OCMComponent{
+			Component: konfidence.OCMComponent{
 				Name:      ref.Component,
 				Version:   ref.Version,
 				Resources: artifactResources,
@@ -509,7 +511,7 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 // the cached descriptor status, but the config blob is only available when the descriptor is fetched from OCM.
 func (r *VectorDeploymentReconciler) resolveVector(
 	ctx context.Context,
-	vd *star.VectorDeployment,
+	vd *konfidence.VectorDeployment,
 	vectorRef compref.Ref,
 ) (resolvedVector, error) {
 	if vd.Status.ResolvedVectorOcm == "" {
@@ -534,7 +536,7 @@ func (r *VectorDeploymentReconciler) resolveVector(
 
 func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 	ctx context.Context,
-	vd *star.VectorDeployment,
+	vd *konfidence.VectorDeployment,
 	vectorRef compref.Ref,
 	resolved resolvedVector,
 ) (resolvedVector, error) {
@@ -543,7 +545,7 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 	}
 	// Cheap kube-apiserver read to avoid the more expensive OCM refetch: if the VectorData CR already exists,
 	// handleVectorData only observes it and never needs the config blob, so skip resolution entirely.
-	if err := r.Get(ctx, types.NamespacedName{Name: vd.Name, Namespace: vd.Namespace}, &star.VectorData{}); err == nil {
+	if err := r.Get(ctx, types.NamespacedName{Name: vd.Name, Namespace: vd.Namespace}, &konfidence.VectorData{}); err == nil {
 		resolved.configResolved = true
 		return resolved, nil
 	} else if !apierrors.IsNotFound(err) {

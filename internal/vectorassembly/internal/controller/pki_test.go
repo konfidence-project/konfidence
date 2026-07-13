@@ -1,7 +1,7 @@
 package controller
 
 import (
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	testocm "github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,9 +15,9 @@ var _ = Describe("PKI sign/verify scenarios", Ordered, Serial, func() {
 
 	BeforeEach(func() {
 		// Clean up any existing VectorTemplate CRs before each test.
-		Expect(k8sClient.DeleteAllOf(ctx, &galaxy.VectorTemplate{}, client.InNamespace(testNamespace))).To(Succeed())
+		Expect(k8sClient.DeleteAllOf(ctx, &konfidence.VectorTemplate{}, client.InNamespace(testNamespace))).To(Succeed())
 		Eventually(func(g Gomega) {
-			list := &galaxy.VectorTemplateList{}
+			list := &konfidence.VectorTemplateList{}
 			g.Expect(k8sClient.List(ctx, list, client.InNamespace(testNamespace))).To(Succeed())
 			g.Expect(list.Items).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
@@ -52,10 +52,10 @@ var _ = Describe("PKI sign/verify scenarios", Ordered, Serial, func() {
 		By("asserting VectorReady=True with VectorCreated reason")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			cond := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			cond := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(cond).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(cond.Reason).To(Equal(konfidence.VectorTemplateVectorCreatedReason))
 			g.Expect(cond.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -91,7 +91,7 @@ var _ = Describe("PKI sign/verify scenarios", Ordered, Serial, func() {
 		By("asserting VectorReady=True")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			cond := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			cond := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(cond).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 			g.Expect(cond.ObservedGeneration).To(Equal(vectorTemplate.Generation))
@@ -121,7 +121,7 @@ var _ = Describe("PKI sign/verify scenarios", Ordered, Serial, func() {
 		By("asserting VectorReady=False (artifact verification rejected)")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			cond := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			cond := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(cond).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(cond.Status).NotTo(Equal(metav1.ConditionTrue))
 			g.Expect(cond.ObservedGeneration).To(Equal(vectorTemplate.Generation))

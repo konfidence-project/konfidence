@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
@@ -40,12 +40,12 @@ const (
 type VectorTemplateReconciler struct {
 	Mgr              mcmanager.Manager
 	Scheme           *runtime.Scheme
-	Cache            *clientcache.Cache[*v1alpha1.VectorTemplate, vector.OcmPort]
+	Cache            *clientcache.Cache[*konfidence.VectorTemplate, vector.OcmPort]
 	VersionGenerator vector.VersionGenerator
 }
 
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectortemplates/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectortemplates/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
@@ -63,7 +63,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req mcreconcil
 	clusterClient := cluster.GetClient()
 	recorder := cluster.GetEventRecorder(VectorAssemblyControllerName)
 
-	vectorTemplate := &v1alpha1.VectorTemplate{}
+	vectorTemplate := &konfidence.VectorTemplate{}
 	if err := clusterClient.Get(ctx, req.NamespacedName, vectorTemplate); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -93,7 +93,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req mcreconcil
 
 func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	ctx context.Context, clusterClient client.Client, clusterName string,
-	template *v1alpha1.VectorTemplate, recorder events.EventRecorder,
+	template *konfidence.VectorTemplate, recorder events.EventRecorder,
 ) error {
 	log := logf.FromContext(ctx)
 
@@ -101,14 +101,14 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	if err != nil {
 		err = fmt.Errorf("building OCM clients: %w", err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
-			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
 			Message:            err.Error(),
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 
@@ -116,14 +116,14 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	if err != nil {
 		err = fmt.Errorf("unable to map vector template components to ocm references: %w", err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
-			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
 			Message:            err.Error(),
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 
@@ -132,14 +132,14 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	if err != nil {
 		err = fmt.Errorf("unable to create ocm reference from vector template upload target (%s): %w", template.Spec.UploadTarget, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
-			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
 			Message:            err.Error(),
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 
@@ -154,14 +154,14 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	if err != nil {
 		err = fmt.Errorf("unable to get desired artifacts for vector (%s): %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
-			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
 			Message:            err.Error(),
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 
@@ -170,14 +170,14 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	if err != nil {
 		err = fmt.Errorf("unable to build desired vector configuration: %w", err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
-			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
 			Message:            err.Error(),
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 	desiredVector := vector.Vector{
@@ -194,14 +194,14 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	} else if err != nil {
 		err = fmt.Errorf("unable to get current artifacts from vector (%s): %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
-			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
 			Message:            err.Error(),
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return err
 	}
 
@@ -209,14 +209,14 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	if !driftDetected {
 		msg := fmt.Sprintf("No drift detected for vector - vector version is still %s", currentVector.Version)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionTrue,
-			Reason:             v1alpha1.VectorTemplateNoDriftDetectedReason,
+			Reason:             konfidence.VectorTemplateNoDriftDetectedReason,
 			Message:            msg,
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeNormal, v1alpha1.VectorTemplateNoDriftDetectedReason, EventActionDriftDetection, msg)
+		recorder.Eventf(template, nil, corev1.EventTypeNormal, konfidence.VectorTemplateNoDriftDetectedReason, EventActionDriftDetection, msg)
 		log.Info(msg, "VectorVersion", currentVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
 		return nil
 	}
@@ -232,47 +232,47 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	if err != nil {
 		err = fmt.Errorf("unable to create new vector (%s) on drift: %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionFalse,
-			Reason:             v1alpha1.VectorTemplateVectorCreationFailedReason,
+			Reason:             konfidence.VectorTemplateVectorCreationFailedReason,
 			Message:            err.Error(),
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateVectorCreationFailedReason, EventActionVectorCreation, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateVectorCreationFailedReason, EventActionVectorCreation, err.Error())
 		return err
 	}
 
 	msg := fmt.Sprintf("Drift detected and new vector created successfully - new vector version is %s", newVector.Version)
 	meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-		Type:               v1alpha1.VectorTemplateReadyCondition,
+		Type:               konfidence.VectorTemplateReadyCondition,
 		Status:             metav1.ConditionTrue,
-		Reason:             v1alpha1.VectorTemplateVectorCreatedReason,
+		Reason:             konfidence.VectorTemplateVectorCreatedReason,
 		Message:            msg,
 		ObservedGeneration: template.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
-	recorder.Eventf(template, nil, corev1.EventTypeNormal, v1alpha1.VectorTemplateVectorCreatedReason, "VectorCreation", msg)
+	recorder.Eventf(template, nil, corev1.EventTypeNormal, konfidence.VectorTemplateVectorCreatedReason, "VectorCreation", msg)
 	log.Info(msg, "VectorVersion", newVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
 	return nil
 }
 
 func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
-	ctx context.Context, ocmAdapter vector.OcmPort, template *v1alpha1.VectorTemplate,
+	ctx context.Context, ocmAdapter vector.OcmPort, template *konfidence.VectorTemplate,
 	vectorOCMComponentName string, recorder events.EventRecorder,
 ) ([]vector.Artifact, error) {
 	baseVectorOCMComponent, err := konfcompref.Parse(*template.Spec.Base)
 	if err != nil {
 		err = fmt.Errorf("unable to create ocm reference from vector template base (%s): %w", *template.Spec.Base, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
-			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
 			Message:            err.Error(),
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return nil, err
 	}
 
@@ -280,14 +280,14 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
 	if err != nil {
 		err = fmt.Errorf("unable to get artifacts from base vector (%s): %w", baseVectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               v1alpha1.VectorTemplateReadyCondition,
+			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
-			Reason:             v1alpha1.VectorTemplateDriftDetectionFailedReason,
+			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
 			Message:            err.Error(),
 			ObservedGeneration: template.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		recorder.Eventf(template, nil, corev1.EventTypeWarning, v1alpha1.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
 		return nil, err
 	}
 	log := logf.FromContext(ctx)
@@ -320,7 +320,7 @@ func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts
 	return baseArtifacts
 }
 
-func mapComponentsToOCMReferences(components []v1alpha1.Component) ([]compref.Ref, error) {
+func mapComponentsToOCMReferences(components []konfidence.Component) ([]compref.Ref, error) {
 	// add component names to map to remove duplicates
 	seen := make(map[string]struct{}, len(components))
 	componentNames := make([]string, 0, len(components))
@@ -345,14 +345,14 @@ func mapComponentsToOCMReferences(components []v1alpha1.Component) ([]compref.Re
 	return ocmRefs, nil
 }
 
-func requeueAfterFromSpecOrDefault(vectorTemplate *v1alpha1.VectorTemplate) time.Duration {
+func requeueAfterFromSpecOrDefault(vectorTemplate *konfidence.VectorTemplate) time.Duration {
 	if vectorTemplate.Spec.ReconcileInterval != nil {
 		return vectorTemplate.Spec.ReconcileInterval.Duration
 	}
 	return defaultReconcileInterval
 }
 
-func getVectorConfiguration(vectorTemplate v1alpha1.VectorTemplate) (*vector.VectorConfiguration, error) {
+func getVectorConfiguration(vectorTemplate konfidence.VectorTemplate) (*vector.VectorConfiguration, error) {
 	if vectorTemplate.Spec.VectorConfig == nil ||
 		(vectorTemplate.Spec.VectorConfig.Features == nil && vectorTemplate.Spec.VectorConfig.Authored == nil) {
 		return nil, nil
@@ -382,7 +382,7 @@ func getVectorConfiguration(vectorTemplate v1alpha1.VectorTemplate) (*vector.Vec
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorTemplateReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
-		For(&v1alpha1.VectorTemplate{}, mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&konfidence.VectorTemplate{}, mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named("vectortemplate").
 		Complete(r)
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,16 +25,16 @@ import (
 // observes-or-creates given an already-resolved blob; it has no awareness of cache or refetch semantics.
 func (r *VectorDeploymentReconciler) handleVectorData(
 	ctx context.Context,
-	vd *star.VectorDeployment,
+	vd *konfidence.VectorDeployment,
 	configBlob []byte,
 	log logr.Logger,
 ) error {
 	key := types.NamespacedName{Namespace: vd.Namespace, Name: vd.Name}
 
-	existing := &star.VectorData{}
+	existing := &konfidence.VectorData{}
 	switch err := r.Get(ctx, key, existing); {
 	case err == nil:
-		vd.Status.ResultingVectorData = &star.LocalObjectReference{Name: existing.Name}
+		vd.Status.ResultingVectorData = &konfidence.LocalObjectReference{Name: existing.Name}
 		setVectorDataCreatedCondition(vd, metav1.ConditionTrue, "VectorDataCreated",
 			fmt.Sprintf("VectorData %s already present", vd.Name))
 		return nil
@@ -49,9 +49,9 @@ func (r *VectorDeploymentReconciler) handleVectorData(
 		return err
 	}
 
-	desired := &star.VectorData{
+	desired := &konfidence.VectorData{
 		ObjectMeta: metav1.ObjectMeta{Name: vd.Name, Namespace: vd.Namespace},
-		Spec: star.VectorDataSpec{
+		Spec: konfidence.VectorDataSpec{
 			Features:          features,
 			Authored:          authored,
 			DeploymentResults: vd.Status.DeploymentResults,
@@ -66,7 +66,7 @@ func (r *VectorDeploymentReconciler) handleVectorData(
 		return fmt.Errorf("create VectorData %s: %w", key, err)
 	}
 
-	vd.Status.ResultingVectorData = &star.LocalObjectReference{Name: desired.Name}
+	vd.Status.ResultingVectorData = &konfidence.LocalObjectReference{Name: desired.Name}
 	setVectorDataCreatedCondition(vd, metav1.ConditionTrue, "VectorDataCreated",
 		fmt.Sprintf("VectorData %s created", vd.Name))
 	r.Recorder.Eventf(vd, nil, corev1.EventTypeNormal,
@@ -101,23 +101,23 @@ func splitEnvelope(blob []byte) (*runtime.RawExtension, *runtime.RawExtension, e
 	return features, authored, nil
 }
 
-func (r *VectorDeploymentReconciler) vectorDataIsReady(ctx context.Context, vd *star.VectorDeployment) (bool, error) {
+func (r *VectorDeploymentReconciler) vectorDataIsReady(ctx context.Context, vd *konfidence.VectorDeployment) (bool, error) {
 	if vd.Status.ResultingVectorData == nil {
 		return false, nil
 	}
-	current := &star.VectorData{}
+	current := &konfidence.VectorData{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: vd.Namespace, Name: vd.Status.ResultingVectorData.Name}, current); err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
 		return false, err
 	}
-	return meta.IsStatusConditionTrue(current.Status.Conditions, star.VectorDataReadyCondition), nil
+	return meta.IsStatusConditionTrue(current.Status.Conditions, konfidence.VectorDataReadyCondition), nil
 }
 
-func setVectorDataCreatedCondition(vd *star.VectorDeployment, status metav1.ConditionStatus, reason, message string) {
+func setVectorDataCreatedCondition(vd *konfidence.VectorDeployment, status metav1.ConditionStatus, reason, message string) {
 	meta.SetStatusCondition(&vd.Status.Conditions, metav1.Condition{
-		Type:               star.VectorDataCreatedCondition,
+		Type:               konfidence.VectorDataCreatedCondition,
 		Status:             status,
 		Reason:             reason,
 		Message:            message,

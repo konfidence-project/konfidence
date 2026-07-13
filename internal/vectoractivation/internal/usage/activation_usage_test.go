@@ -3,7 +3,7 @@ package usage
 import (
 	"context"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/vectoractivation/internal/usage/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -17,8 +17,8 @@ var _ = Describe("active usage tests", func() {
 		ctx        context.Context
 		mockCtrl   *gomock.Controller
 		clientMock *MockClient
-		stage      *star.Stage
-		activation *star.VectorActivation
+		stage      *konfidence.Stage
+		activation *konfidence.VectorActivation
 		scheme     *runtime.Scheme
 	)
 	BeforeEach(func() {
@@ -26,19 +26,19 @@ var _ = Describe("active usage tests", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		clientMock = NewMockClient(mockCtrl)
 		scheme = runtime.NewScheme()
-		_ = star.AddToScheme(scheme)
-		stage = &star.Stage{
+		_ = konfidence.AddToScheme(scheme)
+		stage = &konfidence.Stage{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "stage-test",
 				Namespace: "default",
 				UID:       "12345",
 			},
 		}
-		activation = &star.VectorActivation{
+		activation = &konfidence.VectorActivation{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "123",
 			},
-			Spec: star.VectorActivationSpec{
+			Spec: konfidence.VectorActivationSpec{
 				StageVersion: "stage-version-test",
 			},
 		}

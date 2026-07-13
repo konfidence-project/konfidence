@@ -1,4 +1,4 @@
-apiVersion: star.konfidence.cloud/v1alpha1
+apiVersion: konfidence.cloud/v1alpha1
 kind: VectorDeployment
 metadata:
   labels:

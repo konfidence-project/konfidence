@@ -8,35 +8,40 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.20.0
   labels:
 {{- include "star.crdLabels" . | nindent 4 }}
-  name: stages.star.konfidence.cloud
+  name: vectoractivations.konfidence.cloud
 spec:
-  group: star.konfidence.cloud
+  group: konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: Stage
-    listKind: StageList
-    plural: stages
-    singular: stage
+    kind: VectorActivation
+    listKind: VectorActivationList
+    plural: vectoractivations
+    singular: vectoractivation
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Ready status
-      jsonPath: .status.conditions[?(@.type=='Ready')].status
-      name: Ready
+    - description: The stage of the activation
+      jsonPath: .spec.stage
+      name: Stage
       type: string
-    - description: Age
-      jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    - jsonPath: .spec.vector
-      name: Vector
+    - description: The version of the stage
+      jsonPath: .spec.stageVersion
+      name: Stage-Version
+      type: string
+    - description: The latest condition type
+      jsonPath: .status.conditions[-1:].type
+      name: Condition
+      type: string
+    - description: The latest condition status
+      jsonPath: .status.conditions[-1:].status
+      name: Condition-Status
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Stage is the Schema for the stages API.
+        description: VectorActivation is the Schema for the vectoractivations API
         properties:
           apiVersion:
             description: |-
@@ -56,17 +61,26 @@ spec:
           metadata:
             type: object
           spec:
-            description: StageSpec defines the desired state of Stage.
+            description: spec defines the desired state of VectorActivation
             properties:
+              stage:
+                type: string
+              stageVersion:
+                type: string
               vector:
                 description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
                 type: string
+              vectorDeployment:
+                type: string
             required:
+            - stage
+            - stageVersion
             - vector
+            - vectorDeployment
             type: object
           status:
-            description: StageStatus defines the observed state of Stage.
+            description: status defines the observed state of VectorActivation
             properties:
               conditions:
                 items:
@@ -124,37 +138,9 @@ spec:
                   - type
                   type: object
                 type: array
-              latestVectorDeploymentRef:
-                description: TypedObjectReference contains enough information to let
-                  you locate the typed referenced object
-                properties:
-                  apiGroup:
-                    description: |-
-                      APIGroup is the group for the resource being referenced.
-                      If APIGroup is not specified, the specified Kind must be in the core API group.
-                      For any other third-party types, APIGroup is required.
-                    type: string
-                  kind:
-                    description: Kind is the type of resource being referenced
-                    type: string
-                  name:
-                    description: Name is the name of resource being referenced
-                    type: string
-                  namespace:
-                    description: |-
-                      Namespace is the namespace of resource being referenced
-                      Note that when a namespace is specified, a gateway.networking.k8s.io/ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details.
-                      (Alpha) This field requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
-                    type: string
-                required:
-                - kind
-                - name
-                type: object
-              vectorHistory:
-                items:
-                  type: string
-                type: array
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/gomega"
@@ -27,13 +27,13 @@ func createVectorTemplateCR(
 	artifacts []compref.Ref,
 	vector compref.Ref,
 	base *compref.Ref,
-	vectorConfig *galaxy.VectorConfig) *galaxy.VectorTemplate {
+	vectorConfig *konfidence.VectorConfig) *konfidence.VectorTemplate {
 	return createPKIVectorTemplateCR(ctx, name, namespace, artifacts, vector, base,
 		pkiVectorTemplateOptions{credSecretNames: credSecretNames, vectorConfig: vectorConfig},
 	)
 }
 
-func getVectorConfigurationContent(vectorConfig galaxy.VectorConfig) ([]byte, error) {
+func getVectorConfigurationContent(vectorConfig konfidence.VectorConfig) ([]byte, error) {
 	var features json.RawMessage
 	if vectorConfig.Features != nil {
 		features = json.RawMessage(vectorConfig.Features.Raw)
@@ -52,10 +52,10 @@ func getVectorConfigurationContent(vectorConfig galaxy.VectorConfig) ([]byte, er
 // pkiVectorTemplateOptions holds optional fields for createPKIVectorTemplateCR.
 type pkiVectorTemplateOptions struct {
 	credSecretNames []string
-	vectorConfig    *galaxy.VectorConfig
-	signVector      *galaxy.Sign
-	verifyVector    *galaxy.Verify
-	verifyArtifacts *galaxy.Verify
+	vectorConfig    *konfidence.VectorConfig
+	signVector      *konfidence.Sign
+	verifyVector    *konfidence.Verify
+	verifyArtifacts *konfidence.Verify
 }
 
 // createPKIVectorTemplateCR creates a VectorTemplate CR with optional credential refs,
@@ -69,28 +69,28 @@ func createPKIVectorTemplateCR(
 	vector compref.Ref,
 	base *compref.Ref,
 	opts pkiVectorTemplateOptions,
-) *galaxy.VectorTemplate {
-	components := make([]galaxy.Component, 0, len(artifacts))
+) *konfidence.VectorTemplate {
+	components := make([]konfidence.Component, 0, len(artifacts))
 	for _, artifact := range artifacts {
-		components = append(components, galaxy.Component{Name: artifact.String()})
+		components = append(components, konfidence.Component{Name: artifact.String()})
 	}
 	var baseRef *string
 	if base != nil {
 		baseRef = new(base.String())
 	}
 
-	var creds *galaxy.Credentials
+	var creds *konfidence.Credentials
 	if len(opts.credSecretNames) > 0 {
-		refs := make([]galaxy.CredentialRef, len(opts.credSecretNames))
+		refs := make([]konfidence.CredentialRef, len(opts.credSecretNames))
 		for i, n := range opts.credSecretNames {
-			refs[i] = galaxy.CredentialRef{Name: n}
+			refs[i] = konfidence.CredentialRef{Name: n}
 		}
-		creds = &galaxy.Credentials{OCM: &galaxy.OCMCredentials{Refs: refs}}
+		creds = &konfidence.Credentials{OCM: &konfidence.OCMCredentials{Refs: refs}}
 	}
 
-	vt := &galaxy.VectorTemplate{
+	vt := &konfidence.VectorTemplate{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		Spec: galaxy.VectorTemplateSpec{
+		Spec: konfidence.VectorTemplateSpec{
 			ReconcileInterval: &metav1.Duration{Duration: time.Hour},
 			UploadTarget:      vector.String(),
 			Base:              baseRef,
@@ -106,12 +106,12 @@ func createPKIVectorTemplateCR(
 	return vt
 }
 
-// signSpec returns a *galaxy.Sign with a single signature using the given name and all defaults.
-func signSpec(sigName string) *galaxy.Sign {
-	return &galaxy.Sign{Signatures: []galaxy.Signature{{Name: sigName}}}
+// signSpec returns a *konfidence.Sign with a single signature using the given name and all defaults.
+func signSpec(sigName string) *konfidence.Sign {
+	return &konfidence.Sign{Signatures: []konfidence.Signature{{Name: sigName}}}
 }
 
-// verifySpec returns a *galaxy.Verify with a single signature using the given name and all defaults.
-func verifySpec(sigName string) *galaxy.Verify {
-	return &galaxy.Verify{Signatures: []galaxy.Signature{{Name: sigName}}}
+// verifySpec returns a *konfidence.Verify with a single signature using the given name and all defaults.
+func verifySpec(sigName string) *konfidence.Verify {
+	return &konfidence.Verify{Signatures: []konfidence.Signature{{Name: sigName}}}
 }

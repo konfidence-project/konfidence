@@ -3,7 +3,7 @@ package promotion
 import (
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,16 +12,16 @@ import (
 var _ = Describe("Lifecycle", func() {
 	Describe("IsPending", func() {
 		It("returns true when no conditions exist", func() {
-			p := &galaxy.VectorPromotion{}
+			p := &konfidence.VectorPromotion{}
 
 			Expect(IsPending(p)).To(BeTrue())
 		})
 
 		It("returns false when Succeeded condition exists", func() {
-			p := &galaxy.VectorPromotion{
-				Status: galaxy.VectorPromotionStatus{
+			p := &konfidence.VectorPromotion{
+				Status: konfidence.VectorPromotionStatus{
 					Conditions: []metav1.Condition{{
-						Type:   galaxy.ConditionTypeSucceeded,
+						Type:   konfidence.ConditionTypeSucceeded,
 						Status: metav1.ConditionTrue,
 					}},
 				},
@@ -33,18 +33,18 @@ var _ = Describe("Lifecycle", func() {
 
 	Describe("IsRunning", func() {
 		It("returns false when no conditions exist", func() {
-			p := &galaxy.VectorPromotion{}
+			p := &konfidence.VectorPromotion{}
 
 			Expect(IsRunning(p)).To(BeFalse())
 		})
 
 		It("returns true when reason is PromotionRunning", func() {
-			p := &galaxy.VectorPromotion{
-				Status: galaxy.VectorPromotionStatus{
+			p := &konfidence.VectorPromotion{
+				Status: konfidence.VectorPromotionStatus{
 					Conditions: []metav1.Condition{{
-						Type:   galaxy.ConditionTypeSucceeded,
+						Type:   konfidence.ConditionTypeSucceeded,
 						Status: metav1.ConditionFalse,
-						Reason: galaxy.ReasonPromotionRunning,
+						Reason: konfidence.ReasonPromotionRunning,
 					}},
 				},
 			}
@@ -53,12 +53,12 @@ var _ = Describe("Lifecycle", func() {
 		})
 
 		It("returns false when succeeded", func() {
-			p := &galaxy.VectorPromotion{
-				Status: galaxy.VectorPromotionStatus{
+			p := &konfidence.VectorPromotion{
+				Status: konfidence.VectorPromotionStatus{
 					Conditions: []metav1.Condition{{
-						Type:   galaxy.ConditionTypeSucceeded,
+						Type:   konfidence.ConditionTypeSucceeded,
 						Status: metav1.ConditionTrue,
-						Reason: galaxy.ReasonPromotionSucceeded,
+						Reason: konfidence.ReasonPromotionSucceeded,
 					}},
 				},
 			}
@@ -67,12 +67,12 @@ var _ = Describe("Lifecycle", func() {
 		})
 
 		It("returns false when failed", func() {
-			p := &galaxy.VectorPromotion{
-				Status: galaxy.VectorPromotionStatus{
+			p := &konfidence.VectorPromotion{
+				Status: konfidence.VectorPromotionStatus{
 					Conditions: []metav1.Condition{{
-						Type:   galaxy.ConditionTypeSucceeded,
+						Type:   konfidence.ConditionTypeSucceeded,
 						Status: metav1.ConditionFalse,
-						Reason: galaxy.ReasonPromotionFailed,
+						Reason: konfidence.ReasonPromotionFailed,
 					}},
 				},
 			}
@@ -84,18 +84,18 @@ var _ = Describe("Lifecycle", func() {
 	Describe("IsTerminal", func() {
 		Context("non-terminal states", func() {
 			It("returns false when no conditions exist", func() {
-				p := &galaxy.VectorPromotion{}
+				p := &konfidence.VectorPromotion{}
 
 				Expect(IsTerminal(p)).To(BeFalse())
 			})
 
 			It("returns false when running", func() {
-				p := &galaxy.VectorPromotion{
-					Status: galaxy.VectorPromotionStatus{
+				p := &konfidence.VectorPromotion{
+					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
-							Type:   galaxy.ConditionTypeSucceeded,
+							Type:   konfidence.ConditionTypeSucceeded,
 							Status: metav1.ConditionFalse,
-							Reason: galaxy.ReasonPromotionRunning,
+							Reason: konfidence.ReasonPromotionRunning,
 						}},
 					},
 				}
@@ -106,12 +106,12 @@ var _ = Describe("Lifecycle", func() {
 
 		Context("terminal states", func() {
 			It("returns true when succeeded", func() {
-				p := &galaxy.VectorPromotion{
-					Status: galaxy.VectorPromotionStatus{
+				p := &konfidence.VectorPromotion{
+					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
-							Type:   galaxy.ConditionTypeSucceeded,
+							Type:   konfidence.ConditionTypeSucceeded,
 							Status: metav1.ConditionTrue,
-							Reason: galaxy.ReasonPromotionSucceeded,
+							Reason: konfidence.ReasonPromotionSucceeded,
 						}},
 					},
 				}
@@ -120,12 +120,12 @@ var _ = Describe("Lifecycle", func() {
 			})
 
 			It("returns true when failed", func() {
-				p := &galaxy.VectorPromotion{
-					Status: galaxy.VectorPromotionStatus{
+				p := &konfidence.VectorPromotion{
+					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
-							Type:   galaxy.ConditionTypeSucceeded,
+							Type:   konfidence.ConditionTypeSucceeded,
 							Status: metav1.ConditionFalse,
-							Reason: galaxy.ReasonPromotionFailed,
+							Reason: konfidence.ReasonPromotionFailed,
 						}},
 					},
 				}
@@ -134,12 +134,12 @@ var _ = Describe("Lifecycle", func() {
 			})
 
 			It("returns true when unknown", func() {
-				p := &galaxy.VectorPromotion{
-					Status: galaxy.VectorPromotionStatus{
+				p := &konfidence.VectorPromotion{
+					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
-							Type:   galaxy.ConditionTypeSucceeded,
+							Type:   konfidence.ConditionTypeSucceeded,
 							Status: metav1.ConditionUnknown,
-							Reason: galaxy.ReasonPromotionStatusUnknown,
+							Reason: konfidence.ReasonPromotionStatusUnknown,
 						}},
 					},
 				}
@@ -148,12 +148,12 @@ var _ = Describe("Lifecycle", func() {
 			})
 
 			It("returns true when source not found", func() {
-				p := &galaxy.VectorPromotion{
-					Status: galaxy.VectorPromotionStatus{
+				p := &konfidence.VectorPromotion{
+					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
-							Type:   galaxy.ConditionTypeSucceeded,
+							Type:   konfidence.ConditionTypeSucceeded,
 							Status: metav1.ConditionFalse,
-							Reason: galaxy.ReasonPromotionSourceNotFound,
+							Reason: konfidence.ReasonPromotionSourceNotFound,
 						}},
 					},
 				}
@@ -162,12 +162,12 @@ var _ = Describe("Lifecycle", func() {
 			})
 
 			It("returns true when config not found", func() {
-				p := &galaxy.VectorPromotion{
-					Status: galaxy.VectorPromotionStatus{
+				p := &konfidence.VectorPromotion{
+					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
-							Type:   galaxy.ConditionTypeSucceeded,
+							Type:   konfidence.ConditionTypeSucceeded,
 							Status: metav1.ConditionFalse,
-							Reason: galaxy.ReasonPromotionConfigurationNotFound,
+							Reason: konfidence.ReasonPromotionConfigurationNotFound,
 						}},
 					},
 				}
@@ -180,7 +180,7 @@ var _ = Describe("Lifecycle", func() {
 	Describe("TTLStatus", func() {
 		Context("when TTL is not configured", func() {
 			It("returns shouldDelete=false", func() {
-				p := &galaxy.VectorPromotion{}
+				p := &konfidence.VectorPromotion{}
 
 				shouldDelete, remaining := TTLStatus(p)
 
@@ -191,8 +191,8 @@ var _ = Describe("Lifecycle", func() {
 
 		Context("when promotion is not terminal", func() {
 			It("returns shouldDelete=false even with TTL configured", func() {
-				p := &galaxy.VectorPromotion{
-					Spec: galaxy.VectorPromotionSpec{
+				p := &konfidence.VectorPromotion{
+					Spec: konfidence.VectorPromotionSpec{
 						TTLAfterFinished: &metav1.Duration{Duration: time.Hour},
 					},
 				}
@@ -207,15 +207,15 @@ var _ = Describe("Lifecycle", func() {
 		Context("when TTL has expired", func() {
 			It("returns shouldDelete=true", func() {
 				pastTime := metav1.NewTime(time.Now().Add(-2 * time.Hour))
-				p := &galaxy.VectorPromotion{
-					Spec: galaxy.VectorPromotionSpec{
+				p := &konfidence.VectorPromotion{
+					Spec: konfidence.VectorPromotionSpec{
 						TTLAfterFinished: &metav1.Duration{Duration: time.Hour},
 					},
-					Status: galaxy.VectorPromotionStatus{
+					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
-							Type:               galaxy.ConditionTypeSucceeded,
+							Type:               konfidence.ConditionTypeSucceeded,
 							Status:             metav1.ConditionTrue,
-							Reason:             galaxy.ReasonPromotionSucceeded,
+							Reason:             konfidence.ReasonPromotionSucceeded,
 							LastTransitionTime: pastTime,
 						}},
 					},
@@ -231,15 +231,15 @@ var _ = Describe("Lifecycle", func() {
 		Context("when TTL has not expired", func() {
 			It("returns shouldDelete=false with positive remaining time", func() {
 				recentTime := metav1.NewTime(time.Now().Add(-30 * time.Minute))
-				p := &galaxy.VectorPromotion{
-					Spec: galaxy.VectorPromotionSpec{
+				p := &konfidence.VectorPromotion{
+					Spec: konfidence.VectorPromotionSpec{
 						TTLAfterFinished: &metav1.Duration{Duration: time.Hour},
 					},
-					Status: galaxy.VectorPromotionStatus{
+					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
-							Type:               galaxy.ConditionTypeSucceeded,
+							Type:               konfidence.ConditionTypeSucceeded,
 							Status:             metav1.ConditionTrue,
-							Reason:             galaxy.ReasonPromotionSucceeded,
+							Reason:             konfidence.ReasonPromotionSucceeded,
 							LastTransitionTime: recentTime,
 						}},
 					},
@@ -256,15 +256,15 @@ var _ = Describe("Lifecycle", func() {
 		Context("when promotion failed with TTL", func() {
 			It("still respects TTL for failed promotions", func() {
 				pastTime := metav1.NewTime(time.Now().Add(-2 * time.Hour))
-				p := &galaxy.VectorPromotion{
-					Spec: galaxy.VectorPromotionSpec{
+				p := &konfidence.VectorPromotion{
+					Spec: konfidence.VectorPromotionSpec{
 						TTLAfterFinished: &metav1.Duration{Duration: time.Hour},
 					},
-					Status: galaxy.VectorPromotionStatus{
+					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
-							Type:               galaxy.ConditionTypeSucceeded,
+							Type:               konfidence.ConditionTypeSucceeded,
 							Status:             metav1.ConditionFalse,
-							Reason:             galaxy.ReasonPromotionFailed,
+							Reason:             konfidence.ReasonPromotionFailed,
 							LastTransitionTime: pastTime,
 						}},
 					},

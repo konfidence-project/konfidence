@@ -10,19 +10,19 @@ It is built using the Kubebuilder framework and make use of the `controller-gen`
 ### Module Structure
 ```
 api/
-├── star/v1alpha1/    # Star CRDs (Deployment, Execution, Vector management)
-└── galaxy/v1alpha1/  # Galaxy CRDs (StageConfiguration...)
+└── v1alpha1/    # All Konfidence CRDs (single konfidence.cloud group).
+                 # Galaxy (management-plane) and star (workload-plane) kinds
+                 # share one group; the split stays a code convention (ADR-0022).
 ```
 
 ### API Documentation
-- [Star APIs](star/docs/README.md) - Stage definitions, deployment and execution resources
-- [Galaxy APIs](galaxy/docs/README.md) - Galaxy resources
+- [Konfidence APIs](docs/README.md) - Stage configuration, deployment, execution and vector management resources
 
 ## Development
 
 ### How to update CRDs
 
-1. Implement your changes in the Go types of your module, e.g. `api/star/v1alpha1/stage_types.go`.
+1. Implement your changes in the Go types of your module, e.g. `api/v1alpha1/stage_types.go`.
 Make sure to follow the [kubebuilder conventions](https://book.kubebuilder.io/reference/markers/crd-validation.html) for defining CRD fields validation.
 Always add a comment to each field/struct to describe its purpose and to generate meaningful documentation.
 2. Update the validation samples for the CRDs that you changed, e.g. `test/data/samples/star/landscape_v1alpha1_stageversion.yaml`.
@@ -46,18 +46,14 @@ The generated CRD manifests are maintained in the chart templates under `charts/
 To use these CRDs in your Kubebuilder controller project, first add the dependencies:
 
 ```bash
-go get github.com/konfidence-project/konfidence/api/star
-go get github.com/konfidence-project/konfidence/api/galaxy
+go get github.com/konfidence-project/konfidence/api/v1alpha1
 ```
 
 Then you can run controller-gen directly:
 
 ```bash
-# Generate Konfidence Star CRDs
-controller-gen crd paths="github.com/konfidence-project/konfidence/api/star/..." output:crd:artifacts:config=config/crd/star
-
-# Generate Konfidence Galaxy CRDs
-controller-gen crd paths="github.com/konfidence-project/konfidence/api/galaxy/..." output:crd:artifacts:config=config/crd/galaxy
+# Generate Konfidence CRDs
+controller-gen crd paths="github.com/konfidence-project/konfidence/api/v1alpha1/..." output:crd:artifacts:config=config/crd
 ```
 
 Or add the following target to your Makefile:
@@ -66,11 +62,10 @@ Or add the following target to your Makefile:
 .PHONY: manifests
 manifests: controller-gen ## Generate ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/konfidence/api/star/..." output:crd:artifacts:config=config/crd/star
-	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/konfidence/api/galaxy/..." output:crd:artifacts:config=config/crd/galaxy
+	$(CONTROLLER_GEN) crd paths="github.com/konfidence-project/konfidence/api/v1alpha1/..." output:crd:artifacts:config=config/crd/konfidence
 ```
 
-This will generate your project's own CRDs and RBAC in `config/crd/bases/`, plus optional local copies of the Konfidence Star and Galaxy CRDs in `config/crd/star/` and `config/crd/galaxy/`.
+This will generate your project's own CRDs and RBAC in `config/crd/bases/`, plus optional local copies of the Konfidence CRDs in `config/crd/konfidence/`.
 
 ### Development
 
@@ -91,8 +86,7 @@ make lint         # Run golangci-lint
 
 #### Documentation
 ```bash
-make docs-star    # Generate Star CRD reference documentation
-make docs-galaxy  # Generate Galaxy CRD reference documentation
+make docs         # Generate CRD reference documentation
 ```
 
 #### Setup Git hooks

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -41,10 +41,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 		}, timeout, interval).Should(Succeed())
 
 		By("verifying component exists in target registry with alias")
@@ -72,10 +72,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 		}, timeout, interval).Should(Succeed())
 
 		By("verifying component exists in source registry with new alias")
@@ -102,10 +102,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 		}, timeout, interval).Should(Succeed())
 
 		By("verifying component exists at target with different sub path")
@@ -129,10 +129,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSourceNotFound))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSourceNotFound))
 		}, timeout, interval).Should(Succeed())
 	})
 
@@ -140,8 +140,8 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 		By("creating VectorPromotionConfig with credentials that trigger client creation failure")
 		source := fmt.Sprintf("http://%s//konfidence.io/promo/client-fail:latest", sourceRegistryEndpoint)
 		target := fmt.Sprintf("http://%s//konfidence.io/promo/client-fail:promoted", targetRegistryEndpoint)
-		config := createConfigWithCredentials("client-fail-config", source, target, &galaxy.Credentials{
-			OCM: &galaxy.OCMCredentials{Refs: []galaxy.CredentialRef{{Name: failClientCreationSecret}}},
+		config := createConfigWithCredentials("client-fail-config", source, target, &konfidence.Credentials{
+			OCM: &konfidence.OCMCredentials{Refs: []konfidence.CredentialRef{{Name: failClientCreationSecret}}},
 		})
 
 		By("creating VectorPromotion")
@@ -152,10 +152,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionFailed))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionFailed))
 			g.Expect(cond.Message).To(ContainSubstring("failed to create OCM client"))
 		}, timeout, interval).Should(Succeed())
 	})
@@ -169,10 +169,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionConfigurationNotFound))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionConfigurationNotFound))
 		}, timeout, interval).Should(Succeed())
 	})
 
@@ -193,10 +193,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonInvalidPromotionConfiguration))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonInvalidPromotionConfiguration))
 		}, timeout, interval).Should(Succeed())
 	})
 
@@ -214,10 +214,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonInvalidPromotionConfiguration))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonInvalidPromotionConfiguration))
 			g.Expect(cond.Message).To(ContainSubstring("source and target component names do not match"))
 		}, timeout, interval).Should(Succeed())
 	})
@@ -237,13 +237,13 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 		}, timeout, interval).Should(Succeed())
 
 		By("recording the condition's LastTransitionTime")
-		cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+		cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 		originalTransitionTime := cond.LastTransitionTime
 
 		By("patching the promotion spec to add TTLAfterFinished (triggers an Update event)")
@@ -256,10 +256,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 			g.Expect(cond.LastTransitionTime).To(Equal(originalTransitionTime))
 		}, 3*time.Second, interval).Should(Succeed())
 	})
@@ -283,10 +283,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 		}, timeout, interval).Should(Succeed())
 
 		By("verifying target alias still points to the same version")
@@ -314,7 +314,7 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion1.Name, Namespace: testNamespace,
 			}, promotion1)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion1.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion1.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 		}, timeout, interval).Should(Succeed())
@@ -337,10 +337,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion2.Name, Namespace: testNamespace,
 			}, promotion2)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion2.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion2.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 		}, timeout, interval).Should(Succeed())
 
 		By("verifying stable alias now points to the newer version v2.0.0")
@@ -366,10 +366,10 @@ var _ = Describe("VectorPromotion controller tests", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.ReasonPromotionSucceeded))
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSucceeded))
 		}, timeout, interval).Should(Succeed())
 
 		By("verifying alias still points to the original version")

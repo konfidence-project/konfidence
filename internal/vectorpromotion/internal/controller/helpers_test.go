@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,13 +30,13 @@ func sourceRefWithSubPath(subPath, component string) compref.Ref {
 
 // cleanupPromotions deletes all VectorPromotion and VectorPromotionConfig objects and waits for them to be gone.
 func cleanupPromotions() {
-	Expect(k8sClient.DeleteAllOf(ctx, &galaxy.VectorPromotion{}, client.InNamespace(testNamespace))).To(Succeed())
-	Expect(k8sClient.DeleteAllOf(ctx, &galaxy.VectorPromotionConfig{}, client.InNamespace(testNamespace))).To(Succeed())
+	Expect(k8sClient.DeleteAllOf(ctx, &konfidence.VectorPromotion{}, client.InNamespace(testNamespace))).To(Succeed())
+	Expect(k8sClient.DeleteAllOf(ctx, &konfidence.VectorPromotionConfig{}, client.InNamespace(testNamespace))).To(Succeed())
 	Eventually(func(g Gomega) {
-		promotions := &galaxy.VectorPromotionList{}
+		promotions := &konfidence.VectorPromotionList{}
 		g.Expect(k8sClient.List(ctx, promotions, client.InNamespace(testNamespace))).To(Succeed())
 		g.Expect(promotions.Items).To(BeEmpty())
-		configs := &galaxy.VectorPromotionConfigList{}
+		configs := &konfidence.VectorPromotionConfigList{}
 		g.Expect(k8sClient.List(ctx, configs, client.InNamespace(testNamespace))).To(Succeed())
 		g.Expect(configs.Items).To(BeEmpty())
 	}, timeout, interval).Should(Succeed())
@@ -47,36 +47,36 @@ func pushComponent(ctx context.Context, ref compref.Ref, alias *string) {
 	ocm.PushComponent(ctx, ocmClient, ref, alias)
 }
 
-func createConfig(name, source, target string) *galaxy.VectorPromotionConfig {
-	refs := make([]galaxy.CredentialRef, len(credSecretNames))
+func createConfig(name, source, target string) *konfidence.VectorPromotionConfig {
+	refs := make([]konfidence.CredentialRef, len(credSecretNames))
 	for i, n := range credSecretNames {
-		refs[i] = galaxy.CredentialRef{Name: n}
+		refs[i] = konfidence.CredentialRef{Name: n}
 	}
-	return createConfigWithCredentials(name, source, target, &galaxy.Credentials{
-		OCM: &galaxy.OCMCredentials{Refs: refs},
+	return createConfigWithCredentials(name, source, target, &konfidence.Credentials{
+		OCM: &konfidence.OCMCredentials{Refs: refs},
 	})
 }
 
 // createConfigWithCredentials creates a VectorPromotionConfig with credentials in the test namespace.
 func createConfigWithCredentials(
 	name, source, target string,
-	creds *galaxy.Credentials,
-) *galaxy.VectorPromotionConfig {
+	creds *konfidence.Credentials,
+) *konfidence.VectorPromotionConfig {
 	return createPKIConfig(name, source, target, creds, nil)
 }
 
 // createPKIConfig creates a VectorPromotionConfig with credentials and optional verification in the test namespace.
 func createPKIConfig(
 	name, source, target string,
-	creds *galaxy.Credentials,
-	verify *galaxy.Verify,
-) *galaxy.VectorPromotionConfig {
-	config := &galaxy.VectorPromotionConfig{
+	creds *konfidence.Credentials,
+	verify *konfidence.Verify,
+) *konfidence.VectorPromotionConfig {
+	config := &konfidence.VectorPromotionConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: testNamespace,
 		},
-		Spec: galaxy.VectorPromotionConfigSpec{
+		Spec: konfidence.VectorPromotionConfigSpec{
 			Source:       source,
 			Target:       target,
 			Credentials:  creds,
@@ -88,13 +88,13 @@ func createPKIConfig(
 }
 
 // createPromotion creates a VectorPromotion in the test namespace referencing a config.
-func createPromotion(name, configRef string) *galaxy.VectorPromotion {
-	promotion := &galaxy.VectorPromotion{
+func createPromotion(name, configRef string) *konfidence.VectorPromotion {
+	promotion := &konfidence.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: testNamespace,
 		},
-		Spec: galaxy.VectorPromotionSpec{
+		Spec: konfidence.VectorPromotionSpec{
 			VectorPromotionConfigRef: configRef,
 		},
 	}
@@ -103,13 +103,13 @@ func createPromotion(name, configRef string) *galaxy.VectorPromotion {
 }
 
 // createPromotionWithTTL creates a VectorPromotion with TTLAfterFinished set.
-func createPromotionWithTTL(name, configRef string, ttl time.Duration) *galaxy.VectorPromotion {
-	promotion := &galaxy.VectorPromotion{
+func createPromotionWithTTL(name, configRef string, ttl time.Duration) *konfidence.VectorPromotion {
+	promotion := &konfidence.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: testNamespace,
 		},
-		Spec: galaxy.VectorPromotionSpec{
+		Spec: konfidence.VectorPromotionSpec{
 			VectorPromotionConfigRef: configRef,
 			TTLAfterFinished:         &metav1.Duration{Duration: ttl},
 		},

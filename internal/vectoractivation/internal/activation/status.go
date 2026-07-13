@@ -7,22 +7,22 @@ import (
 	"context"
 	"fmt"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func InFinalStatusCondition(vectorActivation *star.VectorActivation) bool {
+func InFinalStatusCondition(vectorActivation *konfidence.VectorActivation) bool {
 	if len(vectorActivation.Status.Conditions) == 0 {
 		return false
 	}
-	return meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, star.ActivationSucceeded) ||
-		meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, star.ActivationFailed) ||
-		meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, star.ActivationSkipped)
+	return meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, konfidence.ActivationSucceeded) ||
+		meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, konfidence.ActivationFailed) ||
+		meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, konfidence.ActivationSkipped)
 }
 
-func UpdateVectorActivationStatus(ctx context.Context, c client.Client, activation *star.VectorActivation, condition metav1.Condition) error {
+func UpdateVectorActivationStatus(ctx context.Context, c client.Client, activation *konfidence.VectorActivation, condition metav1.Condition) error {
 	if condition.Type == "" || condition.Status == "" {
 		return fmt.Errorf("unable to update vectorActivation status: condition type and status must be set")
 	}

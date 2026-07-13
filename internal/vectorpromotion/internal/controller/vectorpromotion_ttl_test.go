@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -71,7 +71,7 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 		}, timeout, interval).Should(Succeed())
@@ -102,7 +102,7 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 		}, timeout, interval).Should(Succeed())
@@ -133,7 +133,7 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: promotion.Name, Namespace: testNamespace,
 			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, galaxy.ConditionTypeSucceeded)
+			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 		}, timeout, interval).Should(Succeed())

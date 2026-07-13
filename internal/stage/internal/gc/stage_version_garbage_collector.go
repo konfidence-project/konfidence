@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
@@ -37,13 +37,13 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 			log.Info("Executing stageVersion garbage collector...")
 			// TODO for now we assume all stageVersions and stageVersionUsages are in the same namespace
 			// get all stageVersions
-			stageVersions := &star.StageVersionList{}
+			stageVersions := &konfidence.StageVersionList{}
 			if err := gc.List(ctx, stageVersions); err != nil {
 				log.Error(err, "unable to list stageVersions")
 			}
 
 			// get all stageVersionUsages
-			stageVersionUsages := &star.StageVersionUsageList{}
+			stageVersionUsages := &konfidence.StageVersionUsageList{}
 			if err := gc.List(ctx, stageVersionUsages); err != nil {
 				log.Error(err, "unable to list stageVersionUsages")
 			}
@@ -62,7 +62,7 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 					log.Info("Deleting stage version", "name", stageVersion.Name)
 
 					// read in the referenced stage to write a deletion event to it
-					stage := &star.Stage{}
+					stage := &konfidence.Stage{}
 					if err := gc.Get(
 						ctx,
 						types.NamespacedName{Namespace: stageVersion.Namespace, Name: stageVersion.Spec.StageRef.Name},

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/taskorchestration/internal/graph"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"golang.org/x/exp/maps"
@@ -39,23 +39,23 @@ type TaskOrchestrationReconciler struct {
 }
 
 type MapTasksResult struct {
-	taskExecutionsByName           map[string]star.TaskExecution
+	taskExecutionsByName           map[string]konfidence.TaskExecution
 	successfulTaskExecutionsByName map[string]bool
 	taskFailed                     bool
 }
 
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectormigrations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectormigrations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversionusages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversionusages/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=artifactdeployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=taskexecutions,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=taskexecutions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectormigrations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectormigrations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversionusages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversionusages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=artifactdeployments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=taskexecutions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=taskexecutions/status,verbs=get;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -67,12 +67,12 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	log.Info("Reconcile started...")
 
 	// get vectorMigration
-	vectorMigration := &star.VectorMigration{}
+	vectorMigration := &konfidence.VectorMigration{}
 	if err := r.Get(ctx, req.NamespacedName, vectorMigration); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, star.VectorMigrationSucceeded) {
+	if meta.IsStatusConditionTrue(vectorMigration.Status.Conditions, konfidence.VectorMigrationSucceeded) {
 		return r.cleanupVectorMigration(ctx, req, vectorMigration)
 	}
 
@@ -92,7 +92,7 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	)
 }
 
-func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Context, req ctrl.Request, vectorMigration *star.VectorMigration) error {
+func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Context, req ctrl.Request, vectorMigration *konfidence.VectorMigration) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling vectorMigration")
 
@@ -119,9 +119,9 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 
 		// mark vectorMigration as successful if no tasks exist
 		meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
-			Type:               star.VectorMigrationSucceeded,
+			Type:               konfidence.VectorMigrationSucceeded,
 			Status:             metav1.ConditionTrue,
-			Reason:             star.VectorMigrationSucceeded,
+			Reason:             konfidence.VectorMigrationSucceeded,
 			Message:            fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name),
 			ObservedGeneration: vectorMigration.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -154,9 +154,9 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 	if mappedTasks.taskFailed {
 		// if at least one of the tasks failed mark vectorMigration as failed
 		meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
-			Type:               star.VectorMigrationFailed,
+			Type:               konfidence.VectorMigrationFailed,
 			Status:             metav1.ConditionTrue,
-			Reason:             star.VectorMigrationFailed,
+			Reason:             konfidence.VectorMigrationFailed,
 			Message:            fmt.Sprintf("Reconciling VectorMigration %s failed", vectorMigration.Name),
 			ObservedGeneration: vectorMigration.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -194,9 +194,9 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 
 	// mark vectorMigration as successful
 	meta.SetStatusCondition(&vectorMigration.Status.Conditions, metav1.Condition{
-		Type:               star.VectorMigrationSucceeded,
+		Type:               konfidence.VectorMigrationSucceeded,
 		Status:             metav1.ConditionTrue,
-		Reason:             star.VectorMigrationSucceeded,
+		Reason:             konfidence.VectorMigrationSucceeded,
 		Message:            fmt.Sprintf("Successfully reconciled VectorMigration %s", vectorMigration.Name),
 		ObservedGeneration: vectorMigration.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -221,12 +221,12 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 }
 
 func (r *TaskOrchestrationReconciler) getVectorDeployment(
-	ctx context.Context, vectorMigration *star.VectorMigration,
-) (*star.VectorDeployment, error) {
+	ctx context.Context, vectorMigration *konfidence.VectorMigration,
+) (*konfidence.VectorDeployment, error) {
 	labelMatcher := client.MatchingLabels{}
 	labelMatcher[pkgctrl.StageVersionNameLabel] = vectorMigration.Spec.StageVersion
 
-	vectorDeployments := &star.VectorDeploymentList{}
+	vectorDeployments := &konfidence.VectorDeploymentList{}
 	if err := r.List(ctx, vectorDeployments, client.InNamespace(vectorMigration.Namespace), labelMatcher); err != nil {
 		return nil, fmt.Errorf("unable to list vectorDeployments: %w", err)
 	}
@@ -239,9 +239,9 @@ func (r *TaskOrchestrationReconciler) getVectorDeployment(
 }
 
 func (r *TaskOrchestrationReconciler) getArtifactDeployment(
-	ctx context.Context, vectorMigration *star.VectorMigration, name string,
-) (*star.ArtifactDeployment, error) {
-	artifactDeployment := &star.ArtifactDeployment{}
+	ctx context.Context, vectorMigration *konfidence.VectorMigration, name string,
+) (*konfidence.ArtifactDeployment, error) {
+	artifactDeployment := &konfidence.ArtifactDeployment{}
 	err := r.Get(ctx, types.NamespacedName{
 		Namespace: vectorMigration.Namespace,
 		Name:      name,
@@ -250,9 +250,9 @@ func (r *TaskOrchestrationReconciler) getArtifactDeployment(
 	return artifactDeployment, err
 }
 
-func (r *TaskOrchestrationReconciler) getTaskExecutions(ctx context.Context, req ctrl.Request) ([]star.TaskExecution, error) {
+func (r *TaskOrchestrationReconciler) getTaskExecutions(ctx context.Context, req ctrl.Request) ([]konfidence.TaskExecution, error) {
 	// get all taskExecutions that are owned by this vectorMigration
-	taskExecutions := &star.TaskExecutionList{}
+	taskExecutions := &konfidence.TaskExecutionList{}
 	if err := r.List(ctx, taskExecutions, client.InNamespace(req.Namespace), client.MatchingFields{vectorMigrationOwnerKey: req.Name}); err != nil {
 		return nil, fmt.Errorf("unable to list taskExecutions: %w", err)
 	}
@@ -261,7 +261,7 @@ func (r *TaskOrchestrationReconciler) getTaskExecutions(ctx context.Context, req
 }
 
 func (r *TaskOrchestrationReconciler) deleteTaskExecutions(
-	ctx context.Context, taskExecutions []star.TaskExecution, vectorMigration *star.VectorMigration,
+	ctx context.Context, taskExecutions []konfidence.TaskExecution, vectorMigration *konfidence.VectorMigration,
 ) error {
 	for _, taskExecution := range taskExecutions {
 		if err := r.Delete(ctx, &taskExecution); err != nil {
@@ -276,10 +276,10 @@ func (r *TaskOrchestrationReconciler) deleteTaskExecutions(
 }
 
 func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(
-	ctx context.Context, req ctrl.Request, vectorMigration *star.VectorMigration,
-) (*star.StageVersionUsage, error) {
+	ctx context.Context, req ctrl.Request, vectorMigration *konfidence.VectorMigration,
+) (*konfidence.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
-	stageVersionUsage := &star.StageVersionUsage{}
+	stageVersionUsage := &konfidence.StageVersionUsage{}
 	err := r.Get(ctx, types.NamespacedName{Name: getStageVersionUsageName(vectorMigration.Spec.StageVersion), Namespace: req.Namespace}, stageVersionUsage)
 	if err != nil && !errors.IsNotFound(err) {
 		return nil, fmt.Errorf("unable to fetch stageVersionUsage: %w", err)
@@ -323,10 +323,10 @@ func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(
 
 func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(
 	ctx context.Context,
-	vectorDeployment *star.VectorDeployment,
-	vectorMigration *star.VectorMigration,
-) ([]star.TaskManifest, error) {
-	artifactDeployments := make(map[string]star.ArtifactDeployment)
+	vectorDeployment *konfidence.VectorDeployment,
+	vectorMigration *konfidence.VectorMigration,
+) ([]konfidence.TaskManifest, error) {
+	artifactDeployments := make(map[string]konfidence.ArtifactDeployment)
 	numberOfTasks := 0
 	for _, deploymentReference := range vectorDeployment.Status.ResultingArtifactDeployments {
 		// get artifactDeployment
@@ -344,7 +344,7 @@ func (r *TaskOrchestrationReconciler) getArtifactDeploymentsAndTasks(
 	}
 
 	// get all task manifests from deployments
-	tasks := make([]star.TaskManifest, 0, numberOfTasks)
+	tasks := make([]konfidence.TaskManifest, 0, numberOfTasks)
 	for _, artifactDeployment := range artifactDeployments {
 		tasks = append(tasks, artifactDeployment.Spec.TaskManifests...)
 	}
@@ -361,7 +361,7 @@ func (r *TaskOrchestrationReconciler) mapTasks(ctx context.Context, req ctrl.Req
 
 	// map taskExecutions by task name
 	mappedTasks := &MapTasksResult{}
-	taskExecutionsByName := make(map[string]star.TaskExecution)
+	taskExecutionsByName := make(map[string]konfidence.TaskExecution)
 	successfulTaskExecutionsByName := make(map[string]bool)
 	for _, taskExecution := range taskExecutions {
 		if taskExecutionFailed(taskExecution) {
@@ -381,9 +381,9 @@ func (r *TaskOrchestrationReconciler) mapTasks(ctx context.Context, req ctrl.Req
 
 func (r *TaskOrchestrationReconciler) processTaskLayer(
 	ctx context.Context,
-	vectorMigration *star.VectorMigration,
-	layer []star.TaskManifest,
-	taskExecutionsByName map[string]star.TaskExecution,
+	vectorMigration *konfidence.VectorMigration,
+	layer []konfidence.TaskManifest,
+	taskExecutionsByName map[string]konfidence.TaskExecution,
 	successfulTaskExecutionsByName map[string]bool,
 ) (int, error) {
 	status := layerPending
@@ -427,20 +427,20 @@ func (r *TaskOrchestrationReconciler) processTaskLayer(
 
 var (
 	vectorMigrationOwnerKey = ".metadata.controller"
-	apiGVStr                = star.GroupVersion.String()
+	apiGVStr                = konfidence.GroupVersion.String()
 )
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *TaskOrchestrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &star.TaskExecution{}, vectorMigrationOwnerKey, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &konfidence.TaskExecution{}, vectorMigrationOwnerKey, func(rawObj client.Object) []string {
 		// grab the taskExecution object and extract the owner
-		taskExecution := rawObj.(*star.TaskExecution)
+		taskExecution := rawObj.(*konfidence.TaskExecution)
 		owner := metav1.GetControllerOf(taskExecution)
 		if owner == nil {
 			return nil
 		}
 		// make sure it is a stage...
-		if owner.APIVersion != apiGVStr || owner.Kind != star.VectorMigrationKind {
+		if owner.APIVersion != apiGVStr || owner.Kind != konfidence.VectorMigrationKind {
 			return nil
 		}
 
@@ -451,21 +451,21 @@ func (r *TaskOrchestrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&star.VectorMigration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&star.TaskExecution{}).
+		For(&konfidence.VectorMigration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&konfidence.TaskExecution{}).
 		Named("taskOrchestration").
 		Complete(r)
 }
 
-func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration *star.VectorMigration) (*star.StageVersionUsage, error) {
-	stageVersionUsage := &star.StageVersionUsage{
+func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration *konfidence.VectorMigration) (*konfidence.StageVersionUsage, error) {
+	stageVersionUsage := &konfidence.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      getStageVersionUsageName(vectorMigration.Spec.StageVersion),
 			Namespace: vectorMigration.Namespace,
 		},
-		Spec: star.StageVersionUsageSpec{
+		Spec: konfidence.StageVersionUsageSpec{
 			Reason: "VectorMigration",
-			StageVersionRef: &star.StageVersionReference{
+			StageVersionRef: &konfidence.StageVersionReference{
 				Name: vectorMigration.Spec.StageVersion,
 			},
 		},
@@ -480,16 +480,16 @@ func (r *TaskOrchestrationReconciler) constructStageVersionUsage(vectorMigration
 }
 
 func (r *TaskOrchestrationReconciler) constructTaskExecution(
-	vectorMigration *star.VectorMigration,
-	taskManifest star.TaskManifest,
+	vectorMigration *konfidence.VectorMigration,
+	taskManifest konfidence.TaskManifest,
 	namespace string,
-) (*star.TaskExecution, error) {
-	taskExecution := &star.TaskExecution{
+) (*konfidence.TaskExecution, error) {
+	taskExecution := &konfidence.TaskExecution{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      taskManifest.Name + "-" + rand.String(8),
 			Namespace: namespace,
 		},
-		Spec: star.TaskExecutionSpec(taskManifest),
+		Spec: konfidence.TaskExecutionSpec(taskManifest),
 	}
 
 	// set vectorMigration as controller
@@ -500,7 +500,7 @@ func (r *TaskOrchestrationReconciler) constructTaskExecution(
 }
 
 func (r *TaskOrchestrationReconciler) cleanupVectorMigration(
-	ctx context.Context, req ctrl.Request, vectorMigration *star.VectorMigration,
+	ctx context.Context, req ctrl.Request, vectorMigration *konfidence.VectorMigration,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Cleanup vector migration")
@@ -517,7 +517,7 @@ func (r *TaskOrchestrationReconciler) cleanupVectorMigration(
 	}
 
 	// check if stageVersionUsage still exists and should be deleted
-	stageVersionUsage := &star.StageVersionUsage{}
+	stageVersionUsage := &konfidence.StageVersionUsage{}
 	if err := r.Get(ctx, types.NamespacedName{
 		Name:      getStageVersionUsageName(vectorMigration.Spec.StageVersion),
 		Namespace: req.Namespace,
@@ -540,15 +540,15 @@ func getStageVersionUsageName(stageVersionName string) string {
 	return fmt.Sprintf("%s-%s", stageVersionName, "migration")
 }
 
-func taskExecutionFailed(taskExecution star.TaskExecution) bool {
-	return meta.IsStatusConditionTrue(taskExecution.Status.Conditions, star.TaskFailed)
+func taskExecutionFailed(taskExecution konfidence.TaskExecution) bool {
+	return meta.IsStatusConditionTrue(taskExecution.Status.Conditions, konfidence.TaskFailed)
 }
 
-func taskExecutionSucceeded(taskExecution star.TaskExecution) bool {
-	return meta.IsStatusConditionTrue(taskExecution.Status.Conditions, star.TaskSucceeded)
+func taskExecutionSucceeded(taskExecution konfidence.TaskExecution) bool {
+	return meta.IsStatusConditionTrue(taskExecution.Status.Conditions, konfidence.TaskSucceeded)
 }
 
-func allTaskDependenciesSucceeded(task star.TaskManifest, successfulTasksByName map[string]bool) bool {
+func allTaskDependenciesSucceeded(task konfidence.TaskManifest, successfulTasksByName map[string]bool) bool {
 	if len(task.DependsOn) == 0 {
 		return true
 	}

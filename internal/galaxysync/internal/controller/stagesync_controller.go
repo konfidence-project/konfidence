@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -57,8 +56,8 @@ type StageSyncReconciler struct {
 
 // +kubebuilder:rbac:groups="",resources=namespaces;secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;patch
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stagesyncs;stagesyncs/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stagesyncs;stagesyncs/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 
 func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -66,7 +65,7 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	logger.Info("Reconciling StageSync")
 
 	// fetch remote Resource
-	remoteStageSync := &galaxy.StageSync{}
+	remoteStageSync := &konfidence.StageSync{}
 	err := r.RemoteCluster.GetClient().Get(ctx, req.NamespacedName, remoteStageSync)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -78,7 +77,7 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	originalRemoteStageSync := remoteStageSync.DeepCopy()
 	stageTemplate, err := getStageFromTemplate(remoteStageSync.Spec.StageTemplate)
 	if err != nil {
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, galaxy.InvalidStageTemplateReason, err.Error())
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, konfidence.InvalidStageTemplateReason, err.Error())
 		err = errors.Join(err, patchErr)
 		return ctrl.Result{}, err
 	}
@@ -92,15 +91,15 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		msg := fmt.Sprintf("unable to verify if stage version is served: %s", err)
 		logger.Error(err, msg)
-		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, galaxy.StageCrdQueryFailedReason, "VerifyStageVersion", msg)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, galaxy.StageCrdQueryFailedReason, msg)
+		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, konfidence.StageCrdQueryFailedReason, "VerifyStageVersion", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, konfidence.StageCrdQueryFailedReason, msg)
 		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 	if !versionServed {
 		msg := fmt.Sprintf("expected version %s is not present or not served in Stage CRD", stageTemplate.TypeMeta.GroupVersionKind().Version)
 		logger.Error(nil, msg)
-		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, galaxy.APIVersionNotSupportedReason, "VerifyStageVersion", msg)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, galaxy.APIVersionNotSupportedReason, msg)
+		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, konfidence.APIVersionNotSupportedReason, "VerifyStageVersion", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, konfidence.APIVersionNotSupportedReason, msg)
 		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
@@ -108,17 +107,17 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err := r.LocalClient.Get(ctx, client.ObjectKey{Name: stageTemplate.Namespace}, &corev1.Namespace{}); err != nil {
 		msg := fmt.Sprintf("unable to fetch local namespace %s: %s", stageTemplate.Namespace, err)
 		logger.Error(err, msg)
-		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, galaxy.NamespaceNotFoundReason, "CheckLocalNamespace", msg)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, galaxy.NamespaceNotFoundReason, msg)
+		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, konfidence.NamespaceNotFoundReason, "CheckLocalNamespace", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, konfidence.NamespaceNotFoundReason, msg)
 		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
 	// fetch local resource
-	localStage := &star.Stage{}
+	localStage := &konfidence.Stage{}
 	err = r.LocalClient.Get(ctx, client.ObjectKey{Name: stageTemplate.Name, Namespace: stageTemplate.Namespace}, localStage)
 	if err != nil && !apierrors.IsNotFound(err) {
 		err = fmt.Errorf("unable to fetch local resource: %w", err)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, galaxy.StageQueryFailedReason, err.Error())
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, konfidence.StageQueryFailedReason, err.Error())
 		err = errors.Join(err, patchErr)
 		return ctrl.Result{}, err
 	}
@@ -135,8 +134,8 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				managedByLabelKey, StageSyncControllerName,
 				galaxyStageSyncLabelKey, sanitizeLabelValue(req.String()))
 			logger.Error(nil, msg)
-			r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, galaxy.ConflictWithUnmanagedStageReason, "CheckManagedStage", msg)
-			patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, galaxy.ConflictWithUnmanagedStageReason, msg)
+			r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, konfidence.ConflictWithUnmanagedStageReason, "CheckManagedStage", msg)
+			patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, konfidence.ConflictWithUnmanagedStageReason, msg)
 			return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 		}
 	}
@@ -167,8 +166,8 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		msg := fmt.Sprintf("unable to create or update local resource: %s", err)
 		logger.Error(err, msg)
-		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, galaxy.StageReconcileFailedReason, "CreateOrUpdateStage", msg)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, galaxy.StageReconcileFailedReason, msg)
+		r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeWarning, konfidence.StageReconcileFailedReason, "CreateOrUpdateStage", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, konfidence.StageReconcileFailedReason, msg)
 		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
@@ -176,27 +175,27 @@ func (r *StageSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err := reflectStageStatusOnStageSync(localStage, remoteStageSync); err != nil {
 		msg := fmt.Sprintf("unable to reflect stage status on StageSync: %s", err)
 		logger.Error(err, msg)
-		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, galaxy.StageStatusReflectionFailedReason, msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, konfidence.StageStatusReflectionFailedReason, msg)
 		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
 	// update status of remote resource
 	msg := fmt.Sprintf("stage %s/%s reconciled successfully (operation: %s)", localStage.Namespace, localStage.Name, operationResult)
-	patchErr := r.setAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, metav1.ConditionTrue, galaxy.StageReconcileSuccessfulReason, msg)
+	patchErr := r.setAndPatchStatus(ctx, remoteStageSync, originalRemoteStageSync, metav1.ConditionTrue, konfidence.StageReconcileSuccessfulReason, msg)
 	if patchErr != nil {
 		err = fmt.Errorf("unable to patch status of remote resource: %w", patchErr)
 		return ctrl.Result{}, err
 	}
 
 	logger.Info(msg)
-	r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeNormal, galaxy.StageReconcileSuccessfulReason, "CreateOrUpdateStage", msg)
+	r.Recorder.Eventf(remoteStageSync, nil, corev1.EventTypeNormal, konfidence.StageReconcileSuccessfulReason, "CreateOrUpdateStage", msg)
 
 	return ctrl.Result{RequeueAfter: reconcileInterval.Duration}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StageSyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	mapStageSyncToRequests := func(ctx context.Context, obj *galaxy.StageSync) []reconcile.Request {
+	mapStageSyncToRequests := func(ctx context.Context, obj *konfidence.StageSync) []reconcile.Request {
 		return []reconcile.Request{{NamespacedName: types.NamespacedName{
 			Name:      obj.GetName(),
 			Namespace: obj.GetNamespace(),
@@ -207,9 +206,9 @@ func (r *StageSyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WatchesRawSource(
 			source.Kind(
 				r.RemoteCluster.GetCache(),
-				&galaxy.StageSync{},
-				handler.TypedEnqueueRequestsFromMapFunc[*galaxy.StageSync, reconcile.Request](mapStageSyncToRequests),
-				predicate.TypedGenerationChangedPredicate[*galaxy.StageSync]{},
+				&konfidence.StageSync{},
+				handler.TypedEnqueueRequestsFromMapFunc[*konfidence.StageSync, reconcile.Request](mapStageSyncToRequests),
+				predicate.TypedGenerationChangedPredicate[*konfidence.StageSync]{},
 			),
 		)
 	return b.
@@ -218,7 +217,7 @@ func (r *StageSyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 func (r *StageSyncReconciler) isStageVersionServed(ctx context.Context, logger logr.Logger, expectedVersion string) (bool, error) {
 	crd := &apiextensionsv1.CustomResourceDefinition{}
-	if err := r.LocalClient.Get(ctx, client.ObjectKey{Name: "stages.star.konfidence.cloud"}, crd); err != nil {
+	if err := r.LocalClient.Get(ctx, client.ObjectKey{Name: "stages.konfidence.cloud"}, crd); err != nil {
 		return false, fmt.Errorf("unable to fetch Stage CRD: %w", err)
 	}
 
@@ -234,13 +233,13 @@ func (r *StageSyncReconciler) isStageVersionServed(ctx context.Context, logger l
 
 func (r *StageSyncReconciler) setAndPatchStatus(
 	ctx context.Context,
-	stageSync *galaxy.StageSync,
-	originalStageSync *galaxy.StageSync,
+	stageSync *konfidence.StageSync,
+	originalStageSync *konfidence.StageSync,
 	status metav1.ConditionStatus,
 	reason, message string,
 ) error {
 	meta.SetStatusCondition(&stageSync.Status.Conditions, metav1.Condition{
-		Type:               galaxy.StageSyncAppliedCondition,
+		Type:               konfidence.StageSyncAppliedCondition,
 		Status:             status,
 		Reason:             reason,
 		Message:            message,
@@ -260,8 +259,8 @@ func (r *StageSyncReconciler) setAndPatchStatus(
 
 func (r *StageSyncReconciler) falsifyAndPatchStatus(
 	ctx context.Context,
-	stageSync *galaxy.StageSync,
-	originalStageSync *galaxy.StageSync,
+	stageSync *konfidence.StageSync,
+	originalStageSync *konfidence.StageSync,
 	reason, message string,
 ) error {
 	return r.setAndPatchStatus(ctx, stageSync, originalStageSync, metav1.ConditionFalse, reason, message)
@@ -272,12 +271,12 @@ func (r *StageSyncReconciler) falsifyAndPatchStatus(
 // progress (e.g. deletion initiated, blocked, confirmed).
 func (r *StageSyncReconciler) setStageDeletedCondition(
 	ctx context.Context,
-	stageSync, originalStageSync *galaxy.StageSync,
+	stageSync, originalStageSync *konfidence.StageSync,
 	status metav1.ConditionStatus,
 	reason, message string,
 ) error {
 	meta.SetStatusCondition(&stageSync.Status.Conditions, metav1.Condition{
-		Type:               galaxy.StageDeletedCondition,
+		Type:               konfidence.StageDeletedCondition,
 		Status:             status,
 		Reason:             reason,
 		Message:            message,
@@ -298,7 +297,7 @@ func (r *StageSyncReconciler) setStageDeletedCondition(
 // "synced-by-star/<cluster-name>" with value "true", so multiple Star clusters
 // can each add their own label without overwriting one another.
 // If LandscapeName is empty the label is skipped to avoid writing an invalid key.
-func (r *StageSyncReconciler) ensureStageSyncedByLabel(ctx context.Context, stageSync, originalStageSync *galaxy.StageSync) error {
+func (r *StageSyncReconciler) ensureStageSyncedByLabel(ctx context.Context, stageSync, originalStageSync *konfidence.StageSync) error {
 	if r.LandscapeName == "" {
 		// LandscapeName is not configured — the synced-by label cannot be set.
 		r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, "LandscapeNameNotConfigured", "EnsureStageSyncedByLabel",
@@ -329,7 +328,7 @@ func (r *StageSyncReconciler) ensureStageSyncedByLabel(ctx context.Context, stag
 //
 // Return values:
 //   - error: non-nil if adding the finalizer failed.
-func (r *StageSyncReconciler) ensureFinalizer(ctx context.Context, stageSync, originalStageSync *galaxy.StageSync) error {
+func (r *StageSyncReconciler) ensureFinalizer(ctx context.Context, stageSync, originalStageSync *konfidence.StageSync) error {
 	if controllerutil.ContainsFinalizer(stageSync, syncControllerFinalizer) {
 		return nil
 	}
@@ -337,7 +336,7 @@ func (r *StageSyncReconciler) ensureFinalizer(ctx context.Context, stageSync, or
 	controllerutil.AddFinalizer(stageSync, syncControllerFinalizer)
 	if err := r.RemoteCluster.GetClient().Patch(ctx, stageSync, patch); err != nil {
 		err = fmt.Errorf("unable to add finalizer to remote resource: %w", err)
-		patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, galaxy.AddingFinalizerFailedReason, err.Error())
+		patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, konfidence.AddingFinalizerFailedReason, err.Error())
 		return errors.Join(err, patchErr)
 	}
 	return nil
@@ -357,8 +356,8 @@ func (r *StageSyncReconciler) ensureFinalizer(ctx context.Context, stageSync, or
 //     StageDeletionInitiated and return RequeueAfter to confirm removal.
 func (r *StageSyncReconciler) handleStageSyncDeletion(
 	ctx context.Context,
-	stageSync, originalStageSync *galaxy.StageSync,
-	localStage *star.Stage,
+	stageSync, originalStageSync *konfidence.StageSync,
+	localStage *konfidence.Stage,
 ) (ctrl.Result, error) {
 	if !controllerutil.ContainsFinalizer(stageSync, syncControllerFinalizer) {
 		// Finalizer already removed; nothing left to do.
@@ -368,7 +367,7 @@ func (r *StageSyncReconciler) handleStageSyncDeletion(
 	if localStage.Name == "" {
 		// Stage is gone
 		msg := fmt.Sprintf("stage for StageSync %s/%s successfully deleted", stageSync.Namespace, stageSync.Name)
-		if err := r.setStageDeletedCondition(ctx, stageSync, originalStageSync, metav1.ConditionTrue, galaxy.StageDeletionSuccessfulReason, msg); err != nil {
+		if err := r.setStageDeletedCondition(ctx, stageSync, originalStageSync, metav1.ConditionTrue, konfidence.StageDeletionSuccessfulReason, msg); err != nil {
 			return ctrl.Result{}, err
 		}
 		// Remove finalizer to allow StageSync to be garbage collected.
@@ -376,7 +375,7 @@ func (r *StageSyncReconciler) handleStageSyncDeletion(
 		controllerutil.RemoveFinalizer(stageSync, syncControllerFinalizer)
 		if err := r.RemoteCluster.GetClient().Patch(ctx, stageSync, patch); err != nil {
 			err = fmt.Errorf("unable to remove finalizer from remote resource: %w", err)
-			patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, galaxy.RemovingFinalizerFailedReason, err.Error())
+			patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, konfidence.RemovingFinalizerFailedReason, err.Error())
 			return ctrl.Result{}, errors.Join(err, patchErr)
 		}
 		// Finalizer removed – StageSync will be garbage collected; no requeue needed.
@@ -388,8 +387,8 @@ func (r *StageSyncReconciler) handleStageSyncDeletion(
 		// The Stage has a DeletionTimestamp but hasn't been removed yet → blocked by finalizers.
 		remaining := localStage.GetFinalizers()
 		msg := fmt.Sprintf("stage %s/%s deletion is blocked by finalizers: %v", localStage.Namespace, localStage.Name, remaining)
-		r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, galaxy.StageDeletionBlockedReason, "DeleteStage", msg)
-		if err := r.setStageDeletedCondition(ctx, stageSync, originalStageSync, metav1.ConditionFalse, galaxy.StageDeletionBlockedReason, msg); err != nil {
+		r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, konfidence.StageDeletionBlockedReason, "DeleteStage", msg)
+		if err := r.setStageDeletedCondition(ctx, stageSync, originalStageSync, metav1.ConditionFalse, konfidence.StageDeletionBlockedReason, msg); err != nil {
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{RequeueAfter: deletionRequeueInterval}, nil
@@ -398,22 +397,22 @@ func (r *StageSyncReconciler) handleStageSyncDeletion(
 	// Stage exists and has no DeletionTimestamp → issue delete.
 	if err := r.LocalClient.Delete(ctx, localStage); err != nil {
 		msg := fmt.Sprintf("unable to delete local resource: %s", err)
-		r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, galaxy.StageDeletionFailedReason, "DeleteStage", msg)
-		patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, galaxy.StageDeletionFailedReason, msg)
+		r.Recorder.Eventf(stageSync, nil, corev1.EventTypeWarning, konfidence.StageDeletionFailedReason, "DeleteStage", msg)
+		patchErr := r.falsifyAndPatchStatus(ctx, stageSync, originalStageSync, konfidence.StageDeletionFailedReason, msg)
 		return ctrl.Result{}, errors.Join(errors.New(msg), patchErr)
 	}
 
 	// Deletion issued – requeue to confirm removal.
 	msg := fmt.Sprintf("stage %s/%s delete issued, waiting for confirmation", localStage.Namespace, localStage.Name)
-	r.Recorder.Eventf(stageSync, nil, corev1.EventTypeNormal, galaxy.StageDeletionInitiatedReason, "DeleteStage", msg)
-	if err := r.setStageDeletedCondition(ctx, stageSync, originalStageSync, metav1.ConditionFalse, galaxy.StageDeletionInitiatedReason, msg); err != nil {
+	r.Recorder.Eventf(stageSync, nil, corev1.EventTypeNormal, konfidence.StageDeletionInitiatedReason, "DeleteStage", msg)
+	if err := r.setStageDeletedCondition(ctx, stageSync, originalStageSync, metav1.ConditionFalse, konfidence.StageDeletionInitiatedReason, msg); err != nil {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{RequeueAfter: deletionRequeueInterval}, nil
 }
 
-func getStageFromTemplate(stageTemplate runtime.RawExtension) (*star.Stage, error) {
-	stage := &star.Stage{}
+func getStageFromTemplate(stageTemplate runtime.RawExtension) (*konfidence.Stage, error) {
+	stage := &konfidence.Stage{}
 	if err := json.Unmarshal(stageTemplate.Raw, stage); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal stage template: %w", err)
 	}
@@ -438,7 +437,7 @@ func getStageFromTemplate(stageTemplate runtime.RawExtension) (*star.Stage, erro
 	return stage, nil
 }
 
-func adjustStageFromTemplate(stage, stageTemplate *star.Stage, namespacedName types.NamespacedName) {
+func adjustStageFromTemplate(stage, stageTemplate *konfidence.Stage, namespacedName types.NamespacedName) {
 	stage.SetGroupVersionKind(stageTemplate.GroupVersionKind())
 	stage.SetName(stageTemplate.Name)
 	stage.SetNamespace(stageTemplate.Namespace)
@@ -465,7 +464,7 @@ func sanitizeLabelValue(s string) string {
 	return s
 }
 
-func reflectStageStatusOnStageSync(stage *star.Stage, stageSync *galaxy.StageSync) error {
+func reflectStageStatusOnStageSync(stage *konfidence.Stage, stageSync *konfidence.StageSync) error {
 	raw, err := json.Marshal(stage.Status)
 	if err != nil {
 		return fmt.Errorf("unable to marshal stage status: %w", err)

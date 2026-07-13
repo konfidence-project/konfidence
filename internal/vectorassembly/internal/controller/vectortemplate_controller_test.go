@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	ocm2 "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
@@ -28,10 +28,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 
 	BeforeEach(func() {
 		// Clean up any existing VectorTemplate CRs before each test
-		Expect(k8sClient.DeleteAllOf(ctx, &galaxy.VectorTemplate{}, client.InNamespace(testNamespace))).To(Succeed())
+		Expect(k8sClient.DeleteAllOf(ctx, &konfidence.VectorTemplate{}, client.InNamespace(testNamespace))).To(Succeed())
 		// Wait until all VectorTemplates are gone
 		Eventually(func(g Gomega) {
-			list := &galaxy.VectorTemplateList{}
+			list := &konfidence.VectorTemplateList{}
 			g.Expect(k8sClient.List(ctx, list, client.InNamespace(testNamespace))).To(Succeed())
 			g.Expect(list.Items).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
@@ -61,10 +61,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateVectorCreatedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -103,10 +103,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows NoDriftDetected")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateNoDriftDetectedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateNoDriftDetectedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -133,10 +133,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateVectorCreatedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -172,10 +172,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateVectorCreatedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -205,10 +205,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows DriftDetectionFailed")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).NotTo(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateDriftDetectionFailedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateDriftDetectionFailedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 	})
@@ -231,10 +231,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateVectorCreatedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -272,10 +272,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateVectorCreatedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -314,10 +314,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows DriftDetectionFailed mentioning the missing secret")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			cond := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			cond := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(cond).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(cond.Status).NotTo(Equal(metav1.ConditionTrue))
-			g.Expect(cond.Reason).To(Equal(galaxy.VectorTemplateDriftDetectionFailedReason))
+			g.Expect(cond.Reason).To(Equal(konfidence.VectorTemplateDriftDetectionFailedReason))
 			g.Expect(cond.Message).To(ContainSubstring("non-existent-secret"))
 			g.Expect(cond.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
@@ -337,11 +337,11 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows failure due to semver uploadTarget")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).NotTo(Equal(metav1.ConditionTrue))
 			// The reason should indicate validation failure or similar
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateDriftDetectionFailedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateDriftDetectionFailedReason))
 			g.Expect(statusCondition.Message).To(ContainSubstring("semver"))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
@@ -359,7 +359,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushComponent(ctx, ocmClient, svc1, new("stable"))
 		ocm.PushComponent(ctx, ocmClient, svc2, new("stable"))
 
-		vectorConfig := galaxy.VectorConfig{
+		vectorConfig := konfidence.VectorConfig{
 			Features: &runtime.RawExtension{Raw: []byte(`{"test":"1234"}`)},
 			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc"}`)},
 		}
@@ -375,10 +375,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows NoDriftDetected")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateNoDriftDetectedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateNoDriftDetectedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -400,7 +400,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushComponent(ctx, ocmClient, svc1, new("stable"))
 		ocm.PushComponent(ctx, ocmClient, svc2, new("stable"))
 
-		vectorConfig := galaxy.VectorConfig{
+		vectorConfig := konfidence.VectorConfig{
 			Features: &runtime.RawExtension{Raw: []byte(`{"test":"1234"}`)},
 			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc"}`)},
 		}
@@ -411,7 +411,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable", vectorConfigContent)
 
 		By("creating a VectorTemplate CR")
-		newVectorConfig := galaxy.VectorConfig{
+		newVectorConfig := konfidence.VectorConfig{
 			Features: &runtime.RawExtension{Raw: []byte(`{"label":"Test"}`)},
 			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc", "dbPort":3306}`)},
 		}
@@ -422,10 +422,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateVectorCreatedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -457,7 +457,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushVector(ctx, ocmClient, versionVector, []compref.Ref{svc1, svc2}, "stable", ocm.SampleVectorConfig())
 
 		By("creating a VectorTemplate CR")
-		newVectorConfig := galaxy.VectorConfig{
+		newVectorConfig := konfidence.VectorConfig{
 			Features: &runtime.RawExtension{Raw: []byte(`{"label":"Test"}`)},
 			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc", "dbPort":3306}`)},
 		}
@@ -468,10 +468,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateVectorCreatedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 
@@ -500,7 +500,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushComponent(ctx, ocmClient, svc1, new("stable"))
 		ocm.PushComponent(ctx, ocmClient, svc2, new("stable"))
 
-		vectorConfig := galaxy.VectorConfig{
+		vectorConfig := konfidence.VectorConfig{
 			Features: &runtime.RawExtension{Raw: []byte(`{"test":"1234"}`)},
 			Authored: &runtime.RawExtension{Raw: []byte(`{"cfg":"abc"}`)},
 		}
@@ -516,10 +516,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		By("verifying CR status shows VectorCreated")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vectorTemplate), vectorTemplate)).To(Succeed())
-			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, galaxy.VectorTemplateReadyCondition)
+			statusCondition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
 			g.Expect(statusCondition).NotTo(BeNil(), "Ready condition should be set")
 			g.Expect(statusCondition.Status).To(Equal(metav1.ConditionTrue))
-			g.Expect(statusCondition.Reason).To(Equal(galaxy.VectorTemplateVectorCreatedReason))
+			g.Expect(statusCondition.Reason).To(Equal(konfidence.VectorTemplateVectorCreatedReason))
 			g.Expect(statusCondition.ObservedGeneration).To(Equal(vectorTemplate.Generation))
 		}, timeout, interval).Should(Succeed())
 

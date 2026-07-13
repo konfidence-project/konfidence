@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/template"
 	testocm "github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
@@ -50,7 +50,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 
 			createStageConfiguration(ctx, StageConfiguration, StageDev, vectorV100)
 
-			stageConfiguration := &galaxy.StageConfiguration{}
+			stageConfiguration := &konfidence.StageConfiguration{}
 			stageConfigurationLookupKey := types.NamespacedName{Name: StageConfiguration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
@@ -58,14 +58,14 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				g.Expect(stageConfiguration.Spec.Vector).To(Equal(vectorV100))
 				g.Expect(stageConfiguration.Spec.TargetNamespace).To(Equal(TargetNamespace))
 				g.Expect(stageConfiguration.Status.Conditions).To(HaveLen(1))
-				g.Expect(stageConfiguration.Status.Conditions[0].Type).To(Equal(galaxy.StageConfigurationReadyCondition))
+				g.Expect(stageConfiguration.Status.Conditions[0].Type).To(Equal(konfidence.StageConfigurationReadyCondition))
 				g.Expect(stageConfiguration.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
 			}, timeout, interval).Should(Succeed())
 
 			stageTemplate := createStageTemplate(*stageConfiguration, vectorV100)
 			var originalTemplate template.StageTemplate
 
-			stageSync := &galaxy.StageSync{}
+			stageSync := &konfidence.StageSync{}
 			stageSyncLookupKey := types.NamespacedName{Name: StageSyncDev, Namespace: TargetNamespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageSyncLookupKey, stageSync)).To(Succeed())
@@ -98,7 +98,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 
 			var stageTemplate template.StageTemplate
 
-			stageSync := &galaxy.StageSync{}
+			stageSync := &konfidence.StageSync{}
 			stageSyncLookupKey := types.NamespacedName{Name: StageSyncDev, Namespace: TargetNamespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageSyncLookupKey, stageSync)).To(Succeed())
@@ -109,7 +109,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 
 			createStageConfiguration(ctx, StageConfiguration, StageDev, vectorLatest)
 
-			stageConfiguration := &galaxy.StageConfiguration{}
+			stageConfiguration := &konfidence.StageConfiguration{}
 			stageConfigurationLookupKey := types.NamespacedName{Name: StageConfiguration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
@@ -127,7 +127,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
 				g.Expect(stageConfiguration.Status.Conditions).To(HaveLen(1))
-				g.Expect(stageConfiguration.Status.Conditions[0].Type).To(Equal(galaxy.StageConfigurationReadyCondition))
+				g.Expect(stageConfiguration.Status.Conditions[0].Type).To(Equal(konfidence.StageConfigurationReadyCondition))
 				g.Expect(stageConfiguration.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
 			}, timeout, interval).Should(Succeed())
 

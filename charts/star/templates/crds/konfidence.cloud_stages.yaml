@@ -8,40 +8,35 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.20.0
   labels:
 {{- include "star.crdLabels" . | nindent 4 }}
-  name: vectormigrations.star.konfidence.cloud
+  name: stages.konfidence.cloud
 spec:
-  group: star.konfidence.cloud
+  group: konfidence.cloud
   names:
     categories:
     - konfidence
     - kden
-    kind: VectorMigration
-    listKind: VectorMigrationList
-    plural: vectormigrations
-    singular: vectormigration
+    kind: Stage
+    listKind: StageList
+    plural: stages
+    singular: stage
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: The stage version
-      jsonPath: .spec.stageVersion
-      name: Stage-Version
+    - description: Ready status
+      jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
       type: string
-    - description: The deployment vector
-      jsonPath: .spec.vector
+    - description: Age
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .spec.vector
       name: Vector
-      type: string
-    - description: The latest condition type
-      jsonPath: .status.conditions[-1:].type
-      name: Condition
-      type: string
-    - description: The latest condition status
-      jsonPath: .status.conditions[-1:].status
-      name: Condition-Status
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VectorMigration is the Schema for the vectormigrations API
+        description: Stage is the Schema for the stages API.
         properties:
           apiVersion:
             description: |-
@@ -61,20 +56,17 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of VectorMigration
+            description: StageSpec defines the desired state of Stage.
             properties:
-              stageVersion:
-                type: string
               vector:
                 description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
                 type: string
             required:
-            - stageVersion
             - vector
             type: object
           status:
-            description: status defines the observed state of VectorMigration
+            description: StageStatus defines the observed state of Stage.
             properties:
               conditions:
                 items:
@@ -132,9 +124,37 @@ spec:
                   - type
                   type: object
                 type: array
+              latestVectorDeploymentRef:
+                description: TypedObjectReference contains enough information to let
+                  you locate the typed referenced object
+                properties:
+                  apiGroup:
+                    description: |-
+                      APIGroup is the group for the resource being referenced.
+                      If APIGroup is not specified, the specified Kind must be in the core API group.
+                      For any other third-party types, APIGroup is required.
+                    type: string
+                  kind:
+                    description: Kind is the type of resource being referenced
+                    type: string
+                  name:
+                    description: Name is the name of resource being referenced
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace is the namespace of resource being referenced
+                      Note that when a namespace is specified, a gateway.networking.k8s.io/ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details.
+                      (Alpha) This field requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              vectorHistory:
+                items:
+                  type: string
+                type: array
             type: object
-        required:
-        - spec
         type: object
     served: true
     storage: true

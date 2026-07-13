@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	credentialsruntime "ocm.software/open-component-model/bindings/go/credentials/spec/config/runtime"
 	ocicredentials "ocm.software/open-component-model/bindings/go/oci/credentials"
@@ -62,14 +62,14 @@ func ResolverFromRefs(
 	return buildGraph(ctx, cfg)
 }
 
-// ResolverFromCredentials is the galaxy domain mapper — it translates *galaxy.Credentials
+// ResolverFromCredentials is the galaxy domain mapper — it translates *konfidence.Credentials
 // to []Ref and delegates to ResolverFromRefs.
 // Returns (nil, nil) if creds is nil or creds.OCM is nil.
 func ResolverFromCredentials(
 	ctx context.Context,
 	k8sClient client.Reader,
 	namespace string,
-	creds *galaxy.Credentials,
+	creds *konfidence.Credentials,
 ) (credentials.Resolver, error) {
 	if creds == nil || creds.OCM == nil {
 		return nil, nil

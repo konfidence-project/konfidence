@@ -3,7 +3,7 @@ package usage
 import (
 	"context"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/vectoractivation/internal/usage/mocks"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -20,8 +20,8 @@ var _ = Describe("active usage tests", func() {
 		ctx          context.Context
 		mockCtrl     *gomock.Controller
 		clientMock   *MockClient
-		stage        *star.Stage
-		stageVersion *star.StageVersion
+		stage        *konfidence.Stage
+		stageVersion *konfidence.StageVersion
 		scheme       *runtime.Scheme
 	)
 	BeforeEach(func() {
@@ -29,16 +29,16 @@ var _ = Describe("active usage tests", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		clientMock = NewMockClient(mockCtrl)
 		scheme = runtime.NewScheme()
-		_ = star.AddToScheme(scheme)
+		_ = konfidence.AddToScheme(scheme)
 
-		stage = &star.Stage{
+		stage = &konfidence.Stage{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "stage-test",
 				Namespace: "default",
 				UID:       "12345",
 			},
 		}
-		stageVersion = &star.StageVersion{
+		stageVersion = &konfidence.StageVersion{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "stage-version-test",
 				Namespace: "default",
@@ -53,7 +53,7 @@ var _ = Describe("active usage tests", func() {
 
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.Any()).
 				DoAndReturn(func(_ context.Context, namespacedName types.NamespacedName, obj any, _ ...any) error {
-					usage := obj.(*star.StageVersionUsage)
+					usage := obj.(*konfidence.StageVersionUsage)
 					usage.Name = name
 					usage.Namespace = namespace
 					return nil
@@ -75,7 +75,7 @@ var _ = Describe("active usage tests", func() {
 		It("should create active usage", func() {
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 			clientMock.EXPECT().Scheme().Return(scheme)
-			newUsage, err := CreateActiveUsage(ctx, clientMock, stage, &star.StageVersion{})
+			newUsage, err := CreateActiveUsage(ctx, clientMock, stage, &konfidence.StageVersion{})
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(newUsage).ToNot(BeNil())
@@ -85,7 +85,7 @@ var _ = Describe("active usage tests", func() {
 
 		It("should update active usage", func() {
 			clientMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)
-			usage := &star.StageVersionUsage{
+			usage := &konfidence.StageVersionUsage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "usage-to-update",
 					Namespace: "default",
@@ -100,13 +100,13 @@ var _ = Describe("active usage tests", func() {
 			clientMock.EXPECT().Create(ctx, gomock.Any()).Return(nil)
 			clientMock.EXPECT().Scheme().Return(scheme)
 
-			err := CreateOrUpdateActiveUsage(ctx, clientMock, nil, stage, &star.StageVersion{})
+			err := CreateOrUpdateActiveUsage(ctx, clientMock, nil, stage, &konfidence.StageVersion{})
 
 			Expect(err).ToNot(HaveOccurred())
 
 			clientMock.EXPECT().Update(ctx, gomock.Any()).Return(nil)
 
-			usage := &star.StageVersionUsage{
+			usage := &konfidence.StageVersionUsage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "usage-to-update",
 					Namespace: "default",
@@ -119,26 +119,26 @@ var _ = Describe("active usage tests", func() {
 		})
 
 		It("is newer than current active usage", func() {
-			stageVersion := &star.StageVersion{
-				Spec: star.StageVersionSpec{
+			stageVersion := &konfidence.StageVersion{
+				Spec: konfidence.StageVersionSpec{
 					StageGeneration: int64(3),
 				},
 			}
-			activeUsage := &star.StageVersionUsage{
+			activeUsage := &konfidence.StageVersionUsage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "active-usage",
 					Namespace: "default",
 				},
-				Spec: star.StageVersionUsageSpec{
-					StageVersionRef: &star.StageVersionReference{Name: "active-stage-version"},
+				Spec: konfidence.StageVersionUsageSpec{
+					StageVersionRef: &konfidence.StageVersionReference{Name: "active-stage-version"},
 				},
 			}
-			activeStageVersion := &star.StageVersion{Spec: star.StageVersionSpec{
+			activeStageVersion := &konfidence.StageVersion{Spec: konfidence.StageVersionSpec{
 				StageGeneration: int64(2),
 			}}
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.Any()).DoAndReturn(
 				func(_ context.Context, _ types.NamespacedName, obj any, _ ...any) error {
-					stagerVersion := obj.(*star.StageVersion)
+					stagerVersion := obj.(*konfidence.StageVersion)
 					*stagerVersion = *activeStageVersion
 					return nil
 				})

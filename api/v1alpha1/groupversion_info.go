@@ -1,6 +1,8 @@
-// Package v1alpha1 contains API Schema definitions for the galaxy v1alpha1 API group.
+// Package v1alpha1 contains API Schema definitions for the konfidence v1alpha1 API group.
+// It covers both galaxy (management-plane) and star (workload-plane) kinds, which share
+// a single API group; galaxy vs. star remains a code-organization convention (ADR-0022).
 // +kubebuilder:object:generate=true
-// +groupName=galaxy.konfidence.cloud
+// +groupName=konfidence.cloud
 package v1alpha1
 
 import (
@@ -10,7 +12,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects.
-	GroupVersion = schema.GroupVersion{Group: "galaxy.konfidence.cloud", Version: "v1alpha1"}
+	GroupVersion = schema.GroupVersion{Group: "konfidence.cloud", Version: "v1alpha1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

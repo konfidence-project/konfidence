@@ -54,25 +54,14 @@ rules:
   - patch
   - update
 - apiGroups:
-  - galaxy.konfidence.cloud
-  resources:
-  - stagesyncs
-  - stagesyncs/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - star.konfidence.cloud
+  - konfidence.cloud
   resources:
   - activationtaskexecutions
   - activationtaskregistrations
   - artifactdeployments
   - stages
+  - stagesyncs
+  - stagesyncs/status
   - stageversions
   - stageversionusages
   - taskexecutions
@@ -89,7 +78,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - star.konfidence.cloud
+  - konfidence.cloud
   resources:
   - activationtaskexecutions/status
   - activationtaskregistrations/status
@@ -106,7 +95,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - star.konfidence.cloud
+  - konfidence.cloud
   resources:
   - vectordata
   verbs:
@@ -116,7 +105,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - star.konfidence.cloud
+  - konfidence.cloud
   resources:
   - vectordeployments/finalizers
   verbs:

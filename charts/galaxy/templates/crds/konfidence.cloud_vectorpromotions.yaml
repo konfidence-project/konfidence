@@ -4,34 +4,42 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-{{- include "star.crdAnnotations" . | nindent 4 }}
+{{- include "galaxy.crdAnnotations" . | nindent 4 }}
     controller-gen.kubebuilder.io/version: v0.20.0
   labels:
-{{- include "star.crdLabels" . | nindent 4 }}
-  name: vectordata.star.konfidence.cloud
+{{- include "galaxy.crdLabels" . | nindent 4 }}
+  name: vectorpromotions.konfidence.cloud
 spec:
-  group: star.konfidence.cloud
+  group: konfidence.cloud
   names:
-    categories:
-    - konfidence
-    - kden
-    kind: VectorData
-    listKind: VectorDataList
-    plural: vectordata
-    singular: vectordata
+    kind: VectorPromotion
+    listKind: VectorPromotionList
+    plural: vectorpromotions
+    singular: vectorpromotion
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=="Ready")].status
-      name: Ready
+    - description: The referenced VectorPromotionConfig
+      jsonPath: .spec.vectorPromotionConfigRef
+      name: Config
       type: string
-    - jsonPath: .status.conditions[?(@.type=="Ready")].reason
+    - description: Promotion was successful
+      jsonPath: .status.conditions[0].status
+      name: Promotion Succeeded
+      type: string
+    - description: Promotion condition reason
+      jsonPath: .status.conditions[0].reason
       name: Reason
       type: string
+    - description: Age
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VectorData is the schema for the vectordata API.
+        description: VectorPromotion triggers a one-time execution of a promotion
+          flow defined by a VectorPromotionConfig.
         properties:
           apiVersion:
             description: |-
@@ -51,55 +59,24 @@ spec:
           metadata:
             type: object
           spec:
-            description: |-
-              VectorDataSpec is the LCP→landscape-orchestrator contract for vector-scoped data.
-              Star resolves the OCM envelope `{features, authored}` and aggregates per-AD
-              DeploymentResults; the landscape orchestrator materialises the payload on its
-              target runtime (ConfigMap on K8s, etc.).
+            description: VectorPromotionSpec defines the desired state of VectorPromotion.
             properties:
-              authored:
-                description: Authored carries the optional "authored" subset of the
-                  OCM envelope, verbatim JSON.
-                type: object
-                x-kubernetes-preserve-unknown-fields: true
-              deploymentResults:
-                additionalProperties:
-                  description: |-
-                    DeploymentResult contains a single output produced by a deployer. These results are used to transport information
-                    from the deployer to later phases of the vector lifecycle.
-                  properties:
-                    name:
-                      description: Name is a unique identifier for the result within
-                        an ArtifactDeploymentStatus.
-                      type: string
-                    spec:
-                      description: Spec contains deployer-specific structured data.
-                        Its format is determined by the Type field.
-                      type: object
-                      x-kubernetes-preserve-unknown-fields: true
-                    type:
-                      description: Type describes the structure contained in Spec.
-                        Each deployer may define multiple result types.
-                      type: string
-                  required:
-                  - name
-                  - spec
-                  - type
-                  type: object
+              ttlAfterFinished:
                 description: |-
-                  DeploymentResults aggregated from underlying ArtifactDeployments, keyed
-                  "<componentName>/<resultName>".
-                type: object
-              features:
-                description: Features carries the optional "features" subset of the
-                  OCM envelope, verbatim JSON.
-                type: object
-                x-kubernetes-preserve-unknown-fields: true
+                  TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
+                  Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
+                  the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
+                type: string
+              vectorPromotionConfigRef:
+                description: VectorPromotionConfigRef is the name of the VectorPromotionConfig
+                  that defines the promotion flow to execute.
+                minLength: 1
+                type: string
+            required:
+            - vectorPromotionConfigRef
             type: object
-            x-kubernetes-validations:
-            - message: VectorData spec is immutable after it has been set
-              rule: self == oldSelf
           status:
+            description: VectorPromotionStatus defines the observed state of VectorPromotion.
             properties:
               conditions:
                 items:
@@ -159,9 +136,6 @@ spec:
                 type: array
             type: object
         type: object
-        x-kubernetes-validations:
-        - message: Spec is required once set
-          rule: '!has(oldSelf.spec) || has(self.spec)'
     served: true
     storage: true
     subresources:

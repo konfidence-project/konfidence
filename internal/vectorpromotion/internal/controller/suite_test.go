@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
@@ -140,7 +140,7 @@ var _ = BeforeSuite(func() {
 	DeferCleanup(func() { Expect(testEnv.Stop()).To(Succeed()) })
 
 	By("registering schemes")
-	Expect(galaxy.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(konfidence.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	By("generating PKI key pair")
 	vectorSigningKey = pki.GenerateRSAKeyPair("vector-signing-key")
@@ -191,8 +191,8 @@ func startManager() {
 	// Wrap the production factory with the failClientCreationSecret guard used by
 	// existing tests to simulate credential resolution failures.
 	baseFactory := NewCacheFactory(log, limiter)
-	wrappedFactory := clientcache.Factory[*galaxy.VectorPromotionConfig, promotion.OcmPort](
-		func(ctx context.Context, k8sReader client.Reader, cr *galaxy.VectorPromotionConfig) (promotion.OcmPort, error) {
+	wrappedFactory := clientcache.Factory[*konfidence.VectorPromotionConfig, promotion.OcmPort](
+		func(ctx context.Context, k8sReader client.Reader, cr *konfidence.VectorPromotionConfig) (promotion.OcmPort, error) {
 			if cr.Spec.Credentials != nil && cr.Spec.Credentials.OCM != nil {
 				for _, ref := range cr.Spec.Credentials.OCM.Refs {
 					if ref.Name == failClientCreationSecret {
@@ -206,7 +206,7 @@ func startManager() {
 
 	promotionCache, err := clientcache.New(
 		clientcache.DefaultClientCacheSize,
-		clientcache.DefaultExtract[*galaxy.VectorPromotionConfig],
+		clientcache.DefaultExtract[*konfidence.VectorPromotionConfig],
 		wrappedFactory,
 	)
 	Expect(err).NotTo(HaveOccurred())

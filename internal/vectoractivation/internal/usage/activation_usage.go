@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -13,19 +13,19 @@ import (
 )
 
 func CreateActivationUsage(
-	ctx context.Context, c client.Client, stage *star.Stage, activation *star.VectorActivation,
-) (*star.StageVersionUsage, error) {
+	ctx context.Context, c client.Client, stage *konfidence.Stage, activation *konfidence.VectorActivation,
+) (*konfidence.StageVersionUsage, error) {
 	log := logf.FromContext(ctx)
 
-	stageVersionUsage := &star.StageVersionUsage{
+	stageVersionUsage := &konfidence.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      activationUsageName(stage, activation),
 			Namespace: stage.Namespace,
 			Labels:    map[string]string{ActivationStageVersionUsage: stage.Name},
 		},
-		Spec: star.StageVersionUsageSpec{
+		Spec: konfidence.StageVersionUsageSpec{
 			Reason:          StageVersionUsageActivationType,
-			StageVersionRef: &star.StageVersionReference{Name: activation.Spec.StageVersion},
+			StageVersionRef: &konfidence.StageVersionReference{Name: activation.Spec.StageVersion},
 		},
 	}
 	if err := controllerutil.SetOwnerReference(activation, stageVersionUsage, c.Scheme()); err != nil {
@@ -42,10 +42,10 @@ func CreateActivationUsage(
 }
 
 func DeleteActivationUsage(
-	ctx context.Context, c client.Client, stage *star.Stage, activation *star.VectorActivation,
+	ctx context.Context, c client.Client, stage *konfidence.Stage, activation *konfidence.VectorActivation,
 ) error {
 	log := logf.FromContext(ctx)
-	activationUsage := &star.StageVersionUsage{
+	activationUsage := &konfidence.StageVersionUsage{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      activationUsageName(stage, activation),
 			Namespace: stage.Namespace,
@@ -61,6 +61,6 @@ func DeleteActivationUsage(
 	return nil
 }
 
-func activationUsageName(stage *star.Stage, activation *star.VectorActivation) string {
+func activationUsageName(stage *konfidence.Stage, activation *konfidence.VectorActivation) string {
 	return fmt.Sprintf("%s-%s-activation", stage.Name, activation.Name)
 }

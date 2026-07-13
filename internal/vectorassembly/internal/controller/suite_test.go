@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
@@ -120,7 +120,7 @@ var _ = BeforeSuite(func() {
 	DeferCleanup(func() { Expect(testEnv.Stop()).To(Succeed()) })
 
 	By("registering schemes")
-	Expect(galaxy.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(konfidence.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	By("generating PKI key pairs")
 	vectorSigningKey = pki.GenerateRSAKeyPair("vector-signing-key")
@@ -161,7 +161,7 @@ func startManager() {
 
 	cache, err := clientcache.New(
 		clientcache.DefaultClientCacheSize,
-		clientcache.DefaultExtract[*galaxy.VectorTemplate],
+		clientcache.DefaultExtract[*konfidence.VectorTemplate],
 		NewCacheFactory(log, limiter),
 	)
 	Expect(err).NotTo(HaveOccurred())

@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -42,12 +42,12 @@ const (
 type VectorPromotionReconciler struct {
 	Mgr    mcmanager.Manager
 	Scheme *runtime.Scheme
-	Cache  *clientcache.Cache[*galaxy.VectorPromotionConfig, promotion.OcmPort]
+	Cache  *clientcache.Cache[*konfidence.VectorPromotionConfig, promotion.OcmPort]
 }
 
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotions/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
 
 func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx).WithValues("cluster", req.ClusterName)
@@ -61,7 +61,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 	clusterClient := cluster.GetClient()
 	recorder := cluster.GetEventRecorder(VectorPromotionControllerName)
 
-	vectorPromotion := &galaxy.VectorPromotion{}
+	vectorPromotion := &konfidence.VectorPromotion{}
 	if err := clusterClient.Get(ctx, req.NamespacedName, vectorPromotion); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -77,7 +77,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 			fmt.Sprintf("%s Please check previous events for details.", logStr))
 		if err := setAndPatchPromotionCondition(
 			ctx, log, clusterClient, recorder, vectorPromotion, original,
-			metav1.ConditionUnknown, galaxy.ReasonPromotionStatusUnknown, logStr); err != nil {
+			metav1.ConditionUnknown, konfidence.ReasonPromotionStatusUnknown, logStr); err != nil {
 			return ctrl.Result{}, err
 		}
 
@@ -91,7 +91,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 			err = fmt.Errorf("promotion configuration %q not found: %w", vectorPromotion.Spec.VectorPromotionConfigRef, err)
 			if patchErr := setAndPatchPromotionCondition(
 				ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
-				galaxy.ReasonPromotionConfigurationNotFound, err.Error()); patchErr != nil {
+				konfidence.ReasonPromotionConfigurationNotFound, err.Error()); patchErr != nil {
 				return ctrl.Result{}, errors.Join(err, patchErr)
 			}
 			return ctrl.Result{}, reconcile.TerminalError(err)
@@ -101,7 +101,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		err = fmt.Errorf("failed to fetch promotion configuration %q: %w", vectorPromotion.Spec.VectorPromotionConfigRef, err)
 		if patchErr := setAndPatchPromotionCondition(
 			ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
-			galaxy.ReasonPromotionFailed, err.Error()); patchErr != nil {
+			konfidence.ReasonPromotionFailed, err.Error()); patchErr != nil {
 			return ctrl.Result{}, errors.Join(err, patchErr)
 		}
 		return ctrl.Result{}, err
@@ -112,7 +112,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		log.Error(err, "failed to parse promotion parameters")
 		if patchError := setAndPatchPromotionCondition(
 			ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
-			galaxy.ReasonInvalidPromotionConfiguration, err.Error()); patchError != nil {
+			konfidence.ReasonInvalidPromotionConfiguration, err.Error()); patchError != nil {
 			return ctrl.Result{}, errors.Join(err, patchError)
 		}
 		return ctrl.Result{}, reconcile.TerminalError(err)
@@ -124,7 +124,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 		err = fmt.Errorf("failed to build OCM clients: %w", err)
 		if patchErr := setAndPatchPromotionCondition(
 			ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
-			galaxy.ReasonPromotionFailed, err.Error()); patchErr != nil {
+			konfidence.ReasonPromotionFailed, err.Error()); patchErr != nil {
 			return ctrl.Result{}, errors.Join(err, patchErr)
 		}
 		return ctrl.Result{}, err
@@ -135,7 +135,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 	recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionStarting", EventActionReconciling, msgStr)
 	if err := setAndPatchPromotionCondition(
 		ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionFalse,
-		galaxy.ReasonPromotionRunning, "Promotion is currently running"); err != nil {
+		konfidence.ReasonPromotionRunning, "Promotion is currently running"); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -154,7 +154,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req mcreconci
 	recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionSuccessful", EventActionReconciling, msgStr)
 	if err := setAndPatchPromotionCondition(
 		ctx, log, clusterClient, recorder, vectorPromotion, original, metav1.ConditionTrue,
-		galaxy.ReasonPromotionSucceeded, "Promotion completed successfully"); err != nil {
+		konfidence.ReasonPromotionSucceeded, "Promotion completed successfully"); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -166,11 +166,11 @@ func setAndPatchPromotionCondition(
 	log logr.Logger,
 	clusterClient client.Client,
 	recorder events.EventRecorder,
-	vectorPromotion, original *galaxy.VectorPromotion,
+	vectorPromotion, original *konfidence.VectorPromotion,
 	status metav1.ConditionStatus,
 	reason, message string) error {
 	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
-		Type:               galaxy.ConditionTypeSucceeded,
+		Type:               konfidence.ConditionTypeSucceeded,
 		Status:             status,
 		ObservedGeneration: vectorPromotion.Generation,
 		Reason:             reason,
@@ -182,14 +182,14 @@ func setAndPatchPromotionCondition(
 				vectorPromotion.Name, vectorPromotion.Namespace))
 			recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch,
 				fmt.Sprintf("wanted to set condition of type %q to status %q with reason %q and message %q "+
-					"but failed with error: %s", galaxy.ConditionTypeSucceeded, status, reason, message, err.Error()))
+					"but failed with error: %s", konfidence.ConditionTypeSucceeded, status, reason, message, err.Error()))
 			return fmt.Errorf("failed to patch VectorPromotion status: %w", err)
 		}
 	}
 	return nil
 }
 
-func parsePromotionParameters(config *galaxy.VectorPromotionConfig) (source, target *compref.Ref, err error) {
+func parsePromotionParameters(config *konfidence.VectorPromotionConfig) (source, target *compref.Ref, err error) {
 	source, err = konfcompref.Parse(config.Spec.Source)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse source reference %q: %w", config.Spec.Source, err)
@@ -208,7 +208,7 @@ func parsePromotionParameters(config *galaxy.VectorPromotionConfig) (source, tar
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorPromotionReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
-		For(&galaxy.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
+		For(&konfidence.VectorPromotion{}, mcbuilder.WithPredicates(predicate.Funcs{
 			CreateFunc:  func(e event.CreateEvent) bool { return true },
 			UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 			DeleteFunc:  func(e event.DeleteEvent) bool { return false },

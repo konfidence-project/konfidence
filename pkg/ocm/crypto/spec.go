@@ -3,7 +3,7 @@ package crypto
 import (
 	"crypto"
 
-	"github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	norm "ocm.software/open-component-model/bindings/go/descriptor/normalisation/json/v4alpha1"
 	rsav1alpha1 "ocm.software/open-component-model/bindings/go/rsa/signing/v1alpha1"
 )
@@ -60,9 +60,9 @@ func DefaultSignatureSpec(name string, issuer *string) SignatureSpec {
 	)
 }
 
-// SpecsFromVerify converts a *v1alpha1.Verify into a []SignatureSpec, one per signature entry.
+// SpecsFromVerify converts a *konfidence.Verify into a []SignatureSpec, one per signature entry.
 // Returns an empty slice if v is nil — the builder will produce a NoopVerifier.
-func SpecsFromVerify(v *v1alpha1.Verify) []SignatureSpec {
+func SpecsFromVerify(v *konfidence.Verify) []SignatureSpec {
 	if v == nil {
 		return []SignatureSpec{}
 	}
@@ -73,9 +73,9 @@ func SpecsFromVerify(v *v1alpha1.Verify) []SignatureSpec {
 	return specs
 }
 
-// SpecsFromSign converts a *v1alpha1.Sign into a []SignatureSpec, one per signature entry.
+// SpecsFromSign converts a *konfidence.Sign into a []SignatureSpec, one per signature entry.
 // Returns an empty slice if s is nil — the builder will produce a NoopSigner.
-func SpecsFromSign(s *v1alpha1.Sign) []SignatureSpec {
+func SpecsFromSign(s *konfidence.Sign) []SignatureSpec {
 	if s == nil {
 		return []SignatureSpec{}
 	}
@@ -86,9 +86,9 @@ func SpecsFromSign(s *v1alpha1.Sign) []SignatureSpec {
 	return specs
 }
 
-// NewSignatureSpecFromV1alpha1Galaxy constructs a SignatureSpec from a v1alpha1.Signature.
-// It takes a DefaultSignatureSpec as a base and overrides any corresponding fields that are set on the input v1alpha1.Signature.
-func NewSignatureSpecFromV1alpha1Galaxy(signature v1alpha1.Signature) SignatureSpec {
+// NewSignatureSpecFromV1alpha1Galaxy constructs a SignatureSpec from a konfidence.Signature.
+// It takes a DefaultSignatureSpec as a base and overrides any corresponding fields that are set on the input konfidence.Signature.
+func NewSignatureSpecFromV1alpha1Galaxy(signature konfidence.Signature) SignatureSpec {
 	spec := DefaultSignatureSpec(signature.Name, signature.Issuer)
 	if signature.Algorithm != nil {
 		spec.Algorithm = rsav1alpha1.SignatureAlgorithm(*signature.Algorithm)

@@ -7,7 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	vectorocm "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
@@ -19,8 +19,8 @@ import (
 // NewCacheFactory returns the production clientcache factory for VectorAssembly.
 // Exported so that setup.go and envtest suites both use the exact same production
 // code path — no duplication, no drift.
-func NewCacheFactory(log logr.Logger, limiter crypto.Limiter) clientcache.Factory[*v1alpha1.VectorTemplate, vector.OcmPort] {
-	return func(ctx context.Context, k8sClient client.Reader, cr *v1alpha1.VectorTemplate) (vector.OcmPort, error) {
+func NewCacheFactory(log logr.Logger, limiter crypto.Limiter) clientcache.Factory[*konfidence.VectorTemplate, vector.OcmPort] {
+	return func(ctx context.Context, k8sClient client.Reader, cr *konfidence.VectorTemplate) (vector.OcmPort, error) {
 		resolver, err := credentials.ResolverFromCredentials(ctx, k8sClient, cr.Namespace, cr.Spec.Credentials)
 		if err != nil {
 			return nil, fmt.Errorf("resolving credentials: %w", err)

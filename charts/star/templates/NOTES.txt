@@ -23,5 +23,5 @@ protect existing custom resources.
 
 CRD installation was disabled (crd.install=false). Make sure the star
 CRDs are present in the cluster, otherwise reconciliation will fail:
-  kubectl get crd | grep star.konfidence.cloud
+  kubectl get crd | grep konfidence.cloud
 {{- end }}

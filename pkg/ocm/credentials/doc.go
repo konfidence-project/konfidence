@@ -3,7 +3,7 @@
 // OCI registries and resolve signing key material.
 //
 // The single entry point is [ResolverFromCredentials]. It accepts a
-// *galaxy.Credentials value read from a CR spec, reads the referenced
+// *konfidence.Credentials value read from a CR spec, reads the referenced
 // Secrets and ConfigMaps from the Kubernetes API, and assembles an OCM
 // credential graph. The graph is returned as a [credentials.Resolver] that
 // both [pkg/ocm/repository] (OCI transport) and [pkg/ocm/crypto] (signature

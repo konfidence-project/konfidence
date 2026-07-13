@@ -8,8 +8,7 @@ import (
 	"strings"
 	"time"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -44,7 +43,7 @@ var clusterRegex = regexp.MustCompile(clusterPattern)
 // StageConfigurationReconciler reconciles a StageConfiguration object
 type StageConfigurationReconciler struct {
 	Mgr        mcmanager.Manager
-	Cache      *clientcache.Cache[*galaxy.StageConfiguration, ports.VectorPort]
+	Cache      *clientcache.Cache[*konfidence.StageConfiguration, ports.VectorPort]
 	Scheme     *runtime.Scheme
 	RestConfig *rest.Config
 }
@@ -53,7 +52,7 @@ func NewStageConfigurationReconciler(
 	mgr mcmanager.Manager,
 	scheme *runtime.Scheme,
 	restConfig *rest.Config,
-	cache *clientcache.Cache[*galaxy.StageConfiguration, ports.VectorPort],
+	cache *clientcache.Cache[*konfidence.StageConfiguration, ports.VectorPort],
 ) *StageConfigurationReconciler {
 	return &StageConfigurationReconciler{
 		Mgr:        mgr,
@@ -63,10 +62,10 @@ func NewStageConfigurationReconciler(
 	}
 }
 
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stageconfigurations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stagesyncs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=galaxy.konfidence.cloud,resources=stagesyncs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageconfigurations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stagesyncs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stagesyncs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
@@ -88,7 +87,7 @@ func (r *StageConfigurationReconciler) Reconcile(ctx context.Context, req mcreco
 	recorder := cluster.GetEventRecorder(stageConfigurationControllerName)
 
 	// get stageConfiguration
-	stageConfiguration := &galaxy.StageConfiguration{}
+	stageConfiguration := &konfidence.StageConfiguration{}
 	if err := clusterClient.Get(ctx, req.NamespacedName, stageConfiguration); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -117,7 +116,7 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 	ctx context.Context,
 	clusterClient client.Client,
 	clusterName string,
-	stageConfiguration *galaxy.StageConfiguration,
+	stageConfiguration *konfidence.StageConfiguration,
 	recorder events.EventRecorder,
 ) error {
 	log := logf.FromContext(ctx)
@@ -178,8 +177,8 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 
 func (r *StageConfigurationReconciler) createOrUpdateStageSync(
 	ctx context.Context, targetClient client.Client,
-	stageConfiguration *galaxy.StageConfiguration, vector string,
-) (*galaxy.StageSync, controllerutil.OperationResult, error) {
+	stageConfiguration *konfidence.StageConfiguration, vector string,
+) (*konfidence.StageSync, controllerutil.OperationResult, error) {
 	stageSync, stageTemplateBytes, err := r.constructStageSync(stageConfiguration, vector)
 	if err != nil {
 		return nil, controllerutil.OperationResultNone, err
@@ -206,7 +205,9 @@ func (r *StageConfigurationReconciler) createOrUpdateStageSync(
 	return stageSync, operationResult, nil
 }
 
-func (r *StageConfigurationReconciler) constructStageSync(stageConfiguration *galaxy.StageConfiguration, vector string) (*galaxy.StageSync, []byte, error) {
+func (r *StageConfigurationReconciler) constructStageSync(
+	stageConfiguration *konfidence.StageConfiguration, vector string,
+) (*konfidence.StageSync, []byte, error) {
 	stageTemplate := r.constructStageTemplate(stageConfiguration, vector)
 	stageTemplateJSON, err := json.Marshal(stageTemplate)
 	if err != nil {
@@ -217,35 +218,35 @@ func (r *StageConfigurationReconciler) constructStageSync(stageConfiguration *ga
 	// TODO could e.g. use a digest that is computed using stage name and tenant
 	stageSyncName := fmt.Sprintf("sync-%s", stageConfiguration.Spec.Name)
 
-	return &galaxy.StageSync{
+	return &konfidence.StageSync{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageSyncName,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
-		Spec: galaxy.StageSyncSpec{
+		Spec: konfidence.StageSyncSpec{
 			StageTemplate: runtime.RawExtension{Raw: stageTemplateJSON},
 		},
 	}, stageTemplateJSON, nil
 }
 
-func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration *galaxy.StageConfiguration, vector string) *template.StageTemplate {
+func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration *konfidence.StageConfiguration, vector string) *template.StageTemplate {
 	// TODO replace APIVersion with a configured or determined value
 	return &template.StageTemplate{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       star.StageKind,
-			APIVersion: "star.konfidence.cloud/v1alpha1",
+			Kind:       konfidence.StageKind,
+			APIVersion: "konfidence.cloud/v1alpha1",
 		},
 		Metadata: template.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
-		Spec: star.StageSpec{
+		Spec: konfidence.StageSpec{
 			Vector: vector,
 		},
 	}
 }
 
-func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stageConfiguration *galaxy.StageConfiguration) (string, error) {
+func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stageConfiguration *konfidence.StageConfiguration) (string, error) {
 	// if kcp is used the target workspace is mandatory
 	if stageConfiguration.Spec.TargetWorkspace == nil || len(*stageConfiguration.Spec.TargetWorkspace) == 0 {
 		return "", fmt.Errorf("stage configuration does not contain a target workspace")
@@ -263,16 +264,16 @@ func (r *StageConfigurationReconciler) getTargetWorkspaceHost(host string, stage
 	return host[:separatorIdx] + clusterMarker + *stageConfiguration.Spec.TargetWorkspace, nil
 }
 
-func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stageConfiguration *galaxy.StageConfiguration, ready bool, message string) {
+func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stageConfiguration *konfidence.StageConfiguration, ready bool, message string) {
 	status := metav1.ConditionFalse
 	if ready {
 		status = metav1.ConditionTrue
 	}
 
 	meta.SetStatusCondition(&stageConfiguration.Status.Conditions, metav1.Condition{
-		Type:               galaxy.StageConfigurationReadyCondition,
+		Type:               konfidence.StageConfigurationReadyCondition,
 		Status:             status,
-		Reason:             galaxy.StageConfigurationReadyCondition,
+		Reason:             konfidence.StageConfigurationReadyCondition,
 		Message:            message,
 		ObservedGeneration: stageConfiguration.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -282,7 +283,7 @@ func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stage
 // SetupWithManager sets up the controller with the Manager.
 func (r *StageConfigurationReconciler) SetupWithManager(mgr mcmanager.Manager) error {
 	return mcbuilder.ControllerManagedBy(mgr).
-		For(&galaxy.StageConfiguration{}, mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&konfidence.StageConfiguration{}, mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named(stageConfigurationControllerName).
 		Complete(r)
 }

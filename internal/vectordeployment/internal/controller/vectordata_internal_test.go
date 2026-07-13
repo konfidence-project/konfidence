@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +26,7 @@ var _ events.EventRecorder = noopRecorder{}
 func newReconciler(t *testing.T, objects ...client.Object) (*VectorDeploymentReconciler, client.Client) {
 	t.Helper()
 	scheme := runtime.NewScheme()
-	if err := star.AddToScheme(scheme); err != nil {
+	if err := konfidence.AddToScheme(scheme); err != nil {
 		t.Fatalf("scheme: %v", err)
 	}
 	if err := corev1.AddToScheme(scheme); err != nil {
@@ -35,16 +35,16 @@ func newReconciler(t *testing.T, objects ...client.Object) (*VectorDeploymentRec
 	c := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(objects...).
-		WithStatusSubresource(&star.VectorDeployment{}, &star.VectorData{}).
+		WithStatusSubresource(&konfidence.VectorDeployment{}, &konfidence.VectorData{}).
 		Build()
 	return &VectorDeploymentReconciler{Client: c, Scheme: scheme, Recorder: noopRecorder{}}, c
 }
 
-func newVD(name string, results map[string]star.DeploymentResult) *star.VectorDeployment {
-	return &star.VectorDeployment{
+func newVD(name string, results map[string]konfidence.DeploymentResult) *konfidence.VectorDeployment {
+	return &konfidence.VectorDeployment{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "landscape-a", UID: types.UID("uid-" + name), Generation: 1},
-		Spec:       star.VectorDeploymentSpec{Vector: "https://example/vector:1.0.0"},
-		Status:     star.VectorDeploymentStatus{DeploymentResults: results},
+		Spec:       konfidence.VectorDeploymentSpec{Vector: "https://example/vector:1.0.0"},
+		Status:     konfidence.VectorDeploymentStatus{DeploymentResults: results},
 	}
 }
 
@@ -52,7 +52,7 @@ func newVD(name string, results map[string]star.DeploymentResult) *star.VectorDe
 // the features/authored subsets as RawExtension, plus the aggregated DeploymentResults.
 func TestHandleVectorData_CreatesWithSplitEnvelope(t *testing.T) {
 	envelope := []byte(`{"features":{"darkMode":true},"authored":{"db":{"host":"mysql"}}}`)
-	results := map[string]star.DeploymentResult{
+	results := map[string]konfidence.DeploymentResult{
 		"svc-a/result-1": {Name: "result-1", Type: "test", Spec: runtime.RawExtension{Raw: []byte(`{"endpoint":"http://a"}`)}},
 	}
 	vd := newVD("vd-1", results)
@@ -62,7 +62,7 @@ func TestHandleVectorData_CreatesWithSplitEnvelope(t *testing.T) {
 		t.Fatalf("handleVectorData: %v", err)
 	}
 
-	got := &star.VectorData{}
+	got := &konfidence.VectorData{}
 	if err := c.Get(context.Background(), types.NamespacedName{Name: "vd-1", Namespace: "landscape-a"}, got); err != nil {
 		t.Fatalf("get VectorData: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestHandleVectorData_CreatesWithSplitEnvelope(t *testing.T) {
 	if len(got.OwnerReferences) == 0 {
 		t.Errorf("expected ownerRef back to VectorDeployment")
 	}
-	if !meta.IsStatusConditionTrue(vd.Status.Conditions, star.VectorDataCreatedCondition) {
+	if !meta.IsStatusConditionTrue(vd.Status.Conditions, konfidence.VectorDataCreatedCondition) {
 		t.Errorf("expected VectorDataCreated=True")
 	}
 }
@@ -86,9 +86,9 @@ func TestHandleVectorData_CreatesWithSplitEnvelope(t *testing.T) {
 // TestHandleVectorData_NoOpWhenPresent: an existing VectorData is honored as-is (Spec is immutable upstream).
 func TestHandleVectorData_NoOpWhenPresent(t *testing.T) {
 	vd := newVD("vd-existing", nil)
-	preExisting := &star.VectorData{
+	preExisting := &konfidence.VectorData{
 		ObjectMeta: metav1.ObjectMeta{Name: "vd-existing", Namespace: "landscape-a"},
-		Spec:       star.VectorDataSpec{Features: &runtime.RawExtension{Raw: []byte(`{"prior":true}`)}},
+		Spec:       konfidence.VectorDataSpec{Features: &runtime.RawExtension{Raw: []byte(`{"prior":true}`)}},
 	}
 	r, c := newReconciler(t, vd, preExisting)
 
@@ -96,7 +96,7 @@ func TestHandleVectorData_NoOpWhenPresent(t *testing.T) {
 		t.Fatalf("handleVectorData: %v", err)
 	}
 
-	got := &star.VectorData{}
+	got := &konfidence.VectorData{}
 	if err := c.Get(context.Background(), types.NamespacedName{Name: "vd-existing", Namespace: "landscape-a"}, got); err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestHandleVectorData_RejectsInvalidEnvelope(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	cond := meta.FindStatusCondition(vd.Status.Conditions, star.VectorDataCreatedCondition)
+	cond := meta.FindStatusCondition(vd.Status.Conditions, konfidence.VectorDataCreatedCondition)
 	if cond == nil || cond.Status != metav1.ConditionFalse || cond.Reason != "InvalidConfigPayload" {
 		t.Errorf("expected InvalidConfigPayload, got %#v", cond)
 	}
@@ -123,8 +123,8 @@ func TestHandleVectorData_RejectsInvalidEnvelope(t *testing.T) {
 // TestVectorDataIsReady_TracksImplementorState: the readiness probe Star uses to gate VectorReady on the orchestrator.
 func TestVectorDataIsReady_TracksImplementorState(t *testing.T) {
 	vd := newVD("vd-r", nil)
-	vd.Status.ResultingVectorData = &star.LocalObjectReference{Name: "vd-r"}
-	cr := &star.VectorData{ObjectMeta: metav1.ObjectMeta{Name: "vd-r", Namespace: "landscape-a"}}
+	vd.Status.ResultingVectorData = &konfidence.LocalObjectReference{Name: "vd-r"}
+	cr := &konfidence.VectorData{ObjectMeta: metav1.ObjectMeta{Name: "vd-r", Namespace: "landscape-a"}}
 	r, c := newReconciler(t, vd, cr)
 	ctx := context.Background()
 
@@ -133,7 +133,7 @@ func TestVectorDataIsReady_TracksImplementorState(t *testing.T) {
 		t.Errorf("before flip: ok=%v err=%v; want ok=false", ok, err)
 	}
 	meta.SetStatusCondition(&cr.Status.Conditions, metav1.Condition{
-		Type: star.VectorDataReadyCondition, Status: metav1.ConditionTrue, Reason: star.VectorDataReasonMaterialized,
+		Type: konfidence.VectorDataReadyCondition, Status: metav1.ConditionTrue, Reason: konfidence.VectorDataReasonMaterialized,
 	})
 	if err := c.Status().Update(ctx, cr); err != nil {
 		t.Fatalf("update: %v", err)

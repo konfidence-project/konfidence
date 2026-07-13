@@ -45,7 +45,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - galaxy.konfidence.cloud
+  - konfidence.cloud
   resources:
   - stageconfigurations
   - stagesyncs
@@ -59,7 +59,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - galaxy.konfidence.cloud
+  - konfidence.cloud
   resources:
   - stageconfigurations/status
   - stagesyncs/status
@@ -71,7 +71,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - galaxy.konfidence.cloud
+  - konfidence.cloud
   resources:
   - vectorpromotionconfigs
   - vectortemplates

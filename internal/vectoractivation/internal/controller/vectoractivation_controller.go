@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectoractivation/internal/activation"
 	leaselock "github.com/konfidence-project/konfidence/internal/vectoractivation/internal/lock"
 	"github.com/konfidence-project/konfidence/internal/vectoractivation/internal/usage"
@@ -39,23 +39,23 @@ const (
 )
 
 type ActivationContext struct {
-	VectorActivation *star.VectorActivation
-	StageVersion     *star.StageVersion
-	Stage            *star.Stage
+	VectorActivation *konfidence.VectorActivation
+	StageVersion     *konfidence.StageVersion
+	Stage            *konfidence.Stage
 }
 
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectoractivations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=vectoractivations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=activationtaskexecutions,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=activationtaskexecutions/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=activationtaskregistrations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=activationtaskregistrations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stages/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversionusages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=star.konfidence.cloud,resources=stageversionusages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectoractivations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectoractivations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=activationtaskexecutions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=activationtaskexecutions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=activationtaskregistrations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=activationtaskregistrations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversionusages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversionusages/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
@@ -79,7 +79,7 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	acquired, err := leaselock.AcquireResourceLease(
-		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, star.VectorActivationKind, stage,
+		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, konfidence.VectorActivationKind, stage,
 	)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to acquire lease: %w", err)
@@ -106,9 +106,9 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if !isNewer {
 			log.Info("activation belongs to older stage version than currently active one, skipping")
 			if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{
-				Type:               star.ActivationSkipped,
+				Type:               konfidence.ActivationSkipped,
 				Status:             metav1.ConditionTrue,
-				Reason:             star.ActivationSkipped,
+				Reason:             konfidence.ActivationSkipped,
 				Message:            "found newer activation",
 				ObservedGeneration: vectorActivation.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -133,9 +133,9 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{
-		Type:               star.ActivationInProgress,
+		Type:               konfidence.ActivationInProgress,
 		Status:             metav1.ConditionTrue,
-		Reason:             star.ActivationInProgress,
+		Reason:             konfidence.ActivationInProgress,
 		Message:            "read in registrations, activation is in progress",
 		ObservedGeneration: vectorActivation.Generation,
 		LastTransitionTime: metav1.Now(),
@@ -174,9 +174,9 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 		successMessage := fmt.Sprintf("VectorActivation %s reconciled successfully, set status to succeeded", vectorActivation.Name)
 		if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{
-			Type:               star.ActivationSucceeded,
+			Type:               konfidence.ActivationSucceeded,
 			Status:             metav1.ConditionTrue,
-			Reason:             star.ActivationSucceeded,
+			Reason:             konfidence.ActivationSucceeded,
 			Message:            successMessage,
 			ObservedGeneration: vectorActivation.Generation,
 			LastTransitionTime: metav1.Now(),
@@ -193,20 +193,20 @@ func (r *VectorActivationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(
 	ctx context.Context,
-	vectorActivation *star.VectorActivation,
-	executionsInActivation *star.ActivationTaskExecutionList,
+	vectorActivation *konfidence.VectorActivation,
+	executionsInActivation *konfidence.ActivationTaskExecutionList,
 	log logr.Logger,
 ) (bool, error) {
 	allExecutionsSucceeded := true
 
 	for _, exec := range executionsInActivation.Items {
-		if meta.IsStatusConditionTrue(exec.Status.Conditions, star.ActivationTaskExecutionFailed) {
+		if meta.IsStatusConditionTrue(exec.Status.Conditions, konfidence.ActivationTaskExecutionFailed) {
 			msg := fmt.Sprintf("ActivationTaskExecution failed: %s", exec.Name)
 			log.Info(msg)
 			if err := activation.UpdateVectorActivationStatus(ctx, r.Client, vectorActivation, metav1.Condition{
-				Type:               star.ActivationFailed,
+				Type:               konfidence.ActivationFailed,
 				Status:             metav1.ConditionTrue,
-				Reason:             star.ActivationTaskExecutionFailed,
+				Reason:             konfidence.ActivationTaskExecutionFailed,
 				Message:            msg,
 				ObservedGeneration: vectorActivation.Generation,
 				LastTransitionTime: metav1.Now(),
@@ -217,7 +217,7 @@ func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(
 				fmt.Sprintf("VectorActivation %s failed because execution %s failed", vectorActivation.Name, exec.Name))
 			allExecutionsSucceeded = false
 		}
-		if !meta.IsStatusConditionTrue(exec.Status.Conditions, star.ActivationTaskExecutionSucceeded) {
+		if !meta.IsStatusConditionTrue(exec.Status.Conditions, konfidence.ActivationTaskExecutionSucceeded) {
 			allExecutionsSucceeded = false
 			break
 		}
@@ -227,18 +227,18 @@ func (r *VectorActivationReconciler) checkExecutionsStatusAndPatchOnFailure(
 
 func (r *VectorActivationReconciler) LoadActivationContextData(
 	ctx context.Context, req ctrl.Request,
-) (*star.VectorActivation, *star.StageVersion, *star.Stage, error) {
-	vectorActivation := &star.VectorActivation{}
+) (*konfidence.VectorActivation, *konfidence.StageVersion, *konfidence.Stage, error) {
+	vectorActivation := &konfidence.VectorActivation{}
 	if err := r.Get(ctx, req.NamespacedName, vectorActivation); err != nil {
 		return nil, nil, nil, client.IgnoreNotFound(err)
 	}
 
-	stageVersion := &star.StageVersion{}
+	stageVersion := &konfidence.StageVersion{}
 	if err := r.Get(ctx, types.NamespacedName{Name: vectorActivation.Spec.StageVersion, Namespace: req.Namespace}, stageVersion); err != nil {
 		return nil, nil, nil, fmt.Errorf("could not get stage version: %w", err)
 	}
 
-	stage := &star.Stage{}
+	stage := &konfidence.Stage{}
 	if err := r.Get(ctx, types.NamespacedName{Name: vectorActivation.Spec.Stage, Namespace: req.Namespace}, stage); err != nil {
 		return nil, nil, nil, fmt.Errorf("could not get stage: %w", err)
 	}
@@ -253,14 +253,14 @@ func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.ControllerID = ActivationControllerName
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&star.VectorActivation{}).
+		For(&konfidence.VectorActivation{}).
 		Named("vectoractivation").
 		WithEventFilter(predicate.Funcs{
 			DeleteFunc: func(e event.DeleteEvent) bool {
 				return false
 			},
 		}).
-		Owns(&star.ActivationTaskExecution{},
+		Owns(&konfidence.ActivationTaskExecution{},
 			builder.WithPredicates(predicate.Funcs{
 				UpdateFunc:  func(e event.UpdateEvent) bool { return true },
 				DeleteFunc:  func(e event.DeleteEvent) bool { return false },
@@ -273,8 +273,8 @@ func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *VectorActivationReconciler) cleanupVectorActivation(
 	ctx context.Context,
 	req ctrl.Request,
-	vectorActivation *star.VectorActivation,
-	stage *star.Stage,
+	vectorActivation *konfidence.VectorActivation,
+	stage *konfidence.Stage,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	if err := usage.DeleteActivationUsage(ctx, r.Client, stage, vectorActivation); err != nil {
@@ -284,7 +284,7 @@ func (r *VectorActivationReconciler) cleanupVectorActivation(
 	r.Recorder.Eventf(vectorActivation, nil, corev1.EventTypeNormal, "LeaseReleased", "LeaseReleased",
 		fmt.Sprintf("Lease released by controller %s for VectorActivation %s", r.ControllerID, vectorActivation.Name))
 	if err := leaselock.ReleaseResourceLease(
-		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, star.VectorActivationKind, stage,
+		ctx, r.Client, string(vectorActivation.UID), req.Namespace, r.ControllerID, konfidence.VectorActivationKind, stage,
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to release lease: %w", err)
 	}
