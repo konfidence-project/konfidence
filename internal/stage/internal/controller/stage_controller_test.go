@@ -106,8 +106,11 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			verifyStageVersionUsage(ctx, k8sClient, Namespace, stage, Vector001Digest, timeout, interval)
 
 			// update stage with new vector
-			stage.Spec.Vector = Vector002
-			Expect(k8sClient.Update(ctx, stage)).To(Succeed())
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+				stage.Spec.Vector = Vector002
+				g.Expect(k8sClient.Update(ctx, stage)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
 
 			// check that the existing target stageVersionUsage has been updated
 			verifyStageVersionUsage(ctx, k8sClient, Namespace, stage, Vector002Digest, timeout, interval)
