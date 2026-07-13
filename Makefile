@@ -37,6 +37,14 @@ GALAXY_INTERNAL_DIRS  = ./internal/stageconfiguration/... ./internal/vectorassem
 STAR_INTERNAL_PATHS   = $(foreach d,$(STAR_INTERNAL_DIRS),paths="$(d)")
 GALAXY_INTERNAL_PATHS = $(foreach d,$(GALAXY_INTERNAL_DIRS),paths="$(d)")
 
+DEX_COMPOSE_FILE ?= dev/dex/docker-compose.yaml
+DEX_ISSUER       ?= http://localhost:5556/dex
+API_AUTH_FLAGS   ?= --auth-authorize-url $(DEX_ISSUER)/auth \
+	--auth-token-url $(DEX_ISSUER)/token \
+	--auth-userinfo-url $(DEX_ISSUER)/userinfo \
+	--auth-client-id kden-local \
+	--auth-redirect-uri http://localhost:8090/auth/callback
+
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
 
@@ -310,6 +318,22 @@ run-galaxy: manifests-galaxy generate-galaxy fmt vet ## Run the galaxy operator 
 .PHONY: run-api
 run-api: hermit ## Run the API server locally. Set KUBECONFIG for domain endpoints, not needed for probes.
 	go run ./cmd/api/main.go
+
+.PHONY: run-api-with-idp
+run-api-with-idp: hermit ## Run the API server locally with the local Dex IDP.
+	go run ./cmd/api/main.go $(API_AUTH_FLAGS)
+
+.PHONY: idp-up
+idp-up: ## Start the local Dex IDP for API authentication development.
+	$(CONTAINER_TOOL) compose -f $(DEX_COMPOSE_FILE) up -d
+
+.PHONY: idp-down
+idp-down: ## Stop the local Dex IDP.
+	$(CONTAINER_TOOL) compose -f $(DEX_COMPOSE_FILE) down
+
+.PHONY: idp-logs
+idp-logs: ## Follow logs from the local Dex IDP.
+	$(CONTAINER_TOOL) compose -f $(DEX_COMPOSE_FILE) logs -f dex
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build

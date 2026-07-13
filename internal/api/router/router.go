@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/go-chi/chi/v5"
@@ -11,11 +12,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
 )
 
 // MountFunc registers a domain's routes onto the root router.
+// Each business domain exposes a MountFunc that wires its sub-router:
 // Each business domain exposes a MountFunc that wires its sub-router:
 //
 //	func Mount(r chi.Router, logger *slog.Logger, k8s func() client.Client) {
@@ -41,7 +44,7 @@ type MountFunc func(r chi.Router, logger *slog.Logger, k8s func() client.Client)
 // Domain routes are registered by passing MountFunc values — one per domain:
 //
 //	router.New(logger, scheme, stageapi.Mount, vectorpromotionapi.Mount)
-func New(logger *slog.Logger, scheme *runtime.Scheme, mounts ...MountFunc) http.Handler {
+func New(logger *slog.Logger, scheme *runtime.Scheme, authCfg config.AuthConfig, mounts ...MountFunc) http.Handler {
 	k8s := lazyClient(logger, scheme)
 
 	r := chi.NewRouter()
@@ -52,6 +55,20 @@ func New(logger *slog.Logger, scheme *runtime.Scheme, mounts ...MountFunc) http.
 	// Probe endpoints - no cluster dependency.
 	r.Method(http.MethodGet, "/healthz", middleware.Handle(logger, handler.Healthz))
 	r.Method(http.MethodGet, "/readyz", middleware.Handle(logger, handler.Readyz))
+
+	auth := handler.NewAuth(handler.AuthConfig{
+		AuthorizeURL: authCfg.AuthorizeURL,
+		TokenURL:     authCfg.TokenURL,
+		UserInfoURL:  authCfg.UserInfoURL,
+		ClientID:     authCfg.ClientID,
+		RedirectURI:  authCfg.RedirectURI,
+		Scopes:       strings.Fields(authCfg.Scopes),
+	})
+	r.Method(http.MethodGet, "/login", middleware.Handle(logger, auth.LoginStart))
+	r.Method(http.MethodGet, "/auth/callback", middleware.Handle(logger, auth.Callback))
+	r.Method(http.MethodPost, "/sessions/exchange", middleware.Handle(logger, auth.Exchange))
+	r.Method(http.MethodPost, "/logout", middleware.Handle(logger, auth.Logout))
+	r.Method(http.MethodGet, "/identity", middleware.Handle(logger, auth.Identity))
 
 	r.Method(http.MethodGet, "/api/v1/stages", middleware.Handle(logger, handler.ListStages))
 

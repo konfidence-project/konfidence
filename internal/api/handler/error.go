@@ -47,6 +47,14 @@ func NewBadRequest(message string, cause error) *APIError {
 	}
 }
 
+func NewUnauthorized(message string) *APIError {
+	return &APIError{
+		Status:  http.StatusUnauthorized,
+		Code:    "unauthorized",
+		Message: message,
+	}
+}
+
 func NewInternal(cause error) *APIError {
 	return &APIError{
 		Status:  http.StatusInternalServerError,

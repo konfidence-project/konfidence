@@ -16,6 +16,7 @@ type Config struct {
 	WriteTimeout    string
 	ShutdownTimeout string
 	LogLevel        string
+	Auth            AuthConfig
 	// Scheme holds the registered API types. Built in cmd/api/cmd/root.go
 	// following the same pattern as the galaxy and star operators.
 	Scheme *runtime.Scheme
@@ -25,10 +26,20 @@ type Config struct {
 type Parsed struct {
 	Addr            string
 	LogLevel        string
+	Auth            AuthConfig
 	Scheme          *runtime.Scheme
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
+}
+
+type AuthConfig struct {
+	AuthorizeURL string
+	TokenURL     string
+	UserInfoURL  string
+	ClientID     string
+	RedirectURI  string
+	Scopes       string
 }
 
 // Validate checks all fields, parses durations, and returns a ready-to-use
@@ -58,6 +69,7 @@ func (c Config) Validate() (Parsed, error) {
 	return Parsed{
 		Addr:            c.Addr,
 		LogLevel:        c.LogLevel,
+		Auth:            c.Auth,
 		Scheme:          c.Scheme,
 		ReadTimeout:     read,
 		WriteTimeout:    write,
