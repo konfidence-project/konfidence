@@ -53,7 +53,6 @@ helm upgrade --install star oci://ghcr.io/konfidence-project/charts/star \
   --create-namespace \
   --set image.repository=ghcr.io/konfidence-project/star-operator \
   --set image.tag="$version" \
-  --set controller.controllerNamespace="$namespace" \
   $image_pull_secret_args \
   --wait
 
