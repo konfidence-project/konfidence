@@ -125,7 +125,7 @@ var _ = BeforeSuite(func() {
 	ocmClient, err = pkgocm.NewOciClientBuilder().WithLogger(ctrl.Log.WithName("ocm-client")).WithResolver(resolver).Build(ctx)
 	Expect(err).NotTo(HaveOccurred())
 
-	By("creating target namespace for StageSync")
+	By("creating target namespace for the Stage")
 	createNamespace(ctx, k8sClient, "target")
 
 	By("creating manager and wiring StageConfiguration controller")

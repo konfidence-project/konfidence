@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -11,18 +10,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/ports"
-	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/template"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 )
 
@@ -40,8 +39,7 @@ type StageConfigurationReconciler struct {
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=stageconfigurations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=konfidence.cloud,resources=stagesyncs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=konfidence.cloud,resources=stagesyncs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=stages,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
@@ -96,89 +94,41 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 		return fmt.Errorf("unable to get vector component version %s: %w", stageConfiguration.Spec.Vector, err)
 	}
 
-	stageSync, operationResult, err := r.createOrUpdateStageSync(ctx, stageConfiguration, vector)
+	stage, operationResult, err := r.createOrUpdateStage(ctx, stageConfiguration, vector)
 	if err != nil {
 		return err
 	}
 
 	r.updateStageConfigurationReadyStatus(stageConfiguration, true, fmt.Sprintf("StageConfiguration %s reconciled", stageConfiguration.Name))
 
-	msg := fmt.Sprintf("StageSync %s %s with StageConfiguration %s", stageSync.Name, operationResult, stageConfiguration.Name)
+	msg := fmt.Sprintf("Stage %s %s with StageConfiguration %s", stage.Name, operationResult, stageConfiguration.Name)
 	r.Recorder.Eventf(stageConfiguration, nil, corev1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
 	log.Info(msg)
 	return nil
 }
 
-func (r *StageConfigurationReconciler) createOrUpdateStageSync(
+func (r *StageConfigurationReconciler) createOrUpdateStage(
 	ctx context.Context,
 	stageConfiguration *konfidence.StageConfiguration,
 	vector string,
-) (*konfidence.StageSync, controllerutil.OperationResult, error) {
-	stageSync, stageTemplateBytes, err := r.constructStageSync(stageConfiguration, vector)
-	if err != nil {
-		return nil, controllerutil.OperationResultNone, err
-	}
-
-	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, stageSync, func() error {
-		var originalTemplate, stageTemplate template.StageTemplate
-		if err := json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &originalTemplate); err != nil {
-			return err
-		}
-		if err := json.Unmarshal(stageTemplateBytes, &stageTemplate); err != nil {
-			return err
-		}
-
-		if !reflect.DeepEqual(originalTemplate, stageTemplate) {
-			stageSync.Spec.StageTemplate.Raw = stageTemplateBytes
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, operationResult, fmt.Errorf("failed to create or update stageSync: %w", err)
-	}
-	return stageSync, operationResult, nil
-}
-
-func (r *StageConfigurationReconciler) constructStageSync(
-	stageConfiguration *konfidence.StageConfiguration, vector string,
-) (*konfidence.StageSync, []byte, error) {
-	stageTemplate := r.constructStageTemplate(stageConfiguration, vector)
-	stageTemplateJSON, err := json.Marshal(stageTemplate)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal stage template: %w", err)
-	}
-
+) (*konfidence.Stage, controllerutil.OperationResult, error) {
 	// TODO this might lead to naming collisions. to resolve this issue one
 	// TODO could e.g. use a digest that is computed using stage name and tenant
-	stageSyncName := fmt.Sprintf("sync-%s", stageConfiguration.Spec.Name)
-
-	return &konfidence.StageSync{
+	stage := &konfidence.Stage{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      stageSyncName,
-			Namespace: stageConfiguration.Spec.TargetNamespace,
-		},
-		Spec: konfidence.StageSyncSpec{
-			StageTemplate: runtime.RawExtension{Raw: stageTemplateJSON},
-		},
-	}, stageTemplateJSON, nil
-}
-
-func (r *StageConfigurationReconciler) constructStageTemplate(stageConfiguration *konfidence.StageConfiguration, vector string) *template.StageTemplate {
-	// TODO replace APIVersion with a configured or determined value
-	return &template.StageTemplate{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       konfidence.StageKind,
-			APIVersion: "konfidence.cloud/v1alpha1",
-		},
-		Metadata: template.NamespacedName{
 			Name:      stageConfiguration.Spec.Name,
 			Namespace: stageConfiguration.Spec.TargetNamespace,
 		},
-		Spec: konfidence.StageSpec{
-			Vector: vector,
-		},
 	}
+
+	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, stage, func() error {
+		stage.Spec.Vector = vector
+		return nil
+	})
+	if err != nil {
+		return nil, operationResult, fmt.Errorf("failed to create or update stage: %w", err)
+	}
+	return stage, operationResult, nil
 }
 
 func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stageConfiguration *konfidence.StageConfiguration, ready bool, message string) {
@@ -201,8 +151,36 @@ func (r *StageConfigurationReconciler) updateStageConfigurationReadyStatus(stage
 func (r *StageConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.StageConfiguration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(
+			&konfidence.Stage{},
+			handler.EnqueueRequestsFromMapFunc(r.findStageConfigurationsForStage),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
 		Named(stageConfigurationControllerName).
 		Complete(r)
+}
+
+// findStageConfigurationsForStage maps a Stage back to the StageConfiguration(s)
+// that own it so drifted or deleted Stages get reconciled. The Stage lives in
+// Spec.TargetNamespace, which may differ from the StageConfiguration namespace,
+// so cross-namespace owner references aren't usable and we match on name +
+// target namespace instead.
+func (r *StageConfigurationReconciler) findStageConfigurationsForStage(ctx context.Context, obj client.Object) []reconcile.Request {
+	stageConfigurations := &konfidence.StageConfigurationList{}
+	if err := r.List(ctx, stageConfigurations); err != nil {
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for i := range stageConfigurations.Items {
+		sc := &stageConfigurations.Items[i]
+		if sc.Spec.Name == obj.GetName() && sc.Spec.TargetNamespace == obj.GetNamespace() {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace},
+			})
+		}
+	}
+	return requests
 }
 
 // NewStageConfigurationReconciler wires a StageConfigurationReconciler for the given manager.

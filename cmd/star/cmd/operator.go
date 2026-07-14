@@ -3,9 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 
-	"github.com/konfidence-project/konfidence/internal/galaxysync"
 	"github.com/konfidence-project/konfidence/internal/stage"
 	"github.com/konfidence-project/konfidence/internal/taskorchestration"
 	"github.com/konfidence-project/konfidence/internal/vectoractivation"
@@ -69,11 +67,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 			return vectordeployment.SetupControllers(signalContext, mgr, setupLog, vectordeployment.Options{
 				OCISecret: registrySecret,
 				Limiter:   crypto.NewLimiter(0),
-			})
-		},
-		galaxysync.OperatorFlagName: func() error {
-			return galaxysync.SetupControllers(mgr, setupLog, scheme, galaxysync.Options{
-				ControllerNamespace: os.Getenv("CONTROLLER_NAMESPACE"),
 			})
 		},
 	}

@@ -44,8 +44,6 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           env:
-            - name: CONTROLLER_NAMESPACE
-              value: {{ .Values.controller.controllerNamespace | default .Release.Namespace | quote }}
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
