@@ -38,20 +38,11 @@ kubectl wait deployment/source-controller \
   --for=condition=Available \
   --timeout=180s
 
-helm upgrade --install galaxy oci://ghcr.io/konfidence-project/charts/galaxy \
+helm upgrade --install konfidence oci://ghcr.io/konfidence-project/charts/konfidence \
   --version "$version" \
   --namespace "$namespace" \
   --create-namespace \
-  --set image.repository=ghcr.io/konfidence-project/galaxy-operator \
-  --set image.tag="$version" \
-  $image_pull_secret_args \
-  --wait
-
-helm upgrade --install star oci://ghcr.io/konfidence-project/charts/star \
-  --version "$version" \
-  --namespace "$namespace" \
-  --create-namespace \
-  --set image.repository=ghcr.io/konfidence-project/star-operator \
+  --set image.repository=ghcr.io/konfidence-project/konfidence-operator \
   --set image.tag="$version" \
   $image_pull_secret_args \
   --wait

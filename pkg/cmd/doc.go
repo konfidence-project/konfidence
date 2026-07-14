@@ -1,15 +1,18 @@
 // Package cmd provides shared startup wiring for the konfidence operator
-// binaries (galaxy and star). It exposes one concern:
+// binary. It exposes one concern:
 //
-//   - FilterEnabledControllers — selecting which controllers an operator binary runs at startup,
+//   - FilterEnabledControllers — selecting which controllers the operator runs at startup,
 //     driven by the operator's --controllers flag.
 //
 // # Selecting controllers with --controllers
 //
-// Each operator binary registers all controllers it could run, then enables a
+// The operator binary registers all controllers it could run, then enables a
 // subset based on a comma-separated glob expression supplied via the
 // --controllers flag. The default value is "*", which runs every registered
-// controller (the original, pre-flag behavior).
+// controller (the original, pre-flag behavior). The registry itself can be
+// narrowed before filtering: the konfidence binary's --enable-galaxy=false
+// leaves the galaxy controllers unregistered, so naming one of them in
+// --controllers becomes a startup error.
 //
 // The grammar is:
 //
@@ -29,19 +32,19 @@
 // VectorAssembly:
 //
 //	# Run everything (also the default if --controllers is omitted)
-//	galaxy --controllers='*'
+//	konfidence --controllers='*'
 //
 //	# Run only one controller
-//	galaxy --controllers=VectorAssembly
+//	konfidence --controllers=VectorAssembly
 //
 //	# Run everything except one
-//	galaxy --controllers='!VectorAssembly,*'
+//	konfidence --controllers='!VectorAssembly,*'
 //
 //	# Run an explicit subset
-//	galaxy --controllers=VectorAssembly,VectorPromotion
+//	konfidence --controllers=VectorAssembly,VectorPromotion
 //
 //	# Run all controllers whose name starts with Vector
-//	galaxy --controllers='Vector*'
+//	konfidence --controllers='Vector*'
 //
 // Whitespace around tokens is tolerated. Quote the spec in shells where "!" or
 // "*" would otherwise be interpreted by the shell.

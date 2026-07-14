@@ -4,7 +4,7 @@ Developer scripts for the konfidence release process.
 
 ## `release.sh`
 
-Bumps the Helm chart versions, creates a conventional commit, tags the release,
+Bumps the Helm chart version, creates a conventional commit, tags the release,
 and pushes to origin. Also supports creating pre-release tags with the same
 chart update + commit + tag + push flow.
 
@@ -40,11 +40,10 @@ scripts/release.sh tag 1.0.0-rc.1 --dry-run
 
 1. Verifies the Hermit environment is active and `yq` is available.
 2. Verifies the working tree is clean (no staged or unstaged changes).
-3. Reads the current `appVersion` from `charts/star/Chart.yaml` as the source of truth.
+3. Reads the current `appVersion` from `charts/konfidence/Chart.yaml` as the source of truth.
 4. Computes the next version according to [Semantic Versioning](https://semver.org/).
-5. Writes the new version to both `version` and `appVersion` in:
-   - `charts/star/Chart.yaml`
-   - `charts/galaxy/Chart.yaml`
+5. Writes the new version to both `version` and `appVersion` in
+   `charts/konfidence/Chart.yaml`.
 6. Creates a commit: `chore(release): X.Y.Z`
 7. Creates an annotated git tag `X.Y.Z`.
 8. Runs `git push` and `git push --tags`.
@@ -57,9 +56,8 @@ scripts/release.sh tag 1.0.0-rc.1 --dry-run
 1. Verifies the working tree is clean.
 2. Validates the tag matches `X.Y.Z-<suffix>` (e.g. `1.0.0-rc.1`).
    Bare `X.Y.Z` tags are reserved for `major|minor|patch` releases.
-3. Writes the pre-release version to both `version` and `appVersion` in:
-   - `charts/star/Chart.yaml`
-   - `charts/galaxy/Chart.yaml`
+3. Writes the pre-release version to both `version` and `appVersion` in
+   `charts/konfidence/Chart.yaml`.
 4. Creates a commit: `chore(release): X.Y.Z-<suffix>`.
 5. Creates an annotated git tag `X.Y.Z-<suffix>` on that commit.
 6. Runs `git push` and `git push --tags`.
