@@ -72,7 +72,6 @@ func New(logger *slog.Logger, scheme *runtime.Scheme, authCfg config.AuthConfig,
 		protected.Use(auth.RequireSession)
 		protected.Method(http.MethodPost, "/logout", middleware.Handle(logger, auth.Logout))
 		protected.Method(http.MethodGet, "/identity", middleware.Handle(logger, auth.Identity))
-		protected.Method(http.MethodGet, "/api/v1/stages", middleware.Handle(logger, handler.ListStages))
 
 		// Domain routes - each domain registers its own sub-router via MountFunc.
 		for _, mount := range mounts {

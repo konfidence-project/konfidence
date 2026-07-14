@@ -249,6 +249,14 @@ github.com/joshdk/go-junit v1.0.0/go.mod h1:TiiV0PqkaNfFXjEiyjWM3XXrhVyCa1K4Zfga
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/juju/gnuflag v0.0.0-20171113085948-2ce1bb71843d/go.mod h1:2PavIy+JPciBPrBUjwbNvtwB6RQlve+hkpll6QSNmOE=
+github.com/kcp-dev/apimachinery/v2 v2.30.0 h1:bj7lVVPJj5UnQFCWhXVAKC+eNaIMKGGxpq+fE5edRU0=
+github.com/kcp-dev/apimachinery/v2 v2.30.0/go.mod h1:DOv0iw5tcgzFBhudwLFe2WHCLqtlgNkuO4AcqbZ4zVo=
+github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
+github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
+github.com/kcp-dev/multicluster-provider v0.5.0 h1:G5YW2POVftsnxUfK2vo7anX5R1I3gVjjNbo/4i5ttbo=
+github.com/kcp-dev/multicluster-provider v0.5.0/go.mod h1:eJohrSXqLmpjfTSFBbZMoq4Osr57UKg9ZokvhCPNmHc=
+github.com/kcp-dev/sdk v0.30.0 h1:BdDiKJ7SeVfzLIxueQwbADTrH7bfZ7b5ACYSrx6P93Y=
+github.com/kcp-dev/sdk v0.30.0/go.mod h1:H3PkpM33QqwPMgGOOw3dfqbQ8dF2gu4NeIsufSlS5KE=
 github.com/klauspost/compress v1.18.5 h1:/h1gH5Ce+VWNLSWqPzOVn6XBO+vJbCNGvjoaGBFW2IE=
 github.com/klauspost/compress v1.18.5/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
 github.com/knadh/koanf/maps v0.1.2 h1:RBfmAW5CnZT+PJ1CVc1QSJKf4Xu9kxfQgYVQSu8hpbo=

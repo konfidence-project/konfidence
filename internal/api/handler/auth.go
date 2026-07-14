@@ -223,6 +223,13 @@ func (a *Auth) Exchange(w http.ResponseWriter, r *http.Request) error {
 
 func (a *Auth) RequireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// If auth is not configured (no OIDC provider set), allow all requests.
+		// This enables local development without an IDP.
+		if strings.TrimSpace(a.config.AuthorizeURL) == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		sessionID := sessionIDFromRequest(r)
 		if sessionID == "" {
 			WriteAPIError(w, NewUnauthorized("missing session"))
