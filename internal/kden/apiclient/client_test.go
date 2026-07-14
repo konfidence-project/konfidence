@@ -18,39 +18,49 @@ func mustTime(s string) time.Time {
 	return t
 }
 
+func cond(condType string, status apiclient.StageConditionStatus, reason, message, ts string) apiclient.StageCondition {
+	return apiclient.StageCondition{
+		Type:               condType,
+		Status:             status,
+		Reason:             reason,
+		Message:            message,
+		LastTransitionTime: mustTime(ts),
+	}
+}
+
 var mockStages = []apiclient.StageResponse{
 	{
 		Name: "dev", Namespace: "konfidence-dev", Vector: "github.com/konfidence-project/kden:latest",
 		Conditions: []apiclient.StageCondition{
-			{Type: "VectorDeploymentCreated", Status: apiclient.True, Reason: "DeploymentCreated", Message: "VectorDeployment resource created successfully", LastTransitionTime: mustTime("2026-07-01T08:12:00Z")},
-			{Type: "VectorDeployed", Status: apiclient.True, Reason: "ArtifactsDeployed", Message: "All vector artifacts deployed and assigned", LastTransitionTime: mustTime("2026-07-01T08:15:34Z")},
-			{Type: "VectorMigrated", Status: apiclient.True, Reason: "MigrationComplete", Message: "All migration tasks completed", LastTransitionTime: mustTime("2026-07-01T08:18:10Z")},
-			{Type: "Ready", Status: apiclient.True, Reason: "StageReady", Message: "Stage is ready", LastTransitionTime: mustTime("2026-07-01T08:18:10Z")},
+			cond("VectorDeploymentCreated", apiclient.True, "DeploymentCreated", "VectorDeployment resource created successfully", "2026-07-01T08:12:00Z"),
+			cond("VectorDeployed", apiclient.True, "ArtifactsDeployed", "All vector artifacts deployed and assigned", "2026-07-01T08:15:34Z"),
+			cond("VectorMigrated", apiclient.True, "MigrationComplete", "All migration tasks completed", "2026-07-01T08:18:10Z"),
+			cond("Ready", apiclient.True, "StageReady", "Stage is ready", "2026-07-01T08:18:10Z"),
 		},
 	},
 	{
 		Name: "staging", Namespace: "konfidence-staging", Vector: "github.com/konfidence-project/konfidence:1.4.2",
 		Conditions: []apiclient.StageCondition{
-			{Type: "VectorDeploymentCreated", Status: apiclient.True, Reason: "DeploymentCreated", Message: "VectorDeployment resource created successfully", LastTransitionTime: mustTime("2026-07-02T14:00:00Z")},
-			{Type: "VectorDeployed", Status: apiclient.True, Reason: "ArtifactsDeployed", Message: "All vector artifacts deployed and assigned", LastTransitionTime: mustTime("2026-07-02T14:04:22Z")},
-			{Type: "VectorMigrated", Status: apiclient.False, Reason: "MigrationFailed", Message: "Migration task \"db-schema-v2\" failed: timeout after 300s", LastTransitionTime: mustTime("2026-07-02T14:10:05Z")},
-			{Type: "Ready", Status: apiclient.False, Reason: "MigrationNotComplete", Message: "Stage is not ready: migration incomplete", LastTransitionTime: mustTime("2026-07-02T14:10:05Z")},
+			cond("VectorDeploymentCreated", apiclient.True, "DeploymentCreated", "VectorDeployment resource created successfully", "2026-07-02T14:00:00Z"),
+			cond("VectorDeployed", apiclient.True, "ArtifactsDeployed", "All vector artifacts deployed and assigned", "2026-07-02T14:04:22Z"),
+			cond("VectorMigrated", apiclient.False, "MigrationFailed", "Migration task \"db-schema-v2\" failed: timeout after 300s", "2026-07-02T14:10:05Z"),
+			cond("Ready", apiclient.False, "MigrationNotComplete", "Stage is not ready: migration incomplete", "2026-07-02T14:10:05Z"),
 		},
 	},
 	{
 		Name: "prod", Namespace: "konfidence-prod", Vector: "github.com/konfidence-project/platform:1.3.9",
 		Conditions: []apiclient.StageCondition{
-			{Type: "VectorDeploymentCreated", Status: apiclient.True, Reason: "DeploymentCreated", Message: "VectorDeployment resource created successfully", LastTransitionTime: mustTime("2026-06-28T10:00:00Z")},
-			{Type: "VectorDeployed", Status: apiclient.True, Reason: "ArtifactsDeployed", Message: "All vector artifacts deployed and assigned", LastTransitionTime: mustTime("2026-06-28T10:06:17Z")},
-			{Type: "VectorMigrated", Status: apiclient.True, Reason: "MigrationComplete", Message: "All migration tasks completed", LastTransitionTime: mustTime("2026-06-28T10:09:43Z")},
-			{Type: "Ready", Status: apiclient.True, Reason: "StageReady", Message: "Stage is ready", LastTransitionTime: mustTime("2026-06-28T10:09:43Z")},
+			cond("VectorDeploymentCreated", apiclient.True, "DeploymentCreated", "VectorDeployment resource created successfully", "2026-06-28T10:00:00Z"),
+			cond("VectorDeployed", apiclient.True, "ArtifactsDeployed", "All vector artifacts deployed and assigned", "2026-06-28T10:06:17Z"),
+			cond("VectorMigrated", apiclient.True, "MigrationComplete", "All migration tasks completed", "2026-06-28T10:09:43Z"),
+			cond("Ready", apiclient.True, "StageReady", "Stage is ready", "2026-06-28T10:09:43Z"),
 		},
 	},
 	{
 		Name: "canary", Namespace: "konfidence-prod", Vector: "github.com/konfidence-project/platform:1.4.2",
 		Conditions: []apiclient.StageCondition{
-			{Type: "VectorDeploymentCreated", Status: apiclient.True, Reason: "DeploymentCreated", Message: "VectorDeployment resource created successfully", LastTransitionTime: mustTime("2026-07-09T07:30:00Z")},
-			{Type: "VectorDeployed", Status: apiclient.Unknown, Reason: "DeploymentInProgress", Message: "Waiting for artifacts to be assigned", LastTransitionTime: mustTime("2026-07-09T07:30:00Z")},
+			cond("VectorDeploymentCreated", apiclient.True, "DeploymentCreated", "VectorDeployment resource created successfully", "2026-07-09T07:30:00Z"),
+			cond("VectorDeployed", apiclient.Unknown, "DeploymentInProgress", "Waiting for artifacts to be assigned", "2026-07-09T07:30:00Z"),
 		},
 	},
 }
@@ -74,7 +84,9 @@ var _ = Describe("Client", func() {
 					}
 				}
 				w.WriteHeader(http.StatusNotFound)
-				_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": "not_found", "message": "stage not found"}})
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"error": map[string]string{"code": "not_found", "message": "stage not found"},
+				})
 			default:
 				w.WriteHeader(http.StatusNotFound)
 			}
