@@ -102,28 +102,35 @@ func (r *StageConfigurationReconciler) reconcileStageConfiguration(
 ) error {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling stageConfiguration")
-	r.updateStageConfigurationReadyStatus(stageConfiguration, false, "")
 
 	adapter, err := r.Cache.Lookup(ctx, r.Client, stageConfiguration)
 	if err != nil {
-		return fmt.Errorf("building OCM clients: %w", err)
+		err = fmt.Errorf("building OCM clients: %w", err)
+		r.updateStageConfigurationReadyStatus(stageConfiguration, false, err.Error())
+		return err
 	}
 
 	vector, err := adapter.GetLatestVectorVersion(ctx, stageConfiguration.Spec.Vector)
 	if err != nil {
-		return fmt.Errorf("unable to get vector component version %s: %w", stageConfiguration.Spec.Vector, err)
+		err = fmt.Errorf("unable to get vector component version %s: %w", stageConfiguration.Spec.Vector, err)
+		r.updateStageConfigurationReadyStatus(stageConfiguration, false, err.Error())
+		return err
 	}
 
 	stage, operationResult, err := r.createOrUpdateStage(ctx, stageConfiguration, vector)
 	if err != nil {
+		r.updateStageConfigurationReadyStatus(stageConfiguration, false, err.Error())
 		return err
 	}
 
 	r.updateStageConfigurationReadyStatus(stageConfiguration, true, fmt.Sprintf("StageConfiguration %s reconciled", stageConfiguration.Name))
 
-	msg := fmt.Sprintf("Stage %s/%s %s from StageConfiguration %s", stage.Namespace, stage.Name, operationResult, stageConfiguration.Name)
-	r.Recorder.Eventf(stageConfiguration, nil, corev1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
-	log.Info(msg)
+	// Only emit an event when the Stage actually changed
+	if operationResult != controllerutil.OperationResultNone {
+		msg := fmt.Sprintf("Stage %s/%s %s from StageConfiguration %s", stage.Namespace, stage.Name, operationResult, stageConfiguration.Name)
+		r.Recorder.Eventf(stageConfiguration, nil, corev1.EventTypeNormal, "StageConfigurationReconciled", "StageConfigurationReconciled", msg)
+		log.Info(msg)
+	}
 	return nil
 }
 

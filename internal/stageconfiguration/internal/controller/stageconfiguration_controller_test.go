@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	eventsv1 "k8s.io/api/events/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	timeout  = time.Second * 30
+	timeout  = time.Second * 35
 	interval = time.Millisecond * 250
 )
 
@@ -163,8 +164,9 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			// Delete the Stage out from under the controller; the Stage watch should
-			// map it back to the StageConfiguration and recreate it.
+			// Delete the Stage out from under the controller; the periodic reconcile
+			// (defaultReconcileInterval) recreates it, so recovery can take up to one
+			// interval.
 			Expect(k8sClient.Delete(ctx, stage)).To(Succeed())
 
 			Eventually(func(g Gomega) {
@@ -183,6 +185,13 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				scCredentials([]string{"missing-secret"}), nil)
 
 			assertSCReady(ctx, "sc-missing-secret", metav1.ConditionFalse)
+
+			// The failure reason is surfaced on the Ready condition message.
+			sc := &konfidence.StageConfiguration{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "sc-missing-secret", Namespace: Namespace}, sc)).To(Succeed())
+			cond := apimeta.FindStatusCondition(sc.Status.Conditions, konfidence.StageConfigurationReadyCondition)
+			Expect(cond).NotTo(BeNil())
+			Expect(cond.Message).NotTo(BeEmpty())
 		})
 	})
 })
