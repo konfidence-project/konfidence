@@ -40,7 +40,6 @@ API_PATHS = paths="./api/v1alpha1/..."
 # konfidence.cloud group; galaxy vs. star stays a code/deployment convention.
 GALAXY_CRD_FILES = \
 	konfidence.cloud_stageconfigurations.yaml \
-	konfidence.cloud_stagesyncs.yaml \
 	konfidence.cloud_vectorpromotions.yaml \
 	konfidence.cloud_vectorpromotionconfigs.yaml \
 	konfidence.cloud_vectortemplates.yaml
@@ -60,7 +59,7 @@ STAR_CRD_FILES = \
 
 # Internal controller packages per operator. internal/ is flat (no galaxy/star
 # grouping dir), so each operator's controllers are enumerated explicitly.
-STAR_INTERNAL_DIRS    = ./internal/stage/... ./internal/taskorchestration/... ./internal/vectoractivation/... ./internal/vectordeployment/... ./internal/galaxysync/...
+STAR_INTERNAL_DIRS    = ./internal/stage/... ./internal/taskorchestration/... ./internal/vectoractivation/... ./internal/vectordeployment/...
 GALAXY_INTERNAL_DIRS  = ./internal/stageconfiguration/... ./internal/vectorassembly/... ./internal/vectorpromotion/...
 STAR_INTERNAL_PATHS   = $(foreach d,$(STAR_INTERNAL_DIRS),paths="$(d)")
 GALAXY_INTERNAL_PATHS = $(foreach d,$(GALAXY_INTERNAL_DIRS),paths="$(d)")

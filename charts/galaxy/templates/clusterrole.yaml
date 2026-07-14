@@ -48,7 +48,6 @@ rules:
   - konfidence.cloud
   resources:
   - stageconfigurations
-  - stagesyncs
   - vectorpromotions
   verbs:
   - create
@@ -62,11 +61,20 @@ rules:
   - konfidence.cloud
   resources:
   - stageconfigurations/status
-  - stagesyncs/status
   - vectorpromotionconfigs/status
   - vectorpromotions/status
   - vectortemplates/status
   verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - konfidence.cloud
+  resources:
+  - stages
+  verbs:
+  - create
+  - delete
   - get
   - patch
   - update

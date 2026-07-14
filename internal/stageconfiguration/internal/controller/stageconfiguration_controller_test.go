@@ -3,31 +3,31 @@ package controller
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
-	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/template"
 	testocm "github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	eventsv1 "k8s.io/api/events/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	timeout  = time.Second * 30
+	interval = time.Millisecond * 250
 )
 
 var _ = Describe("Stage Configuration Controller", Ordered, func() {
 	const (
 		StageConfiguration = "stage-configuration-dev"
 		StageDev           = "stage-dev"
-		StageSyncDev       = "sync-stage-dev"
 		Namespace          = "default"
 		TargetNamespace    = "target"
-		timeout            = time.Second * 30
-		interval           = time.Millisecond * 250
 	)
 
 	BeforeEach(func() {
@@ -39,7 +39,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 	})
 
 	Context("When reconciling a stageConfiguration", func() {
-		It("should successfully create a stageSync with specific vector version", func() {
+		It("should create a Stage with the specific vector version", func() {
 			ctx := context.Background()
 
 			vectorRef := testocm.ParseRef(registryEndpoint, "konfidence.cloud/project/constructed-vector:1.0.0")
@@ -62,16 +62,13 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 				g.Expect(stageConfiguration.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
 			}, timeout, interval).Should(Succeed())
 
-			stageTemplate := createStageTemplate(*stageConfiguration, vectorV100)
-			var originalTemplate template.StageTemplate
-
-			stageSync := &konfidence.StageSync{}
-			stageSyncLookupKey := types.NamespacedName{Name: StageSyncDev, Namespace: TargetNamespace}
+			stage := &konfidence.Stage{}
+			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: TargetNamespace}
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageSyncLookupKey, stageSync)).To(Succeed())
-				g.Expect(stageSync.Name).To(Equal(StageSyncDev))
-				g.Expect(json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &originalTemplate)).To(Succeed())
-				g.Expect(reflect.DeepEqual(stageTemplate, originalTemplate)).To(BeTrue())
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+				g.Expect(stage.Spec.Vector).To(Equal(vectorV100))
+				g.Expect(stage.Labels).To(HaveKeyWithValue("app.kubernetes.io/managed-by", stageConfigurationControllerName))
+				g.Expect(stage.Labels).To(HaveKey("konfidence.cloud/stage-configuration"))
 			}, timeout, interval).Should(Succeed())
 
 			eventList := &eventsv1.EventList{}
@@ -82,7 +79,7 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
-		It("should successfully update an existing stage with latest vector version", func() {
+		It("should update the Stage when the configuration vector changes", func() {
 			ctx := context.Background()
 
 			// Push v1.0.1 with a "latest" alias — controller resolves the alias to the real semver
@@ -94,50 +91,90 @@ var _ = Describe("Stage Configuration Controller", Ordered, func() {
 			vectorV101 := fmt.Sprintf("http://%s//konfidence.cloud/project/constructed-vector:1.0.1", registryEndpoint)
 			vectorLatest := fmt.Sprintf("http://%s//konfidence.cloud/project/constructed-vector:sc-edge", registryEndpoint)
 
-			createStageSync(ctx, k8sClient, StageSyncDev, Namespace, StageConfiguration, TargetNamespace, StageDev, vectorV100)
+			createStageConfiguration(ctx, StageConfiguration, StageDev, vectorV100)
 
-			var stageTemplate template.StageTemplate
-
-			stageSync := &konfidence.StageSync{}
-			stageSyncLookupKey := types.NamespacedName{Name: StageSyncDev, Namespace: TargetNamespace}
+			stage := &konfidence.Stage{}
+			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: TargetNamespace}
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageSyncLookupKey, stageSync)).To(Succeed())
-				g.Expect(stageSync.Name).To(Equal(StageSyncDev))
-				g.Expect(json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &stageTemplate)).To(Succeed())
-				g.Expect(stageTemplate.Spec.Vector).To(Equal(vectorV100))
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+				g.Expect(stage.Spec.Vector).To(Equal(vectorV100))
 			}, timeout, interval).Should(Succeed())
-
-			createStageConfiguration(ctx, StageConfiguration, StageDev, vectorLatest)
 
 			stageConfiguration := &konfidence.StageConfiguration{}
 			stageConfigurationLookupKey := types.NamespacedName{Name: StageConfiguration, Namespace: Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
-				g.Expect(stageConfiguration.Spec.Name).To(Equal(StageDev))
-				g.Expect(stageConfiguration.Spec.Vector).To(Equal(vectorLatest))
-				g.Expect(stageConfiguration.Spec.TargetNamespace).To(Equal(TargetNamespace))
+				stageConfiguration.Spec.Vector = vectorLatest
+				g.Expect(k8sClient.Update(ctx, stageConfiguration)).To(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageSyncLookupKey, stageSync)).To(Succeed())
-				g.Expect(json.Unmarshal(stageSync.Spec.StageTemplate.Raw, &stageTemplate)).To(Succeed())
-				g.Expect(stageTemplate.Spec.Vector).To(Equal(vectorV101))
-			}, timeout, interval).Should(Succeed())
-
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
-				g.Expect(stageConfiguration.Status.Conditions).To(HaveLen(1))
-				g.Expect(stageConfiguration.Status.Conditions[0].Type).To(Equal(konfidence.StageConfigurationReadyCondition))
-				g.Expect(stageConfiguration.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			}, timeout, interval).Should(Succeed())
-
-			eventList := &eventsv1.EventList{}
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.List(ctx, eventList, client.InNamespace(Namespace))).To(Succeed())
-				matchingEvents := filterEventsByReason(eventList.Items, "StageConfigurationReconciled")
-				g.Expect(matchingEvents).ToNot(BeEmpty())
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+				g.Expect(stage.Spec.Vector).To(Equal(vectorV101))
 			}, timeout, interval).Should(Succeed())
 		})
+
+		It("should delete the Stage and release the finalizer when the StageConfiguration is deleted", func() {
+			ctx := context.Background()
+
+			vectorRef := testocm.ParseRef(registryEndpoint, "konfidence.cloud/project/constructed-vector:2.0.0")
+			artifactRef := testocm.ParseRef(registryEndpoint, "konfidence.cloud/project/constructed-artifact:2.0.0")
+			testocm.PushVector(ctx, ocmClient, vectorRef, []compref.Ref{artifactRef}, "sc-delete", testocm.SampleVectorConfig())
+
+			vectorV200 := fmt.Sprintf("http://%s//konfidence.cloud/project/constructed-vector:2.0.0", registryEndpoint)
+
+			createStageConfiguration(ctx, StageConfiguration, StageDev, vectorV200)
+
+			stage := &konfidence.Stage{}
+			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: TargetNamespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			stageConfiguration := &konfidence.StageConfiguration{}
+			stageConfigurationLookupKey := types.NamespacedName{Name: StageConfiguration, Namespace: Namespace}
+			Expect(k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, stageConfiguration)).To(Succeed())
+
+			// The managed Stage is deleted and the StageConfiguration finalizer released.
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(ctx, stageLookupKey, stage)
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+
+				err = k8sClient.Get(ctx, stageConfigurationLookupKey, stageConfiguration)
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should recreate the Stage if it is deleted while the StageConfiguration exists", func() {
+			ctx := context.Background()
+
+			vectorRef := testocm.ParseRef(registryEndpoint, "konfidence.cloud/project/constructed-vector:3.0.0")
+			artifactRef := testocm.ParseRef(registryEndpoint, "konfidence.cloud/project/constructed-artifact:3.0.0")
+			testocm.PushVector(ctx, ocmClient, vectorRef, []compref.Ref{artifactRef}, "sc-drift", testocm.SampleVectorConfig())
+
+			vectorV300 := fmt.Sprintf("http://%s//konfidence.cloud/project/constructed-vector:3.0.0", registryEndpoint)
+
+			createStageConfiguration(ctx, StageConfiguration, StageDev, vectorV300)
+
+			stage := &konfidence.Stage{}
+			stageLookupKey := types.NamespacedName{Name: StageDev, Namespace: TargetNamespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// Delete the Stage out from under the controller; the Stage watch should
+			// map it back to the StageConfiguration and recreate it.
+			Expect(k8sClient.Delete(ctx, stage)).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				recreated := &konfidence.Stage{}
+				g.Expect(k8sClient.Get(ctx, stageLookupKey, recreated)).To(Succeed())
+				g.Expect(recreated.UID).ToNot(Equal(stage.UID))
+				g.Expect(recreated.Spec.Vector).To(Equal(vectorV300))
+			}, timeout, interval).Should(Succeed())
+		})
+
 		It("should mark not ready when the credential Secret does not exist", func() {
 			ctx := context.Background()
 

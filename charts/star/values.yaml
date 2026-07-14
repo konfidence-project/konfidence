@@ -30,9 +30,6 @@ controller:
   # disable the metrics server entirely (also suppresses the metrics
   # container port, Service, and ServiceMonitor).
   metricsBindAddress: ":8080"
-  # Set this when the galaxysync controller is enabled — it uses this
-  # namespace to scope its bookkeeping.
-  controllerNamespace: ""
 
 nameOverride: ""
 fullnameOverride: ""

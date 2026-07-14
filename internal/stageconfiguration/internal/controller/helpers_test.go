@@ -2,97 +2,40 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
-	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/template"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-func createStageSync(
-	ctx context.Context, k8sClient client.Client, name string, namespace string,
-	stageConfigName string, targetNamespace string, stageName string, vectorName string,
-) {
-	stageConfiguration := konfidence.StageConfiguration{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "konfidence.cloud/v1alpha1",
-			Kind:       konfidence.StageConfigurationKind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      stageConfigName,
-			Namespace: namespace,
-		},
-		Spec: konfidence.StageConfigurationSpec{
-			Name:            stageName,
-			Vector:          vectorName,
-			TargetNamespace: targetNamespace,
-		},
-	}
-
-	stageTemplate := createStageTemplate(stageConfiguration, vectorName)
-	stageTemplateJSON, err := json.Marshal(stageTemplate)
-	Expect(err).ToNot(HaveOccurred())
-
-	stageSync := &konfidence.StageSync{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "konfidence.cloud/v1alpha1",
-			Kind:       konfidence.StageSyncKind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: targetNamespace,
-		},
-		Spec: konfidence.StageSyncSpec{
-			StageTemplate: runtime.RawExtension{Raw: stageTemplateJSON},
-		},
-	}
-
-	Expect(k8sClient.Create(ctx, stageSync)).To(Succeed())
-}
 
 func createNamespace(ctx context.Context, k8sClient client.Client, namespace string) {
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	Expect(k8sClient.Create(ctx, ns)).To(Succeed())
 }
 
-func createStageTemplate(stageConfiguration konfidence.StageConfiguration, vector string) template.StageTemplate {
-	return template.StageTemplate{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       konfidence.StageKind,
-			APIVersion: "konfidence.cloud/v1alpha1",
-		},
-		Metadata: template.NamespacedName{
-			Name:      stageConfiguration.Spec.Name,
-			Namespace: stageConfiguration.Spec.TargetNamespace,
-		},
-		Spec: konfidence.StageSpec{
-			Vector: vector,
-		},
-	}
-}
-
 //nolint:unparam // namespace and targetNamespace are the same in every call, keep as params for consistency
 func cleanupResources(ctx context.Context, k8sClient client.Client, namespace string, targetNamespace string) {
-	err := k8sClient.DeleteAllOf(ctx, &konfidence.StageConfiguration{}, client.InNamespace(namespace))
-	Expect(err).ToNot(HaveOccurred())
+	Expect(k8sClient.DeleteAllOf(ctx, &konfidence.StageConfiguration{}, client.InNamespace(namespace))).To(Succeed())
+	Expect(k8sClient.DeleteAllOf(ctx, &konfidence.Stage{}, client.InNamespace(targetNamespace))).To(Succeed())
 
-	err = k8sClient.DeleteAllOf(ctx, &konfidence.StageSync{}, client.InNamespace(namespace))
-	if !meta.IsNoMatchError(err) {
-		Expect(err).ToNot(HaveOccurred())
-	}
+	// StageConfiguration carries a finalizer; wait until the controller has
+	// deleted the managed Stage and released it so tests start from a clean slate.
+	Eventually(func(g Gomega) {
+		scList := &konfidence.StageConfigurationList{}
+		g.Expect(k8sClient.List(ctx, scList, client.InNamespace(namespace))).To(Succeed())
+		g.Expect(scList.Items).To(BeEmpty())
 
-	err = k8sClient.DeleteAllOf(ctx, &konfidence.StageSync{}, client.InNamespace(targetNamespace))
-	if !meta.IsNoMatchError(err) {
-		Expect(err).ToNot(HaveOccurred())
-	}
+		stageList := &konfidence.StageList{}
+		g.Expect(k8sClient.List(ctx, stageList, client.InNamespace(targetNamespace))).To(Succeed())
+		g.Expect(stageList.Items).To(BeEmpty())
+	}, timeout, interval).Should(Succeed())
 }
 
 // createStageConfiguration creates a StageConfiguration with the suite's default credentials and no verification.
+//
+//nolint:unparam // name/stageName are fixed in the current specs but kept as params for clarity
 func createStageConfiguration(ctx context.Context, name, stageName, vector string) {
 	createPKIStageConfiguration(ctx, name, stageName, vector, scCredentials(credSecretNames), nil)
 }
