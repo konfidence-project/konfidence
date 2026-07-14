@@ -33,13 +33,12 @@ Always add a comment to each field/struct to describe its purpose and to generat
 
 ### Installation
 
-Apply the CRDs to your Kubernetes cluster using the Helm charts:
+Apply the CRDs to your Kubernetes cluster using the Helm chart:
 ```bash
-helm upgrade --install star charts/star --set controller.install=false --set crd.keep=false
-helm upgrade --install galaxy charts/galaxy --set controller.install=false --set crd.keep=false
+helm upgrade --install konfidence charts/konfidence --set controller.install=false --set crd.keep=false
 ```
 
-The generated CRD manifests are maintained in the chart templates under `charts/star/templates/crds` and `charts/galaxy/templates/crds`.
+The generated CRD manifests are maintained in the chart templates under `charts/konfidence/templates/crds`.
 
 ### Integration with Kubebuilder Projects
 

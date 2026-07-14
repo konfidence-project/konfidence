@@ -25,26 +25,9 @@ before:
     - go mod tidy
 
 builds:
-  - id: star
-    binary: star
-    main: ./cmd/star
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-    ignore:
-      - goos: darwin
-        goarch: amd64
-    ldflags:
-      - -s -w -X github.com/konfidence-project/konfidence/pkg/build.Version={{.Version}} -X github.com/konfidence-project/konfidence/pkg/build.GitCommit={{.Commit}}
-
-  - id: galaxy
-    binary: galaxy
-    main: ./cmd/galaxy
+  - id: konfidence
+    binary: konfidence
+    main: ./cmd/konfidence
     env:
       - CGO_ENABLED=0
     goos:
@@ -78,12 +61,8 @@ builds:
       - -s -w -X github.com/konfidence-project/konfidence/cmd/version.version={{.Version}}
 
 archives:
-  - id: star
-    ids: [star]
-    formats: [none]
-
-  - id: galaxy
-    ids: [galaxy]
+  - id: konfidence
+    ids: [konfidence]
     formats: [none]
 
   - id: kden
@@ -99,31 +78,18 @@ checksum:
   name_template: checksums.txt
 
 dockers_v2:
-  - id: star-operator
-    ids: [star]
+  - id: konfidence-operator
+    ids: [konfidence]
     dockerfile: Dockerfile
     images:
-      - ghcr.io/konfidence-project/star-operator
+      - ghcr.io/konfidence-project/konfidence-operator
     tags:
       - "{{ .Version }}"
     platforms:
       - linux/amd64
       - linux/arm64
     build_args:
-      OPERATOR_NAME: star
-
-  - id: galaxy-operator
-    ids: [galaxy]
-    dockerfile: Dockerfile
-    images:
-      - ghcr.io/konfidence-project/galaxy-operator
-    tags:
-      - "{{ .Version }}"
-    platforms:
-      - linux/amd64
-      - linux/arm64
-    build_args:
-      OPERATOR_NAME: galaxy
+      OPERATOR_NAME: konfidence
 
 changelog:
   use: github

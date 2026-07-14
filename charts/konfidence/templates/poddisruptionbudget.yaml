@@ -1,0 +1,20 @@
+{{- if and .Values.controller.install .Values.podDisruptionBudget.enabled -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "konfidence.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konfidence.labels" . | nindent 4 }}
+spec:
+  {{- if ne .Values.podDisruptionBudget.minAvailable nil }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  {{- else if ne .Values.podDisruptionBudget.maxUnavailable nil }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- else }}
+  {{- fail "podDisruptionBudget.enabled is true but neither minAvailable nor maxUnavailable is set" }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "konfidence.selectorLabels" . | nindent 6 }}
+{{- end }}

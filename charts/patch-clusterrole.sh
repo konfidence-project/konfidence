@@ -8,9 +8,9 @@
 #
 # Usage: patch-clusterrole.sh <chart-name> <src.yaml> <dst.yaml>
 #
-# Example (regenerate the star ClusterRole after `make manifests-star`):
-#   charts/patch-clusterrole.sh star "config/rbac/star/role.yaml" \
-#       "charts/star/templates/role.yaml"
+# Example (regenerate the ClusterRole after `make manifests`):
+#   charts/patch-clusterrole.sh konfidence "config/rbac/konfidence/role.yaml" \
+#       "charts/konfidence/templates/clusterrole.yaml"
 
 set -euo pipefail
 

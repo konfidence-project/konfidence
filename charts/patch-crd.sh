@@ -5,23 +5,29 @@
 # metadata block calls into the chart's crdAnnotations / crdLabels helpers
 # and whose document is wrapped in a `crd.install` guard.
 #
-# Usage: patch-crd.sh <chart-name> <src.yaml> <dst.yaml>
+# Usage: patch-crd.sh <chart-name> <src.yaml> <dst.yaml> [guard]
 #
-# Example (patch generated galaxy CRDs in place):
-#   for f in charts/galaxy/templates/crds/*.yaml; do
-#     charts/patch-crd.sh galaxy "$f" "$f"
+# The optional guard is the Helm condition wrapping the document; it
+# defaults to `.Values.crd.install`. Galaxy CRDs pass
+# `and .Values.crd.install .Values.galaxy.enabled` so they are skipped
+# on star-only installs.
+#
+# Example (patch generated CRDs in place):
+#   for f in charts/konfidence/templates/crds/*.yaml; do
+#     charts/patch-crd.sh konfidence "$f" "$f"
 #   done
 
 set -euo pipefail
 
-if [[ $# -ne 3 ]]; then
-  echo "usage: $(basename "$0") <chart-name> <src.yaml> <dst.yaml>" >&2
+if [[ $# -lt 3 || $# -gt 4 ]]; then
+  echo "usage: $(basename "$0") <chart-name> <src.yaml> <dst.yaml> [guard]" >&2
   exit 2
 fi
 
 CHART="$1"
 SRC="$2"
 DST="$3"
+GUARD="${4:-.Values.crd.install}"
 
 if [[ ! -f "$SRC" ]]; then
   echo "error: source file not found: $SRC" >&2
@@ -55,10 +61,10 @@ awk -v annot="$ANNOT_INCLUDE" -v label="$LABEL_INCLUDE" '
   { print }
 ' "$SRC" > "$DST.tmp"
 
-# Wrap the document in a crd.install guard. Strip a leading `---` so the
+# Wrap the document in its install guard. Strip a leading `---` so the
 # guard sits cleanly above the document marker.
 {
-  echo '{{- if .Values.crd.install -}}'
+  echo "{{- if ${GUARD} -}}"
   echo '---'
   if [[ "$(head -n1 "$DST.tmp")" == "---" ]]; then
     tail -n +2 "$DST.tmp"

@@ -35,4 +35,4 @@ jobs:
     secrets: inherit
     with:
       version: ${{ needs.version.outputs.version }}
-      charts: charts/star charts/galaxy
+      charts: charts/konfidence

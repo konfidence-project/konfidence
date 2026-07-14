@@ -19,19 +19,12 @@ jobs:
     uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v4
     secrets: inherit
 
-  test-star:
-    name: Test / Star
+  test-operators:
+    name: Test / Operators
     uses: konfidence-project/.github/.github/workflows/test.yaml@v4
     secrets: inherit
     with:
-      test-cmd: test-star
-
-  test-galaxy:
-    name: Test / Galaxy
-    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
-    secrets: inherit
-    with:
-      test-cmd: test-galaxy
+      test-cmd: test-operators
 
   test-pkg:
     name: Test / Pkg
@@ -49,7 +42,7 @@ jobs:
 
   build:
     name: Build / Konfidence
-    needs: [lint, test-star, test-galaxy, test-pkg, test-kden-cli]
+    needs: [lint, test-operators, test-pkg, test-kden-cli]
     permissions:
       contents: read
       packages: write

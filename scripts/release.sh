@@ -9,10 +9,10 @@
 #
 # What it does (major|minor|patch):
 #   1. Validates the working tree is clean.
-#   2. Reads the current appVersion from charts/star/Chart.yaml (source of truth).
+#   2. Reads the current appVersion from charts/konfidence/Chart.yaml (source of truth).
 #   3. Computes the next semver according to the requested bump type.
 #   4. Updates both `appVersion` and `version` to the new value in
-#      charts/star/Chart.yaml and charts/galaxy/Chart.yaml (kept in sync).
+#      charts/konfidence/Chart.yaml.
 #   5. Creates a conventional commit: chore(release): X.Y.Z
 #   6. Creates an annotated git tag X.Y.Z.
 #   7. Runs `git push` and `git push origin refs/tags/X.Y.Z`.
@@ -21,7 +21,7 @@
 #   1. Validates the working tree is clean.
 #   2. Validates the tag value matches X.Y.Z-<suffix> (e.g. 1.0.0-rc.1).
 #   3. Updates both `appVersion` and `version` to the tag value in
-#      charts/star/Chart.yaml and charts/galaxy/Chart.yaml.
+#      charts/konfidence/Chart.yaml.
 #   4. Creates a conventional commit: chore(release): X.Y.Z-<suffix>.
 #   5. Creates an annotated git tag X.Y.Z-<suffix>.
 #   6. Runs `git push` and `git push origin refs/tags/<value>`.
@@ -34,8 +34,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-STAR_CHART="${REPO_ROOT}/charts/star/Chart.yaml"
-GALAXY_CHART="${REPO_ROOT}/charts/galaxy/Chart.yaml"
+CHART="${REPO_ROOT}/charts/konfidence/Chart.yaml"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -187,21 +186,18 @@ if [[ "${MODE}" == "tag" ]]; then
   assert_tag_does_not_exist "${CUSTOM_TAG}"
   check_yq
 
-  info "Tag            : ${CUSTOM_TAG}"
-  info "Commit         : $(git -C "${REPO_ROOT}" rev-parse --short HEAD)"
-  info "Charts affected:"
-  info "  ${STAR_CHART}"
-  info "  ${GALAXY_CHART}"
+  info "Tag           : ${CUSTOM_TAG}"
+  info "Commit        : $(git -C "${REPO_ROOT}" rev-parse --short HEAD)"
+  info "Chart affected:"
+  info "  ${CHART}"
   echo ""
 
   if [[ "${DRY_RUN}" == true ]]; then
     info "DRY RUN — would execute:"
-    info "  yq -i \".version = \\\"${CUSTOM_TAG}\\\"\"    ${STAR_CHART}"
-    info "  yq -i \".appVersion = \\\"${CUSTOM_TAG}\\\"\" ${STAR_CHART}"
-    info "  yq -i \".version = \\\"${CUSTOM_TAG}\\\"\"    ${GALAXY_CHART}"
-    info "  yq -i \".appVersion = \\\"${CUSTOM_TAG}\\\"\" ${GALAXY_CHART}"
+    info "  yq -i \".version = \\\"${CUSTOM_TAG}\\\"\"    ${CHART}"
+    info "  yq -i \".appVersion = \\\"${CUSTOM_TAG}\\\"\" ${CHART}"
     info "  make manifests"
-    info "  git add charts/star/ charts/galaxy/"
+    info "  git add charts/konfidence/"
     info "  git commit -m \"chore(release): ${CUSTOM_TAG}\""
     info "  git tag -a ${CUSTOM_TAG} -m \"Release ${CUSTOM_TAG}\""
     info "  git push"
@@ -218,18 +214,15 @@ if [[ "${MODE}" == "tag" ]]; then
     esac
   fi
 
-  info "Updating chart versions..."
-  yq -i ".version = \"${CUSTOM_TAG}\"" "${STAR_CHART}"
-  yq -i ".appVersion = \"${CUSTOM_TAG}\"" "${STAR_CHART}"
-  yq -i ".version = \"${CUSTOM_TAG}\"" "${GALAXY_CHART}"
-  yq -i ".appVersion = \"${CUSTOM_TAG}\"" "${GALAXY_CHART}"
+  info "Updating chart version..."
+  yq -i ".version = \"${CUSTOM_TAG}\"" "${CHART}"
+  yq -i ".appVersion = \"${CUSTOM_TAG}\"" "${CHART}"
 
   info "Regenerating manifests..."
   make -C "${REPO_ROOT}" manifests
 
   info "Committing..."
-  git -C "${REPO_ROOT}" add "${STAR_CHART}" "${GALAXY_CHART}" \
-    charts/star/ charts/galaxy/
+  git -C "${REPO_ROOT}" add "${CHART}" charts/konfidence/
   git -C "${REPO_ROOT}" commit -m "chore(release): ${CUSTOM_TAG}"
 
   info "Creating annotated tag ${CUSTOM_TAG}..."
@@ -257,8 +250,8 @@ fi
 
 check_yq
 
-CURRENT_VERSION="$(yq '.appVersion' "${STAR_CHART}" | tr -d '"')"
-[[ -n "${CURRENT_VERSION}" ]] || error "Could not read 'appVersion' from ${STAR_CHART}"
+CURRENT_VERSION="$(yq '.appVersion' "${CHART}" | tr -d '"')"
+[[ -n "${CURRENT_VERSION}" ]] || error "Could not read 'appVersion' from ${CHART}"
 
 NEXT_VERSION="$(bump_version "${CURRENT_VERSION}" "${BUMP_TYPE}")"
 TAG="${NEXT_VERSION}"
@@ -268,21 +261,18 @@ assert_tag_does_not_exist "${TAG}"
 info "Current appVersion : ${CURRENT_VERSION}"
 info "Next version       : ${NEXT_VERSION}  (${BUMP_TYPE} bump)"
 info "Git tag            : ${TAG}"
-info "Charts affected    :"
-info "  ${STAR_CHART}"
-info "  ${GALAXY_CHART}"
+info "Chart affected     :"
+info "  ${CHART}"
 echo ""
 
 # ── dry-run exit ──────────────────────────────────────────────────────────────
 
 if [[ "${DRY_RUN}" == true ]]; then
   info "DRY RUN — would execute:"
-  info "  yq -i \".version = \\\"${NEXT_VERSION}\\\"\"    ${STAR_CHART}"
-  info "  yq -i \".appVersion = \\\"${NEXT_VERSION}\\\"\" ${STAR_CHART}"
-  info "  yq -i \".version = \\\"${NEXT_VERSION}\\\"\"    ${GALAXY_CHART}"
-  info "  yq -i \".appVersion = \\\"${NEXT_VERSION}\\\"\" ${GALAXY_CHART}"
+  info "  yq -i \".version = \\\"${NEXT_VERSION}\\\"\"    ${CHART}"
+  info "  yq -i \".appVersion = \\\"${NEXT_VERSION}\\\"\" ${CHART}"
   info "  make manifests"
-  info "  git add charts/star/ charts/galaxy/"
+  info "  git add charts/konfidence/"
   info "  git commit -m \"chore(release): ${TAG}\""
   info "  git tag -a ${TAG} -m \"Release ${TAG}\""
   info "  git push"
@@ -303,15 +293,12 @@ fi
 
 # ── update Chart.yaml files ───────────────────────────────────────────────────
 
-info "Updating chart versions..."
+info "Updating chart version..."
 
-yq -i ".version = \"${NEXT_VERSION}\"" "${STAR_CHART}"
-yq -i ".appVersion = \"${NEXT_VERSION}\"" "${STAR_CHART}"
-yq -i ".version = \"${NEXT_VERSION}\"" "${GALAXY_CHART}"
-yq -i ".appVersion = \"${NEXT_VERSION}\"" "${GALAXY_CHART}"
+yq -i ".version = \"${NEXT_VERSION}\"" "${CHART}"
+yq -i ".appVersion = \"${NEXT_VERSION}\"" "${CHART}"
 
-info "  ${STAR_CHART}   version + appVersion -> ${NEXT_VERSION}"
-info "  ${GALAXY_CHART} version + appVersion -> ${NEXT_VERSION}"
+info "  ${CHART} version + appVersion -> ${NEXT_VERSION}"
 
 info "Regenerating manifests..."
 make -C "${REPO_ROOT}" manifests
@@ -320,10 +307,8 @@ make -C "${REPO_ROOT}" manifests
 
 info "Committing..."
 git -C "${REPO_ROOT}" add \
-  "${STAR_CHART}" \
-  "${GALAXY_CHART}" \
-  charts/star/ \
-  charts/galaxy/
+  "${CHART}" \
+  charts/konfidence/
 
 git -C "${REPO_ROOT}" commit -m "chore(release): ${TAG}"
 
