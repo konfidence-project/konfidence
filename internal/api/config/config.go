@@ -2,68 +2,82 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // Config holds all runtime configuration for the API server.
-// Values are populated from CLI flags (see cmd/api/cmd/root.go).
-// The flag → env → default precedence is handled at the cobra layer.
 type Config struct {
-	// Addr is the TCP address the server listens on, e.g. ":8090".
-	Addr string
-
-	// ReadTimeout is the raw duration string for http.Server.ReadTimeout.
-	ReadTimeout string
-
-	// WriteTimeout is the raw duration string for http.Server.WriteTimeout.
-	WriteTimeout string
-
-	// ShutdownTimeout is the raw duration string for the graceful shutdown window.
+	Addr            string
+	ReadTimeout     string
+	WriteTimeout    string
 	ShutdownTimeout string
-
-	// LogLevel controls verbosity: debug, info, warn, error.
-	LogLevel string
+	LogLevel        string
+	Auth            AuthConfig
+	Scheme          *runtime.Scheme
 }
 
-// Parsed returns duration values already parsed from the string fields.
-// It assumes Validate has been called first.
+// AuthConfig holds OIDC configuration for the auth middleware.
+type AuthConfig struct {
+	AuthorizeURL string
+	TokenURL     string
+	UserInfoURL  string
+	ClientID     string
+	RedirectURI  string
+	Scopes       string
+}
+
+// Parsed holds validated, pre-parsed values ready for use by the server.
 type Parsed struct {
+	Addr            string
+	LogLevel        string
+	Auth            AuthConfig
+	Scheme          *runtime.Scheme
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
 }
 
-// Validate checks all fields and returns the first error found.
-func (c Config) Validate() error {
+// Validate checks all fields, parses durations, and returns a ready-to-use
+// Parsed on success.
+func (c Config) Validate() (Parsed, error) {
 	if c.Addr == "" {
-		return fmt.Errorf("addr must not be empty")
+		return Parsed{}, fmt.Errorf("addr must not be empty")
 	}
-	if _, err := time.ParseDuration(c.ReadTimeout); err != nil {
-		return fmt.Errorf("invalid read-timeout %q: %w", c.ReadTimeout, err)
+	read, err := time.ParseDuration(c.ReadTimeout)
+	if err != nil {
+		return Parsed{}, fmt.Errorf("invalid read-timeout %q: %w", c.ReadTimeout, err)
 	}
-	if _, err := time.ParseDuration(c.WriteTimeout); err != nil {
-		return fmt.Errorf("invalid write-timeout %q: %w", c.WriteTimeout, err)
+	write, err := time.ParseDuration(c.WriteTimeout)
+	if err != nil {
+		return Parsed{}, fmt.Errorf("invalid write-timeout %q: %w", c.WriteTimeout, err)
 	}
-	if _, err := time.ParseDuration(c.ShutdownTimeout); err != nil {
-		return fmt.Errorf("invalid shutdown-timeout %q: %w", c.ShutdownTimeout, err)
+	shutdown, err := time.ParseDuration(c.ShutdownTimeout)
+	if err != nil {
+		return Parsed{}, fmt.Errorf("invalid shutdown-timeout %q: %w", c.ShutdownTimeout, err)
 	}
 	switch c.LogLevel {
 	case "debug", "info", "warn", "error":
 	default:
-		return fmt.Errorf("invalid log-level %q: must be one of debug, info, warn, error", c.LogLevel)
+		return Parsed{}, fmt.Errorf("invalid log-level %q: must be one of debug, info, warn, error", c.LogLevel)
 	}
-	return nil
-}
-
-// Parse returns the pre-parsed durations. Call Validate first to ensure the
-// string fields are well-formed; invalid values produce zero durations.
-func (c Config) Parse() Parsed {
-	read, _ := time.ParseDuration(c.ReadTimeout)
-	write, _ := time.ParseDuration(c.WriteTimeout)
-	shutdown, _ := time.ParseDuration(c.ShutdownTimeout)
 	return Parsed{
+		Addr:            c.Addr,
+		LogLevel:        c.LogLevel,
+		Auth:            c.Auth,
+		Scheme:          c.Scheme,
 		ReadTimeout:     read,
 		WriteTimeout:    write,
 		ShutdownTimeout: shutdown,
+	}, nil
+}
+
+// ScopesSlice splits the space-separated scopes string into a slice.
+func (a AuthConfig) ScopesSlice() []string {
+	if a.Scopes == "" {
+		return nil
 	}
+	return strings.Fields(a.Scopes)
 }

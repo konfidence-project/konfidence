@@ -270,9 +270,9 @@ var _ = Describe("SetKey", func() {
 			Expect(err.Error()).To(ContainSubstring("Supported values are: json, yaml, pretty"))
 		})
 
-		DescribeTable("should reject an invalid api-addr value",
+		DescribeTable("should reject an invalid api-endpoint value",
 			func(addr, fragment string) {
-				err := SetKey("api-addr", addr)
+				err := SetKey("api-endpoint", addr)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(fragment))
 			},
@@ -282,8 +282,8 @@ var _ = Describe("SetKey", func() {
 			Entry("no host", "http://", "host must not be empty"),
 		)
 
-		It("should accept a valid api-addr value", func() {
-			err := SetKey("api-addr", "https://api.example.com:8090")
+		It("should accept a valid api-endpoint value", func() {
+			err := SetKey("api-endpoint", "https://api.example.com:8090")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(readConfigFileContent()).To(ContainSubstring("https://api.example.com:8090"))
 		})
@@ -369,7 +369,7 @@ var _ = Describe("validateConfiguration", func() {
 			Config.LogLevel = fileLogLevel
 			Config.LogFormat = jsonLiteral
 			Config.Output = jsonLiteral
-			Config.APIAddr = "http://localhost:8090"
+			Config.APIEndpoint = "http://localhost:8090"
 
 			err := validateConfig(&Config)
 			Expect(err).ToNot(HaveOccurred())
@@ -381,19 +381,19 @@ var _ = Describe("validateConfiguration", func() {
 			Config.LogLevel = ""
 			Config.LogFormat = jsonLiteral
 			Config.Output = jsonLiteral
-			Config.APIAddr = "http://localhost:8090"
+			Config.APIEndpoint = "http://localhost:8090"
 
 			err := validateConfig(&Config)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid log-level: "))
 		})
 
-		DescribeTable("should reject an invalid api-addr",
+		DescribeTable("should reject an invalid api-endpoint",
 			func(addr, expectedErrFragment string) {
 				Config.LogLevel = "info"
 				Config.LogFormat = jsonLiteral
 				Config.Output = jsonLiteral
-				Config.APIAddr = addr
+				Config.APIEndpoint = addr
 
 				err := validateConfig(&Config)
 				Expect(err).To(HaveOccurred())
@@ -405,12 +405,12 @@ var _ = Describe("validateConfiguration", func() {
 			Entry("no host", "http://", "host must not be empty"),
 		)
 
-		DescribeTable("should accept a valid api-addr",
+		DescribeTable("should accept a valid api-endpoint",
 			func(addr string) {
 				Config.LogLevel = "info"
 				Config.LogFormat = jsonLiteral
 				Config.Output = jsonLiteral
-				Config.APIAddr = addr
+				Config.APIEndpoint = addr
 
 				Expect(validateConfig(&Config)).To(Succeed())
 			},
@@ -423,7 +423,7 @@ var _ = Describe("validateConfiguration", func() {
 })
 
 func setupConfigurationFile() {
-	content := []byte(`{"log-level": "info", "log-format": "json", "output": "json", "api-addr": "http://localhost:8090"}`)
+	content := []byte(`{"log-level": "info", "log-format": "json", "output": "json", "api-endpoint": "http://localhost:8090"}`)
 	err := os.WriteFile(configFilePath, content, 0644)
 	Expect(err).ToNot(HaveOccurred())
 }
