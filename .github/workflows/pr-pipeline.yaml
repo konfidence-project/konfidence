@@ -12,7 +12,7 @@ jobs:
       packages: write
       attestations: write
       id-token: write
-    uses: konfidence-project/konfidence/.github/workflows/lint-test-build.yaml@main
+    uses: ./.github/workflows/lint-test-build.yaml
     secrets: inherit
     with:
       mode: pr
