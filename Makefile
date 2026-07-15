@@ -228,7 +228,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli ## Run all unit tests.
+test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api ## Run all unit tests.
 
 .PHONY: test-operators
 test-operators: hermit manifests setup-envtest ginkgo ## Run unit tests for the konfidence operator.
@@ -242,6 +242,10 @@ test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.
 .PHONY: test-kden-cli
 test-kden-cli: hermit
 	go test ./cmd/kden/... ./internal/kden/...
+
+.PHONY: test-api
+test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
+	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
