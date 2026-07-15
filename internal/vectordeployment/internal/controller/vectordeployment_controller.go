@@ -426,7 +426,7 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(
 	}
 
 	// set status condition VectorAssignmentsCreatedCondition. VectorReady is intentionally NOT set here any more
-	// - it now exclusively flips after VectorData has been materialised by the runtime-specific orchestrator,
+	// — it now exclusively flips after VectorData has been materialised by the runtime-specific orchestrator,
 	// see the post-handleVectorData block in Reconcile().
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.VectorAssignmentsCreatedCondition,

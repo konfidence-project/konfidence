@@ -19,10 +19,10 @@ chart update + commit + tag + push flow.
 ### Usage
 
 ```sh
-# Semver release - bumps Chart.yaml, commits, tags, pushes
-scripts/release.sh patch            # 0.1.1 -> 0.1.2 - bug fix or non-functional change
-scripts/release.sh minor            # 0.1.1 -> 0.2.0 - new backwards-compatible feature
-scripts/release.sh major            # 0.1.1 -> 1.0.0 - breaking change
+# Semver release — bumps Chart.yaml, commits, tags, pushes
+scripts/release.sh patch            # 0.1.1 -> 0.1.2 — bug fix or non-functional change
+scripts/release.sh minor            # 0.1.1 -> 0.2.0 — new backwards-compatible feature
+scripts/release.sh major            # 0.1.1 -> 1.0.0 — breaking change
 
 # Pre-release tag — updates Chart.yaml, commits, tags, and pushes
 scripts/release.sh tag 1.0.0-rc.1
@@ -49,7 +49,7 @@ scripts/release.sh tag 1.0.0-rc.1 --dry-run
 7. Creates an annotated git tag `X.Y.Z`.
 8. Runs `git push` and `git push --tags`.
 
-> `version` and `appVersion` are always kept in sync - both fields are set to
+> `version` and `appVersion` are always kept in sync — both fields are set to
 > the same value on every release.
 
 #### `tag <value>`

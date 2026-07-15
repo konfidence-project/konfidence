@@ -1,7 +1,7 @@
 // Package cmd provides shared startup wiring for the konfidence operator
 // binaries (galaxy and star). It exposes one concern:
 //
-//   - FilterEnabledControllers - selecting which controllers an operator binary runs at startup,
+//   - FilterEnabledControllers — selecting which controllers an operator binary runs at startup,
 //     driven by the operator's --controllers flag.
 //
 // # Selecting controllers with --controllers
@@ -21,7 +21,7 @@
 // matching controllers to a union, negative tokens (those prefixed with "!")
 // contribute matching controllers to an exclusion set, and the result is
 // (positives) minus (negatives). The position of a token within the spec does
-// not change the outcome - "!Foo,*" and "*,!Foo" are equivalent.
+// not change the outcome — "!Foo,*" and "*,!Foo" are equivalent.
 //
 // # Examples
 //
