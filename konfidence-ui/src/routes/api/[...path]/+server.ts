@@ -1,8 +1,8 @@
 import type { RequestHandler } from "./$types";
-import getApiUrl from "$lib/server/api";
+import { KONFIDENCE_API_URL } from "$app/env/private";
 
 const proxy: RequestHandler = ({ fetch, request, url }) => {
-  const target = new URL(url.pathname + url.search, getApiUrl());
+  const target = new URL(url.pathname + url.search, KONFIDENCE_API_URL);
   const headers = new Headers(request.headers);
   headers.delete("host");
 

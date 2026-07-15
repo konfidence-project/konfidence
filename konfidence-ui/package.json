@@ -29,7 +29,8 @@
     "@ui5/webcomponents-base": "^2.23.2",
     "@ui5/webcomponents-fiori": "^2.23.2",
     "@ui5/webcomponents-icons": "^2.23.2",
-    "@xyflow/svelte": "^1.6.1"
+    "@xyflow/svelte": "^1.6.1",
+    "valibot": "^1.4.2"
   },
   "devDependencies": {
     "@humanspeak/svelte-headless-table": "^6.0.11",
