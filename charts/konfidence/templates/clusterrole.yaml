@@ -50,7 +50,6 @@ rules:
   - activationtaskexecutions
   - activationtaskregistrations
   - artifactdeployments
-  - stageconfigurations
   - stages
   - stageversions
   - stageversionusages
@@ -59,7 +58,6 @@ rules:
   - vectorassignments
   - vectordeployments
   - vectormigrations
-  - vectorpromotions
   verbs:
   - create
   - delete
@@ -74,7 +72,6 @@ rules:
   - activationtaskexecutions/status
   - activationtaskregistrations/status
   - artifactdeployments/status
-  - stageconfigurations/status
   - stages/status
   - stageversions/status
   - stageversionusages/status
@@ -82,9 +79,6 @@ rules:
   - vectoractivations/status
   - vectordeployments/status
   - vectormigrations/status
-  - vectorpromotionconfigs/status
-  - vectorpromotions/status
-  - vectortemplates/status
   verbs:
   - get
   - patch
@@ -105,6 +99,41 @@ rules:
   - vectordeployments/finalizers
   verbs:
   - update
+{{- if .Values.galaxy.enabled }}
+- apiGroups:
+  - konfidence.cloud
+  resources:
+  - stageconfigurations
+  - vectorpromotions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - konfidence.cloud
+  resources:
+  - stageconfigurations/status
+  - vectorpromotionconfigs/status
+  - vectorpromotions/status
+  - vectortemplates/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - konfidence.cloud
+  resources:
+  - stages
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
 - apiGroups:
   - konfidence.cloud
   resources:
@@ -114,4 +143,5 @@ rules:
   - get
   - list
   - watch
+{{- end }}
 {{- end }}

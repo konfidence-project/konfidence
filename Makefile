@@ -62,11 +62,14 @@ STAR_CRD_FILES = \
 	konfidence.cloud_activationtaskregistrations.yaml
 
 # Internal controller packages of the konfidence operator. internal/ is flat
-# (no galaxy/star grouping dir), so the controllers are enumerated explicitly:
-# star set first, galaxy set second.
-OPERATOR_INTERNAL_DIRS  = ./internal/stage/... ./internal/taskorchestration/... ./internal/vectoractivation/... ./internal/vectordeployment/... \
-	./internal/stageconfiguration/... ./internal/vectorassembly/... ./internal/vectorpromotion/...
-OPERATOR_INTERNAL_PATHS = $(foreach d,$(OPERATOR_INTERNAL_DIRS),paths="$(d)")
+# (no galaxy/star grouping dir), so the controllers are enumerated explicitly.
+# RBAC is generated per set so the chart can gate the galaxy-only rules on
+# .Values.galaxy.enabled; tests run over the combined list.
+STAR_INTERNAL_DIRS    = ./internal/stage/... ./internal/taskorchestration/... ./internal/vectoractivation/... ./internal/vectordeployment/...
+GALAXY_INTERNAL_DIRS  = ./internal/stageconfiguration/... ./internal/vectorassembly/... ./internal/vectorpromotion/...
+OPERATOR_INTERNAL_DIRS = $(STAR_INTERNAL_DIRS) $(GALAXY_INTERNAL_DIRS)
+STAR_INTERNAL_PATHS   = $(foreach d,$(STAR_INTERNAL_DIRS),paths="$(d)")
+GALAXY_INTERNAL_PATHS = $(foreach d,$(GALAXY_INTERNAL_DIRS),paths="$(d)")
 
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
@@ -102,10 +105,13 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: hermit manifests-crds ## Generate CRDs and RBAC manifests for the konfidence operator chart.
 	@echo "Generating manifests for konfidence..."
-	@mkdir -p $(STAR_CRD_DIR) $(GALAXY_CRD_DIR) charts/konfidence/templates/crds config/rbac/konfidence
+	@mkdir -p $(STAR_CRD_DIR) $(GALAXY_CRD_DIR) charts/konfidence/templates/crds config/rbac/star config/rbac/galaxy
 	$(CONTROLLER_GEN) rbac:roleName=konfidence-manager \
-		$(OPERATOR_INTERNAL_PATHS) \
-		output:rbac:artifacts:config=config/rbac/konfidence
+		$(STAR_INTERNAL_PATHS) \
+		output:rbac:artifacts:config=config/rbac/star
+	$(CONTROLLER_GEN) rbac:roleName=konfidence-manager \
+		$(GALAXY_INTERNAL_PATHS) \
+		output:rbac:artifacts:config=config/rbac/galaxy
 	@rm -f $(STAR_CRD_DIR)/*.yaml $(GALAXY_CRD_DIR)/*.yaml charts/konfidence/templates/crds/*.yaml
 	@for f in $(STAR_CRD_FILES); do cp "$(CRD_STAGING_DIR)/$$f" "$(STAR_CRD_DIR)/$$f"; done
 	@for f in $(GALAXY_CRD_FILES); do cp "$(CRD_STAGING_DIR)/$$f" "$(GALAXY_CRD_DIR)/$$f"; done
@@ -116,7 +122,8 @@ manifests: hermit manifests-crds ## Generate CRDs and RBAC manifests for the kon
 		charts/patch-crd.sh konfidence "$$f" "charts/konfidence/templates/crds/$$(basename $$f)" \
 			"and .Values.crd.install .Values.galaxy.enabled"; \
 	done
-	charts/patch-clusterrole.sh konfidence "config/rbac/konfidence/role.yaml" "charts/konfidence/templates/clusterrole.yaml"
+	charts/patch-clusterrole.sh konfidence "config/rbac/star/role.yaml" "charts/konfidence/templates/clusterrole.yaml" \
+		"config/rbac/galaxy/role.yaml" ".Values.galaxy.enabled"
 	$(HELM_DOCS) -c charts/konfidence > charts/konfidence/README.md
 
 .PHONY: manifests-crds
