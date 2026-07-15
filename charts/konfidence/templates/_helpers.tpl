@@ -35,6 +35,26 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: controller
 {{- end -}}
 
+{{- define "konfidence.dashboardFullname" -}}
+{{- printf "%s-dashboard" (include "konfidence.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "konfidence.dashboardLabels" -}}
+helm.sh/chart: {{ include "konfidence.chart" . }}
+app.kubernetes.io/name: {{ include "konfidence.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/part-of: konfidence
+app.kubernetes.io/component: dashboard
+{{- end -}}
+
+{{- define "konfidence.dashboardSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "konfidence.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: dashboard
+{{- end -}}
+
 {{- define "konfidence.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create -}}
 {{- default (include "konfidence.fullname" .) .Values.serviceAccount.name -}}
