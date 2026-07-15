@@ -17,6 +17,7 @@ const config = {
   kit: {
     adapter: adapter(),
     experimental: {
+      explicitEnvironmentVariables: true,
       remoteFunctions: true,
     },
   },
