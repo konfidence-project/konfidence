@@ -79,53 +79,6 @@ api:
     minAvailable: ~
     maxUnavailable: 1
 
-# Konfidence API server - HTTP gateway between CLI/UI clients and the star CRDs.
-# Deployed in the same namespace as the star operator.
-api:
-  # When false, all API server resources (Deployment, Service, RBAC) are skipped.
-  enabled: true
-
-  image:
-    repository: ghcr.io/konfidence-project/api
-    # Defaults to .Chart.AppVersion when empty.
-    tag: ""
-    pullPolicy: IfNotPresent
-
-  server:
-    # TCP address the API server listens on inside the container.
-    addr: ":8090"
-    logLevel: info
-    readTimeout: "10s"
-    writeTimeout: "10s"
-    shutdownTimeout: "15s"
-
-  # Extra CLI arguments appended to the container args list.
-  extraArgs: []
-
-  env: []
-  volumes: []
-  volumeMounts: []
-
-  replicas: 1
-
-  resources: {}
-
-  podAnnotations: {}
-  podLabels: {}
-
-  # Kubernetes Service exposing the API server.
-  # ClusterIP  - reachable inside the cluster; use port-forward or Ingress externally.
-  service:
-    type: ClusterIP
-    port: 8090
-    nodePort: ""
-    annotations: {}
-
-  podDisruptionBudget:
-    enabled: false
-    minAvailable: ~
-    maxUnavailable: 1
-
 nameOverride: ""
 fullnameOverride: ""
 
