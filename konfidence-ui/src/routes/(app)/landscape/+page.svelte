@@ -2,7 +2,7 @@
     import "@ui5/webcomponents-fiori/dist/Page.js";
 
     import ErrorView from "$lib/components/ErrorView.svelte";
-    import LandscapeView from "$lib/components/landscape/LandscapeView.svelte";
+    import LandscapeView from "$lib/components/LandscapeView.svelte";
     import LoadingView from "$lib/components/LoadingView.svelte";
 
     import { getStages } from "./stages.remote";
