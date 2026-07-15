@@ -11,6 +11,7 @@ staticClients:
     public: true
     redirectURIs:
       - http://localhost:8090/api/auth/callback
+      - http://localhost:5173/api/auth/callback
 connectors:
   - type: mockCallback
     id: mock

@@ -15,7 +15,7 @@ make run-api-with-idp
 Open the browser flow:
 
 ```text
-http://localhost:8090/api/login
+http://localhost:5173/api/login?returnTo=/landscape
 ```
 
 Test users:

@@ -21,7 +21,8 @@
     "verify": "pnpm check && pnpm lint && pnpm check:svelte && pnpm fmt:check",
     "test:unit": "vitest run",
     "test": "pnpm test:unit && pnpm test:e2e",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:auth": "playwright install chromium && playwright test --config playwright.auth.config.ts"
   },
   "dependencies": {
     "@ui5/webcomponents": "^2.23.2",
@@ -48,6 +49,7 @@
     "playwright": "^1.60.0",
     "svelte": "^5.56.1",
     "svelte-check": "^4.6.0",
+    "testcontainers": "^12.0.4",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.8",
