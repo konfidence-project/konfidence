@@ -16,7 +16,8 @@ crd:
 
 # Galaxy control-plane controllers (StageConfiguration, VectorAssembly,
 # VectorPromotion). When disabled, the operator runs star-only
-# (--enable-galaxy=false) and the galaxy CRDs are not installed.
+# (--enable-galaxy=false) and the galaxy CRDs and galaxy-only RBAC rules
+# are not installed.
 galaxy:
   enabled: true
 
