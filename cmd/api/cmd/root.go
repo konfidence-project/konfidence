@@ -7,8 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	galaxy "github.com/konfidence-project/konfidence/api/galaxy/v1alpha1"
-	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/server"
@@ -63,7 +61,7 @@ primary configuration mechanism. Flags are convenient for local development.
   API_AUTH_SCOPES        Space-separated OIDC scopes (default: openid profile email groups)
 
 Kubernetes client config is resolved automatically via the standard KUBECONFIG
-env var or in-cluster config when deployed as a pod — no flag required.`,
+env var or in-cluster config when deployed as a pod.`,
 	RunE: startServer,
 }
 
@@ -76,11 +74,6 @@ func Execute() {
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(galaxy.AddToScheme(scheme))
-	utilruntime.Must(star.AddToScheme(scheme))
-
-	rootCmd.Flags().StringVar(&addr, "addr", envOr("API_ADDR", ":8090"),
-	rootCmd.Flags().String("addr", envOr("API_ADDR", ":8090"),
 	utilruntime.Must(konfidence.AddToScheme(scheme))
 
 	rootCmd.Flags().StringVar(&addr, "addr", envOr("API_ADDR", ":8090"),
