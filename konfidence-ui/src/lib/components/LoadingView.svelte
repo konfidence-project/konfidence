@@ -14,7 +14,7 @@
 </script>
 
 <section class="loading-view" aria-live="polite" aria-labelledby={labelledBy}>
-    <ui5-busy-indicator active size="M" delay="{0}"></ui5-busy-indicator>
+    <ui5-busy-indicator active size="M" delay="0"></ui5-busy-indicator>
     <ui5-title level="H2" size="H4">{title}</ui5-title>
     <p>{message}</p>
 </section>

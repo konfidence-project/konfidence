@@ -264,6 +264,7 @@
         <section slot="midColumn" class="vector-pane vector-details">
             <header class="details-head">
                 <ui5-title level="H3">{selectedVector.metadata.name}</ui5-title>
+                <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
                 <ui5-button
                     icon="decline"
                     design="Transparent"
@@ -277,6 +278,7 @@
                     title-text="Vector details coming soon"
                     subtitle-text={`Artifact breakdown and deployment history for ${selectedVector.metadata.name} will appear here.`}
                 >
+                    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
                     <ui5-button design="Emphasized" onclick={closeDetails}>
                         Back to list
                     </ui5-button>
