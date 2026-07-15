@@ -1,0 +1,18 @@
+{{- if .Values.dashboard.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "star.dashboardFullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "star.dashboardLabels" . | nindent 4 }}
+spec:
+  type: {{ .Values.dashboard.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.dashboard.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "star.dashboardSelectorLabels" . | nindent 4 }}
+{{- end }}

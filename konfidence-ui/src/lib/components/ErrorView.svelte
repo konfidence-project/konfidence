@@ -16,7 +16,9 @@
     }>();
 
     const detail = $derived.by(() => {
-        if (error instanceof Error) {return error.message;}
+        if (error instanceof Error) {
+            return error.message;
+        }
 
         if (error && typeof error === "object" && "message" in error) {
             return String(error.message);
@@ -44,7 +46,8 @@
             <span class="status-code">Error {status}</span>
         {/if}
 
-        <ui5-title id="error-view-title" level="H1" size="H2">{title}</ui5-title>
+        <ui5-title id="error-view-title" level="H1" size="H2">{title}</ui5-title
+        >
         <p class="message">{message}</p>
 
         {#if detail}
@@ -90,8 +93,16 @@
         aspect-ratio: 1;
         border-radius: 999px;
         background:
-            radial-gradient(circle, color-mix(in srgb, #fff3c4 70%, transparent) 0 12%, transparent 13%),
-            radial-gradient(circle, color-mix(in srgb, #ffbf2f 34%, transparent) 0 34%, transparent 67%);
+            radial-gradient(
+                circle,
+                color-mix(in srgb, #fff3c4 70%, transparent) 0 12%,
+                transparent 13%
+            ),
+            radial-gradient(
+                circle,
+                color-mix(in srgb, #ffbf2f 34%, transparent) 0 34%,
+                transparent 67%
+            );
         filter: blur(1.6rem);
         opacity: 0.9;
         animation: supernova-pulse 3.8s ease-in-out infinite;
@@ -127,19 +138,40 @@
         animation: particle-drift 4.6s ease-in-out infinite;
     }
 
-    .particle-1 { inset: 18% auto auto 18%; }
-    .particle-2 { inset: 31% 12% auto auto; width: 0.32rem; animation-delay: -1.2s; }
-    .particle-3 { inset: auto 22% 20% auto; width: 0.56rem; animation-delay: -2.4s; }
-    .particle-4 { inset: auto auto 24% 14%; width: 0.28rem; animation-delay: -3s; }
-    .particle-5 { inset: 11% auto auto 64%; width: 0.24rem; animation-delay: -1.8s; }
+    .particle-1 {
+        inset: 18% auto auto 18%;
+    }
+    .particle-2 {
+        inset: 31% 12% auto auto;
+        width: 0.32rem;
+        animation-delay: -1.2s;
+    }
+    .particle-3 {
+        inset: auto 22% 20% auto;
+        width: 0.56rem;
+        animation-delay: -2.4s;
+    }
+    .particle-4 {
+        inset: auto auto 24% 14%;
+        width: 0.28rem;
+        animation-delay: -3s;
+    }
+    .particle-5 {
+        inset: 11% auto auto 64%;
+        width: 0.24rem;
+        animation-delay: -1.8s;
+    }
 
     .error-art {
         position: relative;
         width: 78%;
         height: auto;
-        filter:
-            drop-shadow(0 0 1.75rem color-mix(in srgb, #ffbf2f 46%, transparent))
-            drop-shadow(0 1.25rem 2.5rem color-mix(in srgb, #f5a000 22%, transparent));
+        filter: drop-shadow(
+                0 0 1.75rem color-mix(in srgb, #ffbf2f 46%, transparent)
+            )
+            drop-shadow(
+                0 1.25rem 2.5rem color-mix(in srgb, #f5a000 22%, transparent)
+            );
         animation: art-float 5.4s ease-in-out infinite;
     }
 
@@ -148,10 +180,16 @@
         gap: 1rem;
         width: min(100%, 42rem);
         padding: clamp(1.25rem, 4vw, 2.25rem);
-        border: 1px solid color-mix(in srgb, var(--sapList_BorderColor) 78%, transparent);
+        border: 1px solid
+            color-mix(in srgb, var(--sapList_BorderColor) 78%, transparent);
         border-radius: 1.5rem;
-        background: color-mix(in srgb, var(--sapGroup_ContentBackground) 88%, transparent);
-        box-shadow: 0 1.25rem 4rem color-mix(in srgb, var(--sapContent_ShadowColor) 18%, transparent);
+        background: color-mix(
+            in srgb,
+            var(--sapGroup_ContentBackground) 88%,
+            transparent
+        );
+        box-shadow: 0 1.25rem 4rem
+            color-mix(in srgb, var(--sapContent_ShadowColor) 18%, transparent);
         backdrop-filter: blur(1.25rem);
     }
 
@@ -181,9 +219,20 @@
         overflow: auto;
         border: 1px solid var(--sapList_BorderColor);
         border-radius: 0.875rem;
-        background: color-mix(in srgb, var(--sapBackgroundColor) 72%, transparent);
+        background: color-mix(
+            in srgb,
+            var(--sapBackgroundColor) 72%,
+            transparent
+        );
         color: var(--sapNegativeTextColor);
-        font: 0.875rem/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font:
+            0.875rem/1.45 ui-monospace,
+            SFMono-Regular,
+            Menlo,
+            Monaco,
+            Consolas,
+            "Liberation Mono",
+            monospace;
         white-space: pre-wrap;
     }
 

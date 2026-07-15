@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "all": "pnpm verify && pnpm test:unit && pnpm test:e2e",
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
@@ -17,9 +18,10 @@
     "lint:svelte-templates:fix": "eslint \"src/**/*.svelte\" --fix",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "test:unit": "vitest",
-    "test": "pnpm test:unit -- --run && pnpm test:e2e",
-    "test:e2e": "playwright install && playwright test"
+    "verify": "pnpm check && pnpm lint && pnpm check:svelte && pnpm fmt:check",
+    "test:unit": "vitest run",
+    "test": "pnpm test:unit && pnpm test:e2e",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ui5/webcomponents": "^2.23.2",

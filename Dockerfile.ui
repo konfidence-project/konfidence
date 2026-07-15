@@ -1,0 +1,40 @@
+FROM ghcr.io/pnpm/pnpm:11.9.0 AS base
+
+WORKDIR /workspace
+
+RUN pnpm runtime set node 24.15.0 -g
+
+FROM base AS prod-deps
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY konfidence-ui/package.json konfidence-ui/package.json
+
+RUN pnpm install --prod --frozen-lockfile --filter konfidence-ui
+
+FROM base AS builder
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
+COPY konfidence-ui/package.json konfidence-ui/package.json
+
+RUN pnpm install --frozen-lockfile
+
+COPY konfidence-ui/ konfidence-ui/
+
+RUN pnpm ui:build
+
+FROM base
+
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=3000
+
+COPY --from=prod-deps /workspace/node_modules node_modules
+COPY --from=prod-deps /workspace/konfidence-ui/node_modules konfidence-ui/node_modules
+COPY --from=prod-deps /workspace/konfidence-ui/package.json konfidence-ui/package.json
+COPY --from=builder /workspace/konfidence-ui/build konfidence-ui/build
+
+WORKDIR /workspace/konfidence-ui
+
+EXPOSE 3000
+
+CMD ["node", "build"]

@@ -1,0 +1,16 @@
+.git
+.github
+.hermit
+.svelte-kit
+.tmp
+bin/*/
+build
+config/rbac
+node_modules
+test/data/crds
+konfidence-ui/.svelte-kit
+konfidence-ui/build
+konfidence-ui/node_modules
+konfidence-ui/test-results
+*.out
+*.tgz
