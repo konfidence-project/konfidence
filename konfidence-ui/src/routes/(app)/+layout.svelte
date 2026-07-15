@@ -82,7 +82,6 @@
 
     let userMenuOpen = $state(false);
     let userMenuOpener = $state<HTMLElement | undefined>();
-    let logoutForm = $state<HTMLFormElement>();
 
     const actionId = (action: MenuAction): string => JSON.stringify(action);
 
@@ -155,9 +154,12 @@
         dispatchMenuAction(action);
     };
 
-    const handleSignOutClick = (): void => {
+    const handleSignOutClick = async (): Promise<void> => {
         userMenuOpen = false;
-        logoutForm?.submit();
+        const response = await globalThis.fetch("/api/logout", { method: "POST" });
+        if (response.ok) {
+            globalThis.location.assign(resolve("/landscape"));
+        }
     };
 
     const handleSideNavClick = (
@@ -271,13 +273,6 @@
         data-id={actionId({ kind: "settings" })}
     ></ui5-user-menu-item>
 </ui5-user-menu>
-
-<form
-    bind:this={logoutForm}
-    method="POST"
-    action="/api/logout"
-    hidden
-></form>
 
 <style>
     :global(ui5-navigation-layout) {
