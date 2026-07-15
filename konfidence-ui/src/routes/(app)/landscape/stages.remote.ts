@@ -4,7 +4,7 @@ import { error } from "@sveltejs/kit";
 
 export const getStages = query(async () => {
   const { fetch } = getRequestEvent();
-  const response = await fetch("/api/stages");
+  const response = await fetch("/api/v1/stages");
 
   if (!response.ok) {
     error(response.status, "Failed to load stages");

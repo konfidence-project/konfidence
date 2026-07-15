@@ -54,6 +54,19 @@ export default defineConfig({
       },
       files: ["*.config.ts", "*.config.js", "src/lib/server/**/*.ts", "src/routes/api/**/*.ts"],
     },
+    {
+      env: {
+        node: true,
+      },
+      files: ["tests/auth/**/*.ts"],
+      rules: {
+        // Integration setup is intentionally procedural and uses Node process/container APIs.
+        "eslint/max-params": "off",
+        "eslint/max-statements": "off",
+        "eslint/no-await-in-loop": "off",
+        "import/no-nodejs-modules": "off",
+      },
+    },
   ],
   plugins: ["typescript", "unicorn", "oxc", "eslint", "import"],
   rules: {

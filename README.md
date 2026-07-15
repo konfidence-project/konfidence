@@ -58,6 +58,19 @@ pnpm ui:fmt          # Format dashboard sources
 pnpm ui:test         # Run dashboard unit/browser-mode and e2e tests
 ```
 
+For API-backed login, start Dex and the API in separate terminals, then start
+the dashboard:
+
+```sh
+make idp-up
+make run-api-with-idp
+KONFIDENCE_API_URL=http://localhost:8090 pnpm ui:dev
+```
+
+Open `http://localhost:5173/landscape` and sign in with
+`alice@example.com` / `password`. The dashboard proxies `/api/*` to the API,
+which owns the OAuth flow and session.
+
 The dashboard is packaged as `konfidence-ui` and is built into the default Docker Bake target together with the Konfidence operator image. In CI, the dashboard check job runs formatting, linting, type checks, and Svelte checks; the production build runs through the dashboard image build.
 
 Deploy the Konfidence chart with the dashboard enabled:
