@@ -35,6 +35,26 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: controller
 {{- end -}}
 
+{{- define "star.dashboardFullname" -}}
+{{- printf "%s-dashboard" (include "star.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "star.dashboardLabels" -}}
+helm.sh/chart: {{ include "star.chart" . }}
+app.kubernetes.io/name: {{ include "star.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/part-of: konfidence
+app.kubernetes.io/component: dashboard
+{{- end -}}
+
+{{- define "star.dashboardSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "star.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: dashboard
+{{- end -}}
+
 {{- define "star.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create -}}
 {{- default (include "star.fullname" .) .Values.serviceAccount.name -}}
