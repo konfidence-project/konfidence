@@ -1,0 +1,18 @@
+import type { RequestHandler } from "./$types";
+import getApiUrl from "$lib/server/api";
+
+const proxy: RequestHandler = ({ fetch, request, url }) => {
+  const target = new URL(url.pathname + url.search, getApiUrl());
+  const headers = new Headers(request.headers);
+  headers.delete("host");
+
+  return fetch(target, {
+    body: request.body,
+    headers,
+    method: request.method,
+    redirect: "manual",
+  });
+};
+
+export const GET = proxy;
+export const fallback = proxy;
