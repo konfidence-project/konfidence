@@ -1,0 +1,28 @@
+{{- if .Values.api.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "konfidence.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konfidence.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+    konfidence.cloud/service: api
+  {{- with .Values.api.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.api.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.api.service.port }}
+      targetPort: http
+      protocol: TCP
+      {{- if and (eq .Values.api.service.type "NodePort") .Values.api.service.nodePort }}
+      nodePort: {{ .Values.api.service.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "konfidence.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+{{- end }}

@@ -25,6 +25,30 @@ Kubernetes: `>=1.27.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| api.enabled | bool | `true` |  |
+| api.env | list | `[]` |  |
+| api.extraArgs | list | `[]` |  |
+| api.image.pullPolicy | string | `"IfNotPresent"` |  |
+| api.image.repository | string | `"ghcr.io/konfidence-project/api"` |  |
+| api.image.tag | string | `""` |  |
+| api.podAnnotations | object | `{}` |  |
+| api.podDisruptionBudget.enabled | bool | `false` |  |
+| api.podDisruptionBudget.maxUnavailable | int | `1` |  |
+| api.podDisruptionBudget.minAvailable | string | `nil` |  |
+| api.podLabels | object | `{}` |  |
+| api.replicas | int | `1` |  |
+| api.resources | object | `{}` |  |
+| api.server.addr | string | `":8090"` |  |
+| api.server.logLevel | string | `"info"` |  |
+| api.server.readTimeout | string | `"10s"` |  |
+| api.server.shutdownTimeout | string | `"15s"` |  |
+| api.server.writeTimeout | string | `"10s"` |  |
+| api.service.annotations | object | `{}` |  |
+| api.service.nodePort | string | `""` |  |
+| api.service.port | int | `8090` |  |
+| api.service.type | string | `"ClusterIP"` |  |
+| api.volumeMounts | list | `[]` |  |
+| api.volumes | list | `[]` |  |
 | containerSecurityContext.allowPrivilegeEscalation | bool | `false` |  |
 | containerSecurityContext.capabilities.drop[0] | string | `"ALL"` |  |
 | containerSecurityContext.readOnlyRootFilesystem | bool | `true` |  |
