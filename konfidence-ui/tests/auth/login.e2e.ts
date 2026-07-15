@@ -14,13 +14,9 @@ test("signs in through Dex and logs out of the API session", async ({ page }) =>
   await accountMenu.click();
   await expect(page.getByText("alice", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Sign Out" }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:4173/api/logout");
-  await expect(page.getByText('{"status":"logged_out"}')).toBeVisible();
+  await expect(page).toHaveURL(/localhost:15556\/dex\/auth/);
 
   const cookies = await page.context().cookies();
   expect(cookies.some((cookie) => cookie.name === "konfidence.sid")).toBe(false);
   expect(cookies.some((cookie) => cookie.name === "kden_session")).toBe(false);
-
-  await page.goto("/landscape");
-  await expect(page).toHaveURL(/localhost:15556\/dex\/auth/);
 });
