@@ -1,0 +1,125 @@
+openapi: "3.0.3"
+
+info:
+  title: Konfidence API
+  version: v1
+  description: >
+    HTTP gateway between CLI/UI clients and the Konfidence star cluster CRDs.
+
+servers:
+  - url: /api/v1
+
+paths:
+  /stages:
+    get:
+      operationId: listStages
+      summary: List all stages
+      description: Returns all Stage resources visible to the API server.
+      tags: [stages]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StageListResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /stages/{name}:
+    get:
+      operationId: getStage
+      summary: Get a stage by name
+      tags: [stages]
+      parameters:
+        - $ref: "#/components/parameters/StageName"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StageResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  parameters:
+    StageName:
+      name: name
+      in: path
+      required: true
+      description: Name of the Stage resource.
+      schema:
+        type: string
+
+  schemas:
+    StageCondition:
+      type: object
+      required: [type, status, reason, message, lastTransitionTime]
+      properties:
+        type:
+          type: string
+          description: Condition type (e.g. Ready, VectorDeployed).
+        status:
+          type: string
+          enum: [True, False, Unknown]
+        reason:
+          type: string
+        message:
+          type: string
+        lastTransitionTime:
+          type: string
+          format: date-time
+
+    StageResponse:
+        type: object
+        required: [name, namespace, vector, conditions, status]
+        properties:
+          name:       { type: string }
+          namespace:  { type: string }
+          vector:     { type: string }
+          status:
+            type: string
+            enum: [Ready, Progressing, Degraded]
+          conditions:
+            type: array
+            items: { $ref: "#/components/schemas/StageCondition" }
+
+    StageListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StageResponse"
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+  responses:
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: An unexpected server error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
