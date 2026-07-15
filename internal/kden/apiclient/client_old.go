@@ -49,7 +49,6 @@ func (c *LegacyClient) getJSON(ctx context.Context, path string) (*StatusRespons
 		return nil, fmt.Errorf("GET %s%s: %w", c.base, path, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET %s%s: unexpected status %d", c.base, path, resp.StatusCode)
