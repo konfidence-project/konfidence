@@ -130,7 +130,10 @@ const REGIONS = [
 ];
 
 const randomHash = (seed: number) =>
-  Math.abs(Math.sin(seed) * 0xffffff).toString(16).slice(0, 6).padStart(6, "0");
+  Math.abs(Math.sin(seed) * 0xffffff)
+    .toString(16)
+    .slice(0, 6)
+    .padStart(6, "0");
 
 const pick = <T>(items: T[], seed: number) => items[seed % items.length];
 

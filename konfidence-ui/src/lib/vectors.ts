@@ -26,8 +26,4 @@ interface VectorList {
   kind: "VectorList";
 }
 
-export type {
-  Vector,
-  VectorHealth,
-  VectorList,
-};
+export type { Vector, VectorHealth, VectorList };
