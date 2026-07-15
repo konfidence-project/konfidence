@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -11,28 +9,7 @@ import (
 	star "github.com/konfidence-project/konfidence/api/star/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/server"
-	stageapi "github.com/konfidence-project/konfidence/internal/stage/api"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-)
-
-var (
-	scheme = runtime.NewScheme()
-)
-
-var (
-	addr             string
-	logLevel         string
-	readTimeout      string
-	writeTimeout     string
-	shutdownTimeout  string
-	authAuthorizeURL string
-	authTokenURL     string
-	authUserInfoURL  string
-	authClientID     string
-	authRedirectURI  string
-	authScopes       string
+	pkgk8s "github.com/konfidence-project/konfidence/pkg/k8s"
 )
 
 var rootCmd = &cobra.Command{
@@ -53,16 +30,7 @@ primary configuration mechanism. Flags are convenient for local development.
   API_READ_TIMEOUT       HTTP read deadline                 (default: 10s)
   API_WRITE_TIMEOUT      HTTP write deadline                (default: 10s)
   API_SHUTDOWN_TIMEOUT   Graceful shutdown window           (default: 15s)
-
-  API_AUTH_AUTHORIZE_URL OIDC authorization endpoint
-  API_AUTH_TOKEN_URL     OIDC token endpoint
-  API_AUTH_USERINFO_URL  OIDC userinfo endpoint
-  API_AUTH_CLIENT_ID     OIDC public client id
-  API_AUTH_REDIRECT_URI  API callback URI registered at the IDP
-  API_AUTH_SCOPES        Space-separated OIDC scopes         (default: openid profile email groups)
-
-Kubernetes client config is resolved automatically via the standard KUBECONFIG
-env var or in-cluster config when deployed as a pod — no flag required.`,
+  API_KUBECONFIG         Path to kubeconfig (local dev only)`,
 	RunE: startServer,
 }
 
@@ -79,56 +47,66 @@ func init() {
 	utilruntime.Must(star.AddToScheme(scheme))
 
 	rootCmd.Flags().StringVar(&addr, "addr", envOr("API_ADDR", ":8090"),
+	rootCmd.Flags().String("addr", envOr("API_ADDR", ":8090"),
 		"TCP address the API server listens on. Env: API_ADDR")
-	rootCmd.Flags().StringVar(&logLevel, "log-level", envOr("API_LOG_LEVEL", "info"),
+	rootCmd.Flags().String("log-level", envOr("API_LOG_LEVEL", "info"),
 		"Log level (debug, info, warn, error). Env: API_LOG_LEVEL")
-	rootCmd.Flags().StringVar(&readTimeout, "read-timeout", envOr("API_READ_TIMEOUT", "10s"),
+	rootCmd.Flags().String("read-timeout", envOr("API_READ_TIMEOUT", "10s"),
 		"Maximum duration for reading an entire request. Env: API_READ_TIMEOUT")
-	rootCmd.Flags().StringVar(&writeTimeout, "write-timeout", envOr("API_WRITE_TIMEOUT", "10s"),
+	rootCmd.Flags().String("write-timeout", envOr("API_WRITE_TIMEOUT", "10s"),
 		"Maximum duration before timing out writes of the response. Env: API_WRITE_TIMEOUT")
-	rootCmd.Flags().StringVar(&shutdownTimeout, "shutdown-timeout", envOr("API_SHUTDOWN_TIMEOUT", "15s"),
+	rootCmd.Flags().String("shutdown-timeout", envOr("API_SHUTDOWN_TIMEOUT", "15s"),
 		"Maximum duration for a graceful shutdown. Env: API_SHUTDOWN_TIMEOUT")
-	rootCmd.Flags().StringVar(&authAuthorizeURL, "auth-authorize-url", envOr("API_AUTH_AUTHORIZE_URL", ""),
-		"OIDC authorization endpoint. Env: API_AUTH_AUTHORIZE_URL")
-	rootCmd.Flags().StringVar(&authTokenURL, "auth-token-url", envOr("API_AUTH_TOKEN_URL", ""),
-		"OIDC token endpoint. Env: API_AUTH_TOKEN_URL")
-	rootCmd.Flags().StringVar(&authUserInfoURL, "auth-userinfo-url", envOr("API_AUTH_USERINFO_URL", ""),
-		"OIDC userinfo endpoint. Env: API_AUTH_USERINFO_URL")
-	rootCmd.Flags().StringVar(&authClientID, "auth-client-id", envOr("API_AUTH_CLIENT_ID", ""),
-		"OIDC public client ID. Env: API_AUTH_CLIENT_ID")
-	rootCmd.Flags().StringVar(&authRedirectURI, "auth-redirect-uri", envOr("API_AUTH_REDIRECT_URI", ""),
-		"OIDC redirect URI handled by the API. Env: API_AUTH_REDIRECT_URI")
-	rootCmd.Flags().StringVar(&authScopes, "auth-scopes", envOr("API_AUTH_SCOPES", "openid profile email groups"),
-		"Space-separated OIDC scopes. Env: API_AUTH_SCOPES")
+	rootCmd.Flags().String("kubeconfig", envOr("API_KUBECONFIG", ""),
+		"Path to a kubeconfig file. Defaults to in-cluster config when empty. Env: API_KUBECONFIG")
 }
 
 func startServer(cmd *cobra.Command, _ []string) error {
+	flags := cmd.Flags()
+
+	addr, err := flags.GetString("addr")
+	if err != nil {
+		return err
+	}
+	logLevel, err := flags.GetString("log-level")
+	if err != nil {
+		return err
+	}
+	readTimeout, err := flags.GetString("read-timeout")
+	if err != nil {
+		return err
+	}
+	writeTimeout, err := flags.GetString("write-timeout")
+	if err != nil {
+		return err
+	}
+	shutdownTimeout, err := flags.GetString("shutdown-timeout")
+	if err != nil {
+		return err
+	}
+	kubeconfig, err := flags.GetString("kubeconfig")
+	if err != nil {
+		return err
+	}
+
 	cfg := config.Config{
 		Addr:            addr,
 		LogLevel:        logLevel,
 		ReadTimeout:     readTimeout,
 		WriteTimeout:    writeTimeout,
 		ShutdownTimeout: shutdownTimeout,
-		Auth: config.AuthConfig{
-			AuthorizeURL: authAuthorizeURL,
-			TokenURL:     authTokenURL,
-			UserInfoURL:  authUserInfoURL,
-			ClientID:     authClientID,
-			RedirectURI:  authRedirectURI,
-			Scopes:       authScopes,
-		},
-		Scheme: scheme,
 	}
 
-	parsed, err := cfg.Validate()
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+
+	k8sClient, err := pkgk8s.NewClient(kubeconfig)
 	if err != nil {
 		return err
 	}
 
-	ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	return server.New(parsed, stageapi.Mount).Run(ctx)
+	return server.New(cfg, k8sClient).Run(cmd.Context())
 }
 
 // envOr returns the value of the environment variable key, or fallback if unset.

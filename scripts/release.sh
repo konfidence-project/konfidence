@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2026 SAP SE or an SAP affiliate company and konfidence contributors
 #
-# scripts/release.sh — local release helper for the konfidence repository.
+# scripts/release.sh - local release helper for the konfidence repository.
 #
 # Usage:
 #   scripts/release.sh <major|minor|patch|tag <value>> [--yes] [--dry-run]
@@ -111,7 +111,7 @@ bump_version() {
 
 validate_custom_tag() {
   local tag="$1"
-  # Must match X.Y.Z-<pre-release>[+<build>] — bare X.Y.Z is reserved for major|minor|patch releases.
+  # Must match X.Y.Z-<pre-release>[+<build>] - bare X.Y.Z is reserved for major|minor|patch releases.
   # Uses the official semver.org regex (https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string)
   # adapted to mandate a pre-release suffix.
   [[ "${tag}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-(((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$) ]] || \
@@ -276,7 +276,7 @@ echo ""
 # ── dry-run exit ──────────────────────────────────────────────────────────────
 
 if [[ "${DRY_RUN}" == true ]]; then
-  info "DRY RUN — would execute:"
+  info "DRY RUN - would execute:"
   info "  yq -i \".version = \\\"${NEXT_VERSION}\\\"\"    ${STAR_CHART}"
   info "  yq -i \".appVersion = \\\"${NEXT_VERSION}\\\"\" ${STAR_CHART}"
   info "  yq -i \".version = \\\"${NEXT_VERSION}\\\"\"    ${GALAXY_CHART}"

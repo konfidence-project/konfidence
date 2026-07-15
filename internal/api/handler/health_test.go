@@ -75,7 +75,7 @@ var _ = Describe("APIError", func() {
 		})
 
 		It("returns nil for a plain error", func() {
-			Expect(handler.AsAPIError(fmt.Errorf("plain"))).To(BeZero())
+			Expect(handler.AsAPIError(fmt.Errorf("plain"))).To(BeNil())
 		})
 
 		It("unwraps a wrapped *APIError", func() {

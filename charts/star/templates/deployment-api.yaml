@@ -1,4 +1,4 @@
-{{- if .Values.api.enabled -}}
+{{- if .Values.api.install -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -38,11 +38,11 @@ spec:
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           args:
-            - --addr={{ .Values.api.server.addr }}
-            - --log-level={{ .Values.api.server.logLevel }}
-            - --read-timeout={{ .Values.api.server.readTimeout }}
-            - --write-timeout={{ .Values.api.server.writeTimeout }}
-            - --shutdown-timeout={{ .Values.api.server.shutdownTimeout }}
+            - --addr={{ .Values.api.addr }}
+            - --log-level={{ .Values.api.logLevel }}
+            - --read-timeout={{ .Values.api.readTimeout }}
+            - --write-timeout={{ .Values.api.writeTimeout }}
+            - --shutdown-timeout={{ .Values.api.shutdownTimeout }}
             {{- with .Values.api.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -56,7 +56,7 @@ spec:
           {{- end }}
           ports:
             - name: http
-              containerPort: {{ include "star.bindAddressPort" .Values.api.server.addr }}
+              containerPort: {{ include "star.bindAddressPort" .Values.api.addr }}
               protocol: TCP
           livenessProbe:
             httpGet:

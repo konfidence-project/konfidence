@@ -349,7 +349,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 
 		By("Simulating the landscape orchestrator: flipping VectorData.Status.Ready=True")
 		// Without the orchestrator the VectorDeployment lifecycle stalls at "waiting for VectorData to be
-		// materialized" — which is itself the correct, desired behaviour. We unblock it by hand here so the rest
+		// materialized" - which is itself the correct, desired behaviour. We unblock it by hand here so the rest
 		// of the assertions run.
 		gomega.Eventually(func(g gomega.Gomega) {
 			vectorData := &konfidence.VectorData{}
