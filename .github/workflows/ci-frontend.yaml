@@ -2,7 +2,6 @@ name: Frontend CI
 # TODO: integrate Frontend CI in general. This specific CI file is only temporary for the prototype
 on:
   pull_request:
-    branches: [main, dashboard-scaffolding]
     paths:
       - .github/workflows/ci-frontend.yaml
       - Dockerfile.ui
