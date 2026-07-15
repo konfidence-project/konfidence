@@ -23,7 +23,6 @@
     import { selectTheme, themePreference, themes } from "$lib/stores/theme.svelte";
     import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
 
-    import type { IdpType } from "$lib/server/idp-config";
     import { STAGE_CARD_VARIANTS } from "$lib/components/stage/variants.js";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
@@ -58,7 +57,6 @@
     const { children, data } = $props<{
         children: () => unknown;
         data: {
-            idpType: IdpType;
             user: { email?: string; name: string; sub: string };
         };
     }>();
@@ -109,9 +107,6 @@
     const accountSubtitle = $derived.by(() => {
         if (data.user.email) {
             return data.user.email;
-        }
-        if (data.idpType === "stub") {
-            return "Stub session · no IdP";
         }
         return "Signed in via SSO";
     });
@@ -277,7 +272,12 @@
     ></ui5-user-menu-item>
 </ui5-user-menu>
 
-<form bind:this={logoutForm} method="POST" action="/logout" hidden></form>
+<form
+    bind:this={logoutForm}
+    method="POST"
+    action="/api/logout"
+    hidden
+></form>
 
 <style>
     :global(ui5-navigation-layout) {

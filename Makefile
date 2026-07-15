@@ -42,6 +42,14 @@ OPERATOR_INTERNAL_PATHS = $(foreach d,$(OPERATOR_INTERNAL_DIRS),paths="$(d)")
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
 
+DEX_CONTAINER    ?= konfidence-dex
+DEX_ISSUER       ?= http://localhost:5556/dex
+API_AUTH_FLAGS   ?= --auth-authorize-url $(DEX_ISSUER)/auth \
+	--auth-token-url $(DEX_ISSUER)/token \
+	--auth-userinfo-url $(DEX_ISSUER)/userinfo \
+	--auth-client-id kden-local \
+	--auth-redirect-uri http://localhost:5173/api/auth/callback
+
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
@@ -262,6 +270,34 @@ build-ui: hermit ## Build the UI app.
 .PHONY: dev-ui
 dev-ui: hermit ## Run the UI development server.
 	$(PNPM) ui:dev
+
+.PHONY: build-api
+build-api: hermit ## Build the Konfidence API server binary.
+	go build -o bin/api ./cmd/api/main.go
+
+.PHONY: run-api
+run-api: hermit ## Run the API server locally. Set KUBECONFIG for domain endpoints, not needed for probes.
+	go run ./cmd/api/main.go
+
+.PHONY: run-api-with-idp
+run-api-with-idp: hermit ## Run the API server locally against the development Dex provider.
+	go run ./cmd/api/main.go $(API_AUTH_FLAGS)
+
+.PHONY: idp-up
+idp-up: ## Start the development Dex provider.
+	@$(CONTAINER_TOOL) rm --force $(DEX_CONTAINER) >/dev/null 2>&1 || true
+	$(CONTAINER_TOOL) run --detach --name $(DEX_CONTAINER) \
+		--publish 5556:5556 \
+		--volume $(REPO_ROOT)/dev/dex/config.yaml:/etc/dex/config.yaml:ro \
+		ghcr.io/dexidp/dex:v2.45.1 dex serve /etc/dex/config.yaml
+
+.PHONY: idp-down
+idp-down: ## Stop the development Dex provider.
+	@$(CONTAINER_TOOL) rm --force $(DEX_CONTAINER) >/dev/null 2>&1 || true
+
+.PHONY: idp-logs
+idp-logs: ## Follow logs from the development Dex provider.
+	$(CONTAINER_TOOL) logs --follow $(DEX_CONTAINER)
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
