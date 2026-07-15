@@ -8,10 +8,10 @@ The Deployment Controller is responsible for managing the lifecycle of VectorDep
 
 ### Lifecycle phases
 
-1. **VectorDownloaded** — pull the vector OCM ComponentVersion from the OCI registry and persist its V2—serialized descriptor on the VectorDeployment status.
+1. **VectorDownloaded** — pull the vector OCM ComponentVersion from the OCI registry and persist its V2-serialized descriptor on the VectorDeployment status.
 2. **ArtifactDeploymentsCreated / VectorDeployed** — create one ArtifactDeployment per artifact reference, then wait until each underlying deployer marks its ArtifactDeployment Ready.
-3. **VectorAssignmentsCreated** — create the per—artifact VectorAssignment resources that the routing layer reconciles.
-4. **VectorConfigCommitted** — materialize the vector—scoped configuration ConfigMap (see below). This step is a singleton action per vector and runs after all artifact deployments are Ready, so that aggregated `DeploymentResults` are observable.
+3. **VectorAssignmentsCreated** — create the per-artifact VectorAssignment resources that the routing layer reconciles.
+4. **VectorConfigCommitted** — materialize the vector-scoped configuration ConfigMap (see below). This step is a singleton action per vector and runs after all artifact deployments are Ready, so that aggregated `DeploymentResults` are observable.
 5. **VectorReady** — set when all of the above have completed.
 
 ### Vector-scoped configuration ConfigMap
@@ -27,7 +27,7 @@ A vector may carry an optional, singleton OCM resource named `cloud-konfidence-v
 
 The deployment controller unpacks the envelope, combines it with the aggregated deployment results from all underlying ArtifactDeployments, and materializes a Kubernetes ConfigMap in the **landscape namespace** — the same namespace as the `VectorDeployment` itself, per [ADR-0007](../../../../docs/pages/arc42/09-decisions/adrs/0007-lcp-multi-landscape-support.md). The LCP's own namespace (`konfidence—system`) is **not** used; one LCP installation can serve many landscapes, and each landscape sees only its own ConfigMaps.
 
-Both inputs that feed the payload are immutable for the lifetime of a `VectorDeployment` (the OCM ComponentVersion is immutable and `ArtifactDeployment.spec` is immutable per the CRD's XValidation rule), so the controller writes the ConfigMap **at most once** per VectorDeployment. If a ConfigMap with the expected name already exists the controller honors it as-is; if it is missing - first reconcile after `VectorDeployed`, or removed out-of-band — it is created.
+Both inputs that feed the payload are immutable for the lifetime of a `VectorDeployment` (the OCM ComponentVersion is immutable and `ArtifactDeployment.spec` is immutable per the CRD's XValidation rule), so the controller writes the ConfigMap **at most once** per VectorDeployment. If a ConfigMap with the expected name already exists the controller honors it as-is; if it is missing — first reconcile after `VectorDeployed`, or removed out-of-band — it is created.
 
 On VectorDeployment teardown the controller deletes the ConfigMap explicitly via the `konfidence.cloud/vector-data-cleanup` finalizer, and only then removes the finalizer so that the API server can finalize the VD object. The controller-owner reference is also set on the ConfigMap so that Kubernetes garbage collection cascades as a fallback.
 
