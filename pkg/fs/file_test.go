@@ -98,7 +98,7 @@ var _ = Describe("FileData", func() {
 		It("returns an error when a path is a directory", func() {
 			subDir := filepath.Join(tmpDir, "subdir")
 			Expect(os.Mkdir(subDir, 0755)).To(Succeed())
-			// ToFileData calls SetFilePath, which requires .yaml/.yml — create a yaml-named dir workaround
+			// ToFileData calls SetFilePath, which requires .yaml/.yml - create a yaml-named dir workaround
 			// by creating a dir with .yaml suffix
 			yamlDir := filepath.Join(tmpDir, "component.yaml")
 			Expect(os.Mkdir(yamlDir, 0755)).To(Succeed())

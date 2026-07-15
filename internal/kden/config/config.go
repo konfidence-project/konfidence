@@ -3,6 +3,7 @@ package config
 import (
 	encodingjson "encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -20,6 +21,7 @@ type Configuration struct {
 	LogLevel  string `json:"log-level" koanf:"log-level"`
 	LogFormat string `json:"log-format" koanf:"log-format"`
 	Output    string `json:"output" koanf:"output"`
+	APIAddr   string `json:"api-addr" koanf:"api-addr"`
 }
 
 type envVarConfigs struct {
@@ -27,6 +29,7 @@ type envVarConfigs struct {
 	logLevelEnvName  string
 	logFormatEnvName string
 	outputEnvName    string
+	apiAddrEnvName   string
 }
 
 type configFileFunctions struct {
@@ -44,6 +47,7 @@ var (
 	logLevelEnvName  = "KDEN_LOG_LEVEL"
 	outputEnvName    = "KDEN_OUTPUT"
 	logFormatEnvName = "KDEN_LOG_FORMAT"
+	apiAddrEnvName   = "KDEN_API_ADDR"
 	RootCommandName  = "kden"
 	envRegexPattern  = "^[A-Z]+(_[A-Z]+)*$"
 )
@@ -52,6 +56,7 @@ var SupportedConfigurations = map[string][]string{
 	"log-level":  {"info", "debug", "error"},
 	"log-format": {"json", "text", "pretty"},
 	"output":     {"json", "yaml", "pretty"},
+	"api-addr":   {},
 }
 
 var configFileFuncs = configFileFunctions{
@@ -64,6 +69,7 @@ var envConfigs = envVarConfigs{
 	logLevelEnvName:  logLevelEnvName,
 	logFormatEnvName: logFormatEnvName,
 	outputEnvName:    outputEnvName,
+	apiAddrEnvName:   apiAddrEnvName,
 }
 
 func Configure(cmd *cobra.Command) error {
@@ -71,6 +77,7 @@ func Configure(cmd *cobra.Command) error {
 		"log-level":  "error",
 		"log-format": "pretty",
 		"output":     "json",
+		"api-addr":   "http://localhost:8090",
 	}, "."), nil)
 	if err != nil {
 		return fmt.Errorf("failed to load default configuration: %w", err)
@@ -128,8 +135,19 @@ func SetKey(key string, value string) error {
 		return fmt.Errorf("'%s' is not a valid configuration key", key)
 	}
 
-	if !slices.Contains(SupportedConfigurations[key], value) {
-		return fmt.Errorf("value '%s' is not valid for configuration key '%s'. Supported values are: %s", value, key, strings.Join(SupportedConfigurations[key], ", ")) //nolint:lll
+	// Keys with an empty allowed-values list accept any non-empty value,
+	// but may have additional validation (e.g. api-addr must be a valid URL).
+	allowed := SupportedConfigurations[key]
+	if len(allowed) > 0 && !slices.Contains(allowed, value) {
+		return fmt.Errorf("value '%s' is not valid for configuration key '%s'. Supported values are: %s", value, key, strings.Join(allowed, ", ")) //nolint:lll
+	}
+	if value == "" {
+		return fmt.Errorf("value for configuration key '%s' must not be empty", key)
+	}
+	if key == "api-addr" {
+		if err := validateAPIAddr(value); err != nil {
+			return err
+		}
 	}
 	configMap[key] = value
 
@@ -191,5 +209,42 @@ func validateConfig(cfg *Configuration) error {
 		return fmt.Errorf("invalid output: %s", cfg.Output)
 	}
 
+	if cfg.APIAddr == "" {
+		return fmt.Errorf("invalid api-addr: must not be empty")
+	}
+
+	if err := validateAPIAddr(cfg.APIAddr); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateAPIAddr(addr string) error {
+	u, err := url.Parse(addr)
+	if err != nil {
+		return fmt.Errorf(
+			"invalid api-addr %q: %w\n"+
+				"  Set it with:  kden config set api-addr http://<host>:<port>\n"+
+				"  Or via env:   KDEN_API_ADDR=http://<host>:<port>",
+			addr, err,
+		)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf(
+			"invalid api-addr %q: scheme must be http or https, got %q\n"+
+				"  Set it with:  kden config set api-addr http://<host>:<port>\n"+
+				"  Or via env:   KDEN_API_ADDR=http://<host>:<port>",
+			addr, u.Scheme,
+		)
+	}
+	if u.Host == "" {
+		return fmt.Errorf(
+			"invalid api-addr %q: host must not be empty\n"+
+				"  Set it with:  kden config set api-addr http://<host>:<port>\n"+
+				"  Or via env:   KDEN_API_ADDR=http://<host>:<port>",
+			addr,
+		)
+	}
 	return nil
 }

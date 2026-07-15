@@ -14,6 +14,15 @@ The controller workload was NOT deployed. Bring it up later with:
 Nothing was installed: controller.install and crd.install are both false.
 {{- end }}
 
+{{- if .Values.api.install }}
+
+Konfidence API server installed in namespace {{ .Release.Namespace }}.
+
+Port-forward for local access:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "star.fullname" . }}-api {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
+  curl http://localhost:{{ .Values.api.service.port }}/healthz
+{{- end }}
+
 {{- if and .Values.crd.install .Values.crd.keep }}
 
 With crd.keep=true (default), CRDs are retained on `helm uninstall` to

@@ -1,0 +1,22 @@
+{{- if and .Values.api.install .Values.api.podDisruptionBudget.enabled -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "star.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "star.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  {{- if ne .Values.api.podDisruptionBudget.minAvailable nil }}
+  minAvailable: {{ .Values.api.podDisruptionBudget.minAvailable }}
+  {{- else if ne .Values.api.podDisruptionBudget.maxUnavailable nil }}
+  maxUnavailable: {{ .Values.api.podDisruptionBudget.maxUnavailable }}
+  {{- else }}
+  {{- fail "api.podDisruptionBudget.enabled is true but neither minAvailable nor maxUnavailable is set" }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "star.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+{{- end }}

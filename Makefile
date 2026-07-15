@@ -84,6 +84,7 @@ HELM_DOCS      ?= helm-docs
 ## Image names
 STAR_IMAGE   = $(REGISTRY)/star-operator:$(TAG)
 GALAXY_IMAGE = $(REGISTRY)/galaxy-operator:$(TAG)
+API_IMAGE    = $(REGISTRY)/api:$(TAG)
 
 .PHONY: all
 all: api build
@@ -235,7 +236,7 @@ validate-galaxy: schemas ## Validate galaxy sample resources against their JSON 
 helm-lint: helm-lint-star helm-lint-galaxy ## Run helm lint against all charts.
 
 .PHONY: helm-lint-star
-helm-lint-star: hermit ## Run helm lint against the star chart.
+helm-lint-star: hermit ## Run helm lint against the star chart (includes api templates).
 	$(HELM) lint charts/star
 
 .PHONY: helm-lint-galaxy
@@ -248,7 +249,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit manifests generate fmt vet test-star test-galaxy test-pkg test-kden-cli ## Run all unit tests.
+test: hermit manifests generate fmt vet test-star test-galaxy test-pkg test-kden-cli test-api ## Run all unit tests.
 
 .PHONY: test-star
 test-star: hermit manifests setup-envtest ginkgo ## Run unit tests for the star operator only.
@@ -267,6 +268,9 @@ test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.
 .PHONY: test-kden-cli
 test-kden-cli: hermit
 	go test ./cmd/kden/... ./internal/kden/...
+.PHONY: test-api
+test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
+	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
@@ -284,6 +288,7 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 
 .PHONY: build
 build: manifests generate fmt vet build-star build-galaxy build-kden-cli ## Build all operator binaries.
+build: manifests generate fmt vet build-star build-galaxy build-api ## Build all operator binaries.
 
 .PHONY: build-star
 build-star: hermit ## Build the star operator binary.
@@ -297,6 +302,10 @@ build-galaxy: hermit ## Build the galaxy operator binary.
 build-kden-cli: hermit ## Build the kden cli binary.
 	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --id kden -o bin/kden
 
+.PHONY: build-api
+build-api: hermit ## Build the Konfidence API server binary.
+	go build -o bin/api ./cmd/api/main.go
+
 .PHONY: run-star
 run-star: manifests-star generate fmt vet ## Run the star operator from your host.
 	go run ./cmd/star/main.go
@@ -305,9 +314,13 @@ run-star: manifests-star generate fmt vet ## Run the star operator from your hos
 run-galaxy: manifests-galaxy generate fmt vet ## Run the galaxy operator from your host.
 	go run ./cmd/galaxy/main.go
 
+.PHONY: run-api
+run-api: hermit ## Run the Konfidence API server from your host (source bin/activate-hermit first).
+	go run ./cmd/api/main.go
+
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
-docker-build: docker-build-star docker-build-galaxy ## Build container images for all operators (local use only).
+docker-build: docker-build-star docker-build-galaxy docker-build-api ## Build container images for all operators (local use only).
 
 .PHONY: docker-build-star
 docker-build-star: hermit ## Build the star operator container image (local use only).
@@ -317,12 +330,16 @@ docker-build-star: hermit ## Build the star operator container image (local use 
 docker-build-galaxy: hermit ## Build the galaxy operator container image (local use only).
 	$(CONTAINER_TOOL) build -f Dockerfile --build-arg OPERATOR_NAME=galaxy -t $(GALAXY_IMAGE) .
 
+.PHONY: docker-build-api
+docker-build-api: hermit ## Build the Konfidence API server container image (local use only).
+	$(CONTAINER_TOOL) build -f Dockerfile --build-arg OPERATOR_NAME=api -t $(API_IMAGE) .
+
 .PHONY: docker-bake
 docker-bake: hermit ## Build all container images using docker buildx bake (multi-platform, CI-compatible).
 	$(CONTAINER_TOOL) buildx bake --file docker-bake.hcl
 
 .PHONY: docker-push
-docker-push: docker-push-star docker-push-galaxy ## Push container images for all operators.
+docker-push: docker-push-star docker-push-galaxy docker-push-api ## Push container images for all operators.
 
 .PHONY: docker-push-star
 docker-push-star: ## Push the star operator container image.
@@ -331,6 +348,10 @@ docker-push-star: ## Push the star operator container image.
 .PHONY: docker-push-galaxy
 docker-push-galaxy: ## Push the galaxy operator container image.
 	$(CONTAINER_TOOL) push $(GALAXY_IMAGE)
+
+.PHONY: docker-push-api
+docker-push-api: ## Push the Konfidence API server container image.
+	$(CONTAINER_TOOL) push $(API_IMAGE)
 
 ##@ Deployment
 
@@ -361,7 +382,7 @@ uninstall-galaxy: hermit ## Uninstall galaxy CRDs from the cluster. Use ignore-n
 	$(HELM) uninstall galaxy --ignore-not-found
 
 .PHONY: deploy
-deploy: deploy-star deploy-galaxy ## Deploy all operators to the cluster specified in ~/.kube/config.
+deploy: deploy-star deploy-galaxy deploy-api ## Deploy all operators to the cluster specified in ~/.kube/config.
 
 .PHONY: deploy-star
 deploy-star: hermit manifests-star ## Deploy the star operator to the cluster specified in ~/.kube/config.
@@ -377,8 +398,17 @@ deploy-galaxy: hermit manifests-galaxy ## Deploy the galaxy operator to the clus
 		--set image.tag=$(TAG) \
 		--set crd.keep=false
 
+.PHONY: deploy-api
+deploy-api: hermit ## Deploy the Konfidence API server (via the star chart) to the cluster specified in ~/.kube/config.
+	$(HELM) upgrade --install star charts/star \
+		--set controller.install=false \
+		--set crd.install=false \
+		--set api.install=true \
+		--set api.image.repository=$(REGISTRY)/api \
+		--set api.image.tag=$(TAG)
+
 .PHONY: undeploy
-undeploy: undeploy-star undeploy-galaxy ## Undeploy all operators. Use ignore-not-found=true to suppress errors.
+undeploy: undeploy-star undeploy-galaxy undeploy-api ## Undeploy all operators. Use ignore-not-found=true to suppress errors.
 
 .PHONY: undeploy-star
 undeploy-star: hermit ## Undeploy the star operator. Use ignore-not-found=true to suppress errors.
@@ -387,6 +417,10 @@ undeploy-star: hermit ## Undeploy the star operator. Use ignore-not-found=true t
 .PHONY: undeploy-galaxy
 undeploy-galaxy: hermit ## Undeploy the galaxy operator. Use ignore-not-found=true to suppress errors.
 	$(HELM) uninstall galaxy --ignore-not-found
+
+.PHONY: undeploy-api
+undeploy-api: hermit ## Disable the Konfidence API server in the star chart. Use ignore-not-found=true to suppress errors.
+	$(HELM) upgrade star charts/star --reuse-values --set api.install=false
 
 ##@ Developer Setup
 

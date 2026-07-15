@@ -57,7 +57,7 @@ func NewVectorPromotionTTLReconciler(mgr ctrl.Manager) *VectorPromotionTTLReconc
 }
 
 // SetupWithManager sets up the TTL controller with the Manager.
-// Only Create and Update events are processed — Delete and Generic events are irrelevant.
+// Only Create and Update events are processed - Delete and Generic events are irrelevant.
 // Update events allow the controller to react when a TTL is added to an existing object
 // or when the Promoted condition is set.
 func (r *VectorPromotionTTLReconciler) SetupWithManager(mgr ctrl.Manager) error {

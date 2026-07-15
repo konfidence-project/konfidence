@@ -269,6 +269,24 @@ var _ = Describe("SetKey", func() {
 			Expect(err.Error()).To(ContainSubstring("value 'value' is not valid for configuration key 'output'"))
 			Expect(err.Error()).To(ContainSubstring("Supported values are: json, yaml, pretty"))
 		})
+
+		DescribeTable("should reject an invalid api-addr value",
+			func(addr, fragment string) {
+				err := SetKey("api-addr", addr)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(fragment))
+			},
+			Entry("empty string", "", "must not be empty"),
+			Entry("no scheme", "localhost:8090", "scheme must be http or https"),
+			Entry("wrong scheme", "ftp://host", "scheme must be http or https"),
+			Entry("no host", "http://", "host must not be empty"),
+		)
+
+		It("should accept a valid api-addr value", func() {
+			err := SetKey("api-addr", "https://api.example.com:8090")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(readConfigFileContent()).To(ContainSubstring("https://api.example.com:8090"))
+		})
 	})
 
 })
@@ -348,9 +366,10 @@ var _ = Describe("UnSetKey", func() {
 var _ = Describe("validateConfiguration", func() {
 	Context("with valid configuration", func() {
 		It("should validate the configuration struct", func() {
-			Config.LogLevel = "info"
+			Config.LogLevel = fileLogLevel
 			Config.LogFormat = jsonLiteral
 			Config.Output = jsonLiteral
+			Config.APIAddr = "http://localhost:8090"
 
 			err := validateConfig(&Config)
 			Expect(err).ToNot(HaveOccurred())
@@ -362,16 +381,49 @@ var _ = Describe("validateConfiguration", func() {
 			Config.LogLevel = ""
 			Config.LogFormat = jsonLiteral
 			Config.Output = jsonLiteral
+			Config.APIAddr = "http://localhost:8090"
 
 			err := validateConfig(&Config)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid log-level: "))
 		})
+
+		DescribeTable("should reject an invalid api-addr",
+			func(addr, expectedErrFragment string) {
+				Config.LogLevel = fileLogLevel
+				Config.LogFormat = jsonLiteral
+				Config.Output = jsonLiteral
+				Config.APIAddr = addr
+
+				err := validateConfig(&Config)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(expectedErrFragment))
+			},
+			Entry("empty", "", "must not be empty"),
+			Entry("no scheme", "localhost:8090", "scheme must be http or https"),
+			Entry("wrong scheme", "ftp://localhost:8090", "scheme must be http or https"),
+			Entry("no host", "http://", "host must not be empty"),
+		)
+
+		DescribeTable("should accept a valid api-addr",
+			func(addr string) {
+				Config.LogLevel = fileLogLevel
+				Config.LogFormat = jsonLiteral
+				Config.Output = jsonLiteral
+				Config.APIAddr = addr
+
+				Expect(validateConfig(&Config)).To(Succeed())
+			},
+			Entry("http with port", "http://localhost:8090"),
+			Entry("https with port", "https://api.konfidence.example.com:8090"),
+			Entry("http no port", "http://konfidence-api.konfidence-system"),
+			Entry("https no port", "https://api.example.com"),
+		)
 	})
 })
 
 func setupConfigurationFile() {
-	content := []byte(`{"log-level": "info", "log-format": "json", "output": "json"}`)
+	content := []byte(`{"log-level": "info", "log-format": "json", "output": "json", "api-addr": "http://localhost:8090"}`)
 	err := os.WriteFile(configFilePath, content, 0644)
 	Expect(err).ToNot(HaveOccurred())
 }
