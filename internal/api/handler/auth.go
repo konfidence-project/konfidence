@@ -20,6 +20,7 @@ const sessionCookieName = "kden_session"
 type Role string
 
 const (
+	RoleNone  Role = ""
 	RoleAdmin Role = "ADMIN"
 	RoleDev   Role = "DEV"
 	RolePM    Role = "PM"
@@ -64,7 +65,6 @@ type Auth struct {
 	mu         sync.RWMutex
 	sessions   map[string]Identity
 	states     map[string]authState
-	exchanges  map[string]string
 	config     AuthConfig
 	exchanger  tokenExchanger
 	httpClient *http.Client
@@ -84,7 +84,6 @@ func NewAuth(cfg AuthConfig) *Auth {
 	return &Auth{
 		sessions:   map[string]Identity{},
 		states:     map[string]authState{},
-		exchanges:  map[string]string{},
 		config:     cfg,
 		exchanger:  oauth2Exchanger{config: oauthCfg},
 		httpClient: http.DefaultClient,
@@ -104,7 +103,10 @@ func (a *Auth) LoginStart(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return NewInternal(err)
 	}
-	returnTo := strings.TrimSpace(r.URL.Query().Get("returnTo"))
+	returnTo, err := safeReturnTo(r.URL.Query().Get("returnTo"))
+	if err != nil {
+		return NewBadRequest("returnTo must be a relative URL", err)
+	}
 
 	a.mu.Lock()
 	a.states[state] = authState{CodeVerifier: verifier, ReturnTo: returnTo}
@@ -157,14 +159,8 @@ func (a *Auth) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return NewInternal(err)
 	}
-	exchangeCode, err := randomURLSafe(32)
-	if err != nil {
-		return NewInternal(err)
-	}
-
 	a.mu.Lock()
 	a.sessions[sessionID] = identity
-	a.exchanges[exchangeCode] = sessionID
 	a.mu.Unlock()
 
 	http.SetCookie(w, &http.Cookie{
@@ -176,43 +172,8 @@ func (a *Auth) Callback(w http.ResponseWriter, r *http.Request) error {
 	})
 
 	if storedState.ReturnTo != "" {
-		redirectURL, err := url.Parse(storedState.ReturnTo)
-		if err != nil {
-			return NewBadRequest("returnTo contains an invalid URL", err)
-		}
-		query := redirectURL.Query()
-		query.Set("code", exchangeCode)
-		redirectURL.RawQuery = query.Encode()
-		http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+		http.Redirect(w, r, storedState.ReturnTo, http.StatusFound)
 		return nil
-	}
-
-	writeJSON(w, http.StatusOK, struct {
-		SessionID string `json:"sessionId"`
-	}{SessionID: sessionID})
-	return nil
-}
-
-type exchangeRequest struct {
-	Code string `json:"code"`
-}
-
-func (a *Auth) Exchange(w http.ResponseWriter, r *http.Request) error {
-	var req exchangeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return NewBadRequest("session exchange requires a code", err)
-	}
-	code := strings.TrimSpace(req.Code)
-	if code == "" {
-		return NewBadRequest("session exchange requires a code", nil)
-	}
-
-	a.mu.Lock()
-	sessionID, ok := a.exchanges[code]
-	delete(a.exchanges, code)
-	a.mu.Unlock()
-	if !ok {
-		return NewUnauthorized("invalid session exchange code")
 	}
 
 	writeJSON(w, http.StatusOK, struct {
@@ -241,6 +202,37 @@ func (a *Auth) RequireSession(next http.Handler) http.Handler {
 	})
 }
 
+func (a *Auth) RequireRole(allowed ...Role) func(http.Handler) http.Handler {
+	allowedRoles := map[Role]struct{}{}
+	for _, role := range allowed {
+		allowedRoles[role] = struct{}{}
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			sessionID := sessionIDFromRequest(r)
+			if sessionID == "" {
+				WriteAPIError(w, NewUnauthorized("missing session"))
+				return
+			}
+
+			a.mu.RLock()
+			identity, ok := a.sessions[sessionID]
+			a.mu.RUnlock()
+			if !ok {
+				WriteAPIError(w, NewUnauthorized("invalid session"))
+				return
+			}
+			if _, ok := allowedRoles[identity.Role]; !ok {
+				WriteAPIError(w, NewForbidden("insufficient permissions"))
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) error {
 	sessionID := sessionIDFromRequest(r)
 	if sessionID == "" {
@@ -259,9 +251,7 @@ func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) error {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
-	writeJSON(w, http.StatusOK, struct {
-		Status string `json:"status"`
-	}{Status: "logged_out"})
+	w.WriteHeader(http.StatusOK)
 	return nil
 }
 
@@ -343,6 +333,22 @@ func randomURLSafe(size int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
+func safeReturnTo(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", nil
+	}
+
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return "", err
+	}
+	if parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(parsed.Path, "/") || strings.HasPrefix(parsed.Path, "//") {
+		return "", fmt.Errorf("must be a relative path starting with /")
+	}
+	return parsed.String(), nil
+}
+
 func sessionIDFromRequest(r *http.Request) string {
 	if cookie, err := r.Cookie(sessionCookieName); err == nil && strings.TrimSpace(cookie.Value) != "" {
 		return strings.TrimSpace(cookie.Value)
@@ -372,9 +378,11 @@ func roleFromGroups(groups []string) Role {
 		switch strings.ToLower(group) {
 		case "admin", "admins", "konfidence-admins":
 			return RoleAdmin
+		case "dev", "developer", "developers", "konfidence-devs":
+			return RoleDev
 		case "pm", "product", "product-managers", "konfidence-pms":
 			return RolePM
 		}
 	}
-	return RoleDev
+	return RoleNone
 }
