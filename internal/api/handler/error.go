@@ -57,6 +57,14 @@ func NewUnauthorized(message string) *APIError {
 	}
 }
 
+func NewForbidden(message string) *APIError {
+	return &APIError{
+		Status:  http.StatusForbidden,
+		Code:    "forbidden",
+		Message: message,
+	}
+}
+
 func NewInternal(cause error) *APIError {
 	return &APIError{
 		Status:  http.StatusInternalServerError,

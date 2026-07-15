@@ -73,7 +73,7 @@ API_AUTH_FLAGS   ?= --auth-authorize-url $(DEX_ISSUER)/auth \
 	--auth-token-url $(DEX_ISSUER)/token \
 	--auth-userinfo-url $(DEX_ISSUER)/userinfo \
 	--auth-client-id kden-local \
-	--auth-redirect-uri http://localhost:8090/auth/callback
+	--auth-redirect-uri http://localhost:8090/api/auth/callback
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
