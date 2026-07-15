@@ -25,7 +25,7 @@ A vector may carry an optional, singleton OCM resource named `cloud-konfidence-v
 }
 ```
 
-The deployment controller unpacks the envelope, combines it with the aggregated deployment results from all underlying ArtifactDeployments, and materializes a Kubernetes ConfigMap in the **landscape namespace** — the same namespace as the `VectorDeployment` itself, per [ADR-0007](../../../../docs/pages/arc42/09-decisions/adrs/0007-lcp-multi-landscape-support.md). The LCP's own namespace (`konfidence-system`) is **not** used; one LCP installation can serve many landscapes, and each landscape sees only its own ConfigMaps.
+The deployment controller unpacks the envelope, combines it with the aggregated deployment results from all underlying ArtifactDeployments, and materializes a Kubernetes ConfigMap in the **landscape namespace** — the same namespace as the `VectorDeployment` itself, per [ADR-0007](../../../../docs/pages/arc42/09-decisions/adrs/0007-lcp-multi-landscape-support.md). The LCP's own namespace (`konfidence—system`) is **not** used; one LCP installation can serve many landscapes, and each landscape sees only its own ConfigMaps.
 
 Both inputs that feed the payload are immutable for the lifetime of a `VectorDeployment` (the OCM ComponentVersion is immutable and `ArtifactDeployment.spec` is immutable per the CRD's XValidation rule), so the controller writes the ConfigMap **at most once** per VectorDeployment. If a ConfigMap with the expected name already exists the controller honors it as-is; if it is missing — first reconcile after `VectorDeployed`, or removed out-of-band — it is created.
 

@@ -1,0 +1,49 @@
+{{- if .Values.api.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "konfidence.fullname" . }}-api
+  labels:
+    {{- include "konfidence.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+rules:
+- apiGroups: [""]
+  resources: [namespaces, secrets, configmaps]
+  verbs: [get, list, watch]
+- apiGroups: [konfidence.cloud]
+  resources:
+  - stageconfigurations
+  - stageconfigurations/status
+  - vectorpromotionconfigs
+  - vectorpromotionconfigs/status
+  - vectorpromotions
+  - vectorpromotions/status
+  - vectortemplates
+  - vectortemplates/status
+  verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups: [konfidence.cloud]
+  resources:
+  - activationtaskexecutions
+  - activationtaskexecutions/status
+  - activationtaskregistrations
+  - activationtaskregistrations/status
+  - artifactdeployments
+  - artifactdeployments/status
+  - stages
+  - stages/status
+  - stageversions
+  - stageversions/status
+  - stageversionusages
+  - stageversionusages/status
+  - taskexecutions
+  - taskexecutions/status
+  - vectoractivations
+  - vectoractivations/status
+  - vectorassignments
+  - vectorassignments/status
+  - vectordeployments
+  - vectordeployments/status
+  - vectormigrations
+  - vectormigrations/status
+  verbs: [get, list, watch, create, update, patch, delete]
+{{- end }}
