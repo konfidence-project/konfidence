@@ -42,15 +42,18 @@ func New(logger *slog.Logger, scheme *runtime.Scheme, authCfg config.AuthConfig,
 		RedirectURI:  authCfg.RedirectURI,
 		Scopes:       authCfg.ScopesSlice(),
 	})
-	r.Method(http.MethodGet, "/login", middleware.Handle(logger, auth.LoginStart))
-	r.Method(http.MethodGet, "/auth/callback", middleware.Handle(logger, auth.Callback))
-	r.Method(http.MethodPost, "/sessions/exchange", middleware.Handle(logger, auth.Exchange))
+	r.Method(http.MethodGet, "/api/login", middleware.Handle(logger, auth.LoginStart))
+	r.Method(http.MethodGet, "/api/auth/callback", middleware.Handle(logger, auth.Callback))
 
 	r.Group(func(protected chi.Router) {
 		protected.Use(auth.RequireSession)
-		protected.Method(http.MethodPost, "/logout", middleware.Handle(logger, auth.Logout))
-		protected.Method(http.MethodGet, "/identity", middleware.Handle(logger, auth.Identity))
+		protected.Method(http.MethodPost, "/api/logout", middleware.Handle(logger, auth.Logout))
+		protected.Method(http.MethodGet, "/api/identity", middleware.Handle(logger, auth.Identity))
+	})
 
+	r.Group(func(protected chi.Router) {
+		protected.Use(auth.RequireSession)
+		protected.Use(auth.RequireRole(handler.RoleAdmin, handler.RoleDev, handler.RolePM))
 		// Domain routes - each domain registers via MountFunc.
 		for _, mount := range mounts {
 			mount(protected, logger, k8s)

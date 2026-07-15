@@ -10,7 +10,7 @@ staticClients:
     name: KDEN Local
     public: true
     redirectURIs:
-      - http://localhost:8090/auth/callback
+      - http://localhost:8090/api/auth/callback
 connectors:
   - type: mockCallback
     id: mock
@@ -22,3 +22,26 @@ staticPasswords:
     hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
     username: alice
     userID: alice
+    groups:
+      - admins
+  - email: ada@example.com
+    # bcrypt hash for "password".
+    hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
+    username: ada
+    userID: ada
+    groups:
+      - developers
+  - email: paul@example.com
+    # bcrypt hash for "password".
+    hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
+    username: paul
+    userID: paul
+    groups:
+      - product-managers
+  - email: nina@example.com
+    # bcrypt hash for "password".
+    hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
+    username: nina
+    userID: nina
+    groups:
+      - no-access

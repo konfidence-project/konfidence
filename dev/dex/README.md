@@ -15,11 +15,14 @@ make run-api-with-idp
 Open the browser flow:
 
 ```text
-http://localhost:8090/login
+http://localhost:8090/api/login
 ```
 
-Test user:
+Test users:
 
 ```text
-alice@example.com / password
+alice@example.com / password  ADMIN
+ada@example.com   / password  DEV
+paul@example.com  / password  PM
+nina@example.com  / password  no role
 ```
