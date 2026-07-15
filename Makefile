@@ -1,6 +1,7 @@
 # Image registry and tag used by all build/push targets
 REGISTRY ?= registry.kdenv.lab
 TAG      ?= dev
+DASHBOARD_ENABLED ?= false
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -57,6 +58,7 @@ HELM_DOCS      ?= helm-docs
 
 ## Image names
 OPERATOR_IMAGE = $(REGISTRY)/konfidence-operator:$(TAG)
+UI_IMAGE       = $(REGISTRY)/konfidence-ui:$(TAG)
 
 .PHONY: all
 all: api build
@@ -104,9 +106,13 @@ regenerate-mocks: hermit ## Wipe every mocks/ directory's contents, then regener
 	find . -path ./vendor -prune -o -type d -name mocks -print -exec sh -c 'rm -rf "$$0"/*' {} \;
 	$(MAKE) generate-mocks
 
-.PHONY: fmt
-fmt: hermit ## Run go fmt against the entire codebase.
+.PHONY: fmt-go
+fmt-go: hermit
 	go fmt ./...
+
+.PHONY: fmt
+fmt: fmt-go ## Run Go and UI formatters.
+	$(PNPM) ui:fmt
 
 .PHONY: fmt-check
 fmt-check: hermit ## Verify go formatting across the entire codebase.
@@ -120,28 +126,32 @@ fmt-check: hermit ## Verify go formatting across the entire codebase.
 vet: hermit ## Run go vet against the entire codebase.
 	go vet ./...
 
-.PHONY: lint
-lint: hermit ## Run golangci-lint against the entire codebase.
+.PHONY: lint-go
+lint-go: hermit
 	$(GOLANGCI_LINT) run
 
-.PHONY: lint-fix
-lint-fix: hermit ## Run golangci-lint and apply automatic fixes.
+.PHONY: lint
+lint: lint-go ## Run Go and UI linters.
+	$(PNPM) ui:lint
+
+.PHONY: lint-fix-go
+lint-fix-go: hermit
 	$(GOLANGCI_LINT) run --fix
+
+.PHONY: lint-fix
+lint-fix: lint-fix-go ## Run Go and UI linters and apply automatic fixes.
+	$(PNPM) ui:lint:fix
 
 .PHONY: lint-config
 lint-config: hermit ## Verify the golangci-lint configuration.
 	$(GOLANGCI_LINT) config verify
 
-.PHONY: lint-ui
-lint-ui: hermit ## Run UI linting.
-	$(PNPM) ui:lint
-
-.PHONY: fmt-check-ui
-fmt-check-ui: hermit ## Verify UI formatting.
-	$(PNPM) ui:fmt:check
+.PHONY: verify-ui
+verify-ui: ## Run UI typecheck, lint, Svelte checks, and format check.
+	$(PNPM) ui:verify
 
 .PHONY: verify
-verify: fmt-check lint lint-config lint-ui fmt-check-ui test ## Run formatting checks, linting, and all tests.
+verify: fmt-check lint-go lint-config verify-ui test-operators test-pkg ## Run Go checks/tests and UI verification.
 
 ##@ API
 
@@ -192,7 +202,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api test-ui ## Run all unit tests.
+test: hermit manifests generate fmt-go vet test-operators test-pkg test-kden-cli test-api ## Run all Go unit tests.
 
 .PHONY: test-operators
 test-operators: hermit manifests setup-envtest ginkgo ## Run unit tests for the konfidence operator.
@@ -208,12 +218,8 @@ test-kden-cli: hermit
 	go test ./cmd/kden/... ./internal/kden/...
 
 .PHONY: test-api
-test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
+test-api: hermit fmt-go vet ginkgo ## Run unit tests for the API server and kden API client.
 	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
-
-.PHONY: test-ui
-test-ui: hermit ## Run UI tests.
-	$(PNPM) ui:test
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
@@ -230,7 +236,8 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet build-operator build-kden-cli build-ui ## Build all binaries and UI assets.
+build: manifests generate fmt vet build-operator build-kden-cli ## Build all binaries and UI assets.
+	$(PNPM) ui:build
 
 .PHONY: build-operator
 build-operator: hermit ## Build the konfidence operator binary.
@@ -258,16 +265,21 @@ dev-ui: hermit ## Run the UI development server.
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
-docker-build: hermit ## Build the konfidence operator container image (local use only).
+docker-build: hermit docker-build-ui ## Build all container images (local use only).
 	$(CONTAINER_TOOL) build -f Dockerfile --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
+
+.PHONY: docker-build-ui
+docker-build-ui: hermit ## Build the dashboard container image (local use only).
+	$(CONTAINER_TOOL) build -f Dockerfile.ui -t $(UI_IMAGE) .
 
 .PHONY: docker-bake
 docker-bake: hermit ## Build all container images using docker buildx bake (multi-platform, CI-compatible).
 	$(CONTAINER_TOOL) buildx bake --file docker-bake.hcl
 
 .PHONY: docker-push
-docker-push: ## Push the konfidence operator container image.
+docker-push: ## Push all container images.
 	$(CONTAINER_TOOL) push $(OPERATOR_IMAGE)
+	$(CONTAINER_TOOL) push $(UI_IMAGE)
 
 ##@ Deployment
 
@@ -287,7 +299,10 @@ uninstall: hermit ## Uninstall CRDs from the cluster. Use ignore-not-found=true 
 deploy: hermit manifests ## Deploy the konfidence operator to the cluster specified in ~/.kube/config.
 	$(HELM) upgrade --install konfidence charts/konfidence \
 		--set image.repository=$(REGISTRY)/konfidence-operator \
+		--set dashboard.image.repository=$(REGISTRY)/konfidence-ui \
 		--set image.tag=$(TAG) \
+		--set dashboard.image.tag=$(TAG) \
+		--set dashboard.enabled=$(DASHBOARD_ENABLED) \
 		--set crd.keep=false
 
 .PHONY: undeploy
