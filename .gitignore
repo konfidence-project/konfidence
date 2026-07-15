@@ -33,6 +33,7 @@ go.work.sum
 bin/*/
 bin/konfidence
 bin/ginkgo
+bin/kden
 
 # Do not ignore hermit binary and pkg files in bin/
 !bin/hermit
