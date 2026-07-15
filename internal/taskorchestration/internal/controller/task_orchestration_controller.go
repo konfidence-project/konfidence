@@ -9,12 +9,11 @@ import (
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -25,9 +24,9 @@ import (
 )
 
 const (
-	layerSucceeded                  = 0
-	layerPartiallySucceeded         = 1
-	layerPending                    = 2
+	LayerSucceeded                  = 0
+	LayerPartiallySucceeded         = 1
+	LayerPending                    = 2
 	TaskOrchestrationControllerName = "task-orchestration-controller"
 )
 
@@ -78,7 +77,6 @@ func (r *TaskOrchestrationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	originalVectorMigration := vectorMigration.DeepCopy()
 	err := r.reconcileVectorMigration(ctx, req, vectorMigration)
-
 	return ctrl.Result{}, pkgctrl.PatchStatusIfChanged(
 		ctx,
 		r.Client,
@@ -172,7 +170,7 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 			return fmt.Errorf("failed to process tasks: %w", err)
 		}
 
-		if status == layerPending {
+		if status == LayerPending {
 			log.Info("Task layer still pending... retry later")
 			// wait for taskExecution status change notifications
 			return nil
@@ -183,7 +181,7 @@ func (r *TaskOrchestrationReconciler) reconcileVectorMigration(ctx context.Conte
 
 	// check that all layer tasks have actually succeeded
 	for _, status := range layerStatus {
-		if status != layerSucceeded {
+		if status != LayerSucceeded {
 			log.Info("Waiting for task layers to finish...")
 			// wait for taskExecution status change notifications
 			return nil
@@ -281,10 +279,10 @@ func (r *TaskOrchestrationReconciler) createOrGetStageVersionUsage(
 	log := logf.FromContext(ctx)
 	stageVersionUsage := &konfidence.StageVersionUsage{}
 	err := r.Get(ctx, types.NamespacedName{Name: getStageVersionUsageName(vectorMigration.Spec.StageVersion), Namespace: req.Namespace}, stageVersionUsage)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, fmt.Errorf("unable to fetch stageVersionUsage: %w", err)
 	}
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apierrors.IsNotFound(err) {
 		// create new stageVersionUsage
 		stageVersionUsage, err = r.constructStageVersionUsage(vectorMigration)
 		if err != nil {
@@ -386,7 +384,7 @@ func (r *TaskOrchestrationReconciler) processTaskLayer(
 	taskExecutionsByName map[string]konfidence.TaskExecution,
 	successfulTaskExecutionsByName map[string]bool,
 ) (int, error) {
-	status := layerPending
+	status := LayerPending
 	succeeded := 0
 
 	for _, task := range layer {
@@ -394,14 +392,20 @@ func (r *TaskOrchestrationReconciler) processTaskLayer(
 			// create taskExecution if it does not exist and all dependencies have already been successfully processed
 			if allTaskDependenciesSucceeded(task, successfulTaskExecutionsByName) {
 				taskExecution, err := r.constructTaskExecution(vectorMigration, task, vectorMigration.Namespace)
-
 				if err != nil {
 					return status, fmt.Errorf("unable to construct taskExecution from template: %w", err)
 				}
 
-				if err := r.Create(ctx, taskExecution); err != nil {
+				err = r.Create(ctx, taskExecution)
+				if err != nil {
+					// task has already been created but client cache does not know the object yet
+					if apierrors.IsAlreadyExists(err) {
+						continue
+					}
+
 					return status, fmt.Errorf("unable to create taskExecution: %w", err)
 				}
+
 				r.Recorder.Eventf(vectorMigration, nil, corev1.EventTypeNormal,
 					"TaskExecutionCreated", "TaskExecutionCreated",
 					fmt.Sprintf("Created TaskExecution %s", taskExecution.Name))
@@ -417,9 +421,9 @@ func (r *TaskOrchestrationReconciler) processTaskLayer(
 	}
 
 	if succeeded == len(layer) {
-		status = layerSucceeded
+		status = LayerSucceeded
 	} else if succeeded > 0 {
-		status = layerPartiallySucceeded
+		status = LayerPartiallySucceeded
 	}
 
 	return status, nil
@@ -486,7 +490,7 @@ func (r *TaskOrchestrationReconciler) constructTaskExecution(
 ) (*konfidence.TaskExecution, error) {
 	taskExecution := &konfidence.TaskExecution{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      taskManifest.Name + "-" + rand.String(8),
+			Name:      taskManifest.Name + "-" + string(vectorMigration.UID),
 			Namespace: namespace,
 		},
 		Spec: konfidence.TaskExecutionSpec(taskManifest),
