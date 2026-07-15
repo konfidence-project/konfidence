@@ -69,7 +69,9 @@ KONFIDENCE_API_URL=http://localhost:8090 pnpm ui:dev
 
 Open `http://localhost:5173/landscape` and sign in with
 `alice@example.com` / `password`. The dashboard proxies `/api/*` to the API,
-which owns the OAuth flow and session.
+which owns the OAuth flow and session. `KONFIDENCE_API_URL` must be a full API
+URL, including the port when required; invalid URLs prevent the UI from
+starting.
 
 The dashboard is packaged as `konfidence-ui` and is built into the default Docker Bake target together with the Konfidence operator image. In CI, the dashboard check job runs formatting, linting, type checks, and Svelte checks; the production build runs through the dashboard image build.
 
