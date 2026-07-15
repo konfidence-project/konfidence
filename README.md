@@ -8,7 +8,42 @@ konfidence
 
 ## Requirements and Setup
 
-*Insert a short description what is required to get your project running...*
+Use Hermit for the repository toolchain:
+
+```sh
+source ./bin/activate-hermit
+pnpm install
+```
+
+Common development commands:
+
+```sh
+make verify      # Go checks/tests plus dashboard fmt/lint/typecheck
+make build       # Build operators and dashboard assets
+make docker-bake # Build all container images with Docker Buildx Bake
+```
+
+Dashboard-focused commands:
+
+```sh
+make verify-ui       # Run dashboard fmt check, lint, typecheck, and Svelte checks
+pnpm ui:dev          # Start the SvelteKit development server
+pnpm ui:fmt          # Format dashboard sources
+pnpm ui:test         # Run dashboard unit/browser-mode and e2e tests
+```
+
+The dashboard is packaged as `konfidence-ui` and is built into the default Docker Bake target together with the star and galaxy operator images. In CI, the dashboard check job runs formatting, linting, type checks, and Svelte checks; the production build runs through the dashboard image build.
+
+Deploy the star chart with the dashboard enabled:
+
+```sh
+helm upgrade --install star charts/star \
+  --set dashboard.enabled=true \
+  --set image.tag=<tag> \
+  --set dashboard.image.tag=<tag>
+```
+
+For local Makefile deployment, `make deploy-star REGISTRY=<registry> TAG=<tag> DASHBOARD_ENABLED=true` passes both the star operator and dashboard image repository/tag values into the chart and enables the dashboard.
 
 ## Support, Feedback, Contributing
 

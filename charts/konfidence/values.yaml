@@ -116,6 +116,43 @@ imagePullSecrets: []
 
 replicas: 1
 
+dashboard:
+  # Deploy the Konfidence dashboard alongside the star controller.
+  enabled: false
+  replicas: 1
+  image:
+    repository: ghcr.io/konfidence-project/konfidence-ui
+    # tag defaults to .Chart.AppVersion when empty.
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  containerPort: 3000
+  env: []
+  podAnnotations: {}
+  podLabels: {}
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # PodDisruptionBudget for the controller. Only meaningful when running
 # replicas >= 2 (with leader election a single active replica handles
 # reconciliation; the others stand by). Disabled by default to match the
