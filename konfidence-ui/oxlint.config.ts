@@ -25,6 +25,9 @@ export default defineConfig({
         $state: "readonly",
       },
       rules: {
+        // Svelte templates often benefit from local readability over strict expression/import style rules.
+        "eslint/capitalized-comments": "off",
+        "eslint/no-implicit-coercion": "off",
         // Svelte 5 `bind:this` requires `let`; the compiler assigns internally even if user code never reassigns, so `const` is rejected.
         "prefer-const": "off",
         // Svelte components conventionally use PascalCase filenames in this project.
@@ -76,6 +79,9 @@ export default defineConfig({
 
     // The app uses named exports intentionally for shared utilities, stores, and route-adjacent modules.
     "import/no-named-export": "off",
+
+    // Namespace imports are common for schema and utility libraries such as Valibot.
+    "import/no-namespace": "off",
 
     "import/no-unassigned-import": [
       "warn",
