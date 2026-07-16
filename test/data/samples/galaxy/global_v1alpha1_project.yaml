@@ -1,0 +1,27 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: Project
+metadata:
+  labels:
+    app.kubernetes.io/name: crds
+  name: sample-project
+spec:
+  displayName: Sample Project
+  # namespace: my-custom-namespace  # overrides the default "kden-project-sample-project"
+  roleBindings:
+    admin:
+      - session:
+          memberOf:
+            - platform-admins
+      - jwks:
+          endpoint: https://token.actions.githubusercontent.com/.well-known/openid-configuration
+          audience: https://konfidence.example/api
+          claims:
+            sub: repo:konfidence-project/konfidence:*
+    pm:
+      - session:
+          memberOf:
+            - sample-project-pms
+    dev:
+      - session:
+          memberOf:
+            - sample-project-devs

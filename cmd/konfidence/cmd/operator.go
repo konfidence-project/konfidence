@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/konfidence-project/konfidence/internal/project"
 	"github.com/konfidence-project/konfidence/internal/stage"
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration"
 	"github.com/konfidence-project/konfidence/internal/taskorchestration"
@@ -124,6 +125,9 @@ func buildControllerSetups(ctx context.Context, cancel context.CancelFunc, mgr m
 		return setups
 	}
 
+	setups[project.OperatorFlagName] = func() error {
+		return project.SetupControllers(mgr, project.Options{})
+	}
 	setups[stageconfiguration.OperatorFlagName] = func() error {
 		return stageconfiguration.SetupControllers(mgr, stageconfiguration.Options{
 			Limiter: limiter,

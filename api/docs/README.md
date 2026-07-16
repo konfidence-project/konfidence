@@ -17,6 +17,8 @@ a single API group; galaxy vs. star remains a code-organization convention (ADR-
 - [ActivationTaskRegistrationList](#activationtaskregistrationlist)
 - [ArtifactDeployment](#artifactdeployment)
 - [ArtifactDeploymentList](#artifactdeploymentlist)
+- [Project](#project)
+- [ProjectList](#projectlist)
 - [Stage](#stage)
 - [StageConfiguration](#stageconfiguration)
 - [StageConfigurationList](#stageconfigurationlist)
@@ -371,6 +373,40 @@ _Appears in:_
 | `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains deployer-specific structured data. Its format is determined by the Type field. |  |  |
 
 
+#### GlobMatch
+
+_Underlying type:_ _string_
+
+GlobMatch is a claim-value match pattern using glob semantics, where "*"
+matches any run of characters (for example "repo:konfidence-project/*").
+
+_Validation:_
+- MaxLength: 512
+
+_Appears in:_
+- [JWKSSubject](#jwkssubject)
+
+
+
+#### JWKSSubject
+
+
+
+JWKSSubject matches a workload token issued by a trusted OIDC provider,
+narrowed to a required audience and at least one token claim.
+
+
+
+_Appears in:_
+- [Subject](#subject)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `endpoint` _string_ | Endpoint is the OIDC discovery endpoint (the provider's<br />".well-known/openid-configuration" URL) used to resolve the signing keys<br />that the presented token is verified against. |  | MaxLength: 2048 <br />Pattern: `^https://.*$` <br /> |
+| `audience` _string_ | Audience is the value the token's "aud" claim must carry. It is required<br />so that a token minted for a different service cannot be replayed against<br />Konfidence: the token is accepted only if it was issued for this audience. |  | MaxLength: 512 <br />MinLength: 1 <br /> |
+| `claims` _object (keys:string, values:[GlobMatch](#globmatch))_ | Claims narrows the match to tokens whose claims match the given patterns.<br />It maps a claim name (for example "sub", "repository" or "ref") to a<br />glob pattern the claim value must match; all listed claims must match<br />(AND). At least one claim is required so a subject cannot inadvertently<br />match every token a provider issues. |  | MaxProperties: 32 <br />MinProperties: 1 <br /> |
+
+
 #### LocalArtifactDeploymentReference
 
 
@@ -489,6 +525,106 @@ _Appears in:_
 | `name` _string_ | Name is the resource name. |  |  |
 | `content` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Content holds raw resource data, typically an embedded manifest, file, or<br />binary payload. |  |  |
 | `type` _string_ | Type describes the resource type, following OCM conventions. |  |  |
+
+
+#### Project
+
+
+
+Project is the Schema for the projects API. A Project owns a dedicated
+namespace that stores the project's Galaxy resources. The project name is
+capped at 50 characters so the derived namespace name and label values
+stay within the 63-character Kubernetes limits.
+
+
+
+_Appears in:_
+- [ProjectList](#projectlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `Project` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[ProjectSpec](#projectspec)_ |  |  |  |
+| `status` _[ProjectStatus](#projectstatus)_ |  |  |  |
+
+
+#### ProjectList
+
+
+
+ProjectList contains a list of Project.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `ProjectList` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[Project](#project) array_ |  |  |  |
+
+
+#### ProjectSpec
+
+
+
+ProjectSpec defines the desired state of Project.
+
+The transition rule catches namespace being set or unset after creation;
+changing a set namespace is caught by the field-level rule. The two rules
+are split to stay within the CEL cost budget of the schema.
+
+
+
+_Appears in:_
+- [Project](#project)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `displayName` _string_ | DisplayName is the human-readable name of the project, shown in user<br />interfaces. It does not affect the namespace name or any label, and it<br />may be changed at any time. |  | MaxLength: 253 <br />MinLength: 1 <br />Optional: \{\} <br /> |
+| `namespace` _string_ | Namespace overrides the name of the namespace created for this project.<br />When unset it defaults to "kden-project-<project-name>". It is immutable<br />once the Project exists, because the namespace and everything it holds<br />are bound to this name. |  | MaxLength: 63 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Optional: \{\} <br /> |
+| `roleBindings` _object (keys:string, values:[Subjects](#subjects))_ | RoleBindings grants project roles to callers. It maps a role name to the<br />list of subjects that hold that role; a caller holds the role if any<br />subject in the list matches (OR). The role names are a fixed, well-known<br />set for now (for example "admin", "pm", "dev"), but the field is a map so<br />the set can be extended without a schema change. See the Project<br />multi-tenancy ADR for the meaning of each role and the authorization flow.<br />RoleBindings is currently schema-only: no authorization is enforced yet. |  | MaxProperties: 32 <br />Optional: \{\} <br /> |
+
+
+#### ProjectStatus
+
+
+
+ProjectStatus defines the observed state of Project.
+
+
+
+_Appears in:_
+- [Project](#project)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+| `namespace` _string_ | Namespace is the name of the namespace managed for this project. |  | Optional: \{\} <br /> |
+
+
+#### SessionSubject
+
+
+
+SessionSubject matches an interactive user by group membership.
+
+
+
+_Appears in:_
+- [Subject](#subject)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `memberOf` _string array_ | MemberOf lists the groups that grant the role. Membership in any one of<br />the listed groups is sufficient to match (OR). |  | MaxItems: 64 <br />MinItems: 1 <br />items:MaxLength: 253 <br /> |
 
 
 #### Sign
@@ -871,6 +1007,44 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
 | `resolvedStageVersions` _string array_ | ResolvedStageVersions contains the names of all resolved stageVersion resources specified by either stageVersionRef or StageVersionSelector |  |  |
+
+
+#### Subject
+
+
+
+Subject identifies who is granted a role. Exactly one identity source
+(session or jwks) must be set.
+
+
+
+_Appears in:_
+- [Subjects](#subjects)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `session` _[SessionSubject](#sessionsubject)_ | Session matches an interactively authenticated user by group membership,<br />for example a person signed in through the identity provider. |  | Optional: \{\} <br /> |
+| `jwks` _[JWKSSubject](#jwkssubject)_ | JWKS matches a workload identity presenting a token signed by a trusted<br />OIDC provider, for example a CI pipeline's OIDC token. |  | Optional: \{\} <br /> |
+
+
+#### Subjects
+
+_Underlying type:_ _[Subject](#subject)_
+
+Subjects is the list of subjects that hold a role. A caller holds the role
+if any subject matches (OR).
+
+_Validation:_
+- MaxItems: 32
+- MinItems: 1
+
+_Appears in:_
+- [ProjectSpec](#projectspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `session` _[SessionSubject](#sessionsubject)_ | Session matches an interactively authenticated user by group membership,<br />for example a person signed in through the identity provider. |  | Optional: \{\} <br /> |
+| `jwks` _[JWKSSubject](#jwkssubject)_ | JWKS matches a workload identity presenting a token signed by a trusted<br />OIDC provider, for example a CI pipeline's OIDC token. |  | Optional: \{\} <br /> |
 
 
 #### TaskExecution

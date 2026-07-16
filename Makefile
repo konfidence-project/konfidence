@@ -43,6 +43,7 @@ API_PATHS = paths="./api/v1alpha1/..."
 # which test/data/crds dir it lands in (the envtest suites load them
 # per set).
 GALAXY_CRD_FILES = \
+	konfidence.cloud_projects.yaml \
 	konfidence.cloud_stageconfigurations.yaml \
 	konfidence.cloud_vectorpromotions.yaml \
 	konfidence.cloud_vectorpromotionconfigs.yaml \
@@ -66,7 +67,7 @@ STAR_CRD_FILES = \
 # RBAC is generated per set so the chart can gate the galaxy-only rules on
 # .Values.galaxy.enabled; tests run over the combined list.
 STAR_INTERNAL_DIRS    = ./internal/stage/... ./internal/taskorchestration/... ./internal/vectoractivation/... ./internal/vectordeployment/...
-GALAXY_INTERNAL_DIRS  = ./internal/stageconfiguration/... ./internal/vectorassembly/... ./internal/vectorpromotion/...
+GALAXY_INTERNAL_DIRS  = ./internal/project/... ./internal/stageconfiguration/... ./internal/vectorassembly/... ./internal/vectorpromotion/...
 OPERATOR_INTERNAL_DIRS = $(STAR_INTERNAL_DIRS) $(GALAXY_INTERNAL_DIRS)
 STAR_INTERNAL_PATHS   = $(foreach d,$(STAR_INTERNAL_DIRS),paths="$(d)")
 GALAXY_INTERNAL_PATHS = $(foreach d,$(GALAXY_INTERNAL_DIRS),paths="$(d)")

@@ -101,8 +101,21 @@ rules:
   - update
 {{- if .Values.galaxy.enabled }}
 - apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - konfidence.cloud
   resources:
+  - projects
   - stageconfigurations
   - vectorpromotions
   verbs:
@@ -116,6 +129,13 @@ rules:
 - apiGroups:
   - konfidence.cloud
   resources:
+  - projects/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - konfidence.cloud
+  resources:
+  - projects/status
   - stageconfigurations/status
   - vectorpromotionconfigs/status
   - vectorpromotions/status
