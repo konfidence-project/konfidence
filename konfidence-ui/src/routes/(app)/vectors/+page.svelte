@@ -8,7 +8,7 @@
     import { getVectors } from "./vectors.remote";
 
     // Number of mock vectors to request. Bump this up to stress-test the
-    // table's virtualization + growing with large data sets.
+    // Table's virtualization and growing with large data sets.
     const VECTOR_COUNT = 10_000;
 
     const vectorsQuery = $derived(getVectors(VECTOR_COUNT));
