@@ -36,12 +36,24 @@ staticClients:
     public: true
     redirectURIs:
       - http://127.0.0.1:${UI_PORT}/api/auth/callback
+connectors:
+  - type: mockCallback
+    id: mock
+    name: Mock
 enablePasswordDB: true
 staticPasswords:
   - email: alice@example.com
     hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
     username: alice
     userID: alice
+    groups:
+      - admins
+  - email: bob@example.com
+    hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
+    username: bob
+    userID: bob
+    groups:
+      - no-access
 `;
 
 const startProcess = (
