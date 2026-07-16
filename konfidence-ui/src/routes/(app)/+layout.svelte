@@ -22,7 +22,7 @@
     } from "$lib/stores/stage-card-variant.svelte";
     import { selectTheme, themePreference, themes } from "$lib/stores/theme.svelte";
     import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
-
+    import type { LayoutProps } from "./$types";
     import { STAGE_CARD_VARIANTS } from "$lib/components/stage/variants.js";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
@@ -54,12 +54,7 @@
     const LIGHT_LOGO_SRC = "/assets/logo/full/SVG/400_konfidence_logo_light.svg";
     const AVATAR_INITIALS_MAX = 2;
 
-    const { children, data } = $props<{
-        children: () => unknown;
-        data: {
-            user: { email?: string; name: string; sub: string };
-        };
-    }>();
+    const { children, data }: LayoutProps = $props();
 
     const navGroups: readonly NavGroup[] = [
         {

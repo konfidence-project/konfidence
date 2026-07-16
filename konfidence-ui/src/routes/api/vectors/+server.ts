@@ -1,10 +1,19 @@
 import type { Vector, VectorList } from "$lib/vectors";
-import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
+import { json } from "@sveltejs/kit";
+import { requireUser } from "$lib/server/auth";
 
 const MILLISECONDS_PER_MINUTE = 60_000;
 const MIN_RESPONSE_DELAY = 100;
 const RANDOM_RESPONSE_DELAY = 500;
+const HEX_COLOR_MODULUS = 16_777_215;
+const HEX_RADIX = 16;
+const HASH_LENGTH = 6;
+const VERSION_BUCKET_SIZE = 10;
+const MAX_REGION_COUNT = 5;
+const MAX_ARTIFACT_COUNT = 12;
+const MAX_GENERATION = 20;
+const GENERATED_VECTOR_INTERVAL_MINUTES = 7;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -130,33 +139,33 @@ const REGIONS = [
 ];
 
 const randomHash = (seed: number) =>
-  Math.abs(Math.sin(seed) * 0xffffff)
-    .toString(16)
-    .slice(0, 6)
-    .padStart(6, "0");
+  Math.abs(Math.sin(seed) * HEX_COLOR_MODULUS)
+    .toString(HEX_RADIX)
+    .slice(0, HASH_LENGTH)
+    .padStart(HASH_LENGTH, "0");
 
-const pick = <T>(items: T[], seed: number) => items[seed % items.length];
+const pick = <Item>(items: Item[], seed: number) => items[seed % items.length];
 
 // Generates `count` synthetic vectors, useful for stress-testing the table
-// with large data sets (virtualization + growing).
+// With large data sets (virtualization + growing).
 const generateVectors = (count: number): Vector[] =>
-  Array.from({ length: count }, (_, index) => {
+  Array.from({ length: count }, (_value, index) => {
     const major = 2;
-    const minor = Math.floor(index / 10);
-    const patch = index % 10;
+    const minor = Math.floor(index / VERSION_BUCKET_SIZE);
+    const patch = index % VERSION_BUCKET_SIZE;
     const regionStart = index % REGIONS.length;
-    const regionCount = 1 + (index % 5);
+    const regionCount = 1 + (index % MAX_REGION_COUNT);
 
     return vector({
-      artifactCount: 1 + (index % 12),
+      artifactCount: 1 + (index % MAX_ARTIFACT_COUNT),
       deployedOn: Array.from(
         { length: regionCount },
-        (_, offset) => REGIONS[(regionStart + offset) % REGIONS.length],
+        (_ignored, offset) => REGIONS[(regionStart + offset) % REGIONS.length],
       ),
-      generation: 1 + (index % 20),
+      generation: 1 + (index % MAX_GENERATION),
       hash: randomHash(index + 1),
       health: pick(HEALTHS, index),
-      minutesAgo: index * 7,
+      minutesAgo: index * GENERATED_VECTOR_INTERVAL_MINUTES,
       name: `v${major}.${minor}.${patch}-gen${index}`,
       namespace: "default",
     });
@@ -172,13 +181,15 @@ const buildVectors = (count: number): Vector[] => {
 const DEFAULT_COUNT = baseVectors.length;
 const MAX_COUNT = 100_000;
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
+  requireUser(locals);
   await wait(MIN_RESPONSE_DELAY + Math.random() * RANDOM_RESPONSE_DELAY);
 
   const requested = Number(url.searchParams.get("count"));
-  const count = Number.isFinite(requested)
-    ? Math.min(Math.max(requested, 0), MAX_COUNT)
-    : DEFAULT_COUNT;
+  let count = DEFAULT_COUNT;
+  if (Number.isFinite(requested)) {
+    count = Math.min(Math.max(requested, 0), MAX_COUNT);
+  }
 
   return json({
     apiVersion: "star.konfidence.cloud/v1alpha1",

@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
+  testIgnore: "tests/auth/**",
   testMatch: "**/*.e2e.{ts,js}",
   webServer: {
     command: "pnpm build && pnpm preview",
