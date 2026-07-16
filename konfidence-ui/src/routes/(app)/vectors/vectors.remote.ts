@@ -3,10 +3,13 @@ import type { VectorList } from "$lib/vectors";
 import { error } from "@sveltejs/kit";
 
 // `count` lets callers request a large number of mock vectors to stress-test
-// the table's virtualization and growing behavior.
+// The table's virtualization and growing behavior.
 export const getVectors = query("unchecked", async (count?: number) => {
   const { fetch } = getRequestEvent();
-  const search = count ? `?count=${count}` : "";
+  let search = "";
+  if (count) {
+    search = `?count=${count}`;
+  }
   const response = await fetch(`/api/vectors${search}`);
 
   if (!response.ok) {

@@ -1,5 +1,5 @@
-import type { RequestHandler } from "./$types";
 import { KONFIDENCE_API_URL } from "$app/env/private";
+import type { RequestHandler } from "./$types";
 
 const proxy: RequestHandler = ({ fetch, request, url }) => {
   const target = new URL(url.pathname + url.search, KONFIDENCE_API_URL);

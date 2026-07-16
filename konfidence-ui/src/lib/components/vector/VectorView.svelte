@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { addCustomCSS } from "@ui5/webcomponents-base/dist/Theming.js";
-
     import "@ui5/webcomponents/dist/Button.js";
     import "@ui5/webcomponents/dist/Icon.js";
     import "@ui5/webcomponents/dist/Input.js";
@@ -20,6 +18,7 @@
     import "@ui5/webcomponents-icons/dist/filter.js";
 
     import type { Vector, VectorHealth } from "$lib/vectors.js";
+    import { addCustomCSS } from "@ui5/webcomponents-base/dist/Theming.js";
 
     type TableRowClickEventDetail =
         import("@ui5/webcomponents/dist/Table.js").TableRowClickEventDetail;
@@ -36,14 +35,14 @@
     // Sortable columns and how to extract a comparable value from a vector.
     // `health` is ordered by severity (Healthy < Warning < Error).
     const HEALTH_ORDER: Record<VectorHealth, number> = {
+        Error: 2,
         Healthy: 0,
         Warning: 1,
-        Error: 2,
     };
     const SORT_KEYS = {
-        name: (vector: Vector) => vector.metadata.name,
         artifactCount: (vector: Vector) => vector.spec.artifactCount,
         health: (vector: Vector) => HEALTH_ORDER[vector.status.health],
+        name: (vector: Vector) => vector.metadata.name,
     } as const;
     type SortColumn = keyof typeof SORT_KEYS;
     type SortDirection = "None" | "Ascending" | "Descending";
@@ -64,7 +63,12 @@
     let sortDirection = $state<SortDirection>("None");
 
     const isDetailsOpen = $derived(selectedVectorName !== undefined);
-    const layout = $derived(isDetailsOpen ? "TwoColumnsMidExpanded" : "OneColumn");
+    const layout = $derived.by(() => {
+        if (isDetailsOpen) {
+            return "TwoColumnsMidExpanded";
+        }
+        return "OneColumn";
+    });
 
     const filteredVectors = $derived.by(() => {
         const query = searchTerm.trim().toLowerCase();
@@ -86,10 +90,13 @@
             return filteredVectors;
         }
         const getValue = SORT_KEYS[sortColumn];
-        const factor = sortDirection === "Ascending" ? 1 : -1;
-        return [...filteredVectors].sort((a: Vector, b: Vector) => {
-            const left = getValue(a);
-            const right = getValue(b);
+        let factor = -1;
+        if (sortDirection === "Ascending") {
+            factor = 1;
+        }
+        return [...filteredVectors].toSorted((leftVector: Vector, rightVector: Vector) => {
+            const left = getValue(leftVector);
+            const right = getValue(rightVector);
             if (left < right) {
                 return -1 * factor;
             }
@@ -105,8 +112,12 @@
     const visibleVectors = $derived(sortedVectors.slice(0, visibleCount));
     const hasMore = $derived(visibleCount < sortedVectors.length);
 
-    const sortIndicator = (column: SortColumn): SortDirection =>
-        sortColumn === column ? sortDirection : "None";
+    const sortIndicator = (column: SortColumn): SortDirection => {
+        if (sortColumn === column) {
+            return sortDirection;
+        }
+        return "None";
+    };
 
     // Cycles a column through Ascending -> Descending -> None on each click.
     const toggleSort = (column: SortColumn): void => {

@@ -1,6 +1,7 @@
 import type { ArtifactSummary } from "$lib/artifacts";
 import type { RequestHandler } from "./$types";
 import { json } from "@sveltejs/kit";
+import { requireUser } from "$lib/server/auth";
 
 const DEFAULT_COUNT = 10_000;
 const ISO_DATE_LENGTH = 10;
@@ -46,7 +47,8 @@ const generateArtifactDeployments = (amount: number): ArtifactSummary[] =>
     };
   });
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
+  requireUser(locals);
   await wait(MIN_RESPONSE_DELAY + Math.random() * RANDOM_RESPONSE_DELAY);
 
   const countParameter = url.searchParams.get("count");
