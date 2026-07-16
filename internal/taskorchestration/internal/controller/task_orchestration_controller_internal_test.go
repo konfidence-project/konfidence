@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	. "github.com/onsi/gomega"
+
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,16 +19,12 @@ func (noopRecorder) Eventf(_ runtime.Object, _ runtime.Object, _, _, _, _ string
 
 var _ events.EventRecorder = noopRecorder{}
 
-// TestProcessTaskLayerIsIdempotentWithStaleCachedView asserts a task is created
-// only once when the controller's cached view is stale (modeled by an empty map
-// passed twice).
 func TestProcessTaskLayerIsIdempotentWithStaleCachedView(t *testing.T) {
+	g := NewWithT(t)
 	ctx := context.Background()
 
 	scheme := runtime.NewScheme()
-	if err := konfidence.AddToScheme(scheme); err != nil {
-		t.Fatalf("scheme: %v", err)
-	}
+	g.Expect(konfidence.AddToScheme(scheme)).To(Succeed())
 
 	c := fake.NewClientBuilder().WithScheme(scheme).Build()
 	r := &TaskOrchestrationReconciler{Client: c, Scheme: scheme, Recorder: noopRecorder{}}
@@ -47,27 +45,20 @@ func TestProcessTaskLayerIsIdempotentWithStaleCachedView(t *testing.T) {
 	staleView := map[string]konfidence.TaskExecution{}
 	succeeded := map[string]bool{}
 
-	if _, err := r.processTaskLayer(ctx, vectorMigration, layer, staleView, succeeded); err != nil {
-		t.Fatalf("first processTaskLayer: %v", err)
-	}
-	if _, err := r.processTaskLayer(ctx, vectorMigration, layer, staleView, succeeded); err != nil {
-		t.Fatalf("second processTaskLayer: %v", err)
-	}
+	_, err := r.processTaskLayer(ctx, vectorMigration, layer, staleView, succeeded)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	_, err = r.processTaskLayer(ctx, vectorMigration, layer, staleView, succeeded)
+	g.Expect(err).NotTo(HaveOccurred())
 
 	var taskExecutions konfidence.TaskExecutionList
-	if err := c.List(ctx, &taskExecutions); err != nil {
-		t.Fatalf("list TaskExecutions: %v", err)
-	}
+	g.Expect(c.List(ctx, &taskExecutions)).To(Succeed())
 
 	countByTask := map[string]int{}
 	for _, te := range taskExecutions.Items {
 		countByTask[te.Spec.Name]++
 	}
 
-	if len(taskExecutions.Items) != 1 {
-		t.Errorf("expected 1 TaskExecution, got %d", len(taskExecutions.Items))
-	}
-	if countByTask["task-0"] != 1 {
-		t.Errorf("expected task-0 created once, got %d", countByTask["task-0"])
-	}
+	g.Expect(taskExecutions.Items).To(HaveLen(1))
+	g.Expect(countByTask["task-0"]).To(Equal(1))
 }
