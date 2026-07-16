@@ -33,6 +33,7 @@ go.work.sum
 bin/*/
 bin/konfidence
 bin/ginkgo
+bin/kden
 
 # Do not ignore hermit binary and pkg files in bin/
 !bin/hermit
@@ -59,5 +60,6 @@ local/
 
 # GoReleaser temporary files
 dist/
-# oapi-codegen binary (built by go install into api/ dir)
+
+# oapi-codegen binary
 api/api
