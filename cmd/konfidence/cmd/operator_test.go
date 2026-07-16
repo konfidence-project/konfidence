@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/konfidence-project/konfidence/internal/project"
 	"github.com/konfidence-project/konfidence/internal/stage"
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration"
 	"github.com/konfidence-project/konfidence/internal/taskorchestration"
@@ -24,6 +25,7 @@ var _ = Describe("buildControllerSetups", func() {
 		vectordeployment.OperatorFlagName,
 	}
 	galaxyControllers := []string{
+		project.OperatorFlagName,
 		stageconfiguration.OperatorFlagName,
 		vectorassembly.OperatorFlagName,
 		vectorpromotion.OperatorFlagName,
