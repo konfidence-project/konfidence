@@ -22,9 +22,17 @@
         error={stagesQuery.error}
     />
 {:else if stagesQuery.ready}
-    <section class="stage-landscape" aria-label="Stage promotion landscape">
-        <LandscapeView stages={stagesQuery.current.items} />
-    </section>
+    {#if stagesQuery.current.accessError}
+        <ErrorView
+            title={stagesQuery.current.accessError.title}
+            message={stagesQuery.current.accessError.message}
+            status={stagesQuery.current.accessError.status}
+        />
+    {:else}
+        <section class="stage-landscape" aria-label="Stage promotion landscape">
+            <LandscapeView stages={stagesQuery.current.items} />
+        </section>
+    {/if}
 {/if}
 
 <style>
