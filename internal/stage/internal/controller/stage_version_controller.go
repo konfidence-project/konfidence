@@ -96,8 +96,9 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 		LastTransitionTime: metav1.Now(),
 	})
 
-	// check if vectorDeployment is marked as deployed
-	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorDeployedCondition) {
+	// gate migration on the vectorDeployment being fully ready, so vector-scoped data is distributed before
+	// migration tasks run
+	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition) {
 		// wait for vectorDeployment status change notification
 		return nil
 	}
