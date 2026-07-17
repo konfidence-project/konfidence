@@ -85,12 +85,12 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				g.Expect(vectorDeployment.Spec.Vector).To(Equal(Vector001))
 			}, timeout, interval).Should(Succeed())
 
-			// mark vectorDeployment as deployed
+			// mark vectorDeployment as ready
 			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-				Type:               konfidence.VectorDeployedCondition,
+				Type:               konfidence.VectorReadyCondition,
 				Status:             metav1.ConditionTrue,
-				Reason:             konfidence.VectorDeployedCondition,
-				Message:            "Vector has been successfully deployed",
+				Reason:             konfidence.VectorReadyCondition,
+				Message:            "Vector deployment is ready",
 				ObservedGeneration: vectorDeployment.Generation,
 				LastTransitionTime: metav1.Now(),
 			})
@@ -155,6 +155,34 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorActivationCreatedCondition)).To(BeTrue())
 				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.StageVersionReady)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should not create the vectorMigration while the vectorDeployment is only deployed but not ready", func() {
+			ctx := context.Background()
+			controller.CreateStageVersion(ctx, k8sClient, StageDev, StageVersionDev, Namespace, Vector001, VectorName001)
+
+			vectorDeployment := &konfidence.VectorDeployment{}
+			vectorDeploymentLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			// mark vectorDeployment as deployed only
+			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+				Type:               konfidence.VectorDeployedCondition,
+				Status:             metav1.ConditionTrue,
+				Reason:             konfidence.VectorDeployedCondition,
+				Message:            "Vector has been successfully deployed",
+				ObservedGeneration: vectorDeployment.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
+			Expect(k8sClient.Status().Update(ctx, vectorDeployment)).To(Succeed())
+
+			// the vectorMigration must not be created until VectorReady is set
+			vectorMigrationLookupKey := types.NamespacedName{Name: StageVersionDev, Namespace: Namespace}
+			Consistently(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorMigrationLookupKey, &konfidence.VectorMigration{})).ToNot(Succeed())
+			}, time.Second*2, interval).Should(Succeed())
 		})
 	})
 })
