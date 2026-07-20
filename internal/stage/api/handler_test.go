@@ -62,10 +62,11 @@ var _ = Describe("StageHandler", func() {
 				resp, err := h.GetStage(context.Background(), openapi.GetStageRequestObject{Name: name})
 				Expect(err).NotTo(HaveOccurred())
 
-				ok, is200 := resp.(openapi.GetStage200JSONResponse)
+				ok, is200 := resp.(getStage200Response)
 				Expect(is200).To(BeTrue())
-				Expect(ok.Name).To(Equal(name))
-				Expect(ok.Namespace).To(Equal(namespace))
+				Expect(ok.Items).To(HaveLen(1))
+				Expect(ok.Items[0].Name).To(Equal(name))
+				Expect(ok.Items[0].Namespace).To(Equal(namespace))
 			},
 			Entry("dev", "dev", "konfidence-dev"),
 			Entry("staging", "staging", "konfidence-staging"),
@@ -94,11 +95,12 @@ var _ = Describe("StageHandler", func() {
 			resp, err := h.GetStage(context.Background(), openapi.GetStageRequestObject{Name: "staging"})
 			Expect(err).NotTo(HaveOccurred())
 
-			s := resp.(openapi.GetStage200JSONResponse)
+			s := resp.(getStage200Response)
+			Expect(s.Items).To(HaveLen(1))
 			var migrated *openapi.StageCondition
-			for i, c := range s.Conditions {
+			for i, c := range s.Items[0].Conditions {
 				if c.Type == "VectorMigrated" {
-					migrated = &s.Conditions[i]
+					migrated = &s.Items[0].Conditions[i]
 					break
 				}
 			}
