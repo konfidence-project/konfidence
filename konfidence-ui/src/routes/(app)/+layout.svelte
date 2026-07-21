@@ -1,7 +1,6 @@
 <script lang="ts">
     import "@ui5/webcomponents/dist/Avatar.js";
     import "@ui5/webcomponents/dist/Button.js";
-    import "@ui5/webcomponents/dist/MenuItemGroup.js";
     import "@ui5/webcomponents/dist/ToggleButton.js";
     import "@ui5/webcomponents-fiori/dist/NavigationLayout.js";
     import "@ui5/webcomponents-fiori/dist/ShellBar.js";
@@ -17,16 +16,22 @@
     import "@ui5/webcomponents-icons/dist/AllIcons.js";
 
     import {
+        DEFAULT_SETTINGS_TAB,
+        SETTINGS_URL_PARAM,
+        type SettingsTab,
+        parseSettingsTab,
+    } from "$lib/components/settings/settings-tab.js";
+    import {
         StageCardVariantPreference,
         setStageCardVariantPreference,
     } from "$lib/stores/stage-card-variant.svelte";
-    import { selectTheme, themePreference, themes } from "$lib/stores/theme.svelte";
     import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
     import type { LayoutProps } from "./$types";
-    import { STAGE_CARD_VARIANTS } from "$lib/components/stage/variants.js";
+    import SettingsDialog from "$lib/components/settings/SettingsDialog.svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { resolve } from "$app/paths";
+    import { themePreference } from "$lib/stores/theme.svelte";
 
     type SideNavigationItemClickEventDetail =
         import("@ui5/webcomponents-fiori/dist/SideNavigationItemBase.js").SideNavigationItemClickEventDetail;
@@ -36,19 +41,17 @@
         import("@ui5/webcomponents-fiori/dist/UserMenu.js").UserMenuItemClickEventDetail;
 
     interface NavItem {
-        href: "/" | "/artifacts" | "/landscape" | "/promotions" | "/settings" | "/vectors";
+        href: "/" | "/artifacts" | "/landscape" | "/promotions" | "/vectors";
         icon: string;
         text: string;
+        disabled?: boolean;
     }
     interface NavGroup {
         items: readonly NavItem[];
         text: string;
     }
 
-    type MenuAction =
-        | { kind: "settings" }
-        | { kind: "stage-card-variant"; value: string }
-        | { kind: "theme"; value: string };
+    const SETTINGS_MENU_ITEM_ID = "settings";
 
     const DARK_LOGO_SRC = "/assets/logo/full/SVG/400_konfidence_logo_dark.svg";
     const LIGHT_LOGO_SRC = "/assets/logo/full/SVG/400_konfidence_logo_light.svg";
@@ -66,10 +69,6 @@
             ],
             text: "Delivery",
         },
-        {
-            items: [{ href: "/settings", icon: "action-settings", text: "Settings" }],
-            text: "Administration",
-        },
     ];
 
     const stageCardVariantPreference = new StageCardVariantPreference();
@@ -78,21 +77,50 @@
     let userMenuOpen = $state(false);
     let userMenuOpener = $state<HTMLElement | undefined>();
 
-    const actionId = (action: MenuAction): string => JSON.stringify(action);
+    const settingsTab = $derived<SettingsTab | undefined>(
+        parseSettingsTab(page.url.searchParams.get(SETTINGS_URL_PARAM) ?? undefined),
+    );
+    const settingsOpen = $derived(settingsTab !== undefined);
 
-    const parseActionId = (dataId: string | null | undefined): MenuAction | undefined => {
-        if (!dataId) {
-            return undefined;
+    const buildSettingsUrl = (tab: SettingsTab | undefined): string => {
+        const params = new globalThis.URLSearchParams(page.url.searchParams);
+        if (tab === undefined) {
+            params.delete(SETTINGS_URL_PARAM);
+        } else {
+            params.set(SETTINGS_URL_PARAM, tab);
         }
-        try {
-            return JSON.parse(dataId) as MenuAction;
-        } catch {
-            return undefined;
+        const query = params.toString();
+        if (query.length === 0) {
+            return page.url.pathname;
         }
+        return `${page.url.pathname}?${query}`;
+    };
+
+    const openSettings = (tab: SettingsTab = DEFAULT_SETTINGS_TAB): void => {
+        void goto(buildSettingsUrl(tab), { keepFocus: true, noScroll: true });
+    };
+
+    const changeSettingsTab = (tab: SettingsTab): void => {
+        void goto(buildSettingsUrl(tab), {
+            keepFocus: true,
+            noScroll: true,
+            replaceState: true,
+        });
+    };
+
+    const closeSettings = (): void => {
+        if (!settingsOpen) {
+            return;
+        }
+        void goto(buildSettingsUrl(undefined), {
+            keepFocus: true,
+            noScroll: true,
+            replaceState: true,
+        });
     };
 
     const logoSrc = $derived.by(() => {
-        if (themePreference.selected === "konfidence-dark") {
+        if (themePreference.selected.includes("dark")) {
             return DARK_LOGO_SRC;
         }
         return LIGHT_LOGO_SRC;
@@ -123,30 +151,14 @@
         userMenuOpen = false;
     };
 
-    const dispatchMenuAction = (action: MenuAction): void => {
-        if (action.kind === "theme") {
-            selectTheme(action.value);
-            return;
-        }
-        if (action.kind === "stage-card-variant") {
-            stageCardVariantPreference.select(action.value);
-            return;
-        }
-        if (action.kind === "settings") {
-            userMenuOpen = false;
-            goto(resolve("/settings"));
-        }
-    };
-
     const handleUserMenuItemClick = (
         event: CustomEvent<UserMenuItemClickEventDetail>,
     ): void => {
-        const dataId = event.detail.item.getAttribute("data-id");
-        const action = parseActionId(dataId);
-        if (!action) {
+        if (event.detail.item.getAttribute("data-id") !== SETTINGS_MENU_ITEM_ID) {
             return;
         }
-        dispatchMenuAction(action);
+        userMenuOpen = false;
+        openSettings(DEFAULT_SETTINGS_TAB);
     };
 
     const handleSignOutClick = async (): Promise<void> => {
@@ -209,6 +221,7 @@
                         text={navItem.text}
                         href={navItem.href}
                         icon={navItem.icon}
+                        disabled={navItem.disabled}
                         selected={page.url.pathname === navItem.href}
                         onui5-click={(
                             event: CustomEvent<SideNavigationItemClickEventDetail>,
@@ -238,36 +251,20 @@
         selected
     ></ui5-user-menu-account>
 
-    <ui5-user-menu-item icon="palette" text="Theme" show-selection>
-        <ui5-menu-item-group check-mode="Single">
-            {#each themes as themeOption (themeOption.id)}
-                <ui5-user-menu-item
-                    text={themeOption.label}
-                    checked={themePreference.selected === themeOption.id}
-                    data-id={actionId({ kind: "theme", value: themeOption.id })}
-                ></ui5-user-menu-item>
-            {/each}
-        </ui5-menu-item-group>
-    </ui5-user-menu-item>
-
-    <ui5-user-menu-item icon="grid" text="Stage card style" show-selection>
-        <ui5-menu-item-group check-mode="Single">
-            {#each STAGE_CARD_VARIANTS as variant (variant.id)}
-                <ui5-user-menu-item
-                    text={variant.label}
-                    checked={stageCardVariantPreference.selected === variant.id}
-                    data-id={actionId({ kind: "stage-card-variant", value: variant.id })}
-                ></ui5-user-menu-item>
-            {/each}
-        </ui5-menu-item-group>
-    </ui5-user-menu-item>
-
     <ui5-user-menu-item
         icon="action-settings"
         text="Settings"
-        data-id={actionId({ kind: "settings" })}
+        data-id={SETTINGS_MENU_ITEM_ID}
     ></ui5-user-menu-item>
 </ui5-user-menu>
+
+<SettingsDialog
+    open={settingsOpen}
+    tab={settingsTab ?? DEFAULT_SETTINGS_TAB}
+    user={data.user}
+    onClose={closeSettings}
+    onTabChange={changeSettingsTab}
+/>
 
 <style>
     :global(ui5-navigation-layout) {
