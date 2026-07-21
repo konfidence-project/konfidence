@@ -287,7 +287,7 @@
                 <ui5-illustrated-message
                     name="TntComponents"
                     title-text="Vector details coming soon"
-                    subtitle-text={`Artifact breakdown and deployment history for ${selectedVector.metadata.name} will appear here.`}
+                    subtitle-text={`Vector breakdown and artifact informations for ${selectedVector.metadata.name} will appear here.`}
                 >
                     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
                     <ui5-button design="Emphasized" onclick={closeDetails}>

@@ -27,12 +27,12 @@ const (
 )
 
 type Identity struct {
-	Subject       string `json:"subject"`
-	Username      string `json:"username"`
-	Email         string `json:"email"`
-	Name          string `json:"name"`
-	EmailVerified bool   `json:"emailVerified"`
-	Role          Role   `json:"role"`
+	Subject       string   `json:"subject"`
+	Username      string   `json:"username"`
+	Email         string   `json:"email"`
+	Name          string   `json:"name"`
+	EmailVerified bool     `json:"emailVerified"`
+	Role          Role     `json:"role"`
 }
 
 type AuthConfig struct {
