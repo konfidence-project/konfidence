@@ -11,7 +11,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
 )
@@ -22,7 +21,7 @@ import (
 type MountFunc func(r chi.Router, logger *slog.Logger, k8s func() client.Client)
 
 // New returns the root chi.Router with all routes and middleware registered.
-func New(logger *slog.Logger, scheme *runtime.Scheme, authCfg config.AuthConfig, mounts ...MountFunc) http.Handler {
+func New(logger *slog.Logger, scheme *runtime.Scheme, mounts ...MountFunc) http.Handler {
 	k8s := lazyClient(logger, scheme)
 
 	r := chi.NewRouter()
@@ -30,33 +29,12 @@ func New(logger *slog.Logger, scheme *runtime.Scheme, authCfg config.AuthConfig,
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.Logging(logger))
 
-	// Probe endpoints - no cluster dependency.
 	r.Method(http.MethodGet, "/healthz", middleware.Handle(logger, handler.Healthz))
 	r.Method(http.MethodGet, "/readyz", middleware.Handle(logger, handler.Readyz))
 
-	auth := handler.NewAuth(handler.AuthConfig{
-		AuthorizeURL: authCfg.AuthorizeURL,
-		TokenURL:     authCfg.TokenURL,
-		UserInfoURL:  authCfg.UserInfoURL,
-		ClientID:     authCfg.ClientID,
-		RedirectURI:  authCfg.RedirectURI,
-		Scopes:       authCfg.ScopesSlice(),
-	})
-	r.Method(http.MethodGet, "/api/login", middleware.Handle(logger, auth.LoginStart))
-	r.Method(http.MethodGet, "/api/auth/callback", middleware.Handle(logger, auth.Callback))
-
-	r.Group(func(protected chi.Router) {
-		protected.Use(auth.RequireSession)
-		protected.Method(http.MethodPost, "/api/logout", middleware.Handle(logger, auth.Logout))
-		protected.Method(http.MethodGet, "/api/identity", middleware.Handle(logger, auth.Identity))
-	})
-
-	r.Group(func(protected chi.Router) {
-		protected.Use(auth.RequireSession)
-		protected.Use(auth.RequireRole(handler.RoleAdmin, handler.RoleDev, handler.RolePM))
-		// Domain routes - each domain registers via MountFunc.
+	r.Group(func(domain chi.Router) {
 		for _, mount := range mounts {
-			mount(protected, logger, k8s)
+			mount(domain, logger, k8s)
 		}
 	})
 

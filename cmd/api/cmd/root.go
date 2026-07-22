@@ -16,23 +16,9 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
-var (
-	scheme = runtime.NewScheme()
-)
+var scheme = runtime.NewScheme()
 
-var (
-	addr             string
-	logLevel         string
-	readTimeout      string
-	writeTimeout     string
-	shutdownTimeout  string
-	authAuthorizeURL string
-	authTokenURL     string
-	authUserInfoURL  string
-	authClientID     string
-	authRedirectURI  string
-	authScopes       string
-)
+var cfg = config.Config{}
 
 var rootCmd = &cobra.Command{
 	Use:   "api",
@@ -44,21 +30,13 @@ the kden CLI, the Star Dashboard, and any external UI. Inbound requests are
 translated into reads and writes against the Kubernetes API (Konfidence CRDs).
 
 Configuration is read from environment variables (API_*) and can be overridden
-by the flags below. When deployed as a pod, environment variables are the
-primary configuration mechanism. Flags are convenient for local development.
+by the flags below.
 
   API_ADDR               TCP address to listen on           (default: :8090)
   API_LOG_LEVEL          Log verbosity: debug/info/warn/error (default: info)
   API_READ_TIMEOUT       HTTP read deadline                 (default: 10s)
   API_WRITE_TIMEOUT      HTTP write deadline                (default: 10s)
   API_SHUTDOWN_TIMEOUT   Graceful shutdown window           (default: 15s)
-
-  API_AUTH_AUTHORIZE_URL OIDC authorization endpoint
-  API_AUTH_TOKEN_URL     OIDC token endpoint
-  API_AUTH_USERINFO_URL  OIDC userinfo endpoint
-  API_AUTH_CLIENT_ID     OIDC public client id
-  API_AUTH_REDIRECT_URI  API callback URI registered at the IDP
-  API_AUTH_SCOPES        Space-separated OIDC scopes (default: openid profile email groups)
 
 Kubernetes client config is resolved automatically via the standard KUBECONFIG
 env var or in-cluster config when deployed as a pod.`,
@@ -76,47 +54,20 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(konfidence.AddToScheme(scheme))
 
-	rootCmd.Flags().StringVar(&addr, "addr", envOr("API_ADDR", ":8090"),
+	rootCmd.Flags().StringVar(&cfg.Addr, "addr", envOr("API_ADDR", ":8090"),
 		"TCP address the API server listens on. Env: API_ADDR")
-	rootCmd.Flags().StringVar(&logLevel, "log-level", envOr("API_LOG_LEVEL", "info"),
+	rootCmd.Flags().StringVar(&cfg.LogLevel, "log-level", envOr("API_LOG_LEVEL", "info"),
 		"Log level (debug, info, warn, error). Env: API_LOG_LEVEL")
-	rootCmd.Flags().StringVar(&readTimeout, "read-timeout", envOr("API_READ_TIMEOUT", "10s"),
+	rootCmd.Flags().StringVar(&cfg.ReadTimeout, "read-timeout", envOr("API_READ_TIMEOUT", "10s"),
 		"Maximum duration for reading an entire request. Env: API_READ_TIMEOUT")
-	rootCmd.Flags().StringVar(&writeTimeout, "write-timeout", envOr("API_WRITE_TIMEOUT", "10s"),
+	rootCmd.Flags().StringVar(&cfg.WriteTimeout, "write-timeout", envOr("API_WRITE_TIMEOUT", "10s"),
 		"Maximum duration before timing out writes of the response. Env: API_WRITE_TIMEOUT")
-	rootCmd.Flags().StringVar(&shutdownTimeout, "shutdown-timeout", envOr("API_SHUTDOWN_TIMEOUT", "15s"),
+	rootCmd.Flags().StringVar(&cfg.ShutdownTimeout, "shutdown-timeout", envOr("API_SHUTDOWN_TIMEOUT", "15s"),
 		"Maximum duration for a graceful shutdown. Env: API_SHUTDOWN_TIMEOUT")
-	rootCmd.Flags().StringVar(&authAuthorizeURL, "auth-authorize-url", envOr("API_AUTH_AUTHORIZE_URL", ""),
-		"OIDC authorization endpoint. Env: API_AUTH_AUTHORIZE_URL")
-	rootCmd.Flags().StringVar(&authTokenURL, "auth-token-url", envOr("API_AUTH_TOKEN_URL", ""),
-		"OIDC token endpoint. Env: API_AUTH_TOKEN_URL")
-	rootCmd.Flags().StringVar(&authUserInfoURL, "auth-userinfo-url", envOr("API_AUTH_USERINFO_URL", ""),
-		"OIDC userinfo endpoint. Env: API_AUTH_USERINFO_URL")
-	rootCmd.Flags().StringVar(&authClientID, "auth-client-id", envOr("API_AUTH_CLIENT_ID", ""),
-		"OIDC public client ID. Env: API_AUTH_CLIENT_ID")
-	rootCmd.Flags().StringVar(&authRedirectURI, "auth-redirect-uri", envOr("API_AUTH_REDIRECT_URI", ""),
-		"OIDC redirect URI handled by the API. Env: API_AUTH_REDIRECT_URI")
-	rootCmd.Flags().StringVar(&authScopes, "auth-scopes", envOr("API_AUTH_SCOPES", "openid profile email groups"),
-		"Space-separated OIDC scopes. Env: API_AUTH_SCOPES")
 }
 
 func startServer(cmd *cobra.Command, _ []string) error {
-	cfg := config.Config{
-		Addr:            addr,
-		LogLevel:        logLevel,
-		ReadTimeout:     readTimeout,
-		WriteTimeout:    writeTimeout,
-		ShutdownTimeout: shutdownTimeout,
-		Auth: config.AuthConfig{
-			AuthorizeURL: authAuthorizeURL,
-			TokenURL:     authTokenURL,
-			UserInfoURL:  authUserInfoURL,
-			ClientID:     authClientID,
-			RedirectURI:  authRedirectURI,
-			Scopes:       authScopes,
-		},
-		Scheme: scheme,
-	}
+	cfg.Scheme = scheme
 
 	parsed, err := cfg.Validate()
 	if err != nil {

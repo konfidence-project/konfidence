@@ -23,10 +23,10 @@ var _ = Describe("StageHandler", func() {
 
 			ok, is200 := resp.(openapi.ListStages200JSONResponse)
 			Expect(is200).To(BeTrue())
-			Expect(ok.Items).To(HaveLen(4))
+			Expect(ok.Data).To(HaveLen(4))
 
-			names := make([]string, len(ok.Items))
-			for i, s := range ok.Items {
+			names := make([]string, len(ok.Data))
+			for i, s := range ok.Data {
 				names[i] = s.Name
 			}
 			Expect(names).To(ConsistOf("dev", "staging", "prod", "canary"))
@@ -36,7 +36,7 @@ var _ = Describe("StageHandler", func() {
 			resp, err := h.ListStages(context.Background(), openapi.ListStagesRequestObject{})
 			Expect(err).NotTo(HaveOccurred())
 
-			for _, s := range resp.(openapi.ListStages200JSONResponse).Items {
+			for _, s := range resp.(openapi.ListStages200JSONResponse).Data {
 				Expect(s.Conditions).NotTo(BeEmpty(), "stage %q has no conditions", s.Name)
 			}
 		})
@@ -46,7 +46,7 @@ var _ = Describe("StageHandler", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			byName := map[string]openapi.StageResponse{}
-			for _, s := range resp.(openapi.ListStages200JSONResponse).Items {
+			for _, s := range resp.(openapi.ListStages200JSONResponse).Data {
 				byName[s.Name] = s
 			}
 			Expect(byName["dev"].Namespace).To(Equal("konfidence-dev"))
@@ -62,11 +62,10 @@ var _ = Describe("StageHandler", func() {
 				resp, err := h.GetStage(context.Background(), openapi.GetStageRequestObject{Name: name})
 				Expect(err).NotTo(HaveOccurred())
 
-				ok, is200 := resp.(getStage200Response)
+				ok, is200 := resp.(openapi.GetStage200JSONResponse)
 				Expect(is200).To(BeTrue())
-				Expect(ok.Items).To(HaveLen(1))
-				Expect(ok.Items[0].Name).To(Equal(name))
-				Expect(ok.Items[0].Namespace).To(Equal(namespace))
+				Expect(ok.Name).To(Equal(name))
+				Expect(ok.Namespace).To(Equal(namespace))
 			},
 			Entry("dev", "dev", "konfidence-dev"),
 			Entry("staging", "staging", "konfidence-staging"),
@@ -95,12 +94,11 @@ var _ = Describe("StageHandler", func() {
 			resp, err := h.GetStage(context.Background(), openapi.GetStageRequestObject{Name: "staging"})
 			Expect(err).NotTo(HaveOccurred())
 
-			s := resp.(getStage200Response)
-			Expect(s.Items).To(HaveLen(1))
+			s := resp.(openapi.GetStage200JSONResponse)
 			var migrated *openapi.StageCondition
-			for i, c := range s.Items[0].Conditions {
+			for i, c := range s.Conditions {
 				if c.Type == "VectorMigrated" {
-					migrated = &s.Items[0].Conditions[i]
+					migrated = &s.Conditions[i]
 					break
 				}
 			}

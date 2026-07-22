@@ -81,7 +81,7 @@ type StageConditionStatus string
 
 // StageListResponse defines model for StageListResponse.
 type StageListResponse struct {
-	Items []StageResponse `json:"items"`
+	Data []StageResponse `json:"data"`
 }
 
 // StageResponse defines model for StageResponse.
