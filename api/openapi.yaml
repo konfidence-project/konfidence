@@ -9,92 +9,14 @@ info:
 servers:
   - url: /api/v1
     description: Stage resources (versioned API)
-  - url: /
-    description: Auth and identity endpoints
 
 paths:
-  /api/login:
-    get:
-      operationId: loginStart
-      summary: Initiate OIDC login
-      description: >
-        Redirects the browser to the IDP authorization endpoint, beginning the
-        PKCE auth flow. On successful authentication the IDP redirects back to
-        /api/auth/callback.
-      tags: [auth]
-      responses:
-        "302":
-          description: Redirect to IDP authorization endpoint.
-
-  /api/auth/callback:
-    get:
-      operationId: authCallback
-      summary: OIDC callback
-      description: >
-        Receives the authorization code from the IDP after successful login.
-        Exchanges the code for tokens and establishes a session cookie.
-      tags: [auth]
-      parameters:
-        - name: code
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: state
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        "302":
-          description: Redirect to the application after successful authentication.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
-  /api/logout:
-    post:
-      operationId: logout
-      summary: Terminate the current session
-      description: Clears the session cookie. Requires an active session.
-      tags: [auth]
-      security:
-        - sessionCookie: []
-      responses:
-        "200":
-          description: Session terminated successfully.
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  /api/identity:
-    get:
-      operationId: getIdentity
-      summary: Get the current user identity
-      description: Returns identity claims for the authenticated session.
-      tags: [auth]
-      security:
-        - sessionCookie: []
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdentityResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
   /stages:
     get:
       operationId: listStages
       summary: List all stages
       description: Returns all Stage resources visible to the API server.
       tags: [stages]
-      security:
-        - sessionCookie: []
       responses:
         "200":
           description: OK
@@ -102,8 +24,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StageListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -112,8 +32,6 @@ paths:
       operationId: getStage
       summary: Get a stage by name
       tags: [stages]
-      security:
-        - sessionCookie: []
       parameters:
         - $ref: "#/components/parameters/StageName"
       responses:
@@ -123,20 +41,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StageResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
 
 components:
-  securitySchemes:
-    sessionCookie:
-      type: apiKey
-      in: cookie
-      name: kden_session
-
   parameters:
     StageName:
       name: name
@@ -181,32 +91,12 @@ components:
 
     StageListResponse:
       type: object
-      required: [items]
+      required: [data]
       properties:
-        items:
+        data:
           type: array
           items:
             $ref: "#/components/schemas/StageResponse"
-
-    IdentityResponse:
-      type: object
-      required: [subject, username]
-      properties:
-        subject:
-          type: string
-          description: Unique identifier from the IDP.
-        username:
-          type: string
-        email:
-          type: string
-        groups:
-          type: array
-          items:
-            type: string
-        roles:
-          type: array
-          items:
-            type: string
 
     ErrorResponse:
       type: object
@@ -224,18 +114,6 @@ components:
   responses:
     NotFound:
       description: The requested resource was not found.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-    Unauthorized:
-      description: Authentication required or session expired.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-    BadRequest:
-      description: Invalid request parameters.
       content:
         application/json:
           schema:
