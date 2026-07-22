@@ -27,7 +27,9 @@
     } from "$lib/stores/stage-card-variant.svelte";
     import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
     import type { LayoutProps } from "./$types";
+    import type { ResolvedPathname } from "$app/types";
     import SettingsDialog from "$lib/components/settings/SettingsDialog.svelte";
+    import { SvelteURLSearchParams } from "svelte/reactivity";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { resolve } from "$app/paths";
@@ -82,8 +84,8 @@
     );
     const settingsOpen = $derived(settingsTab !== undefined);
 
-    const buildSettingsUrl = (tab: SettingsTab | undefined): string => {
-        const params = new globalThis.URLSearchParams(page.url.searchParams);
+    const buildSettingsUrl = (tab: SettingsTab | undefined): ResolvedPathname => {
+        const params = new SvelteURLSearchParams(page.url.searchParams);
         if (tab === undefined) {
             params.delete(SETTINGS_URL_PARAM);
         } else {
@@ -93,15 +95,17 @@
         if (query.length === 0) {
             return page.url.pathname;
         }
-        return `${page.url.pathname}?${query}`;
+        return `${page.url.pathname}?${query}` as ResolvedPathname;
     };
 
     const openSettings = (tab: SettingsTab = DEFAULT_SETTINGS_TAB): void => {
-        void goto(buildSettingsUrl(tab), { keepFocus: true, noScroll: true });
+        const url: ResolvedPathname = buildSettingsUrl(tab);
+        void goto(url, { keepFocus: true, noScroll: true });
     };
 
     const changeSettingsTab = (tab: SettingsTab): void => {
-        void goto(buildSettingsUrl(tab), {
+        const url: ResolvedPathname = buildSettingsUrl(tab);
+        void goto(url, {
             keepFocus: true,
             noScroll: true,
             replaceState: true,
@@ -112,7 +116,8 @@
         if (!settingsOpen) {
             return;
         }
-        void goto(buildSettingsUrl(undefined), {
+        const url: ResolvedPathname = buildSettingsUrl(undefined);
+        void goto(url, {
             keepFocus: true,
             noScroll: true,
             replaceState: true,

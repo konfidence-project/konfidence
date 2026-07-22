@@ -8,8 +8,6 @@ const IDENTITY_TIMEOUT_MS = 5000;
 const AUTH_CREDENTIAL_HEADERS = ["authorization", "cookie", "x-session-id"] as const;
 const AUTH_ROLES = ["", "ADMIN", "DEV", "PM"] as const;
 
-const stringArraySchema = valibot.array(valibot.string());
-
 const apiIdentitySchema = valibot.object({
   email: valibot.optional(valibot.string()),
   emailVerified: valibot.boolean(),
