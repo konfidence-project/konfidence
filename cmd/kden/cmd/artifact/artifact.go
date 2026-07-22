@@ -23,5 +23,6 @@ func NewArtifactCmd() *cobra.Command {
 	}
 	artifactCmd.AddCommand(pushCmd)
 	artifactCmd.AddCommand(NewSignCmd())
+	artifactCmd.AddCommand(NewAliasCmd())
 	return artifactCmd
 }

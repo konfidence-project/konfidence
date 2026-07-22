@@ -11,17 +11,14 @@ import (
 var (
 	FileFlag          = "file"
 	RegistryFlag      = "registry"
-	AliasFlag         = "alias"
 	FileFlagShort     = "f"
 	RegistryFlagShort = "r"
-	AliasFlagShort    = "a"
 )
 
 var (
 	ReadConstructorFromFile   = ocm.ReadConstructorFromFile
 	GetOcmConstructorProvider = ocm.GetOcmConstructorProvider
 	PushComponentConstructor  = ocm.PushComponentConstructor
-	AddComponentVersionAlias  = ocm.AddComponentVersionAlias
 	ValidateArtifact          = validation.RunValidate
 )
 
@@ -35,11 +32,6 @@ func NewPushCmd() (*cobra.Command, error) {
 			}
 
 			registry, err := cmd.Flags().GetString(RegistryFlag)
-			if err != nil {
-				return err
-			}
-
-			alias, err := cmd.Flags().GetString(AliasFlag)
 			if err != nil {
 				return err
 			}
@@ -69,27 +61,12 @@ func NewPushCmd() (*cobra.Command, error) {
 				return err
 			}
 
-			err = PushComponentConstructor(cmd.Context(), constructorOptionsProvider, constructor)
-			if err != nil {
-				return err
-			}
-
-			if alias != "" {
-				for _, component := range constructor.Components {
-					if err := AddComponentVersionAlias(cmd.Context(), component.Name, component.Version, alias,
-						constructorOptionsProvider); err != nil {
-						return err
-					}
-				}
-			}
-
-			return nil
+			return PushComponentConstructor(cmd.Context(), constructorOptionsProvider, constructor)
 		},
 	}
 
 	push.Flags().StringP(RegistryFlag, RegistryFlagShort, "", "--registry=docker.io/<subpath>")
 	push.Flags().StringP(FileFlag, FileFlagShort, "", "--file=<path>")
-	push.Flags().StringP(AliasFlag, AliasFlagShort, "", "--alias=<alias-name>")
 	err := push.MarkFlagRequired(FileFlag)
 	if err != nil {
 		return nil, err
