@@ -7,7 +7,9 @@ const config = [
     files: ["src/**/*.svelte"],
     languageOptions: {
       parserOptions: {
+        extraFileExtensions: [".svelte"],
         parser: tsParser,
+        projectService: true,
       },
     },
   },
