@@ -1,4 +1,5 @@
 import type * as stages from "$lib/stages";
+import { HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from "$lib/http-status";
 import { getRequestEvent, query } from "$app/server";
 import { error } from "@sveltejs/kit";
 
@@ -12,9 +13,6 @@ interface ApiStage {
 interface ApiStageList {
   items: ApiStage[];
 }
-
-const HTTP_UNAUTHORIZED = 401;
-const HTTP_FORBIDDEN = 403;
 
 const accessError = (status: number) => {
   if (status === HTTP_UNAUTHORIZED) {
