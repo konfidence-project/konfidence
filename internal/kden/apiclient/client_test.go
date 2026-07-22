@@ -81,15 +81,13 @@ var mockStages = []apiclient.StageResponse{
 	},
 }
 
-// mockServer handles both the old probe endpoints and the new spec-first domain endpoints.
+// mockServer handles the spec-first domain endpoints.
 func mockServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
-		case r.URL.Path == "/healthz" || r.URL.Path == "/readyz":
-			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		case r.URL.Path == "/api/v1/stages" && r.Method == http.MethodGet:
-			_ = json.NewEncoder(w).Encode(apiclient.StageListResponse{Items: mockStages})
+			_ = json.NewEncoder(w).Encode(apiclient.StageListResponse{Data: mockStages})
 		case r.Method == http.MethodGet && len(r.URL.Path) > len("/api/v1/stages/"):
 			name := r.URL.Path[len("/api/v1/stages/"):]
 			for _, s := range mockStages {
@@ -107,46 +105,6 @@ func mockServer() *httptest.Server {
 		}
 	}))
 }
-
-// ── Old hand-written client (client_old.go) ─────────────────────────────────
-// Tests the bootstrap client that covers probe endpoints.
-// To be removed once probe endpoints are added to the OpenAPI spec.
-
-var _ = Describe("Client (hand-written)", func() {
-	var srv *httptest.Server
-	var client *apiclient.LegacyClient
-
-	BeforeEach(func() {
-		srv = mockServer()
-		client = apiclient.NewLegacy(srv.URL, 5*time.Second)
-	})
-
-	AfterEach(func() { srv.Close() })
-
-	Describe("Healthz", func() {
-		It("returns status ok from a live server", func() {
-			resp, err := client.Healthz(context.Background())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(resp.Status).To(Equal("ok"))
-		})
-	})
-
-	Describe("Readyz", func() {
-		It("returns status ok from a live server", func() {
-			resp, err := client.Readyz(context.Background())
-			Expect(err).NotTo(HaveOccurred())
-			Expect(resp.Status).To(Equal("ok"))
-		})
-	})
-
-	Describe("error handling", func() {
-		It("returns an error when the server responds with non-200", func() {
-			c := apiclient.NewLegacy("http://127.0.0.1:1", 100*time.Millisecond)
-			_, err := c.Healthz(context.Background())
-			Expect(err).To(HaveOccurred())
-		})
-	})
-})
 
 // ── Generated client (client.go — from api/openapi.yaml) ────────────────────
 // Tests the spec-first generated client covering domain endpoints.
@@ -169,17 +127,17 @@ var _ = Describe("Client (generated)", func() {
 			resp, err := client.ListStagesWithResponse(context.Background())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resp.StatusCode()).To(Equal(http.StatusOK))
-			Expect(resp.JSON200.Items).To(HaveLen(4))
-			Expect(resp.JSON200.Items[0].Name).To(Equal("dev"))
-			Expect(resp.JSON200.Items[1].Name).To(Equal("staging"))
-			Expect(resp.JSON200.Items[2].Name).To(Equal("prod"))
-			Expect(resp.JSON200.Items[3].Name).To(Equal("canary"))
+			Expect(resp.JSON200.Data).To(HaveLen(4))
+			Expect(resp.JSON200.Data[0].Name).To(Equal("dev"))
+			Expect(resp.JSON200.Data[1].Name).To(Equal("staging"))
+			Expect(resp.JSON200.Data[2].Name).To(Equal("prod"))
+			Expect(resp.JSON200.Data[3].Name).To(Equal("canary"))
 		})
 
 		It("includes staging with a failed migration", func() {
 			resp, err := client.ListStagesWithResponse(context.Background())
 			Expect(err).NotTo(HaveOccurred())
-			staging := resp.JSON200.Items[1]
+			staging := resp.JSON200.Data[1]
 			ready := staging.Conditions[len(staging.Conditions)-1]
 			Expect(string(ready.Status)).To(Equal(string(apiclient.False)))
 			Expect(ready.Reason).To(Equal("MigrationNotComplete"))
@@ -188,7 +146,7 @@ var _ = Describe("Client (generated)", func() {
 		It("includes canary with an in-progress deployment", func() {
 			resp, err := client.ListStagesWithResponse(context.Background())
 			Expect(err).NotTo(HaveOccurred())
-			canary := resp.JSON200.Items[3]
+			canary := resp.JSON200.Data[3]
 			Expect(canary.Conditions).To(HaveLen(2))
 			Expect(string(canary.Conditions[1].Status)).To(Equal(string(apiclient.Unknown)))
 		})

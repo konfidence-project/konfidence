@@ -32,7 +32,7 @@ func New(cfg config.Parsed, mounts ...router.MountFunc) *Server {
 func (s *Server) Run(ctx context.Context) error {
 	srv := &http.Server{
 		Addr:         s.cfg.Addr,
-		Handler:      router.New(s.logger, s.cfg.Scheme, s.cfg.Auth, s.mounts...),
+		Handler:      router.New(s.logger, s.cfg.Scheme, s.mounts...),
 		ReadTimeout:  s.cfg.ReadTimeout,
 		WriteTimeout: s.cfg.WriteTimeout,
 	}

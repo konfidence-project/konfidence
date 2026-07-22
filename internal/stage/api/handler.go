@@ -2,10 +2,8 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -25,13 +23,13 @@ func Mount(r chi.Router, _ *slog.Logger, k8s func() client.Client) {
 type StageHandler struct{ k8s func() client.Client }
 
 func (h *StageHandler) ListStages(_ context.Context, _ openapi.ListStagesRequestObject) (openapi.ListStagesResponseObject, error) {
-	return openapi.ListStages200JSONResponse{Items: mockStages}, nil
+	return openapi.ListStages200JSONResponse{Data: mockStages}, nil
 }
 
 func (h *StageHandler) GetStage(_ context.Context, req openapi.GetStageRequestObject) (openapi.GetStageResponseObject, error) {
 	for _, s := range mockStages {
 		if s.Name == req.Name {
-			return getStage200Response{Items: []openapi.StageResponse{s}}, nil
+			return openapi.GetStage200JSONResponse(s), nil
 		}
 	}
 	return openapi.GetStage404JSONResponse{
@@ -48,15 +46,6 @@ func (h *StageHandler) GetStage(_ context.Context, req openapi.GetStageRequestOb
 }
 
 var _ openapi.StrictServerInterface = (*StageHandler)(nil)
-
-// getStage200Response wraps a single stage in {"items": [...]} matching the StageListResponse shape
-type getStage200Response struct{ Items []openapi.StageResponse }
-
-func (r getStage200Response) VisitGetStageResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	return json.NewEncoder(w).Encode(openapi.StageListResponse{Items: r.Items})
-}
 
 func mustTime(s string) time.Time { t, _ := time.Parse(time.RFC3339, s); return t }
 

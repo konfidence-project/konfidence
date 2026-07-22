@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,25 +14,13 @@ type Config struct {
 	WriteTimeout    string
 	ShutdownTimeout string
 	LogLevel        string
-	Auth            AuthConfig
 	Scheme          *runtime.Scheme
-}
-
-// AuthConfig holds OIDC configuration for the auth middleware.
-type AuthConfig struct {
-	AuthorizeURL string
-	TokenURL     string
-	UserInfoURL  string
-	ClientID     string
-	RedirectURI  string
-	Scopes       string
 }
 
 // Parsed holds validated, pre-parsed values ready for use by the server.
 type Parsed struct {
 	Addr            string
 	LogLevel        string
-	Auth            AuthConfig
 	Scheme          *runtime.Scheme
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
@@ -66,18 +53,9 @@ func (c Config) Validate() (Parsed, error) {
 	return Parsed{
 		Addr:            c.Addr,
 		LogLevel:        c.LogLevel,
-		Auth:            c.Auth,
 		Scheme:          c.Scheme,
 		ReadTimeout:     read,
 		WriteTimeout:    write,
 		ShutdownTimeout: shutdown,
 	}, nil
-}
-
-// ScopesSlice splits the space-separated scopes string into a slice.
-func (a AuthConfig) ScopesSlice() []string {
-	if a.Scopes == "" {
-		return nil
-	}
-	return strings.Fields(a.Scopes)
 }

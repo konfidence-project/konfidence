@@ -37,6 +37,27 @@ func (e StageConditionStatus) Valid() bool {
 	}
 }
 
+// Defines values for StageResponseStatus.
+const (
+	Degraded    StageResponseStatus = "Degraded"
+	Progressing StageResponseStatus = "Progressing"
+	Ready       StageResponseStatus = "Ready"
+)
+
+// Valid indicates whether the value is a known member of the StageResponseStatus enum.
+func (e StageResponseStatus) Valid() bool {
+	switch e {
+	case Degraded:
+		return true
+	case Progressing:
+		return true
+	case Ready:
+		return true
+	default:
+		return false
+	}
+}
+
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
 	Error struct {
@@ -61,16 +82,20 @@ type StageConditionStatus string
 
 // StageListResponse defines model for StageListResponse.
 type StageListResponse struct {
-	Items []StageResponse `json:"items"`
+	Data []StageResponse `json:"data"`
 }
 
 // StageResponse defines model for StageResponse.
 type StageResponse struct {
-	Conditions []StageCondition `json:"conditions"`
-	Name       string           `json:"name"`
-	Namespace  string           `json:"namespace"`
-	Vector     string           `json:"vector"`
+	Conditions []StageCondition    `json:"conditions"`
+	Name       string              `json:"name"`
+	Namespace  string              `json:"namespace"`
+	Status     StageResponseStatus `json:"status"`
+	Vector     string              `json:"vector"`
 }
+
+// StageResponseStatus defines model for StageResponse.Status.
+type StageResponseStatus string
 
 // StageName defines model for StageName.
 type StageName = string
