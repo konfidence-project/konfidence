@@ -1,11 +1,7 @@
 <script lang="ts">
-    import { BaseEdge, EdgeLabel } from "@xyflow/svelte";
+    import { BaseEdge, EdgeLabel, getBezierPath } from "@xyflow/svelte";
 
     type EdgeProps = import("@xyflow/svelte").EdgeProps;
-
-    const MIN_CURVE = 120;
-    const CURVE_FACTOR = 0.55;
-    const MIDPOINT_DIVISOR = 2;
 
     interface PromotionEdgeData {
         status?: "healthy" | "running" | "failed";
@@ -15,27 +11,29 @@
         id,
         sourceX,
         sourceY,
+        sourcePosition,
         targetX,
         targetY,
+        targetPosition,
         markerEnd,
         label,
         data,
     } = $props<EdgeProps & { data?: PromotionEdgeData }>();
 
     const status = $derived(data?.status ?? "healthy");
-    const path = $derived.by(() => {
-        const distance = Math.abs(targetX - sourceX);
-        const curve = Math.max(MIN_CURVE, distance * CURVE_FACTOR);
-
-        return [
-            `M ${sourceX} ${sourceY}`,
-            `C ${sourceX + curve} ${sourceY}`,
-            `${targetX - curve} ${targetY}`,
-            `${targetX} ${targetY}`,
-        ].join(" ");
-    });
-    const labelX = $derived((sourceX + targetX) / MIDPOINT_DIVISOR);
-    const labelY = $derived((sourceY + targetY) / MIDPOINT_DIVISOR);
+    const bezier = $derived(
+        getBezierPath({
+            sourcePosition,
+            sourceX,
+            sourceY,
+            targetPosition,
+            targetX,
+            targetY,
+        }),
+    );
+    const path = $derived(bezier[0]);
+    const labelX = $derived(bezier[1]);
+    const labelY = $derived(bezier[2]);
 </script>
 
 <BaseEdge {id} {path} {markerEnd} class={`promotion-edge ${status}`} />

@@ -21,6 +21,7 @@
             src="/assets/logo/full/SVG/400_konfidence_logo_dark.svg"
             alt="Konfidence"
         />
+        <h1 class="title">Sign in to Konfidence</h1>
         <p class="subtitle">Sign in to your delivery workspace.</p>
         <a href={loginUrl} rel="external" class="sign-in-button">Continue with SSO</a>
     </div>
@@ -61,6 +62,13 @@
 
     :global([data-ui5-theme="konfidence-dark"]) .logo-dark {
         display: block;
+    }
+
+    .title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--sapTitleColor, #32363a);
     }
 
     .subtitle {
