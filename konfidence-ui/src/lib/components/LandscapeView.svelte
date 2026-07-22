@@ -46,7 +46,17 @@
     .flow {
         flex: 1;
         width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
         overflow: hidden;
+    }
+
+    /* SvelteFlow's root must fill the .flow container explicitly, otherwise
+       it collapses to its intrinsic (zero) height inside a flex parent. */
+    .flow :global(.svelte-flow) {
+        width: 100%;
+        height: 100%;
     }
 
     :global(.svelte-flow__node-stage) {
