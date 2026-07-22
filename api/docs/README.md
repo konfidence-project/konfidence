@@ -15,6 +15,8 @@ Package v1alpha1 contains API Schema definitions for the konfidence v1alpha1 API
 - [ActivationTaskRegistrationList](#activationtaskregistrationlist)
 - [ArtifactDeployment](#artifactdeployment)
 - [ArtifactDeploymentList](#artifactdeploymentlist)
+- [Landscape](#landscape)
+- [LandscapeList](#landscapelist)
 - [Project](#project)
 - [ProjectList](#projectlist)
 - [Stage](#stage)
@@ -276,7 +278,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `observedGeneration` _integer_ | ObservedGeneration is the last observed generation. |  | Optional: \{\} <br /> |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions describes the state of the deployment lifecycle. The following conditions are expected:<br />  - ArtifactFetched: the artifact was successfully retrieved<br />  - ArtifactDeployed: the artifact was successfully deployed<br />  - AppHealthy: the deployer reports the workload as healthy<br />Conditions progress in a linear order:<br />ArtifactFetched -> ArtifactDeployed -> AppHealthy |  | Optional: \{\} <br /> |
-| `deploymentResult` _[DeploymentResult](#deploymentresult) array_ | DeploymentResults captures structured outputs produced by the deployer during the deployment process-such as<br />computed DNS names, service endpoints, generated configuration, or other workload-specific details.<br />Results should be treated as immutable for a given generation and may be consumed by later stages of a vector<br />rollout (e.g., routing configuration).<br />Each result must have a unique Name. |  | Optional: \{\} <br /> |
+| `deploymentResult` _[DeploymentResult](#deploymentresult) array_ | DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as<br />computed DNS names, service endpoints, generated configuration, or other workload-specific details.<br />Results should be treated as immutable for a given generation and may be consumed by later stages of a vector<br />rollout (e.g., routing configuration).<br />Each result must have a unique Name. |  | Optional: \{\} <br /> |
 
 
 #### ArtifactManifest
@@ -403,6 +405,90 @@ _Appears in:_
 | `endpoint` _string_ | Endpoint is the OIDC discovery endpoint (the provider's<br />".well-known/openid-configuration" URL) used to resolve the signing keys<br />that the presented token is verified against. |  | MaxLength: 2048 <br />Pattern: `^https://.*$` <br /> |
 | `audience` _string_ | Audience is the value the token's "aud" claim must carry. It is required<br />so that a token minted for a different service cannot be replayed against<br />Konfidence: the token is accepted only if it was issued for this audience. |  | MaxLength: 512 <br />MinLength: 1 <br /> |
 | `claims` _object (keys:string, values:[GlobMatch](#globmatch))_ | Claims narrows the match to tokens whose claims match the given patterns.<br />It maps a claim name (for example "sub", "repository" or "ref") to a<br />glob pattern the claim value must match; all listed claims must match<br />(AND). At least one claim is required so a subject cannot inadvertently<br />match every token a provider issues. |  | MaxProperties: 32 <br />MinProperties: 1 <br /> |
+
+
+#### Landscape
+
+
+
+Landscape is the Schema for the landscapes API. A Landscape owns a dedicated
+namespace that serves as a deployment target for vectors. Landscapes must be
+created in project namespaces. The landscape name is capped at 46 characters
+so the derived namespace name stays within the 63-character Kubernetes limits.
+
+
+
+_Appears in:_
+- [LandscapeList](#landscapelist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `Landscape` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[LandscapeSpec](#landscapespec)_ |  |  |  |
+| `status` _[LandscapeStatus](#landscapestatus)_ |  |  |  |
+
+
+#### LandscapeList
+
+
+
+LandscapeList contains a list of Landscape.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `LandscapeList` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[Landscape](#landscape) array_ |  |  |  |
+
+
+#### LandscapeSpec
+
+
+
+LandscapeSpec defines the desired state of Landscape.
+
+The transition rule catches namespace being set or unset after creation;
+changing a set namespace is caught by the field-level rule. The two rules
+are split to stay within the CEL cost budget of the schema.
+
+
+
+_Appears in:_
+- [Landscape](#landscape)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `displayName` _string_ | DisplayName is the human-readable name of the landscape, shown in user<br />interfaces. It does not affect the namespace name or any label, and it<br />may be changed at any time. |  | MaxLength: 253 <br />MinLength: 1 <br />Optional: \{\} <br /> |
+| `namespace` _string_ | Namespace overrides the name of the namespace created for this landscape.<br />When unset it defaults to "kden-l-<landscape-name>-<hash>". It is<br />immutable once the Landscape exists, because the namespace and everything<br />it holds are bound to this name. |  | MaxLength: 63 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Optional: \{\} <br /> |
+
+
+#### LandscapeStatus
+
+
+
+LandscapeStatus defines the observed state of Landscape.
+
+
+
+_Appears in:_
+- [Landscape](#landscape)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+| `namespace` _string_ | Namespace is the name of the namespace managed for this landscape. |  | Optional: \{\} <br /> |
+| `projectName` _string_ | ProjectName is the name of the project this landscape belongs to,<br />derived from the namespace where the Landscape CR was created. |  | Optional: \{\} <br /> |
 
 
 #### LocalArtifactDeploymentReference
