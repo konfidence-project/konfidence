@@ -5,7 +5,7 @@ import { resolveSession } from "$lib/server/auth";
 export const handle: Handle = async ({ event, resolve }) => {
   const startedAt = Date.now();
 
-  if (event.route.id !== "/api/[...path]") {
+  if (event.route.id?.startsWith("/(app)") === true) {
     const session = await resolveSession(event);
     event.locals.session = session;
     event.locals.user = session?.user;

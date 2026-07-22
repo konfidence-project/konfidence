@@ -1,11 +1,9 @@
 import * as valibot from "valibot";
 import type { AuthRole, AuthSession, AuthUser } from "$lib/auth/types";
+import { HTTP_BAD_GATEWAY, HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from "$lib/http-status";
 import { type RequestEvent, error } from "@sveltejs/kit";
 import { KONFIDENCE_API_URL } from "$app/env/private";
 
-const HTTP_UNAUTHORIZED = 401;
-const HTTP_FORBIDDEN = 403;
-const HTTP_BAD_GATEWAY = 502;
 const IDENTITY_TIMEOUT_MS = 5000;
 const AUTH_CREDENTIAL_HEADERS = ["authorization", "cookie", "x-session-id"] as const;
 const AUTH_ROLES = ["", "ADMIN", "DEV", "PM"] as const;
