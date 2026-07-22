@@ -1,6 +1,5 @@
 import { type ServerLoad, redirect } from "@sveltejs/kit";
-
-const HTTP_SEE_OTHER = 303;
+import { HTTP_SEE_OTHER } from "$lib/http-status";
 
 export const load: ServerLoad = async ({ locals, url }) => {
   if (!locals.user) {
