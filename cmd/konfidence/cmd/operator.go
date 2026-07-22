@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/konfidence-project/konfidence/internal/landscape"
 	"github.com/konfidence-project/konfidence/internal/project"
 	"github.com/konfidence-project/konfidence/internal/stage"
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration"
@@ -99,6 +100,9 @@ func buildControllerSetups(ctx context.Context, cancel context.CancelFunc, mgr m
 				}
 			}()
 			return nil
+		},
+		landscape.OperatorFlagName: func() error {
+			return landscape.SetupControllers(mgr, landscape.Options{})
 		},
 		taskorchestration.OperatorFlagName: func() error {
 			return taskorchestration.SetupControllers(mgr, setupLog)

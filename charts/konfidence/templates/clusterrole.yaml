@@ -62,6 +62,7 @@ rules:
   - activationtaskexecutions
   - activationtaskregistrations
   - artifactdeployments
+  - landscapes
   - projects
   - stageconfigurations
   - stages
@@ -87,6 +88,7 @@ rules:
   - activationtaskexecutions/status
   - activationtaskregistrations/status
   - artifactdeployments/status
+  - landscapes/status
   - projects/status
   - stageconfigurations/status
   - stages/status
@@ -106,6 +108,7 @@ rules:
 - apiGroups:
   - konfidence.cloud
   resources:
+  - landscapes/finalizers
   - projects/finalizers
   - vectordeployments/finalizers
   verbs:

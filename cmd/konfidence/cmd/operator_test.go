@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 
+	"github.com/konfidence-project/konfidence/internal/landscape"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -24,6 +25,7 @@ var _ = Describe("buildControllerSetups", func() {
 		vectoractivation.OperatorFlagName,
 		vectordeployment.OperatorFlagName,
 		project.OperatorFlagName,
+		landscape.OperatorFlagName,
 		stageconfiguration.OperatorFlagName,
 		vectorassembly.OperatorFlagName,
 		vectorpromotion.OperatorFlagName,
