@@ -22,7 +22,7 @@
             alt="Konfidence"
         />
         <p class="subtitle">Sign in to your delivery workspace.</p>
-        <a href={loginUrl} class="sign-in-button">Continue with SSO</a>
+        <a href={loginUrl} rel="external" class="sign-in-button">Continue with SSO</a>
     </div>
 </div>
 
