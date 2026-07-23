@@ -21,7 +21,6 @@ var (
 
 var (
 	enableLeaderElection bool
-	enableGalaxy         bool
 	probeAddr            string
 	metricsAddr          string
 	controllersSpec      string
@@ -34,10 +33,8 @@ var rootCmd = &cobra.Command{
 	Short: "Run the Konfidence operator",
 	Long: `konfidence is the Konfidence operator.
 
-It runs a controller manager with the star workload-cluster controllers and,
-unless disabled with --enable-galaxy=false, the galaxy control-plane
-controllers, all reconciling Konfidence API resources on a target Kubernetes
-cluster.`,
+It runs a controller manager that reconciles all Konfidence API resources
+on a target Kubernetes cluster.`,
 	RunE: startOperator,
 }
 
@@ -65,10 +62,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metrics endpoint binds to. Use \"0\" to disable.")
 	rootCmd.PersistentFlags().BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	rootCmd.Flags().BoolVar(&enableGalaxy, "enable-galaxy", true,
-		"Run the galaxy control-plane controllers (StageConfiguration, VectorAssembly, VectorPromotion) "+
-			"in addition to the star controllers. When false these controllers are not registered, "+
-			"so naming them in --controllers is an error.")
 	rootCmd.Flags().StringVar(&controllersSpec, "controllers", "*",
 		"Comma-separated glob expression selecting which controllers to enable. "+
 			"Examples: '*' (all), 'Stage', '!VectorAssembly,*' (all except), 'Vector*'. "+

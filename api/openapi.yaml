@@ -4,7 +4,7 @@ info:
   title: Konfidence API
   version: v1
   description: >
-    HTTP gateway between CLI/UI clients and the Konfidence star cluster CRDs.
+    HTTP gateway between CLI/UI clients and the Konfidence CRDs.
 
 servers:
   - url: /api/v1

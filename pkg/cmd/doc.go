@@ -9,10 +9,7 @@
 // The operator binary registers all controllers it could run, then enables a
 // subset based on a comma-separated glob expression supplied via the
 // --controllers flag. The default value is "*", which runs every registered
-// controller (the original, pre-flag behavior). The registry itself can be
-// narrowed before filtering: the konfidence binary's --enable-galaxy=false
-// leaves the galaxy controllers unregistered, so naming one of them in
-// --controllers becomes a startup error.
+// controller (the original, pre-flag behavior).
 //
 // The grammar is:
 //
@@ -90,6 +87,6 @@
 //
 // Side-effecting work that conceptually belongs to a single controller (for
 // example the stageVersion garbage collector goroutine, which is owned by the
-// star Stage controller) should be launched from inside that controller's
+// Stage controller) should be launched from inside that controller's
 // Setup closure so it is naturally gated on the same flag.
 package cmd

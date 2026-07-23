@@ -7,8 +7,6 @@
 ## konfidence.cloud/v1alpha1
 
 Package v1alpha1 contains API Schema definitions for the konfidence v1alpha1 API group.
-It covers both galaxy (management-plane) and star (workload-plane) kinds, which share
-a single API group; galaxy vs. star remains a code-organization convention (ADR-0022).
 
 ### Resource Types
 - [ActivationTaskExecution](#activationtaskexecution)
@@ -532,7 +530,7 @@ _Appears in:_
 
 
 Project is the Schema for the projects API. A Project owns a dedicated
-namespace that stores the project's Galaxy resources. The project name is
+namespace that stores the project's resources. The project name is
 capped at 50 characters so the derived namespace name and label values
 stay within the 63-character Kubernetes limits.
 
@@ -1389,7 +1387,7 @@ _Appears in:_
 
 
 VectorDataSpec is the LCP→landscape-orchestrator contract for vector-scoped data.
-Star resolves the OCM envelope `{features, authored}` and aggregates per-AD
+The vector deployment controller resolves the OCM envelope `{features, authored}` and aggregates per-AD
 DeploymentResults; the landscape orchestrator materialises the payload on its
 target runtime (ConfigMap on K8s, etc.).
 
@@ -1513,7 +1511,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions represents the current set of status conditions for this vector<br />deployment. These conditions track progress through the lifecycle stages. |  |  |
 | `resolvedVectorOcm` _string_ | ResolvedVectorOcm contains the fully materialized content of the OCM ComponentVersion after it has been<br />downloaded and resolved from the OCI registry. Unlike the Spec.Vector value, which is only a reference (URL),<br />this field stores the actual resolved vector content as provided by OCM, including all artifacts and metadata.<br />It is not a reference but the inlined representation of the component version at reconciliation time. |  |  |
-| `resultingVectorData` _[LocalObjectReference](#localobjectreference)_ | ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData<br />CR is the contract between the Star side (which resolves the OCM payload) and the runtime-specific implementor<br />(which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the<br />CR. Names are stable across reconciliations. |  |  |
+| `resultingVectorData` _[LocalObjectReference](#localobjectreference)_ | ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData<br />CR is the contract between the vector deployment controller (which resolves the OCM payload) and the runtime-specific implementor<br />(which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the<br />CR. Names are stable across reconciliations. |  |  |
 | `resultingArtifactDeployments` _object (keys:string, values:[LocalArtifactDeploymentReference](#localartifactdeploymentreference))_ | ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The<br />map key is the component name of the artifact as defined inside the vector. Keys remain stable across<br />reconciliations and re-creations. |  |  |
 | `resultingVectorAssignments` _object (keys:string, values:[LocalVectorAssignmentReference](#localvectorassignmentreference))_ | ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are<br />not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of<br />assignments.<br />The map key is the component name of the artifact. Keys are stable across reconcilations. |  |  |
 | `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults exposes an aggregated view of the deployment results produced<br />by all underlying ArtifactDeployments. The map key is composed of the component<br />name and the individual result name, ensuring uniqueness. |  |  |

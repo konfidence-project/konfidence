@@ -53,7 +53,7 @@ spec:
           spec:
             description: |-
               VectorDataSpec is the LCP→landscape-orchestrator contract for vector-scoped data.
-              Star resolves the OCM envelope `{features, authored}` and aggregates per-AD
+              The vector deployment controller resolves the OCM envelope `{features, authored}` and aggregates per-AD
               DeploymentResults; the landscape orchestrator materialises the payload on its
               target runtime (ConfigMap on K8s, etc.).
             properties:

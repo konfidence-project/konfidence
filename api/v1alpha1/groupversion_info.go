@@ -1,6 +1,4 @@
 // Package v1alpha1 contains API Schema definitions for the konfidence v1alpha1 API group.
-// It covers both galaxy (management-plane) and star (workload-plane) kinds, which share
-// a single API group; galaxy vs. star remains a code-organization convention (ADR-0022).
 // +kubebuilder:object:generate=true
 // +groupName=konfidence.cloud
 package v1alpha1

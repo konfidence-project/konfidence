@@ -2,7 +2,7 @@
 
 ![Version: 0.0.0](https://img.shields.io/badge/Version-0.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.0](https://img.shields.io/badge/AppVersion-0.0.0-informational?style=flat-square)
 
-Konfidence operator — star and galaxy controllers (with bundled CRDs).
+Konfidence operator for orchestrating multi-service deployments (with bundled CRDs).
 
 **Homepage:** <https://github.com/konfidence-project/konfidence>
 
@@ -65,7 +65,6 @@ Kubernetes: `>=1.27.0-0`
 | env | list | `[]` |  |
 | extraArgs | list | `[]` |  |
 | fullnameOverride | string | `""` |  |
-| galaxy.enabled | bool | `true` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"ghcr.io/konfidence-project/konfidence-operator"` |  |
 | image.tag | string | `""` |  |

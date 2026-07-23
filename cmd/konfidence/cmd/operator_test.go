@@ -18,13 +18,11 @@ import (
 )
 
 var _ = Describe("buildControllerSetups", func() {
-	starControllers := []string{
+	allControllers := []string{
 		stage.OperatorFlagName,
 		taskorchestration.OperatorFlagName,
 		vectoractivation.OperatorFlagName,
 		vectordeployment.OperatorFlagName,
-	}
-	galaxyControllers := []string{
 		project.OperatorFlagName,
 		stageconfiguration.OperatorFlagName,
 		vectorassembly.OperatorFlagName,
@@ -33,40 +31,23 @@ var _ = Describe("buildControllerSetups", func() {
 
 	// The setup closures are only invoked once a controller is enabled and
 	// the manager runs, so a nil manager is safe for map-shape assertions.
-	build := func(enableGalaxy bool) map[string]func() error {
+	build := func() map[string]func() error {
 		ctx, cancel := context.WithCancel(context.Background())
 		DeferCleanup(cancel)
-		return buildControllerSetups(ctx, cancel, nil, enableGalaxy)
+		return buildControllerSetups(ctx, cancel, nil)
 	}
 
-	Context("with galaxy enabled", func() {
-		It("registers the star and galaxy controllers", func() {
-			setups := build(true)
-			Expect(setups).To(HaveLen(len(starControllers) + len(galaxyControllers)))
-			for _, name := range append(starControllers, galaxyControllers...) {
-				Expect(setups).To(HaveKey(name))
-			}
-		})
-
-		It("accepts a galaxy controller in the --controllers filter", func() {
-			enabled, err := pkgcmd.FilterEnabledControllers(stageconfiguration.OperatorFlagName, build(true))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(enabled).To(Equal(map[string]bool{stageconfiguration.OperatorFlagName: true}))
-		})
+	It("registers all controllers", func() {
+		setups := build()
+		Expect(setups).To(HaveLen(len(allControllers)))
+		for _, name := range allControllers {
+			Expect(setups).To(HaveKey(name))
+		}
 	})
 
-	Context("with galaxy disabled", func() {
-		It("registers only the star controllers", func() {
-			setups := build(false)
-			Expect(setups).To(HaveLen(len(starControllers)))
-			for _, name := range starControllers {
-				Expect(setups).To(HaveKey(name))
-			}
-		})
-
-		It("rejects a galaxy controller in the --controllers filter", func() {
-			_, err := pkgcmd.FilterEnabledControllers(stageconfiguration.OperatorFlagName, build(false))
-			Expect(err).To(MatchError(ContainSubstring("matches no registered controller")))
-		})
+	It("accepts any controller in the --controllers filter", func() {
+		enabled, err := pkgcmd.FilterEnabledControllers(stageconfiguration.OperatorFlagName, build())
+		Expect(err).NotTo(HaveOccurred())
+		Expect(enabled).To(Equal(map[string]bool{stageconfiguration.OperatorFlagName: true}))
 	})
 })

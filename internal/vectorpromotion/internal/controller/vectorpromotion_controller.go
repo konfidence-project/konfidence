@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	VectorPromotionControllerName = "galaxy-vector-promotion-controller"
+	VectorPromotionControllerName = "vector-promotion-controller"
 
 	EventActionUnknownPromotionStatus = "ReconcileRunningPromotion"
 	EventActionStatusPatch            = "StatusPatch"

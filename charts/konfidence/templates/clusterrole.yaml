@@ -18,6 +18,18 @@ rules:
   - watch
 - apiGroups:
   - ""
+  resources:
+  - namespaces
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
   - events.k8s.io
   resources:
   - events
@@ -50,6 +62,8 @@ rules:
   - activationtaskexecutions
   - activationtaskregistrations
   - artifactdeployments
+  - projects
+  - stageconfigurations
   - stages
   - stageversions
   - stageversionusages
@@ -58,6 +72,7 @@ rules:
   - vectorassignments
   - vectordeployments
   - vectormigrations
+  - vectorpromotions
   verbs:
   - create
   - delete
@@ -72,6 +87,8 @@ rules:
   - activationtaskexecutions/status
   - activationtaskregistrations/status
   - artifactdeployments/status
+  - projects/status
+  - stageconfigurations/status
   - stages/status
   - stageversions/status
   - stageversionusages/status
@@ -79,9 +96,19 @@ rules:
   - vectoractivations/status
   - vectordeployments/status
   - vectormigrations/status
+  - vectorpromotionconfigs/status
+  - vectorpromotions/status
+  - vectortemplates/status
   verbs:
   - get
   - patch
+  - update
+- apiGroups:
+  - konfidence.cloud
+  resources:
+  - projects/finalizers
+  - vectordeployments/finalizers
+  verbs:
   - update
 - apiGroups:
   - konfidence.cloud
@@ -96,72 +123,10 @@ rules:
 - apiGroups:
   - konfidence.cloud
   resources:
-  - vectordeployments/finalizers
-  verbs:
-  - update
-{{- if .Values.galaxy.enabled }}
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - konfidence.cloud
-  resources:
-  - projects
-  - stageconfigurations
-  - vectorpromotions
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - konfidence.cloud
-  resources:
-  - projects/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - konfidence.cloud
-  resources:
-  - projects/status
-  - stageconfigurations/status
-  - vectorpromotionconfigs/status
-  - vectorpromotions/status
-  - vectortemplates/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - konfidence.cloud
-  resources:
-  - stages
-  verbs:
-  - create
-  - delete
-  - get
-  - patch
-  - update
-- apiGroups:
-  - konfidence.cloud
-  resources:
   - vectorpromotionconfigs
   - vectortemplates
   verbs:
   - get
   - list
   - watch
-{{- end }}
 {{- end }}

@@ -316,7 +316,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		gomega.Expect(k8sClient.Status().Update(ctx, vectorAssignment)).To(gomega.Succeed())
 
 		By("Verifying VectorData CR was created with the inlined payload")
-		// The Star controller no longer materialises the ConfigMap directly. Its responsibility now ends at
+		// The vector deployment controller no longer materialises the ConfigMap directly. Its responsibility now ends at
 		// emitting a runtime-agnostic VectorData CR with the OCM-resolved bytes + aggregated DeploymentResults.
 		// A runtime-specific orchestrator (e.g. kubernetes-landscape-orchestrator) consumes the CR and writes the
 		// ConfigMap (or another runtime-shaped artefact). We simulate the orchestrator below.

@@ -62,8 +62,8 @@
 //
 //   - pkg/ocm/credentials.ResolverFromRefs — builds a graph from one or more
 //     Secrets/ConfigMaps holding .ocmconfig data.
-//   - pkg/ocm/credentials.ResolverFromCredentials — galaxy domain mapper; translates
-//     *konfidence.Credentials to []Ref and calls ResolverFromRefs.
+//   - pkg/ocm/credentials.ResolverFromCredentials — translates *konfidence.Credentials
+//     to []Ref and calls ResolverFromRefs.
 //   - credentials.NewStaticCredentialsResolver — simple in-memory map, useful in tests.
 //
 // # Disabling Signing/Verification

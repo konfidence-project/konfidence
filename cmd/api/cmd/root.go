@@ -25,9 +25,9 @@ var rootCmd = &cobra.Command{
 	Short: "Run the Konfidence API server",
 	Long: `api is the Konfidence API gateway.
 
-It sits at the border of the star cluster and exposes an HTTP API consumed by
-the kden CLI, the Star Dashboard, and any external UI. Inbound requests are
-translated into reads and writes against the Kubernetes API (Konfidence CRDs).
+It exposes an HTTP API consumed by the kden CLI, the Konfidence Dashboard,
+and any external UI. Inbound requests are translated into reads and writes
+against the Kubernetes API (Konfidence CRDs).
 
 Configuration is read from environment variables (API_*) and can be overridden
 by the flags below.

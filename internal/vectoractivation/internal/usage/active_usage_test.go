@@ -65,7 +65,7 @@ var _ = Describe("active usage tests", func() {
 			Expect(usage.Name).To(Equal(name))
 
 			clientMock.EXPECT().Get(ctx, gomock.Any(), gomock.Any()).
-				Return(apierrors.NewNotFound(schema.GroupResource{Group: "star.konfidence.io", Resource: "stageversionusages"}, "not-found"))
+				Return(apierrors.NewNotFound(schema.GroupResource{Group: "konfidence.cloud", Resource: "stageversionusages"}, "not-found"))
 
 			usage, err = GetCurrentActiveUsage(ctx, clientMock, stage)
 			Expect(err).ToNot(HaveOccurred())

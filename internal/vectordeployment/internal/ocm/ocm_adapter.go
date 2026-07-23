@@ -49,8 +49,8 @@ const (
 	konfidenceResourceTypeArtifactManifest     = "cloud.konfidence.artifact.manifest"
 	konfidenceResourceTypeArtifactTaskManifest = "cloud.konfidence.artifact.task.manifest"
 
-	// KonfidenceResourceTypeVectorConfig is the OCM resource Name used by the assembly side
-	// (galaxy/vectorassembly) to mark the optional, singleton vector-scoped configuration resource on a vector
+	// KonfidenceResourceTypeVectorConfig is the OCM resource name used during vector assembly
+	// to mark the optional, singleton vector-scoped configuration resource on a vector
 	// ComponentVersion. Note that this value is matched against `Resource.Name`, not `Resource.Type` -- the Type field
 	// is left to the vector author. The character set is constrained to lowercase letters, digits and dashes because
 	// dots are not permitted in OCM resource names per the schema. The constant is exported so that the assembly and
@@ -113,7 +113,7 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 
 // extractVectorConfigResource scans the given resource slice for the optional, singleton vector-scoped configuration
 // resource. The match is performed on the resource Name (KonfidenceResourceTypeVectorConfig), mirroring the producer
-// side in galaxy/vectorassembly which sets that field to the same constant. When present, the resource's blob is
+// side during vector assembly which sets that field to the same constant. When present, the resource's blob is
 // fetched and the resource is removed from the slice that is returned to the caller. The function returns the blob
 // bytes (or nil), the pruned resource slice, and any error encountered. Multiple matches are an authoring mistake and
 // produce an error rather than a silently-chosen winner.

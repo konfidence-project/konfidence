@@ -140,7 +140,7 @@ var _ = Describe("OcmAdapter", func() {
 
 		Context("vector-scoped configuration resource", func() {
 			// configResource builds a descriptor resource that matches the vector-config contract on the assembly side
-			// (galaxy/vectorassembly): the discriminator is the resource Name, set to
+			// (vectorassembly): the discriminator is the resource Name, set to
 			// KonfidenceResourceTypeVectorConfig. Type is intentionally left to the caller because the producer leaves
 			// it as a vector-author-defined value (e.g. application/json).
 			// No Access spec is needed: GetVectorDescriptor extracts and prunes vector-config resources before the

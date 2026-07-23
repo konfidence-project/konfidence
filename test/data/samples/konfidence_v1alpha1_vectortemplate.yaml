@@ -1,7 +1,7 @@
 apiVersion: konfidence.cloud/v1alpha1
 kind: VectorTemplate
 metadata:
-  namespace: star-dev
+  namespace: dev
   name: shopping-app-latest
 spec:
   base: https://registry.kdenv.lab/sample-project//konfidence-project/sample-vector
