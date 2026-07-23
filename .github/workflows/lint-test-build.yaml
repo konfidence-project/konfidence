@@ -19,6 +19,10 @@ jobs:
     uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v4
     secrets: inherit
 
+  reuse-lint:
+    name: REUSE
+    uses: konfidence-project/.github/.github/workflows/reuse-lint.yaml@v4
+
   test-operators:
     name: Test / Operators
     uses: konfidence-project/.github/.github/workflows/test.yaml@v4
@@ -49,7 +53,7 @@ jobs:
 
   build:
     name: Build / Konfidence
-    needs: [lint, test-operators, test-pkg, test-kden-cli, test-api]
+    needs: [lint, reuse-lint, test-operators, test-pkg, test-kden-cli, test-api]
     permissions:
       contents: read
       packages: write
