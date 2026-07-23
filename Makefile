@@ -277,6 +277,10 @@ build-kden-cli: hermit ## Build the kden cli binary.
 run: manifests generate fmt vet ## Run the konfidence operator from your host.
 	go run ./cmd/konfidence/main.go
 
+.PHONY: run-kden-api
+run-kden-api: fmt vet ## Run the kden API server locally.
+	go run ./cmd/api/main.go
+
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
 docker-build: hermit ## Build the konfidence operator container image (local use only).
