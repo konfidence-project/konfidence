@@ -62,8 +62,8 @@ func ResolverFromRefs(
 	return buildGraph(ctx, cfg)
 }
 
-// ResolverFromCredentials is the galaxy domain mapper — it translates *konfidence.Credentials
-// to []Ref and delegates to ResolverFromRefs.
+// ResolverFromCredentials translates *konfidence.Credentials to []Ref and
+// delegates to ResolverFromRefs.
 // Returns (nil, nil) if creds is nil or creds.OCM is nil.
 func ResolverFromCredentials(
 	ctx context.Context,

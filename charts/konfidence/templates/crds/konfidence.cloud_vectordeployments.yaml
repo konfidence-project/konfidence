@@ -224,7 +224,7 @@ spec:
               resultingVectorData:
                 description: |-
                   ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData
-                  CR is the contract between the Star side (which resolves the OCM payload) and the runtime-specific implementor
+                  CR is the contract between the vector deployment controller (which resolves the OCM payload) and the runtime-specific implementor
                   (which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the
                   CR. Names are stable across reconciliations.
                 properties:

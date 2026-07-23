@@ -23,7 +23,7 @@ const (
 	StageName            = "stage-dev"
 	StageVersionName     = "stage-version-12345"
 	VectorActivationName = "activation-12345"
-	Vector001            = "https://registry.kdenv.lab/ocm/vector//star.konfidence.cloud/example/vector:0.0.1"
+	Vector001            = "https://registry.kdenv.lab/ocm/vector//example.konfidence.cloud/example/vector:0.0.1"
 	RegistrationName     = "registration-1"
 	RegistrationType     = "registration-type-1"
 	Namespace            = "default"

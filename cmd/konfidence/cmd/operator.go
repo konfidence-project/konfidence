@@ -41,7 +41,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	signalContext, cancel := context.WithCancel(ctrl.SetupSignalHandler())
 	defer cancel()
 
-	controllerSetups := buildControllerSetups(signalContext, cancel, mgr, enableGalaxy)
+	controllerSetups := buildControllerSetups(signalContext, cancel, mgr)
 
 	enabled, err := pkgcmd.FilterEnabledControllers(controllersSpec, controllerSetups)
 	if err != nil {
@@ -82,9 +82,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 }
 
 // buildControllerSetups returns the registry of controller setup closures.
-// The galaxy controllers are simply not registered when enableGalaxy is
-// false, so FilterEnabledControllers rejects their names as unknown.
-func buildControllerSetups(ctx context.Context, cancel context.CancelFunc, mgr manager.Manager, enableGalaxy bool) map[string]func() error {
+func buildControllerSetups(ctx context.Context, cancel context.CancelFunc, mgr manager.Manager) map[string]func() error {
 	limiter := crypto.NewLimiter(0)
 
 	setups := map[string]func() error{
@@ -119,29 +117,24 @@ func buildControllerSetups(ctx context.Context, cancel context.CancelFunc, mgr m
 				Limiter:   limiter,
 			})
 		},
-	}
-
-	if !enableGalaxy {
-		return setups
-	}
-
-	setups[project.OperatorFlagName] = func() error {
-		return project.SetupControllers(mgr, project.Options{})
-	}
-	setups[stageconfiguration.OperatorFlagName] = func() error {
-		return stageconfiguration.SetupControllers(mgr, stageconfiguration.Options{
-			Limiter: limiter,
-		})
-	}
-	setups[vectorassembly.OperatorFlagName] = func() error {
-		return vectorassembly.SetupControllers(mgr, vectorassembly.Options{
-			Limiter: limiter,
-		})
-	}
-	setups[vectorpromotion.OperatorFlagName] = func() error {
-		return vectorpromotion.SetupControllers(ctx, mgr, vectorpromotion.Options{
-			Limiter: limiter,
-		})
+		project.OperatorFlagName: func() error {
+			return project.SetupControllers(mgr, project.Options{})
+		},
+		stageconfiguration.OperatorFlagName: func() error {
+			return stageconfiguration.SetupControllers(mgr, stageconfiguration.Options{
+				Limiter: limiter,
+			})
+		},
+		vectorassembly.OperatorFlagName: func() error {
+			return vectorassembly.SetupControllers(mgr, vectorassembly.Options{
+				Limiter: limiter,
+			})
+		},
+		vectorpromotion.OperatorFlagName: func() error {
+			return vectorpromotion.SetupControllers(ctx, mgr, vectorpromotion.Options{
+				Limiter: limiter,
+			})
+		},
 	}
 
 	return setups

@@ -1,4 +1,4 @@
-{{- if and .Values.crd.install .Values.galaxy.enabled -}}
+{{- if .Values.crd.install -}}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -40,7 +40,7 @@ spec:
       openAPIV3Schema:
         description: |-
           Project is the Schema for the projects API. A Project owns a dedicated
-          namespace that stores the project's Galaxy resources. The project name is
+          namespace that stores the project's resources. The project name is
           capped at 50 characters so the derived namespace name and label values
           stay within the 63-character Kubernetes limits.
         properties:

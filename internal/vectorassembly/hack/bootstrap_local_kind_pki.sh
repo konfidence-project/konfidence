@@ -17,7 +17,7 @@ set -euo pipefail
 # Requirements: kind, kubectl
 # ------------------------------------------------------------------------------
 
-CLUSTER_NAME="${CLUSTER_NAME:-galaxy}"
+CLUSTER_NAME="${CLUSTER_NAME:-konfidence}"
 CERT_MANAGER_NS="cert-manager"
 
 SIGNING_NS="${SIGNING_NS:-default}"

@@ -77,7 +77,7 @@ func (r *VectorDeploymentReconciler) handleVectorData(
 }
 
 // splitEnvelope parses an OCM-resolved vector configuration envelope into structured Spec.Features and Spec.Authored.
-// Uses the shared `jsonschema.VectorConfigurationV1` contract that galaxy serialises on the producer side. Unknown
+// Uses the shared `jsonschema.VectorConfigurationV1` contract that the vector assembly process serializes. Unknown
 // schemaVersion is rejected so a future v2 envelope is caught before it silently misroutes.
 func splitEnvelope(blob []byte) (*runtime.RawExtension, *runtime.RawExtension, error) {
 	if len(blob) == 0 {

@@ -48,7 +48,7 @@ func newVD(name string, results map[string]konfidence.DeploymentResult) *konfide
 	}
 }
 
-// TestHandleVectorData_CreatesWithSplitEnvelope covers the happy path: Star parses the OCM envelope and inlines
+// TestHandleVectorData_CreatesWithSplitEnvelope covers the happy path: the controller parses the OCM envelope and inlines
 // the features/authored subsets as RawExtension, plus the aggregated DeploymentResults.
 func TestHandleVectorData_CreatesWithSplitEnvelope(t *testing.T) {
 	envelope := []byte(`{"features":{"darkMode":true},"authored":{"db":{"host":"mysql"}}}`)
@@ -120,7 +120,7 @@ func TestHandleVectorData_RejectsInvalidEnvelope(t *testing.T) {
 	}
 }
 
-// TestVectorDataIsReady_TracksImplementorState: the readiness probe Star uses to gate VectorReady on the orchestrator.
+// TestVectorDataIsReady_TracksImplementorState: the readiness probe the controller uses to gate VectorReady on the orchestrator.
 func TestVectorDataIsReady_TracksImplementorState(t *testing.T) {
 	vd := newVD("vd-r", nil)
 	vd.Status.ResultingVectorData = &konfidence.LocalObjectReference{Name: "vd-r"}

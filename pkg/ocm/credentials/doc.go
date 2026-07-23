@@ -1,4 +1,4 @@
-// Package credentials converts galaxy API credential references into a
+// Package credentials converts Konfidence API credential references into a
 // credentials.Resolver that the OCM runtime can use to authenticate against
 // OCI registries and resolve signing key material.
 //
@@ -17,5 +17,5 @@
 // than at the first Sign call.
 //
 // This package has no knowledge of caching, client construction, or
-// reconcile logic. It does one thing: galaxy API → credentials.Resolver.
+// reconcile logic. It does one thing: Konfidence API → credentials.Resolver.
 package credentials

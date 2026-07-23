@@ -17,7 +17,7 @@ import (
 
 // MountFunc registers a domain's routes onto the root router.
 // Wiring happens in cmd/api/cmd/root.go, following the same explicit pattern
-// used for controller registration in cmd/star and cmd/galaxy.
+// used for controller registration in cmd/konfidence.
 type MountFunc func(r chi.Router, logger *slog.Logger, k8s func() client.Client)
 
 // New returns the root chi.Router with all routes and middleware registered.

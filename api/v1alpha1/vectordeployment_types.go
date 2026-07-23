@@ -17,7 +17,7 @@ const (
 	// VectorAssignmentsCreatedCondition indicates that all VectorAssignment resources have been created successfully.
 	VectorAssignmentsCreatedCondition = "VectorAssignmentsCreated"
 
-	// VectorDataCreatedCondition indicates that Star has created the VectorData CR. Materialisation of the data
+	// VectorDataCreatedCondition indicates that the vector deployment controller has created the VectorData CR. Materialisation of the data
 	// (e.g. as a ConfigMap on Kubernetes) is reported separately on the VectorData object and reflected on the
 	// parent VectorDeployment through VectorReadyCondition.
 	VectorDataCreatedCondition = "VectorDataCreated"
@@ -64,7 +64,7 @@ type VectorDeploymentStatus struct {
 	ResolvedVectorOcm string `json:"resolvedVectorOcm,omitempty"`
 
 	// ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData
-	// CR is the contract between the Star side (which resolves the OCM payload) and the runtime-specific implementor
+	// CR is the contract between the vector deployment controller (which resolves the OCM payload) and the runtime-specific implementor
 	// (which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the
 	// CR. Names are stable across reconciliations.
 	ResultingVectorData *LocalObjectReference `json:"resultingVectorData,omitempty"`

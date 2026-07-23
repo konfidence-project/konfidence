@@ -14,13 +14,6 @@ crd:
   annotations: {}
   labels: {}
 
-# Galaxy control-plane controllers (StageConfiguration, VectorAssembly,
-# VectorPromotion). When disabled, the operator runs star-only
-# (--enable-galaxy=false) and the galaxy CRDs and galaxy-only RBAC rules
-# are not installed.
-galaxy:
-  enabled: true
-
 # Forwarded as flags to the operator binary (cmd/konfidence).
 controller:
   # When false, the chart renders only the CRDs (gated by crd.install)
@@ -38,8 +31,8 @@ controller:
   # container port, Service, and ServiceMonitor).
   metricsBindAddress: ":8080"
 
-# Konfidence API server - HTTP gateway between CLI/UI clients and the star CRDs.
-# Deployed in the same namespace as the star operator.
+# Konfidence API server - HTTP gateway between CLI/UI clients and the Konfidence CRDs.
+# Deployed in the same namespace as the Konfidence operator.
 api:
   # When false, all API server resources (Deployment, Service, RBAC) are skipped.
   enabled: true

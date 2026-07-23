@@ -8,9 +8,7 @@
 # Usage: patch-crd.sh <chart-name> <src.yaml> <dst.yaml> [guard]
 #
 # The optional guard is the Helm condition wrapping the document; it
-# defaults to `.Values.crd.install`. Galaxy CRDs pass
-# `and .Values.crd.install .Values.galaxy.enabled` so they are skipped
-# on star-only installs.
+# defaults to `.Values.crd.install`.
 #
 # Example (patch generated CRDs in place):
 #   for f in charts/konfidence/templates/crds/*.yaml; do

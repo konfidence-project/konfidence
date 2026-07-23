@@ -68,7 +68,7 @@ func SpecsFromVerify(v *konfidence.Verify) []SignatureSpec {
 	}
 	specs := make([]SignatureSpec, len(v.Signatures))
 	for i, sig := range v.Signatures {
-		specs[i] = NewSignatureSpecFromV1alpha1Galaxy(sig)
+		specs[i] = NewSignatureSpecFromV1alpha1(sig)
 	}
 	return specs
 }
@@ -81,14 +81,14 @@ func SpecsFromSign(s *konfidence.Sign) []SignatureSpec {
 	}
 	specs := make([]SignatureSpec, len(s.Signatures))
 	for i, sig := range s.Signatures {
-		specs[i] = NewSignatureSpecFromV1alpha1Galaxy(sig)
+		specs[i] = NewSignatureSpecFromV1alpha1(sig)
 	}
 	return specs
 }
 
-// NewSignatureSpecFromV1alpha1Galaxy constructs a SignatureSpec from a konfidence.Signature.
+// NewSignatureSpecFromV1alpha1 constructs a SignatureSpec from a konfidence.Signature.
 // It takes a DefaultSignatureSpec as a base and overrides any corresponding fields that are set on the input konfidence.Signature.
-func NewSignatureSpecFromV1alpha1Galaxy(signature konfidence.Signature) SignatureSpec {
+func NewSignatureSpecFromV1alpha1(signature konfidence.Signature) SignatureSpec {
 	spec := DefaultSignatureSpec(signature.Name, signature.Issuer)
 	if signature.Algorithm != nil {
 		spec.Algorithm = rsav1alpha1.SignatureAlgorithm(*signature.Algorithm)

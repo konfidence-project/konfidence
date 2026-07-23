@@ -50,7 +50,7 @@ var _ = Describe("activation task execution tests", func() {
 				UID:       "test-uid",
 			},
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "star.konfidence.io/v1alpha1",
+				APIVersion: "konfidence.cloud/v1alpha1",
 				Kind:       "VectorActivation",
 			},
 			Spec: konfidence.VectorActivationSpec{

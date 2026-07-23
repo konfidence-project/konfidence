@@ -151,7 +151,7 @@ type ProjectStatus struct {
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Project is the Schema for the projects API. A Project owns a dedicated
-// namespace that stores the project's Galaxy resources. The project name is
+// namespace that stores the project's resources. The project name is
 // capped at 50 characters so the derived namespace name and label values
 // stay within the 63-character Kubernetes limits.
 type Project struct {

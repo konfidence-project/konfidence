@@ -1,6 +1,5 @@
 {{- if .Values.controller.install }}
 Konfidence operator {{ .Chart.AppVersion }} installed in namespace {{ .Release.Namespace }}.
-Galaxy controllers: {{ ternary "enabled" "disabled (--enable-galaxy=false)" .Values.galaxy.enabled }}.
 
 Verify the controller is running:
   kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
