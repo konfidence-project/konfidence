@@ -8,6 +8,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.3
 	github.com/adrg/xdg v0.5.3
 	github.com/fatih/color v1.19.0
+	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-logr/logr v1.4.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/invopop/jsonschema v0.14.0
@@ -17,6 +18,7 @@ require (
 	github.com/knadh/koanf/providers/file v1.2.1
 	github.com/knadh/koanf/providers/posflag v1.0.1
 	github.com/knadh/koanf/v2 v2.3.5
+	github.com/oapi-codegen/runtime v1.5.0
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
 	github.com/opencontainers/go-digest v1.0.0
@@ -25,7 +27,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.42.0
 	go.uber.org/mock v0.6.0
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.42.0
 	golang.org/x/text v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -109,7 +111,6 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
-	github.com/go-chi/chi/v5 v5.3.0 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -171,7 +172,6 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nlepage/go-tarfs v1.2.1 // indirect
-	github.com/oapi-codegen/runtime v1.5.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -233,7 +233,7 @@ require (
 	ocm.software/open-component-model/bindings/go/helm v0.0.0-20260526121250-aae701a4aa9b // indirect
 	ocm.software/open-component-model/bindings/go/input/utf8 v0.0.0-20260526121250-aae701a4aa9b // indirect
 	ocm.software/open-component-model/bindings/go/sigstore v0.0.0-20260526121250-aae701a4aa9b // indirect
-	oras.land/oras-go/v2 v2.6.0 // indirect
+	oras.land/oras-go/v2 v2.6.2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/kustomize/api v0.21.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.21.1 // indirect
