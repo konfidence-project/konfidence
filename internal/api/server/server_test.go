@@ -45,12 +45,13 @@ var _ = Describe("Server", func() {
 			Eventually(errCh, "3s").Should(Receive(BeNil()))
 		})
 
-		It("serves /healthz while running", func() {
+		It("serves /api/v1/healthz while running", func() {
 			srv := server.New(validParsed("127.0.0.1:19090"), handler.Mount)
 			ctx, cancel := context.WithCancel(context.Background())
 			DeferCleanup(cancel)
 
-			go func() { _ = srv.Run(ctx) }()
+			addrCh := make(chan string, 1)
+			go func() { _ = srv.Run(ctx, func(addr string) { addrCh <- addr }) }()
 
 			Eventually(func() error {
 				resp, err := http.Get("http://127.0.0.1:19090/api/v1/healthz") //nolint:noctx

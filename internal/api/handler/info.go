@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type InfoHandler struct{ k8s func() client.Client }
+type InfoHandler struct{ k8s func() (client.Client, error) }
 
 func (h *InfoHandler) GetHealthStatus(_ context.Context, _ openapi.GetHealthStatusRequestObject) (openapi.GetHealthStatusResponseObject, error) {
 	return openapi.GetHealthStatus200JSONResponse{Status: "ok"}, nil

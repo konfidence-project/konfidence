@@ -60,9 +60,26 @@ builds:
     ldflags:
       - -s -w -X github.com/konfidence-project/konfidence/cmd/version.version={{.Version}}
 
+  - id: api
+    binary: api
+    main: ./cmd/api
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/konfidence-project/konfidence/pkg/build.Version={{.Version}} -X github.com/konfidence-project/konfidence/pkg/build.GitCommit={{.Commit}}
+
 archives:
   - id: konfidence
     ids: [konfidence]
+    formats: [none]
+
+  - id: api
+    ids: [api]
     formats: [none]
 
   - id: kden
@@ -90,6 +107,19 @@ dockers_v2:
       - linux/arm64
     build_args:
       OPERATOR_NAME: konfidence
+
+  - id: api
+    ids: [api]
+    dockerfile: Dockerfile
+    images:
+      - ghcr.io/konfidence-project/api
+    tags:
+      - "{{ .Version }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    build_args:
+      OPERATOR_NAME: api
 
 changelog:
   use: github

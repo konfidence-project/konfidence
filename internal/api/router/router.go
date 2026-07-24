@@ -17,11 +17,11 @@ import (
 // MountFunc registers a domain's routes onto the root router.
 // Wiring happens in cmd/api/cmd/root.go, following the same explicit pattern
 // used for controller registration in cmd/konfidence.
-type MountFunc func(r chi.Router, logger *slog.Logger, k8s func() client.Client)
+type MountFunc func(r chi.Router, logger *slog.Logger, k8s func() (client.Client, error))
 
 // New returns the root chi.Router with all routes and middleware registered.
 func New(logger *slog.Logger, scheme *runtime.Scheme, mounts ...MountFunc) http.Handler {
-	k8s := lazyClient(logger, scheme)
+	k8s := lazyClient(scheme)
 
 	r := chi.NewRouter()
 
@@ -39,28 +39,28 @@ func New(logger *slog.Logger, scheme *runtime.Scheme, mounts ...MountFunc) http.
 
 // lazyClient builds the k8s client on first call using ctrl.GetConfig() which
 // reads KUBECONFIG env var or falls back to in-cluster config automatically.
-func lazyClient(logger *slog.Logger, scheme *runtime.Scheme) func() client.Client {
+// The returned closure returns (nil, error) when the client cannot be built —
+// callers must check for a nil client before use.
+func lazyClient(scheme *runtime.Scheme) func() (client.Client, error) {
 	var (
 		once      sync.Once
 		k8sClient client.Client
+		k8sErr    error
 	)
-	return func() client.Client {
+	return func() (client.Client, error) {
 		once.Do(func() {
 			cfg, err := ctrl.GetConfig()
 			if err != nil {
-				logger.Error("failed to get k8s config",
-					"error", fmt.Sprintf("%v", err),
-					"hint", "set KUBECONFIG env var for local dev",
-				)
+				k8sErr = fmt.Errorf("failed to get k8s config (set KUBECONFIG for local dev): %w", err)
 				return
 			}
 			c, err := client.New(cfg, client.Options{Scheme: scheme})
 			if err != nil {
-				logger.Error("failed to build k8s client", "error", fmt.Sprintf("%v", err))
+				k8sErr = fmt.Errorf("failed to build k8s client: %w", err)
 				return
 			}
 			k8sClient = c
 		})
-		return k8sClient
+		return k8sClient, k8sErr
 	}
 }
