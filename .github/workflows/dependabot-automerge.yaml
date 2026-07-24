@@ -1,0 +1,9 @@
+name: Dependabot Automerge
+
+on: pull_request_target
+
+jobs:
+  automerge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    uses: konfidence-project/.github/.github/workflows/dependabot-automerge.yaml@main
+    secrets: inherit
