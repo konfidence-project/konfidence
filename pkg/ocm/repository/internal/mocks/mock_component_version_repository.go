@@ -191,3 +191,17 @@ func (mr *MockComponentVersionRepositoryMockRecorder) ProcessResourceDigest(ctx,
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessResourceDigest", reflect.TypeOf((*MockComponentVersionRepository)(nil).ProcessResourceDigest), ctx, res)
 }
+
+// RemoveComponentVersionAlias mocks base method.
+func (m *MockComponentVersionRepository) RemoveComponentVersionAlias(ctx context.Context, component, alias string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveComponentVersionAlias", ctx, component, alias)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveComponentVersionAlias indicates an expected call of RemoveComponentVersionAlias.
+func (mr *MockComponentVersionRepositoryMockRecorder) RemoveComponentVersionAlias(ctx, component, alias any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveComponentVersionAlias", reflect.TypeOf((*MockComponentVersionRepository)(nil).RemoveComponentVersionAlias), ctx, component, alias)
+}

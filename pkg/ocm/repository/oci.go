@@ -19,6 +19,7 @@ import (
 	"ocm.software/open-component-model/bindings/go/repository"
 	"ocm.software/open-component-model/bindings/go/runtime"
 	"ocm.software/open-component-model/bindings/go/transfer"
+	transferspec "ocm.software/open-component-model/bindings/go/transfer/v1alpha1/spec"
 )
 
 var (
@@ -191,7 +192,7 @@ func (c OciClient) Save(ctx context.Context, repoSpec runtime.Typed, desc descru
 //
 // Returns ErrInvalidComponentReference if any reference is incomplete or invalid.
 func (c OciClient) Copy(ctx context.Context, artifactReferences []compref.Ref, targetRepoSpec runtime.Typed) error {
-	transferOptions := make([]transfer.Option, 0, len(artifactReferences)+1)
+	mappings := make([]transfer.Mapping, 0, len(artifactReferences))
 	for _, ref := range artifactReferences {
 		if err := konfcompref.Validate(ref); err != nil {
 			return errors.Join(ErrInvalidComponentReference, fmt.Errorf("invalid reference for Copy: %w", err))
@@ -200,14 +201,14 @@ func (c OciClient) Copy(ctx context.Context, artifactReferences []compref.Ref, t
 		if err != nil {
 			return fmt.Errorf("getting repository for component reference %s: %w", ref, err)
 		}
-		transferOptions = append(transferOptions, transfer.WithTransfer(
-			transfer.Component(ref.Component, ref.Version),
-			transfer.FromRepository(repo, ref.Repository),
-			transfer.ToRepositorySpec(targetRepoSpec),
-		))
+		mappings = append(mappings, transfer.Mapping{
+			Components: []transfer.ComponentID{{Component: ref.Component, Version: ref.Version}},
+			Target:     targetRepoSpec,
+			Resolver:   transfer.NewRepositoryResolver(repo, ref.Repository),
+		})
 	}
-	transferOptions = append(transferOptions, transfer.WithRecursive(true))
-	transferGraphDefinition, err := transfer.BuildGraphDefinition(ctx, transferOptions...)
+	cfg := &transferspec.Config{Recursive: transferspec.RecursiveInfinite}
+	transferGraphDefinition, err := transfer.BuildGraphDefinition(ctx, cfg, mappings...)
 	if err != nil {
 		return fmt.Errorf("building transfer graph definition: %w", err)
 	}
