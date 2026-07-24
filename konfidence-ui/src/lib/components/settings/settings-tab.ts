@@ -34,9 +34,7 @@ const parseSettingsTab = (value: string | undefined): SettingsTab | undefined =>
 export {
   DEFAULT_SETTINGS_TAB,
   parseSettingsTab,
-  SETTINGS_TAB_IDS,
   SETTINGS_TABS,
   SETTINGS_URL_PARAM,
   type SettingsTab,
-  type SettingsTabDefinition,
 };
