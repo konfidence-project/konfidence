@@ -55,6 +55,9 @@ func (m *mockTargetRepository) GetComponentVersion(_ context.Context, _, _ strin
 func (m *mockTargetRepository) AddComponentVersionAlias(_ context.Context, _, _, _ string) error {
 	return nil
 }
+func (m *mockTargetRepository) RemoveComponentVersionAlias(_ context.Context, _, _ string) error {
+	return nil
+}
 
 type failingTargetRepository struct{}
 
@@ -73,6 +76,9 @@ func (m *failingTargetRepository) GetComponentVersion(_ context.Context, _, _ st
 	return &descriptorruntime.Descriptor{}, nil
 }
 func (m *failingTargetRepository) AddComponentVersionAlias(_ context.Context, _, _, _ string) error {
+	return fmt.Errorf("alias failed")
+}
+func (m *failingTargetRepository) RemoveComponentVersionAlias(_ context.Context, _, _ string) error {
 	return fmt.Errorf("alias failed")
 }
 

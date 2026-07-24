@@ -15,6 +15,7 @@ var (
 	GroupVersion = schema.GroupVersion{Group: "konfidence.cloud", Version: "v1alpha1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
+	//nolint:staticcheck // scheme.Builder is deprecated but still the kubebuilder scaffold; all *_types.go register through it
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.

@@ -26,6 +26,10 @@ func (m *mockAliasRepo) AddComponentVersionAlias(_ context.Context, _, _, _ stri
 	return m.addAliasErr
 }
 
+func (m *mockAliasRepo) RemoveComponentVersionAlias(_ context.Context, _, _ string) error {
+	return nil
+}
+
 var _ = Describe("Alias", func() {
 	var (
 		ctx       context.Context
