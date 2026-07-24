@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ProjectHandler struct{ k8s func() client.Client }
+type ProjectHandler struct{ k8s func() (client.Client, error) }
 
 func (h *ProjectHandler) ListProjects(_ context.Context, _ openapi.ListProjectsRequestObject) (openapi.ListProjectsResponseObject, error) {
 	return nil, nil

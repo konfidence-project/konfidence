@@ -18,8 +18,8 @@ import (
 
 // Defines values for StageConditionStatus.
 const (
-	False   StageConditionStatus = "false"
-	True    StageConditionStatus = "true"
+	False   StageConditionStatus = "False"
+	True    StageConditionStatus = "True"
 	Unknown StageConditionStatus = "Unknown"
 )
 

@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type AuthHandler struct{ k8s func() client.Client }
+type AuthHandler struct{ k8s func() (client.Client, error) }
 
 func (h *AuthHandler) Login(_ context.Context, _ openapi.LoginRequestObject) (openapi.LoginResponseObject, error) {
 	return nil, nil

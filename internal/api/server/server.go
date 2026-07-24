@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 
@@ -28,10 +29,19 @@ func New(cfg config.Parsed, mounts ...router.MountFunc) *Server {
 }
 
 // Run starts the HTTP server and blocks until ctx is cancelled, then performs
-// a graceful shutdown.
-func (s *Server) Run(ctx context.Context) error {
+// a graceful shutdown. The optional onAddr callback is called with the actual
+// bound address once the server is listening — useful in tests with ":0".
+func (s *Server) Run(ctx context.Context, onAddr ...func(string)) error {
+	ln, err := net.Listen("tcp", s.cfg.Addr)
+	if err != nil {
+		return fmt.Errorf("failed to listen on %s: %w", s.cfg.Addr, err)
+	}
+
+	if len(onAddr) > 0 && onAddr[0] != nil {
+		onAddr[0](ln.Addr().String())
+	}
+
 	srv := &http.Server{
-		Addr:         s.cfg.Addr,
 		Handler:      router.New(s.logger, s.cfg.Scheme, s.mounts...),
 		ReadTimeout:  s.cfg.ReadTimeout,
 		WriteTimeout: s.cfg.WriteTimeout,
@@ -39,8 +49,8 @@ func (s *Server) Run(ctx context.Context) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		s.logger.Info("api server starting", "addr", s.cfg.Addr)
-		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		s.logger.Info("api server starting", "addr", ln.Addr().String())
+		if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 			errCh <- fmt.Errorf("server error: %w", err)
 		}
 		close(errCh)
