@@ -1,43 +1,43 @@
 package handler_test
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 
+	"github.com/konfidence-project/konfidence/internal/api/handler"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/konfidence-project/konfidence/internal/api/handler"
+	"github.com/konfidence-project/konfidence/internal/api/openapi"
 )
 
 var _ = Describe("Health handlers", func() {
+	var h openapi.StrictServerInterface
+
+	BeforeEach(func() {
+		h = handler.NewServerHandler(nil)
+	})
+
 	Describe("Healthz", func() {
 		It("returns 200 with status ok", func() {
-			rec := httptest.NewRecorder()
-			Expect(handler.Healthz(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))).To(Succeed())
+			resp, err := h.GetHealthStatus(context.Background(), openapi.GetHealthStatusRequestObject{})
+			Expect(err).NotTo(HaveOccurred())
 
-			Expect(rec.Code).To(Equal(http.StatusOK))
-			Expect(rec.Header().Get("Content-Type")).To(Equal("application/json"))
-
-			var body map[string]string
-			Expect(json.NewDecoder(rec.Body).Decode(&body)).To(Succeed())
-			Expect(body["status"]).To(Equal("ok"))
+			ok, is200 := resp.(openapi.GetHealthStatus200JSONResponse)
+			Expect(is200).To(BeTrue())
+			Expect(ok.Status).To(Equal("ok"))
 		})
 	})
 
 	Describe("Readyz", func() {
 		It("returns 200 with status ok", func() {
-			rec := httptest.NewRecorder()
-			Expect(handler.Readyz(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))).To(Succeed())
+			resp, err := h.GetReadinessStatus(context.Background(), openapi.GetReadinessStatusRequestObject{})
+			Expect(err).NotTo(HaveOccurred())
 
-			Expect(rec.Code).To(Equal(http.StatusOK))
-			Expect(rec.Header().Get("Content-Type")).To(Equal("application/json"))
-
-			var body map[string]string
-			Expect(json.NewDecoder(rec.Body).Decode(&body)).To(Succeed())
-			Expect(body["status"]).To(Equal("ok"))
+			ok, is200 := resp.(openapi.GetReadinessStatus200JSONResponse)
+			Expect(is200).To(BeTrue())
+			Expect(ok.Status).To(Equal("ok"))
 		})
 	})
 })

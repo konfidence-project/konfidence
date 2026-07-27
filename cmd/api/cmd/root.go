@@ -5,12 +5,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/spf13/cobra"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/server"
-	stageapi "github.com/konfidence-project/konfidence/internal/stage/api"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -77,7 +77,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	return server.New(parsed, stageapi.Mount).Run(ctx)
+	return server.New(parsed, handler.Mount).Run(ctx)
 }
 
 // envOr returns the value of the environment variable key, or fallback if unset.
