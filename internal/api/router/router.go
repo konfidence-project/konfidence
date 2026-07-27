@@ -11,7 +11,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
 )
 
@@ -28,9 +27,6 @@ func New(logger *slog.Logger, scheme *runtime.Scheme, mounts ...MountFunc) http.
 
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.Logging(logger))
-
-	r.Method(http.MethodGet, "/healthz", middleware.Handle(logger, handler.Healthz))
-	r.Method(http.MethodGet, "/readyz", middleware.Handle(logger, handler.Readyz))
 
 	r.Group(func(domain chi.Router) {
 		for _, mount := range mounts {

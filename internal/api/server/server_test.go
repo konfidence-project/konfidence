@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/konfidence-project/konfidence/internal/api/handler"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -45,14 +46,14 @@ var _ = Describe("Server", func() {
 		})
 
 		It("serves /healthz while running", func() {
-			srv := server.New(validParsed("127.0.0.1:19090"))
+			srv := server.New(validParsed("127.0.0.1:19090"), handler.Mount)
 			ctx, cancel := context.WithCancel(context.Background())
 			DeferCleanup(cancel)
 
 			go func() { _ = srv.Run(ctx) }()
 
 			Eventually(func() error {
-				resp, err := http.Get("http://127.0.0.1:19090/healthz") //nolint:noctx
+				resp, err := http.Get("http://127.0.0.1:19090/api/v1/healthz") //nolint:noctx
 				if err != nil {
 					return err
 				}
@@ -60,7 +61,7 @@ var _ = Describe("Server", func() {
 				return nil
 			}, "3s", "50ms").Should(Succeed())
 
-			resp, err := http.Get("http://127.0.0.1:19090/healthz") //nolint:noctx
+			resp, err := http.Get("http://127.0.0.1:19090/api/v1/healthz") //nolint:noctx
 			Expect(err).NotTo(HaveOccurred())
 			defer func() { _ = resp.Body.Close() }()
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
