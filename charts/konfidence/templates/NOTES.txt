@@ -20,7 +20,7 @@ Nothing was installed: controller.install and crd.install are both false.
 Konfidence API server installed in namespace {{ .Release.Namespace }}.
 
 Port-forward for local access:
-  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "star.fullname" . }}-api {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "konfidence.fullname" . }}-api {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
   curl http://localhost:{{ .Values.api.service.port }}/healthz
 {{- end }}
 
