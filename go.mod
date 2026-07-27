@@ -27,7 +27,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.43.0
 	go.uber.org/mock v0.6.0
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
-	golang.org/x/sync v0.21.0
+	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.43.0
 	golang.org/x/text v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -227,7 +227,7 @@ require (
 	ocm.software/open-component-model/bindings/go/http v0.0.0-20260703060508-0b3dd949136d // indirect
 	ocm.software/open-component-model/bindings/go/input/utf8 v0.0.0-20260630065557-4203eeea0c8d // indirect
 	ocm.software/open-component-model/bindings/go/sigstore v0.0.0-20260630065557-4203eeea0c8d // indirect
-	oras.land/oras-go/v2 v2.6.1 // indirect
+	oras.land/oras-go/v2 v2.6.2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/kustomize/api v0.21.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.21.1 // indirect
