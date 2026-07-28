@@ -1,275 +1,212 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/Button.js";
-    import "@ui5/webcomponents/dist/Input.js";
-    import "@ui5/webcomponents/dist/Table.js";
-    import "@ui5/webcomponents/dist/TableCell.js";
-    import "@ui5/webcomponents/dist/TableGrowing.js";
-    import "@ui5/webcomponents/dist/TableHeaderCell.js";
-    import "@ui5/webcomponents/dist/TableHeaderRow.js";
-    import "@ui5/webcomponents/dist/TableRow.js";
-    import "@ui5/webcomponents/dist/TableVirtualizer.js";
-    import "@ui5/webcomponents/dist/Tag.js";
-    import "@ui5/webcomponents/dist/Title.js";
-    import "@ui5/webcomponents-fiori/dist/FlexibleColumnLayout.js";
-    import "@ui5/webcomponents-fiori/dist/IllustratedMessage.js";
-    import "@ui5/webcomponents-fiori/dist/illustrations/tnt/Components.js";
-    import "@ui5/webcomponents-icons/dist/decline.js";
-    import "@ui5/webcomponents-icons/dist/filter.js";
+    import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
+    import ArrowUpDownIcon from "@lucide/svelte/icons/arrow-up-down";
+    import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
+    import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
+    import SearchIcon from "@lucide/svelte/icons/search";
+    import XIcon from "@lucide/svelte/icons/x";
 
-    import { addCustomCSS } from "@ui5/webcomponents-base/dist/Theming.js";
     import type { VectorDeployment } from "$lib/deployments";
 
-    type TableRowClickEventDetail =
-        import("@ui5/webcomponents/dist/Table.js").TableRowClickEventDetail;
     type SortColumn = "id" | "status" | "version";
-    type SortDirection = "None" | "Ascending" | "Descending";
+    type SortDirection = "ascending" | "descending" | "none";
 
-    addCustomCSS("ui5-flexible-column-layout", ".ui5-fcl-root { width: 100%; }");
-
-    const PAGE_SIZE = 50;
-    const ROW_HEIGHT = 45;
+    const PAGE_SIZE = 12;
     const SORT_KEYS = {
-        id: (vectorDeployment: VectorDeployment) => vectorDeployment.id,
-        status: (vectorDeployment: VectorDeployment) => vectorDeployment.status,
-        version: (vectorDeployment: VectorDeployment) => vectorDeployment.version,
+        id: (deployment: VectorDeployment) => deployment.id,
+        status: (deployment: VectorDeployment) => deployment.status,
+        version: (deployment: VectorDeployment) => deployment.version,
     } as const;
 
     const { vectorDeployments } = $props<{ vectorDeployments: VectorDeployment[] }>();
-
     let searchTerm = $state("");
-    let selectedVectorDeploymentId = $state<string | undefined>();
+    let selectedId = $state<string>();
     let visibleCount = $state(PAGE_SIZE);
-    let sortColumn = $state<SortColumn | undefined>();
-    let sortDirection = $state<SortDirection>("None");
+    let sortColumn = $state<SortColumn>();
+    let sortDirection = $state<SortDirection>("none");
 
-    const selectedVectorDeployment = $derived(
-        vectorDeployments.find(
-            (vectorDeployment: VectorDeployment) =>
-                vectorDeployment.id === selectedVectorDeploymentId,
-        ),
+    const selected = $derived(
+        vectorDeployments.find((deployment: VectorDeployment) => deployment.id === selectedId),
     );
-    const layout = $derived.by(() => {
-        if (selectedVectorDeployment) {
-            return "TwoColumnsMidExpanded";
-        }
-        return "OneColumn";
-    });
-    const filteredVectorDeployments = $derived.by(() => {
+    const filtered = $derived.by(() => {
         const query = searchTerm.trim().toLowerCase();
         if (!query) {
             return vectorDeployments;
         }
-        return vectorDeployments.filter((vectorDeployment: VectorDeployment) =>
+        return vectorDeployments.filter((deployment: VectorDeployment) =>
             [
-                vectorDeployment.id,
-                vectorDeployment.repository,
-                vectorDeployment.component,
-                vectorDeployment.version,
-                vectorDeployment.landscape,
-                vectorDeployment.stage,
-                vectorDeployment.status,
+                deployment.id,
+                deployment.repository,
+                deployment.component,
+                deployment.version,
+                deployment.landscape,
+                deployment.stage,
+                deployment.status,
             ].some((value) => value.toLowerCase().includes(query)),
         );
     });
-    const sortedVectorDeployments = $derived.by(() => {
-        if (!sortColumn || sortDirection === "None") {
-            return filteredVectorDeployments;
+    const sorted = $derived.by(() => {
+        if (!sortColumn || sortDirection === "none") {
+            return filtered;
         }
-        const getValue = SORT_KEYS[sortColumn];
+        const value = SORT_KEYS[sortColumn];
         let factor = -1;
-        if (sortDirection === "Ascending") {
+        if (sortDirection === "ascending") {
             factor = 1;
         }
-        return [...filteredVectorDeployments].toSorted((left, right) =>
-            getValue(left).localeCompare(getValue(right)) * factor,
-        );
+        return [...filtered].toSorted((left, right) => value(left).localeCompare(value(right)) * factor);
     });
-    const visibleVectorDeployments = $derived(sortedVectorDeployments.slice(0, visibleCount));
-    const hasMore = $derived(visibleCount < sortedVectorDeployments.length);
+    const visible = $derived(sorted.slice(0, visibleCount));
+    const hasMore = $derived(visible.length < sorted.length);
 
-    const sortIndicator = (column: SortColumn): SortDirection => {
+    const directionFor = (column: SortColumn): SortDirection => {
         if (sortColumn === column) {
             return sortDirection;
         }
-        return "None";
+        return "none";
     };
 
     const toggleSort = (column: SortColumn): void => {
         if (sortColumn !== column) {
             sortColumn = column;
-            sortDirection = "Ascending";
-        } else if (sortDirection === "Ascending") {
-            sortDirection = "Descending";
+            sortDirection = "ascending";
+        } else if (sortDirection === "ascending") {
+            sortDirection = "descending";
         } else {
             sortColumn = undefined;
-            sortDirection = "None";
+            sortDirection = "none";
         }
         visibleCount = PAGE_SIZE;
     };
 
-    const handleSortKeydown = (event: KeyboardEvent, column: SortColumn): void => {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            toggleSort(column);
-        }
-    };
-
-    const handleSearchInput = (event: Event): void => {
-        searchTerm = (event.target as HTMLInputElement | null)?.value ?? "";
+    const updateSearch = (event: Event): void => {
+        searchTerm = (event.currentTarget as HTMLInputElement).value;
         visibleCount = PAGE_SIZE;
-    };
-
-    const handleRowClick = (event: CustomEvent<TableRowClickEventDetail>): void => {
-        selectedVectorDeploymentId = event.detail.row.getAttribute("row-key") ?? undefined;
     };
 </script>
 
-<ui5-flexible-column-layout class="vector-fcl" {layout} accessible-name="Vector deployments">
-    <section slot="startColumn" class="vector-pane vector-list">
-        <header class="page-head">
-            <ui5-title level="H2">Vector Deployments</ui5-title>
-            <p class="page-sub">
-                Versioned vectors currently assigned to project stages · click a row to view its
-                details · showing {visibleVectorDeployments.length} of {sortedVectorDeployments.length}.
+<div class={["grid min-h-0 min-w-0 flex-1 bg-app-bg", selected ? "grid-cols-[minmax(24rem,0.75fr)_minmax(28rem,1.25fr)] max-[68rem]:grid-cols-1" : "grid-cols-1"]}>
+    <section class={["flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden px-4 py-[1.2rem] max-[68rem]:px-3 max-[47.999rem]:py-4", selected && "max-[68rem]:hidden"]} aria-labelledby="vector-title">
+        <header class="grid gap-[0.2rem]">
+            <span class="text-[0.68rem] font-bold tracking-[0.09em] text-app-accent-strong uppercase">Project inventory</span>
+            <h1 id="vector-title" class="m-0 text-[1.35rem]">Vector Deployments</h1>
+            <p class="m-0 text-[0.84rem] text-app-muted">
+                Versioned vectors currently assigned to project stages. Showing {visible.length} of {sorted.length}.
             </p>
         </header>
 
-        <div class="vt-search" role="search">
-            <ui5-input
-                class="vt-search-input"
-                placeholder="Search vector deployments…"
+        <div class="relative flex items-center" role="search">
+            <label for="vector-search" class="sr-only">Search vector deployments</label>
+            <SearchIcon class="pointer-events-none absolute left-3 z-1 size-4 text-app-muted" aria-hidden="true" />
+            <input
+                id="vector-search"
+                class="input w-full border-app-border bg-app-card pl-9 text-app-text"
+                type="search"
+                placeholder="Search vector deployments..."
                 value={searchTerm}
-                onui5-input={handleSearchInput}
-            ></ui5-input>
-            <ui5-button icon="filter" design="Transparent">Filter</ui5-button>
-            <ui5-button icon="filter" design="Transparent">Status</ui5-button>
+                oninput={updateSearch}
+            />
         </div>
 
-        <ui5-table
-            class="vector-table"
-            overflow-mode="Scroll"
-            no-data-text="No vector deployments match your search."
-            accessible-name="Vector deployments"
-            onui5-row-click={handleRowClick}
-        >
-            <ui5-table-virtualizer
-                slot="features"
-                row-count={visibleVectorDeployments.length}
-                row-height={ROW_HEIGHT}
-            ></ui5-table-virtualizer>
-            {#if hasMore}
-                <ui5-table-growing slot="features" mode="Scroll" onui5-load-more={() => {
-                    visibleCount = Math.min(visibleCount + PAGE_SIZE, sortedVectorDeployments.length);
-                }}></ui5-table-growing>
-            {/if}
+        <div class="min-h-48 flex-1 overflow-auto rounded-[0.55rem] border border-app-border bg-app-card">
+            <table class="table w-full min-w-256 border-collapse text-[0.8rem] text-app-text [&_th]:border-b [&_th]:border-app-border [&_th]:px-3 [&_th]:py-[0.68rem] [&_th]:text-left [&_th]:whitespace-nowrap [&_td]:border-b [&_td]:border-app-border [&_td]:px-3 [&_td]:py-[0.68rem] [&_td]:text-left [&_td]:whitespace-nowrap" aria-label="Vector deployments">
+                <thead class="sticky top-0 z-2 bg-app-bg">
+                    <tr>
+                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col" aria-sort={directionFor("id")}>
+                            <button class="-m-[0.4rem] inline-flex cursor-pointer items-center gap-[0.35rem] rounded border-0 bg-transparent p-[0.4rem] text-inherit hover:text-app-accent-strong [&_svg]:size-[0.8rem]" type="button" onclick={() => toggleSort("id")}>
+                                Vector deployment
+                                {#if directionFor("id") === "ascending"}<ArrowUpIcon aria-hidden="true" />
+                                {:else if directionFor("id") === "descending"}<ArrowDownIcon aria-hidden="true" />
+                                {:else}<ArrowUpDownIcon aria-hidden="true" />{/if}
+                            </button>
+                        </th>
+                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col">Repository</th>
+                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col" aria-sort={directionFor("version")}>
+                            <button class="-m-[0.4rem] inline-flex cursor-pointer items-center gap-[0.35rem] rounded border-0 bg-transparent p-[0.4rem] text-inherit hover:text-app-accent-strong [&_svg]:size-[0.8rem]" type="button" onclick={() => toggleSort("version")}>
+                                Version
+                                {#if directionFor("version") === "ascending"}<ArrowUpIcon aria-hidden="true" />
+                                {:else if directionFor("version") === "descending"}<ArrowDownIcon aria-hidden="true" />
+                                {:else}<ArrowUpDownIcon aria-hidden="true" />{/if}
+                            </button>
+                        </th>
+                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col">Landscape</th>
+                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col">Stage</th>
+                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col" aria-sort={directionFor("status")}>
+                            <button class="-m-[0.4rem] inline-flex cursor-pointer items-center gap-[0.35rem] rounded border-0 bg-transparent p-[0.4rem] text-inherit hover:text-app-accent-strong [&_svg]:size-[0.8rem]" type="button" onclick={() => toggleSort("status")}>
+                                Status
+                                {#if directionFor("status") === "ascending"}<ArrowUpIcon aria-hidden="true" />
+                                {:else if directionFor("status") === "descending"}<ArrowDownIcon aria-hidden="true" />
+                                {:else}<ArrowUpDownIcon aria-hidden="true" />{/if}
+                            </button>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {#each visible as deployment (deployment.id)}
+                        <tr class={["hover:bg-app-accent/7", selectedId === deployment.id && "bg-app-accent/7 shadow-[inset_3px_0_var(--app-accent)]"]}>
+                            <th scope="row">
+                                <button class="deployment-link cursor-pointer border-0 bg-transparent p-0 font-bold text-app-text hover:text-app-accent-strong hover:underline" type="button" onclick={() => (selectedId = deployment.id)}>
+                                    {deployment.id}
+                                </button>
+                            </th>
+                            <td><code class="font-mono text-xs text-app-text">{deployment.repository}</code></td>
+                            <td><code class="font-mono text-xs text-app-text">{deployment.version}</code></td>
+                            <td>{deployment.landscape}</td>
+                            <td>{deployment.stage}</td>
+                            <td>
+                                <span class={["inline-flex items-center gap-[0.35rem] rounded-full px-[0.45rem] py-[0.24rem] text-[0.7rem] font-[650]", deployment.status === "ArtifactDeploymentCreated" ? "bg-app-success/14 text-app-success" : "bg-app-accent/13 text-app-accent-strong"]}>
+                                    <i class="size-[0.42rem] rounded-full bg-current" aria-hidden="true"></i>{deployment.status}
+                                </span>
+                            </td>
+                        </tr>
+                    {:else}
+                        <tr><td class="p-12 text-center text-app-muted" colspan="6">No vector deployments match your search.</td></tr>
+                    {/each}
+                </tbody>
+            </table>
+        </div>
 
-            <ui5-table-header-row slot="headerRow">
-                <ui5-table-header-cell
-                    class="sortable"
-                    role="button"
-                    tabindex="0"
-                    sort-indicator={sortIndicator("id")}
-                    onclick={() => toggleSort("id")}
-                    onkeydown={(event: KeyboardEvent) => handleSortKeydown(event, "id")}
-                >Vector deployment</ui5-table-header-cell>
-                <ui5-table-header-cell min-width="220px">Repository</ui5-table-header-cell>
-                <ui5-table-header-cell
-                    class="sortable"
-                    role="button"
-                    tabindex="0"
-                    min-width="120px"
-                    sort-indicator={sortIndicator("version")}
-                    onclick={() => toggleSort("version")}
-                    onkeydown={(event: KeyboardEvent) => handleSortKeydown(event, "version")}
-                >Version</ui5-table-header-cell>
-                <ui5-table-header-cell min-width="140px">Landscape</ui5-table-header-cell>
-                <ui5-table-header-cell min-width="180px">Stage</ui5-table-header-cell>
-                <ui5-table-header-cell
-                    class="sortable"
-                    role="button"
-                    tabindex="0"
-                    min-width="190px"
-                    sort-indicator={sortIndicator("status")}
-                    onclick={() => toggleSort("status")}
-                    onkeydown={(event: KeyboardEvent) => handleSortKeydown(event, "status")}
-                >Status</ui5-table-header-cell>
-            </ui5-table-header-row>
-
-            {#each visibleVectorDeployments as vectorDeployment (vectorDeployment.id)}
-                <ui5-table-row interactive row-key={vectorDeployment.id}>
-                    <ui5-table-cell><span class="vid-cell">{vectorDeployment.id}</span></ui5-table-cell>
-                    <ui5-table-cell><span class="mono muted">{vectorDeployment.repository}</span></ui5-table-cell>
-                    <ui5-table-cell><span class="mono">{vectorDeployment.version}</span></ui5-table-cell>
-                    <ui5-table-cell>{vectorDeployment.landscape}</ui5-table-cell>
-                    <ui5-table-cell>{vectorDeployment.stage}</ui5-table-cell>
-                    <ui5-table-cell>
-                        <ui5-tag design={vectorDeployment.status === "ArtifactDeploymentCreated" ? "Positive" : "Information"}>
-                            {vectorDeployment.status}
-                        </ui5-tag>
-                    </ui5-table-cell>
-                </ui5-table-row>
-            {/each}
-        </ui5-table>
+        {#if hasMore}
+            <button
+                class="btn preset-tonal self-center"
+                type="button"
+                onclick={() => (visibleCount = Math.min(visibleCount + PAGE_SIZE, sorted.length))}
+            >
+                Load more <span class="sr-only">vector deployments</span>
+            </button>
+        {/if}
     </section>
 
-    {#if selectedVectorDeployment}
-        <section slot="midColumn" class="vector-pane vector-details">
-            <header class="details-head">
-                <ui5-title level="H3">{selectedVectorDeployment.id}</ui5-title>
-                <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
-                <ui5-button
-                    icon="decline"
-                    design="Transparent"
-                    accessible-name="Close vector deployment details"
-                    onclick={() => { selectedVectorDeploymentId = undefined; }}
-                ></ui5-button>
+    {#if selected}
+        <section class="flex min-h-0 min-w-0 flex-col border-l border-app-border bg-app-card max-[68rem]:border-l-0" aria-labelledby="details-title">
+            <header class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-app-border px-5 py-4 max-[68rem]:grid-cols-[auto_minmax(0,1fr)]">
+                <button class="btn-icon hover:preset-tonal hidden max-[68rem]:inline-grid [&_svg]:size-[1.1rem]" type="button" aria-label="Back to vector deployments" onclick={() => (selectedId = undefined)}>
+                    <ChevronLeftIcon aria-hidden="true" />
+                </button>
+                <div class="min-w-0">
+                    <span class="text-[0.68rem] font-bold tracking-[0.08em] text-app-muted uppercase">Vector deployment</span>
+                    <h2 id="details-title" class="m-0 truncate text-[1.15rem]">{selected.id}</h2>
+                </div>
+                <button class="btn-icon hover:preset-tonal max-[68rem]:hidden [&_svg]:size-[1.1rem]" type="button" aria-label="Close vector deployment details" onclick={() => (selectedId = undefined)}>
+                    <XIcon aria-hidden="true" />
+                </button>
             </header>
-            <div class="details-body">
-                <ui5-illustrated-message
-                    name="TntComponents"
-                    title-text="Vector deployment details coming soon"
-                    subtitle-text={`Artifact breakdown and deployment history for ${selectedVectorDeployment.component} will appear here.`}
-                >
-                    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
-                    <ui5-button design="Emphasized" onclick={() => { selectedVectorDeploymentId = undefined; }}>
-                        Back to list
-                    </ui5-button>
-                </ui5-illustrated-message>
+            <div class="grid flex-1 content-center justify-items-center gap-6 overflow-auto p-[clamp(1rem,4vw,3rem)]">
+                <dl class="card m-0 grid w-[min(40rem,100%)] grid-cols-2 overflow-hidden border border-app-border bg-app-bg max-[47.999rem]:grid-cols-1 [&>div]:grid [&>div]:gap-1 [&>div]:border-b [&>div]:border-app-border [&>div]:px-4 [&>div]:py-[0.8rem] [&>div:nth-child(odd)]:border-r [&>div:nth-child(odd)]:border-app-border max-[47.999rem]:[&>div:nth-child(odd)]:border-r-0 [&_dt]:text-[0.68rem] [&_dt]:font-bold [&_dt]:text-app-muted [&_dt]:uppercase [&_dd]:m-0 [&_dd]:[overflow-wrap:anywhere] [&_code]:font-mono [&_code]:text-xs [&_code]:text-app-muted">
+                    <div><dt>Component</dt><dd>{selected.component}</dd></div>
+                    <div><dt>Version</dt><dd><code>{selected.version}</code></dd></div>
+                    <div><dt>Repository</dt><dd><code>{selected.repository}</code></dd></div>
+                    <div><dt>Landscape</dt><dd>{selected.landscape}</dd></div>
+                    <div><dt>Stage</dt><dd>{selected.stage}</dd></div>
+                    <div><dt>Status</dt><dd>{selected.status}</dd></div>
+                </dl>
+                <div class="grid max-w-lg justify-items-center gap-2 text-center">
+                    <span class="mb-1 grid size-16 -rotate-5 place-items-center rounded-[1.2rem] bg-gradient-to-br from-app-accent to-app-warning font-extrabold text-white" aria-hidden="true">KD</span>
+                    <h3 class="m-0">Deployment history coming soon</h3>
+                    <p class="m-0 text-app-muted">Artifact breakdown and deployment events for {selected.component} will appear here.</p>
+                </div>
+                <button class="btn preset-filled-primary-500" type="button" onclick={() => (selectedId = undefined)}>Back to list</button>
             </div>
         </section>
     {/if}
-</ui5-flexible-column-layout>
-
-<style>
-    .vector-fcl {
-        flex: 1;
-        height: 100%;
-        --vector-pane-padding: 1rem;
-        --vector-text: var(--sapTextColor, #1d2d3e);
-        --vector-text-muted: var(--sapContent_LabelColor, #556b82);
-        --vector-mono-family: var(--sapFontMonospaceFamily, monospace);
-        --vector-mono-size: var(--sapFontSmallSize, 0.75rem);
-    }
-    .vector-pane {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        min-height: 0;
-        padding: var(--vector-pane-padding);
-        gap: 1rem;
-        overflow: auto;
-        box-sizing: border-box;
-    }
-    .page-head { display: flex; flex-direction: column; gap: 0.25rem; }
-    .page-sub { margin: 0; color: var(--vector-text-muted); font-size: var(--sapFontSize, 0.875rem); }
-    .vt-search { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-    .vt-search-input { flex: 1 1 260px; min-width: 200px; }
-    .vector-table { flex: 1 1 auto; min-height: 0; }
-    .sortable { cursor: pointer; }
-    .vid-cell { font-weight: 600; color: var(--vector-text); }
-    .mono { font-family: var(--vector-mono-family); font-size: var(--vector-mono-size); color: var(--vector-text); }
-    .mono.muted { color: var(--vector-text-muted); }
-    .vector-details { gap: 0; padding: 0; }
-    .details-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 1rem var(--vector-pane-padding); border-bottom: 1px solid var(--sapList_BorderColor, #e4e4e2); }
-    .details-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: var(--vector-pane-padding); min-height: 0; }
-</style>
+</div>

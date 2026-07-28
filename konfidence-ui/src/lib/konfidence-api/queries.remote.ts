@@ -54,24 +54,4 @@ const getVectorDeployments = query(projectIdSchema, async (projectId) => {
   };
 });
 
-const getArtifactDeployments = query(projectIdSchema, async (projectId) => {
-  const event = getRequestEvent();
-  const api = createRequestClient(event);
-  const params = { params: { path: { projectId } } } as const;
-  const [artifactDeployments, landscapes, stages] = await Promise.all([
-    api.GET("/projects/{projectId}/artifactDeployments", params),
-    api.GET("/projects/{projectId}/landscapes", params),
-    api.GET("/projects/{projectId}/stages", params),
-  ]);
-  return {
-    artifactDeployments: responseData(
-      event,
-      artifactDeployments,
-      "Failed to load artifact deployments",
-    ).data,
-    landscapes: responseData(event, landscapes, "Failed to load landscapes").data,
-    stages: responseData(event, stages, "Failed to load stages").data,
-  };
-});
-
-export { getArtifactDeployments, getProjectLandscape, getProjects, getVectorDeployments };
+export { getProjectLandscape, getProjects, getVectorDeployments };

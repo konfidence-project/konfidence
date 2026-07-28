@@ -1,29 +1,13 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/Avatar.js";
-    import "@ui5/webcomponents/dist/Label.js";
-    import "@ui5/webcomponents/dist/Tag.js";
-    import "@ui5/webcomponents/dist/Title.js";
-    import "@ui5/webcomponents-fiori/dist/UserSettingsAppearanceView.js";
-    import "@ui5/webcomponents-fiori/dist/UserSettingsAppearanceViewGroup.js";
-    import "@ui5/webcomponents-fiori/dist/UserSettingsAppearanceViewItem.js";
-    import "@ui5/webcomponents-fiori/dist/UserSettingsDialog.js";
-    import "@ui5/webcomponents-fiori/dist/UserSettingsItem.js";
-    import "@ui5/webcomponents-fiori/dist/UserSettingsView.js";
+    import PaletteIcon from "@lucide/svelte/icons/palette";
+    import UserIcon from "@lucide/svelte/icons/user";
+    import XIcon from "@lucide/svelte/icons/x";
+    import { Dialog, Portal, Tabs } from "@skeletonlabs/skeleton-svelte";
 
-    import {
-        DEFAULT_SETTINGS_TAB,
-        SETTINGS_TABS,
-        type SettingsTab,
-    } from "./settings-tab.js";
-    import { selectTheme, themePreference, themes } from "$lib/stores/theme.svelte";
     import type { AuthUser } from "$lib/auth/types";
-    import { STAGE_CARD_VARIANTS } from "$lib/components/stage/variants.js";
-    import { getStageCardVariantPreference } from "$lib/stores/stage-card-variant.svelte";
-
-    type UserSettingsItemSelectEventDetail =
-        import("@ui5/webcomponents-fiori/dist/UserSettingsDialog.js").UserSettingsItemSelectEventDetail;
-    type UserSettingsAppearanceViewItemSelectEventDetail =
-        import("@ui5/webcomponents-fiori/dist/UserSettingsAppearanceView.js").UserSettingsAppearanceViewItemSelectEventDetail;
+    import { getThemePreference } from "$lib/theme-preference.svelte";
+    import { themes } from "$lib/theme";
+    import type { SettingsTab } from "./settings-tab.js";
 
     const AVATAR_INITIALS_MAX = 2;
 
@@ -36,12 +20,8 @@
     }
 
     const { onClose, onTabChange, open, tab, user }: Props = $props();
-
-    const activeTab: SettingsTab = $derived(tab ?? DEFAULT_SETTINGS_TAB);
-
-    const stageCardVariant = getStageCardVariantPreference();
-
-    const avatarInitials = $derived(
+    const theme = getThemePreference();
+    const initials = $derived(
         user.name
             .split(" ")
             .map((part) => part[0] ?? "")
@@ -49,245 +29,91 @@
             .slice(0, AVATAR_INITIALS_MAX)
             .toUpperCase(),
     );
-
-    const accountSubtitle = $derived(user.email ?? "Signed in via SSO");
-    const accountDescription = $derived(user.roles.join(", "));
-
-    interface AccountDetail {
-        label: string;
-        value: string;
-    }
-
-    const accountDetails: AccountDetail[] = $derived([
+    const accountDetails = $derived([
         { label: "Email", value: user.email },
         { label: "Given name", value: user.givenName },
         { label: "Family name", value: user.familyName },
-        { label: "Roles", value: accountDescription || "(none)" },
+        { label: "Roles", value: user.roles.join(", ") || "(none)" },
     ]);
-
-    const handleClose = (): void => {
-        onClose();
-    };
-
-    const handleSelectionChange = (
-        event: CustomEvent<UserSettingsItemSelectEventDetail>,
-    ): void => {
-        const nextTab = event.detail.item.getAttribute("data-tab-id");
-        if (!nextTab) {
-            return;
-        }
-        const found = SETTINGS_TABS.find((definition) => definition.id === nextTab);
-        if (!found) {
-            return;
-        }
-        if (found.id === activeTab) {
-            return;
-        }
-        onTabChange(found.id);
-    };
-
-    const handleAppearanceChange = (
-        event: CustomEvent<UserSettingsAppearanceViewItemSelectEventDetail>,
-    ): void => {
-        const key = event.detail.item.getAttribute("item-key");
-        if (!key) {
-            return;
-        }
-        selectTheme(key);
-    };
-
-    const handleStageCardVariantChange = (
-        event: CustomEvent<UserSettingsAppearanceViewItemSelectEventDetail>,
-    ): void => {
-        const key = event.detail.item.getAttribute("item-key");
-        if (!key) {
-            return;
-        }
-        stageCardVariant.select(key);
-    };
 </script>
 
-<ui5-user-settings-dialog
-    id="settings-dialog"
-    header-text="Settings"
-    {open}
-    onui5-close={handleClose}
-    onui5-selection-change={handleSelectionChange}
->
-    <ui5-user-settings-item
-        icon="user-settings"
-        text="Profile"
-        tooltip="Profile"
-        header-text="Profile"
-        selected={activeTab === "profile"}
-        data-tab-id="profile"
-    >
-        <ui5-user-settings-view>
-            <div class="profile-view">
-                <div class="profile-header">
-                    <ui5-avatar
-                        class="profile-avatar"
-                        initials={avatarInitials}
-                        color-scheme="Accent6"
-                        size="XL"
-                        accessible-name={`Avatar for ${user.name}`}
-                    ></ui5-avatar>
-                    <ui5-title class="profile-title" level="H3" size="H4">
-                        {user.name}
-                    </ui5-title>
-                    <span class="profile-subtitle">{accountSubtitle}</span>
-                    {#if accountDescription}
-                        <span class="profile-description">{accountDescription}</span>
-                    {/if}
-                </div>
+<Dialog {open} onOpenChange={(details) => !details.open && onClose()}>
+    <Portal>
+        <Dialog.Backdrop class="fixed inset-0 z-60 bg-black/48 backdrop-blur-[2px]" />
+        <Dialog.Positioner class="fixed inset-0 z-61 grid place-items-center p-4 max-[42rem]:p-0">
+            <Dialog.Content class="card grid max-h-[min(42rem,calc(100vh-2rem))] w-[min(54rem,100%)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden border border-app-border bg-app-card text-app-text shadow-2xl max-[42rem]:h-full max-[42rem]:max-h-none max-[42rem]:w-full max-[42rem]:rounded-none max-[42rem]:border-0">
+                <header class="flex items-center justify-between border-b border-app-border px-[1.2rem] py-4">
+                    <Dialog.Title class="text-[1.2rem] font-[650]">Settings</Dialog.Title>
+                    <Dialog.CloseTrigger class="btn-icon hover:preset-tonal [&_svg]:size-[1.15rem]" aria-label="Close settings">
+                        <XIcon aria-hidden="true" />
+                    </Dialog.CloseTrigger>
+                </header>
+                <Dialog.Description class="sr-only">
+                    Manage your profile display and application theme.
+                </Dialog.Description>
 
-                <div class="account-details" aria-label="Signed-in identity details">
-                    <dl class="account-fields">
-                        {#each accountDetails as field (field.label)}
-                            <div class="account-row">
-                                <dt>{field.label}</dt>
-                                <dd>{field.value}</dd>
-                            </div>
-                        {/each}
-                    </dl>
-                </div>
-            </div>
-        </ui5-user-settings-view>
-    </ui5-user-settings-item>
+                <Tabs
+                    value={tab}
+                    orientation="vertical"
+                    onValueChange={(details) => onTabChange(details.value as SettingsTab)}
+                    class="grid min-h-0 grid-cols-[12rem_minmax(0,1fr)] max-[42rem]:grid-cols-1 max-[42rem]:grid-rows-[auto_minmax(0,1fr)]"
+                >
+                    <Tabs.List class="flex flex-col gap-1 border-r border-app-border bg-app-bg/70 px-[0.6rem] py-4 max-[42rem]:flex-row max-[42rem]:border-r-0 max-[42rem]:border-b" aria-label="Settings sections">
+                        <Tabs.Trigger class="flex min-h-[2.7rem] cursor-pointer items-center justify-start gap-[0.65rem] rounded-[0.4rem] border-0 bg-transparent px-[0.8rem] text-app-text data-[selected]:bg-app-accent/14 data-[selected]:font-[650] data-[selected]:text-app-accent-strong max-[42rem]:flex-1 max-[42rem]:justify-center [&_svg]:size-[1.1rem]" value="profile">
+                            <UserIcon aria-hidden="true" /> Profile
+                        </Tabs.Trigger>
+                        <Tabs.Trigger class="flex min-h-[2.7rem] cursor-pointer items-center justify-start gap-[0.65rem] rounded-[0.4rem] border-0 bg-transparent px-[0.8rem] text-app-text data-[selected]:bg-app-accent/14 data-[selected]:font-[650] data-[selected]:text-app-accent-strong max-[42rem]:flex-1 max-[42rem]:justify-center [&_svg]:size-[1.1rem]" value="appearance">
+                            <PaletteIcon aria-hidden="true" /> Appearance
+                        </Tabs.Trigger>
+                        <Tabs.Indicator />
+                    </Tabs.List>
 
-    <ui5-user-settings-item
-        icon="palette"
-        text="Appearance"
-        tooltip="Appearance"
-        header-text="Appearance"
-        selected={activeTab === "appearance"}
-        data-tab-id="appearance"
-    >
-        <ui5-user-settings-appearance-view
-            text="Theme"
-            onui5-selection-change={handleAppearanceChange}
-        >
-            <ui5-user-settings-appearance-view-group header-text="Konfidence">
-                {#each themes.filter((option) => option.id.startsWith("konfidence")) as option (option.id)}
-                    <ui5-user-settings-appearance-view-item
-                        item-key={option.id}
-                        text={option.label}
-                        icon={option.id.includes("dark") ? "dark-mode" : "light-mode"}
-                        selected={themePreference.selected === option.id}
-                    ></ui5-user-settings-appearance-view-item>
-                {/each}
-            </ui5-user-settings-appearance-view-group>
-            <ui5-user-settings-appearance-view-group header-text="SAP">
-                {#each themes.filter((option) => !option.id.startsWith("konfidence")) as option (option.id)}
-                    <ui5-user-settings-appearance-view-item
-                        item-key={option.id}
-                        text={option.label}
-                        icon={option.id.includes("dark") ? "dark-mode" : "light-mode"}
-                        selected={themePreference.selected === option.id}
-                    ></ui5-user-settings-appearance-view-item>
-                {/each}
-            </ui5-user-settings-appearance-view-group>
-        </ui5-user-settings-appearance-view>
-    </ui5-user-settings-item>
+                    <Tabs.Content value="profile" class="min-w-0 overflow-y-auto p-[clamp(1.25rem,4vw,2.5rem)]">
+                        <div class="mb-8 grid justify-items-center gap-[0.3rem] text-center">
+                            <span class="mb-[0.4rem] grid size-[5.25rem] place-items-center rounded-full bg-app-accent/18 text-[1.65rem] font-bold text-app-accent-strong" aria-label={`Avatar for ${user.name}`}>{initials}</span>
+                            <h2 class="m-0 text-[1.35rem]">{user.name}</h2>
+                            <p class="m-0 [overflow-wrap:anywhere] text-app-muted">{user.email}</p>
+                        </div>
+                        <dl class="m-0 grid border-t border-app-border">
+                            {#each accountDetails as detail (detail.label)}
+                                <div class="grid grid-cols-[9rem_minmax(0,1fr)] gap-4 border-b border-app-border py-[0.8rem] max-[42rem]:grid-cols-1 max-[42rem]:gap-[0.2rem]">
+                                    <dt class="text-[0.82rem] text-app-muted">{detail.label}</dt>
+                                    <dd class="m-0 [overflow-wrap:anywhere]">{detail.value}</dd>
+                                </div>
+                            {/each}
+                        </dl>
+                    </Tabs.Content>
 
-    <ui5-user-settings-item
-        icon="upstacked-chart"
-        text="Landscape"
-        tooltip="Landscape"
-        header-text="Landscape"
-        selected={activeTab === "landscape"}
-        data-tab-id="landscape"
-    >
-        <ui5-user-settings-appearance-view
-            text="Stage cards"
-            onui5-selection-change={handleStageCardVariantChange}
-        >
-            <ui5-user-settings-appearance-view-group header-text="Card style">
-                {#each STAGE_CARD_VARIANTS as variant (variant.id)}
-                    <ui5-user-settings-appearance-view-item
-                        item-key={variant.id}
-                        text={variant.label}
-                        selected={stageCardVariant.selected === variant.id}
-                    ></ui5-user-settings-appearance-view-item>
-                {/each}
-            </ui5-user-settings-appearance-view-group>
-        </ui5-user-settings-appearance-view>
-    </ui5-user-settings-item>
-</ui5-user-settings-dialog>
-
-<style>
-    .profile-view {
-        display: grid;
-        gap: 1.25rem;
-        padding: 0.25rem 0;
-    }
-
-    .profile-header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .profile-avatar {
-        max-width: 7rem;
-        max-height: 7rem;
-    }
-
-    .profile-title {
-        margin-top: 0.25rem;
-        text-align: center;
-    }
-
-    .profile-subtitle {
-        text-align: center;
-        color: var(--sapContent_LabelColor);
-        font-family: var(--sapFontFamily);
-        font-size: var(--sapFontSize);
-        overflow-wrap: anywhere;
-    }
-
-    .profile-description {
-        text-align: center;
-        color: var(--sapContent_LabelColor);
-        font-family: var(--sapFontFamily);
-        font-size: var(--sapFontSize);
-    }
-
-    .account-details {
-        padding: 0.25rem 0;
-    }
-
-    .account-fields {
-        display: grid;
-        gap: 0.5rem;
-        margin: 0;
-    }
-
-    .account-row {
-        display: grid;
-        grid-template-columns: minmax(9rem, 12rem) 1fr;
-        gap: 1rem;
-        align-items: baseline;
-    }
-
-    dt {
-        margin: 0;
-        color: var(--sapContent_LabelColor);
-        font-size: var(--sapFontSmallSize);
-    }
-
-    dd {
-        margin: 0;
-        color: var(--sapTextColor);
-        font-family: var(--sapFontFamily);
-        overflow-wrap: anywhere;
-    }
-
-    @media (max-width: 42rem) {
-        .account-row {
-            grid-template-columns: 1fr;
-            gap: 0.15rem;
-        }
-    }
-</style>
+                    <Tabs.Content value="appearance" class="min-w-0 overflow-y-auto p-[clamp(1.25rem,4vw,2.5rem)]">
+                        <h2 class="m-0 text-[1.35rem]">Appearance</h2>
+                        <p class="mt-[0.35rem] mb-7 text-app-muted">Choose how Konfidence looks on this device.</p>
+                        <fieldset class="m-0 grid grid-cols-3 gap-3 border-0 p-0 max-[42rem]:grid-cols-1">
+                            <legend class="mb-[0.7rem] font-[650]">Theme</legend>
+                            {#each themes as option (option.id)}
+                                <label class={["relative grid cursor-pointer gap-[0.7rem] rounded-[0.65rem] border-2 border-app-border p-3 hover:border-app-accent max-[42rem]:grid-cols-[7rem_minmax(0,1fr)] max-[42rem]:items-center", theme.selected === option.id && "border-app-accent"]}>
+                                    <input
+                                        class="absolute top-[0.6rem] right-[0.6rem] accent-app-accent"
+                                        type="radio"
+                                        name="theme"
+                                        value={option.id}
+                                        checked={theme.selected === option.id}
+                                        onchange={() => theme.select(option.id)}
+                                    />
+                                    <span data-theme={option.id} class="grid h-20 grid-cols-[28%_1fr] grid-rows-[24%_1fr] overflow-hidden rounded-[0.35rem] border border-app-border bg-app-bg max-[42rem]:h-16" aria-hidden="true">
+                                        <i class="col-span-full border-b border-app-border bg-app-card"></i>
+                                        <i class="border-r border-app-border bg-app-card"></i>
+                                        <i class="m-[0.6rem] rounded-[0.2rem] bg-app-accent opacity-80"></i>
+                                    </span>
+                                    <span class="grid gap-[0.15rem]">
+                                        <strong>{option.label}</strong>
+                                        <small class="text-app-muted">{option.description}</small>
+                                    </span>
+                                </label>
+                            {/each}
+                        </fieldset>
+                    </Tabs.Content>
+                </Tabs>
+            </Dialog.Content>
+        </Dialog.Positioner>
+    </Portal>
+</Dialog>

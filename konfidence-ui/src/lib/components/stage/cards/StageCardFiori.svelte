@@ -1,262 +1,102 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/Card.js";
-    import "@ui5/webcomponents/dist/CardHeader.js";
-    import "@ui5/webcomponents/dist/Icon.js";
-    import "@ui5/webcomponents/dist/Tag.js";
-    import "@ui5/webcomponents/dist/Button.js";
-    import "@ui5/webcomponents/dist/Popover.js";
-    import "@ui5/webcomponents/dist/List.js";
-    import "@ui5/webcomponents/dist/ListItemStandard.js";
-    import "@ui5/webcomponents-icons/dist/upstacked-chart.js";
-    import "@ui5/webcomponents-icons/dist/overflow.js";
+    import CopyIcon from "@lucide/svelte/icons/copy";
+    import FileTextIcon from "@lucide/svelte/icons/file-text";
+    import MoreHorizontalIcon from "@lucide/svelte/icons/ellipsis";
+    import NetworkIcon from "@lucide/svelte/icons/network";
+    import ScrollTextIcon from "@lucide/svelte/icons/scroll-text";
+    import { Menu, Portal } from "@skeletonlabs/skeleton-svelte";
 
-    import {
-        getChips,
-        getPhases,
-        getStageStatusLabel,
-        splitVector,
-    } from "../utils/stage-view.js";
     import type { Stage } from "$lib/stages.js";
+    import { getChips, getPhases, getStageStatusLabel, splitVector } from "../utils/stage-view.js";
 
-    type StageChip = import("../utils/stage-view.js").StageChip;
-    type StageHealth = import("../utils/stage-view.js").StageHealth;
-    type StagePhaseState = import("../utils/stage-view.js").StagePhaseState;
-
-    type TagDesign = "Critical" | "Information" | "Negative" | "Neutral" | "Positive";
-
-    const STATUS_DESIGN: Record<StageHealth, TagDesign> = {
-        deploying: "Information",
-        healthy: "Positive",
-    };
-
-    const PHASE_DESIGN: Record<StagePhaseState, TagDesign> = {
-        cur: "Information",
-        done: "Positive",
-        idle: "Neutral",
-    };
-
-    const CHIP_DESIGN: Record<NonNullable<StageChip["tone"]>, TagDesign> = {
-        "": "Neutral",
-        alert: "Negative",
-        info: "Information",
-        warn: "Critical",
-    };
-
-    const { stage } = $props<{ stage: Stage }>();
-
+    const { stage, selected = false } = $props<{ stage: Stage; selected?: boolean }>();
     const status = $derived(getStageStatusLabel(stage));
     const phases = $derived(getPhases(stage));
     const chips = $derived(getChips(stage));
     const vector = $derived(splitVector(stage.vector));
+    let actionAnnouncement = $state("");
 
-    let menuBtn = $state<HTMLElement>();
-    let popover = $state<HTMLElement & { open?: boolean }>();
-
-    const btnId = $derived(`stage-card-fiori-menu-${stage.id}`);
-
-    const shouldPulseStatus = $derived(status.tone === "deploying");
-
-    const tagDesign = (tone: StageHealth) => STATUS_DESIGN[tone];
-    const phaseTagDesign = (state: StagePhaseState) => PHASE_DESIGN[state];
-    const chipDesign = (tone: StageChip["tone"]) => CHIP_DESIGN[tone ?? ""];
-
-    const openMenu = () => {
-        if (popover && menuBtn) {
-            popover.setAttribute("opener", btnId);
-            popover.open = true;
-        }
-    };
-
-    const closeMenu = () => {
-        if (popover) {popover.open = false;}
-    };
-
-    const onMenuKey = (event: KeyboardEvent) => {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            openMenu();
+    const selectAction = async (value: string): Promise<void> => {
+        if (value === "copy") {
+            await globalThis.navigator.clipboard.writeText(stage.name);
+            actionAnnouncement = `${stage.name} copied to clipboard`;
         }
     };
 </script>
 
-<ui5-card class="stage-fiori-card">
-    <ui5-card-header
-        slot="header"
-        title-text={stage.name}
-        subtitle-text={stage.landscapeName}
-        interactive
-    >
-        <ui5-icon slot="avatar" name="upstacked-chart"></ui5-icon>
-        <div slot="action" class="header-action">
-            <ui5-tag design={tagDesign(status.tone)} hide-state-icon>
-                <span class="pill-inner" class:pulse={shouldPulseStatus}>
-                    <span class="dot" class:pulse={shouldPulseStatus}></span>
-                    {status.label}
-                </span>
-            </ui5-tag>
-            <ui5-button
-                bind:this={menuBtn}
-                id={btnId}
-                design="Transparent"
-                icon="overflow"
-                tooltip="More actions"
-                role="button"
-                tabindex="0"
-                aria-label="Stage actions"
-                onclick={openMenu}
-                onkeydown={onMenuKey}
-            ></ui5-button>
-        </div>
-    </ui5-card-header>
+<article class={["card w-full overflow-visible border border-app-border border-t-[3px] border-t-app-accent bg-app-card text-app-text shadow-lg", selected && "outline-2 outline-offset-2 outline-app-focus"]} aria-label={`Stage ${stage.name}`}>
+    <header class="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-[0.55rem] border-b border-app-border px-[0.7rem] py-[0.65rem]">
+        <span class="grid size-[1.85rem] place-items-center rounded-[0.4rem] bg-app-accent/13 text-app-accent-strong"><NetworkIcon class="size-4" aria-hidden="true" /></span>
+        <span class="grid min-w-0">
+            <strong class="truncate text-[0.82rem]">{stage.name}</strong>
+            <small class="truncate text-[0.65rem] text-app-muted uppercase">{stage.landscapeName}</small>
+        </span>
+        <span class={["inline-flex items-center gap-[0.3rem] rounded-full px-[0.48rem] py-[0.24rem] text-[0.6rem] font-[750] tracking-[0.04em] whitespace-nowrap uppercase", status.tone === "healthy" ? "bg-app-success/14 text-app-success" : "bg-app-accent/13 text-app-accent-strong"]}>
+            <i class={["size-[0.36rem] rounded-full bg-current", status.tone === "deploying" && "animate-status-pulse"]} aria-hidden="true"></i>
+            {status.label}
+        </span>
+        <Menu
+            aria-label={`Actions for ${stage.name}`}
+            positioning={{ placement: "bottom-end", gutter: 4 }}
+            onSelect={(details) => void selectAction(details.value)}
+        >
+            <Menu.Trigger class="grid size-[1.8rem] cursor-pointer place-items-center rounded-[0.35rem] border-0 bg-transparent p-0 text-app-muted hover:bg-app-accent/10" aria-label={`More actions for ${stage.name}`}>
+                <MoreHorizontalIcon class="size-4" aria-hidden="true" />
+            </Menu.Trigger>
+            <Portal target={globalThis.document?.getElementById("app-overlays") ?? undefined}>
+                <Menu.Positioner class="pointer-events-auto z-10">
+                    <Menu.Content class="w-40 rounded-[0.45rem] border border-app-border bg-app-card p-[0.35rem] text-app-text shadow-xl [&_[data-part=item]]:flex [&_[data-part=item]]:w-full [&_[data-part=item]]:cursor-pointer [&_[data-part=item]]:items-center [&_[data-part=item]]:rounded-[0.3rem] [&_[data-part=item]]:p-2 [&_[data-part=item]]:text-[0.7rem] [&_[data-part=item]]:text-app-text [&_[data-part=item][data-highlighted]]:bg-app-accent/9 [&_[data-part=item-text]]:flex [&_[data-part=item-text]]:items-center [&_[data-part=item-text]]:gap-[0.45rem] [&_svg]:size-[0.85rem]">
+                        <Menu.Item value="copy">
+                            <Menu.ItemText><CopyIcon aria-hidden="true" /> Copy stage name</Menu.ItemText>
+                        </Menu.Item>
+                        <Menu.Item value="yaml" disabled={true}>
+                            <Menu.ItemText><FileTextIcon aria-hidden="true" /> View YAML</Menu.ItemText>
+                        </Menu.Item>
+                        <Menu.Item value="logs" disabled={true}>
+                            <Menu.ItemText><ScrollTextIcon aria-hidden="true" /> Open logs</Menu.ItemText>
+                        </Menu.Item>
+                    </Menu.Content>
+                </Menu.Positioner>
+            </Portal>
+        </Menu>
+    </header>
+    <span class="sr-only" aria-live="polite">{actionAnnouncement}</span>
 
-    <div class="card-body">
-        <div class="row">
-            <span class="row-label">Vector</span>
-            <span class="row-value">
-                <code>{vector.version}</code>
-                {#if vector.hash}
-                    <code class="hash">{vector.hash}</code>
-                {/if}
+    <div class="grid gap-[0.55rem] p-[0.7rem]">
+        <div class="grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-[0.45rem]">
+            <span class="text-[0.58rem] font-[750] tracking-[0.06em] text-app-muted uppercase">Vector</span>
+            <span class="flex min-w-0 flex-wrap items-center gap-[0.3rem]">
+                <code class="rounded border border-app-border bg-app-bg px-[0.3rem] py-[0.1rem] text-[0.66rem] [overflow-wrap:anywhere]">{vector.version}</code>
+                {#if vector.hash}<code class="rounded border border-app-border bg-app-bg px-[0.3rem] py-[0.1rem] text-[0.66rem] text-app-muted [overflow-wrap:anywhere]">{vector.hash}</code>{/if}
             </span>
         </div>
-
-        <div class="row">
-            <span class="row-label">Phases</span>
-            <span class="phase-row">
+        <div class="grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-[0.45rem]">
+            <span class="text-[0.58rem] font-[750] tracking-[0.06em] text-app-muted uppercase">Phases</span>
+            <span class="flex min-w-0 flex-wrap items-center gap-[0.3rem]">
                 {#each phases as phase (phase.id)}
-                    <ui5-tag
-                        design={phaseTagDesign(phase.state)}
-                        hide-state-icon
-                        title={phase.reason
-                            ? `${phase.label}: ${phase.reason}${phase.message ? ` — ${phase.message}` : ""}`
-                            : phase.label}
+                    <span
+                        class={[
+                            "inline-flex items-center gap-[0.3rem] rounded-full border border-app-border px-[0.4rem] py-[0.18rem] text-[0.59rem] whitespace-nowrap",
+                            phase.state === "done" && "border-app-success/35 text-app-success",
+                            phase.state === "cur" && "border-app-accent/40 text-app-accent-strong",
+                            phase.state === "idle" && "text-app-muted",
+                        ]}
+                        title={phase.reason ? `${phase.label}: ${phase.reason}` : phase.label}
                     >
-                        {phase.label}
-                    </ui5-tag>
+                        <i class="size-[0.36rem] rounded-full bg-current" aria-hidden="true"></i>{phase.label}
+                    </span>
                 {/each}
             </span>
         </div>
-
         {#if chips.length > 0}
-            <div class="row">
-                <span class="row-label">Details</span>
-                <span class="chip-row">
-                    {#each chips as chip, i (`${chip.label}-${i}`)}
-                        <ui5-tag design={chipDesign(chip.tone)} hide-state-icon>
-                            <strong>{chip.value}</strong>&nbsp;{chip.label}
-                        </ui5-tag>
+            <div class="grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-[0.45rem]">
+                <span class="text-[0.58rem] font-[750] tracking-[0.06em] text-app-muted uppercase">Details</span>
+                <span class="flex min-w-0 flex-wrap items-center gap-[0.3rem]">
+                    {#each chips as chip, index (`${chip.label}-${index}`)}
+                        <span class="inline-flex items-center gap-[0.3rem] rounded-full border border-app-border bg-app-bg px-[0.4rem] py-[0.18rem] text-[0.59rem] whitespace-nowrap text-app-muted"><strong class="text-app-text">{chip.value}</strong> {chip.label}</span>
                     {/each}
                 </span>
             </div>
         {/if}
     </div>
-</ui5-card>
-
-<ui5-popover
-    bind:this={popover}
-    placement="Bottom"
-    horizontal-align="End"
-    accessible-name="Stage actions"
->
-    <ui5-list
-        separators="None"
-        accessible-name="Stage actions"
-        onitem-click={closeMenu}
-    >
-        <ui5-li icon="copy" type="Active">Copy stage name</ui5-li>
-        <ui5-li icon="document-text" type="Active">View YAML</ui5-li>
-        <ui5-li icon="log" type="Active">Open logs</ui5-li>
-    </ui5-list>
-</ui5-popover>
-
-<style>
-    .stage-fiori-card {
-        min-width: 0;
-        width: 100%;
-        /* Compact density — shrink UI5 font/spacing tokens locally. */
-        --sapFontSize: 0.75rem;
-        --sapContent_ElementHeight_Regular: 1.625rem;
-        --sapContent_ContainerPadding_Regular: 0.5rem;
-        --_ui5-v2_23_2-card-header-padding: 0.5rem 0.75rem;
-    }
-
-    .header-action {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .card-body {
-        display: grid;
-        gap: 0.5rem;
-        padding: 0.75rem;
-    }
-
-    .row {
-        display: grid;
-        grid-template-columns: 4.25rem 1fr;
-        align-items: center;
-        gap: 0.5rem;
-        min-height: 1.5rem;
-    }
-
-    .row-label {
-        color: var(--sapContent_LabelColor);
-        font-size: 0.6875rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .row-value {
-        display: inline-flex;
-        gap: 0.375rem;
-        align-items: center;
-        min-width: 0;
-        overflow-wrap: anywhere;
-    }
-
-    code {
-        padding: 0.0625rem 0.375rem;
-        border: 1px solid var(--sapList_BorderColor);
-        border-radius: 0.25rem;
-        background: var(--sapList_Background);
-        font-family: var(--sapFontMonospaceFamily, "SF Mono", Menlo, monospace);
-        font-size: 0.75rem;
-    }
-    code.hash {
-        color: var(--sapContent_LabelColor);
-    }
-
-    .phase-row,
-    .chip-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.25rem;
-    }
-
-    /* ── Pulsing status dot (deploying / error only) ────────── */
-    .pill-inner {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3125rem;
-        line-height: 1;
-    }
-    .dot {
-        width: 0.375rem;
-        height: 0.375rem;
-        border-radius: 50%;
-        background: currentColor;
-    }
-    .dot.pulse {
-        animation: fiori-status-pulse 0.8s ease-in-out infinite alternate;
-    }
-    @keyframes fiori-status-pulse {
-        from {
-            opacity: 1;
-        }
-        to {
-            opacity: 0.25;
-        }
-    }
-</style>
+</article>
