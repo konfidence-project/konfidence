@@ -1,6 +1,7 @@
 <script lang="ts">
     import BoxesIcon from "@lucide/svelte/icons/boxes";
     import NetworkIcon from "@lucide/svelte/icons/network";
+    import { m } from "$lib/paraglide/messages.js";
 
     interface NavItem {
         href: string;
@@ -16,14 +17,14 @@
     }>();
 </script>
 
-<nav class="px-2 py-3" aria-label="Delivery">
+<nav class="px-2 py-3" aria-label={m.nav_delivery()}>
     <h2
         class={[
             "px-3 py-2 text-xs font-semibold tracking-[0.05em] text-muted-foreground uppercase",
             collapsed && "min-[48rem]:hidden",
         ]}
     >
-        Delivery
+        {m.nav_delivery()}
     </h2>
     <ul class="grid list-none gap-1 p-0">
         {#each items as item (item.href)}

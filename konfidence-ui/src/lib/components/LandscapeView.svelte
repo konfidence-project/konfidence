@@ -4,6 +4,7 @@
     import LandscapeStageNode from "$lib/components/LandscapeStageNode.svelte";
     import type { Landscape, Stage } from "$lib/stages";
     import { getThemePreference } from "$lib/stores/theme.svelte";
+    import { m } from "$lib/paraglide/messages.js";
 
     const COLUMN_GAP = 600;
     const ROW_GAP = 300;
@@ -39,10 +40,10 @@
 
 <div
     class="landscape-flow h-full min-h-0 min-w-0 flex-1 overflow-hidden max-[48rem]:min-h-[calc(100dvh-3.25rem)]"
-    aria-label="Stage landscape"
+    aria-label={m.landscape_label()}
     data-testid="landscape-view"
 >
-    <h1 class="sr-only">Delivery landscape</h1>
+    <h1 class="sr-only">{m.landscape_heading()}</h1>
     <SvelteFlow
         {nodes}
         edges={[]}

@@ -12,7 +12,8 @@
     "dev:mock-api": "tsx watch tests/mock-api/server.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "prepare": "svelte-kit sync || echo ''",
+    "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --emit-ts-declarations --strategy cookie preferredLanguage baseLocale",
+    "prepare": "pnpm i18n:compile && (svelte-kit sync || echo '')",
     "check": "svelte-kit sync && tsgo -p ./tsconfig.json --noEmit",
     "check:svelte": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@fontsource-variable/inter": "^5.3.0",
+    "@inlang/paraglide-js": "^2.23.0",
     "@lucide/svelte": "^1.27.0",
     "@playwright/test": "^1.60.0",
     "@sveltejs/adapter-node": "^5.5.4",

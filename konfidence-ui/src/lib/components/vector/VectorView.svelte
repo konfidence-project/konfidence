@@ -12,6 +12,7 @@
     import * as Sheet from "$lib/components/ui/sheet/index.js";
     import * as Table from "$lib/components/ui/table/index.js";
     import type { VectorDeployment } from "$lib/deployments";
+    import { m } from "$lib/paraglide/messages.js";
     import { MediaQuery } from "svelte/reactivity";
 
     type SortColumn = "id" | "status" | "version";
@@ -117,30 +118,30 @@
         </div>
         <div>
             <span class="text-[0.68rem] font-bold tracking-[0.1em] text-primary uppercase">
-                Vector deployment
+                {m.vector_deployment()}
             </span>
             <h2 class="text-xl font-semibold">{deployment.id}</h2>
             <p class="text-muted-foreground">{deployment.component} is assigned to {deployment.stage}.</p>
         </div>
         <dl class="grid border-t">
             <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
-                <dt class="text-[0.78rem] text-muted-foreground">Status</dt>
+                <dt class="text-[0.78rem] text-muted-foreground">{m.vector_status()}</dt>
                 <dd class="m-0 min-w-0 [overflow-wrap:anywhere]">{deployment.status}</dd>
             </div>
             <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
-                <dt class="text-[0.78rem] text-muted-foreground">Version</dt>
+                <dt class="text-[0.78rem] text-muted-foreground">{m.vector_version()}</dt>
                 <dd class="m-0 min-w-0 [overflow-wrap:anywhere]"><code>{deployment.version}</code></dd>
             </div>
             <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
-                <dt class="text-[0.78rem] text-muted-foreground">Repository</dt>
+                <dt class="text-[0.78rem] text-muted-foreground">{m.vector_repository()}</dt>
                 <dd class="m-0 min-w-0 [overflow-wrap:anywhere]"><code>{deployment.repository}</code></dd>
             </div>
             <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
-                <dt class="text-[0.78rem] text-muted-foreground">Landscape</dt>
+                <dt class="text-[0.78rem] text-muted-foreground">{m.vector_landscape()}</dt>
                 <dd class="m-0 min-w-0 [overflow-wrap:anywhere]">{deployment.landscape}</dd>
             </div>
             <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
-                <dt class="text-[0.78rem] text-muted-foreground">Stage</dt>
+                <dt class="text-[0.78rem] text-muted-foreground">{m.vector_stage()}</dt>
                 <dd class="m-0 min-w-0 [overflow-wrap:anywhere]">{deployment.stage}</dd>
             </div>
         </dl>
@@ -158,11 +159,10 @@
     <section class="min-w-0 p-[clamp(1rem,3vw,2rem)] max-[48rem]:p-4" aria-labelledby="vector-title">
         <header class="mb-4 grid gap-1">
             <h1 class="text-[1.55rem] font-semibold tracking-[-0.025em]" id="vector-title">
-                Vector Deployments
+                {m.vector_heading()}
             </h1>
             <p class="text-muted-foreground">
-                Versioned vectors currently assigned to project stages. Showing
-                {sortedDeployments.length} deployment{sortedDeployments.length === 1 ? "" : "s"}.
+                {m.vector_summary({ count: sortedDeployments.length })}
             </p>
         </header>
 
@@ -174,8 +174,8 @@
             <Input
                 class="pl-[2.15rem]"
                 type="search"
-                aria-label="Search vector deployments"
-                placeholder="Search vector deployments..."
+                aria-label={m.vector_search()}
+                placeholder={m.vector_search_placeholder()}
                 value={searchTerm}
                 oninput={search}
             />
@@ -185,32 +185,32 @@
             <Empty.Root class="border bg-card">
                 <Empty.Media variant="icon"><SearchIcon /></Empty.Media>
                 <Empty.Header>
-                    <Empty.Title>No matching vector deployments</Empty.Title>
-                    <Empty.Description>Try a different name, version, stage, or status.</Empty.Description>
+                    <Empty.Title>{m.vector_no_matches()}</Empty.Title>
+                    <Empty.Description>{m.vector_no_matches_help()}</Empty.Description>
                 </Empty.Header>
             </Empty.Root>
         {:else}
             <div class="overflow-hidden rounded-xl border bg-card">
                 <Table.Root class="[&_td]:max-[48rem]:px-[0.45rem] [&_th]:max-[48rem]:px-[0.45rem]">
-                    <Table.Caption class="sr-only">Vector deployments</Table.Caption>
+                    <Table.Caption class="sr-only">{m.nav_vector_deployments()}</Table.Caption>
                     <Table.Header>
                         <Table.Row>
                             <Table.Head aria-sort={ariaSort("id")}>
                                 <Button class="-ml-3 font-semibold" variant="ghost" onclick={() => toggleSort("id")}>
-                                    Vector deployment {@render sortIcon("id")}
+                                    {m.vector_deployment()} {@render sortIcon("id")}
                                 </Button>
                             </Table.Head>
-                            <Table.Head>Repository</Table.Head>
+                            <Table.Head>{m.vector_repository()}</Table.Head>
                             <Table.Head aria-sort={ariaSort("version")}>
                                 <Button class="-ml-3 font-semibold" variant="ghost" onclick={() => toggleSort("version")}>
-                                    Version {@render sortIcon("version")}
+                                    {m.vector_version()} {@render sortIcon("version")}
                                 </Button>
                             </Table.Head>
-                            <Table.Head class="max-[70rem]:hidden">Landscape</Table.Head>
-                            <Table.Head class="max-[70rem]:hidden">Stage</Table.Head>
+                            <Table.Head class="max-[70rem]:hidden">{m.vector_landscape()}</Table.Head>
+                            <Table.Head class="max-[70rem]:hidden">{m.vector_stage()}</Table.Head>
                             <Table.Head class="max-[48rem]:hidden" aria-sort={ariaSort("status")}>
                                 <Button class="-ml-3 font-semibold" variant="ghost" onclick={() => toggleSort("status")}>
-                                    Status {@render sortIcon("status")}
+                                    {m.vector_status()} {@render sortIcon("status")}
                                 </Button>
                             </Table.Head>
                         </Table.Row>

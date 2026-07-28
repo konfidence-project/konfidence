@@ -180,6 +180,25 @@ test("switches projects, opens URL-controlled settings, and persists theme", asy
   await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
 });
 
+test("switches language and persists German across CSR and SSR routes", async ({ page }) => {
+  await page.goto("/projects/payments-platform/vector-deployments?settings=appearance");
+
+  await page.getByLabel("Language").selectOption("de");
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+  await expect(page.getByRole("dialog", { name: "Einstellungen" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Vektor-Deployments" })).toBeVisible();
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  await expect(page.getByRole("dialog", { name: "Einstellungen" })).toBeVisible();
+
+  const response = await page.goto("/projects/payments-platform/vector-deployments");
+  expect(await response?.text()).toContain("Vektor-Deployments");
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  await expect(page.getByLabel("Vektor-Deployments durchsuchen")).toBeVisible();
+});
+
 test("stacks mobile settings and uses horizontal tab keyboard navigation", async ({ page }) => {
   await page.setViewportSize({ height: 844, width: 390 });
   await page.goto("/projects/payments-platform/landscape?settings=profile");

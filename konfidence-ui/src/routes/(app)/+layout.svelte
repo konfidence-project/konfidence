@@ -22,6 +22,7 @@
     import * as Sheet from "$lib/components/ui/sheet/index.js";
     import { getThemePreference } from "$lib/stores/theme.svelte";
     import { themeModes } from "$lib/theme";
+    import { m } from "$lib/paraglide/messages.js";
     import { afterNavigate, goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
@@ -72,12 +73,12 @@
             {
                 href: `/projects/${selectedProject.id}/landscape`,
                 icon: "landscape" as const,
-                text: "Landscape",
+                text: m.nav_landscape(),
             },
             {
                 href: `/projects/${selectedProject.id}/vector-deployments`,
                 icon: "vector" as const,
-                text: "Vector Deployments",
+                text: m.nav_vector_deployments(),
             },
         ];
     });
@@ -256,9 +257,11 @@
                         </span>
                     </DropdownMenu.Label>
                     <DropdownMenu.Separator />
-                    <DropdownMenu.Item onSelect={openSettings}><SettingsIcon /> Settings</DropdownMenu.Item>
+                    <DropdownMenu.Item onSelect={openSettings}
+                        ><SettingsIcon /> {m.account_settings()}</DropdownMenu.Item
+                    >
                     <DropdownMenu.Item variant="destructive" onSelect={signOut}>
-                        <LogOutIcon /> Sign Out
+                        <LogOutIcon /> {m.account_sign_out()}
                     </DropdownMenu.Item>
                 </DropdownMenu.Content>
             </DropdownMenu.Root>

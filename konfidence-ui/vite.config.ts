@@ -2,9 +2,19 @@ import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 
 export default defineConfig({
-  plugins: [tailwindcss(), sveltekit()],
+  plugins: [
+    paraglideVitePlugin({
+      emitTsDeclarations: true,
+      outdir: "./src/lib/paraglide",
+      project: "./project.inlang",
+      strategy: ["cookie", "preferredLanguage", "baseLocale"],
+    }),
+    tailwindcss(),
+    sveltekit(),
+  ],
   test: {
     expect: { requireAssertions: true },
     projects: [

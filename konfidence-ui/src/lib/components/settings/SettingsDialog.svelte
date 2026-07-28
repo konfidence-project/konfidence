@@ -4,11 +4,14 @@
     import * as Avatar from "$lib/components/ui/avatar/index.js";
     import * as Dialog from "$lib/components/ui/dialog/index.js";
     import { Label } from "$lib/components/ui/label/index.js";
+    import * as NativeSelect from "$lib/components/ui/native-select/index.js";
     import * as RadioGroup from "$lib/components/ui/radio-group/index.js";
     import * as Tabs from "$lib/components/ui/tabs/index.js";
     import type { AuthUser } from "$lib/auth/types";
     import { getThemePreference } from "$lib/stores/theme.svelte";
     import { themeModes } from "$lib/theme";
+    import { m } from "$lib/paraglide/messages.js";
+    import { getLocale, isLocale, setLocale } from "$lib/paraglide/runtime.js";
     import { MediaQuery } from "svelte/reactivity";
     import {
         DEFAULT_SETTINGS_TAB,
@@ -44,12 +47,12 @@
             .slice(0, AVATAR_INITIALS_MAX)
             .toUpperCase(),
     );
-    const roles = $derived(user.roles.join(", ") || "(none)");
+    const roles = $derived(user.roles.join(", ") || m.settings_none());
     const accountDetails = $derived([
-        { label: "Email", value: user.email },
-        { label: "Given name", value: user.givenName },
-        { label: "Family name", value: user.familyName },
-        { label: "Roles", value: roles },
+        { label: m.settings_email(), value: user.email },
+        { label: m.settings_given_name(), value: user.givenName },
+        { label: m.settings_family_name(), value: user.familyName },
+        { label: m.settings_roles(), value: roles },
     ]);
 
     const changeTab = (value: string): void => {
@@ -71,6 +74,13 @@
             returnFocus();
         }
     };
+
+    const changeLocale = (event: Event): void => {
+        const locale = (event.currentTarget as HTMLSelectElement).value;
+        if (isLocale(locale) && locale !== getLocale()) {
+            void setLocale(locale);
+        }
+    };
 </script>
 
 <Dialog.Root {open} onOpenChange={handleOpenChange}>
@@ -79,8 +89,8 @@
         onCloseAutoFocus={restoreFocus}
     >
         <Dialog.Header class="border-b px-6 pt-6 pb-4">
-            <Dialog.Title>Settings</Dialog.Title>
-            <Dialog.Description>Manage your profile view and workspace appearance.</Dialog.Description>
+            <Dialog.Title>{m.account_settings()}</Dialog.Title>
+            <Dialog.Description>{m.settings_description()}</Dialog.Description>
         </Dialog.Header>
 
         <Tabs.Root
@@ -91,13 +101,13 @@
         >
             <Tabs.List
                 class="!h-full !w-full min-w-0 flex-col items-stretch justify-start gap-[0.35rem] rounded-none border-r bg-muted p-4 max-[42rem]:!h-auto max-[42rem]:w-full max-[42rem]:flex-row max-[42rem]:overflow-x-auto max-[42rem]:border-r-0 max-[42rem]:border-b"
-                aria-label="Settings sections"
+                aria-label={m.settings_sections()}
             >
                 <Tabs.Trigger class="h-10 flex-none justify-start text-foreground" value="profile">
-                    <UserRoundIcon /> Profile
+                    <UserRoundIcon /> {m.settings_profile()}
                 </Tabs.Trigger>
                 <Tabs.Trigger class="h-10 flex-none justify-start text-foreground" value="appearance">
-                    <PaletteIcon /> Appearance
+                    <PaletteIcon /> {m.settings_appearance()}
                 </Tabs.Trigger>
             </Tabs.List>
 
@@ -105,7 +115,7 @@
                 value="profile"
                 class="m-0 w-full min-w-0 px-8 pt-6 pb-8 max-[42rem]:p-5"
             >
-                <h2 class="mb-6 text-[1.35rem] font-semibold">Profile</h2>
+                <h2 class="mb-6 text-[1.35rem] font-semibold">{m.settings_profile()}</h2>
                 <div class="mx-auto mb-8 flex max-w-lg items-center gap-5">
                     <Avatar.Root class="size-24">
                         <Avatar.Fallback class="text-3xl">{avatarInitials}</Avatar.Fallback>
@@ -116,7 +126,7 @@
                         <p class="text-muted-foreground">{roles}</p>
                     </div>
                 </div>
-                <dl class="mx-auto grid max-w-lg gap-3" aria-label="Signed-in identity details">
+                <dl class="mx-auto grid max-w-lg gap-3" aria-label={m.settings_identity_details()}>
                     {#each accountDetails as field (field.label)}
                         <div class="grid grid-cols-[9rem_1fr] gap-4 max-[42rem]:grid-cols-1 max-[42rem]:gap-[0.1rem]">
                             <dt class="text-[0.8rem] text-muted-foreground">{field.label}</dt>
@@ -130,14 +140,29 @@
                 value="appearance"
                 class="m-0 w-full min-w-0 px-8 pt-6 pb-8 max-[42rem]:p-5"
             >
-                <h2 class="mb-6 text-[1.35rem] font-semibold">Appearance</h2>
+                <h2 class="mb-6 text-[1.35rem] font-semibold">{m.settings_appearance()}</h2>
                 <p class="-mt-4 mb-6 text-muted-foreground">
-                    Choose the semantic color theme used across Konfidence.
+                    {m.settings_appearance_description()}
                 </p>
+                <div class="mb-6 grid gap-2 border-b pb-6">
+                    <Label for="settings-language">{m.settings_language()}</Label>
+                    <p class="text-sm text-muted-foreground">
+                        {m.settings_language_description()}
+                    </p>
+                    <NativeSelect.Root
+                        class="w-full max-w-sm"
+                        id="settings-language"
+                        value={getLocale()}
+                        onchange={changeLocale}
+                    >
+                        <NativeSelect.Option value="en">{m.language_english()}</NativeSelect.Option>
+                        <NativeSelect.Option value="de">{m.language_german()}</NativeSelect.Option>
+                    </NativeSelect.Root>
+                </div>
                 <RadioGroup.Root
                     value={theme.selected}
                     onValueChange={(value) => theme.select(value)}
-                    aria-label="Theme"
+                    aria-label={m.settings_theme()}
                     class="gap-3"
                 >
                     {#each themeModes as option (option.id)}
