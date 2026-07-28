@@ -64,8 +64,6 @@ const getPhases = (stage: Stage): StagePhase[] => {
 
 const getChips = (stage: Stage): StageChip[] => [{ label: "generation", value: stage.generation }];
 
-const getLandscapeLabel = (stage: Stage): string => stage.landscapeName.toUpperCase();
-
 const vectorTag = (vector: string): string => {
   if (!vector.includes(":")) {
     return vector;
@@ -101,5 +99,5 @@ const splitVector = (vector: VectorReference): VectorParts => {
   return toVectorParts(version, hash);
 };
 
-export { getChips, getLandscapeLabel, getPhases, getStageHealth, getStageStatusLabel, splitVector };
+export { getChips, getPhases, getStageHealth, getStageStatusLabel, splitVector };
 export type { StageChip, StageHealth, StagePhase, StagePhaseState, VectorParts };

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
+import "../../app.css";
 
 const expectSingleRecoveryLink = (container: HTMLElement) => {
-  const link = container.querySelector<HTMLAnchorElement>(".action-link");
+  const link = container.querySelector<HTMLAnchorElement>("a");
 
   expect(link).not.toBeNull();
   expect(link?.textContent).toBe("Back to start");

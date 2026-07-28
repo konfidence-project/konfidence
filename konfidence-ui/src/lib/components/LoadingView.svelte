@@ -1,39 +1,21 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/BusyIndicator.js";
-    import "@ui5/webcomponents/dist/Title.js";
+    import { Spinner } from "$lib/components/ui/spinner/index.js";
 
     const {
         title = "Loading",
         message = "Fetching the requested content.",
         labelledBy,
-    } = $props<{
-        title?: string;
-        message?: string;
-        labelledBy?: string;
-    }>();
+    } = $props<{ title?: string; message?: string; labelledBy?: string }>();
+    const titleId = $derived(labelledBy ?? "loading-view-title");
 </script>
 
-<section class="loading-view" aria-live="polite" aria-labelledby={labelledBy}>
-    <ui5-busy-indicator active size="M" delay={0}></ui5-busy-indicator>
-    <ui5-title level="H2" size="H4">{title}</ui5-title>
-    <p>{message}</p>
+<section
+    class="grid min-h-72 content-center place-items-center gap-3 p-8 text-center"
+    aria-live="polite"
+    aria-busy="true"
+    aria-labelledby={titleId}
+>
+    <Spinner class="size-7 text-primary" aria-hidden="true" />
+    <h2 class="text-xl font-semibold" id={titleId}>{title}</h2>
+    <p class="max-w-lg text-muted-foreground">{message}</p>
 </section>
-
-<style>
-    .loading-view {
-        display: grid;
-        place-items: center;
-        align-content: center;
-        gap: 0.75rem;
-        min-height: 18rem;
-        padding: 2rem;
-        text-align: center;
-        box-sizing: border-box;
-    }
-
-    .loading-view p {
-        max-width: 32rem;
-        margin: 0;
-        color: var(--sapContent_LabelColor);
-    }
-</style>

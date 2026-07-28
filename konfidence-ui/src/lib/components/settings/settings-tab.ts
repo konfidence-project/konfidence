@@ -1,4 +1,4 @@
-const SETTINGS_TAB_IDS = ["profile", "appearance", "landscape"] as const;
+const SETTINGS_TAB_IDS = ["profile", "appearance"] as const;
 
 type SettingsTab = (typeof SETTINGS_TAB_IDS)[number];
 
@@ -7,15 +7,13 @@ const DEFAULT_SETTINGS_TAB: SettingsTab = "profile";
 const SETTINGS_URL_PARAM = "settings";
 
 interface SettingsTabDefinition {
-  icon: string;
   id: SettingsTab;
   label: string;
 }
 
 const SETTINGS_TABS: readonly SettingsTabDefinition[] = [
-  { icon: "person-placeholder", id: "profile", label: "Profile" },
-  { icon: "palette", id: "appearance", label: "Appearance" },
-  { icon: "upstacked-chart", id: "landscape", label: "Landscape" },
+  { id: "profile", label: "Profile" },
+  { id: "appearance", label: "Appearance" },
 ];
 
 const isSettingsTab = (value: string): value is SettingsTab =>

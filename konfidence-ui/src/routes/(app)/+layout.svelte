@@ -1,327 +1,243 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/Avatar.js";
-    import "@ui5/webcomponents/dist/Button.js";
-    import "@ui5/webcomponents/dist/ToggleButton.js";
-    import "@ui5/webcomponents-fiori/dist/NavigationLayout.js";
-    import "@ui5/webcomponents-fiori/dist/ShellBar.js";
-    import "@ui5/webcomponents-fiori/dist/ShellBarBranding.js";
-    import "@ui5/webcomponents-fiori/dist/ShellBarItem.js";
-    import "@ui5/webcomponents-fiori/dist/ShellBarSearch.js";
-    import "@ui5/webcomponents-fiori/dist/SideNavigation.js";
-    import "@ui5/webcomponents-fiori/dist/SideNavigationGroup.js";
-    import "@ui5/webcomponents-fiori/dist/SideNavigationItem.js";
-    import "@ui5/webcomponents-fiori/dist/UserMenu.js";
-    import "@ui5/webcomponents-fiori/dist/UserMenuAccount.js";
-    import "@ui5/webcomponents-fiori/dist/UserMenuItem.js";
-    import "@ui5/webcomponents-icons/dist/action-settings.js";
-    import "@ui5/webcomponents-icons/dist/database.js";
-    import "@ui5/webcomponents-icons/dist/grid.js";
-    import "@ui5/webcomponents-icons/dist/menu2.js";
-    import "@ui5/webcomponents-icons/dist/palette.js";
-    import "@ui5/webcomponents-icons/dist/radar-chart.js";
-    import "@ui5/webcomponents-icons/dist/upstacked-chart.js";
-
+    import BellIcon from "@lucide/svelte/icons/bell";
+    import LogOutIcon from "@lucide/svelte/icons/log-out";
+    import MenuIcon from "@lucide/svelte/icons/menu";
+    import SettingsIcon from "@lucide/svelte/icons/settings";
+    import AppNavigation from "$lib/components/AppNavigation.svelte";
+    import SettingsDialog from "$lib/components/settings/SettingsDialog.svelte";
     import {
         DEFAULT_SETTINGS_TAB,
         SETTINGS_URL_PARAM,
         type SettingsTab,
         parseSettingsTab,
     } from "$lib/components/settings/settings-tab.js";
-    import {
-        StageCardVariantPreference,
-        setStageCardVariantPreference,
-    } from "$lib/stores/stage-card-variant.svelte";
-    import ProjectSelector from "$lib/components/ProjectSelector.svelte";
-    import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
-    import { themePreference } from "$lib/stores/theme.svelte";
-    import type { LayoutProps } from "./$types";
-    import type { ResolvedPathname } from "$app/types";
-    import SettingsDialog from "$lib/components/settings/SettingsDialog.svelte";
-    import { SvelteURLSearchParams } from "svelte/reactivity";
+    import * as Avatar from "$lib/components/ui/avatar/index.js";
+    import { Button } from "$lib/components/ui/button/index.js";
+    import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
+    import * as Sheet from "$lib/components/ui/sheet/index.js";
+    import { getThemePreference } from "$lib/stores/theme.svelte";
     import { afterNavigate, goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
-    import { tick } from "svelte";
-
-    type SideNavigationItemClickEventDetail =
-        import("@ui5/webcomponents-fiori/dist/SideNavigationItemBase.js").SideNavigationItemClickEventDetail;
-    type ShellBarProfileClickEventDetail =
-        import("@ui5/webcomponents-fiori/dist/ShellBar.js").ShellBarProfileClickEventDetail;
-    type UserMenuItemClickEventDetail =
-        import("@ui5/webcomponents-fiori/dist/UserMenu.js").UserMenuItemClickEventDetail;
-
-    type NavHref =
-        | `/projects/${string}/landscape`
-        | `/projects/${string}/vector-deployments`
-        | `/projects/${string}/artifact-deployments`;
-
-    interface NavItem {
-        href: NavHref;
-        icon: string;
-        text: string;
-    }
-    interface NavGroup {
-        items: readonly NavItem[];
-        text: string;
-    }
-
-    const SETTINGS_MENU_ITEM_ID = "settings";
-
-    const DARK_LOGO_SRC = "/assets/logo/full/SVG/400_konfidence_logo_dark.svg";
-    const LIGHT_LOGO_SRC = "/assets/logo/full/SVG/400_konfidence_logo_light.svg";
-    const AVATAR_INITIALS_MAX = 2;
+    import type { ResolvedPathname } from "$app/types";
+    import { SvelteURLSearchParams } from "svelte/reactivity";
+    import type { LayoutProps } from "./$types";
 
     const { children, data }: LayoutProps = $props();
+    const theme = getThemePreference();
+    const AVATAR_INITIALS_MAX = 2;
 
-    const stageCardVariantPreference = new StageCardVariantPreference();
-    setStageCardVariantPreference(stageCardVariantPreference);
-
-    let userMenuOpen = $state(false);
-    let userMenuOpener = $state<HTMLElement | undefined>();
+    let desktopNavigationOpen = $state(true);
+    let mobileNavigationOpen = $state(false);
     let selectedProjectId = $state(page.data.project?.id);
+    let accountButton = $state<HTMLButtonElement | null>(null);
 
     afterNavigate(() => {
-        if (page.data.project) {
-            selectedProjectId = page.data.project.id;
-        }
+        selectedProjectId = page.data.project?.id;
     });
 
-    const settingsTab = $derived<SettingsTab | undefined>(
-        parseSettingsTab(page.url.searchParams.get(SETTINGS_URL_PARAM) ?? undefined),
-    );
-    const settingsOpen = $derived(settingsTab !== undefined);
-
-    const buildSettingsUrl = (tab: SettingsTab | undefined): ResolvedPathname => {
-        const params = new SvelteURLSearchParams(page.url.searchParams);
-        if (tab === undefined) {
-            params.delete(SETTINGS_URL_PARAM);
-        } else {
-            params.set(SETTINGS_URL_PARAM, tab);
-        }
-        const query = params.toString();
-        if (query.length === 0) {
-            return page.url.pathname;
-        }
-        return `${page.url.pathname}?${query}` as ResolvedPathname;
-    };
-
-    const openSettings = (tab: SettingsTab = DEFAULT_SETTINGS_TAB): void => {
-        const url: ResolvedPathname = buildSettingsUrl(tab);
-        void goto(url, { keepFocus: true, noScroll: true });
-    };
-
-    const changeSettingsTab = (tab: SettingsTab): void => {
-        const url: ResolvedPathname = buildSettingsUrl(tab);
-        void goto(url, {
-            keepFocus: true,
-            noScroll: true,
-            replaceState: true,
-        });
-    };
-
-    const closeSettings = (): void => {
-        if (!settingsOpen) {
-            return;
-        }
-        const url: ResolvedPathname = buildSettingsUrl(undefined);
-        void goto(url, {
-            keepFocus: true,
-            noScroll: true,
-            replaceState: true,
-        });
-    };
-
-    const logoSrc = $derived.by(() => {
-        if (themePreference.selected.includes("dark")) {
-            return DARK_LOGO_SRC;
-        }
-        return LIGHT_LOGO_SRC;
-    });
-
-    const accountSubtitle = $derived(data.user.email);
     const selectedProject = $derived(
         data.projects.find((project) => project.id === selectedProjectId),
     );
-    const navGroups = $derived.by((): readonly NavGroup[] => {
-        const groups: NavGroup[] = [];
-        if (selectedProject) {
-            const projectId = selectedProject.id;
-            groups.push({
-                items: [
-                    {
-                        href: `/projects/${projectId}/landscape`,
-                        icon: "upstacked-chart",
-                        text: "Landscape",
-                    },
-                    {
-                        href: `/projects/${projectId}/vector-deployments`,
-                        icon: "radar-chart",
-                        text: "Vector Deployments",
-                    },
-                    {
-                        href: `/projects/${projectId}/artifact-deployments`,
-                        icon: "database",
-                        text: "Artifact Deployments",
-                    },
-                ],
-                text: "Delivery",
-            });
-        }
-        return groups;
-    });
-
+    const settingsTab = $derived(
+        parseSettingsTab(page.url.searchParams.get(SETTINGS_URL_PARAM) ?? undefined),
+    );
+    const settingsOpen = $derived(settingsTab !== undefined);
     const avatarInitials = $derived(
         data.user.name
             .split(" ")
-            .map((part: string) => part[0])
+            .map((part: string) => part[0] ?? "")
             .join("")
             .slice(0, AVATAR_INITIALS_MAX)
             .toUpperCase(),
     );
-
-    const handleProfileClick = (event: CustomEvent<ShellBarProfileClickEventDetail>): void => {
-        userMenuOpener = event.detail.targetRef;
-        userMenuOpen = true;
-    };
-
-    const handleUserMenuClose = (): void => {
-        userMenuOpen = false;
-    };
-
-    const handleUserMenuItemClick = (
-        event: CustomEvent<UserMenuItemClickEventDetail>,
-    ): void => {
-        if (event.detail.item.getAttribute("data-id") !== SETTINGS_MENU_ITEM_ID) {
-            return;
+    const logoSrc = $derived.by(() => {
+        if (theme.selected === "konfidence-dark") {
+            return "/assets/logo/full/SVG/400_konfidence_logo_dark.svg";
         }
-        userMenuOpen = false;
-        openSettings(DEFAULT_SETTINGS_TAB);
+        return "/assets/logo/full/SVG/400_konfidence_logo_light.svg";
+    });
+    const navItems = $derived.by(() => {
+        if (!selectedProject) {
+            return [];
+        }
+        return [
+            {
+                href: `/projects/${selectedProject.id}/landscape`,
+                icon: "landscape" as const,
+                text: "Landscape",
+            },
+            {
+                href: `/projects/${selectedProject.id}/vector-deployments`,
+                icon: "vector" as const,
+                text: "Vector Deployments",
+            },
+        ];
+    });
+
+    const buildSettingsUrl = (tab: SettingsTab | undefined): ResolvedPathname => {
+        const params = new SvelteURLSearchParams(page.url.searchParams);
+        if (tab) {
+            params.set(SETTINGS_URL_PARAM, tab);
+        } else {
+            params.delete(SETTINGS_URL_PARAM);
+        }
+        const query = params.toString();
+        if (query) {
+            return `${page.url.pathname}?${query}` as ResolvedPathname;
+        }
+        return page.url.pathname;
     };
 
-    const handleSignOutClick = async (): Promise<void> => {
-        userMenuOpen = false;
-        const response = await globalThis.fetch("/api/logout", { method: "POST" });
-        if (response.ok) {
-            globalThis.location.assign("/");
+    const openSettings = (): void => {
+        void goto(buildSettingsUrl(DEFAULT_SETTINGS_TAB), { keepFocus: true, noScroll: true });
+    };
+
+    const changeSettingsTab = (tab: SettingsTab): void => {
+        void goto(buildSettingsUrl(tab), { keepFocus: true, noScroll: true, replaceState: true });
+    };
+
+    const closeSettings = (): void => {
+        void goto(buildSettingsUrl(undefined), {
+            keepFocus: true,
+            noScroll: true,
+            replaceState: true,
+        });
+    };
+
+    const toggleNavigation = (): void => {
+        if (globalThis.matchMedia("(max-width: 48rem)").matches) {
+            mobileNavigationOpen = true;
+        } else {
+            desktopNavigationOpen = !desktopNavigationOpen;
         }
     };
 
     const selectProject = (projectId: string): void => {
         selectedProjectId = projectId;
-        goto(resolve(`/projects/${projectId}/landscape`));
+        mobileNavigationOpen = false;
+        void goto(resolve(`/projects/${projectId}/landscape`));
     };
 
-    const handleSideNavClick = (
-        event: CustomEvent<SideNavigationItemClickEventDetail>,
-        href: NavItem["href"],
-    ): void => {
-        event.preventDefault();
-        // eslint-disable-next-line svelte/no-navigation-without-resolve -- These hrefs are already resolved project paths.
-        goto(href);
+    const signOut = async (): Promise<void> => {
+        const response = await globalThis.fetch("/api/logout", { method: "POST" });
+        if (response.ok) {
+            globalThis.location.assign("/");
+        }
     };
 </script>
 
-<ui5-navigation-layout id="nl1" mode={sidebar.mode}>
-    <ui5-shellbar
-        slot="header"
-        notifications-count="3"
-        show-notifications
-        onui5-profile-click={handleProfileClick}
+<div
+    class={[
+        "grid min-h-dvh grid-rows-[3.25rem_minmax(0,1fr)] transition-[grid-template-columns] duration-[160ms] motion-reduce:transition-none max-[48rem]:flex max-[48rem]:flex-col",
+        desktopNavigationOpen
+            ? "grid-cols-[16rem_minmax(0,1fr)]"
+            : "grid-cols-[0_minmax(0,1fr)]",
+    ]}
+>
+    <header
+        class="z-20 col-span-full flex items-center gap-3 border-b bg-card/94 px-4 shadow-[0_1px_4px_color-mix(in_oklch,var(--foreground)_10%,transparent)] backdrop-blur-[0.75rem] max-[48rem]:sticky max-[48rem]:top-0 max-[48rem]:min-h-[3.25rem]"
     >
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button is an interactive web component with built-in keyboard handling) -->
-        <ui5-button
-            icon="menu2"
-            slot="startButton"
-            id="startButton"
-            onclick={toggleSidebar}
-        ></ui5-button>
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-shellbar-branding is an interactive web component with built-in keyboard handling) -->
-        <ui5-shellbar-branding
-            slot="branding"
-            class="brand"
-            accessible-name="Konfidence home"
-            onclick={() => goto(resolve("/"))}
+        <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Toggle navigation"
+            onclick={toggleNavigation}
         >
+            <MenuIcon />
+        </Button>
+        <a class="inline-flex items-center" href={resolve("/")} aria-label="Konfidence home">
             <img
-                slot="logo"
-                class="brand-logo"
+                class="block h-[1.3rem] w-[10.5rem] object-contain max-[48rem]:w-[9.25rem]"
                 src={logoSrc}
                 alt="Konfidence"
             />
-        </ui5-shellbar-branding>
-        <ui5-tag design="Set2" color-scheme="5" slot="content">UI5 Web Components</ui5-tag>
-        <ui5-avatar
-            slot="profile"
-            initials={avatarInitials}
-            color-scheme="Accent6"
-            accessible-name={`Open account menu for ${data.user.name}`}
-        ></ui5-avatar>
-    </ui5-shellbar>
-    <ui5-side-navigation class="side-panel" slot="sideContent">
-     {#if sidebar.mode !== "Collapsed"}
-        <ProjectSelector
+        </a>
+        <div class="ml-auto flex items-center gap-1">
+            <Button class="relative" variant="ghost" size="icon" aria-label="Notifications, 3 unread">
+                <BellIcon />
+                <span
+                    class="absolute -top-[0.15rem] -right-[0.05rem] grid h-4 min-w-4 place-items-center rounded-full bg-destructive text-[0.65rem] font-bold text-white"
+                    aria-hidden="true">3</span
+                >
+            </Button>
+            <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                    {#snippet child({ props })}
+                        <Button
+                            {...props}
+                            bind:ref={accountButton}
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Open account menu for ${data.user.name}`}
+                        >
+                            <Avatar.Root class="size-8">
+                                <Avatar.Fallback>{avatarInitials}</Avatar.Fallback>
+                            </Avatar.Root>
+                        </Button>
+                    {/snippet}
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content align="end" class="w-64">
+                    <DropdownMenu.Label>
+                        <span class="block truncate">{data.user.name}</span>
+                        <span class="block truncate text-xs font-normal text-muted-foreground">
+                            {data.user.email}
+                        </span>
+                    </DropdownMenu.Label>
+                    <DropdownMenu.Separator />
+                    <DropdownMenu.Item onSelect={openSettings}><SettingsIcon /> Settings</DropdownMenu.Item>
+                    <DropdownMenu.Item variant="destructive" onSelect={signOut}>
+                        <LogOutIcon /> Sign Out
+                    </DropdownMenu.Item>
+                </DropdownMenu.Content>
+            </DropdownMenu.Root>
+        </div>
+    </header>
+
+    <aside
+        class="min-w-0 overflow-x-hidden overflow-y-auto border-r border-sidebar-border bg-sidebar text-sidebar-foreground max-[48rem]:hidden"
+        aria-label="Project navigation"
+    >
+        <AppNavigation
             projects={data.projects}
             selectedProjectId={selectedProject?.id}
+            items={navItems}
+            currentPath={page.url.pathname}
             onselect={selectProject}
+            selectorId="project-select-desktop"
         />
-        {:else}
-        <ui5-side-navigation-item
-            text="Select a project"
-            icon="grid"
-            selected={false}
-            onui5-click={() => {
-                sidebar.mode = "Expanded";
-                tick().then(() => {
-                    const select = document.querySelector("ui5-select#project-select") as any;
-                    if (select) {
-                        select._onclick();
-                    }
-                });
-            }}
-        ></ui5-side-navigation-item>
-     {/if}
-        {#each navGroups as navGroup (navGroup.text)}
-                <ui5-side-navigation-group text={navGroup.text} expanded>
-                    {#each navGroup.items as navItem (navItem.href)}
-                        <ui5-side-navigation-item
-                            text={navItem.text}
-                            href={navItem.href}
-                            icon={navItem.icon}
-                            selected={page.url.pathname.startsWith(navItem.href)}
-                            onui5-click={(
-                                event: CustomEvent<SideNavigationItemClickEventDetail>,
-                            ) => handleSideNavClick(event, navItem.href)}
-                        ></ui5-side-navigation-item>
-                    {/each}
-                </ui5-side-navigation-group>
-            {/each}
-    </ui5-side-navigation>
-    <div class="content">
+    </aside>
+
+    <main
+        class="flex min-h-0 min-w-0 flex-col overflow-auto max-[48rem]:min-h-[calc(100dvh-3.25rem)] max-[48rem]:flex-1 max-[48rem]:overflow-visible"
+        id="main-content"
+    >
         {@render children()}
-    </div>
-</ui5-navigation-layout>
+    </main>
+</div>
 
-<ui5-user-menu
-    id="user-menu"
-    open={userMenuOpen}
-    opener={userMenuOpener}
-    onui5-close={handleUserMenuClose}
-    onui5-item-click={handleUserMenuItemClick}
-    onui5-sign-out-click={handleSignOutClick}
->
-    <ui5-user-menu-account
-        slot="accounts"
-        title-text={data.user.name}
-        subtitle-text={accountSubtitle}
-        selected
-    ></ui5-user-menu-account>
-
-    <ui5-user-menu-item
-        icon="action-settings"
-        text="Settings"
-        data-id={SETTINGS_MENU_ITEM_ID}
-    ></ui5-user-menu-item>
-</ui5-user-menu>
+<Sheet.Root bind:open={mobileNavigationOpen}>
+    <Sheet.Content
+        side="left"
+        class="mobile-navigation !w-[88vw] !max-w-[20rem] p-0"
+        aria-label="Project navigation"
+    >
+        <Sheet.Header class="sr-only">
+            <Sheet.Title>Project navigation</Sheet.Title>
+            <Sheet.Description>Select a project route.</Sheet.Description>
+        </Sheet.Header>
+        <AppNavigation
+            projects={data.projects}
+            selectedProjectId={selectedProject?.id}
+            items={navItems}
+            currentPath={page.url.pathname}
+            onselect={selectProject}
+            onNavigate={() => (mobileNavigationOpen = false)}
+            projectSelectorClass="pr-15"
+            selectorId="project-select-mobile"
+        />
+    </Sheet.Content>
+</Sheet.Root>
 
 <SettingsDialog
     open={settingsOpen}
@@ -329,43 +245,5 @@
     user={data.user}
     onClose={closeSettings}
     onTabChange={changeSettingsTab}
+    returnFocus={() => accountButton?.focus()}
 />
-
-<style>
-    :global(ui5-navigation-layout) {
-        height: 100%;
-    }
-
-    :global(ui5-shellbar) {
-        border-bottom: 1px solid var(--sapList_BorderColor);
-        box-shadow: var(--sapContent_Shadow0);
-    }
-
-    :global(ui5-side-navigation) {
-        flex: 1;
-        border-right: 1px solid var(--sapList_BorderColor);
-    }
-
-    .side-panel {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        background: var(--sapList_Background);
-    }
-
-    .brand-logo {
-        width: 172px;
-        height: 20px;
-        object-fit: contain;
-        display: block;
-    }
-
-    .content {
-        display: flex;
-        flex-direction: column;
-        padding: 0;
-        margin: 0;
-        height: 100%;
-        box-sizing: border-box;
-    }
-</style>

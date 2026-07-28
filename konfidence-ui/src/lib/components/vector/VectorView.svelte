@@ -1,275 +1,308 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/Button.js";
-    import "@ui5/webcomponents/dist/Input.js";
-    import "@ui5/webcomponents/dist/Table.js";
-    import "@ui5/webcomponents/dist/TableCell.js";
-    import "@ui5/webcomponents/dist/TableGrowing.js";
-    import "@ui5/webcomponents/dist/TableHeaderCell.js";
-    import "@ui5/webcomponents/dist/TableHeaderRow.js";
-    import "@ui5/webcomponents/dist/TableRow.js";
-    import "@ui5/webcomponents/dist/TableVirtualizer.js";
-    import "@ui5/webcomponents/dist/Tag.js";
-    import "@ui5/webcomponents/dist/Title.js";
-    import "@ui5/webcomponents-fiori/dist/FlexibleColumnLayout.js";
-    import "@ui5/webcomponents-fiori/dist/IllustratedMessage.js";
-    import "@ui5/webcomponents-fiori/dist/illustrations/tnt/Components.js";
-    import "@ui5/webcomponents-icons/dist/decline.js";
-    import "@ui5/webcomponents-icons/dist/filter.js";
-
-    import { addCustomCSS } from "@ui5/webcomponents-base/dist/Theming.js";
+    import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
+    import ArrowUpDownIcon from "@lucide/svelte/icons/arrow-up-down";
+    import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
+    import BoxesIcon from "@lucide/svelte/icons/boxes";
+    import SearchIcon from "@lucide/svelte/icons/search";
+    import XIcon from "@lucide/svelte/icons/x";
+    import { Badge } from "$lib/components/ui/badge/index.js";
+    import { Button } from "$lib/components/ui/button/index.js";
+    import * as Empty from "$lib/components/ui/empty/index.js";
+    import { Input } from "$lib/components/ui/input/index.js";
+    import * as Sheet from "$lib/components/ui/sheet/index.js";
+    import * as Table from "$lib/components/ui/table/index.js";
     import type { VectorDeployment } from "$lib/deployments";
+    import { MediaQuery } from "svelte/reactivity";
 
-    type TableRowClickEventDetail =
-        import("@ui5/webcomponents/dist/Table.js").TableRowClickEventDetail;
     type SortColumn = "id" | "status" | "version";
-    type SortDirection = "None" | "Ascending" | "Descending";
+    type SortDirection = "ascending" | "descending" | "none";
 
-    addCustomCSS("ui5-flexible-column-layout", ".ui5-fcl-root { width: 100%; }");
-
-    const PAGE_SIZE = 50;
-    const ROW_HEIGHT = 45;
+    const PAGE_SIZE = 10;
     const SORT_KEYS = {
-        id: (vectorDeployment: VectorDeployment) => vectorDeployment.id,
-        status: (vectorDeployment: VectorDeployment) => vectorDeployment.status,
-        version: (vectorDeployment: VectorDeployment) => vectorDeployment.version,
+        id: (deployment: VectorDeployment) => deployment.id,
+        status: (deployment: VectorDeployment) => deployment.status,
+        version: (deployment: VectorDeployment) => deployment.version,
     } as const;
 
     const { vectorDeployments } = $props<{ vectorDeployments: VectorDeployment[] }>();
-
     let searchTerm = $state("");
-    let selectedVectorDeploymentId = $state<string | undefined>();
+    let selectedId = $state<string>();
     let visibleCount = $state(PAGE_SIZE);
-    let sortColumn = $state<SortColumn | undefined>();
-    let sortDirection = $state<SortDirection>("None");
+    let sortColumn = $state<SortColumn>();
+    let sortDirection = $state<SortDirection>("none");
+    let detailsSheetOpen = $state(false);
+    const mobileViewport = new MediaQuery("(max-width: 48rem)", false);
 
-    const selectedVectorDeployment = $derived(
-        vectorDeployments.find(
-            (vectorDeployment: VectorDeployment) =>
-                vectorDeployment.id === selectedVectorDeploymentId,
-        ),
+    const selectedDeployment = $derived(
+        vectorDeployments.find((item: VectorDeployment) => item.id === selectedId),
     );
-    const layout = $derived.by(() => {
-        if (selectedVectorDeployment) {
-            return "TwoColumnsMidExpanded";
-        }
-        return "OneColumn";
-    });
-    const filteredVectorDeployments = $derived.by(() => {
+    const filteredDeployments = $derived.by(() => {
         const query = searchTerm.trim().toLowerCase();
         if (!query) {
             return vectorDeployments;
         }
-        return vectorDeployments.filter((vectorDeployment: VectorDeployment) =>
+        return vectorDeployments.filter((deployment: VectorDeployment) =>
             [
-                vectorDeployment.id,
-                vectorDeployment.repository,
-                vectorDeployment.component,
-                vectorDeployment.version,
-                vectorDeployment.landscape,
-                vectorDeployment.stage,
-                vectorDeployment.status,
+                deployment.id,
+                deployment.repository,
+                deployment.component,
+                deployment.version,
+                deployment.landscape,
+                deployment.stage,
+                deployment.status,
             ].some((value) => value.toLowerCase().includes(query)),
         );
     });
-    const sortedVectorDeployments = $derived.by(() => {
-        if (!sortColumn || sortDirection === "None") {
-            return filteredVectorDeployments;
+    const sortedDeployments = $derived.by(() => {
+        if (!sortColumn || sortDirection === "none") {
+            return filteredDeployments;
         }
         const getValue = SORT_KEYS[sortColumn];
         let factor = -1;
-        if (sortDirection === "Ascending") {
+        if (sortDirection === "ascending") {
             factor = 1;
         }
-        return [...filteredVectorDeployments].toSorted((left, right) =>
-            getValue(left).localeCompare(getValue(right)) * factor,
+        return filteredDeployments.toSorted(
+            (left: VectorDeployment, right: VectorDeployment) =>
+                getValue(left).localeCompare(getValue(right)) * factor,
         );
     });
-    const visibleVectorDeployments = $derived(sortedVectorDeployments.slice(0, visibleCount));
-    const hasMore = $derived(visibleCount < sortedVectorDeployments.length);
+    const visibleDeployments = $derived(sortedDeployments.slice(0, visibleCount));
+    const hasMore = $derived(visibleCount < sortedDeployments.length);
 
-    const sortIndicator = (column: SortColumn): SortDirection => {
-        if (sortColumn === column) {
-            return sortDirection;
-        }
-        return "None";
+    const selectDeployment = (id: string): void => {
+        selectedId = id;
+        detailsSheetOpen = mobileViewport.current;
+    };
+
+    const clearSelection = (): void => {
+        selectedId = undefined;
+        detailsSheetOpen = false;
     };
 
     const toggleSort = (column: SortColumn): void => {
         if (sortColumn !== column) {
             sortColumn = column;
-            sortDirection = "Ascending";
-        } else if (sortDirection === "Ascending") {
-            sortDirection = "Descending";
+            sortDirection = "ascending";
+        } else if (sortDirection === "ascending") {
+            sortDirection = "descending";
         } else {
             sortColumn = undefined;
-            sortDirection = "None";
+            sortDirection = "none";
         }
         visibleCount = PAGE_SIZE;
     };
 
-    const handleSortKeydown = (event: KeyboardEvent, column: SortColumn): void => {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            toggleSort(column);
+    const ariaSort = (column: SortColumn): SortDirection => {
+        if (sortColumn === column) {
+            return sortDirection;
         }
+        return "none";
     };
 
-    const handleSearchInput = (event: Event): void => {
-        searchTerm = (event.target as HTMLInputElement | null)?.value ?? "";
+    const search = (event: Event): void => {
+        searchTerm = (event.currentTarget as HTMLInputElement).value;
         visibleCount = PAGE_SIZE;
-    };
-
-    const handleRowClick = (event: CustomEvent<TableRowClickEventDetail>): void => {
-        selectedVectorDeploymentId = event.detail.row.getAttribute("row-key") ?? undefined;
     };
 </script>
 
-<ui5-flexible-column-layout class="vector-fcl" {layout} accessible-name="Vector deployments">
-    <section slot="startColumn" class="vector-pane vector-list">
-        <header class="page-head">
-            <ui5-title level="H2">Vector Deployments</ui5-title>
-            <p class="page-sub">
-                Versioned vectors currently assigned to project stages · click a row to view its
-                details · showing {visibleVectorDeployments.length} of {sortedVectorDeployments.length}.
+{#snippet sortIcon(column: SortColumn)}
+    {#if ariaSort(column) === "ascending"}
+        <ArrowUpIcon aria-hidden="true" />
+    {:else if ariaSort(column) === "descending"}
+        <ArrowDownIcon aria-hidden="true" />
+    {:else}
+        <ArrowUpDownIcon aria-hidden="true" />
+    {/if}
+{/snippet}
+
+{#snippet details(deployment: VectorDeployment)}
+    <div class="grid gap-5 px-6 pt-16 pb-8">
+        <div class="grid size-16 place-items-center rounded-[1.25rem] bg-accent text-primary" aria-hidden="true">
+            <BoxesIcon class="w-8" />
+        </div>
+        <div>
+            <span class="text-[0.68rem] font-bold tracking-[0.1em] text-primary uppercase">
+                Vector deployment
+            </span>
+            <h2 class="text-xl font-semibold">{deployment.id}</h2>
+            <p class="text-muted-foreground">{deployment.component} is assigned to {deployment.stage}.</p>
+        </div>
+        <dl class="grid border-t">
+            <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
+                <dt class="text-[0.78rem] text-muted-foreground">Status</dt>
+                <dd class="m-0 min-w-0 [overflow-wrap:anywhere]">{deployment.status}</dd>
+            </div>
+            <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
+                <dt class="text-[0.78rem] text-muted-foreground">Version</dt>
+                <dd class="m-0 min-w-0 [overflow-wrap:anywhere]"><code>{deployment.version}</code></dd>
+            </div>
+            <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
+                <dt class="text-[0.78rem] text-muted-foreground">Repository</dt>
+                <dd class="m-0 min-w-0 [overflow-wrap:anywhere]"><code>{deployment.repository}</code></dd>
+            </div>
+            <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
+                <dt class="text-[0.78rem] text-muted-foreground">Landscape</dt>
+                <dd class="m-0 min-w-0 [overflow-wrap:anywhere]">{deployment.landscape}</dd>
+            </div>
+            <div class="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b py-3">
+                <dt class="text-[0.78rem] text-muted-foreground">Stage</dt>
+                <dd class="m-0 min-w-0 [overflow-wrap:anywhere]">{deployment.stage}</dd>
+            </div>
+        </dl>
+        <Button variant="outline" onclick={clearSelection}>Back to list</Button>
+    </div>
+{/snippet}
+
+<div
+    class={[
+        "grid min-h-full grid-cols-[minmax(0,1fr)]",
+        selectedDeployment &&
+            "grid-cols-[minmax(36rem,1fr)_minmax(20rem,28rem)] max-[48rem]:block",
+    ]}
+>
+    <section class="min-w-0 p-[clamp(1rem,3vw,2rem)] max-[48rem]:p-4" aria-labelledby="vector-title">
+        <header class="mb-4 grid gap-1">
+            <span class="text-[0.68rem] font-bold tracking-[0.1em] text-primary uppercase">
+                Project inventory
+            </span>
+            <h1 class="text-[1.55rem] font-semibold tracking-[-0.025em]" id="vector-title">
+                Vector Deployments
+            </h1>
+            <p class="text-muted-foreground">
+                Versioned vectors currently assigned to project stages. Showing
+                {visibleDeployments.length} of {sortedDeployments.length}.
             </p>
         </header>
 
-        <div class="vt-search" role="search">
-            <ui5-input
-                class="vt-search-input"
-                placeholder="Search vector deployments…"
+        <div class="relative mb-4 max-w-2xl" role="search">
+            <SearchIcon
+                class="absolute top-1/2 left-[0.7rem] z-1 w-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+            />
+            <Input
+                class="pl-[2.15rem]"
+                type="search"
+                aria-label="Search vector deployments"
+                placeholder="Search vector deployments..."
                 value={searchTerm}
-                onui5-input={handleSearchInput}
-            ></ui5-input>
-            <ui5-button icon="filter" design="Transparent">Filter</ui5-button>
-            <ui5-button icon="filter" design="Transparent">Status</ui5-button>
+                oninput={search}
+            />
         </div>
 
-        <ui5-table
-            class="vector-table"
-            overflow-mode="Scroll"
-            no-data-text="No vector deployments match your search."
-            accessible-name="Vector deployments"
-            onui5-row-click={handleRowClick}
-        >
-            <ui5-table-virtualizer
-                slot="features"
-                row-count={visibleVectorDeployments.length}
-                row-height={ROW_HEIGHT}
-            ></ui5-table-virtualizer>
+        {#if sortedDeployments.length === 0}
+            <Empty.Root class="border bg-card">
+                <Empty.Media variant="icon"><SearchIcon /></Empty.Media>
+                <Empty.Header>
+                    <Empty.Title>No matching vector deployments</Empty.Title>
+                    <Empty.Description>Try a different name, version, stage, or status.</Empty.Description>
+                </Empty.Header>
+            </Empty.Root>
+        {:else}
+            <div class="overflow-hidden rounded-xl border bg-card">
+                <Table.Root class="[&_td]:max-[48rem]:px-[0.45rem] [&_th]:max-[48rem]:px-[0.45rem]">
+                    <Table.Caption class="sr-only">Vector deployments</Table.Caption>
+                    <Table.Header>
+                        <Table.Row>
+                            <Table.Head aria-sort={ariaSort("id")}>
+                                <Button class="-ml-3 font-semibold" variant="ghost" onclick={() => toggleSort("id")}>
+                                    Vector deployment {@render sortIcon("id")}
+                                </Button>
+                            </Table.Head>
+                            <Table.Head>Repository</Table.Head>
+                            <Table.Head aria-sort={ariaSort("version")}>
+                                <Button class="-ml-3 font-semibold" variant="ghost" onclick={() => toggleSort("version")}>
+                                    Version {@render sortIcon("version")}
+                                </Button>
+                            </Table.Head>
+                            <Table.Head class="max-[70rem]:hidden">Landscape</Table.Head>
+                            <Table.Head class="max-[70rem]:hidden">Stage</Table.Head>
+                            <Table.Head class="max-[48rem]:hidden" aria-sort={ariaSort("status")}>
+                                <Button class="-ml-3 font-semibold" variant="ghost" onclick={() => toggleSort("status")}>
+                                    Status {@render sortIcon("status")}
+                                </Button>
+                            </Table.Head>
+                        </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                        {#each visibleDeployments as deployment (deployment.id)}
+                            <Table.Row data-state={deployment.id === selectedId ? "selected" : undefined}>
+                                <Table.Cell>
+                                    <Button
+                                        class="h-auto max-w-52 justify-start p-0 text-left font-semibold whitespace-normal text-foreground max-[48rem]:max-w-30 max-[48rem]:[overflow-wrap:anywhere]"
+                                        variant="link"
+                                        onclick={() => selectDeployment(deployment.id)}
+                                    >
+                                        {deployment.id}
+                                    </Button>
+                                </Table.Cell>
+                                <Table.Cell>
+                                    <code class="block max-w-36 truncate text-xs text-muted-foreground max-[48rem]:max-w-36">
+                                        {deployment.repository}
+                                    </code>
+                                </Table.Cell>
+                                <Table.Cell><code class="text-xs">{deployment.version}</code></Table.Cell>
+                                <Table.Cell class="max-[70rem]:hidden">{deployment.landscape}</Table.Cell>
+                                <Table.Cell class="max-[70rem]:hidden">{deployment.stage}</Table.Cell>
+                                <Table.Cell class="max-[48rem]:hidden">
+                                    <Badge
+                                        variant="outline"
+                                        class={deployment.status === "ArtifactDeploymentCreated"
+                                            ? "border-success/55 bg-success-background text-success"
+                                            : undefined}
+                                    >
+                                        {deployment.status}
+                                    </Badge>
+                                </Table.Cell>
+                            </Table.Row>
+                        {/each}
+                    </Table.Body>
+                </Table.Root>
+            </div>
             {#if hasMore}
-                <ui5-table-growing slot="features" mode="Scroll" onui5-load-more={() => {
-                    visibleCount = Math.min(visibleCount + PAGE_SIZE, sortedVectorDeployments.length);
-                }}></ui5-table-growing>
+                <div class="flex justify-center p-4">
+                    <Button
+                        variant="outline"
+                        onclick={() =>
+                            (visibleCount = Math.min(
+                                visibleCount + PAGE_SIZE,
+                                sortedDeployments.length,
+                            ))}
+                    >
+                        Load more
+                    </Button>
+                </div>
             {/if}
-
-            <ui5-table-header-row slot="headerRow">
-                <ui5-table-header-cell
-                    class="sortable"
-                    role="button"
-                    tabindex="0"
-                    sort-indicator={sortIndicator("id")}
-                    onclick={() => toggleSort("id")}
-                    onkeydown={(event: KeyboardEvent) => handleSortKeydown(event, "id")}
-                >Vector deployment</ui5-table-header-cell>
-                <ui5-table-header-cell min-width="220px">Repository</ui5-table-header-cell>
-                <ui5-table-header-cell
-                    class="sortable"
-                    role="button"
-                    tabindex="0"
-                    min-width="120px"
-                    sort-indicator={sortIndicator("version")}
-                    onclick={() => toggleSort("version")}
-                    onkeydown={(event: KeyboardEvent) => handleSortKeydown(event, "version")}
-                >Version</ui5-table-header-cell>
-                <ui5-table-header-cell min-width="140px">Landscape</ui5-table-header-cell>
-                <ui5-table-header-cell min-width="180px">Stage</ui5-table-header-cell>
-                <ui5-table-header-cell
-                    class="sortable"
-                    role="button"
-                    tabindex="0"
-                    min-width="190px"
-                    sort-indicator={sortIndicator("status")}
-                    onclick={() => toggleSort("status")}
-                    onkeydown={(event: KeyboardEvent) => handleSortKeydown(event, "status")}
-                >Status</ui5-table-header-cell>
-            </ui5-table-header-row>
-
-            {#each visibleVectorDeployments as vectorDeployment (vectorDeployment.id)}
-                <ui5-table-row interactive row-key={vectorDeployment.id}>
-                    <ui5-table-cell><span class="vid-cell">{vectorDeployment.id}</span></ui5-table-cell>
-                    <ui5-table-cell><span class="mono muted">{vectorDeployment.repository}</span></ui5-table-cell>
-                    <ui5-table-cell><span class="mono">{vectorDeployment.version}</span></ui5-table-cell>
-                    <ui5-table-cell>{vectorDeployment.landscape}</ui5-table-cell>
-                    <ui5-table-cell>{vectorDeployment.stage}</ui5-table-cell>
-                    <ui5-table-cell>
-                        <ui5-tag design={vectorDeployment.status === "ArtifactDeploymentCreated" ? "Positive" : "Information"}>
-                            {vectorDeployment.status}
-                        </ui5-tag>
-                    </ui5-table-cell>
-                </ui5-table-row>
-            {/each}
-        </ui5-table>
+        {/if}
     </section>
 
-    {#if selectedVectorDeployment}
-        <section slot="midColumn" class="vector-pane vector-details">
-            <header class="details-head">
-                <ui5-title level="H3">{selectedVectorDeployment.id}</ui5-title>
-                <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
-                <ui5-button
-                    icon="decline"
-                    design="Transparent"
-                    accessible-name="Close vector deployment details"
-                    onclick={() => { selectedVectorDeploymentId = undefined; }}
-                ></ui5-button>
-            </header>
-            <div class="details-body">
-                <ui5-illustrated-message
-                    name="TntComponents"
-                    title-text="Vector deployment details coming soon"
-                    subtitle-text={`Artifact breakdown and deployment history for ${selectedVectorDeployment.component} will appear here.`}
-                >
-                    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
-                    <ui5-button design="Emphasized" onclick={() => { selectedVectorDeploymentId = undefined; }}>
-                        Back to list
-                    </ui5-button>
-                </ui5-illustrated-message>
-            </div>
-        </section>
+    {#if selectedDeployment}
+        <aside
+            class="relative border-l bg-card max-[48rem]:hidden"
+            aria-label={`Details for ${selectedDeployment.id}`}
+        >
+            <Button
+                class="absolute top-4 right-4 z-1"
+                variant="ghost"
+                size="icon"
+                aria-label="Close vector deployment details"
+                onclick={clearSelection}
+            >
+                <XIcon />
+            </Button>
+            {@render details(selectedDeployment)}
+        </aside>
     {/if}
-</ui5-flexible-column-layout>
+</div>
 
-<style>
-    .vector-fcl {
-        flex: 1;
-        height: 100%;
-        --vector-pane-padding: 1rem;
-        --vector-text: var(--sapTextColor, #1d2d3e);
-        --vector-text-muted: var(--sapContent_LabelColor, #556b82);
-        --vector-mono-family: var(--sapFontMonospaceFamily, monospace);
-        --vector-mono-size: var(--sapFontSmallSize, 0.75rem);
-    }
-    .vector-pane {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        min-height: 0;
-        padding: var(--vector-pane-padding);
-        gap: 1rem;
-        overflow: auto;
-        box-sizing: border-box;
-    }
-    .page-head { display: flex; flex-direction: column; gap: 0.25rem; }
-    .page-sub { margin: 0; color: var(--vector-text-muted); font-size: var(--sapFontSize, 0.875rem); }
-    .vt-search { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-    .vt-search-input { flex: 1 1 260px; min-width: 200px; }
-    .vector-table { flex: 1 1 auto; min-height: 0; }
-    .sortable { cursor: pointer; }
-    .vid-cell { font-weight: 600; color: var(--vector-text); }
-    .mono { font-family: var(--vector-mono-family); font-size: var(--vector-mono-size); color: var(--vector-text); }
-    .mono.muted { color: var(--vector-text-muted); }
-    .vector-details { gap: 0; padding: 0; }
-    .details-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 1rem var(--vector-pane-padding); border-bottom: 1px solid var(--sapList_BorderColor, #e4e4e2); }
-    .details-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: var(--vector-pane-padding); min-height: 0; }
-</style>
+<Sheet.Root bind:open={detailsSheetOpen}>
+    <Sheet.Content side="right" class="!w-[94vw] !max-w-[34rem] overflow-y-auto">
+        {#if selectedDeployment}
+            <Sheet.Header class="sr-only">
+                <Sheet.Title>{selectedDeployment.id}</Sheet.Title>
+                <Sheet.Description>Vector deployment details</Sheet.Description>
+            </Sheet.Header>
+            {@render details(selectedDeployment)}
+        {/if}
+    </Sheet.Content>
+</Sheet.Root>

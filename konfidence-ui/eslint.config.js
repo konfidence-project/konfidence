@@ -2,6 +2,7 @@ import svelte from "eslint-plugin-svelte";
 import tsParser from "@typescript-eslint/parser";
 
 const config = [
+  { ignores: ["src/lib/components/ui/**"] },
   ...svelte.configs["flat/recommended"],
   {
     files: ["src/**/*.svelte"],
@@ -12,6 +13,10 @@ const config = [
         projectService: true,
       },
     },
+  },
+  {
+    files: ["src/lib/components/AppNavigation.svelte"],
+    rules: { "svelte/no-navigation-without-resolve": "off" },
   },
 ];
 

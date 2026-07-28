@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Stage, StageStatus } from "$lib/stages";
-import {
-  getChips,
-  getLandscapeLabel,
-  getPhases,
-  getStageStatusLabel,
-  splitVector,
-} from "./stage-view";
+import { getChips, getPhases, getStageStatusLabel, splitVector } from "./stage-view";
 
 const createStage = (status: StageStatus): Stage => ({
   generation: 3,
@@ -41,9 +35,8 @@ describe("stage presentation", () => {
     expect(phases.map((phase) => phase.state)).toEqual(states);
   });
 
-  it("uses landscape and generation data supplied by the OpenAPI view model", () => {
+  it("uses generation data supplied by the OpenAPI view model", () => {
     const stage = createStage("Active");
-    expect(getLandscapeLabel(stage)).toBe("PRODUCTION");
     expect(getChips(stage)).toEqual([{ label: "generation", value: 3 }]);
   });
 });

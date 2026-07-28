@@ -3,7 +3,6 @@ import type { components } from "$lib/konfidence-api/schema";
 type ApiLandscape = components["schemas"]["LandscapeResponse"];
 type ApiStage = components["schemas"]["StageResponse"];
 type ApiVectorDeployment = components["schemas"]["VectorDeploymentResponse"];
-type ApiArtifactDeployment = components["schemas"]["ArtifactDeploymentResponse"];
 
 interface VectorDeployment {
   component: string;
@@ -12,17 +11,6 @@ interface VectorDeployment {
   repository: string;
   stage: string;
   status: ApiVectorDeployment["status"];
-  version: string;
-}
-
-interface ArtifactDeployment {
-  component: string;
-  id: string;
-  landscape: string;
-  repository: string;
-  stages: string[];
-  status: ApiArtifactDeployment["status"];
-  vectorDeployments: string[];
   version: string;
 }
 
@@ -47,24 +35,5 @@ const toVectorDeployments = (
   }));
 };
 
-const toArtifactDeployments = (
-  landscapes: ApiLandscape[],
-  stages: ApiStage[],
-  deployments: ApiArtifactDeployment[],
-): ArtifactDeployment[] => {
-  const landscapeNames = namesById(landscapes);
-  const stageNames = namesById(stages);
-  return deployments.map((deployment) => ({
-    component: deployment.artifact.componentName,
-    id: deployment.id,
-    landscape: landscapeNames.get(deployment.landscapeId) ?? deployment.landscapeId,
-    repository: deployment.artifact.repository,
-    stages: deployment.stageIds.map((id) => stageNames.get(id) ?? id),
-    status: deployment.status,
-    vectorDeployments: deployment.vectorDeploymentIds,
-    version: deployment.artifact.componentVersion,
-  }));
-};
-
-export { toArtifactDeployments, toVectorDeployments };
-export type { ArtifactDeployment, VectorDeployment };
+export { toVectorDeployments };
+export type { VectorDeployment };

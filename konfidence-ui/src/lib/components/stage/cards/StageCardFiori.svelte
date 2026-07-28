@@ -1,262 +1,132 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/Card.js";
-    import "@ui5/webcomponents/dist/CardHeader.js";
-    import "@ui5/webcomponents/dist/Icon.js";
-    import "@ui5/webcomponents/dist/Tag.js";
-    import "@ui5/webcomponents/dist/Button.js";
-    import "@ui5/webcomponents/dist/Popover.js";
-    import "@ui5/webcomponents/dist/List.js";
-    import "@ui5/webcomponents/dist/ListItemStandard.js";
-    import "@ui5/webcomponents-icons/dist/upstacked-chart.js";
-    import "@ui5/webcomponents-icons/dist/overflow.js";
-
-    import {
-        getChips,
-        getPhases,
-        getStageStatusLabel,
-        splitVector,
-    } from "../utils/stage-view.js";
+    import CopyIcon from "@lucide/svelte/icons/copy";
+    import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
+    import FileCodeIcon from "@lucide/svelte/icons/file-code";
+    import ScrollTextIcon from "@lucide/svelte/icons/scroll-text";
+    import { Badge } from "$lib/components/ui/badge/index.js";
+    import { Button } from "$lib/components/ui/button/index.js";
+    import * as Card from "$lib/components/ui/card/index.js";
+    import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
     import type { Stage } from "$lib/stages.js";
+    import { getChips, getPhases, getStageStatusLabel, splitVector } from "../utils/stage-view.js";
 
-    type StageChip = import("../utils/stage-view.js").StageChip;
-    type StageHealth = import("../utils/stage-view.js").StageHealth;
-    type StagePhaseState = import("../utils/stage-view.js").StagePhaseState;
-
-    type TagDesign = "Critical" | "Information" | "Negative" | "Neutral" | "Positive";
-
-    const STATUS_DESIGN: Record<StageHealth, TagDesign> = {
-        deploying: "Information",
-        healthy: "Positive",
-    };
-
-    const PHASE_DESIGN: Record<StagePhaseState, TagDesign> = {
-        cur: "Information",
-        done: "Positive",
-        idle: "Neutral",
-    };
-
-    const CHIP_DESIGN: Record<NonNullable<StageChip["tone"]>, TagDesign> = {
-        "": "Neutral",
-        alert: "Negative",
-        info: "Information",
-        warn: "Critical",
-    };
-
-    const { stage } = $props<{ stage: Stage }>();
-
+    const { stage, selected = false } = $props<{ stage: Stage; selected?: boolean }>();
     const status = $derived(getStageStatusLabel(stage));
     const phases = $derived(getPhases(stage));
     const chips = $derived(getChips(stage));
     const vector = $derived(splitVector(stage.vector));
 
-    let menuBtn = $state<HTMLElement>();
-    let popover = $state<HTMLElement & { open?: boolean }>();
-
-    const btnId = $derived(`stage-card-fiori-menu-${stage.id}`);
-
-    const shouldPulseStatus = $derived(status.tone === "deploying");
-
-    const tagDesign = (tone: StageHealth) => STATUS_DESIGN[tone];
-    const phaseTagDesign = (state: StagePhaseState) => PHASE_DESIGN[state];
-    const chipDesign = (tone: StageChip["tone"]) => CHIP_DESIGN[tone ?? ""];
-
-    const openMenu = () => {
-        if (popover && menuBtn) {
-            popover.setAttribute("opener", btnId);
-            popover.open = true;
-        }
-    };
-
-    const closeMenu = () => {
-        if (popover) {popover.open = false;}
-    };
-
-    const onMenuKey = (event: KeyboardEvent) => {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            openMenu();
-        }
+    const copyName = async (): Promise<void> => {
+        await globalThis.navigator?.clipboard?.writeText(stage.name);
     };
 </script>
 
-<ui5-card class="stage-fiori-card">
-    <ui5-card-header
-        slot="header"
-        title-text={stage.name}
-        subtitle-text={stage.landscapeName}
-        interactive
-    >
-        <ui5-icon slot="avatar" name="upstacked-chart"></ui5-icon>
-        <div slot="action" class="header-action">
-            <ui5-tag design={tagDesign(status.tone)} hide-state-icon>
-                <span class="pill-inner" class:pulse={shouldPulseStatus}>
-                    <span class="dot" class:pulse={shouldPulseStatus}></span>
-                    {status.label}
-                </span>
-            </ui5-tag>
-            <ui5-button
-                bind:this={menuBtn}
-                id={btnId}
-                design="Transparent"
-                icon="overflow"
-                tooltip="More actions"
-                role="button"
-                tabindex="0"
-                aria-label="Stage actions"
-                onclick={openMenu}
-                onkeydown={onMenuKey}
-            ></ui5-button>
-        </div>
-    </ui5-card-header>
-
-    <div class="card-body">
-        <div class="row">
-            <span class="row-label">Vector</span>
-            <span class="row-value">
-                <code>{vector.version}</code>
-                {#if vector.hash}
-                    <code class="hash">{vector.hash}</code>
-                {/if}
-            </span>
-        </div>
-
-        <div class="row">
-            <span class="row-label">Phases</span>
-            <span class="phase-row">
-                {#each phases as phase (phase.id)}
-                    <ui5-tag
-                        design={phaseTagDesign(phase.state)}
-                        hide-state-icon
-                        title={phase.reason
-                            ? `${phase.label}: ${phase.reason}${phase.message ? ` — ${phase.message}` : ""}`
-                            : phase.label}
-                    >
-                        {phase.label}
-                    </ui5-tag>
-                {/each}
-            </span>
-        </div>
-
-        {#if chips.length > 0}
-            <div class="row">
-                <span class="row-label">Details</span>
-                <span class="chip-row">
-                    {#each chips as chip, i (`${chip.label}-${i}`)}
-                        <ui5-tag design={chipDesign(chip.tone)} hide-state-icon>
-                            <strong>{chip.value}</strong>&nbsp;{chip.label}
-                        </ui5-tag>
-                    {/each}
-                </span>
-            </div>
-        {/if}
-    </div>
-</ui5-card>
-
-<ui5-popover
-    bind:this={popover}
-    placement="Bottom"
-    horizontal-align="End"
-    accessible-name="Stage actions"
+<Card.Root
+    class={[
+        "stage-card relative w-80 gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground shadow-[0_0.35rem_1.2rem_color-mix(in_oklch,var(--foreground)_8%,transparent)]",
+        selected &&
+            "border-primary shadow-[0_0_0_2px_color-mix(in_oklch,var(--primary)_25%,transparent)]",
+    ]}
+    data-health={status.tone}
+    role="article"
+    aria-label={`Stage ${stage.name}`}
 >
-    <ui5-list
-        separators="None"
-        accessible-name="Stage actions"
-        onitem-click={closeMenu}
-    >
-        <ui5-li icon="copy" type="Active">Copy stage name</ui5-li>
-        <ui5-li icon="document-text" type="Active">View YAML</ui5-li>
-        <ui5-li icon="log" type="Active">Open logs</ui5-li>
-    </ui5-list>
-</ui5-popover>
+    <span
+        class={["h-[0.24rem] bg-information", status.tone === "healthy" && "bg-success"]}
+        aria-hidden="true"
+    ></span>
+    <Card.Header class="relative gap-[0.65rem] px-[0.9rem] pt-[0.85rem] pb-[0.7rem]">
+        <div class="flex items-start justify-between gap-2 pr-[1.4rem]">
+            <div class="min-w-0">
+                <Card.Title class="truncate text-[0.95rem]">{stage.name}</Card.Title>
+                <Card.Description class="mt-[0.1rem] text-[0.68rem] tracking-[0.06em] uppercase">
+                    {stage.landscapeName}
+                </Card.Description>
+            </div>
+            <Badge
+                variant="outline"
+                class={[
+                    "gap-[0.3rem] border-current text-[0.62rem] tracking-[0.05em] uppercase",
+                    status.tone === "healthy"
+                        ? "bg-success-background text-success"
+                        : "bg-information-background text-information",
+                ]}
+            >
+                <span
+                    class={[
+                        "size-[0.38rem] rounded-full bg-current",
+                        status.tone === "deploying" &&
+                            "animate-status-pulse motion-reduce:animate-none",
+                    ]}
+                ></span>
+                {status.label}
+            </Badge>
+        </div>
+        <div class="flex min-w-0 items-center gap-[0.35rem] text-[0.68rem] text-muted-foreground uppercase">
+            <span>Vector</span>
+            <code class="truncate rounded-[0.3rem] border bg-muted px-[0.3rem] py-[0.1rem] text-[0.72rem] text-foreground normal-case">
+                {vector.version}
+            </code>
+            {#if vector.hash}
+                <code
+                    class="truncate rounded-[0.3rem] border bg-muted px-[0.3rem] py-[0.1rem] text-[0.72rem] text-muted-foreground normal-case"
+                >{vector.hash}</code>
+            {/if}
+        </div>
+        <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+                {#snippet child({ props })}
+                    <Button
+                        {...props}
+                        class="absolute top-[0.55rem] right-[0.55rem]"
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`Actions for stage ${stage.name}`}
+                    >
+                        <EllipsisIcon />
+                    </Button>
+                {/snippet}
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="end" class="w-44">
+                <DropdownMenu.Item onSelect={copyName}><CopyIcon /> Copy stage name</DropdownMenu.Item>
+                <DropdownMenu.Item><FileCodeIcon /> View YAML</DropdownMenu.Item>
+                <DropdownMenu.Item><ScrollTextIcon /> Open logs</DropdownMenu.Item>
+            </DropdownMenu.Content>
+        </DropdownMenu.Root>
+    </Card.Header>
 
-<style>
-    .stage-fiori-card {
-        min-width: 0;
-        width: 100%;
-        /* Compact density — shrink UI5 font/spacing tokens locally. */
-        --sapFontSize: 0.75rem;
-        --sapContent_ElementHeight_Regular: 1.625rem;
-        --sapContent_ContainerPadding_Regular: 0.5rem;
-        --_ui5-v2_23_2-card-header-padding: 0.5rem 0.75rem;
-    }
-
-    .header-action {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .card-body {
-        display: grid;
-        gap: 0.5rem;
-        padding: 0.75rem;
-    }
-
-    .row {
-        display: grid;
-        grid-template-columns: 4.25rem 1fr;
-        align-items: center;
-        gap: 0.5rem;
-        min-height: 1.5rem;
-    }
-
-    .row-label {
-        color: var(--sapContent_LabelColor);
-        font-size: 0.6875rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .row-value {
-        display: inline-flex;
-        gap: 0.375rem;
-        align-items: center;
-        min-width: 0;
-        overflow-wrap: anywhere;
-    }
-
-    code {
-        padding: 0.0625rem 0.375rem;
-        border: 1px solid var(--sapList_BorderColor);
-        border-radius: 0.25rem;
-        background: var(--sapList_Background);
-        font-family: var(--sapFontMonospaceFamily, "SF Mono", Menlo, monospace);
-        font-size: 0.75rem;
-    }
-    code.hash {
-        color: var(--sapContent_LabelColor);
-    }
-
-    .phase-row,
-    .chip-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.25rem;
-    }
-
-    /* ── Pulsing status dot (deploying / error only) ────────── */
-    .pill-inner {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3125rem;
-        line-height: 1;
-    }
-    .dot {
-        width: 0.375rem;
-        height: 0.375rem;
-        border-radius: 50%;
-        background: currentColor;
-    }
-    .dot.pulse {
-        animation: fiori-status-pulse 0.8s ease-in-out infinite alternate;
-    }
-    @keyframes fiori-status-pulse {
-        from {
-            opacity: 1;
-        }
-        to {
-            opacity: 0.25;
-        }
-    }
-</style>
+    <Card.Content class="px-[0.9rem] pt-0 pb-[0.85rem]">
+        <div class="mb-[0.3rem] text-[0.62rem] font-bold tracking-[0.06em] text-muted-foreground uppercase">
+            Deployment phases
+        </div>
+        <ol class="grid list-none grid-cols-3 gap-1 p-0">
+            {#each phases as phase (phase.id)}
+                <li
+                    class={[
+                        "grid gap-[0.22rem] text-center text-[0.58rem] text-muted-foreground uppercase",
+                        phase.state === "done" && "text-success",
+                        phase.state === "cur" && "font-bold text-information",
+                    ]}
+                    title={phase.label}
+                >
+                    <span
+                        class={[
+                            "h-[0.22rem] rounded-full bg-border",
+                            phase.state === "done" && "bg-success opacity-65",
+                            phase.state === "cur" && "bg-information",
+                        ]}
+                        aria-hidden="true"
+                    ></span>
+                    <span>{phase.label}<span class="sr-only">: {phase.state}</span></span>
+                </li>
+            {/each}
+        </ol>
+        <div class="mt-[0.6rem] flex flex-wrap gap-[0.3rem]">
+            {#each chips as chip, index (`${chip.label}-${index}`)}
+                <Badge class="text-[0.65rem]" variant="outline">
+                    <strong>{chip.value}</strong> {chip.label}
+                </Badge>
+            {/each}
+        </div>
+    </Card.Content>
+</Card.Root>

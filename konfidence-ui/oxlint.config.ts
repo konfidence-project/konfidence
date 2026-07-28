@@ -14,6 +14,7 @@ export default defineConfig({
   env: {
     builtin: true,
   },
+  ignorePatterns: ["src/lib/components/ui/**", "src/lib/utils.ts"],
   overrides: [
     {
       files: ["src/**/*.svelte", "src/**/*.svelte.ts"],
@@ -61,7 +62,7 @@ export default defineConfig({
       env: {
         node: true,
       },
-      files: ["tests/auth/**/*.ts", "tests/mock-api/**/*.ts"],
+      files: ["tests/auth/**/*.ts", "tests/e2e/**/*.ts", "tests/mock-api/**/*.ts"],
       rules: {
         // Integration setup is intentionally procedural and uses Node process/container APIs.
         "eslint/max-params": "off",
@@ -86,6 +87,20 @@ export default defineConfig({
         "eslint/id-length": "off",
       },
     },
+    {
+      files: ["src/hooks.server.ts"],
+      rules: {
+        // Request handling intentionally keeps authentication, theme SSR, and diagnostics together.
+        "eslint/max-statements": "off",
+      },
+    },
+    {
+      files: ["src/routes/(app)/+layout.svelte"],
+      rules: {
+        // The generated bindable ref contract uses null as its initial DOM sentinel.
+        "unicorn/no-null": "off",
+      },
+    },
   ],
   plugins: ["typescript", "unicorn", "oxc", "eslint", "import"],
   rules: {
@@ -102,7 +117,7 @@ export default defineConfig({
     "import/no-unassigned-import": [
       "warn",
       {
-        allow: ["@ui5/**", "**/*.css"],
+        allow: ["**/*.css"],
       },
     ],
 
