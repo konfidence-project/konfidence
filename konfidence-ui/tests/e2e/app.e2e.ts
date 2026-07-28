@@ -262,6 +262,28 @@ test("persists theme selection", async ({ page }) => {
   await expect(page.locator('[aria-label="Stage prod-eu30"]:visible')).toBeVisible();
 });
 
+test("switches language and persists it for client and server rendering", async ({ page }) => {
+  await page.goto("/projects/payments-platform/vector-deployments?settings=appearance");
+  await page.getByRole("combobox", { name: "Language" }).selectOption("de");
+
+  await Promise.all([
+    expect(page.locator("html")).toHaveAttribute("lang", "de"),
+    expect(page.getByRole("dialog", { name: "Einstellungen" })).toBeVisible(),
+  ]);
+  await page.getByRole("button", { name: "Einstellungen schließen" }).click();
+  await expect(page.getByRole("heading", { name: "Vektorbereitstellungen" })).toBeVisible();
+
+  await page.reload();
+  await Promise.all([
+    expect(page.locator("html")).toHaveAttribute("lang", "de"),
+    expect(page.getByRole("heading", { name: "Vektorbereitstellungen" })).toBeVisible(),
+  ]);
+
+  const vectorHtml = await getRouteHtml(page, "/projects/payments-platform/vector-deployments");
+  expect(vectorHtml).toContain('<html lang="de"');
+  expect(vectorHtml).toContain("Vektorbereitstellungen");
+});
+
 for (const theme of themes) {
   test(`landscape view has no axe violations in ${theme}`, async ({ context, page }) => {
     await context.addCookies([{ name: "konfidence_theme", url: BASE_URL, value: theme }]);

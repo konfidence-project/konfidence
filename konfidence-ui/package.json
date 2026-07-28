@@ -31,6 +31,7 @@
     "@lucide/svelte": "^1.27.0",
     "@xyflow/svelte": "^1.6.1",
     "openapi-fetch": "^0.17.0",
+    "svelte-i18n": "^4.0.1",
     "valibot": "^1.4.2"
   },
   "devDependencies": {

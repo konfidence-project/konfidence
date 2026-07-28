@@ -7,6 +7,7 @@
     import XIcon from "@lucide/svelte/icons/x";
 
     import type { VectorDeployment } from "$lib/deployments";
+    import { getLocalePreference } from "$lib/locale-preference.svelte";
 
     type SortColumn = "id" | "status" | "version";
     type SortDirection = "ascending" | "descending" | "none";
@@ -19,6 +20,7 @@
     } as const;
 
     const { vectorDeployments } = $props<{ vectorDeployments: VectorDeployment[] }>();
+    const locale = getLocalePreference();
     let searchTerm = $state("");
     let selectedId = $state<string>();
     let sortColumn = $state<SortColumn>();
@@ -83,51 +85,52 @@
 <div class={["grid min-h-0 min-w-0 flex-1 bg-app-bg", selected ? "grid-cols-[minmax(24rem,0.75fr)_minmax(28rem,1.25fr)] max-[68rem]:grid-cols-1" : "grid-cols-1"]}>
     <section class={["flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden px-4 py-[1.2rem] max-[68rem]:px-3 max-[47.999rem]:py-4", selected && "max-[68rem]:hidden"]} aria-labelledby="vector-title">
         <header class="grid gap-[0.2rem]">
-            <h1 id="vector-title" class="m-0 text-[1.35rem]">Vector Deployments</h1>
+            <span class="text-[0.68rem] font-bold tracking-[0.09em] text-app-accent-strong uppercase">{locale.translate("vector.inventory")}</span>
+            <h1 id="vector-title" class="m-0 text-[1.35rem]">{locale.translate("vector.title")}</h1>
             <p class="m-0 text-[0.84rem] text-app-muted">
-                Versioned vectors currently assigned to project stages. Showing {sorted.length} of {sorted.length}.
+                {locale.translate("vector.summary", { visible: visible.length, total: sorted.length })}
             </p>
         </header>
 
         <div class="relative flex items-center" role="search">
-            <label for="vector-search" class="sr-only">Search vector deployments</label>
+            <label for="vector-search" class="sr-only">{locale.translate("vector.search")}</label>
             <SearchIcon class="pointer-events-none absolute left-3 z-1 size-4 text-app-muted" aria-hidden="true" />
             <input
                 id="vector-search"
                 class="input w-full border-app-border bg-app-card pl-9 text-app-text"
                 type="search"
-                placeholder="Search vector deployments..."
+                placeholder={locale.translate("vector.searchPlaceholder")}
                 value={searchTerm}
                 oninput={updateSearch}
             />
         </div>
 
         <div class="min-h-48 flex-1 overflow-auto rounded-[0.55rem] border border-app-border bg-app-card">
-            <table class="table w-full min-w-256 border-collapse text-[0.8rem] text-app-text [&_th]:border-b [&_th]:border-app-border [&_th]:px-3 [&_th]:py-[0.68rem] [&_th]:text-left [&_th]:whitespace-nowrap [&_td]:border-b [&_td]:border-app-border [&_td]:px-3 [&_td]:py-[0.68rem] [&_td]:text-left [&_td]:whitespace-nowrap" aria-label="Vector deployments">
+            <table class="table w-full min-w-256 border-collapse text-[0.8rem] text-app-text [&_th]:border-b [&_th]:border-app-border [&_th]:px-3 [&_th]:py-[0.68rem] [&_th]:text-left [&_th]:whitespace-nowrap [&_td]:border-b [&_td]:border-app-border [&_td]:px-3 [&_td]:py-[0.68rem] [&_td]:text-left [&_td]:whitespace-nowrap" aria-label={locale.translate("vector.table")}>
                 <thead class="sticky top-0 z-2 bg-app-bg">
                     <tr>
                         <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col" aria-sort={directionFor("id")}>
                             <button class="-m-[0.4rem] inline-flex cursor-pointer items-center gap-[0.35rem] rounded border-0 bg-transparent p-[0.4rem] text-inherit hover:text-app-accent-strong [&_svg]:size-[0.8rem]" type="button" onclick={() => toggleSort("id")}>
-                                Vector deployment
+                                {locale.translate("vector.columns.deployment")}
                                 {#if directionFor("id") === "ascending"}<ArrowUpIcon aria-hidden="true" />
                                 {:else if directionFor("id") === "descending"}<ArrowDownIcon aria-hidden="true" />
                                 {:else}<ArrowUpDownIcon aria-hidden="true" />{/if}
                             </button>
                         </th>
-                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col">Repository</th>
+                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col">{locale.translate("vector.columns.repository")}</th>
                         <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col" aria-sort={directionFor("version")}>
                             <button class="-m-[0.4rem] inline-flex cursor-pointer items-center gap-[0.35rem] rounded border-0 bg-transparent p-[0.4rem] text-inherit hover:text-app-accent-strong [&_svg]:size-[0.8rem]" type="button" onclick={() => toggleSort("version")}>
-                                Version
+                                {locale.translate("vector.columns.version")}
                                 {#if directionFor("version") === "ascending"}<ArrowUpIcon aria-hidden="true" />
                                 {:else if directionFor("version") === "descending"}<ArrowDownIcon aria-hidden="true" />
                                 {:else}<ArrowUpDownIcon aria-hidden="true" />{/if}
                             </button>
                         </th>
-                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col">Landscape</th>
-                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col">Stage</th>
+                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col">{locale.translate("vector.columns.landscape")}</th>
+                        <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col">{locale.translate("vector.columns.stage")}</th>
                         <th class="text-[0.7rem] font-bold tracking-[0.035em] text-app-muted uppercase" scope="col" aria-sort={directionFor("status")}>
                             <button class="-m-[0.4rem] inline-flex cursor-pointer items-center gap-[0.35rem] rounded border-0 bg-transparent p-[0.4rem] text-inherit hover:text-app-accent-strong [&_svg]:size-[0.8rem]" type="button" onclick={() => toggleSort("status")}>
-                                Status
+                                {locale.translate("vector.columns.status")}
                                 {#if directionFor("status") === "ascending"}<ArrowUpIcon aria-hidden="true" />
                                 {:else if directionFor("status") === "descending"}<ArrowDownIcon aria-hidden="true" />
                                 {:else}<ArrowUpDownIcon aria-hidden="true" />{/if}
@@ -154,7 +157,7 @@
                             </td>
                         </tr>
                     {:else}
-                        <tr><td class="p-12 text-center text-app-muted" colspan="6">No vector deployments match your search.</td></tr>
+                        <tr><td class="p-12 text-center text-app-muted" colspan="6">{locale.translate("vector.empty")}</td></tr>
                     {/each}
                 </tbody>
             </table>

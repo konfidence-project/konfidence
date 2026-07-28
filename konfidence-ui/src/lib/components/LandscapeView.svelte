@@ -4,6 +4,7 @@
 
     import LandscapeStageNode from "$lib/components/LandscapeStageNode.svelte";
     import StageCard from "$lib/components/stage/cards/StageCard.svelte";
+    import { getLocalePreference } from "$lib/locale-preference.svelte";
     import { getThemePreference } from "$lib/theme-preference.svelte";
     import type { Landscape, Stage } from "$lib/stages";
 
@@ -11,6 +12,7 @@
     const ROW_GAP = 300;
 
     const { landscapes, stages }: { landscapes: Landscape[]; stages: Stage[] } = $props();
+    const locale = getLocalePreference();
     const theme = getThemePreference();
     const nodeTypes = { stage: LandscapeStageNode };
     const flowColorMode = $derived.by(() => {
@@ -44,8 +46,8 @@
 </script>
 
 <section class="flex min-h-0 min-w-0 flex-1" aria-labelledby="landscape-title">
-    <h1 id="landscape-title" class="sr-only">Delivery landscape</h1>
-    <div class="hidden h-full min-h-0 min-w-0 flex-1 overflow-hidden  min-[52rem]:block" aria-label="Stage landscape">
+    <h1 id="landscape-title" class="sr-only">{locale.translate("landscape.title")}</h1>
+    <div class="hidden h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_20%_10%,color-mix(in_srgb,var(--app-accent)_7%,transparent),transparent_32rem)] min-[52rem]:block" aria-label={locale.translate("landscape.canvas")}>
         <SvelteFlow
             {nodes}
             edges={[]}
@@ -59,7 +61,7 @@
         ></SvelteFlow>
     </div>
     <div class="grid h-full flex-1 gap-3 overflow-y-auto p-4 min-[52rem]:hidden">
-        <p class="m-0 text-[0.78rem] font-bold tracking-[0.08em] text-app-muted uppercase">Delivery stages</p>
+        <p class="m-0 text-[0.78rem] font-bold tracking-[0.08em] text-app-muted uppercase">{locale.translate("landscape.stages")}</p>
         <ul class="grid list-none content-start gap-[0.8rem] p-0">
             {#each stages as stage (stage.id)}
                 <li><StageCard {stage} /></li>

@@ -20,12 +20,14 @@
         type SettingsTab,
         parseSettingsTab,
     } from "$lib/components/settings/settings-tab.js";
+    import { getLocalePreference } from "$lib/locale-preference.svelte";
     import { getThemePreference } from "$lib/theme-preference.svelte";
     import type { LayoutProps } from "./$types";
     import { SvelteURLSearchParams } from "svelte/reactivity";
 
     const AVATAR_INITIALS_MAX = 2;
     const { children, data }: LayoutProps = $props();
+    const locale = getLocalePreference();
     const theme = getThemePreference();
 
     let navigationToggled = $state(false);
@@ -67,12 +69,12 @@
             {
                 href: resolve(`/projects/${selectedProject.id}/landscape`),
                 icon: NetworkIcon,
-                label: "Landscape",
+                label: locale.translate("shell.landscape"),
             },
             {
                 href: resolve(`/projects/${selectedProject.id}/vector-deployments`),
                 icon: BoxesIcon,
-                label: "Vector Deployments",
+                label: locale.translate("shell.vectorDeployments"),
             },
         ];
     });
@@ -146,14 +148,14 @@
         id="app-overlays"
         class="pointer-events-none fixed inset-0 z-50"
         role="region"
-        aria-label="Application overlays"
+        aria-label={locale.translate("shell.applicationOverlays")}
         bind:this={overlayTarget}
     ></div>
     <header class="relative z-40 col-span-full flex items-center gap-4 border-b border-app-border bg-app-card px-4 shadow-sm">
         <button
             type="button"
             class="cursor-pointer btn-icon hover:preset-tonal text-app-accent-strong [&_svg]:size-[1.2rem]"
-            aria-label={navigationToggled ? "Close navigation" : "Open navigation"}
+            aria-label={navigationToggled ? locale.translate("shell.closeNavigation") : locale.translate("shell.openNavigation")}
             aria-expanded={navigationToggled}
             aria-controls="primary-navigation"
             onclick={() => (navigationToggled = !navigationToggled)}
@@ -161,25 +163,25 @@
                 <MenuIcon aria-hidden="true" />
         </button>
 
-        <a class="inline-flex items-center rounded" href={resolve("/")} aria-label="Konfidence home">
+        <a class="inline-flex items-center rounded" href={resolve("/")} aria-label={locale.translate("shell.home")}>
             <img class="h-[1.4rem] w-[8.5rem] object-contain min-[52rem]:w-[10.5rem]" src={logoSrc} alt="Konfidence" />
         </a>
 
         <div class="chip bg-primary-100 text-primary-800 pointer-events-none">Skeleton</div>
 
         <div class="ml-auto flex items-center gap-2 [&_svg]:size-[1.2rem]">
-            <button class="btn-icon hover:preset-tonal relative text-app-accent-strong" type="button" aria-label="Notifications, 3 unread">
+            <button class="btn-icon hover:preset-tonal relative text-app-accent-strong" type="button" aria-label={locale.translate("shell.notifications")}>
                 <BellIcon aria-hidden="true" />
                 <span class="absolute -top-[0.2rem] -right-[0.2rem] grid h-4 min-w-4 place-items-center rounded-full border-2 border-app-card bg-app-error px-[0.2rem] text-[0.625rem] font-bold text-white" aria-hidden="true">3</span>
             </button>
             <Menu
-                aria-label="Account menu"
+                aria-label={locale.translate("shell.accountMenu")}
                 positioning={{ placement: "bottom-end", gutter: 10 }}
                 onSelect={(details) => selectAccountAction(details.value)}
             >
                 <Menu.Trigger
                     class="grid cursor-pointer rounded-full border-0 bg-transparent p-0"
-                    aria-label={`Open account menu for ${data.user.name}`}
+                    aria-label={locale.translate("shell.openAccountMenu", { name: data.user.name })}
                 >
                     <Avatar class="size-8 bg-app-accent/18 font-[650] text-app-accent-strong">
                         <Avatar.Fallback>{avatarInitials}</Avatar.Fallback>
@@ -195,12 +197,12 @@
                                 </Menu.ItemGroupLabel>
                                 <Menu.Item value="settings">
                                     <Menu.ItemText>
-                                        <SettingsIcon aria-hidden="true" /> Settings
+                                        <SettingsIcon aria-hidden="true" /> {locale.translate("shell.settings")}
                                     </Menu.ItemText>
                                 </Menu.Item>
                                 <Menu.Item value="sign-out">
                                     <Menu.ItemText>
-                                        <LogOutIcon aria-hidden="true" /> Sign Out
+                                        <LogOutIcon aria-hidden="true" /> {locale.translate("shell.signOut")}
                                     </Menu.ItemText>
                                 </Menu.Item>
                             </Menu.ItemGroup>
@@ -217,7 +219,7 @@
             navigationToggled ? "visible opacity-100" : "invisible opacity-0",
         ]}
         type="button"
-        aria-label="Close navigation"
+        aria-label={locale.translate("shell.closeNavigation")}
         onclick={() => (navigationToggled = false)}
     ></button>
 
@@ -227,7 +229,7 @@
             "fixed top-[3.35rem] bottom-0 left-0 z-35 min-h-0 w-[min(18rem,84vw)] overflow-y-auto border-r border-app-border bg-app-sidebar shadow-2xl transition-[transform,visibility] duration-150 min-[52rem]:relative min-[52rem]:inset-auto min-[52rem]:z-20 min-[52rem]:row-start-2 min-[52rem]:w-auto min-[52rem]:translate-x-0 min-[52rem]:visible min-[52rem]:shadow-none",
             navigationToggled ? "visible translate-x-0 min-[52rem]:overflow-visible" : "invisible -translate-x-[105%]",
         ]}
-        aria-label="Project navigation"
+        aria-label={locale.translate("shell.projectNavigation")}
     >
         <ProjectSelector
             bind:this={projectSelectorRef}
@@ -238,8 +240,8 @@
             collapsed={navigationToggled}
         />
         {#if navigation.length > 0}
-            <nav class="px-2 py-[0.8rem]" aria-label="Delivery">
-                <h2 class={["m-0 px-3 py-[0.6rem] text-app-muted", navigationToggled && "min-[52rem]:hidden"]}>Delivery</h2>
+            <nav class="px-2 py-[0.8rem]" aria-label={locale.translate("shell.delivery")}>
+                <h2 class={["m-0 px-3 py-[0.6rem] text-app-muted", navigationToggled && "min-[52rem]:hidden"]}>{locale.translate("shell.delivery")}</h2>
                 <ul class="m-0 grid list-none gap-[0.2rem] p-0">
                     {#each navigation as item (item.href)}
                         <li class={navigationToggled ? "min-[52rem]:relative min-[52rem]:min-h-11" : undefined}>

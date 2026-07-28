@@ -2,6 +2,7 @@ packages:
   - konfidence-ui
 allowBuilds:
   cpu-features: false
+  es5-ext: false
   esbuild: true
   protobufjs: false
   ssh2: false
