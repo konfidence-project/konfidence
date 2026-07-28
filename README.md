@@ -28,6 +28,7 @@ Dashboard-focused commands:
 ```sh
 make verify-ui       # Run dashboard fmt check, lint, typecheck, and Svelte checks
 pnpm ui:dev          # Start the SvelteKit development server
+pnpm --filter konfidence-ui dev:mock # Start the dashboard with its mock API
 pnpm ui:fmt          # Format dashboard sources
 pnpm ui:test         # Run dashboard unit/browser-mode and e2e tests
 ```
@@ -41,7 +42,7 @@ make run-api-with-idp
 KONFIDENCE_API_URL=http://localhost:8090 pnpm ui:dev
 ```
 
-Open `http://localhost:5173/landscape` and sign in with
+Open `http://localhost:5173/` and sign in with
 `alice@example.com` / `password`. The dashboard proxies `/api/*` to the API,
 which owns the OAuth flow and session. `KONFIDENCE_API_URL` must be a full API
 URL, including the port when required; invalid URLs prevent the UI from
