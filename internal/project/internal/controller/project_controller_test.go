@@ -166,9 +166,9 @@ var _ = Describe("Project Controller", Ordered, func() {
 			jwks.Claims = map[string]konfidence.GlobMatch{}
 			p.Spec.RoleBindings = map[string]konfidence.Subjects{"admin": {{JWKS: jwks}}}
 		}, "should have at least 1 properties"),
-		Entry("with a project name longer than 50 characters", func(p *konfidence.Project) {
-			p.Name = "proj-with-a-very-long-name-that-exceeds-the-fifty-character-limit"
-		}, "project name must be at most 50 characters"),
+		Entry("with a project name longer than 56 characters", func(p *konfidence.Project) {
+			p.Name = "proj-with-a-very-long-name-that-exceeds-the-fiftysix-char-x"
+		}, "project name must be at most 56 characters"),
 		Entry("with an invalid namespace name", func(p *konfidence.Project) {
 			p.Spec.Namespace = "Invalid_Namespace"
 		}, "should match"),

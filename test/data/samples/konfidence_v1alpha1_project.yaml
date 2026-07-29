@@ -6,7 +6,7 @@ metadata:
   name: sample-project
 spec:
   displayName: Sample Project
-  # namespace: my-custom-namespace  # overrides the default "kden-project-sample-project"
+  # namespace: my-custom-namespace  # overrides the default "kden-p-sample-project"
   roleBindings:
     admin:
       - session:

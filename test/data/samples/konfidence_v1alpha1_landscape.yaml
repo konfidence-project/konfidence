@@ -4,7 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: crds
   name: sample-landscape
-  namespace: kden-project-sample-project  # Must be created in a project namespace
+  namespace: kden-p-sample-project  # Must be created in a project namespace
 spec:
   displayName: Sample Development Landscape
   # namespace: my-custom-landscape-namespace  # overrides the default "kden-l-sample-landscape-<hash>"

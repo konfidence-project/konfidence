@@ -28,7 +28,7 @@ const (
 	ProjectNamespaceCreateFailedReason = "NamespaceCreateFailed"
 
 	// ProjectNamespacePrefix is the prefix of the default project namespace name.
-	ProjectNamespacePrefix = "kden-project-"
+	ProjectNamespacePrefix = "kden-p-"
 )
 
 // ProjectSpec defines the desired state of Project.
@@ -47,7 +47,7 @@ type ProjectSpec struct {
 	DisplayName string `json:"displayName,omitempty"`
 
 	// Namespace overrides the name of the namespace created for this project.
-	// When unset it defaults to "kden-project-<project-name>". It is immutable
+	// When unset it defaults to "kden-p-<project-name>". It is immutable
 	// once the Project exists, because the namespace and everything it holds
 	// are bound to this name.
 	// +kubebuilder:validation:MaxLength=63
@@ -144,7 +144,7 @@ type ProjectStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=konfidence;kden
-// +kubebuilder:validation:XValidation:rule="size(self.metadata.name) <= 50",message="project name must be at most 50 characters"
+// +kubebuilder:validation:XValidation:rule="size(self.metadata.name) <= 56",message="project name must be at most 56 characters"
 // +kubebuilder:printcolumn:name="Display Name",type=string,JSONPath=`.spec.displayName`
 // +kubebuilder:printcolumn:name="Namespace",type=string,JSONPath=`.status.namespace`,description="The project namespace"
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
@@ -152,7 +152,7 @@ type ProjectStatus struct {
 
 // Project is the Schema for the projects API. A Project owns a dedicated
 // namespace that stores the project's resources. The project name is
-// capped at 50 characters so the derived namespace name and label values
+// capped at 56 characters so the derived namespace name and label values
 // stay within the 63-character Kubernetes limits.
 type Project struct {
 	metav1.TypeMeta   `json:",inline"`
