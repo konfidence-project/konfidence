@@ -1,21 +1,23 @@
-import type { Stage, StageCondition, StageConditionType } from "$lib/stages.js";
+import type { Stage, StageStatus } from "$lib/stages";
+import type { components } from "$lib/konfidence-api/schema";
 
-type StageHealth = "healthy" | "deploying" | "warning" | "error";
+type VectorReference = components["schemas"]["VectorReference"];
 
-type StagePhaseState = "done" | "cur" | "err" | "idle";
+type StageHealth = "deploying" | "healthy";
+type StagePhaseState = "cur" | "done" | "idle";
+
+interface StageChip {
+  label: string;
+  tone?: "" | "alert" | "info" | "warn";
+  value: number | string;
+}
 
 interface StagePhase {
-  id: StageConditionType | "Tasks";
+  id: StageStatus;
   label: string;
   message?: string;
   reason?: string;
   state: StagePhaseState;
-}
-
-interface StageChip {
-  label: string;
-  tone?: "" | "info" | "warn" | "alert";
-  value: string | number;
 }
 
 interface VectorParts {
@@ -23,205 +25,81 @@ interface VectorParts {
   version: string;
 }
 
-const DEPLOYMENT_TRUNCATE_LENGTH = 20;
-const DEPLOYMENT_MAX_LENGTH = 22;
-const HASH_SUFFIX_PATTERN = /^(?<version>.+?)-(?<hash>[0-9a-f]{6,})$/i;
-
-const findCondition = (stage: Stage, type: StageConditionType): StageCondition | undefined =>
-  stage.status.conditions?.find((condition) => condition.type === type);
-
-const isInFlightCondition = (condition: StageCondition) =>
-  condition.type !== "FetchFailed" &&
-  condition.type !== "Ready" &&
-  (condition.status === "True" || condition.status === "Unknown");
-
-const readyHealth = (ready: StageCondition | undefined): StageHealth | undefined => {
-  if (ready?.status === "False") {
-    return "error";
-  }
-  if (ready?.status === "True") {
-    return "healthy";
-  }
+const STATUS_ORDER: StageStatus[] = ["DeploymentCreated", "MigrationTasks", "Active"];
+const STATUS_LABEL: Record<StageStatus, string> = {
+  Active: "Active",
+  DeploymentCreated: "Deploy",
+  MigrationTasks: "Tasks",
 };
+const HASH_SUFFIX_PATTERN = /^(?<version>.+?)-(?<hash>[0-9a-f]{6,})$/i;
+const NUMERIC_VERSION_PATTERN = /^\d/;
 
 const getStageHealth = (stage: Stage): StageHealth => {
-  const fetchFailed = findCondition(stage, "FetchFailed");
-  if (fetchFailed?.status === "True") {
-    return "error";
+  if (stage.status === "Active") {
+    return "healthy";
   }
-
-  const health = readyHealth(findCondition(stage, "Ready"));
-  if (health) {
-    return health;
-  }
-  if (stage.status.conditions?.some(isInFlightCondition)) {
-    return "deploying";
-  }
-
-  return "warning";
+  return "deploying";
 };
 
-const STATUS_LABELS: Record<StageHealth, string> = {
-  deploying: "Deploying",
-  error: "Failed",
-  healthy: "Live",
-  warning: "Pending",
-};
-
-const getStageStatusLabel = (stage: Stage): { label: string; tone: StageHealth } => {
+const getStageStatusLabel = (stage: Stage): { label: "Deploying" | "Live"; tone: StageHealth } => {
   const tone = getStageHealth(stage);
-  return { label: STATUS_LABELS[tone], tone };
-};
-
-const PHASE_STATE: Record<StageCondition["status"], StagePhaseState> = {
-  False: "err",
-  True: "done",
-  Unknown: "cur",
-};
-
-const phaseStateFrom = (condition: StageCondition | undefined): StagePhaseState => {
-  if (!condition) {
-    return "idle";
+  if (tone === "healthy") {
+    return { label: "Live", tone };
   }
-  return PHASE_STATE[condition.status];
-};
-
-const deployPhase = (
-  deploy: StageCondition | undefined,
-  fetchFailed: StageCondition | undefined,
-): StagePhase => {
-  let deployStatus = deploy;
-  let deployState = phaseStateFrom(deploy);
-
-  if (fetchFailed?.status === "True") {
-    deployStatus = fetchFailed;
-    deployState = "err";
-  }
-
-  return {
-    id: "VectorDeploymentCreated",
-    label: "Deploy",
-    message: deployStatus?.message,
-    reason: deployStatus?.reason,
-    state: deployState,
-  };
+  return { label: "Deploying", tone };
 };
 
 const getPhases = (stage: Stage): StagePhase[] => {
-  const deploy = findCondition(stage, "VectorDeploymentCreated");
-  const tasks = findCondition(stage, "VectorDeployed");
-  const migrate = findCondition(stage, "VectorMigrated");
-  const active = findCondition(stage, "Ready");
-  const fetchFailed = findCondition(stage, "FetchFailed");
-
-  return [
-    deployPhase(deploy, fetchFailed),
-    {
-      id: "Tasks",
-      label: "Tasks",
-      message: tasks?.message,
-      reason: tasks?.reason,
-      state: phaseStateFrom(tasks),
-    },
-    {
-      id: "VectorMigrated",
-      label: "Migrate",
-      message: migrate?.message,
-      reason: migrate?.reason,
-      state: phaseStateFrom(migrate),
-    },
-    {
-      id: "Ready",
-      label: "Active",
-      message: active?.message,
-      reason: active?.reason,
-      state: phaseStateFrom(active),
-    },
-  ];
+  const currentIndex = STATUS_ORDER.indexOf(stage.status);
+  return STATUS_ORDER.map((status, index) => {
+    let state: StagePhaseState = "idle";
+    if (stage.status === "Active" || index < currentIndex) {
+      state = "done";
+    } else if (index === currentIndex) {
+      state = "cur";
+    }
+    return { id: status, label: STATUS_LABEL[status], state };
+  });
 };
 
-const vectorTag = (trimmed: string): string => {
-  if (trimmed.includes(":")) {
-    return trimmed.split(":").at(-1) ?? trimmed;
+const getChips = (stage: Stage): StageChip[] => [{ label: "generation", value: stage.generation }];
+
+const getLandscapeLabel = (stage: Stage): string => stage.landscapeName.toUpperCase();
+
+const vectorTag = (vector: string): string => {
+  if (!vector.includes(":")) {
+    return vector;
   }
-  return trimmed;
+  return vector.split(":").at(-1) ?? vector;
 };
 
-const splitHash = (tag: string): VectorParts => {
-  const [version, hash] = tag.split("@");
+const normalizeVersion = (version: string): string => {
+  if (NUMERIC_VERSION_PATTERN.test(version)) {
+    return `v${version}`;
+  }
+  return version;
+};
+
+const toVectorParts = (version: string, hash?: string): VectorParts => {
   if (hash) {
     return { hash, version };
   }
-
-  const hashMatch = tag.match(HASH_SUFFIX_PATTERN);
-  if (hashMatch?.groups) {
-    return {
-      hash: hashMatch.groups.hash,
-      version: hashMatch.groups.version,
-    };
-  }
-
-  return { version: tag };
+  return { version };
 };
 
-const normalizeVersion = (parts: VectorParts): VectorParts => {
-  if (/^\d/.test(parts.version)) {
-    return { hash: parts.hash, version: `v${parts.version}` };
-  }
-
-  return parts;
-};
-
-const splitVector = (vector: string): VectorParts => {
-  const trimmed = vector.trim();
+const splitVector = (vector: VectorReference): VectorParts => {
+  const trimmed = vector.componentVersion.trim();
   if (!trimmed) {
     return { version: "—" };
   }
-  return normalizeVersion(splitHash(vectorTag(trimmed)));
+
+  const tag = vectorTag(trimmed);
+  const [rawVersion, digest] = tag.split("@");
+  const match = rawVersion.match(HASH_SUFFIX_PATTERN);
+  const version = normalizeVersion(match?.groups?.version ?? rawVersion);
+  const hash = digest ?? match?.groups?.hash;
+  return toVectorParts(version, hash);
 };
-
-const versionLabel = (historyCount: number): string => {
-  if (historyCount + 1 === 1) {
-    return "version";
-  }
-
-  return "versions";
-};
-
-const deploymentValue = (latest: string): string => {
-  if (latest.length > DEPLOYMENT_MAX_LENGTH) {
-    return `${latest.slice(0, DEPLOYMENT_TRUNCATE_LENGTH)}…`;
-  }
-
-  return latest;
-};
-
-const getChips = (stage: Stage): StageChip[] => {
-  const chips: StageChip[] = [];
-  const historyCount = stage.status.vectorHistory?.length ?? 0;
-  chips.push({
-    label: versionLabel(historyCount),
-    value: historyCount + 1,
-  });
-
-  const latest = stage.status.latestVectorDeploymentRef?.name;
-  if (latest) {
-    chips.push({
-      label: "deployment",
-      value: deploymentValue(latest),
-    });
-  }
-
-  const fetchFailed = findCondition(stage, "FetchFailed");
-  if (fetchFailed?.status === "True") {
-    chips.push({ label: "fetch failed", tone: "alert", value: "!" });
-  }
-
-  return chips;
-};
-
-const getLandscapeLabel = (stage: Stage): string => stage.metadata.namespace.toUpperCase();
 
 export { getChips, getLandscapeLabel, getPhases, getStageHealth, getStageStatusLabel, splitVector };
-
 export type { StageChip, StageHealth, StagePhase, StagePhaseState, VectorParts };

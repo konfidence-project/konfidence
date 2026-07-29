@@ -13,7 +13,13 @@
     import "@ui5/webcomponents-fiori/dist/UserMenu.js";
     import "@ui5/webcomponents-fiori/dist/UserMenuAccount.js";
     import "@ui5/webcomponents-fiori/dist/UserMenuItem.js";
-    import "@ui5/webcomponents-icons/dist/AllIcons.js";
+    import "@ui5/webcomponents-icons/dist/action-settings.js";
+    import "@ui5/webcomponents-icons/dist/database.js";
+    import "@ui5/webcomponents-icons/dist/grid.js";
+    import "@ui5/webcomponents-icons/dist/menu2.js";
+    import "@ui5/webcomponents-icons/dist/palette.js";
+    import "@ui5/webcomponents-icons/dist/radar-chart.js";
+    import "@ui5/webcomponents-icons/dist/upstacked-chart.js";
 
     import {
         DEFAULT_SETTINGS_TAB,
@@ -25,15 +31,16 @@
         StageCardVariantPreference,
         setStageCardVariantPreference,
     } from "$lib/stores/stage-card-variant.svelte";
+    import ProjectSelector from "$lib/components/ProjectSelector.svelte";
     import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
+    import { themePreference } from "$lib/stores/theme.svelte";
     import type { LayoutProps } from "./$types";
     import type { ResolvedPathname } from "$app/types";
     import SettingsDialog from "$lib/components/settings/SettingsDialog.svelte";
     import { SvelteURLSearchParams } from "svelte/reactivity";
-    import { goto } from "$app/navigation";
-    import { page } from "$app/state";
+    import { afterNavigate, goto } from "$app/navigation";
     import { resolve } from "$app/paths";
-    import { themePreference } from "$lib/stores/theme.svelte";
+    import { page } from "$app/state";
 
     type SideNavigationItemClickEventDetail =
         import("@ui5/webcomponents-fiori/dist/SideNavigationItemBase.js").SideNavigationItemClickEventDetail;
@@ -42,11 +49,15 @@
     type UserMenuItemClickEventDetail =
         import("@ui5/webcomponents-fiori/dist/UserMenu.js").UserMenuItemClickEventDetail;
 
+    type NavHref =
+        | `/projects/${string}/landscape`
+        | `/projects/${string}/vector-deployments`
+        | `/projects/${string}/artifact-deployments`;
+
     interface NavItem {
-        href: "/" | "/artifacts" | "/landscape" | "/promotions" | "/vectors";
+        href: NavHref;
         icon: string;
         text: string;
-        disabled?: boolean;
     }
     interface NavGroup {
         items: readonly NavItem[];
@@ -61,23 +72,18 @@
 
     const { children, data }: LayoutProps = $props();
 
-    const navGroups: readonly NavGroup[] = [
-        {
-            items: [
-                { href: "/landscape", icon: "upstacked-chart", text: "Landscape" },
-                { href: "/vectors", icon: "radar-chart", text: "Vectors" },
-                { href: "/promotions", icon: "process", text: "Promotions" },
-                { href: "/artifacts", icon: "database", text: "Artifacts" },
-            ],
-            text: "Delivery",
-        },
-    ];
-
     const stageCardVariantPreference = new StageCardVariantPreference();
     setStageCardVariantPreference(stageCardVariantPreference);
 
     let userMenuOpen = $state(false);
     let userMenuOpener = $state<HTMLElement | undefined>();
+    let selectedProjectId = $state(page.data.project?.id);
+
+    afterNavigate(() => {
+        if (page.data.project) {
+            selectedProjectId = page.data.project.id;
+        }
+    });
 
     const settingsTab = $derived<SettingsTab | undefined>(
         parseSettingsTab(page.url.searchParams.get(SETTINGS_URL_PARAM) ?? undefined),
@@ -131,11 +137,36 @@
         return LIGHT_LOGO_SRC;
     });
 
-    const accountSubtitle = $derived.by(() => {
-        if (data.user.email) {
-            return data.user.email;
+    const accountSubtitle = $derived(data.user.email);
+    const selectedProject = $derived(
+        data.projects.find((project) => project.id === selectedProjectId),
+    );
+    const navGroups = $derived.by((): readonly NavGroup[] => {
+        const groups: NavGroup[] = [];
+        if (selectedProject) {
+            const projectId = selectedProject.id;
+            groups.push({
+                items: [
+                    {
+                        href: `/projects/${projectId}/landscape`,
+                        icon: "upstacked-chart",
+                        text: "Landscape",
+                    },
+                    {
+                        href: `/projects/${projectId}/vector-deployments`,
+                        icon: "radar-chart",
+                        text: "Vector Deployments",
+                    },
+                    {
+                        href: `/projects/${projectId}/artifact-deployments`,
+                        icon: "database",
+                        text: "Artifact Deployments",
+                    },
+                ],
+                text: "Delivery",
+            });
         }
-        return "Signed in via SSO";
+        return groups;
     });
 
     const avatarInitials = $derived(
@@ -170,8 +201,13 @@
         userMenuOpen = false;
         const response = await globalThis.fetch("/api/logout", { method: "POST" });
         if (response.ok) {
-            globalThis.location.assign(resolve("/landscape"));
+            globalThis.location.assign("/");
         }
+    };
+
+    const selectProject = (projectId: string): void => {
+        selectedProjectId = projectId;
+        goto(resolve(`/projects/${projectId}/landscape`));
     };
 
     const handleSideNavClick = (
@@ -179,7 +215,8 @@
         href: NavItem["href"],
     ): void => {
         event.preventDefault();
-        goto(resolve(href));
+        // eslint-disable-next-line svelte/no-navigation-without-resolve -- These hrefs are already resolved project paths.
+        goto(href);
     };
 </script>
 
@@ -218,24 +255,30 @@
             accessible-name={`Open account menu for ${data.user.name}`}
         ></ui5-avatar>
     </ui5-shellbar>
-    <ui5-side-navigation id="sn1" slot="sideContent">
-        {#each navGroups as navGroup (navGroup.text)}
-            <ui5-side-navigation-group text={navGroup.text} expanded>
-                {#each navGroup.items as navItem (navItem.href)}
-                    <ui5-side-navigation-item
-                        text={navItem.text}
-                        href={navItem.href}
-                        icon={navItem.icon}
-                        disabled={navItem.disabled}
-                        selected={page.url.pathname === navItem.href}
-                        onui5-click={(
-                            event: CustomEvent<SideNavigationItemClickEventDetail>,
-                        ) => handleSideNavClick(event, navItem.href)}
-                    ></ui5-side-navigation-item>
-                {/each}
-            </ui5-side-navigation-group>
-        {/each}
-    </ui5-side-navigation>
+    <aside class="side-panel" slot="sideContent">
+        <ProjectSelector
+            projects={data.projects}
+            selectedProjectId={selectedProject?.id}
+            onselect={selectProject}
+        />
+        <ui5-side-navigation id="sn1">
+            {#each navGroups as navGroup (navGroup.text)}
+                <ui5-side-navigation-group text={navGroup.text} expanded>
+                    {#each navGroup.items as navItem (navItem.href)}
+                        <ui5-side-navigation-item
+                            text={navItem.text}
+                            href={navItem.href}
+                            icon={navItem.icon}
+                            selected={page.url.pathname.startsWith(navItem.href)}
+                            onui5-click={(
+                                event: CustomEvent<SideNavigationItemClickEventDetail>,
+                            ) => handleSideNavClick(event, navItem.href)}
+                        ></ui5-side-navigation-item>
+                    {/each}
+                </ui5-side-navigation-group>
+            {/each}
+        </ui5-side-navigation>
+    </aside>
     <div class="content">
         {@render children()}
     </div>
@@ -282,7 +325,15 @@
     }
 
     :global(ui5-side-navigation) {
+        flex: 1;
         border-right: 1px solid var(--sapList_BorderColor);
+    }
+
+    .side-panel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background: var(--sapList_Background);
     }
 
     .brand-logo {

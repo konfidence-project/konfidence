@@ -1,12 +1,12 @@
 type AuthRole = "ADMIN" | "DEV" | "PM";
 
 interface AuthUser {
-  email?: string;
-  emailVerified: boolean;
-  id: string;
+  email: string;
+  familyName: string;
+  givenName: string;
+  middleName?: string;
   name: string;
-  role?: AuthRole;
-  username: string;
+  roles: AuthRole[];
 }
 
 interface AuthSession {

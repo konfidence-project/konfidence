@@ -26,15 +26,12 @@
 
     const STATUS_DESIGN: Record<StageHealth, TagDesign> = {
         deploying: "Information",
-        error: "Negative",
         healthy: "Positive",
-        warning: "Critical",
     };
 
     const PHASE_DESIGN: Record<StagePhaseState, TagDesign> = {
         cur: "Information",
         done: "Positive",
-        err: "Negative",
         idle: "Neutral",
     };
 
@@ -50,16 +47,14 @@
     const status = $derived(getStageStatusLabel(stage));
     const phases = $derived(getPhases(stage));
     const chips = $derived(getChips(stage));
-    const vector = $derived(splitVector(stage.spec.vector));
+    const vector = $derived(splitVector(stage.vector));
 
     let menuBtn = $state<HTMLElement>();
     let popover = $state<HTMLElement & { open?: boolean }>();
 
-    const btnId = $derived(`stage-card-fiori-menu-${stage.metadata.name}`);
+    const btnId = $derived(`stage-card-fiori-menu-${stage.id}`);
 
-    const shouldPulseStatus = $derived(
-        status.tone === "deploying" || status.tone === "error",
-    );
+    const shouldPulseStatus = $derived(status.tone === "deploying");
 
     const tagDesign = (tone: StageHealth) => STATUS_DESIGN[tone];
     const phaseTagDesign = (state: StagePhaseState) => PHASE_DESIGN[state];
@@ -87,8 +82,8 @@
 <ui5-card class="stage-fiori-card">
     <ui5-card-header
         slot="header"
-        title-text={stage.metadata.name}
-        subtitle-text={stage.metadata.namespace}
+        title-text={stage.name}
+        subtitle-text={stage.landscapeName}
         interactive
     >
         <ui5-icon slot="avatar" name="upstacked-chart"></ui5-icon>

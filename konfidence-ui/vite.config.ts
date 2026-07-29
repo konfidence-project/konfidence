@@ -2,10 +2,18 @@ import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import { sveltekit } from "@sveltejs/kit/vite";
 
+const themeBasePath = new URL(
+  "node_modules/@sap-theming/theming-base-content/content/Base/baseLib",
+  import.meta.url,
+).pathname;
+
 export default defineConfig({
   optimizeDeps: {
     include: [
       "@humanspeak/svelte-headless-table/plugins",
+      "@ui5/webcomponents-icons/dist/overflow.js",
+      "@ui5/webcomponents-icons/dist/upstacked-chart.js",
+      "@ui5/webcomponents/dist/Popover.js",
       "@ui5/webcomponents-icons/dist/accept.js",
       "@ui5/webcomponents/dist/Table.js",
       "@ui5/webcomponents/dist/TableCell.js",
@@ -15,6 +23,12 @@ export default defineConfig({
     ],
   },
   plugins: [sveltekit()],
+  resolve: {
+    alias: {
+      "../baseTheme/fonts": `${themeBasePath}/baseTheme/fonts`,
+      "../sap_horizon/fonts": `${themeBasePath}/sap_horizon/fonts`,
+    },
+  },
   test: {
     expect: { requireAssertions: true },
     projects: [

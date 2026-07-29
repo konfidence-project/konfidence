@@ -51,14 +51,7 @@
     );
 
     const accountSubtitle = $derived(user.email ?? "Signed in via SSO");
-    const accountDescription = $derived(user.role ?? "");
-
-    const emailVerifiedLabel = $derived.by(() => {
-        if (user.emailVerified) {
-            return "Yes";
-        }
-        return "No";
-    });
+    const accountDescription = $derived(user.roles.join(", "));
 
     interface AccountDetail {
         label: string;
@@ -66,10 +59,10 @@
     }
 
     const accountDetails: AccountDetail[] = $derived([
-        { label: "Username", value: user.username },
-        { label: "Email verified", value: emailVerifiedLabel },
-        { label: "Subject (sub)", value: user.id },
-        { label: "Role", value: user.role ?? "(none)" },
+        { label: "Email", value: user.email },
+        { label: "Given name", value: user.givenName },
+        { label: "Family name", value: user.familyName },
+        { label: "Roles", value: accountDescription || "(none)" },
     ]);
 
     const handleClose = (): void => {

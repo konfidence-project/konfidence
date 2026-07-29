@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "all": "pnpm verify && pnpm test:unit && pnpm test:e2e",
+    "api:check": "pnpm api:generate && git diff --exit-code -- src/lib/konfidence-api/schema.d.ts",
+    "api:generate": "openapi-typescript ../api/openapispec.yaml -o src/lib/konfidence-api/schema.d.ts && oxfmt src/lib/konfidence-api/schema.d.ts",
     "dev": "vite dev",
+    "dev:mock": "KONFIDENCE_API_URL=http://127.0.0.1:8091 concurrently --kill-others --names ui,mock-api \"pnpm dev\" \"pnpm dev:mock-api\"",
+    "dev:mock-api": "tsx watch tests/mock-api/server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
@@ -21,8 +25,7 @@
     "verify": "pnpm check && pnpm lint && pnpm check:svelte && pnpm fmt:check",
     "test:unit": "vitest run",
     "test": "pnpm test:unit && pnpm test:e2e",
-    "test:e2e": "playwright test",
-    "test:e2e:auth": "playwright install chromium && playwright test --config playwright.auth.config.ts"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ui5/webcomponents": "^2.23.2",
@@ -30,6 +33,7 @@
     "@ui5/webcomponents-fiori": "^2.23.2",
     "@ui5/webcomponents-icons": "^2.23.2",
     "@xyflow/svelte": "^1.6.1",
+    "openapi-fetch": "^0.17.0",
     "valibot": "^1.4.2"
   },
   "devDependencies": {
@@ -42,15 +46,17 @@
     "@typescript-eslint/parser": "^8.62.1",
     "@typescript/native-preview": "7.0.0-dev.20260702.3",
     "@vitest/browser-playwright": "^4.1.8",
+    "concurrently": "^10.0.3",
     "eslint": "^10.6.0",
     "eslint-plugin-svelte": "^3.20.0",
     "less": "^4.6.7",
+    "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.56.0",
     "oxlint": "^1.71.0",
     "playwright": "^1.60.0",
     "svelte": "^5.56.1",
     "svelte-check": "^4.6.0",
-    "testcontainers": "^12.0.4",
+    "tsx": "^4.20.6",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.8",
