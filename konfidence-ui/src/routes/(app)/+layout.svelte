@@ -163,6 +163,8 @@
             <img class="h-[1.4rem] w-[8.5rem] object-contain min-[52rem]:w-[10.5rem]" src={logoSrc} alt="Konfidence" />
         </a>
 
+        <div class="chip bg-primary-100 text-primary-800 pointer-events-none">Skeleton</div>
+
         <div class="ml-auto flex items-center gap-2 [&_svg]:size-[1.2rem]">
             <button class="btn-icon hover:preset-tonal relative text-app-accent-strong" type="button" aria-label="Notifications, 3 unread">
                 <BellIcon aria-hidden="true" />
