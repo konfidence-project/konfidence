@@ -1,27 +1,37 @@
 <script lang="ts">
-    import type { ArtifactSummary } from "$lib/artifacts";
+    import type { ArtifactDeployment } from "$lib/deployments";
 
     import ArtifactsTable from "./ArtifactsTable.svelte";
 
-    const { artifacts }: { artifacts: ArtifactSummary[] } = $props();
+    const { deployments }: { deployments: ArtifactDeployment[] } = $props();
 </script>
 
 <section class="artifacts" aria-labelledby="artifacts-title">
     <header>
-        <h1 id="artifacts-title">Artifacts</h1>
+        <h1 id="artifacts-title">Artifact Deployments</h1>
     </header>
 
-    {#if artifacts.length === 0}
-        <div>
-            <h2>No artifacts found</h2>
+    {#if deployments.length === 0}
+        <div class="empty-state">
+            <h2>No artifact deployments found</h2>
         </div>
     {:else}
-        <ArtifactsTable {artifacts} />
+        <ArtifactsTable {deployments} />
     {/if}
 </section>
 
 <style>
-    header {
+    .artifacts {
+        overflow: hidden;
+    }
+
+    header,
+    .empty-state {
         padding: 1rem;
+    }
+
+    h1,
+    h2 {
+        margin: 0;
     }
 </style>

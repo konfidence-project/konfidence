@@ -17,7 +17,7 @@
     const status = $derived(getStageStatusLabel(stage));
     const phases = $derived(getPhases(stage));
     const chips = $derived(getChips(stage));
-    const vector = $derived(splitVector(stage.spec.vector));
+    const vector = $derived(splitVector(stage.vector));
     const landscape = $derived(getLandscapeLabel(stage));
 
     let menuOpen = $state(false);
@@ -35,7 +35,7 @@
     const copyName = async () => {
         try {
             await globalThis.navigator?.clipboard?.writeText(
-                stage.metadata.name,
+                stage.name,
             );
         } catch {
             // Clipboard not available (e.g. SSR/tests) — silently ignore.
@@ -63,20 +63,19 @@
     bind:this={cardEl}
     class="stage"
     class:selected
-    class:sel-err={selected && status.tone === "error"}
     data-health={status.tone}
     data-testid="stage-card"
-    aria-label={`Stage ${stage.metadata.name}`}
+    aria-label={`Stage ${stage.name}`}
 >
     <div class="stripe {status.tone}"></div>
 
     <div class="st-h">
         <div class="st-r1">
-            <span class="st-nm">{stage.metadata.name}</span>
+            <span class="st-nm">{stage.name}</span>
             <StageStatusPill
                 status={status.tone}
                 label={status.label}
-                pulse={status.tone === "deploying" || status.tone === "error"}
+                pulse={status.tone === "deploying"}
             />
         </div>
         <div class="st-ls">{landscape}</div>

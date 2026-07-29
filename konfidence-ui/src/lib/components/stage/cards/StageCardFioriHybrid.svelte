@@ -23,9 +23,7 @@
 
     const STATUS_DESIGN: Record<StageHealth, TagDesign> = {
         deploying: "Information",
-        error: "Negative",
         healthy: "Positive",
-        warning: "Critical",
     };
 
     const CHIP_DESIGN: Record<NonNullable<StageChip["tone"]>, TagDesign> = {
@@ -43,14 +41,14 @@
     const status = $derived(getStageStatusLabel(stage));
     const phases = $derived(getPhases(stage));
     const chips = $derived(getChips(stage));
-    const vector = $derived(splitVector(stage.spec.vector));
+    const vector = $derived(splitVector(stage.vector));
     const landscape = $derived(getLandscapeLabel(stage));
 
     let menuBtn = $state<HTMLElement>();
     let popover = $state<HTMLElement & { open?: boolean }>();
 
     const btnId = $derived(
-        `stage-card-hybrid-menu-${stage.metadata.name}`,
+        `stage-card-hybrid-menu-${stage.id}`,
     );
 
     const statusDesign = $derived(STATUS_DESIGN[status.tone]);
@@ -90,23 +88,21 @@
 <article
     class="stage"
     class:selected
-    class:sel-err={selected && status.tone === "error"}
     data-health={status.tone}
-    aria-label={`Stage ${stage.metadata.name}`}
+    aria-label={`Stage ${stage.name}`}
 >
     <div class="stripe {status.tone}" aria-hidden="true"></div>
 
     <div class="st-h">
         <div class="st-r1">
-            <span class="st-nm" title={stage.metadata.name}>
-                {stage.metadata.name}
+            <span class="st-nm" title={stage.name}>
+                {stage.name}
             </span>
             <ui5-tag design={statusDesign} hide-state-icon>
                 <span class="pill-inner">
                     <span
                         class="dot"
-                        class:pulse={status.tone === "deploying" ||
-                            status.tone === "error"}
+                        class:pulse={status.tone === "deploying"}
                     ></span>
                     {status.label}
                 </span>

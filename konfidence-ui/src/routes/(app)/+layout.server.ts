@@ -1,11 +1,13 @@
-import { type ServerLoad, redirect } from "@sveltejs/kit";
+import { redirect } from "@sveltejs/kit";
 import { HTTP_SEE_OTHER } from "$lib/http-status";
+import type { LayoutServerLoad } from "./$types";
+import { getProjects } from "$lib/konfidence-api/queries.remote";
 
-export const load: ServerLoad = async ({ locals, url }) => {
+export const load: LayoutServerLoad = async ({ locals, url }) => {
   if (!locals.user) {
     const redirectTo = url.pathname + url.search;
-    redirect(HTTP_SEE_OTHER, `/login?returnTo=${encodeURIComponent(redirectTo)}`);
+    redirect(HTTP_SEE_OTHER, `/api/login?returnTo=${encodeURIComponent(redirectTo)}`);
   }
 
-  return { user: locals.user };
+  return { projects: await getProjects(), user: locals.user };
 };
