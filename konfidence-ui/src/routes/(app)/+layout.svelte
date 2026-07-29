@@ -223,7 +223,7 @@
         id="primary-navigation"
         class={[
             "fixed top-[3.35rem] bottom-0 left-0 z-35 min-h-0 w-[min(18rem,84vw)] overflow-y-auto border-r border-app-border bg-app-sidebar shadow-2xl transition-[transform,visibility] duration-150 min-[52rem]:relative min-[52rem]:inset-auto min-[52rem]:z-20 min-[52rem]:row-start-2 min-[52rem]:w-auto min-[52rem]:translate-x-0 min-[52rem]:visible min-[52rem]:shadow-none",
-            navigationToggled ? "visible translate-x-0" : "invisible -translate-x-[105%]",
+            navigationToggled ? "visible translate-x-0 min-[52rem]:overflow-visible" : "invisible -translate-x-[105%]",
         ]}
         aria-label="Project navigation"
     >
@@ -238,11 +238,11 @@
                 <h2 class={["m-0 px-3 py-[0.6rem] text-[0.78rem] font-[650] tracking-[0.06em] text-app-muted uppercase", navigationToggled && "min-[52rem]:hidden"]}>Delivery</h2>
                 <ul class="m-0 grid list-none gap-[0.2rem] p-0">
                     {#each navigation as item (item.href)}
-                        <li>
+                        <li class={navigationToggled ? "min-[52rem]:relative min-[52rem]:min-h-11" : undefined}>
                             <a
                                 class={[
-                                    "flex min-h-11 items-center gap-[0.7rem] rounded-[0.4rem] border-l-[3px] border-transparent px-3 text-app-text no-underline hover:bg-app-accent/7 [&_svg]:size-[1.1rem] [&_svg]:shrink-0",
-                                    navigationToggled && "min-[52rem]:justify-center min-[52rem]:px-0",
+                                    "group flex min-h-11 items-center gap-[0.7rem] rounded-[0.4rem] border-l-[3px] border-transparent px-3 text-app-text no-underline hover:bg-app-accent/7 [&_svg]:size-[1.1rem] [&_svg]:shrink-0",
+                                    navigationToggled && "min-[52rem]:absolute min-[52rem]:inset-y-0 min-[52rem]:left-0 min-[52rem]:right-0 min-[52rem]:justify-center min-[52rem]:px-0 min-[52rem]:hover:right-auto min-[52rem]:hover:z-10 min-[52rem]:hover:w-max min-[52rem]:hover:pl-4 min-[52rem]:hover:pr-3 min-[52rem]:hover:bg-app-sidebar min-[52rem]:hover:shadow-md",
                                     page.url.pathname.startsWith(item.href) && "border-l-app-accent bg-app-accent/12 font-semibold text-app-accent-strong",
                                 ]}
                                 href={item.href}
@@ -251,7 +251,7 @@
                                 onclick={() => (navigationToggled = false)}
                             >
                                 <item.icon aria-hidden="true" />
-                                <span class={navigationToggled ? "min-[52rem]:hidden" : undefined}>{item.label}</span>
+                                <span class={navigationToggled ? "min-[52rem]:hidden min-[52rem]:group-hover:inline" : undefined}>{item.label}</span>
                             </a>
                         </li>
                     {/each}
