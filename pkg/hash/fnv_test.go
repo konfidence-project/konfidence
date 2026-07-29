@@ -8,111 +8,45 @@ import (
 )
 
 var _ = Describe("FNV Hash Functions", func() {
-	Describe("Fnv64", func() {
-		It("should return consistent results for the same input", func() {
+	Describe("Fnv", func() {
+		It("should return consistent results for the same input and length", func() {
 			input := "test string"
-			result1 := hash.Fnv64(input)
-			result2 := hash.Fnv64(input)
+			result1 := hash.Fnv(input, 8)
+			result2 := hash.Fnv(input, 8)
 			Expect(result1).To(Equal(result2))
 		})
 
 		It("should return different hashes for different inputs", func() {
-			result1 := hash.Fnv64("input1")
-			result2 := hash.Fnv64("input2")
+			result1 := hash.Fnv("input1", 8)
+			result2 := hash.Fnv("input2", 8)
 			Expect(result1).NotTo(Equal(result2))
 		})
 
-		It("should handle empty string", func() {
-			result := hash.Fnv64("")
-			Expect(result).NotTo(BeEmpty())
-			Expect(result).To(MatchRegexp("^[0-9a-z]+$"))
-		})
-
-		It("should respect maximum output length of 13 characters", func() {
-			// Test with various inputs to ensure output length is reasonable
-			inputs := []string{
-				"short",
-				"a much longer string with lots of content",
-				"unicode: 你好世界 🌍",
-				string(make([]byte, 10000)), // Large input
-			}
-
-			for _, input := range inputs {
-				result := hash.Fnv64(input)
-				Expect(len(result)).To(BeNumerically("<=", 13),
-					"Expected Fnv64 output to be at most 13 characters, got %d for input length %d",
-					len(result), len(input))
+		It("should return exactly the requested length", func() {
+			for length := 1; length < 26; length++ {
+				result := hash.Fnv("test input", length)
+				Expect(result).To(HaveLen(length),
+					"Expected exact length %d, got %d", length, len(result))
 			}
 		})
 
-		It("should produce base36-encoded output", func() {
-			result := hash.Fnv64("test")
-			// Base36 uses 0-9 and a-z (lowercase)
-			Expect(result).To(MatchRegexp("^[0-9a-z]+$"))
-		})
-	})
-
-	Describe("Fnv128", func() {
-		It("should return consistent results for the same input", func() {
-			input := "test string"
-			result1 := hash.Fnv128(input)
-			result2 := hash.Fnv128(input)
-			Expect(result1).To(Equal(result2))
-		})
-
-		It("should return different hashes for different inputs", func() {
-			result1 := hash.Fnv128("input1")
-			result2 := hash.Fnv128("input2")
-			Expect(result1).NotTo(Equal(result2))
+		It("should only use safe characters (no vowels, no 0 or 1)", func() {
+			result := hash.Fnv("test input", 13)
+			// SafeEncodeString uses: bcdfghjklmnpqrstvwxz2456789
+			Expect(result).To(MatchRegexp("^[bcdfghjklmnpqrstvwxz2456789]+$"))
+			Expect(result).NotTo(ContainSubstring("a"))
+			Expect(result).NotTo(ContainSubstring("e"))
+			Expect(result).NotTo(ContainSubstring("i"))
+			Expect(result).NotTo(ContainSubstring("o"))
+			Expect(result).NotTo(ContainSubstring("u"))
+			Expect(result).NotTo(ContainSubstring("0"))
+			Expect(result).NotTo(ContainSubstring("1"))
 		})
 
 		It("should handle empty string", func() {
-			result := hash.Fnv128("")
-			Expect(result).NotTo(BeEmpty())
-			Expect(result).To(MatchRegexp("^[0-9a-z]+$"))
-		})
-
-		It("should respect maximum output length of 25 characters", func() {
-			// Test with various inputs to ensure output length is reasonable
-			inputs := []string{
-				"short",
-				"a much longer string with lots of content",
-				"unicode: 你好世界 🌍",
-				string(make([]byte, 10000)), // Large input
-			}
-
-			for _, input := range inputs {
-				result := hash.Fnv128(input)
-				Expect(len(result)).To(BeNumerically("<=", 25),
-					"Expected Fnv128 output to be at most 25 characters, got %d for input length %d",
-					len(result), len(input))
-			}
-		})
-
-		It("should produce base36-encoded output", func() {
-			result := hash.Fnv128("test")
-			// Base36 uses 0-9 and a-z (lowercase)
-			Expect(result).To(MatchRegexp("^[0-9a-z]+$"))
-		})
-
-		It("should produce longer hashes than Fnv64 on average", func() {
-			input := "sample input for comparison"
-			result64 := hash.Fnv64(input)
-			result128 := hash.Fnv128(input)
-
-			// 128-bit hashes should generally be longer than 64-bit hashes
-			Expect(len(result128)).To(BeNumerically(">=", len(result64)))
-		})
-	})
-
-	Describe("Fnv64 vs Fnv128 collision resistance", func() {
-		It("should produce different hashes between Fnv64 and Fnv128 for the same input", func() {
-			input := "collision test"
-			result64 := hash.Fnv64(input)
-			result128 := hash.Fnv128(input)
-
-			// Different algorithms should produce different outputs
-			Expect(result64).NotTo(Equal(result128))
+			result := hash.Fnv("", 8)
+			Expect(result).To(HaveLen(8))
+			Expect(result).To(MatchRegexp("^[bcdfghjklmnpqrstvwxz2456789]+$"))
 		})
 
 		It("should handle special characters consistently", func() {
@@ -125,12 +59,59 @@ var _ = Describe("FNV Hash Functions", func() {
 			}
 
 			for _, input := range specialInputs {
-				result64 := hash.Fnv64(input)
-				result128 := hash.Fnv128(input)
-
-				Expect(result64).To(MatchRegexp("^[0-9a-z]+$"))
-				Expect(result128).To(MatchRegexp("^[0-9a-z]+$"))
+				result := hash.Fnv(input, 8)
+				Expect(result).To(HaveLen(8))
+				Expect(result).To(MatchRegexp("^[bcdfghjklmnpqrstvwxz2456789]+$"))
 			}
+		})
+
+		It("should panic for invalid lengths", func() {
+			Expect(func() { hash.Fnv("test", 0) }).To(Panic())
+			Expect(func() { hash.Fnv("test", -1) }).To(Panic())
+			Expect(func() { hash.Fnv("test", 26) }).To(Panic())
+		})
+
+		It("should produce different results for different lengths", func() {
+			input := "same input"
+			result8 := hash.Fnv(input, 8)
+			result10 := hash.Fnv(input, 10)
+			result13 := hash.Fnv(input, 13)
+
+			// All should be different due to different trimming
+			Expect(result8).NotTo(Equal(result10))
+			Expect(result8).NotTo(Equal(result13))
+			Expect(result10).NotTo(Equal(result13))
+		})
+
+		It("should handle unicode correctly", func() {
+			result := hash.Fnv("unicode: 你好世界 🌍", 10)
+			Expect(result).To(HaveLen(10))
+			Expect(result).To(MatchRegexp("^[bcdfghjklmnpqrstvwxz2456789]+$"))
+		})
+
+		It("should handle large inputs", func() {
+			largeInput := string(make([]byte, 10000))
+			result := hash.Fnv(largeInput, 13)
+			Expect(result).To(HaveLen(13))
+			Expect(result).To(MatchRegexp("^[bcdfghjklmnpqrstvwxz2456789]+$"))
+		})
+
+		It("should use 32-bit hash for short lengths (1-7)", func() {
+			result := hash.Fnv("test", 6)
+			Expect(result).To(HaveLen(6))
+			Expect(result).To(MatchRegexp("^[bcdfghjklmnpqrstvwxz2456789]+$"))
+		})
+
+		It("should use 64-bit hash for medium lengths (8-13)", func() {
+			result := hash.Fnv("test", 10)
+			Expect(result).To(HaveLen(10))
+			Expect(result).To(MatchRegexp("^[bcdfghjklmnpqrstvwxz2456789]+$"))
+		})
+
+		It("should use 128-bit hash for long lengths (14-25)", func() {
+			result := hash.Fnv("test", 20)
+			Expect(result).To(HaveLen(20))
+			Expect(result).To(MatchRegexp("^[bcdfghjklmnpqrstvwxz2456789]+$"))
 		})
 	})
 })

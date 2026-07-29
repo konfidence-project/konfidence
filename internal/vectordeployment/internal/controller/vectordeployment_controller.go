@@ -561,6 +561,6 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 }
 
 func constructVectorAssignmentName(vectorName string, artifactName string) string {
-	h := hash.Fnv64(fmt.Sprintf("%s-%s", vectorName, artifactName))
+	h := hash.Fnv(fmt.Sprintf("%s-%s", vectorName, artifactName), 13)
 	return fmt.Sprintf("%s-%s", vectorName, h)
 }

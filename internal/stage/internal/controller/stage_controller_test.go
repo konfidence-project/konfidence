@@ -39,14 +39,14 @@ var _ = Describe("Stage Controller", Ordered, func() {
 
 	const (
 		StageDev                    = "stage-dev"
-		StageVersion                = "stage-dev-3j5rp95ig707y"
-		StageVersionUpdated         = "stage-dev-n31v4bxt7p2"
+		StageVersion                = "stage-dev-789jgf975c4cr"
+		StageVersionUpdated         = "stage-dev-44d75n8wqlcg6"
 		Namespace                   = "default"
 		Vector001                   = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.tools.cloud/example/vector:0.0.1"
 		Vector002                   = "https://registry.kdenv.lab/ocm/vector//landscape.konfidence.tools.cloud/example/vector:0.0.2"
 		VectorName001               = "example.konfidence.cloud.example.vector-0.0.1"
-		Vector001Digest             = "8dhqbvbdpgatwpbvwhio5n0dn"
-		Vector002Digest             = "8dhqbvbesc7tl3rfig37lzoiu"
+		Vector001Digest             = "dz6hwnwzg5vlpgwnp67f9d4zd"
+		Vector002Digest             = "dz6hwnw2kxclb7j4757cbsf7m"
 		StageVersionManuallyCreated = "stage-version-usage-manually-created"
 		timeout                     = time.Second * 10
 		interval                    = time.Millisecond * 250
