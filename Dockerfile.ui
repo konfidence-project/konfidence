@@ -9,18 +9,18 @@ FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY konfidence-ui/package.json konfidence-ui/package.json
 
-RUN pnpm install --prod --frozen-lockfile --filter konfidence-ui
+RUN pnpm install --prod --frozen-lockfile --filter konfidence-ui --ignore-scripts
 
 FROM base AS builder
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY konfidence-ui/package.json konfidence-ui/package.json
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY konfidence-ui/ konfidence-ui/
 
-RUN pnpm ui:build
+RUN pnpm --filter konfidence-ui i18n:compile && pnpm ui:build
 
 FROM base
 
