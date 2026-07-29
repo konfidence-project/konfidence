@@ -31,6 +31,7 @@
     let navigationToggled = $state(false);
     let overlayTarget = $state<HTMLElement>();
     let selectedProjectId = $state(page.data.project?.id);
+    let projectSelectorRef = $state<ReturnType<typeof ProjectSelector>>();
 
     afterNavigate(() => {
         selectedProjectId = page.data.project?.id;
@@ -120,6 +121,11 @@
         void goto(resolve(`/projects/${projectId}/landscape`));
     };
 
+    const expandAndOpenProjectSelector = (): void => {
+        navigationToggled = false;
+        requestAnimationFrame(() => projectSelectorRef?.openSelect());
+    };
+
     const signOut = async (): Promise<void> => {
         const response = await globalThis.fetch("/api/logout", { method: "POST" });
         if (response.ok) {
@@ -146,17 +152,13 @@
     <header class="relative z-40 col-span-full flex items-center gap-4 border-b border-app-border bg-app-card px-4 shadow-sm">
         <button
             type="button"
-            class="btn-icon hover:preset-tonal text-app-accent-strong [&_svg]:size-[1.2rem]"
+            class="cursor-pointer btn-icon hover:preset-tonal text-app-accent-strong [&_svg]:size-[1.2rem]"
             aria-label={navigationToggled ? "Close navigation" : "Open navigation"}
             aria-expanded={navigationToggled}
             aria-controls="primary-navigation"
             onclick={() => (navigationToggled = !navigationToggled)}
         >
-            {#if navigationToggled}
-                <XIcon aria-hidden="true" />
-            {:else}
                 <MenuIcon aria-hidden="true" />
-            {/if}
         </button>
 
         <a class="inline-flex items-center rounded" href={resolve("/")} aria-label="Konfidence home">
@@ -228,9 +230,11 @@
         aria-label="Project navigation"
     >
         <ProjectSelector
+            bind:this={projectSelectorRef}
             projects={data.projects}
             selectedProjectId={selectedProject?.id}
             onselect={selectProject}
+            onexpand={expandAndOpenProjectSelector}
             collapsed={navigationToggled}
         />
         {#if navigation.length > 0}
