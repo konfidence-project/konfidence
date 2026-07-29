@@ -10,7 +10,7 @@
     "dev": "vite dev --port ${KONFIDENCE_UI_PORT:-5173}",
     "dev:mock": "KONFIDENCE_MOCK_API_PORT=${KONFIDENCE_MOCK_API_PORT:-8091} KONFIDENCE_API_URL=${KONFIDENCE_API_URL:-http://127.0.0.1:${KONFIDENCE_MOCK_API_PORT:-8091}} concurrently --kill-others --names ui,mock-api \"pnpm dev\" \"pnpm dev:mock-api\"",
     "dev:mock-api": "tsx watch tests/mock-api/server.ts",
-    "build": "vite build",
+    "build": "pnpm i18n:compile && vite build",
     "preview": "vite preview",
     "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --emit-ts-declarations --strategy cookie preferredLanguage baseLocale",
     "prepare": "pnpm i18n:compile && (svelte-kit sync || echo '')",

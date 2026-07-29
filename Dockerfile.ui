@@ -20,7 +20,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY konfidence-ui/ konfidence-ui/
 
-RUN pnpm --filter konfidence-ui i18n:compile && pnpm ui:build
+RUN pnpm ui:build
 
 FROM base
 
