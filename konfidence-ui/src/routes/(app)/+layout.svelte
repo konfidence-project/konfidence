@@ -41,6 +41,7 @@
     import { afterNavigate, goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
+    import { tick } from "svelte";
 
     type SideNavigationItemClickEventDetail =
         import("@ui5/webcomponents-fiori/dist/SideNavigationItemBase.js").SideNavigationItemClickEventDetail;
@@ -248,6 +249,7 @@
                 alt="Konfidence"
             />
         </ui5-shellbar-branding>
+        <ui5-tag design="Set2" color-scheme="5" slot="content">UI5 Web Components</ui5-tag>
         <ui5-avatar
             slot="profile"
             initials={avatarInitials}
@@ -255,14 +257,30 @@
             accessible-name={`Open account menu for ${data.user.name}`}
         ></ui5-avatar>
     </ui5-shellbar>
-    <aside class="side-panel" slot="sideContent">
+    <ui5-side-navigation class="side-panel" slot="sideContent">
+     {#if sidebar.mode !== "Collapsed"}
         <ProjectSelector
             projects={data.projects}
             selectedProjectId={selectedProject?.id}
             onselect={selectProject}
         />
-        <ui5-side-navigation id="sn1">
-            {#each navGroups as navGroup (navGroup.text)}
+        {:else}
+        <ui5-side-navigation-item
+            text="Select a project"
+            icon="grid"
+            selected={false}
+            onui5-click={() => {
+                sidebar.mode = "Expanded";
+                tick().then(() => {
+                    const select = document.querySelector("ui5-select#project-select") as any;
+                    if (select) {
+                        select._onclick();
+                    }
+                });
+            }}
+        ></ui5-side-navigation-item>
+     {/if}
+        {#each navGroups as navGroup (navGroup.text)}
                 <ui5-side-navigation-group text={navGroup.text} expanded>
                     {#each navGroup.items as navItem (navItem.href)}
                         <ui5-side-navigation-item
@@ -277,8 +295,7 @@
                     {/each}
                 </ui5-side-navigation-group>
             {/each}
-        </ui5-side-navigation>
-    </aside>
+    </ui5-side-navigation>
     <div class="content">
         {@render children()}
     </div>
