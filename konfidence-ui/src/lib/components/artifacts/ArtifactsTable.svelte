@@ -4,13 +4,14 @@
     import "@ui5/webcomponents-icons/dist/sort.js";
     import "@ui5/webcomponents/dist/Icon.js";
     import { Render, Subscribe } from "@humanspeak/svelte-headless-table";
-    import { type ArtifactSummary } from "$lib/artifacts";
-    import createArtifactTable from "./columns";
+    import type { ArtifactDeployment } from "$lib/deployments";
     import { toStore } from "svelte/store";
 
-    const { artifacts }: { artifacts: ArtifactSummary[] } = $props();
+    import createArtifactTable from "./columns";
 
-    const { table, columns } = createArtifactTable(toStore(() => artifacts));
+    const { deployments }: { deployments: ArtifactDeployment[] } = $props();
+
+    const { table, columns } = createArtifactTable(toStore(() => deployments));
     const {
         headerRows,
         pageRows,
@@ -18,7 +19,7 @@
         tableAttrs,
         tableBodyAttrs,
         visibleColumns,
-    } = table.createViewModel(columns, { rowDataId: (row) => row.displayName });
+    } = table.createViewModel(columns, { rowDataId: (row) => row.id });
     const { filterValue } = pluginStates.filter;
     const { filterValues } = pluginStates.colFilter;
     const {
@@ -31,10 +32,9 @@
     } = pluginStates.virtual;
 
     const updateColumnFilter = (columnId: string, value: string): void => {
-        const columnFilterValue = value || undefined;
         filterValues.update((current) => ({
             ...current,
-            [columnId]: columnFilterValue,
+            [columnId]: value || undefined,
         }));
     };
 
@@ -52,16 +52,11 @@
 <div class="table-shell">
     <div class="toolbar">
         <label>
-            <span>Search artifacts</span>
-            <input
-                type="search"
-                placeholder="Name, version, manifest…"
-                bind:value={$filterValue}
-            />
+            <span>Search artifact deployments</span>
+            <input type="search" placeholder="ID, artifact, version, stage…" bind:value={$filterValue} />
         </label>
         <p aria-live="polite">
-            {$totalRows.toLocaleString()} matches · {$renderedRows.toLocaleString()}
-            rows rendered
+            {$totalRows.toLocaleString()} matches · {$renderedRows.toLocaleString()} rows rendered
         </p>
     </div>
 
@@ -72,76 +67,33 @@
                     <Subscribe attrs={headerRow.attrs()} let:attrs>
                         <tr {...attrs}>
                             {#each headerRow.cells as cell (cell.id)}
-                                <Subscribe
-                                    attrs={cell.attrs()}
-                                    props={cell.props()}
-                                    let:attrs
-                                    let:props
-                                >
+                                <Subscribe attrs={cell.attrs()} props={cell.props()} let:attrs let:props>
                                     <th {...attrs}>
                                         <button
                                             class="sort-button"
                                             type="button"
-                                            data-sort-order={props.sort.order ??
-                                                "none"}
+                                            data-sort-order={props.sort.order ?? "none"}
                                             onclick={props.sort.toggle}
                                         >
                                             <Render of={cell.render()} />
-                                            <ui5-icon
-                                                name={sortIcon(
-                                                    props.sort.order,
-                                                )}
-                                                aria-hidden="true"
-                                            ></ui5-icon>
+                                            <ui5-icon name={sortIcon(props.sort.order)} aria-hidden="true"></ui5-icon>
                                         </button>
-                                        {#if cell.id === "reuse" || cell.id === "status"}
+                                        {#if cell.id === "status"}
                                             <select
-                                                aria-label={`Filter ${cell.id}`}
-                                                value={String(
-                                                    $filterValues[cell.id] ??
-                                                        "",
-                                                )}
-                                                onchange={(event) =>
-                                                    updateColumnFilter(
-                                                        cell.id,
-                                                        event.currentTarget
-                                                            .value,
-                                                    )}
+                                                aria-label="Filter status"
+                                                value={String($filterValues[cell.id] ?? "")}
+                                                onchange={(event) => updateColumnFilter(cell.id, event.currentTarget.value)}
                                             >
                                                 <option value="">All</option>
-                                                {#if cell.id === "reuse"}
-                                                    <option value="Yes"
-                                                        >Yes</option
-                                                    >
-                                                    <option value="No"
-                                                        >No</option
-                                                    >
-                                                {:else}
-                                                    <option value="Ready"
-                                                        >Ready</option
-                                                    >
-                                                    <option value="Not ready"
-                                                        >Not ready</option
-                                                    >
-                                                    <option value="Unknown"
-                                                        >Unknown</option
-                                                    >
-                                                {/if}
+                                                <option value="ArtifactFetched">Artifact fetched</option>
+                                                <option value="ArtifactDeployed">Artifact deployed</option>
                                             </select>
                                         {:else}
                                             <input
                                                 aria-label={`Filter ${cell.id}`}
                                                 placeholder="Filter…"
-                                                value={String(
-                                                    $filterValues[cell.id] ??
-                                                        "",
-                                                )}
-                                                oninput={(event) =>
-                                                    updateColumnFilter(
-                                                        cell.id,
-                                                        event.currentTarget
-                                                            .value,
-                                                    )}
+                                                value={String($filterValues[cell.id] ?? "")}
+                                                oninput={(event) => updateColumnFilter(cell.id, event.currentTarget.value)}
                                             />
                                         {/if}
                                     </th>
@@ -154,11 +106,7 @@
             <tbody {...$tableBodyAttrs}>
                 {#if $topSpacerHeight > 0}
                     <tr aria-hidden="true">
-                        <td
-                            colspan={$visibleColumns.length}
-                            style:height={`${$topSpacerHeight}px`}
-                            class="spacer"
-                        ></td>
+                        <td colspan={$visibleColumns.length} style:height={`${$topSpacerHeight}px`} class="spacer"></td>
                     </tr>
                 {/if}
                 {#each $pageRows as row (row.id)}
@@ -166,9 +114,7 @@
                         <tr {...attrs} use:measureRowAction={row.id}>
                             {#each row.cells as cell (cell.id)}
                                 <Subscribe attrs={cell.attrs()} let:attrs>
-                                    <td {...attrs}
-                                        ><Render of={cell.render()} /></td
-                                    >
+                                    <td {...attrs}><Render of={cell.render()} /></td>
                                 </Subscribe>
                             {/each}
                         </tr>
@@ -176,11 +122,7 @@
                 {/each}
                 {#if $bottomSpacerHeight > 0}
                     <tr aria-hidden="true">
-                        <td
-                            colspan={$visibleColumns.length}
-                            style:height={`${$bottomSpacerHeight}px`}
-                            class="spacer"
-                        ></td>
+                        <td colspan={$visibleColumns.length} style:height={`${$bottomSpacerHeight}px`} class="spacer"></td>
                     </tr>
                 {/if}
             </tbody>
@@ -195,7 +137,6 @@
         border-radius: var(--sapElement_BorderCornerRadius);
         background: var(--sapGroup_ContentBackground);
     }
-
     .toolbar {
         display: flex;
         align-items: end;
@@ -204,7 +145,6 @@
         padding: 1rem;
         border-bottom: 1px solid var(--sapGroup_ContentBorderColor);
     }
-
     .toolbar label {
         display: grid;
         gap: 0.375rem;
@@ -213,26 +153,22 @@
         font-size: 0.75rem;
         font-weight: 600;
     }
-
     .toolbar p {
         margin: 0;
         color: var(--sapContent_LabelColor);
         font-size: 0.875rem;
         white-space: nowrap;
     }
-
     .table-container {
         height: min(65vh, 45rem);
         min-width: 0;
         overflow: auto;
     }
-
     table {
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
     }
-
     thead {
         position: sticky;
         z-index: 1;
@@ -240,7 +176,6 @@
         background: var(--sapList_HeaderBackground);
         box-shadow: 0 1px var(--sapGroup_ContentBorderColor);
     }
-
     th,
     td {
         height: 3rem;
@@ -252,12 +187,10 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-
     th {
         height: auto;
         vertical-align: top;
     }
-
     .sort-button {
         display: flex;
         align-items: center;
@@ -272,13 +205,11 @@
         font-weight: 700;
         cursor: pointer;
     }
-
     .sort-button ui5-icon {
         width: 1rem;
         height: 1rem;
         color: var(--sapContent_IconColor);
     }
-
     input,
     select {
         width: 100%;
@@ -291,28 +222,16 @@
         color: var(--sapField_TextColor);
         font: inherit;
     }
-
     tbody tr:not([aria-hidden="true"]):hover {
         background: var(--sapList_Hover_Background);
     }
-
     .spacer {
         padding: 0;
         border: 0;
     }
-
     @media (max-width: 48rem) {
-        .toolbar {
-            align-items: stretch;
-            flex-direction: column;
-        }
-
-        .toolbar p {
-            white-space: normal;
-        }
-
-        table {
-            width: 60rem;
-        }
+        .toolbar { align-items: stretch; flex-direction: column; }
+        .toolbar p { white-space: normal; }
+        table { width: 80rem; }
     }
 </style>

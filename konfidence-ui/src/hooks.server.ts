@@ -19,10 +19,9 @@ export const handle: Handle = async ({ event, resolve }) => {
     durationMs: Date.now() - startedAt,
     method: event.request.method,
     path: event.url.pathname,
-    role: event.locals.user?.role,
+    roles: event.locals.user?.roles,
     route: event.route.id,
     status: response.status,
-    username: event.locals.user?.username,
   });
 
   return response;

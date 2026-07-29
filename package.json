@@ -6,6 +6,8 @@
     "all": "pnpm --filter konfidence-ui all",
     "ui:dev": "pnpm --filter konfidence-ui dev",
     "ui:all": "pnpm --filter konfidence-ui all",
+    "ui:api:check": "pnpm --filter konfidence-ui api:check",
+    "ui:api:generate": "pnpm --filter konfidence-ui api:generate",
     "ui:build": "pnpm --filter konfidence-ui build",
     "ui:check": "pnpm --filter konfidence-ui check",
     "ui:check:svelte": "pnpm --filter konfidence-ui check:svelte",

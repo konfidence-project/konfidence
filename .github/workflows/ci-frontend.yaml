@@ -6,6 +6,7 @@ on:
       - .github/workflows/ci-frontend.yaml
       - Dockerfile.ui
       - package.json
+      - api/openapispec.yaml
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - tsconfig.json
@@ -16,6 +17,7 @@ on:
       - .github/workflows/ci-frontend.yaml
       - Dockerfile.ui
       - package.json
+      - api/openapispec.yaml
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - tsconfig.json
@@ -53,7 +55,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run checks
-        run: pnpm ui:verify
+        run: pnpm ui:api:check && pnpm ui:verify
 
   test:
     name: Test

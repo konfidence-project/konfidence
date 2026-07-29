@@ -1,40 +1,48 @@
 <script lang="ts">
     import "@xyflow/svelte/dist/style.css";
-    import { type EdgeTypes, SvelteFlow } from "@xyflow/svelte";
+    import { type Node, Position, SvelteFlow } from "@xyflow/svelte";
 
-    import {
-        buildEdges,
-        buildNodes,
-        indexByNamespace,
-        landscapeOrder,
-    } from "$lib/components/utils/landscape.js";
-    import LandscapePromotionEdge from "$lib/components/LandscapePromotionEdge.svelte";
     import LandscapeStageNode from "$lib/components/LandscapeStageNode.svelte";
-    import type { Stage } from "$lib/stages.js";
+    import type { Landscape, Stage } from "$lib/stages";
     import { getStageCardVariantPreference } from "$lib/stores/stage-card-variant.svelte";
 
-    const { stages } = $props<{ stages: Stage[] }>();
+    const COLUMN_GAP = 600;
+    const ROW_GAP = 300;
+
+    const { landscapes, stages }: { landscapes: Landscape[]; stages: Stage[] } = $props();
     const stageCardVariant = getStageCardVariantPreference();
     const nodeTypes = { stage: LandscapeStageNode };
-    const edgeTypes: EdgeTypes = { promotion: LandscapePromotionEdge };
 
-    const order = $derived(landscapeOrder(stages));
-    const layout = $derived({
-        namespaceIndex: indexByNamespace(order),
-        order,
+    const nodes = $derived.by((): Node[] => {
+        const landscapeIndex = Object.fromEntries(
+            landscapes.map((landscape, index) => [landscape.id, index]),
+        );
+        const rowByLandscape: Record<string, number> = {};
+
+        return stages.map((stage) => {
+            const row = rowByLandscape[stage.landscapeId] ?? 0;
+            rowByLandscape[stage.landscapeId] = row + 1;
+
+            return {
+                data: { stage, variant: stageCardVariant.selected },
+                id: stage.id,
+                position: {
+                    x: (landscapeIndex[stage.landscapeId] ?? landscapes.length) * COLUMN_GAP,
+                    y: row * ROW_GAP,
+                },
+                sourcePosition: Position.Right,
+                targetPosition: Position.Left,
+                type: "stage",
+            };
+        });
     });
-    const nodes = $derived(
-        buildNodes(stages, layout, stageCardVariant.selected),
-    );
-    const edges = $derived(buildEdges(stages, layout));
 </script>
 
-<div class="flow" aria-label="Stage promotion landscape">
+<div class="flow" aria-label="Stage landscape">
     <SvelteFlow
         {nodes}
-        {edges}
+        edges={[]}
         {nodeTypes}
-        {edgeTypes}
         fitView
         colorMode="system"
         nodesDraggable={false}
@@ -67,19 +75,5 @@
         color: var(--sapTextColor);
         font-family: var(--sapFontFamily), sans-serif;
         padding: 0;
-    }
-
-    :global(
-        .svelte-flow__edge:not(.svelte-flow__edge-promotion)
-            .svelte-flow__edge-path
-    ) {
-        stroke: var(--sapContent_ForegroundBorderColor);
-    }
-
-    :global(
-        .svelte-flow__edge:not(.svelte-flow__edge-promotion).animated
-            .svelte-flow__edge-path
-    ) {
-        stroke: var(--sapInformativeElementColor);
     }
 </style>

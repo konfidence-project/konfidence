@@ -1,7 +1,7 @@
 <script lang="ts">
+    import { page } from "$app/state";
     import ErrorView from "$lib/components/ErrorView.svelte";
     import { HTTP_FORBIDDEN } from "$lib/http-status";
-    import { page } from "$app/state";
 
     const title = $derived.by(() => {
         if (page.status === HTTP_FORBIDDEN) {
@@ -17,9 +17,4 @@
     });
 </script>
 
-<ErrorView
-    {title}
-    status={page.status}
-    error={page.error}
-    {message}
-/>
+<ErrorView {title} {message} status={page.status} error={page.error} />
