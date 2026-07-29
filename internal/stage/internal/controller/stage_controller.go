@@ -272,7 +272,7 @@ func (r *StageReconciler) updateTargetStageVersionUsage(ctx context.Context, sta
 
 func getStageVersionLabels(stage *konfidence.Stage) map[string]string {
 	// use vector hash as vector ref for now
-	digest := hash.Fnv128(stage.Spec.Vector)
+	digest := hash.Fnv(stage.Spec.Vector, 25)
 
 	return map[string]string{
 		pkgctrl.StageNameLabel:       stage.Name,
@@ -288,7 +288,7 @@ func getTargetStageVersionUsageLabels(stage *konfidence.Stage) map[string]string
 
 func getStageVersionName(stage *konfidence.Stage) string {
 	content := fmt.Sprintf("%s-%s-%d", stage.Name, stage.Spec.Vector, stage.Generation)
-	digest := hash.Fnv64(content)
+	digest := hash.Fnv(content, 13)
 	return fmt.Sprintf("%s-%s", stage.Name, digest)
 }
 
