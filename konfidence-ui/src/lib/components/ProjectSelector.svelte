@@ -43,17 +43,12 @@
         display: grid;
         gap: 0.375rem;
         padding: 1rem;
-        border-right: 1px solid var(--sapList_BorderColor);
         color: var(--sapContent_LabelColor);
         font-size: var(--sapFontSmallSize);
     }
 
     .project-switcher ui5-select {
         width: 100%;
-        padding: 0.5rem;
-        border: 1px solid var(--sapField_BorderColor);
-        border-radius: var(--sapField_BorderCornerRadius);
-        background: var(--sapField_BackgroundStyle);
         color: var(--sapTextColor);
         font: inherit;
     }
