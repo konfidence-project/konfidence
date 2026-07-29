@@ -617,7 +617,7 @@ _Appears in:_
 
 Project is the Schema for the projects API. A Project owns a dedicated
 namespace that stores the project's resources. The project name is
-capped at 50 characters so the derived namespace name and label values
+capped at 56 characters so the derived namespace name and label values
 stay within the 63-character Kubernetes limits.
 
 
@@ -674,7 +674,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `displayName` _string_ | DisplayName is the human-readable name of the project, shown in user<br />interfaces. It does not affect the namespace name or any label, and it<br />may be changed at any time. |  | MaxLength: 253 <br />MinLength: 1 <br />Optional: \{\} <br /> |
-| `namespace` _string_ | Namespace overrides the name of the namespace created for this project.<br />When unset it defaults to "kden-project-<project-name>". It is immutable<br />once the Project exists, because the namespace and everything it holds<br />are bound to this name. |  | MaxLength: 63 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Optional: \{\} <br /> |
+| `namespace` _string_ | Namespace overrides the name of the namespace created for this project.<br />When unset it defaults to "kden-p-<project-name>". It is immutable<br />once the Project exists, because the namespace and everything it holds<br />are bound to this name. |  | MaxLength: 63 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Optional: \{\} <br /> |
 | `roleBindings` _object (keys:string, values:[Subjects](#subjects))_ | RoleBindings grants project roles to callers. It maps a role name to the<br />list of subjects that hold that role; a caller holds the role if any<br />subject in the list matches (OR). The role names are a fixed, well-known<br />set for now (for example "admin", "pm", "dev"), but the field is a map so<br />the set can be extended without a schema change. See the Project<br />multi-tenancy ADR for the meaning of each role and the authorization flow.<br />RoleBindings is currently schema-only: no authorization is enforced yet. |  | MaxProperties: 32 <br />Optional: \{\} <br /> |
 
 
