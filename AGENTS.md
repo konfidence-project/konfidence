@@ -18,6 +18,12 @@
   used to satisfy this requirement. Prefer asserting on observable
   state/output that reflects what the code is actually supposed to
   accomplish.
+- Exported functions, exported variables, and exported constants MUST carry a
+  code documentation comment. Keep these to a minimum — state what is
+  non-obvious, not a restatement of the identifier name. Wording MUST follow
+  the guidelines in
+  [konfidence-docs styleguide](https://github.com/konfidence-project/konfidence-docs/blob/main/src/docs/extend-customize/styleguide.md).
+- Linting MUST pass. A change that does not pass lint is not done.
 - Documentation is a living artifact, not a one-time write-up. Documentation
   for Konfidence MUST be authored and kept up to date in
   [konfidence-project/konfidence-docs](https://github.com/konfidence-project/konfidence-docs),
