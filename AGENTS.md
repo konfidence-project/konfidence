@@ -1,5 +1,22 @@
 # Konfidence
 
+## Coding Philosophy
+
+- Code MUST follow the existing style and conventions already present in the
+  file/package being touched. Do not introduce a competing style even if you
+  personally prefer it.
+- Code MUST comply with SOLID principles. A change that violates Single
+  Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, or
+  Dependency Inversion is not done — it needs another pass.
+- Cyclomatic complexity MUST be kept low. Prefer early returns, extracted
+  functions, and flat control flow over deeply nested conditionals.
+- Every change MUST come with tests. Untested code is not considered
+  complete, regardless of how small the change looks.
+- Documentation is a living artifact, not a one-time write-up. Documentation
+  for Konfidence MUST be authored and kept up to date in
+  [konfidence-project/konfidence-docs](https://github.com/konfidence-project/konfidence-docs),
+  not as static, one-off docs left to drift in this repository.
+
 ## CI / Approval Policy
 
 - All changes MUST go through a pull request. Direct commits are not a valid path.
