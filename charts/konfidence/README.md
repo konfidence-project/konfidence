@@ -31,6 +31,13 @@ Kubernetes: `>=1.27.0-0`
 | api.image.pullPolicy | string | `"IfNotPresent"` |  |
 | api.image.repository | string | `"ghcr.io/konfidence-project/api"` |  |
 | api.image.tag | string | `""` |  |
+| api.ingress.annotations | object | `{}` |  |
+| api.ingress.className | string | `""` |  |
+| api.ingress.enabled | bool | `false` |  |
+| api.ingress.hosts[0].host | string | `"konfidence-api.example.com"` |  |
+| api.ingress.hosts[0].paths[0].path | string | `"/"` |  |
+| api.ingress.hosts[0].paths[0].pathType | string | `"Prefix"` |  |
+| api.ingress.tls | list | `[]` |  |
 | api.podAnnotations | object | `{}` |  |
 | api.podDisruptionBudget.enabled | bool | `false` |  |
 | api.podDisruptionBudget.maxUnavailable | int | `1` |  |
