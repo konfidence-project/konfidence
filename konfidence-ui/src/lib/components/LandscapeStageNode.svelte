@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Handle, Position } from "@xyflow/svelte";
 
-    import StageCard from "$lib/components/stage/StageCard.svelte";
+    import StageCard from "$lib/components/stage/cards/StageCard.svelte";
 
     type NodeProps = import("@xyflow/svelte").NodeProps;
     type Stage = import("$lib/stages").Stage;

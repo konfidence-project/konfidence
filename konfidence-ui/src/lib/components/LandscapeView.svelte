@@ -3,7 +3,7 @@
     import { type Node, Position, SvelteFlow } from "@xyflow/svelte";
 
     import LandscapeStageNode from "$lib/components/LandscapeStageNode.svelte";
-    import StageCard from "$lib/components/stage/StageCard.svelte";
+    import StageCard from "$lib/components/stage/cards/StageCard.svelte";
     import { getThemePreference } from "$lib/theme-preference.svelte";
     import type { Landscape, Stage } from "$lib/stages";
 
