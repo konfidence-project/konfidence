@@ -122,29 +122,4 @@ dockers_v2:
       OPERATOR_NAME: api
 
 changelog:
-  use: github
-  sort: asc
-  groups:
-    - title: "Features"
-      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
-      order: 0
-    - title: "Bug Fixes"
-      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
-      order: 1
-    - title: "Performance Improvements"
-      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
-      order: 2
-    - title: "Maintenance"
-      regexp: '^.*?chore(\([[:word:]]+\))??!?:.+$'
-      order: 3
-    - title: "Other Changes"
-      order: 999
-  filters:
-    exclude:
-      - '^.*?chore\(release\):.+$'
-      - "^docs:"
-      - "^test:"
-      - '^.*?refactor(\([[:word:]]+\))??!?:.+$'
-      - '^.*?build(\([[:word:]]+\))??!?:.+$'
-      - '^.*?style(\([[:word:]]+\))??!?:.+$'
-      - '^.*?ci(\([[:word:]]+\))??!?:.+$'
+  use: github-native
