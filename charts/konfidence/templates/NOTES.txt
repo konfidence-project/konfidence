@@ -21,6 +21,12 @@ Konfidence API server installed in namespace {{ .Release.Namespace }}.
 Port-forward for local access:
   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "konfidence.fullname" . }}-api {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
   curl http://localhost:{{ .Values.api.service.port }}/healthz
+
+{{- if .Values.api.ingress.enabled }}
+The API is exposed via Ingress at: http{{ if .Values.api.ingress.tls }}s{{ end }}://{{ (index .Values.api.ingress.hosts 0).host }}
+{{- else }}
+For production access configure an Ingress by setting api.ingress.enabled=true in your values.
+{{- end }}
 {{- end }}
 
 {{- if and .Values.crd.install .Values.crd.keep }}

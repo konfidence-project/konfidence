@@ -66,13 +66,26 @@ api:
   podLabels: {}
 
   # Kubernetes Service exposing the API server.
-  # ClusterIP  - reachable inside the cluster; use port-forward or Ingress externally.
-  # Potentially we could use NodePort or LoadBalancer
+  # ClusterIP is the default - reachable inside the cluster only.
+  # For production external access, enable the Ingress below.
   service:
     type: ClusterIP
     port: 8090
     nodePort: ""
     annotations: {}
+
+  # Ingress for external access to the API server.
+  # Disabled by default — enable and configure for production deployments.
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: konfidence-api.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
 
   podDisruptionBudget:
     enabled: false
