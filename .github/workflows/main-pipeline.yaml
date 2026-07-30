@@ -35,5 +35,5 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: konfidence-project/.github/.github/workflows/release-please.yaml@release-please-workflow # TODO: remove this branch before merging
+    uses: konfidence-project/.github/.github/workflows/release-please.yaml@release-please-workflow # TODO: remove this branch before merging # TEST
     secrets: inherit
