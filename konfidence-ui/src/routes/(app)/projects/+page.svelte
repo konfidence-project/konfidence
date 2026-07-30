@@ -12,7 +12,6 @@
 
 <section class="mx-auto grid w-full max-w-240 content-start gap-6 p-[clamp(1.25rem,4vw,3rem)]" aria-labelledby="projects-title">
     <header class="grid gap-1.5">
-        <span class="text-xs font-bold tracking-[0.1em] text-app-accent-strong uppercase">Delivery workspaces</span>
         <h1 id="projects-title" class="m-0 text-[clamp(1.6rem,3vw,2.25rem)]">Projects</h1>
         <p class="m-0 text-app-muted">Select a project to inspect its delivery landscape.</p>
     </header>

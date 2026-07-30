@@ -45,7 +45,7 @@
 
 <section class="flex min-h-0 min-w-0 flex-1" aria-labelledby="landscape-title">
     <h1 id="landscape-title" class="sr-only">Delivery landscape</h1>
-    <div class="hidden h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_20%_10%,color-mix(in_srgb,var(--app-accent)_7%,transparent),transparent_32rem)] min-[52rem]:block" aria-label="Stage landscape">
+    <div class="hidden h-full min-h-0 min-w-0 flex-1 overflow-hidden  min-[52rem]:block" aria-label="Stage landscape">
         <SvelteFlow
             {nodes}
             edges={[]}

@@ -47,6 +47,7 @@ body {
 
 body {
   min-height: 100vh;
+  font-size: 0.875rem;
 }
 
 button,

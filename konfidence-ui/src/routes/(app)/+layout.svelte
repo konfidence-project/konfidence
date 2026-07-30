@@ -239,7 +239,7 @@
         />
         {#if navigation.length > 0}
             <nav class="px-2 py-[0.8rem]" aria-label="Delivery">
-                <h2 class={["m-0 px-3 py-[0.6rem] text-[0.78rem] font-[650] tracking-[0.06em] text-app-muted uppercase", navigationToggled && "min-[52rem]:hidden"]}>Delivery</h2>
+                <h2 class={["m-0 px-3 py-[0.6rem] text-app-muted", navigationToggled && "min-[52rem]:hidden"]}>Delivery</h2>
                 <ul class="m-0 grid list-none gap-[0.2rem] p-0">
                     {#each navigation as item (item.href)}
                         <li class={navigationToggled ? "min-[52rem]:relative min-[52rem]:min-h-11" : undefined}>
@@ -247,7 +247,7 @@
                                 class={[
                                     "group flex min-h-11 items-center gap-[0.7rem] rounded-[0.4rem] border-l-[3px] border-transparent px-3 text-app-text no-underline hover:bg-app-accent/7 [&_svg]:size-[1.1rem] [&_svg]:shrink-0",
                                     navigationToggled && "min-[52rem]:absolute min-[52rem]:inset-y-0 min-[52rem]:left-0 min-[52rem]:right-0 min-[52rem]:justify-center min-[52rem]:px-0 min-[52rem]:hover:right-auto min-[52rem]:hover:z-10 min-[52rem]:hover:w-max min-[52rem]:hover:pl-4 min-[52rem]:hover:pr-3 min-[52rem]:hover:bg-app-sidebar min-[52rem]:hover:shadow-md",
-                                    page.url.pathname.startsWith(item.href) && "border-l-app-accent bg-app-accent/12 font-semibold text-app-accent-strong",
+                                    page.url.pathname.startsWith(item.href) && "border-l-app-accent bg-app-accent/12 text-app-accent-strong",
                                 ]}
                                 href={item.href}
                                 aria-label={item.label}

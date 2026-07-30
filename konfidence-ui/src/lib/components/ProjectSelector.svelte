@@ -31,7 +31,7 @@
 </script>
 
 <div class={["project-switcher grid gap-1.5 border-b border-app-border p-4", collapsed && "min-[52rem]:min-h-14 min-[52rem]:gap-0 min-[52rem]:place-items-center min-[52rem]:p-0"]}>
-    <label class={["text-[0.78rem] font-semibold text-app-muted", collapsed && "min-[52rem]:hidden"]} for="project-select">Project</label>
+    <label class={["text-app-muted", collapsed && "min-[52rem]:hidden"]} for="project-select">Project</label>
     <select bind:this={selectEl} id="project-select" class={["select min-h-[2.35rem] w-full border-app-border bg-app-card text-app-text", collapsed && "min-[52rem]:hidden"]} value={selectedProjectId ?? ""} onchange={handleChange}>
         <option value="">Select a project</option>
         {#each projects as project (project.id)}

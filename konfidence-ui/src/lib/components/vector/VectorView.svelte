@@ -21,7 +21,6 @@
     const { vectorDeployments } = $props<{ vectorDeployments: VectorDeployment[] }>();
     let searchTerm = $state("");
     let selectedId = $state<string>();
-    let visibleCount = $state(PAGE_SIZE);
     let sortColumn = $state<SortColumn>();
     let sortDirection = $state<SortDirection>("none");
 
@@ -56,8 +55,6 @@
         }
         return [...filtered].toSorted((left, right) => value(left).localeCompare(value(right)) * factor);
     });
-    const visible = $derived(sorted.slice(0, visibleCount));
-    const hasMore = $derived(visible.length < sorted.length);
 
     const directionFor = (column: SortColumn): SortDirection => {
         if (sortColumn === column) {
@@ -76,22 +73,19 @@
             sortColumn = undefined;
             sortDirection = "none";
         }
-        visibleCount = PAGE_SIZE;
     };
 
     const updateSearch = (event: Event): void => {
         searchTerm = (event.currentTarget as HTMLInputElement).value;
-        visibleCount = PAGE_SIZE;
     };
 </script>
 
 <div class={["grid min-h-0 min-w-0 flex-1 bg-app-bg", selected ? "grid-cols-[minmax(24rem,0.75fr)_minmax(28rem,1.25fr)] max-[68rem]:grid-cols-1" : "grid-cols-1"]}>
     <section class={["flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden px-4 py-[1.2rem] max-[68rem]:px-3 max-[47.999rem]:py-4", selected && "max-[68rem]:hidden"]} aria-labelledby="vector-title">
         <header class="grid gap-[0.2rem]">
-            <span class="text-[0.68rem] font-bold tracking-[0.09em] text-app-accent-strong uppercase">Project inventory</span>
             <h1 id="vector-title" class="m-0 text-[1.35rem]">Vector Deployments</h1>
             <p class="m-0 text-[0.84rem] text-app-muted">
-                Versioned vectors currently assigned to project stages. Showing {visible.length} of {sorted.length}.
+                Versioned vectors currently assigned to project stages. Showing {sorted.length} of {sorted.length}.
             </p>
         </header>
 
@@ -142,15 +136,15 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {#each visible as deployment (deployment.id)}
+                    {#each sorted as deployment (deployment.id)}
                         <tr class={["hover:bg-app-accent/7", selectedId === deployment.id && "bg-app-accent/7 shadow-[inset_3px_0_var(--app-accent)]"]}>
                             <th scope="row">
                                 <button class="deployment-link cursor-pointer border-0 bg-transparent p-0 font-bold text-app-text hover:text-app-accent-strong hover:underline" type="button" onclick={() => (selectedId = deployment.id)}>
                                     {deployment.id}
                                 </button>
                             </th>
-                            <td><code class="font-mono text-xs text-app-text">{deployment.repository}</code></td>
-                            <td><code class="font-mono text-xs text-app-text">{deployment.version}</code></td>
+                            <td><span class="select-all font-mono text-xs text-app-text">{deployment.repository}</span></td>
+                            <td><span class="select-all font-mono text-xs text-app-text">{deployment.version}</span></td>
                             <td>{deployment.landscape}</td>
                             <td>{deployment.stage}</td>
                             <td>
@@ -165,16 +159,6 @@
                 </tbody>
             </table>
         </div>
-
-        {#if hasMore}
-            <button
-                class="btn preset-tonal self-center"
-                type="button"
-                onclick={() => (visibleCount = Math.min(visibleCount + PAGE_SIZE, sorted.length))}
-            >
-                Load more <span class="sr-only">vector deployments</span>
-            </button>
-        {/if}
     </section>
 
     {#if selected}
