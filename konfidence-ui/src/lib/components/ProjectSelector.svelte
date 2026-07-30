@@ -15,7 +15,7 @@
     } = $props();
 
     const selectedProject = $derived(
-        projects.find((p) => p.id === selectedProjectId),
+        projects.find((project) => project.id === selectedProjectId),
     );
 
     const handleChange = (event: Event): void => {

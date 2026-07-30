@@ -123,7 +123,7 @@
 
     const expandAndOpenProjectSelector = (): void => {
         navigationToggled = false;
-        requestAnimationFrame(() => projectSelectorRef?.openSelect());
+        globalThis.requestAnimationFrame(() => projectSelectorRef?.openSelect());
     };
 
     const signOut = async (): Promise<void> => {

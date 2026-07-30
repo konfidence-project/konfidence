@@ -24,9 +24,9 @@ describe("StageCard", () => {
     await expect.element(screen.getByText("Production API", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Live", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("v2.14.0", { exact: true })).toBeVisible();
-        await expect.element(screen.getByText("Deploy", { exact: true }).first()).toBeVisible();
-        await expect.element(screen.getByText("Tasks", { exact: true }).first()).toBeVisible();
-        await expect.element(screen.getByText("Active", { exact: true }).first()).toBeVisible();
+    await expect.element(screen.getByText("Deploy", { exact: true }).first()).toBeVisible();
+    await expect.element(screen.getByText("Tasks", { exact: true }).first()).toBeVisible();
+    await expect.element(screen.getByText("Active", { exact: true }).first()).toBeVisible();
   });
 
   it("shows a non-active stage as deploying", async () => {
