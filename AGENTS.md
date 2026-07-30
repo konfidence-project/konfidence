@@ -12,6 +12,12 @@
   functions, and flat control flow over deeply nested conditionals.
 - Every change MUST come with tests. Untested code is not considered
   complete, regardless of how small the change looks.
+- Tests MUST verify real business outcomes, not just execution. A test that
+  only asserts a function was called, mocks away the behavior under test, or
+  checks a trivial getter/setter is not a meaningful test and MUST NOT be
+  used to satisfy this requirement. Prefer asserting on observable
+  state/output that reflects what the code is actually supposed to
+  accomplish.
 - Documentation is a living artifact, not a one-time write-up. Documentation
   for Konfidence MUST be authored and kept up to date in
   [konfidence-project/konfidence-docs](https://github.com/konfidence-project/konfidence-docs),
