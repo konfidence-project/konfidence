@@ -83,28 +83,54 @@ make.
 ### Terminology
 
 - **Vector**: A deployable unit that Konfidence manages through its
-  lifecycle (deploy, activate, run, undeploy).
+  lifecycle (deploy, activate, run, undeploy). A Vector is realized as an
+  OCM (Open Component Model) component version; a Stage references it by
+  pointing at that component version, and its lifecycle is materialized
+  across multiple concrete resources (e.g. the resources that define,
+  deploy, activate, assign, promote, and migrate it) rather than a single
+  monolithic resource.
 - **Stage**: The primary input surface through which a Vector's desired
   state is expressed to Konfidence (see "Stages, Vectors, and Lifecycle").
-- **Landscape**: A logical grouping of one or more Runtimes that Stages and
-  Vectors are deployed into.
-- **Runtime**: An independently configurable execution target within a
-  Landscape. A Landscape MAY contain multiple Runtimes, including multiple
-  Runtimes of the same type.
-- **Artifact**: The packaged, versioned output that is deployed as a Vector,
-  optionally in multiple configuration flavors.
-- **Orbit**: The lifecycle/management layer around a Landscape's runtimes
-  and deployments, sitting above Konfidence.
-- **LCP**: Landscape Control Plane — the operator/tenant boundary through
-  which a party views and manages the Landscapes, Stages, and Runtimes they
-  are responsible for.
+- **Landscape**: A logical grouping of one or more Deployment Targets that
+  Stages and Vectors are deployed into.
+- **Deployment Target** (also referred to at the design level as a
+  "Runtime"): An independently configurable execution target within a
+  Landscape. A Landscape MAY contain multiple Deployment Targets, including
+  multiple of the same type. Today's reference deployer resolves at most one
+  Deployment Target per Landscape; support for multiple concurrently
+  configurable Deployment Targets per Landscape is a forward-looking
+  boundary in this document, not yet the deployed reality everywhere.
+- **Artifact**: The packaged, versioned output — backed by OCM components
+  and resources — that is deployed as part of a Vector, optionally in
+  multiple configuration flavors.
+- **Orbit**: The lifecycle/management layer around a Landscape's deployment
+  targets and deployments, sitting above Konfidence. Konfidence does not
+  implement Orbit; it is entirely Integrator-owned (see "Explicit
+  Non-Goals").
+- **LCP**: Landscape Control Plane — the Konfidence control-plane instance
+  responsible for a given set of Landscapes. The LCP is the party on one
+  side of the contract with a Landscape's deployer/orchestrator (which may
+  run on a different Kubernetes cluster than the LCP itself); the
+  LCP-focused UI scopes what it shows to the Landscapes owned by the current
+  LCP instance.
+- **Deployer**: The component that reconciles Konfidence's deployment-facing
+  resources against a Landscape's Deployment Target(s) — e.g. rendering and
+  applying artifacts, producing deployment results consumed by later stages
+  of the Vector lifecycle (such as routing configuration). Konfidence
+  defines the Deployer contract; `kubernetes-landscape-orchestrator` is the
+  reference Deployer implementation for Kubernetes-native deployments (see
+  "Deployments, Landscapes, and Deployment Targets").
 - **Integrator**: Any external product, team, or platform that consumes
   Konfidence as a building block and is responsible for building the
   remaining product surface on top of it (routing, tenancy, orbit
   management, etc.). This document never assumes there is only one such
   Integrator, and Konfidence's public contracts MUST be designed
   Integrator-agnostic.
-- **OFREP**: OpenFeature Remote Evaluation Protocol.
+- **OFREP**: OpenFeature Remote Evaluation Protocol. Konfidence's reference
+  deployer exposes an OFREP evaluation endpoint that resolves feature flags,
+  authored configuration, and deployer-produced deployment results, keyed by
+  Vector ID — the same surface that carries service discovery information
+  (see "Service Discovery and Routing Guarantees").
 
 ### Ingress and Traffic Routing
 
@@ -126,7 +152,8 @@ make.
 ### Service Discovery and Routing Guarantees
 
 1. Konfidence MUST offer service discovery information via the OFREP
-   protocol, populated as part of the deployment process.
+   protocol's evaluation endpoint, backed by deployer-produced deployment
+   results and populated as part of the deployment process.
 2. Konfidence SHALL NOT guarantee routing capability or behavior. Routing is
    considered a function of the underlying platform and infrastructure,
    outside Konfidence's contract.
@@ -138,7 +165,7 @@ make.
 
 1. "Stage" SHALL be the primary input surface for Konfidence. Desired state
    MUST be expressed through Stages rather than through Vector-level or
-   Runtime-level primitives directly.
+   Deployment-Target-level primitives directly.
 2. Konfidence MUST offer, via its vector data service, visibility into
    Stages and the Vectors assigned to and running under each Stage.
 3. Konfidence MUST support task and hook execution during the activation
@@ -156,23 +183,25 @@ make.
    that controller itself.
 8. Historical data for Vectors and Stages MUST remain accessible after the
    fact (not only current/live state).
-9. Usages (resources with a bounded lifetime) SHOULD support a configurable
+9. Usages (e.g. a StageVersionUsage pinning a StageVersion as in-use — a
+   resource with a bounded lifetime) SHOULD support a configurable
    expiration after which they are eligible for garbage collection.
 
-### Deployments, Landscapes, and Runtimes
+### Deployments, Landscapes, and Deployment Targets
 
 1. A single deployment MAY target multiple, independently configurable
-   Runtimes within one Landscape.
-2. Runtimes within a Landscape MAY carry different configuration, including
-   different Helm values, from one another.
-3. A Landscape MAY be composed of multiple Runtimes, including multiple
-   Runtimes of the same type.
+   Deployment Targets within one Landscape.
+2. Deployment Targets within a Landscape MAY carry different configuration,
+   including different Helm values, from one another.
+3. A Landscape MAY be composed of multiple Deployment Targets, including
+   multiple of the same type.
 4. Artifacts MAY ship multiple configuration flavors, applied based on
    matchers configured at the Landscape level.
 5. Konfidence MUST support Helm hooks.
 6. Konfidence MUST provide a reference/demo implementation of its
    Deployment Interfaces.
-7. Konfidence MUST provide a documented way to onboard new Runtimes.
+7. Konfidence MUST provide a documented way to onboard new Deployment
+   Targets.
 8. Kubernetes (via a kubernetes-landscape-orchestrator) is the only
    orchestrator Konfidence is REQUIRED to ship. There is no requirement for
    Konfidence to ship support for any other orchestrator.
@@ -197,9 +226,9 @@ make.
 ### LCP-Focused UI and Embedding
 
 1. Konfidence MUST offer an LCP-focused UI that surfaces only the
-   information relevant to the Landscapes, Stages, and Runtimes created or
-   managed by the current LCP, including logs, events, and runtime
-   information.
+   information relevant to the Landscapes, Stages, and Deployment Targets
+   created or managed by the current LCP, including logs, events, and
+   runtime information.
 2. The UI MUST support embedding of its own UI elements/pages into other
    surfaces (i.e. Konfidence UI components are embeddable elsewhere).
 3. The UI SHOULD support being embedded within another web page (i.e.
@@ -216,11 +245,11 @@ make.
 ### Feature Flags and Custom Configuration
 
 1. Konfidence MUST support creating feature flags that are accessible to the
-   running Runtime application.
+   application running within a Deployment Target.
 2. Konfidence MUST support making custom configuration available to
-   arbitrary Runtime components, including components that are not
-   themselves part of a Vector, so that non-Vector components can be fed
-   configuration through the same mechanism.
+   arbitrary components running within a Deployment Target, including
+   components that are not themselves part of a Vector, so that non-Vector
+   components can be fed configuration through the same mechanism.
 
 ### Observability
 
@@ -230,7 +259,7 @@ make.
 ### Rationale Summary (Non-Normative)
 
 The boundaries above consistently draw one line: Konfidence owns Vector,
-Stage, Runtime, and Landscape primitives, their lifecycle, discovery
+Stage, Deployment Target, and Landscape primitives, their lifecycle, discovery
 metadata, and reference implementations of the interfaces around them.
 Konfidence explicitly does not own: production-grade ingress routing,
 routing guarantees, application-level tenancy, or Orbit/Landscape lifecycle
