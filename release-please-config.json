@@ -27,22 +27,12 @@
       "extra-files": [
         {
           "type": "yaml",
-          "path": "charts/star/Chart.yaml",
+          "path": "charts/konfidence/Chart.yaml",
           "jsonpath": "$.version"
         },
         {
           "type": "yaml",
-          "path": "charts/star/Chart.yaml",
-          "jsonpath": "$.appVersion"
-        },
-        {
-          "type": "yaml",
-          "path": "charts/galaxy/Chart.yaml",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "yaml",
-          "path": "charts/galaxy/Chart.yaml",
+          "path": "charts/konfidence/Chart.yaml",
           "jsonpath": "$.appVersion"
         }
       ]
