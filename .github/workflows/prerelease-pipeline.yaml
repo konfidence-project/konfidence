@@ -1,0 +1,19 @@
+name: Pre-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Pre-release version (e.g. 1.0.0-rc.1)'
+        required: true
+        type: string
+
+jobs:
+  prerelease:
+    name: Pre-release
+    permissions:
+      contents: write
+    uses: konfidence-project/.github/.github/workflows/prerelease-pipeline.yaml@v4
+    secrets: inherit
+    with:
+      version: ${{ inputs.version }}
