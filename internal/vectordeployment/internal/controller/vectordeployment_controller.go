@@ -2,8 +2,10 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/go-logr/logr"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -30,6 +32,12 @@ const (
 	MaxLabelSize                   = 63
 )
 
+// errArtifactDeploymentCollision signals that a deterministic ArtifactDeployment name collided with a
+// different artifact and its collisionCount salt was bumped. It is not a reconcile failure: the caller
+// persists the bumped salt and requeues cleanly (no error backoff) so the next reconcile deploys under
+// the re-salted name.
+var errArtifactDeploymentCollision = errors.New("artifact deployment name collision; salt bumped, requeueing")
+
 // VectorDeploymentReconciler reconciles a VectorDeployment object
 type VectorDeploymentReconciler struct {
 	client.Client
@@ -54,7 +62,7 @@ type resolvedVector struct {
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
-func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) { //nolint:gocyclo
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling VectorDeployment")
 
@@ -96,7 +104,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 			patchErrorMessage := "unable to update vectorDeployment status"
 
-			if err != nil {
+			if err != nil && !errors.Is(err, errArtifactDeploymentCollision) {
 				reconcileError := fmt.Errorf("failed to handle artifact deployments for vector deployment %s : %w", vectorDeployment.Name, err)
 				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
 			}
@@ -105,6 +113,11 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 	if err != nil {
+		// A name collision is not a failure: the bumped salt was just persisted above, so requeue cleanly
+		// (no error backoff) to deploy under the re-salted name on the next reconcile.
+		if errors.Is(err, errArtifactDeploymentCollision) {
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
 		return ctrl.Result{}, fmt.Errorf("failed to handle artifact deployments for vector deployment %s: %w", vectorDeployment.Name, err)
 	}
 	if !allDeploymentsReady {
@@ -226,7 +239,15 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			uid = new(string(vectorDeployment.UID))
 		}
 
-		deploymentName, err := ConstructArtifactDeploymentName(artifactRef.Component, artifactRef.Version, uid)
+		// Read the persisted collision salt for this artifact (keyed by component). The loop builds a fresh
+		// local map and only writes it back after the range, so this reads last reconcile's value. nil -> 0.
+		prev := vectorDeployment.Status.ResultingArtifactDeployments[artifactRef.Component]
+		var collisionCount int32
+		if prev.CollisionCount != nil {
+			collisionCount = *prev.CollisionCount
+		}
+
+		deploymentName, deploymentHash, err := ConstructArtifactDeploymentName(artifactRef.Component, artifactRef.Version, uid, collisionCount)
 		if err != nil {
 			return false, fmt.Errorf("failed to construct artifact deployment name for %q: %w", artifactRef.String(), err)
 		}
@@ -241,7 +262,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			}
 
 			log.Info("ArtifactDeployment not found, create new one", "name", deploymentName)
-			artifactDeployment = r.constructArtifactDeployment(artifactRef, artifactManifest, vectorDeployment, deploymentName)
+			artifactDeployment = r.constructArtifactDeployment(artifactRef, artifactManifest, vectorDeployment, deploymentName, deploymentHash, uid)
 			if err := r.Create(ctx, artifactDeployment); err != nil {
 				return false, fmt.Errorf("failed to create ArtifactDeployment resource %s: %w", deploymentName, err)
 			}
@@ -249,6 +270,40 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal, "ArtifactDeploymentCreated", "ArtifactDeploymentCreated", msg)
 			log.Info(msg)
 		} else {
+			// A deterministic name collision: the AD found under this name belongs to a different artifact.
+			// Recover the K8s Deployment way -- bump the per-artifact collisionCount salt, persist it, and
+			// requeue so the next reconcile computes a fresh (re-salted) name. Not a hard failure.
+			gotComponent := artifactDeployment.Annotations[pkgctrl.ArtifactComponentAnnotation]
+			gotVersion := artifactDeployment.Annotations[pkgctrl.ArtifactVersionAnnotation]
+			if gotComponent != artifactRef.Component || gotVersion != artifactRef.Version {
+				msg := fmt.Sprintf(
+					"ArtifactDeployment name %q collides: expected component %q version %q but found component %q version %q",
+					deploymentName, artifactRef.Component, artifactRef.Version, gotComponent, gotVersion)
+				r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeWarning,
+					"ArtifactDeploymentHashCollision", "ArtifactDeploymentHashCollision", msg)
+
+				// Guard against an unbounded bump loop: this many consecutive salts still colliding is a bug,
+				// not bad luck in a large hash space, so fail loudly instead of requeueing forever.
+				if collisionCount >= 5 {
+					log.Error(nil, msg, "name", deploymentName, "collisionCount", collisionCount)
+					return false, fmt.Errorf("%s (giving up after %d salts)", msg, collisionCount)
+				}
+
+				collisionCount++
+				log.Info("ArtifactDeployment name collision, bumping salt and requeueing",
+					"name", deploymentName, "component", artifactRef.Component, "collisionCount", collisionCount)
+				// Persist only the bumped salt for this component and requeue. We write straight to status
+				// (rather than the loop-local map) because we return before the post-range write-back runs.
+				// Preserve any existing entries; the next reconcile rebuilds the full map from scratch.
+				if vectorDeployment.Status.ResultingArtifactDeployments == nil {
+					vectorDeployment.Status.ResultingArtifactDeployments = map[string]konfidence.LocalArtifactDeploymentReference{}
+				}
+				vectorDeployment.Status.ResultingArtifactDeployments[artifactRef.Component] = konfidence.LocalArtifactDeploymentReference{
+					Name:           prev.Name,
+					CollisionCount: &collisionCount,
+				}
+				return false, errArtifactDeploymentCollision
+			}
 			log.Info("ArtifactDeployment found, update existing one", "name", deploymentName)
 		}
 
@@ -276,9 +331,12 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			log.Info("ArtifactDeployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", artifactDeployment.Name)
 		}
 
-		// Update the artifact deployment to the status map of the VectorDeployment
+		// Update the artifact deployment to the status map of the VectorDeployment. Carry the collision salt
+		// forward: once bumped it is permanent for this artifact slot, otherwise the next reconcile would
+		// recompute the unsalted (colliding) name and orphan this deployment.
 		resultingArtifactDeployments[artifactRef.Component] = konfidence.LocalArtifactDeploymentReference{
-			Name: artifactDeployment.Name,
+			Name:           artifactDeployment.Name,
+			CollisionCount: prev.CollisionCount,
 		}
 
 		// state management for VectorDeployedCondition
@@ -483,14 +541,28 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 	artifactManifest ArtifactManifest,
 	vectorDeployment *konfidence.VectorDeployment,
 	deploymentName string,
+	deploymentHash string,
+	uid *string,
 ) *konfidence.ArtifactDeployment {
 	// map task manifests from domain.TaskManifest to konfidence.TaskManifest
 	taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
 	artifactResources := mapArtifactResourcesToLandscape(artifactManifest.Resources)
+
+	ann := map[string]string{
+		pkgctrl.ArtifactComponentAnnotation: ref.Component,
+		pkgctrl.ArtifactVersionAnnotation:   ref.Version,
+		pkgctrl.ArtifactHashAnnotation:      deploymentHash,
+		pkgctrl.AllowReuseAnnotation:        fmt.Sprintf("%t", artifactManifest.AllowReuse),
+	}
+	if uid != nil {
+		ann[pkgctrl.VectorDeploymentUIDAnnotation] = *uid
+	}
+
 	return &konfidence.ArtifactDeployment{
 		ObjectMeta: ctrl.ObjectMeta{
-			Name:      deploymentName,
-			Namespace: vectorDeployment.Namespace,
+			Name:        deploymentName,
+			Namespace:   vectorDeployment.Namespace,
+			Annotations: ann,
 		},
 		Spec: konfidence.ArtifactDeploymentSpec{
 			Manifest: konfidence.ArtifactManifest{

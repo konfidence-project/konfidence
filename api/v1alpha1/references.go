@@ -16,6 +16,13 @@ type StageVersionReference struct {
 type LocalArtifactDeploymentReference struct {
 	// Name	is the name of the ArtifactDeployment. Required.
 	Name string `json:"name"`
+
+	// CollisionCount salts the ArtifactDeployment name hash to recover from a
+	// (rare) hash collision with a different artifact. nil and 0 both mean "no
+	// salt" and yield the original, unsalted name. Once bumped it is permanent
+	// for this artifact slot. Mirrors Deployment.Status.CollisionCount.
+	// +optional
+	CollisionCount *int32 `json:"collisionCount,omitempty"`
 }
 
 // LocalVectorDeploymentReference holds a reference to a VectorDeployment in the same namespace.

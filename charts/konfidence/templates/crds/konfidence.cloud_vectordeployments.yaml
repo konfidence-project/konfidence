@@ -192,6 +192,14 @@ spec:
                   description: LocalArtifactDeploymentReference holds a reference
                     to an ArtifactDeployment in the same namespace.
                   properties:
+                    collisionCount:
+                      description: |-
+                        CollisionCount salts the ArtifactDeployment name hash to recover from a
+                        (rare) hash collision with a different artifact. nil and 0 both mean "no
+                        salt" and yield the original, unsalted name. Once bumped it is permanent
+                        for this artifact slot. Mirrors Deployment.Status.CollisionCount.
+                      format: int32
+                      type: integer
                     name:
                       description: "Name\tis the name of the ArtifactDeployment. Required."
                       type: string

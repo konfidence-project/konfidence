@@ -2,48 +2,44 @@ package controller
 
 import (
 	"fmt"
-	"hash/fnv"
-	"math/big"
+	"strconv"
 	"strings"
 
+	pkghash "github.com/konfidence-project/konfidence/pkg/hash"
 	pkgsanitize "github.com/konfidence-project/konfidence/pkg/sanitize"
 )
 
-func ConstructArtifactDeploymentName(artifactName, artifactVersion string, uid *string) (string, error) {
+func ConstructArtifactDeploymentName(artifactName, artifactVersion string, uid *string, collisionCount int32) (name, hash string, err error) {
 	trimmedArtifactName := strings.TrimSpace(artifactName)
 	trimmedArtifactVersion := strings.TrimSpace(artifactVersion)
 
 	if len(trimmedArtifactName) == 0 || len(trimmedArtifactVersion) == 0 {
-		return "", fmt.Errorf("artifact name or version is empty")
+		return "", "", fmt.Errorf("artifact name or version is empty")
 	}
 
-	h := fnv.New128a()
-	_, err := h.Write([]byte(trimmedArtifactName))
-	if err != nil {
-		return "", fmt.Errorf("unable to compute digest: %w", err)
-	}
-
-	_, err = h.Write([]byte(trimmedArtifactVersion))
-	if err != nil {
-		return "", fmt.Errorf("unable to compute digest: %w", err)
-	}
-
+	// Hash over name + version (+ uid) as a single stream. When a uid is
+	// supplied the name becomes unique to this vector deployment -> no reuse;
+	// its absence yields a stable, reusable name across deployments.
+	content := trimmedArtifactName + trimmedArtifactVersion
 	if uid != nil {
-		// makes the name unique to this vector deployment -> no reuse
-		_, err := h.Write([]byte(*uid))
-		if err != nil {
-			return "", fmt.Errorf("unable to compute digest: %w", err)
-		}
+		content += *uid
+	}
+	// Salt the hash on collision recovery. Only append when > 0.
+	if collisionCount > 0 {
+		content += strconv.FormatInt(int64(collisionCount), 10)
 	}
 
-	hashBytes := h.Sum(nil)
-	hash := new(big.Int).SetBytes(hashBytes).Text(36)
+	hash = pkghash.Fnv(content, 10)
 	versionWithHash := trimmedArtifactVersion + "-" + hash
 	remainingSize := MaxLabelSize - len(versionWithHash)
 
 	// use only hash value as name if version with hash is already too long
 	if remainingSize < 0 {
-		return pkgsanitize.DNSLabelName(hash), nil
+		return pkgsanitize.DNSLabelName(hash), hash, nil
+	}
+	// use version with hash if it matches the max output length
+	if remainingSize == 0 {
+		return pkgsanitize.DNSLabelName(versionWithHash), hash, nil
 	}
 
 	// extract last part of artifact name
@@ -59,5 +55,5 @@ func ConstructArtifactDeploymentName(artifactName, artifactVersion string, uid *
 		finalComponentName = componentName[:remainingSize-1]
 	}
 
-	return pkgsanitize.DNSLabelName(finalComponentName + "-" + versionWithHash), nil
+	return pkgsanitize.DNSLabelName(finalComponentName + "-" + versionWithHash), hash, nil
 }

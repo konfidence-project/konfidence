@@ -7,6 +7,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/konfidence-project/konfidence/internal/vectordeployment/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/vectordeployment/internal/controller/mocks"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -370,5 +371,103 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
 			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
+	})
+
+	It("should recover from an ArtifactDeployment name collision by bumping the collision salt", func() {
+		ctx := context.Background()
+
+		const (
+			collisionOcmName   = "collision.konfidence.cloud.example.vector-0.3.0"
+			collidingComponent = "github.com/konfidence-project/sample-service-1"
+			collidingVersion   = "0.0.1"
+		)
+
+		// The reused (AllowReuse=true) name has no uid and no salt. Discover it via the real algorithm rather
+		// than hardcoding, so the test tracks the naming contract instead of a golden string.
+		unsaltedName, _, err := ConstructArtifactDeploymentName(collidingComponent, collidingVersion, nil, 0)
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		saltedName, _, err := ConstructArtifactDeploymentName(collidingComponent, collidingVersion, nil, 1)
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		gomega.Expect(saltedName).ToNot(gomega.Equal(unsaltedName))
+
+		vectorDescriptor := VectorDescriptor{
+			References: []compref.Ref{
+				{
+					Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
+					Component:  collidingComponent,
+					Version:    collidingVersion,
+				},
+			},
+			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +
+				`"version":"0.3.0","creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project",` +
+				`"resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1",` +
+				`"componentName":"github.com/konfidence-project/sample-service-1",` +
+				`"digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
+		}
+		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(vectorDescriptor, nil).AnyTimes()
+
+		artifactManifest := ArtifactManifest{
+			Type:       "cloud.konfidence.flux.helm",
+			AllowReuse: true,
+		}
+		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).Return(artifactManifest, nil).AnyTimes()
+
+		By("Pre-creating a FOREIGN ArtifactDeployment occupying the unsalted name (annotations of a different artifact)")
+		foreign := &konfidence.ArtifactDeployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      unsaltedName,
+				Namespace: testNamespace,
+				Annotations: map[string]string{
+					pkgctrl.ArtifactComponentAnnotation: "github.com/konfidence-project/some-other-service",
+					pkgctrl.ArtifactVersionAnnotation:   "9.9.9",
+					pkgctrl.AllowReuseAnnotation:        "true",
+				},
+			},
+			Spec: konfidence.ArtifactDeploymentSpec{
+				Manifest:      konfidence.ArtifactManifest{Type: "cloud.konfidence.flux.helm", AllowReuse: true},
+				TaskManifests: []konfidence.TaskManifest{},
+				Component:     konfidence.OCMComponent{Name: "github.com/konfidence-project/some-other-service", Version: "9.9.9"},
+			},
+		}
+		gomega.Expect(k8sClient.Create(ctx, foreign)).To(gomega.Succeed())
+
+		By("Creating the VectorDeployment whose artifact deterministically hashes onto the occupied name")
+		vectorDeployment := &konfidence.VectorDeployment{
+			TypeMeta:   metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
+			ObjectMeta: metav1.ObjectMeta{Name: collisionOcmName, Namespace: testNamespace},
+			Spec:       konfidence.VectorDeploymentSpec{Vector: vectorReference},
+		}
+		gomega.Expect(k8sClient.Create(ctx, vectorDeployment)).To(gomega.Succeed())
+
+		By("Verifying the collision salt (CollisionCount) is bumped to 1 for the colliding component")
+		actual := &konfidence.VectorDeployment{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: collisionOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			ref, ok := actual.Status.ResultingArtifactDeployments[collidingComponent]
+			g.Expect(ok).To(gomega.BeTrue(), "colliding component should have a status entry")
+			g.Expect(ref.CollisionCount).ToNot(gomega.BeNil(), "collision salt should be set")
+			g.Expect(*ref.CollisionCount).To(gomega.Equal(int32(1)))
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Verifying the recovered ArtifactDeployment is created under the salted name and owned by the VectorDeployment")
+		gomega.Eventually(func(g gomega.Gomega) {
+			recovered := &konfidence.ArtifactDeployment{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: saltedName, Namespace: testNamespace}, recovered)).To(gomega.Succeed())
+			g.Expect(recovered.Annotations[pkgctrl.ArtifactComponentAnnotation]).To(gomega.Equal(collidingComponent))
+			g.Expect(recovered.Annotations[pkgctrl.ArtifactVersionAnnotation]).To(gomega.Equal(collidingVersion))
+			foundOwner := false
+			for _, ownerRef := range recovered.OwnerReferences {
+				if ownerRef.UID == vectorDeployment.UID {
+					foundOwner = true
+				}
+			}
+			g.Expect(foundOwner).To(gomega.BeTrue(), "recovered ArtifactDeployment should be owned by the VectorDeployment")
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Verifying the foreign ArtifactDeployment was left untouched (not adopted)")
+		untouched := &konfidence.ArtifactDeployment{}
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: unsaltedName, Namespace: testNamespace}, untouched)).To(gomega.Succeed())
+		gomega.Expect(untouched.Annotations[pkgctrl.ArtifactComponentAnnotation]).To(gomega.Equal("github.com/konfidence-project/some-other-service"))
+		gomega.Expect(untouched.OwnerReferences).To(gomega.BeEmpty(), "foreign ArtifactDeployment must not be adopted")
 	})
 })
