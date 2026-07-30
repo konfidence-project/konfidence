@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - release-please-workflow # TODO: remove this branch before merging
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,5 +35,5 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: konfidence-project/.github/.github/workflows/release-please.yaml@release-please-workflow
+    uses: konfidence-project/.github/.github/workflows/release-please.yaml@release-please-workflow # TODO: remove this branch before merging
     secrets: inherit
