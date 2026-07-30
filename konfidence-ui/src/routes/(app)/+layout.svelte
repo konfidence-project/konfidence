@@ -1,10 +1,15 @@
 <script lang="ts">
     import BellIcon from "@lucide/svelte/icons/bell";
     import BoxesIcon from "@lucide/svelte/icons/boxes";
+    import CheckIcon from "@lucide/svelte/icons/check";
+    import LanguagesIcon from "@lucide/svelte/icons/languages";
     import LogOutIcon from "@lucide/svelte/icons/log-out";
     import MenuIcon from "@lucide/svelte/icons/menu";
+    import MonitorIcon from "@lucide/svelte/icons/monitor";
+    import MoonIcon from "@lucide/svelte/icons/moon";
     import NetworkIcon from "@lucide/svelte/icons/network";
     import SettingsIcon from "@lucide/svelte/icons/settings";
+    import SunIcon from "@lucide/svelte/icons/sun";
     import XIcon from "@lucide/svelte/icons/x";
     import { Avatar, Menu, Portal } from "@skeletonlabs/skeleton-svelte";
 
@@ -20,6 +25,7 @@
         type SettingsTab,
         parseSettingsTab,
     } from "$lib/components/settings/settings-tab.js";
+    import { locales } from "$lib/locale";
     import { getLocalePreference } from "$lib/locale-preference.svelte";
     import { getThemePreference } from "$lib/theme-preference.svelte";
     import type { LayoutProps } from "./$types";
@@ -29,6 +35,16 @@
     const { children, data }: LayoutProps = $props();
     const locale = getLocalePreference();
     const theme = getThemePreference();
+
+    const themeModes = [
+        { icon: SunIcon, id: "konfidence", labelKey: "shell.themeOptions.light" },
+        { icon: MoonIcon, id: "konfidence-dark", labelKey: "shell.themeOptions.dark" },
+        { icon: MonitorIcon, id: "system", labelKey: "shell.themeOptions.system" },
+    ] as const;
+
+    const quickMenuContentClass =
+        "w-[min(14rem,calc(100vw-2rem))] border border-app-border bg-app-card p-2 text-app-text shadow-2xl [&_[data-part=item]]:flex [&_[data-part=item]]:w-full [&_[data-part=item]]:cursor-pointer [&_[data-part=item]]:items-center [&_[data-part=item]]:justify-between [&_[data-part=item]]:gap-3 [&_[data-part=item]]:rounded-[0.4rem] [&_[data-part=item]]:px-3 [&_[data-part=item]]:py-[0.55rem] [&_[data-part=item]]:text-app-text [&_[data-part=item][data-highlighted]]:bg-app-accent/10 [&_[data-part=item][data-state=checked]]:text-app-accent-strong [&_[data-part=item-text]]:flex [&_[data-part=item-text]]:items-center [&_[data-part=item-text]]:gap-[0.65rem] [&_svg]:size-4";
+    const quickMenuLabelClass = "px-3 pt-[0.35rem] pb-1 text-[0.72rem] font-[650] text-app-muted";
 
     let navigationToggled = $state(false);
     let overlayTarget = $state<HTMLElement>();
@@ -48,7 +64,7 @@
     );
     const settingsOpen = $derived(settingsTab !== undefined);
     const logoSrc = $derived.by(() => {
-        if (theme.selected === "konfidence-dark") {
+        if (theme.resolved === "konfidence-dark") {
             return "/assets/logo/full/SVG/400_konfidence_logo_dark.svg";
         }
         return "/assets/logo/full/SVG/400_konfidence_logo_light.svg";
@@ -174,6 +190,82 @@
                 <BellIcon aria-hidden="true" />
                 <span class="absolute -top-[0.2rem] -right-[0.2rem] grid h-4 min-w-4 place-items-center rounded-full border-2 border-app-card bg-app-error px-[0.2rem] text-[0.625rem] font-bold text-white" aria-hidden="true">3</span>
             </button>
+            <Menu positioning={{ placement: "bottom-end", gutter: 10 }}>
+                <Menu.Trigger
+                    class="cursor-pointer btn-icon hover:preset-tonal text-app-accent-strong"
+                    aria-label={locale.translate("shell.themeSwitcher")}
+                >
+                    {#if theme.selected === "system"}
+                        <MonitorIcon aria-hidden="true" />
+                    {:else if theme.resolved === "konfidence-dark"}
+                        <MoonIcon aria-hidden="true" />
+                    {:else}
+                        <SunIcon aria-hidden="true" />
+                    {/if}
+                </Menu.Trigger>
+                <Portal target={overlayTarget}>
+                    <Menu.Positioner class="pointer-events-auto z-50">
+                        <Menu.Content class={quickMenuContentClass}>
+                            <Menu.ItemGroup>
+                                <Menu.ItemGroupLabel class={quickMenuLabelClass}>{locale.translate("shell.themeSwitcher")}</Menu.ItemGroupLabel>
+                                {#each themeModes as option (option.id)}
+                                    <Menu.OptionItem
+                                        type="radio"
+                                        value={option.id}
+                                        checked={theme.selected === option.id}
+                                        onCheckedChange={(checked) => {
+                                            if (checked) {
+                                                theme.select(option.id);
+                                            }
+                                        }}
+                                    >
+                                        <Menu.ItemText>
+                                            <option.icon aria-hidden="true" /> {locale.translate(option.labelKey)}
+                                        </Menu.ItemText>
+                                        <Menu.ItemIndicator>
+                                            <CheckIcon aria-hidden="true" />
+                                        </Menu.ItemIndicator>
+                                    </Menu.OptionItem>
+                                {/each}
+                            </Menu.ItemGroup>
+                        </Menu.Content>
+                    </Menu.Positioner>
+                </Portal>
+            </Menu>
+            <Menu positioning={{ placement: "bottom-end", gutter: 10 }}>
+                <Menu.Trigger
+                    class="cursor-pointer btn-icon hover:preset-tonal text-app-accent-strong"
+                    aria-label={locale.translate("shell.languageSwitcher")}
+                >
+                    <LanguagesIcon aria-hidden="true" />
+                </Menu.Trigger>
+                <Portal target={overlayTarget}>
+                    <Menu.Positioner class="pointer-events-auto z-50">
+                        <Menu.Content class={quickMenuContentClass}>
+                            <Menu.ItemGroup>
+                                <Menu.ItemGroupLabel class={quickMenuLabelClass}>{locale.translate("shell.languageSwitcher")}</Menu.ItemGroupLabel>
+                                {#each locales as option (option.id)}
+                                    <Menu.OptionItem
+                                        type="radio"
+                                        value={option.id}
+                                        checked={locale.selected === option.id}
+                                        onCheckedChange={(checked) => {
+                                            if (checked) {
+                                                locale.select(option.id);
+                                            }
+                                        }}
+                                    >
+                                        <Menu.ItemText>{option.label}</Menu.ItemText>
+                                        <Menu.ItemIndicator>
+                                            <CheckIcon aria-hidden="true" />
+                                        </Menu.ItemIndicator>
+                                    </Menu.OptionItem>
+                                {/each}
+                            </Menu.ItemGroup>
+                        </Menu.Content>
+                    </Menu.Positioner>
+                </Portal>
+            </Menu>
             <Menu
                 aria-label={locale.translate("shell.accountMenu")}
                 positioning={{ placement: "bottom-end", gutter: 10 }}

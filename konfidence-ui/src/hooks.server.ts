@@ -1,7 +1,7 @@
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { resolveSession } from "$lib/server/auth";
 import { LOCALE_COOKIE, type Locale, resolveLocale } from "$lib/locale";
-import { THEME_COOKIE, parseTheme } from "$lib/theme";
+import { THEME_COOKIE, parseThemeMode, resolveTheme } from "$lib/theme";
 
 const setRequestLocale = (event: RequestEvent): Locale => {
   const locale = resolveLocale(
@@ -23,7 +23,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.locals.user = session?.user;
   }
 
-  const theme = parseTheme(event.cookies.get(THEME_COOKIE));
+  const theme = resolveTheme(parseThemeMode(event.cookies.get(THEME_COOKIE)), false);
   const response = await resolve(event, {
     transformPageChunk: ({ html }) =>
       html.replace('<html lang="en"', `<html lang="${locale}" data-theme="${theme}"`),

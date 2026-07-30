@@ -20,7 +20,7 @@
         rel="icon"
         href="/assets/logo/Icon_only/SVG/32_konfidence_icon_color.svg"
     />
-    <meta name="theme-color" content={theme.selected === "konfidence-dark" ? "#111318" : "#ffffff"} />
+    <meta name="theme-color" content={theme.resolved === "konfidence-dark" ? "#111318" : "#ffffff"} />
 </svelte:head>
 
 {@render children()}

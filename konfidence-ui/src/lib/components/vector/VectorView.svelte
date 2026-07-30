@@ -85,10 +85,9 @@
 <div class={["grid min-h-0 min-w-0 flex-1 bg-app-bg", selected ? "grid-cols-[minmax(24rem,0.75fr)_minmax(28rem,1.25fr)] max-[68rem]:grid-cols-1" : "grid-cols-1"]}>
     <section class={["flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden px-4 py-[1.2rem] max-[68rem]:px-3 max-[47.999rem]:py-4", selected && "max-[68rem]:hidden"]} aria-labelledby="vector-title">
         <header class="grid gap-[0.2rem]">
-            <span class="text-[0.68rem] font-bold tracking-[0.09em] text-app-accent-strong uppercase">{locale.translate("vector.inventory")}</span>
             <h1 id="vector-title" class="m-0 text-[1.35rem]">{locale.translate("vector.title")}</h1>
             <p class="m-0 text-[0.84rem] text-app-muted">
-                {locale.translate("vector.summary", { visible: visible.length, total: sorted.length })}
+                {locale.translate("vector.summary", { sorted: sorted.length, total: sorted.length })}
             </p>
         </header>
 

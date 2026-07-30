@@ -16,7 +16,7 @@
     const theme = getThemePreference();
     const nodeTypes = { stage: LandscapeStageNode };
     const flowColorMode = $derived.by(() => {
-        if (theme.selected === "konfidence-dark") {
+        if (theme.resolved === "konfidence-dark") {
             return "dark";
         }
         return "light";
