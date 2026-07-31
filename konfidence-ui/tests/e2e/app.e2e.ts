@@ -271,17 +271,17 @@ test("switches language and persists it for client and server rendering", async 
     expect(page.getByRole("dialog", { name: "Einstellungen" })).toBeVisible(),
   ]);
   await page.getByRole("button", { name: "Einstellungen schließen" }).click();
-  await expect(page.getByRole("heading", { name: "Vektorbereitstellungen" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Vektordeployments" })).toBeVisible();
 
   await page.reload();
   await Promise.all([
     expect(page.locator("html")).toHaveAttribute("lang", "de"),
-    expect(page.getByRole("heading", { name: "Vektorbereitstellungen" })).toBeVisible(),
+    expect(page.getByRole("heading", { name: "Vektordeployments" })).toBeVisible(),
   ]);
 
   const vectorHtml = await getRouteHtml(page, "/projects/payments-platform/vector-deployments");
   expect(vectorHtml).toContain('<html lang="de"');
-  expect(vectorHtml).toContain("Vektorbereitstellungen");
+  expect(vectorHtml).toContain("Vektordeployments");
 });
 
 for (const theme of themes) {
