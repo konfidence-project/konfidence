@@ -8,7 +8,7 @@
     import * as Tabs from "$lib/components/ui/tabs/index.js";
     import type { AuthUser } from "$lib/auth/types";
     import { getThemePreference } from "$lib/stores/theme.svelte";
-    import { themes } from "$lib/theme";
+    import { themeModes } from "$lib/theme";
     import { MediaQuery } from "svelte/reactivity";
     import {
         DEFAULT_SETTINGS_TAB,
@@ -90,7 +90,7 @@
             class="grid min-h-[34rem] w-full min-w-0 grid-cols-[14rem_minmax(0,1fr)] max-[42rem]:flex max-[42rem]:min-h-0 max-[42rem]:flex-col"
         >
             <Tabs.List
-                class="h-auto min-w-0 flex-col items-stretch justify-start gap-[0.35rem] rounded-none border-r bg-muted p-4 max-[42rem]:w-full max-[42rem]:flex-row max-[42rem]:overflow-x-auto max-[42rem]:border-r-0 max-[42rem]:border-b"
+                class="!h-full !w-full min-w-0 flex-col items-stretch justify-start gap-[0.35rem] rounded-none border-r bg-muted p-4 max-[42rem]:!h-auto max-[42rem]:w-full max-[42rem]:flex-row max-[42rem]:overflow-x-auto max-[42rem]:border-r-0 max-[42rem]:border-b"
                 aria-label="Settings sections"
             >
                 <Tabs.Trigger class="h-10 flex-none justify-start text-foreground" value="profile">
@@ -140,7 +140,7 @@
                     aria-label="Theme"
                     class="gap-3"
                 >
-                    {#each themes as option (option.id)}
+                    {#each themeModes as option (option.id)}
                         <div
                             class={[
                                 "flex min-w-0 items-center gap-3 rounded-xl border p-3",
@@ -162,6 +162,8 @@
                                             "bg-[linear-gradient(135deg,#111_0_52%,#80d2e0_52%)]",
                                         option.id === "sap_horizon" &&
                                             "bg-[linear-gradient(135deg,#fff_0_52%,#0a6ed1_52%)]",
+                                        option.id === "system" &&
+                                            "bg-[linear-gradient(135deg,#f5f6f7_0_52%,#111_52%)]",
                                     ]}
                                 ></span>
                                 <span class="grid min-w-0 gap-[0.15rem]">

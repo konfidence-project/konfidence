@@ -17,7 +17,6 @@
     type SortColumn = "id" | "status" | "version";
     type SortDirection = "ascending" | "descending" | "none";
 
-    const PAGE_SIZE = 10;
     const SORT_KEYS = {
         id: (deployment: VectorDeployment) => deployment.id,
         status: (deployment: VectorDeployment) => deployment.status,
@@ -27,7 +26,6 @@
     const { vectorDeployments } = $props<{ vectorDeployments: VectorDeployment[] }>();
     let searchTerm = $state("");
     let selectedId = $state<string>();
-    let visibleCount = $state(PAGE_SIZE);
     let sortColumn = $state<SortColumn>();
     let sortDirection = $state<SortDirection>("none");
     let detailsSheetOpen = $state(false);
@@ -67,8 +65,6 @@
                 getValue(left).localeCompare(getValue(right)) * factor,
         );
     });
-    const visibleDeployments = $derived(sortedDeployments.slice(0, visibleCount));
-    const hasMore = $derived(visibleCount < sortedDeployments.length);
 
     const selectDeployment = (id: string): void => {
         selectedId = id;
@@ -90,7 +86,6 @@
             sortColumn = undefined;
             sortDirection = "none";
         }
-        visibleCount = PAGE_SIZE;
     };
 
     const ariaSort = (column: SortColumn): SortDirection => {
@@ -102,7 +97,6 @@
 
     const search = (event: Event): void => {
         searchTerm = (event.currentTarget as HTMLInputElement).value;
-        visibleCount = PAGE_SIZE;
     };
 </script>
 
@@ -163,15 +157,12 @@
 >
     <section class="min-w-0 p-[clamp(1rem,3vw,2rem)] max-[48rem]:p-4" aria-labelledby="vector-title">
         <header class="mb-4 grid gap-1">
-            <span class="text-[0.68rem] font-bold tracking-[0.1em] text-primary uppercase">
-                Project inventory
-            </span>
             <h1 class="text-[1.55rem] font-semibold tracking-[-0.025em]" id="vector-title">
                 Vector Deployments
             </h1>
             <p class="text-muted-foreground">
                 Versioned vectors currently assigned to project stages. Showing
-                {visibleDeployments.length} of {sortedDeployments.length}.
+                {sortedDeployments.length} deployment{sortedDeployments.length === 1 ? "" : "s"}.
             </p>
         </header>
 
@@ -225,7 +216,7 @@
                         </Table.Row>
                     </Table.Header>
                     <Table.Body>
-                        {#each visibleDeployments as deployment (deployment.id)}
+                        {#each sortedDeployments as deployment (deployment.id)}
                             <Table.Row data-state={deployment.id === selectedId ? "selected" : undefined}>
                                 <Table.Cell>
                                     <Button
@@ -259,20 +250,6 @@
                     </Table.Body>
                 </Table.Root>
             </div>
-            {#if hasMore}
-                <div class="flex justify-center p-4">
-                    <Button
-                        variant="outline"
-                        onclick={() =>
-                            (visibleCount = Math.min(
-                                visibleCount + PAGE_SIZE,
-                                sortedDeployments.length,
-                            ))}
-                    >
-                        Load more
-                    </Button>
-                </div>
-            {/if}
         {/if}
     </section>
 

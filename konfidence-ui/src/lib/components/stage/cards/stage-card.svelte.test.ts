@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 import type { Stage } from "$lib/stages";
-import StageCard from "../StageCard.svelte";
+import StageCard from "./StageCard.svelte";
 
 const stage: Stage = {
   generation: 3,
@@ -26,9 +26,9 @@ describe("StageCard", () => {
       .toBeVisible();
     await expect.element(screen.getByText("Live", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("v2.14.0", { exact: true })).toBeVisible();
-    await expect.element(screen.getByTitle("Deploy", { exact: true })).toBeVisible();
-    await expect.element(screen.getByTitle("Tasks", { exact: true })).toBeVisible();
-    await expect.element(screen.getByTitle("Active", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Deploy", { exact: true }).first()).toBeVisible();
+    await expect.element(screen.getByText("Tasks", { exact: true }).first()).toBeVisible();
+    await expect.element(screen.getByText("Active", { exact: true }).first()).toBeVisible();
   });
 
   it("shows a non-active stage as deploying", async () => {

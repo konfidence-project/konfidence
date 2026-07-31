@@ -68,7 +68,7 @@ test("shows an SSR-rendered chooser when multiple projects are available", async
   await expect(page.getByRole("link", { name: /Identity Service/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Analytics Pipeline/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Legacy Migration/ })).toBeVisible();
-  expect(await response?.text()).toContain("Delivery workspaces");
+  expect(await response?.text()).toContain("Projects");
 });
 
 test("keeps project selector and navigation synchronized with route history", async ({ page }) => {
@@ -130,7 +130,7 @@ test("renders an upstream failure without hiding the error status", async ({ con
   await expect(page.getByText("Error 503", { exact: true })).toBeVisible();
 });
 
-test("searches, sorts, incrementally loads, and opens vector details", async ({ page }) => {
+test("searches, sorts, and opens vector details", async ({ page }) => {
   const response = await page.goto("/projects/payments-platform/vector-deployments");
 
   await expect(page.getByRole("heading", { name: "Vector Deployments" })).toBeVisible();
@@ -138,8 +138,6 @@ test("searches, sorts, incrementally loads, and opens vector details", async ({ 
   const serverHtml = await response?.text();
   expect(serverHtml).toContain("Vector Deployments");
   expect(serverHtml).toContain("vector-dev-us30-1");
-  await expect(page.getByText("vector-perf-us30-1", { exact: true })).not.toBeVisible();
-  await page.getByRole("button", { name: "Load more" }).click();
   await expect(page.getByText("vector-perf-us30-1", { exact: true })).toBeVisible();
 
   const idHeader = page.getByRole("columnheader", { name: /Vector deployment/ });

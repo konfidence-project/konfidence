@@ -1,7 +1,7 @@
 import { type Handle, redirect } from "@sveltejs/kit";
 import { HTTP_SEE_OTHER } from "$lib/http-status";
 import { resolveSession } from "$lib/server/auth";
-import { THEME_COOKIE, parseTheme } from "$lib/theme";
+import { SYSTEM_THEME, THEME_COOKIE, parseTheme } from "$lib/theme";
 
 // oxlint-disable-next-line import/prefer-default-export -- SvelteKit expects this named export.
 export const handle: Handle = async ({ event, resolve }) => {
@@ -18,13 +18,20 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   const theme = parseTheme(event.cookies.get(THEME_COOKIE));
+  // "system" is resolved client-side by an inline script in app.html to avoid a flash.
+  let renderedTheme: string = theme;
+  if (theme === SYSTEM_THEME) {
+    renderedTheme = "konfidence";
+  }
   let themeClass = "";
-  if (theme === "konfidence-dark") {
+  if (renderedTheme === "konfidence-dark") {
     themeClass = "dark";
   }
   const response = await resolve(event, {
     transformPageChunk: ({ html }) =>
-      html.replace("%konfidence.theme%", theme).replace("%konfidence.theme-class%", themeClass),
+      html
+        .replace("%konfidence.theme%", renderedTheme)
+        .replace("%konfidence.theme-class%", themeClass),
   });
 
   // oxlint-disable-next-line no-undef -- Console output is intentional server-side request diagnostics.

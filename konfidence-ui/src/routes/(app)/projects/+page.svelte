@@ -14,9 +14,6 @@
     aria-labelledby="projects-title"
 >
     <header class="grid gap-[0.35rem]">
-        <span class="text-[0.72rem] font-bold tracking-[0.11em] text-primary uppercase">
-            Delivery workspaces
-        </span>
         <h1 class="text-[clamp(1.65rem,4vw,2.25rem)] font-semibold tracking-[-0.03em]" id="projects-title">
             Projects
         </h1>

@@ -3,6 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // Resolve the "system" theme before first paint to avoid a flash of the wrong theme.
+      (function () {
+        try {
+          var match = document.cookie.match(/(?:^|;\s*)konfidence_theme=([^;]*)/);
+          if (match && decodeURIComponent(match[1]) === "system") {
+            var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            var root = document.documentElement;
+            root.dataset.theme = dark ? "konfidence-dark" : "konfidence";
+            root.classList.toggle("dark", dark);
+          }
+        } catch (error) {}
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

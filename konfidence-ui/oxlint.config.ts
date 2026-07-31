@@ -19,6 +19,7 @@ export default defineConfig({
     {
       files: ["src/**/*.svelte", "src/**/*.svelte.ts"],
       globals: {
+        $bindable: "readonly",
         $derived: "readonly",
         $effect: "readonly",
         $inspect: "readonly",

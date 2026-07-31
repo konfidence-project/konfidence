@@ -2,8 +2,12 @@
     import BellIcon from "@lucide/svelte/icons/bell";
     import LogOutIcon from "@lucide/svelte/icons/log-out";
     import MenuIcon from "@lucide/svelte/icons/menu";
+    import MonitorIcon from "@lucide/svelte/icons/monitor";
+    import MoonIcon from "@lucide/svelte/icons/moon";
     import SettingsIcon from "@lucide/svelte/icons/settings";
+    import SunIcon from "@lucide/svelte/icons/sun";
     import AppNavigation from "$lib/components/AppNavigation.svelte";
+    import ProjectSelector from "$lib/components/ProjectSelector.svelte";
     import SettingsDialog from "$lib/components/settings/SettingsDialog.svelte";
     import {
         DEFAULT_SETTINGS_TAB,
@@ -12,10 +16,12 @@
         parseSettingsTab,
     } from "$lib/components/settings/settings-tab.js";
     import * as Avatar from "$lib/components/ui/avatar/index.js";
+    import { Badge } from "$lib/components/ui/badge/index.js";
     import { Button } from "$lib/components/ui/button/index.js";
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
     import * as Sheet from "$lib/components/ui/sheet/index.js";
     import { getThemePreference } from "$lib/stores/theme.svelte";
+    import { themeModes } from "$lib/theme";
     import { afterNavigate, goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
@@ -31,6 +37,7 @@
     let mobileNavigationOpen = $state(false);
     let selectedProjectId = $state(page.data.project?.id);
     let accountButton = $state<HTMLButtonElement | null>(null);
+    let desktopProjectSelectorRef = $state<ReturnType<typeof ProjectSelector>>();
 
     afterNavigate(() => {
         selectedProjectId = page.data.project?.id;
@@ -52,7 +59,7 @@
             .toUpperCase(),
     );
     const logoSrc = $derived.by(() => {
-        if (theme.selected === "konfidence-dark") {
+        if (theme.resolved === "konfidence-dark") {
             return "/assets/logo/full/SVG/400_konfidence_logo_dark.svg";
         }
         return "/assets/logo/full/SVG/400_konfidence_logo_light.svg";
@@ -74,6 +81,8 @@
             },
         ];
     });
+
+    const desktopCollapsed = $derived(!desktopNavigationOpen);
 
     const buildSettingsUrl = (tab: SettingsTab | undefined): ResolvedPathname => {
         const params = new SvelteURLSearchParams(page.url.searchParams);
@@ -119,29 +128,55 @@
         void goto(resolve(`/projects/${projectId}/landscape`));
     };
 
+    const expandAndOpenProjectSelector = (): void => {
+        desktopNavigationOpen = true;
+        globalThis.requestAnimationFrame(() => {
+            (desktopProjectSelectorRef as unknown as { openSelect?: () => void } | undefined)?.openSelect?.();
+        });
+    };
+
     const signOut = async (): Promise<void> => {
         const response = await globalThis.fetch("/api/logout", { method: "POST" });
         if (response.ok) {
             globalThis.location.assign("/");
         }
     };
+
+    const themeTriggerIcon = $derived.by(() => {
+        if (theme.selected === "system") {
+            return MonitorIcon;
+        }
+        if (theme.resolved === "konfidence-dark") {
+            return MoonIcon;
+        }
+        return SunIcon;
+    });
+
+    const themeModeIcons = {
+        konfidence: SunIcon,
+        "konfidence-dark": MoonIcon,
+        sap_horizon: SunIcon,
+        system: MonitorIcon,
+    } as const;
 </script>
 
 <div
     class={[
-        "grid min-h-dvh grid-rows-[3.25rem_minmax(0,1fr)] transition-[grid-template-columns] duration-[160ms] motion-reduce:transition-none max-[48rem]:flex max-[48rem]:flex-col",
+        "grid min-h-dvh grid-rows-[3.35rem_minmax(0,1fr)] transition-[grid-template-columns] duration-[160ms] motion-reduce:transition-none max-[48rem]:flex max-[48rem]:flex-col",
         desktopNavigationOpen
             ? "grid-cols-[16rem_minmax(0,1fr)]"
-            : "grid-cols-[0_minmax(0,1fr)]",
+            : "grid-cols-[4.25rem_minmax(0,1fr)]",
     ]}
 >
     <header
-        class="z-20 col-span-full flex items-center gap-3 border-b bg-card/94 px-4 shadow-[0_1px_4px_color-mix(in_oklch,var(--foreground)_10%,transparent)] backdrop-blur-[0.75rem] max-[48rem]:sticky max-[48rem]:top-0 max-[48rem]:min-h-[3.25rem]"
+        class="z-20 col-span-full flex items-center gap-3 border-b bg-card/94 px-4 shadow-[0_1px_4px_color-mix(in_oklch,var(--foreground)_10%,transparent)] backdrop-blur-[0.75rem] max-[48rem]:sticky max-[48rem]:top-0 max-[48rem]:min-h-[3.35rem]"
     >
         <Button
             variant="ghost"
             size="icon"
             aria-label="Toggle navigation"
+            aria-expanded={desktopNavigationOpen}
+            aria-controls="primary-navigation"
             onclick={toggleNavigation}
         >
             <MenuIcon />
@@ -153,6 +188,12 @@
                 alt="Konfidence"
             />
         </a>
+        <Badge
+            variant="secondary"
+            class="pointer-events-none rounded-full bg-primary/10 px-2.5 py-0.5 text-[0.7rem] font-semibold text-primary"
+        >
+            shadcn/ui
+        </Badge>
         <div class="ml-auto flex items-center gap-1">
             <Button class="relative" variant="ghost" size="icon" aria-label="Notifications, 3 unread">
                 <BellIcon />
@@ -161,6 +202,36 @@
                     aria-hidden="true">3</span
                 >
             </Button>
+            <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                    {#snippet child({ props })}
+                        <Button
+                            {...props}
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Theme"
+                        >
+                            {@const Icon = themeTriggerIcon}
+                            <Icon />
+                        </Button>
+                    {/snippet}
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content align="end" class="w-56">
+                    <DropdownMenu.Label>Theme</DropdownMenu.Label>
+                    <DropdownMenu.RadioGroup
+                        value={theme.selected}
+                        onValueChange={(value) => theme.select(value)}
+                    >
+                        {#each themeModes as option (option.id)}
+                            {@const ItemIcon = themeModeIcons[option.id]}
+                            <DropdownMenu.RadioItem value={option.id} class="pl-2">
+                                <ItemIcon aria-hidden="true" />
+                                {option.label}
+                            </DropdownMenu.RadioItem>
+                        {/each}
+                    </DropdownMenu.RadioGroup>
+                </DropdownMenu.Content>
+            </DropdownMenu.Root>
             <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
                     {#snippet child({ props })}
@@ -195,21 +266,31 @@
     </header>
 
     <aside
-        class="min-w-0 overflow-x-hidden overflow-y-auto border-r border-sidebar-border bg-sidebar text-sidebar-foreground max-[48rem]:hidden"
+        id="primary-navigation"
+        class={[
+            "min-w-0 overflow-x-hidden overflow-y-auto border-r border-sidebar-border bg-sidebar text-sidebar-foreground max-[48rem]:hidden",
+            desktopCollapsed && "min-[48rem]:overflow-visible",
+        ]}
         aria-label="Project navigation"
     >
-        <AppNavigation
+        <ProjectSelector
+            bind:this={desktopProjectSelectorRef}
+            id="project-select-desktop"
             projects={data.projects}
             selectedProjectId={selectedProject?.id}
+            onselect={selectProject}
+            onexpand={expandAndOpenProjectSelector}
+            collapsed={desktopCollapsed}
+        />
+        <AppNavigation
             items={navItems}
             currentPath={page.url.pathname}
-            onselect={selectProject}
-            selectorId="project-select-desktop"
+            collapsed={desktopCollapsed}
         />
     </aside>
 
     <main
-        class="flex min-h-0 min-w-0 flex-col overflow-auto max-[48rem]:min-h-[calc(100dvh-3.25rem)] max-[48rem]:flex-1 max-[48rem]:overflow-visible"
+        class="flex min-h-0 min-w-0 flex-col overflow-auto max-[48rem]:min-h-[calc(100dvh-3.35rem)] max-[48rem]:flex-1 max-[48rem]:overflow-visible"
         id="main-content"
     >
         {@render children()}
@@ -226,15 +307,17 @@
             <Sheet.Title>Project navigation</Sheet.Title>
             <Sheet.Description>Select a project route.</Sheet.Description>
         </Sheet.Header>
-        <AppNavigation
+        <ProjectSelector
+            class="pr-15"
+            id="project-select-mobile"
             projects={data.projects}
             selectedProjectId={selectedProject?.id}
+            onselect={selectProject}
+        />
+        <AppNavigation
             items={navItems}
             currentPath={page.url.pathname}
-            onselect={selectProject}
             onNavigate={() => (mobileNavigationOpen = false)}
-            projectSelectorClass="pr-15"
-            selectorId="project-select-mobile"
         />
     </Sheet.Content>
 </Sheet.Root>
