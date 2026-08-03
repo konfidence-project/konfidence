@@ -491,8 +491,6 @@ _Appears in:_
 | `projectName` _string_ | ProjectName is the name of the project this landscape belongs to,<br />derived from the namespace where the Landscape CR was created. |  | Optional: \{\} <br /> |
 
 
-
-
 #### LocalArtifactDeploymentReference
 
 

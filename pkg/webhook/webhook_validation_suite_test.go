@@ -1,4 +1,4 @@
-package v1alpha1
+package webhook_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestV1Alpha1(t *testing.T) {
+func TestSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "V1Alpha1 Suite")
+	RunSpecs(t, "Webhook Validation Suite")
 }
