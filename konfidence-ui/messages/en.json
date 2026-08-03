@@ -27,12 +27,16 @@
   "landscape_label": "Stage landscape",
   "landscape_heading": "Delivery landscape",
   "vector_heading": "Vector Deployments",
-  "vector_summary": {
-    "match": {
-      "count=one": "Versioned vectors currently assigned to project stages. Showing {count} deployment.",
-      "count=other": "Versioned vectors currently assigned to project stages. Showing {count} deployments."
+  "vector_summary": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Versioned vectors currently assigned to project stages. Showing {count} deployment.",
+        "countPlural=other": "Versioned vectors currently assigned to project stages. Showing {count} deployments."
+      }
     }
-  },
+  ],
   "vector_search": "Search vector deployments",
   "vector_search_placeholder": "Search vector deployments...",
   "vector_no_matches": "No matching vector deployments",

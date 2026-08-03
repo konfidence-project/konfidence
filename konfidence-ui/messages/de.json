@@ -27,12 +27,16 @@
   "landscape_label": "Stage-Landschaft",
   "landscape_heading": "Auslieferungslandschaft",
   "vector_heading": "Vektor-Deployments",
-  "vector_summary": {
-    "match": {
-      "count=one": "Versionierte Vektoren, die derzeit Projekt-Stages zugewiesen sind. Es wird {count} Deployment angezeigt.",
-      "count=other": "Versionierte Vektoren, die derzeit Projekt-Stages zugewiesen sind. Es werden {count} Deployments angezeigt."
+  "vector_summary": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Versionierte Vektoren, die derzeit Projekt-Stages zugewiesen sind. Es wird {count} Deployment angezeigt.",
+        "countPlural=other": "Versionierte Vektoren, die derzeit Projekt-Stages zugewiesen sind. Es werden {count} Deployments angezeigt."
+      }
     }
-  },
+  ],
   "vector_search": "Vektor-Deployments durchsuchen",
   "vector_search_placeholder": "Vektor-Deployments durchsuchen...",
   "vector_no_matches": "Keine passenden Vektor-Deployments",
