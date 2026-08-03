@@ -5,6 +5,7 @@
     import LandscapeStageNode from "$lib/components/LandscapeStageNode.svelte";
     import type { Landscape, Stage } from "$lib/stages";
     import { getStageCardVariantPreference } from "$lib/stores/stage-card-variant.svelte";
+    import { t } from "$lib/stores/i18n.svelte";
 
     const COLUMN_GAP = 600;
     const ROW_GAP = 300;
@@ -38,7 +39,7 @@
     });
 </script>
 
-<div class="flow" aria-label="Stage landscape">
+<div class="flow" aria-label={t("LANDSCAPE_ARIA")}>
     <SvelteFlow
         {nodes}
         edges={[]}

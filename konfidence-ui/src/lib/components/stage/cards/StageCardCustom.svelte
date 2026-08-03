@@ -8,6 +8,7 @@
     } from "../utils/stage-view.js";
     import type { Stage } from "$lib/stages.js";
     import StageStatusPill from "../StageStatusPill.svelte";
+    import { t } from "$lib/stores/i18n.svelte";
 
     const { stage, selected = false } = $props<{
         stage: Stage;
@@ -65,7 +66,7 @@
     class:selected
     data-health={status.tone}
     data-testid="stage-card"
-    aria-label={`Stage ${stage.name}`}
+    aria-label={t("STAGE_ARIA", stage.name)}
 >
     <div class="stripe {status.tone}"></div>
 
@@ -74,7 +75,7 @@
             <span class="st-nm">{stage.name}</span>
             <StageStatusPill
                 status={status.tone}
-                label={status.label}
+                label={t(status.labelKey)}
                 pulse={status.tone === "deploying"}
             />
         </div>
@@ -92,21 +93,21 @@
             {#each phases as phase (phase.id)}
                 <div
                     class={["st-ph", phase.state]}
-                    title={phaseTitle(phase.label, phase.reason, phase.message)}
+                    title={phaseTitle(t(phase.labelKey), phase.reason, phase.message)}
                 ></div>
             {/each}
         </div>
         <div class="st-phl">
             {#each phases as phase (`${phase.id}-l`)}
-                <div class={["st-pl", phase.state]}>{phase.label}</div>
+                <div class={["st-pl", phase.state]}>{t(phase.labelKey)}</div>
             {/each}
         </div>
         {#if chips.length > 0}
             <div class="st-chips">
-                {#each chips as chip, i (`${chip.label}-${i}`)}
+                {#each chips as chip, i (`${chip.labelKey}-${i}`)}
                     <span class={["sc", chip.tone ?? ""]}>
                         <strong>{chip.value}</strong>
-                        {chip.label}
+                        {t(chip.labelKey)}
                     </span>
                 {/each}
             </div>
@@ -119,7 +120,7 @@
         class:open={menuOpen}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
-        aria-label="Stage actions"
+        aria-label={t("STAGE_ACTIONS_ARIA")}
         onclick={toggleMenu}
     >
         ⋮
@@ -133,7 +134,7 @@
                 class="st-menu-item"
                 onclick={copyName}
             >
-                Copy stage name
+                {t("STAGE_ACTION_COPY_NAME")}
             </button>
             <button
                 type="button"
@@ -141,7 +142,7 @@
                 class="st-menu-item"
                 onclick={closeMenu}
             >
-                View YAML
+                {t("STAGE_ACTION_VIEW_YAML")}
             </button>
             <button
                 type="button"
@@ -149,7 +150,7 @@
                 class="st-menu-item"
                 onclick={closeMenu}
             >
-                Open logs
+                {t("STAGE_ACTION_OPEN_LOGS")}
             </button>
         </div>
     {/if}

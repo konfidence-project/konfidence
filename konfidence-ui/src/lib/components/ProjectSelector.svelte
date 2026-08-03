@@ -3,6 +3,7 @@
     import "@ui5/webcomponents/dist/Option.js";
     import "@ui5/webcomponents/dist/Select.js";
 
+    import { t } from "$lib/stores/i18n.svelte";
     import type { components } from "$lib/konfidence-api/schema";
 
     type Project = components["schemas"]["ProjectResponse"];
@@ -24,14 +25,14 @@
 </script>
 
 <div class="project-switcher">
-    <ui5-label for="project-select">Project</ui5-label>
+    <ui5-label for="project-select">{t("PROJECT_SELECTOR_LABEL")}</ui5-label>
     <ui5-select
         id="project-select"
-        accessible-name="Project"
+        accessible-name={t("PROJECT_SELECTOR_LABEL")}
         value={selectedProjectId ?? ""}
         onui5-change={handleChange}
     >
-        <ui5-option value="">Select a project</ui5-option>
+        <ui5-option value="">{t("PROJECT_SELECTOR_PLACEHOLDER")}</ui5-option>
         {#each projects as project (project.id)}
             <ui5-option value={project.id}>{project.name}</ui5-option>
         {/each}

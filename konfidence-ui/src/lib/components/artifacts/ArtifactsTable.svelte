@@ -6,10 +6,24 @@
     import { Render, Subscribe } from "@humanspeak/svelte-headless-table";
     import type { ArtifactDeployment } from "$lib/deployments";
     import { toStore } from "svelte/store";
+    import { t } from "$lib/stores/i18n.svelte";
 
     import createArtifactTable from "./columns";
 
     const { deployments }: { deployments: ArtifactDeployment[] } = $props();
+
+    const COL_HEADER_KEY: Record<string, string> = {
+        component: "ARTIFACTS_COL_ARTIFACT",
+        id: "ARTIFACTS_COL_DEPLOYMENT",
+        landscape: "ARTIFACTS_COL_LANDSCAPE",
+        repository: "ARTIFACTS_COL_REPOSITORY",
+        stages: "ARTIFACTS_COL_STAGES",
+        status: "ARTIFACTS_COL_STATUS",
+        vectorDeployments: "ARTIFACTS_COL_VECTORS",
+        version: "ARTIFACTS_COL_VERSION",
+    };
+
+    const headerFor = (id: string): string => t(COL_HEADER_KEY[id] ?? id);
 
     const { table, columns } = createArtifactTable(toStore(() => deployments));
     const {
@@ -52,11 +66,11 @@
 <div class="table-shell">
     <div class="toolbar">
         <label>
-            <span>Search artifact deployments</span>
-            <input type="search" placeholder="ID, artifact, version, stage…" bind:value={$filterValue} />
+            <span>{t("ARTIFACTS_SEARCH_LABEL")}</span>
+            <input type="search" placeholder={t("ARTIFACTS_SEARCH_PLACEHOLDER")} bind:value={$filterValue} />
         </label>
         <p aria-live="polite">
-            {$totalRows.toLocaleString()} matches · {$renderedRows.toLocaleString()} rows rendered
+            {t("ARTIFACTS_MATCHES_SUMMARY", $totalRows.toLocaleString(), $renderedRows.toLocaleString())}
         </p>
     </div>
 
@@ -75,23 +89,23 @@
                                             data-sort-order={props.sort.order ?? "none"}
                                             onclick={props.sort.toggle}
                                         >
-                                            <Render of={cell.render()} />
+                                            <span>{headerFor(cell.id)}</span>
                                             <ui5-icon name={sortIcon(props.sort.order)} aria-hidden="true"></ui5-icon>
                                         </button>
                                         {#if cell.id === "status"}
                                             <select
-                                                aria-label="Filter status"
+                                                aria-label={t("ARTIFACTS_FILTER_STATUS_ARIA")}
                                                 value={String($filterValues[cell.id] ?? "")}
                                                 onchange={(event) => updateColumnFilter(cell.id, event.currentTarget.value)}
                                             >
-                                                <option value="">All</option>
-                                                <option value="ArtifactFetched">Artifact fetched</option>
-                                                <option value="ArtifactDeployed">Artifact deployed</option>
+                                                <option value="">{t("ARTIFACTS_FILTER_ALL")}</option>
+                                                <option value="ArtifactFetched">{t("ARTIFACTS_STATUS_FETCHED")}</option>
+                                                <option value="ArtifactDeployed">{t("ARTIFACTS_STATUS_DEPLOYED")}</option>
                                             </select>
                                         {:else}
                                             <input
-                                                aria-label={`Filter ${cell.id}`}
-                                                placeholder="Filter…"
+                                                aria-label={t("ARTIFACTS_FILTER_CELL_ARIA", headerFor(cell.id))}
+                                                placeholder={t("ARTIFACTS_FILTER_PLACEHOLDER")}
                                                 value={String($filterValues[cell.id] ?? "")}
                                                 oninput={(event) => updateColumnFilter(cell.id, event.currentTarget.value)}
                                             />

@@ -2,10 +2,11 @@
     import "@ui5/webcomponents/dist/Title.js";
     import errorBurstUrl from "$lib/assets/gpt-image-2-kn700szf3pnqy26t64gtqqgz0s89tnyh-removebg-preview.png";
     import { resolve } from "$app/paths";
+    import { t } from "$lib/stores/i18n.svelte";
 
     const {
-        title = "Something went wrong",
-        message = "The requested content could not be loaded.",
+        title,
+        message,
         error,
         status,
     } = $props<{
@@ -14,6 +15,9 @@
         error?: unknown;
         status?: number;
     }>();
+
+    const displayTitle = $derived(title ?? t("ERROR_DEFAULT_TITLE"));
+    const displayMessage = $derived(message ?? t("ERROR_DEFAULT_MESSAGE"));
 
     const detail = $derived.by(() => {
         if (error instanceof Error) {
@@ -43,19 +47,19 @@
 
     <div class="content-card">
         {#if status}
-            <span class="status-code">Error {status}</span>
+            <span class="status-code">{t("ERROR_STATUS_LABEL", status)}</span>
         {/if}
 
-        <ui5-title id="error-view-title" level="H1" size="H2">{title}</ui5-title
+        <ui5-title id="error-view-title" level="H1" size="H2">{displayTitle}</ui5-title
         >
-        <p class="message">{message}</p>
+        <p class="message">{displayMessage}</p>
 
         {#if detail}
             <pre class="detail">{detail}</pre>
         {/if}
 
         <div class="actions">
-            <a class="action-link" href={resolve("/")}>Back to start</a>
+            <a class="action-link" href={resolve("/")}>{t("ERROR_BACK_TO_START")}</a>
         </div>
     </div>
 </section>

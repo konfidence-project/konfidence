@@ -15,6 +15,7 @@
         splitVector,
     } from "../utils/stage-view.js";
     import type { Stage } from "$lib/stages.js";
+    import { t } from "$lib/stores/i18n.svelte";
 
     type StageChip = import("../utils/stage-view.js").StageChip;
     type StageHealth = import("../utils/stage-view.js").StageHealth;
@@ -89,7 +90,7 @@
     class="stage"
     class:selected
     data-health={status.tone}
-    aria-label={`Stage ${stage.name}`}
+    aria-label={t("STAGE_ARIA", stage.name)}
 >
     <div class="stripe {status.tone}" aria-hidden="true"></div>
 
@@ -104,7 +105,7 @@
                         class="dot"
                         class:pulse={status.tone === "deploying"}
                     ></span>
-                    {status.label}
+                    {t(status.labelKey)}
                 </span>
             </ui5-tag>
         </div>
@@ -122,21 +123,21 @@
             {#each phases as phase (phase.id)}
                 <div
                     class={["st-ph", phase.state]}
-                    title={phaseTitle(phase.label, phase.reason, phase.message)}
+                    title={phaseTitle(t(phase.labelKey), phase.reason, phase.message)}
                 ></div>
             {/each}
         </div>
         <div class="st-phl">
             {#each phases as phase (`${phase.id}-l`)}
-                <div class={["st-pl", phase.state]}>{phase.label}</div>
+                <div class={["st-pl", phase.state]}>{t(phase.labelKey)}</div>
             {/each}
         </div>
 
         {#if chips.length > 0}
             <div class="st-chips">
-                {#each chips as chip, i (`${chip.label}-${i}`)}
+                {#each chips as chip, i (`${chip.labelKey}-${i}`)}
                     <ui5-tag design={chipDesign(chip.tone)} hide-state-icon>
-                        <strong>{chip.value}</strong>&nbsp;{chip.label}
+                        <strong>{chip.value}</strong>&nbsp;{t(chip.labelKey)}
                     </ui5-tag>
                 {/each}
             </div>
@@ -149,10 +150,10 @@
         class="st-menu"
         design="Transparent"
         icon="overflow"
-        tooltip="More actions"
+        tooltip={t("STAGE_ACTIONS_TOOLTIP")}
         role="button"
         tabindex="0"
-        aria-label="Stage actions"
+        aria-label={t("STAGE_ACTIONS_ARIA")}
         onclick={openMenu}
         onkeydown={onMenuKey}
     ></ui5-button>
@@ -162,16 +163,16 @@
     bind:this={popover}
     placement="Bottom"
     horizontal-align="End"
-    accessible-name="Stage actions"
+    accessible-name={t("STAGE_ACTIONS_ARIA")}
 >
     <ui5-list
         separators="None"
-        accessible-name="Stage actions"
+        accessible-name={t("STAGE_ACTIONS_ARIA")}
         onitem-click={closeMenu}
     >
-        <ui5-li icon="copy" type="Active">Copy stage name</ui5-li>
-        <ui5-li icon="document-text" type="Active">View YAML</ui5-li>
-        <ui5-li icon="log" type="Active">Open logs</ui5-li>
+        <ui5-li icon="copy" type="Active">{t("STAGE_ACTION_COPY_NAME")}</ui5-li>
+        <ui5-li icon="document-text" type="Active">{t("STAGE_ACTION_VIEW_YAML")}</ui5-li>
+        <ui5-li icon="log" type="Active">{t("STAGE_ACTION_OPEN_LOGS")}</ui5-li>
     </ui5-list>
 </ui5-popover>
 

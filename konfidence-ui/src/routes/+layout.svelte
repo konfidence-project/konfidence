@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { initI18n } from "$lib/stores/i18n.svelte";
     import {
         initTheme,
         markCustomThemeStylesheetLoaded,
@@ -17,6 +18,7 @@
     ] as const satisfies readonly { id: UITheme; href: string }[];
 
     initTheme();
+    initI18n();
 </script>
 
 <svelte:head>

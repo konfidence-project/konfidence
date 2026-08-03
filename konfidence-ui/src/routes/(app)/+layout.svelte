@@ -1,6 +1,8 @@
 <script lang="ts">
     import "@ui5/webcomponents/dist/Avatar.js";
     import "@ui5/webcomponents/dist/Button.js";
+    import "@ui5/webcomponents/dist/Menu.js";
+    import "@ui5/webcomponents/dist/MenuItem.js";
     import "@ui5/webcomponents/dist/ToggleButton.js";
     import "@ui5/webcomponents-fiori/dist/NavigationLayout.js";
     import "@ui5/webcomponents-fiori/dist/ShellBar.js";
@@ -14,12 +16,16 @@
     import "@ui5/webcomponents-fiori/dist/UserMenuAccount.js";
     import "@ui5/webcomponents-fiori/dist/UserMenuItem.js";
     import "@ui5/webcomponents-icons/dist/action-settings.js";
+    import "@ui5/webcomponents-icons/dist/dark-mode.js";
     import "@ui5/webcomponents-icons/dist/database.js";
     import "@ui5/webcomponents-icons/dist/grid.js";
+    import "@ui5/webcomponents-icons/dist/light-mode.js";
     import "@ui5/webcomponents-icons/dist/menu2.js";
     import "@ui5/webcomponents-icons/dist/palette.js";
     import "@ui5/webcomponents-icons/dist/radar-chart.js";
+    import "@ui5/webcomponents-icons/dist/sys-monitor.js";
     import "@ui5/webcomponents-icons/dist/upstacked-chart.js";
+    import "@ui5/webcomponents-icons/dist/world.js";
 
     import {
         DEFAULT_SETTINGS_TAB,
@@ -31,9 +37,19 @@
         StageCardVariantPreference,
         setStageCardVariantPreference,
     } from "$lib/stores/stage-card-variant.svelte";
+    import {
+        SUPPORTED_LANGUAGES,
+        languagePreference,
+        selectLanguage,
+        t,
+    } from "$lib/stores/i18n.svelte";
+    import {
+        selectThemeMode,
+        themeModePreference,
+        themePreference,
+    } from "$lib/stores/theme.svelte";
     import ProjectSelector from "$lib/components/ProjectSelector.svelte";
     import { sidebar, toggleSidebar } from "$lib/stores/sidebar.svelte";
-    import { themePreference } from "$lib/stores/theme.svelte";
     import type { LayoutProps } from "./$types";
     import type { ResolvedPathname } from "$app/types";
     import SettingsDialog from "$lib/components/settings/SettingsDialog.svelte";
@@ -49,6 +65,8 @@
         import("@ui5/webcomponents-fiori/dist/ShellBar.js").ShellBarProfileClickEventDetail;
     type UserMenuItemClickEventDetail =
         import("@ui5/webcomponents-fiori/dist/UserMenu.js").UserMenuItemClickEventDetail;
+    type MenuItemClickEventDetail =
+        import("@ui5/webcomponents/dist/Menu.js").MenuItemClickEventDetail;
 
     type NavHref =
         | `/projects/${string}/landscape`
@@ -78,6 +96,8 @@
 
     let userMenuOpen = $state(false);
     let userMenuOpener = $state<HTMLElement | undefined>();
+    let themeMenuOpen = $state(false);
+    let languageMenuOpen = $state(false);
     let selectedProjectId = $state(page.data.project?.id);
 
     afterNavigate(() => {
@@ -138,11 +158,29 @@
         return LIGHT_LOGO_SRC;
     });
 
+    const themeSwitcherIcon = $derived.by(() => {
+        const mode = themeModePreference.selected;
+        if (mode === "light") {
+            return "light-mode";
+        }
+        if (mode === "dark") {
+            return "dark-mode";
+        }
+        if (mode === "system") {
+            return "sys-monitor";
+        }
+        // custom
+        return "palette";
+    });
+
     const accountSubtitle = $derived(data.user.email);
     const selectedProject = $derived(
         data.projects.find((project) => project.id === selectedProjectId),
     );
     const navGroups = $derived.by((): readonly NavGroup[] => {
+        // Read bundle version so nav labels update on language change.
+        const { bundleVersion } = languagePreference;
+        void bundleVersion;
         const groups: NavGroup[] = [];
         if (selectedProject) {
             const projectId = selectedProject.id;
@@ -151,20 +189,20 @@
                     {
                         href: `/projects/${projectId}/landscape`,
                         icon: "upstacked-chart",
-                        text: "Landscape",
+                        text: t("APP_NAV_LANDSCAPE"),
                     },
                     {
                         href: `/projects/${projectId}/vector-deployments`,
                         icon: "radar-chart",
-                        text: "Vector Deployments",
+                        text: t("APP_NAV_VECTOR_DEPLOYMENTS"),
                     },
                     {
                         href: `/projects/${projectId}/artifact-deployments`,
                         icon: "database",
-                        text: "Artifact Deployments",
+                        text: t("APP_NAV_ARTIFACT_DEPLOYMENTS"),
                     },
                 ],
-                text: "Delivery",
+                text: t("APP_NAV_GROUP_DELIVERY"),
             });
         }
         return groups;
@@ -206,6 +244,40 @@
         }
     };
 
+    const handleThemeItemClick = (): void => {
+        languageMenuOpen = false;
+        themeMenuOpen = true;
+    };
+
+    const handleThemeMenuClose = (): void => {
+        themeMenuOpen = false;
+    };
+
+    const handleThemeMenuItemClick = (event: CustomEvent<MenuItemClickEventDetail>): void => {
+        const mode = event.detail.item.getAttribute("data-id");
+        if (mode) {
+            selectThemeMode(mode);
+        }
+        themeMenuOpen = false;
+    };
+
+    const handleLanguageItemClick = (): void => {
+        themeMenuOpen = false;
+        languageMenuOpen = true;
+    };
+
+    const handleLanguageMenuClose = (): void => {
+        languageMenuOpen = false;
+    };
+
+    const handleLanguageMenuItemClick = (event: CustomEvent<MenuItemClickEventDetail>): void => {
+        const mode = event.detail.item.getAttribute("data-id");
+        if (mode) {
+            selectLanguage(mode);
+        }
+        languageMenuOpen = false;
+    };
+
     const selectProject = (projectId: string): void => {
         selectedProjectId = projectId;
         goto(resolve(`/projects/${projectId}/landscape`));
@@ -239,22 +311,36 @@
         <ui5-shellbar-branding
             slot="branding"
             class="brand"
-            accessible-name="Konfidence home"
+            accessible-name={t("APP_BRANDING_HOME")}
             onclick={() => goto(resolve("/"))}
         >
             <img
                 slot="logo"
                 class="brand-logo"
                 src={logoSrc}
-                alt="Konfidence"
+                alt={t("APP_BRANDING_ALT")}
             />
         </ui5-shellbar-branding>
-        <ui5-tag design="Set2" color-scheme="5" slot="content">UI5 Web Components</ui5-tag>
+        <ui5-tag design="Set2" color-scheme="5" slot="content">{t("APP_TAG_UI5")}</ui5-tag>
+        <ui5-shellbar-item
+            id="theme-switcher"
+            icon={themeSwitcherIcon}
+            text={t("SHELLBAR_THEME_TEXT")}
+            tooltip={t("SHELLBAR_THEME_TOOLTIP")}
+            onui5-click={handleThemeItemClick}
+        ></ui5-shellbar-item>
+        <ui5-shellbar-item
+            id="language-switcher"
+            icon="world"
+            text={t("SHELLBAR_LANGUAGE_TEXT")}
+            tooltip={t("SHELLBAR_LANGUAGE_TOOLTIP")}
+            onui5-click={handleLanguageItemClick}
+        ></ui5-shellbar-item>
         <ui5-avatar
             slot="profile"
             initials={avatarInitials}
             color-scheme="Accent6"
-            accessible-name={`Open account menu for ${data.user.name}`}
+            accessible-name={t("APP_AVATAR_OPEN_ACCOUNT_MENU", data.user.name)}
         ></ui5-avatar>
     </ui5-shellbar>
     <ui5-side-navigation class="side-panel" slot="sideContent">
@@ -266,7 +352,7 @@
         />
         {:else}
         <ui5-side-navigation-item
-            text="Select a project"
+            text={t("APP_SIDENAV_SELECT_PROJECT")}
             icon="grid"
             selected={false}
             onui5-click={() => {
@@ -301,6 +387,55 @@
     </div>
 </ui5-navigation-layout>
 
+<ui5-menu
+    id="theme-menu"
+    open={themeMenuOpen}
+    opener="theme-switcher"
+    onui5-close={handleThemeMenuClose}
+    onui5-item-click={handleThemeMenuItemClick}
+>
+    <ui5-menu-item
+        icon="light-mode"
+        text={t("THEME_MODE_LIGHT")}
+        data-id="light"
+        additional-text={themeModePreference.selected === "light" ? "\u2713" : ""}
+    ></ui5-menu-item>
+    <ui5-menu-item
+        icon="dark-mode"
+        text={t("THEME_MODE_DARK")}
+        data-id="dark"
+        additional-text={themeModePreference.selected === "dark" ? "\u2713" : ""}
+    ></ui5-menu-item>
+    <ui5-menu-item
+        icon="sys-monitor"
+        text={t("THEME_MODE_SYSTEM")}
+        data-id="system"
+        additional-text={themeModePreference.selected === "system" ? "\u2713" : ""}
+    ></ui5-menu-item>
+</ui5-menu>
+
+<ui5-menu
+    id="language-menu"
+    open={languageMenuOpen}
+    opener="language-switcher"
+    onui5-close={handleLanguageMenuClose}
+    onui5-item-click={handleLanguageMenuItemClick}
+>
+    <ui5-menu-item
+        icon="sys-monitor"
+        text={t("LANG_MODE_SYSTEM")}
+        data-id="system"
+        additional-text={languagePreference.mode === "system" ? "\u2713" : ""}
+    ></ui5-menu-item>
+    {#each SUPPORTED_LANGUAGES as language (language.id)}
+        <ui5-menu-item
+            text={t(language.label)}
+            data-id={language.id}
+            additional-text={languagePreference.mode === language.id ? "\u2713" : ""}
+        ></ui5-menu-item>
+    {/each}
+</ui5-menu>
+
 <ui5-user-menu
     id="user-menu"
     open={userMenuOpen}
@@ -318,7 +453,7 @@
 
     <ui5-user-menu-item
         icon="action-settings"
-        text="Settings"
+        text={t("APP_MENU_SETTINGS")}
         data-id={SETTINGS_MENU_ITEM_ID}
     ></ui5-user-menu-item>
 </ui5-user-menu>

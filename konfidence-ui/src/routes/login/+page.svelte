@@ -1,12 +1,13 @@
 <script lang="ts">
     import { page } from "$app/state";
+    import { t } from "$lib/stores/i18n.svelte";
 
     const returnTo = $derived(page.url.searchParams.get("returnTo") ?? "/landscape");
     const loginUrl = $derived(`/api/login?returnTo=${encodeURIComponent(returnTo)}`);
 </script>
 
 <svelte:head>
-    <title>Konfidence – Sign In</title>
+    <title>{t("LOGIN_PAGE_TITLE")}</title>
 </svelte:head>
 
 <div class="login-page">
@@ -14,16 +15,16 @@
         <img
             class="logo logo-light"
             src="/assets/logo/full/SVG/400_konfidence_logo_light.svg"
-            alt="Konfidence"
+            alt={t("APP_BRANDING_ALT")}
         />
         <img
             class="logo logo-dark"
             src="/assets/logo/full/SVG/400_konfidence_logo_dark.svg"
-            alt="Konfidence"
+            alt={t("APP_BRANDING_ALT")}
         />
-        <h1 class="title">Sign in to Konfidence</h1>
-        <p class="subtitle">Sign in to your delivery workspace.</p>
-        <a href={loginUrl} rel="external" class="sign-in-button">Continue with SSO</a>
+        <h1 class="title">{t("LOGIN_HEADING")}</h1>
+        <p class="subtitle">{t("LOGIN_SUBTITLE")}</p>
+        <a href={loginUrl} rel="external" class="sign-in-button">{t("LOGIN_CTA_SSO")}</a>
     </div>
 </div>
 

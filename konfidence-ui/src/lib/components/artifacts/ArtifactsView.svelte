@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { ArtifactDeployment } from "$lib/deployments";
+    import { t } from "$lib/stores/i18n.svelte";
 
     import ArtifactsTable from "./ArtifactsTable.svelte";
 
@@ -8,12 +9,12 @@
 
 <section class="artifacts" aria-labelledby="artifacts-title">
     <header>
-        <h1 id="artifacts-title">Artifact Deployments</h1>
+        <h1 id="artifacts-title">{t("ARTIFACTS_TITLE")}</h1>
     </header>
 
     {#if deployments.length === 0}
         <div class="empty-state">
-            <h2>No artifact deployments found</h2>
+            <h2>{t("ARTIFACTS_EMPTY")}</h2>
         </div>
     {:else}
         <ArtifactsTable {deployments} />

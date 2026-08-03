@@ -17,6 +17,7 @@
         splitVector,
     } from "../utils/stage-view.js";
     import type { Stage } from "$lib/stages.js";
+    import { t } from "$lib/stores/i18n.svelte";
 
     type StageChip = import("../utils/stage-view.js").StageChip;
     type StageHealth = import("../utils/stage-view.js").StageHealth;
@@ -91,7 +92,7 @@
             <ui5-tag design={tagDesign(status.tone)} hide-state-icon>
                 <span class="pill-inner" class:pulse={shouldPulseStatus}>
                     <span class="dot" class:pulse={shouldPulseStatus}></span>
-                    {status.label}
+                    {t(status.labelKey)}
                 </span>
             </ui5-tag>
             <ui5-button
@@ -99,10 +100,10 @@
                 id={btnId}
                 design="Transparent"
                 icon="overflow"
-                tooltip="More actions"
+                tooltip={t("STAGE_ACTIONS_TOOLTIP")}
                 role="button"
                 tabindex="0"
-                aria-label="Stage actions"
+                aria-label={t("STAGE_ACTIONS_ARIA")}
                 onclick={openMenu}
                 onkeydown={onMenuKey}
             ></ui5-button>
@@ -111,7 +112,7 @@
 
     <div class="card-body">
         <div class="row">
-            <span class="row-label">Vector</span>
+            <span class="row-label">{t("STAGE_ROW_VECTOR")}</span>
             <span class="row-value">
                 <code>{vector.version}</code>
                 {#if vector.hash}
@@ -121,17 +122,17 @@
         </div>
 
         <div class="row">
-            <span class="row-label">Phases</span>
+            <span class="row-label">{t("STAGE_ROW_PHASES")}</span>
             <span class="phase-row">
                 {#each phases as phase (phase.id)}
                     <ui5-tag
                         design={phaseTagDesign(phase.state)}
                         hide-state-icon
                         title={phase.reason
-                            ? `${phase.label}: ${phase.reason}${phase.message ? ` — ${phase.message}` : ""}`
-                            : phase.label}
+                            ? `${t(phase.labelKey)}: ${phase.reason}${phase.message ? ` — ${phase.message}` : ""}`
+                            : t(phase.labelKey)}
                     >
-                        {phase.label}
+                        {t(phase.labelKey)}
                     </ui5-tag>
                 {/each}
             </span>
@@ -139,11 +140,11 @@
 
         {#if chips.length > 0}
             <div class="row">
-                <span class="row-label">Details</span>
+                <span class="row-label">{t("STAGE_ROW_DETAILS")}</span>
                 <span class="chip-row">
-                    {#each chips as chip, i (`${chip.label}-${i}`)}
+                    {#each chips as chip, i (`${chip.labelKey}-${i}`)}
                         <ui5-tag design={chipDesign(chip.tone)} hide-state-icon>
-                            <strong>{chip.value}</strong>&nbsp;{chip.label}
+                            <strong>{chip.value}</strong>&nbsp;{t(chip.labelKey)}
                         </ui5-tag>
                     {/each}
                 </span>
@@ -156,16 +157,16 @@
     bind:this={popover}
     placement="Bottom"
     horizontal-align="End"
-    accessible-name="Stage actions"
+    accessible-name={t("STAGE_ACTIONS_ARIA")}
 >
     <ui5-list
         separators="None"
-        accessible-name="Stage actions"
+        accessible-name={t("STAGE_ACTIONS_ARIA")}
         onitem-click={closeMenu}
     >
-        <ui5-li icon="copy" type="Active">Copy stage name</ui5-li>
-        <ui5-li icon="document-text" type="Active">View YAML</ui5-li>
-        <ui5-li icon="log" type="Active">Open logs</ui5-li>
+        <ui5-li icon="copy" type="Active">{t("STAGE_ACTION_COPY_NAME")}</ui5-li>
+        <ui5-li icon="document-text" type="Active">{t("STAGE_ACTION_VIEW_YAML")}</ui5-li>
+        <ui5-li icon="log" type="Active">{t("STAGE_ACTION_OPEN_LOGS")}</ui5-li>
     </ui5-list>
 </ui5-popover>
 

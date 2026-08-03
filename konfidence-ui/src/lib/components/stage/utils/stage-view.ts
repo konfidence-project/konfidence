@@ -8,6 +8,7 @@ type StagePhaseState = "cur" | "done" | "idle";
 
 interface StageChip {
   label: string;
+  labelKey: string;
   tone?: "" | "alert" | "info" | "warn";
   value: number | string;
 }
@@ -15,6 +16,7 @@ interface StageChip {
 interface StagePhase {
   id: StageStatus;
   label: string;
+  labelKey: string;
   message?: string;
   reason?: string;
   state: StagePhaseState;
@@ -31,6 +33,11 @@ const STATUS_LABEL: Record<StageStatus, string> = {
   DeploymentCreated: "Deploy",
   MigrationTasks: "Tasks",
 };
+const STATUS_LABEL_KEY: Record<StageStatus, string> = {
+  Active: "STAGE_PHASE_ACTIVE",
+  DeploymentCreated: "STAGE_PHASE_DEPLOY",
+  MigrationTasks: "STAGE_PHASE_TASKS",
+};
 const HASH_SUFFIX_PATTERN = /^(?<version>.+?)-(?<hash>[0-9a-f]{6,})$/i;
 const NUMERIC_VERSION_PATTERN = /^\d/;
 
@@ -41,12 +48,18 @@ const getStageHealth = (stage: Stage): StageHealth => {
   return "deploying";
 };
 
-const getStageStatusLabel = (stage: Stage): { label: "Deploying" | "Live"; tone: StageHealth } => {
+interface StageStatusLabel {
+  label: "Deploying" | "Live";
+  labelKey: string;
+  tone: StageHealth;
+}
+
+const getStageStatusLabel = (stage: Stage): StageStatusLabel => {
   const tone = getStageHealth(stage);
   if (tone === "healthy") {
-    return { label: "Live", tone };
+    return { label: "Live", labelKey: "STAGE_STATUS_LIVE", tone };
   }
-  return { label: "Deploying", tone };
+  return { label: "Deploying", labelKey: "STAGE_STATUS_DEPLOYING", tone };
 };
 
 const getPhases = (stage: Stage): StagePhase[] => {
@@ -58,11 +71,13 @@ const getPhases = (stage: Stage): StagePhase[] => {
     } else if (index === currentIndex) {
       state = "cur";
     }
-    return { id: status, label: STATUS_LABEL[status], state };
+    return { id: status, label: STATUS_LABEL[status], labelKey: STATUS_LABEL_KEY[status], state };
   });
 };
 
-const getChips = (stage: Stage): StageChip[] => [{ label: "generation", value: stage.generation }];
+const getChips = (stage: Stage): StageChip[] => [
+  { label: "generation", labelKey: "STAGE_CHIP_GENERATION", value: stage.generation },
+];
 
 const getLandscapeLabel = (stage: Stage): string => stage.landscapeName.toUpperCase();
 
@@ -102,4 +117,4 @@ const splitVector = (vector: VectorReference): VectorParts => {
 };
 
 export { getChips, getLandscapeLabel, getPhases, getStageHealth, getStageStatusLabel, splitVector };
-export type { StageChip, StageHealth, StagePhase, StagePhaseState, VectorParts };
+export type { StageChip, StageHealth, StagePhase, StagePhaseState, StageStatusLabel, VectorParts };

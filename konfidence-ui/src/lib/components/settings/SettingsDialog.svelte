@@ -19,6 +19,7 @@
     import type { AuthUser } from "$lib/auth/types";
     import { STAGE_CARD_VARIANTS } from "$lib/components/stage/variants.js";
     import { getStageCardVariantPreference } from "$lib/stores/stage-card-variant.svelte";
+    import { t } from "$lib/stores/i18n.svelte";
 
     type UserSettingsItemSelectEventDetail =
         import("@ui5/webcomponents-fiori/dist/UserSettingsDialog.js").UserSettingsItemSelectEventDetail;
@@ -50,8 +51,21 @@
             .toUpperCase(),
     );
 
-    const accountSubtitle = $derived(user.email ?? "Signed in via SSO");
+    const accountSubtitle = $derived(user.email ?? t("SETTINGS_PROFILE_FALLBACK_SUBTITLE"));
     const accountDescription = $derived(user.roles.join(", "));
+
+    const themeLabelKey = (themeId: string): string => {
+        if (themeId === "konfidence") {
+            return "THEME_KONFIDENCE";
+        }
+        if (themeId === "konfidence-dark") {
+            return "THEME_KONFIDENCE_DARK";
+        }
+        if (themeId === "sap_horizon") {
+            return "THEME_SAP_HORIZON";
+        }
+        return themeId;
+    };
 
     interface AccountDetail {
         label: string;
@@ -59,10 +73,10 @@
     }
 
     const accountDetails: AccountDetail[] = $derived([
-        { label: "Email", value: user.email },
-        { label: "Given name", value: user.givenName },
-        { label: "Family name", value: user.familyName },
-        { label: "Roles", value: accountDescription || "(none)" },
+        { label: t("SETTINGS_PROFILE_FIELD_EMAIL"), value: user.email },
+        { label: t("SETTINGS_PROFILE_FIELD_GIVEN_NAME"), value: user.givenName },
+        { label: t("SETTINGS_PROFILE_FIELD_FAMILY_NAME"), value: user.familyName },
+        { label: t("SETTINGS_PROFILE_FIELD_ROLES"), value: accountDescription || t("SETTINGS_PROFILE_ROLES_NONE") },
     ]);
 
     const handleClose = (): void => {
@@ -109,16 +123,16 @@
 
 <ui5-user-settings-dialog
     id="settings-dialog"
-    header-text="Settings"
+    header-text={t("SETTINGS_HEADER")}
     {open}
     onui5-close={handleClose}
     onui5-selection-change={handleSelectionChange}
 >
     <ui5-user-settings-item
         icon="user-settings"
-        text="Profile"
-        tooltip="Profile"
-        header-text="Profile"
+        text={t("SETTINGS_TAB_PROFILE")}
+        tooltip={t("SETTINGS_TAB_PROFILE")}
+        header-text={t("SETTINGS_TAB_PROFILE")}
         selected={activeTab === "profile"}
         data-tab-id="profile"
     >
@@ -130,7 +144,7 @@
                         initials={avatarInitials}
                         color-scheme="Accent6"
                         size="XL"
-                        accessible-name={`Avatar for ${user.name}`}
+                        accessible-name={t("SETTINGS_PROFILE_AVATAR_ARIA", user.name)}
                     ></ui5-avatar>
                     <ui5-title class="profile-title" level="H3" size="H4">
                         {user.name}
@@ -141,7 +155,7 @@
                     {/if}
                 </div>
 
-                <div class="account-details" aria-label="Signed-in identity details">
+                <div class="account-details" aria-label={t("SETTINGS_PROFILE_DETAILS_ARIA")}>
                     <dl class="account-fields">
                         {#each accountDetails as field (field.label)}
                             <div class="account-row">
@@ -157,31 +171,31 @@
 
     <ui5-user-settings-item
         icon="palette"
-        text="Appearance"
-        tooltip="Appearance"
-        header-text="Appearance"
+        text={t("SETTINGS_TAB_APPEARANCE")}
+        tooltip={t("SETTINGS_TAB_APPEARANCE")}
+        header-text={t("SETTINGS_TAB_APPEARANCE")}
         selected={activeTab === "appearance"}
         data-tab-id="appearance"
     >
         <ui5-user-settings-appearance-view
-            text="Theme"
+            text={t("SETTINGS_APPEARANCE_THEME")}
             onui5-selection-change={handleAppearanceChange}
         >
-            <ui5-user-settings-appearance-view-group header-text="Konfidence">
+            <ui5-user-settings-appearance-view-group header-text={t("SETTINGS_APPEARANCE_GROUP_KONFIDENCE")}>
                 {#each themes.filter((option) => option.id.startsWith("konfidence")) as option (option.id)}
                     <ui5-user-settings-appearance-view-item
                         item-key={option.id}
-                        text={option.label}
+                        text={t(themeLabelKey(option.id))}
                         icon={option.id.includes("dark") ? "dark-mode" : "light-mode"}
                         selected={themePreference.selected === option.id}
                     ></ui5-user-settings-appearance-view-item>
                 {/each}
             </ui5-user-settings-appearance-view-group>
-            <ui5-user-settings-appearance-view-group header-text="SAP">
+            <ui5-user-settings-appearance-view-group header-text={t("SETTINGS_APPEARANCE_GROUP_SAP")}>
                 {#each themes.filter((option) => !option.id.startsWith("konfidence")) as option (option.id)}
                     <ui5-user-settings-appearance-view-item
                         item-key={option.id}
-                        text={option.label}
+                        text={t(themeLabelKey(option.id))}
                         icon={option.id.includes("dark") ? "dark-mode" : "light-mode"}
                         selected={themePreference.selected === option.id}
                     ></ui5-user-settings-appearance-view-item>
@@ -192,21 +206,21 @@
 
     <ui5-user-settings-item
         icon="upstacked-chart"
-        text="Landscape"
-        tooltip="Landscape"
-        header-text="Landscape"
+        text={t("SETTINGS_TAB_LANDSCAPE")}
+        tooltip={t("SETTINGS_TAB_LANDSCAPE")}
+        header-text={t("SETTINGS_TAB_LANDSCAPE")}
         selected={activeTab === "landscape"}
         data-tab-id="landscape"
     >
         <ui5-user-settings-appearance-view
-            text="Stage cards"
+            text={t("SETTINGS_LANDSCAPE_STAGE_CARDS")}
             onui5-selection-change={handleStageCardVariantChange}
         >
-            <ui5-user-settings-appearance-view-group header-text="Card style">
+            <ui5-user-settings-appearance-view-group header-text={t("SETTINGS_LANDSCAPE_CARD_STYLE")}>
                 {#each STAGE_CARD_VARIANTS as variant (variant.id)}
                     <ui5-user-settings-appearance-view-item
                         item-key={variant.id}
-                        text={variant.label}
+                        text={t(variant.labelKey)}
                         selected={stageCardVariant.selected === variant.id}
                     ></ui5-user-settings-appearance-view-item>
                 {/each}

@@ -24,11 +24,11 @@ const createStage = (status: StageStatus): Stage => ({
 
 describe("stage presentation", () => {
   it.each([
-    ["DeploymentCreated", "Deploying", "deploying"],
-    ["MigrationTasks", "Deploying", "deploying"],
-    ["Active", "Live", "healthy"],
-  ] as const)("maps %s to %s", (status, label, tone) => {
-    expect(getStageStatusLabel(createStage(status))).toEqual({ label, tone });
+    ["DeploymentCreated", "Deploying", "deploying", "STAGE_STATUS_DEPLOYING"],
+    ["MigrationTasks", "Deploying", "deploying", "STAGE_STATUS_DEPLOYING"],
+    ["Active", "Live", "healthy", "STAGE_STATUS_LIVE"],
+  ] as const)("maps %s to %s", (status, label, tone, labelKey) => {
+    expect(getStageStatusLabel(createStage(status))).toEqual({ label, labelKey, tone });
   });
 
   it.each([
@@ -38,13 +38,20 @@ describe("stage presentation", () => {
   ] as const)("maps %s to its three progress phases", (status, states) => {
     const phases = getPhases(createStage(status));
     expect(phases.map((phase) => phase.label)).toEqual(["Deploy", "Tasks", "Active"]);
+    expect(phases.map((phase) => phase.labelKey)).toEqual([
+      "STAGE_PHASE_DEPLOY",
+      "STAGE_PHASE_TASKS",
+      "STAGE_PHASE_ACTIVE",
+    ]);
     expect(phases.map((phase) => phase.state)).toEqual(states);
   });
 
   it("uses landscape and generation data supplied by the OpenAPI view model", () => {
     const stage = createStage("Active");
     expect(getLandscapeLabel(stage)).toBe("PRODUCTION");
-    expect(getChips(stage)).toEqual([{ label: "generation", value: 3 }]);
+    expect(getChips(stage)).toEqual([
+      { label: "generation", labelKey: "STAGE_CHIP_GENERATION", value: 3 },
+    ]);
   });
 });
 

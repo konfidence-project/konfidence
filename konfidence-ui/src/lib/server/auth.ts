@@ -39,11 +39,17 @@ const loadIdentity = async (event: RequestEvent, signal: AbortSignal): Promise<I
 const identityFromResult = (result: IdentityResult): ApiIdentity => {
   const { data, response } = result;
   if (!response.ok) {
-    error(HTTP_BAD_GATEWAY, "Failed to load the signed-in identity");
+    error(HTTP_BAD_GATEWAY, {
+      code: "IDENTITY_LOAD_FAILED",
+      message: "Failed to load the signed-in identity",
+    });
   }
 
   if (!data) {
-    error(HTTP_BAD_GATEWAY, "The signed-in identity response was empty");
+    error(HTTP_BAD_GATEWAY, {
+      code: "IDENTITY_EMPTY",
+      message: "The signed-in identity response was empty",
+    });
   }
 
   return data;
@@ -68,7 +74,10 @@ const resolveSession = async (event: RequestEvent): Promise<AuthSession | undefi
     return sessionFromResult(result);
   } catch (error_) {
     if (error_ instanceof Error && error_.name === "AbortError") {
-      error(HTTP_BAD_GATEWAY, "Timed out while loading the signed-in identity");
+      error(HTTP_BAD_GATEWAY, {
+        code: "IDENTITY_TIMEOUT",
+        message: "Timed out while loading the signed-in identity",
+      });
     }
     throw error_;
   } finally {
@@ -78,7 +87,7 @@ const resolveSession = async (event: RequestEvent): Promise<AuthSession | undefi
 
 const requireUser = (locals: App.Locals): AuthUser => {
   if (!locals.user) {
-    error(HTTP_UNAUTHORIZED, "Unauthorized");
+    error(HTTP_UNAUTHORIZED, { code: "UNAUTHORIZED", message: "Unauthorized" });
   }
   return locals.user;
 };
@@ -86,7 +95,7 @@ const requireUser = (locals: App.Locals): AuthUser => {
 const requireRole = (locals: App.Locals, roles: readonly AuthRole[]): AuthUser => {
   const user = requireUser(locals);
   if (!user.roles.some((role) => roles.includes(role))) {
-    error(HTTP_FORBIDDEN, "Forbidden");
+    error(HTTP_FORBIDDEN, { code: "FORBIDDEN", message: "Forbidden" });
   }
   return user;
 };

@@ -5,6 +5,7 @@
     import LandscapeView from "$lib/components/LandscapeView.svelte";
     import LoadingView from "$lib/components/LoadingView.svelte";
     import { getProjectLandscape } from "$lib/konfidence-api/queries.remote";
+    import { t } from "$lib/stores/i18n.svelte";
     import { toLandscapeView } from "$lib/stages";
     import type { PageProps } from "./$types";
 
@@ -22,16 +23,16 @@
 </script>
 
 {#if landscapeQuery.loading && !landscapeQuery.ready}
-    <LoadingView title="Loading landscape" message="Loading landscapes and stages." />
+    <LoadingView title={t("LANDSCAPE_LOADING_TITLE")} message={t("LANDSCAPE_LOADING_MESSAGE")} />
 {:else if landscapeQuery.error}
     <div class="query-error">
         <ErrorView
-            title="Failed to load landscape"
-            message="The project landscape is currently unavailable."
+            title={t("LANDSCAPE_ERROR_TITLE")}
+            message={t("LANDSCAPE_ERROR_MESSAGE")}
             error={landscapeQuery.error}
         />
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
-        <ui5-button design="Emphasized" onclick={() => landscapeQuery.refresh()}>Retry</ui5-button>
+        <ui5-button design="Emphasized" onclick={() => landscapeQuery.refresh()}>{t("COMMON_RETRY")}</ui5-button>
     </div>
 {:else if landscape}
     <LandscapeView landscapes={landscape.landscapes} stages={landscape.stages} />

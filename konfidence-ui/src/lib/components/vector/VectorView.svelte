@@ -18,6 +18,7 @@
 
     import { addCustomCSS } from "@ui5/webcomponents-base/dist/Theming.js";
     import type { VectorDeployment } from "$lib/deployments";
+    import { t } from "$lib/stores/i18n.svelte";
 
     type TableRowClickEventDetail =
         import("@ui5/webcomponents/dist/Table.js").TableRowClickEventDetail;
@@ -124,32 +125,31 @@
     };
 </script>
 
-<ui5-flexible-column-layout class="vector-fcl" {layout} accessible-name="Vector deployments">
+<ui5-flexible-column-layout class="vector-fcl" {layout} accessible-name={t("VECTOR_LIST_ARIA")}>
     <section slot="startColumn" class="vector-pane vector-list">
         <header class="page-head">
-            <ui5-title level="H2">Vector Deployments</ui5-title>
+            <ui5-title level="H2">{t("VECTOR_TITLE")}</ui5-title>
             <p class="page-sub">
-                Versioned vectors currently assigned to project stages · click a row to view its
-                details · showing {visibleVectorDeployments.length} of {sortedVectorDeployments.length}.
+                {t("VECTOR_SUBTITLE", visibleVectorDeployments.length, sortedVectorDeployments.length)}
             </p>
         </header>
 
         <div class="vt-search" role="search">
             <ui5-input
                 class="vt-search-input"
-                placeholder="Search vector deployments…"
+                placeholder={t("VECTOR_SEARCH_PLACEHOLDER")}
                 value={searchTerm}
                 onui5-input={handleSearchInput}
             ></ui5-input>
-            <ui5-button icon="filter" design="Transparent">Filter</ui5-button>
-            <ui5-button icon="filter" design="Transparent">Status</ui5-button>
+            <ui5-button icon="filter" design="Transparent">{t("VECTOR_BTN_FILTER")}</ui5-button>
+            <ui5-button icon="filter" design="Transparent">{t("VECTOR_BTN_STATUS")}</ui5-button>
         </div>
 
         <ui5-table
             class="vector-table"
             overflow-mode="Scroll"
-            no-data-text="No vector deployments match your search."
-            accessible-name="Vector deployments"
+            no-data-text={t("VECTOR_NO_DATA")}
+            accessible-name={t("VECTOR_TABLE_ARIA")}
             onui5-row-click={handleRowClick}
         >
             <ui5-table-virtualizer
@@ -171,8 +171,8 @@
                     sort-indicator={sortIndicator("id")}
                     onclick={() => toggleSort("id")}
                     onkeydown={(event: KeyboardEvent) => handleSortKeydown(event, "id")}
-                >Vector deployment</ui5-table-header-cell>
-                <ui5-table-header-cell min-width="220px">Repository</ui5-table-header-cell>
+                >{t("VECTOR_COL_DEPLOYMENT")}</ui5-table-header-cell>
+                <ui5-table-header-cell min-width="220px">{t("VECTOR_COL_REPOSITORY")}</ui5-table-header-cell>
                 <ui5-table-header-cell
                     class="sortable"
                     role="button"
@@ -181,9 +181,9 @@
                     sort-indicator={sortIndicator("version")}
                     onclick={() => toggleSort("version")}
                     onkeydown={(event: KeyboardEvent) => handleSortKeydown(event, "version")}
-                >Version</ui5-table-header-cell>
-                <ui5-table-header-cell min-width="140px">Landscape</ui5-table-header-cell>
-                <ui5-table-header-cell min-width="180px">Stage</ui5-table-header-cell>
+                >{t("VECTOR_COL_VERSION")}</ui5-table-header-cell>
+                <ui5-table-header-cell min-width="140px">{t("VECTOR_COL_LANDSCAPE")}</ui5-table-header-cell>
+                <ui5-table-header-cell min-width="180px">{t("VECTOR_COL_STAGE")}</ui5-table-header-cell>
                 <ui5-table-header-cell
                     class="sortable"
                     role="button"
@@ -192,7 +192,7 @@
                     sort-indicator={sortIndicator("status")}
                     onclick={() => toggleSort("status")}
                     onkeydown={(event: KeyboardEvent) => handleSortKeydown(event, "status")}
-                >Status</ui5-table-header-cell>
+                >{t("VECTOR_COL_STATUS")}</ui5-table-header-cell>
             </ui5-table-header-row>
 
             {#each visibleVectorDeployments as vectorDeployment (vectorDeployment.id)}
@@ -220,19 +220,19 @@
                 <ui5-button
                     icon="decline"
                     design="Transparent"
-                    accessible-name="Close vector deployment details"
+                    accessible-name={t("VECTOR_CLOSE_DETAILS_ARIA")}
                     onclick={() => { selectedVectorDeploymentId = undefined; }}
                 ></ui5-button>
             </header>
             <div class="details-body">
                 <ui5-illustrated-message
                     name="TntComponents"
-                    title-text="Vector deployment details coming soon"
-                    subtitle-text={`Artifact breakdown and deployment history for ${selectedVectorDeployment.component} will appear here.`}
+                    title-text={t("VECTOR_DETAILS_COMING_SOON_TITLE")}
+                    subtitle-text={t("VECTOR_DETAILS_COMING_SOON_SUBTITLE", selectedVectorDeployment.component)}
                 >
                     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
                     <ui5-button design="Emphasized" onclick={() => { selectedVectorDeploymentId = undefined; }}>
-                        Back to list
+                        {t("VECTOR_BACK_TO_LIST")}
                     </ui5-button>
                 </ui5-illustrated-message>
             </div>
