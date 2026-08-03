@@ -102,7 +102,7 @@ export default defineConfig({
     "import/no-unassigned-import": [
       "warn",
       {
-        allow: ["@ui5/**", "**/*.css"],
+        allow: ["**/*.css"],
       },
     ],
 

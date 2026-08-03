@@ -1,56 +1,41 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/List.js";
-    import "@ui5/webcomponents/dist/ListItemStandard.js";
-    import "@ui5/webcomponents/dist/Title.js";
-    import "@ui5/webcomponents-fiori/dist/IllustratedMessage.js";
-    import "@ui5/webcomponents-fiori/dist/illustrations/tnt/NoApplications.js";
-
-    import { goto } from "$app/navigation";
+    import FolderIcon from "@lucide/svelte/icons/folder";
+    import FolderSearchIcon from "@lucide/svelte/icons/folder-search";
+    import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
     import { resolve } from "$app/paths";
     import type { PageProps } from "./$types";
 
     const { data }: PageProps = $props();
 </script>
 
-<section class="projects" aria-labelledby="projects-title">
-    <header>
-        <ui5-title id="projects-title" level="H1">Projects</ui5-title>
-        <p>Select a project to inspect its delivery landscape.</p>
+<svelte:head><title>Projects | Konfidence</title></svelte:head>
+
+<section class="mx-auto grid w-full max-w-240 content-start gap-6 p-[clamp(1.25rem,4vw,3rem)]" aria-labelledby="projects-title">
+    <header class="grid gap-1.5">
+        <h1 id="projects-title" class="m-0 text-[clamp(1.6rem,3vw,2.25rem)]">Projects</h1>
+        <p class="m-0 text-app-muted">Select a project to inspect its delivery landscape.</p>
     </header>
 
     {#if data.projects.length === 0}
-        <ui5-illustrated-message
-            name="tnt/NoApplications"
-            title-text="No projects available"
-            subtitle-text="Your account does not currently have access to any projects."
-        ></ui5-illustrated-message>
+        <div class="card grid justify-items-center gap-3 border border-dashed border-app-border bg-app-card px-6 py-16 text-center">
+            <FolderSearchIcon class="size-12 text-app-accent" aria-hidden="true" />
+            <h2 class="m-0">No projects available</h2>
+            <p class="m-0 text-app-muted">Your account does not currently have access to any projects.</p>
+        </div>
     {:else}
-        <ui5-list accessible-name="Projects">
+        <ul class="card m-0 list-none overflow-hidden border border-app-border bg-app-card p-0 shadow-xl" aria-label="Projects">
             {#each data.projects as project (project.id)}
-                <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-li type Active provides keyboard interaction) -->
-                <ui5-li
-                    type="Active"
-                    description={`Project ID: ${project.id}`}
-                    onclick={() =>
-                        goto(resolve(`/projects/${project.id}/landscape`))}
-                >{project.name}</ui5-li>
+                <li class="border-t border-app-border first:border-t-0">
+                    <a class="grid min-h-20 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-app-text no-underline hover:bg-app-accent/7" href={resolve(`/projects/${project.id}/landscape`)}>
+                        <span class="grid size-10 place-items-center rounded-[0.6rem] bg-app-accent/13 text-app-accent-strong"><FolderIcon class="size-[1.15rem]" aria-hidden="true" /></span>
+                        <span class="grid min-w-0 gap-1">
+                            <strong class="text-base">{project.name}</strong>
+                            <small class="overflow-wrap-anywhere text-app-muted">Project ID: {project.id}</small>
+                        </span>
+                        <ArrowRightIcon class="size-[1.15rem] text-app-muted" aria-hidden="true" />
+                    </a>
+                </li>
             {/each}
-        </ui5-list>
+        </ul>
     {/if}
 </section>
-
-<style>
-    .projects {
-        display: grid;
-        gap: 1.5rem;
-        width: min(56rem, 100%);
-        margin: 0 auto;
-        padding: 2rem;
-        box-sizing: border-box;
-    }
-
-    header p {
-        margin: 0.5rem 0 0;
-        color: var(--sapContent_LabelColor);
-    }
-</style>

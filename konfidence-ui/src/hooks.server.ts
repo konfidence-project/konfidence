@@ -1,5 +1,6 @@
 import type { Handle } from "@sveltejs/kit";
 import { resolveSession } from "$lib/server/auth";
+import { THEME_COOKIE, parseTheme } from "$lib/theme";
 
 // oxlint-disable-next-line import/prefer-default-export -- SvelteKit expects this named export.
 export const handle: Handle = async ({ event, resolve }) => {
@@ -11,7 +12,11 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.locals.user = session?.user;
   }
 
-  const response = await resolve(event);
+  const theme = parseTheme(event.cookies.get(THEME_COOKIE));
+  const response = await resolve(event, {
+    transformPageChunk: ({ html }) =>
+      html.replace('<html lang="en"', `<html lang="en" data-theme="${theme}"`),
+  });
 
   // oxlint-disable-next-line no-undef -- Console output is intentional server-side request diagnostics.
   console.info("[request]", {

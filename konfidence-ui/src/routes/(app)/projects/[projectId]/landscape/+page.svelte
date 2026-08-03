@@ -1,6 +1,4 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/Button.js";
-
     import ErrorView from "$lib/components/ErrorView.svelte";
     import LandscapeView from "$lib/components/LandscapeView.svelte";
     import LoadingView from "$lib/components/LoadingView.svelte";
@@ -21,31 +19,17 @@
     });
 </script>
 
-{#if landscapeQuery.loading && !landscapeQuery.ready}
+{#if landscapeQuery.loading && !landscape}
     <LoadingView title="Loading landscape" message="Loading landscapes and stages." />
 {:else if landscapeQuery.error}
-    <div class="query-error">
+    <div class="grid justify-items-center gap-4 p-8">
         <ErrorView
             title="Failed to load landscape"
             message="The project landscape is currently unavailable."
             error={landscapeQuery.error}
         />
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (ui5-button provides button semantics and keyboard handling) -->
-        <ui5-button design="Emphasized" onclick={() => landscapeQuery.refresh()}>Retry</ui5-button>
+        <button class="btn preset-filled-primary-500" type="button" onclick={() => landscapeQuery.refresh()}>Retry</button>
     </div>
 {:else if landscape}
     <LandscapeView landscapes={landscape.landscapes} stages={landscape.stages} />
 {/if}
-
-<style>
-    :global(.content) {
-        padding: 0;
-    }
-
-    .query-error {
-        display: grid;
-        justify-items: center;
-        gap: 1rem;
-        padding: 2rem;
-    }
-</style>

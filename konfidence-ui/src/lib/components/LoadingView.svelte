@@ -1,6 +1,5 @@
 <script lang="ts">
-    import "@ui5/webcomponents/dist/BusyIndicator.js";
-    import "@ui5/webcomponents/dist/Title.js";
+    import LoaderCircleIcon from "@lucide/svelte/icons/loader-circle";
 
     const {
         title = "Loading",
@@ -13,27 +12,8 @@
     }>();
 </script>
 
-<section class="loading-view" aria-live="polite" aria-labelledby={labelledBy}>
-    <ui5-busy-indicator active size="M" delay={0}></ui5-busy-indicator>
-    <ui5-title level="H2" size="H4">{title}</ui5-title>
-    <p>{message}</p>
+<section class="grid min-h-72 w-full place-items-center content-center gap-3 p-8 text-center" aria-live="polite" aria-busy="true" aria-labelledby={labelledBy}>
+    <LoaderCircleIcon class="size-8 animate-spin text-app-accent" aria-hidden="true" />
+    <h2 class="m-0">{title}</h2>
+    <p class="m-0 max-w-lg text-app-muted">{message}</p>
 </section>
-
-<style>
-    .loading-view {
-        display: grid;
-        place-items: center;
-        align-content: center;
-        gap: 0.75rem;
-        min-height: 18rem;
-        padding: 2rem;
-        text-align: center;
-        box-sizing: border-box;
-    }
-
-    .loading-view p {
-        max-width: 32rem;
-        margin: 0;
-        color: var(--sapContent_LabelColor);
-    }
-</style>

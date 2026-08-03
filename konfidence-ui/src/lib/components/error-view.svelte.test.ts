@@ -39,9 +39,9 @@ const expectSupernovaLayout = (container: HTMLElement) => {
 const expectSupernovaAnimations = (container: HTMLElement) => {
   const { aura, errorArt, orbit } = getSupernovaParts(container);
 
-  expect(globalThis.getComputedStyle(aura as Element).animationName).toContain("supernova-pulse");
-  expect(globalThis.getComputedStyle(orbit as Element).animationName).toContain("orbit-drift");
-  expect(globalThis.getComputedStyle(errorArt as Element).animationName).toContain("art-float");
+  expect(aura?.classList).toContain("animate-supernova-pulse");
+  expect(orbit?.classList).toContain("animate-orbit-drift");
+  expect(errorArt?.classList).toContain("animate-art-float");
 };
 
 const expectAnimatedSupernova = (container: HTMLElement) => {

@@ -9,90 +9,20 @@
     <title>Konfidence – Sign In</title>
 </svelte:head>
 
-<div class="login-page">
-    <div class="login-card">
+<div class="flex h-screen items-center justify-center bg-app-bg">
+    <div class="card flex flex-col items-center gap-6 border border-app-border bg-app-card px-16 py-12 shadow-lg">
         <img
-            class="logo logo-light"
+            class="h-auto w-[17.5rem] dark:hidden"
             src="/assets/logo/full/SVG/400_konfidence_logo_light.svg"
             alt="Konfidence"
         />
         <img
-            class="logo logo-dark"
+            class="hidden h-auto w-[17.5rem] dark:block"
             src="/assets/logo/full/SVG/400_konfidence_logo_dark.svg"
             alt="Konfidence"
         />
-        <h1 class="title">Sign in to Konfidence</h1>
-        <p class="subtitle">Sign in to your delivery workspace.</p>
-        <a href={loginUrl} rel="external" class="sign-in-button">Continue with SSO</a>
+        <h1 class="m-0 text-2xl font-semibold text-app-text">Sign in to Konfidence</h1>
+        <p class="m-0 text-app-muted">Sign in to your delivery workspace.</p>
+        <a href={loginUrl} rel="external" class="btn preset-filled-primary-500 mt-4 px-10 py-3 font-semibold">Continue with SSO</a>
     </div>
 </div>
-
-<style>
-    .login-page {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        background: var(--sapBackgroundColor, #f5f6f7);
-    }
-
-    .login-card {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1.5rem;
-        padding: 3rem 4rem;
-        background: var(--sapGroup_ContentBackground, #fff);
-        border-radius: 1rem;
-        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
-    }
-
-    .logo {
-        width: 280px;
-        height: auto;
-    }
-
-    .logo-dark {
-        display: none;
-    }
-
-    :global([data-ui5-theme="konfidence-dark"]) .logo-light {
-        display: none;
-    }
-
-    :global([data-ui5-theme="konfidence-dark"]) .logo-dark {
-        display: block;
-    }
-
-    .title {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--sapTitleColor, #32363a);
-    }
-
-    .subtitle {
-        margin: 0;
-        font-size: 1rem;
-        color: var(--sapContent_LabelColor, #6a6d70);
-    }
-
-    .sign-in-button {
-        display: inline-block;
-        margin-top: 1rem;
-        padding: 0.75rem 2.5rem;
-        background: var(--sapButton_Emphasized_Background, #0a6ed1);
-        color: var(--sapButton_Emphasized_TextColor, #fff);
-        border: none;
-        border-radius: 0.5rem;
-        font-size: 1rem;
-        font-weight: 600;
-        text-decoration: none;
-        cursor: pointer;
-        transition: background 0.15s;
-    }
-
-    .sign-in-button:hover {
-        background: var(--sapButton_Emphasized_Hover_Background, #085cad);
-    }
-</style>
