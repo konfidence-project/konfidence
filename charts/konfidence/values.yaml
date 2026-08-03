@@ -31,6 +31,33 @@ controller:
   # container port, Service, and ServiceMonitor).
   metricsBindAddress: ":8080"
 
+# Admission webhooks for resource validation (e.g. Project/Landscape namespace checks).
+# Webhooks require TLS certificates. By default, the chart expects you to create a
+# Secret named by webhook.certificateSecret with keys tls.crt and tls.key.
+webhook:
+  enabled: true
+  # Port the webhook server listens on inside the container.
+  port: 9443
+  # Directory inside the container where TLS certificates are mounted.
+  # The Secret specified by certificateSecret will be mounted here.
+  certDir: "/tmp/k8s-webhook-server/serving-certs"
+  # Name of the Secret containing tls.crt and tls.key in the release namespace.
+  # You must create this Secret before installing the chart, or set enabled: false.
+  certificateSecret: "konfidence-webhook-server-cert"
+  # failurePolicy: Fail means requests are blocked if the webhook is unavailable.
+  # Set to "Ignore" for less strict validation (allow requests if webhook is down).
+  failurePolicy: Fail
+  # caBundle: Base64-encoded CA certificate for the webhook's TLS certificate.
+  # Leave empty when using a CA injection mechanism (e.g. cert-manager).
+  # REQUIRED for self-signed certificates without an injection mechanism.
+  # WARNING: If empty and no injection occurs, API server will skip TLS verification (not recommended).
+  caBundle: ""
+  # annotations: Extra annotations for the ValidatingWebhookConfiguration resource.
+  annotations: {}
+  # labels: Extra labels for the ValidatingWebhookConfiguration resource.
+  labels: {}
+
+
 # Konfidence API server - HTTP gateway between CLI/UI clients and the Konfidence CRDs.
 # Deployed in the same namespace as the Konfidence operator.
 api:

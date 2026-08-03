@@ -21,6 +21,9 @@ var (
 
 var (
 	enableLeaderElection bool
+	enableWebhooks       bool
+	webhookCertDir       string
+	webhookPort          int
 	probeAddr            string
 	metricsAddr          string
 	controllersSpec      string
@@ -62,6 +65,12 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metrics endpoint binds to. Use \"0\" to disable.")
 	rootCmd.PersistentFlags().BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	rootCmd.PersistentFlags().BoolVar(&enableWebhooks, "enable-webhooks", false,
+		"Enable admission webhooks for validation. Requires TLS certificates in the directory specified by --webhook-cert-dir.")
+	rootCmd.PersistentFlags().StringVar(&webhookCertDir, "webhook-cert-dir", "/tmp/k8s-webhook-server/serving-certs",
+		"Directory containing TLS certificate files (tls.crt and tls.key) for the webhook server. Only used when --enable-webhooks is true.")
+	rootCmd.PersistentFlags().IntVar(&webhookPort, "webhook-port", 9443,
+		"Port the webhook server listens on. Only used when --enable-webhooks is true.")
 	rootCmd.Flags().StringVar(&controllersSpec, "controllers", "*",
 		"Comma-separated glob expression selecting which controllers to enable. "+
 			"Examples: '*' (all), 'Stage', '!VectorAssembly,*' (all except), 'Vector*'. "+

@@ -40,6 +40,11 @@ spec:
             - --lease-id={{ .Values.controller.leaseId }}
             - --health-probe-bind-address={{ .Values.controller.healthProbeBindAddress }}
             - --metrics-bind-address={{ .Values.controller.metricsBindAddress }}
+            {{- if .Values.webhook.enabled }}
+            - --enable-webhooks=true
+            - --webhook-cert-dir={{ .Values.webhook.certDir }}
+            - --webhook-port={{ .Values.webhook.port }}
+            {{- end }}
             {{- with .Values.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -50,6 +55,11 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- if .Values.webhook.enabled }}
+            - name: webhook-cert
+              mountPath: {{ .Values.webhook.certDir }}
+              readOnly: true
+            {{- end }}
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -60,6 +70,11 @@ spec:
             {{- if ne (.Values.controller.metricsBindAddress | toString) "0" }}
             - name: metrics
               containerPort: {{ include "konfidence.bindAddressPort" .Values.controller.metricsBindAddress }}
+              protocol: TCP
+            {{- end }}
+            {{- if .Values.webhook.enabled }}
+            - name: webhook
+              containerPort: {{ .Values.webhook.port }}
               protocol: TCP
             {{- end }}
           livenessProbe:
@@ -81,6 +96,12 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
+        {{- if .Values.webhook.enabled }}
+        - name: webhook-cert
+          secret:
+            secretName: {{ .Values.webhook.certificateSecret }}
+            defaultMode: 420
+        {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

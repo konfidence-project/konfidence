@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/landscape"
 	"github.com/konfidence-project/konfidence/internal/project"
 	"github.com/konfidence-project/konfidence/internal/stage"
@@ -23,16 +24,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-func startOperator(cmd *cobra.Command, args []string) error {
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+func startOperator(_ *cobra.Command, _ []string) error {
+	mgrOptions := ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       leaseID,
-	})
+	}
+
+	if enableWebhooks {
+		mgrOptions.WebhookServer = webhook.NewServer(webhook.Options{
+			CertDir: webhookCertDir,
+			Port:    webhookPort,
+		})
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOptions)
 
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -63,6 +74,16 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	}
 
 	// +kubebuilder:scaffold:builder
+
+	if enableWebhooks {
+		setupLog.Info("setting up webhooks")
+		if err := konfidence.SetupLandscapeWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to set up Landscape webhook")
+			return err
+		}
+	} else {
+		setupLog.Info("webhooks disabled")
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

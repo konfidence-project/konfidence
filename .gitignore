@@ -53,6 +53,9 @@ test/data/crds/
 # Generated ClusterRole manifests fed to charts/patch-clusterrole.sh
 config/rbac/
 
+# Generated webhook manifests fed to charts/patch-webhook.sh
+config/webhook/
+
 ### Local development ###
 local/
 
