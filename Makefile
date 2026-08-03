@@ -1,6 +1,7 @@
 # Image registry and tag used by all build/push targets
 REGISTRY ?= registry.kdenv.lab
 TAG      ?= dev
+DASHBOARD_ENABLED ?= false
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -22,6 +23,7 @@ SHELL = /usr/bin/env bash -o pipefail
 export PATH := $(shell pwd)/bin:$(PATH)
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
+PNPM ?= pnpm
 
 SAMPLE_DIR ?= test/data/samples
 CRD_DIR ?= test/data/crds
@@ -40,6 +42,14 @@ OPERATOR_INTERNAL_PATHS = $(foreach d,$(OPERATOR_INTERNAL_DIRS),paths="$(d)")
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
 
+DEX_CONTAINER    ?= konfidence-dex
+DEX_ISSUER       ?= http://localhost:5556/dex
+API_AUTH_FLAGS   ?= --auth-authorize-url $(DEX_ISSUER)/auth \
+	--auth-token-url $(DEX_ISSUER)/token \
+	--auth-userinfo-url $(DEX_ISSUER)/userinfo \
+	--auth-client-id kden-local \
+	--auth-redirect-uri http://localhost:5173/api/auth/callback
+
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
@@ -56,6 +66,7 @@ HELM_DOCS      ?= helm-docs
 
 ## Image names
 OPERATOR_IMAGE = $(REGISTRY)/konfidence-operator:$(TAG)
+UI_IMAGE       = $(REGISTRY)/konfidence-ui:$(TAG)
 
 .PHONY: all
 all: api build
@@ -103,25 +114,52 @@ regenerate-mocks: hermit ## Wipe every mocks/ directory's contents, then regener
 	find . -path ./vendor -prune -o -type d -name mocks -print -exec sh -c 'rm -rf "$$0"/*' {} \;
 	$(MAKE) generate-mocks
 
-.PHONY: fmt
-fmt: hermit ## Run go fmt against the entire codebase.
+.PHONY: fmt-go
+fmt-go: hermit
 	go fmt ./...
+
+.PHONY: fmt
+fmt: fmt-go ## Run Go and UI formatters.
+	$(PNPM) ui:fmt
+
+.PHONY: fmt-check
+fmt-check: hermit ## Verify go formatting across the entire codebase.
+	@test -z "$$(gofmt -l .)" || { \
+		echo "Go files need formatting:"; \
+		gofmt -l .; \
+		exit 1; \
+	}
 
 .PHONY: vet
 vet: hermit ## Run go vet against the entire codebase.
 	go vet ./...
 
-.PHONY: lint
-lint: hermit ## Run golangci-lint against the entire codebase.
+.PHONY: lint-go
+lint-go: hermit
 	$(GOLANGCI_LINT) run
 
-.PHONY: lint-fix
-lint-fix: hermit ## Run golangci-lint and apply automatic fixes.
+.PHONY: lint
+lint: lint-go ## Run Go and UI linters.
+	$(PNPM) ui:lint
+
+.PHONY: lint-fix-go
+lint-fix-go: hermit
 	$(GOLANGCI_LINT) run --fix
+
+.PHONY: lint-fix
+lint-fix: lint-fix-go ## Run Go and UI linters and apply automatic fixes.
+	$(PNPM) ui:lint:fix
 
 .PHONY: lint-config
 lint-config: hermit ## Verify the golangci-lint configuration.
 	$(GOLANGCI_LINT) config verify
+
+.PHONY: verify-ui
+verify-ui: ## Run UI typecheck, lint, Svelte checks, and format check.
+	$(PNPM) ui:verify
+
+.PHONY: verify
+verify: fmt-check lint-go lint-config verify-ui test-operators test-pkg ## Run Go checks/tests and UI verification.
 
 ##@ API
 
@@ -172,7 +210,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api ## Run all unit tests.
+test: hermit manifests generate fmt-go vet test-operators test-pkg test-kden-cli test-api ## Run all Go unit tests.
 
 .PHONY: test-operators
 test-operators: hermit manifests setup-envtest ginkgo ## Run unit tests for the konfidence operator.
@@ -188,7 +226,7 @@ test-kden-cli: hermit
 	go test ./cmd/kden/... ./internal/kden/...
 
 .PHONY: test-api
-test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
+test-api: hermit fmt-go vet ginkgo ## Run unit tests for the API server and kden API client.
 	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
 
 .PHONY: setup-envtest
@@ -206,7 +244,8 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet build-operator build-kden-cli ## Build all binaries.
+build: manifests generate fmt vet build-operator build-kden-cli ## Build all binaries and UI assets.
+	$(PNPM) ui:build
 
 .PHONY: build-operator
 build-operator: hermit ## Build the konfidence operator binary.
@@ -224,18 +263,59 @@ run: manifests generate fmt vet ## Run the konfidence operator from your host.
 run-kden-api: fmt vet ## Run the kden API server locally.
 	go run ./cmd/api/main.go
 
+.PHONY: build-ui
+build-ui: hermit ## Build the UI app.
+	$(PNPM) ui:build
+
+.PHONY: dev-ui
+dev-ui: hermit ## Run the UI development server.
+	$(PNPM) ui:dev
+
+.PHONY: build-api
+build-api: hermit ## Build the Konfidence API server binary.
+	go build -o bin/api ./cmd/api/main.go
+
+.PHONY: run-api
+run-api: hermit ## Run the API server locally. Set KUBECONFIG for domain endpoints, not needed for probes.
+	go run ./cmd/api/main.go
+
+.PHONY: run-api-with-idp
+run-api-with-idp: hermit ## Run the API server locally against the development Dex provider.
+	go run ./cmd/api/main.go $(API_AUTH_FLAGS)
+
+.PHONY: idp-up
+idp-up: ## Start the development Dex provider.
+	@$(CONTAINER_TOOL) rm --force $(DEX_CONTAINER) >/dev/null 2>&1 || true
+	$(CONTAINER_TOOL) run --detach --name $(DEX_CONTAINER) \
+		--publish 5556:5556 \
+		--volume $(REPO_ROOT)/dev/dex/config.yaml:/etc/dex/config.yaml:ro \
+		ghcr.io/dexidp/dex:v2.45.1 dex serve /etc/dex/config.yaml
+
+.PHONY: idp-down
+idp-down: ## Stop the development Dex provider.
+	@$(CONTAINER_TOOL) rm --force $(DEX_CONTAINER) >/dev/null 2>&1 || true
+
+.PHONY: idp-logs
+idp-logs: ## Follow logs from the development Dex provider.
+	$(CONTAINER_TOOL) logs --follow $(DEX_CONTAINER)
+
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
-docker-build: hermit ## Build the konfidence operator container image (local use only).
+docker-build: hermit docker-build-ui ## Build all container images (local use only).
 	$(CONTAINER_TOOL) build -f Dockerfile --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
+
+.PHONY: docker-build-ui
+docker-build-ui: hermit ## Build the dashboard container image (local use only).
+	$(CONTAINER_TOOL) build -f Dockerfile.ui -t $(UI_IMAGE) .
 
 .PHONY: docker-bake
 docker-bake: hermit ## Build all container images using docker buildx bake (multi-platform, CI-compatible).
 	$(CONTAINER_TOOL) buildx bake --file docker-bake.hcl
 
 .PHONY: docker-push
-docker-push: ## Push the konfidence operator container image.
+docker-push: ## Push all container images.
 	$(CONTAINER_TOOL) push $(OPERATOR_IMAGE)
+	$(CONTAINER_TOOL) push $(UI_IMAGE)
 
 ##@ Deployment
 
@@ -255,7 +335,10 @@ uninstall: hermit ## Uninstall CRDs from the cluster. Use ignore-not-found=true 
 deploy: hermit manifests ## Deploy the konfidence operator to the cluster specified in ~/.kube/config.
 	$(HELM) upgrade --install konfidence charts/konfidence \
 		--set image.repository=$(REGISTRY)/konfidence-operator \
+		--set dashboard.image.repository=$(REGISTRY)/konfidence-ui \
 		--set image.tag=$(TAG) \
+		--set dashboard.image.tag=$(TAG) \
+		--set dashboard.enabled=$(DASHBOARD_ENABLED) \
 		--set crd.keep=false
 
 .PHONY: undeploy

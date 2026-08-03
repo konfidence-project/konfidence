@@ -32,6 +32,61 @@ For a step-by-step guide including cluster setup, component installation, and yo
 
 For detailed installation instructions and production deployment considerations, see the [Installation Guide](https://konfidence.cloud/docs/deploy-operate/installation.html).
 
+## Requirements and Setup
+
+Use Hermit for the repository toolchain:
+
+```sh
+source ./bin/activate-hermit
+pnpm install
+```
+
+Common development commands:
+
+```sh
+make verify      # Go checks/tests plus dashboard fmt/lint/typecheck
+make build       # Build operators and dashboard assets
+make docker-bake # Build all container images with Docker Buildx Bake
+```
+
+Dashboard-focused commands:
+
+```sh
+make verify-ui       # Run dashboard fmt check, lint, typecheck, and Svelte checks
+pnpm ui:dev          # Start the SvelteKit development server
+pnpm --filter konfidence-ui dev:mock # Start the dashboard with its mock API
+pnpm ui:fmt          # Format dashboard sources
+pnpm ui:test         # Run dashboard unit/browser-mode and e2e tests
+```
+
+For API-backed login, start Dex and the API in separate terminals, then start
+the dashboard:
+
+```sh
+make idp-up
+make run-api-with-idp
+KONFIDENCE_API_URL=http://localhost:8090 pnpm ui:dev
+```
+
+Open `http://localhost:5173/` and sign in with
+`alice@example.com` / `password`. The dashboard proxies `/api/*` to the API,
+which owns the OAuth flow and session. `KONFIDENCE_API_URL` must be a full API
+URL, including the port when required; invalid URLs prevent the UI from
+starting.
+
+The dashboard is packaged as `konfidence-ui` and is built into the default Docker Bake target together with the Konfidence operator image. In CI, the dashboard check job runs formatting, linting, type checks, and Svelte checks; the production build runs through the dashboard image build.
+
+Deploy the Konfidence chart with the dashboard enabled:
+
+```sh
+helm upgrade --install konfidence charts/konfidence \
+  --set dashboard.enabled=true \
+  --set image.tag=<tag> \
+  --set dashboard.image.tag=<tag>
+```
+
+For local Makefile deployment, `make deploy REGISTRY=<registry> TAG=<tag> DASHBOARD_ENABLED=true` passes both the operator and dashboard image repository/tag values into the chart and enables the dashboard.
+
 ## Support, Feedback, Contributing
 
 This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://github.com/konfidence-project/konfidence/issues). 

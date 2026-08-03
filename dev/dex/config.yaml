@@ -1,0 +1,48 @@
+issuer: http://localhost:5556/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+oauth2:
+  skipApprovalScreen: true
+staticClients:
+  - id: kden-local
+    name: KDEN Local
+    public: true
+    redirectURIs:
+      - http://localhost:8090/api/auth/callback
+      - http://localhost:5173/api/auth/callback
+connectors:
+  - type: mockCallback
+    id: mock
+    name: Mock
+enablePasswordDB: true
+staticPasswords:
+  - email: alice@example.com
+    # bcrypt hash for "password".
+    hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
+    username: alice
+    userID: alice
+    groups:
+      - admins
+  - email: ada@example.com
+    # bcrypt hash for "password".
+    hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
+    username: ada
+    userID: ada
+    groups:
+      - developers
+  - email: paul@example.com
+    # bcrypt hash for "password".
+    hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
+    username: paul
+    userID: paul
+    groups:
+      - product-managers
+  - email: nina@example.com
+    # bcrypt hash for "password".
+    hash: "$2a$10$dz1JnjvIexy8vbdE/cQBX.SdhSuK0v67XthCK3cPLNeUx1HGaC86m"
+    username: nina
+    userID: nina
+    groups:
+      - no-access

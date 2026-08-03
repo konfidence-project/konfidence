@@ -1,0 +1,23 @@
+{
+  "name": "konfidence",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "all": "pnpm --filter konfidence-ui all",
+    "ui:dev": "pnpm --filter konfidence-ui dev",
+    "ui:all": "pnpm --filter konfidence-ui all",
+    "ui:api:check": "pnpm --filter konfidence-ui api:check",
+    "ui:api:generate": "pnpm --filter konfidence-ui api:generate",
+    "ui:build": "pnpm --filter konfidence-ui build",
+    "ui:check": "pnpm --filter konfidence-ui check",
+    "ui:check:svelte": "pnpm --filter konfidence-ui check:svelte",
+    "ui:lint": "pnpm --filter konfidence-ui lint",
+    "ui:lint:fix": "pnpm --filter konfidence-ui lint:fix",
+    "ui:fmt": "pnpm --filter konfidence-ui fmt",
+    "ui:fmt:check": "pnpm --filter konfidence-ui fmt:check",
+    "ui:test": "pnpm --filter konfidence-ui test",
+    "ui:test:unit": "pnpm --filter konfidence-ui test:unit",
+    "ui:test:e2e": "pnpm --filter konfidence-ui test:e2e",
+    "ui:verify": "pnpm --filter konfidence-ui verify"
+  }
+}
