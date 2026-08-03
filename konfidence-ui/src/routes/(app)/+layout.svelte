@@ -1,5 +1,6 @@
 <script lang="ts">
     import BellIcon from "@lucide/svelte/icons/bell";
+    import LanguagesIcon from "@lucide/svelte/icons/languages";
     import LogOutIcon from "@lucide/svelte/icons/log-out";
     import MenuIcon from "@lucide/svelte/icons/menu";
     import MonitorIcon from "@lucide/svelte/icons/monitor";
@@ -23,6 +24,7 @@
     import { getThemePreference } from "$lib/stores/theme.svelte";
     import { themeModes } from "$lib/theme";
     import { m } from "$lib/paraglide/messages.js";
+    import { getLocale, isLocale, locales, setLocale } from "$lib/paraglide/runtime.js";
     import { afterNavigate, goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
@@ -159,6 +161,19 @@
         sap_horizon: SunIcon,
         system: MonitorIcon,
     } as const;
+
+    const localeLabel = (locale: string): string => {
+        if (locale === "de") {
+            return m.language_german();
+        }
+        return m.language_english();
+    };
+
+    const changeLocale = (nextLocale: string): void => {
+        if (isLocale(nextLocale) && nextLocale !== getLocale()) {
+            void setLocale(nextLocale);
+        }
+    };
 </script>
 
 <div
@@ -203,6 +218,33 @@
                     aria-hidden="true">3</span
                 >
             </Button>
+            <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                    {#snippet child({ props })}
+                        <Button
+                            {...props}
+                            variant="ghost"
+                            size="icon"
+                            aria-label={m.settings_language()}
+                        >
+                            <LanguagesIcon />
+                        </Button>
+                    {/snippet}
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content align="end" class="w-56">
+                    <DropdownMenu.Label>{m.settings_language()}</DropdownMenu.Label>
+                    <DropdownMenu.RadioGroup
+                        value={getLocale()}
+                        onValueChange={changeLocale}
+                    >
+                        {#each locales as locale (locale)}
+                            <DropdownMenu.RadioItem value={locale} class="pl-2">
+                                {localeLabel(locale)}
+                            </DropdownMenu.RadioItem>
+                        {/each}
+                    </DropdownMenu.RadioGroup>
+                </DropdownMenu.Content>
+            </DropdownMenu.Root>
             <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
                     {#snippet child({ props })}
