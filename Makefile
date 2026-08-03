@@ -1,6 +1,9 @@
 # Image registry and tag used by all build/push targets
-REGISTRY ?= registry.kdenv.lab
+REGISTRY ?= ghcr.io/konfidence-project
 TAG      ?= dev
+
+# Namespace for deploying to Kubernetes cluster
+NAMESPACE ?= konfidence-system
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -69,18 +72,20 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: manifests
-manifests: hermit manifests-crds ## Generate CRDs and RBAC manifests for the konfidence operator chart.
+manifests: hermit manifests-crds ## Generate CRDs, RBAC, and webhook manifests for the konfidence operator chart.
 	@echo "Generating manifests for konfidence..."
-	@mkdir -p $(CRD_DIR) charts/konfidence/templates/crds config/rbac
+	@mkdir -p $(CRD_DIR) charts/konfidence/templates/crds config/rbac config/webhook
 	$(CONTROLLER_GEN) rbac:roleName=konfidence-manager \
 		$(OPERATOR_INTERNAL_PATHS) \
 		output:rbac:artifacts:config=config/rbac
+	$(CONTROLLER_GEN) webhook $(API_PATHS) output:webhook:artifacts:config=config/webhook
 	@rm -f $(CRD_DIR)/*.yaml charts/konfidence/templates/crds/*.yaml
 	@cp $(CRD_STAGING_DIR)/*.yaml $(CRD_DIR)/
 	for f in $(CRD_DIR)/*.yaml; do \
 		charts/patch-crd.sh konfidence "$$f" "charts/konfidence/templates/crds/$$(basename $$f)"; \
 	done
 	charts/patch-clusterrole.sh konfidence config/rbac/role.yaml charts/konfidence/templates/clusterrole.yaml
+	charts/patch-webhook.sh konfidence config/webhook charts/konfidence/templates/validatingwebhookconfiguration.yaml
 	$(HELM_DOCS) -c charts/konfidence > charts/konfidence/README.md
 
 .PHONY: manifests-crds
@@ -122,6 +127,10 @@ lint-fix: hermit ## Run golangci-lint and apply automatic fixes.
 .PHONY: lint-config
 lint-config: hermit ## Verify the golangci-lint configuration.
 	$(GOLANGCI_LINT) config verify
+
+.PHONY: webhook-certs
+webhook-certs: ## Generate self-signed certificates for local webhook development.
+	@./hack/generate-webhook-certs.sh
 
 ##@ API
 
@@ -227,8 +236,7 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
 docker-build: hermit ## Build the konfidence operator container image (local use only).
-	$(CONTAINER_TOOL) build -f Dockerfile --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
-
+	$(CONTAINER_TOOL) build -f Dockerfile --build-arg TARGETPLATFORM=bin --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
 .PHONY: docker-push
 docker-push: ## Push the konfidence operator container image.
 	$(CONTAINER_TOOL) push $(OPERATOR_IMAGE)
@@ -249,14 +257,54 @@ uninstall: hermit ## Uninstall CRDs from the cluster. Use ignore-not-found=true 
 
 .PHONY: deploy
 deploy: hermit manifests ## Deploy the konfidence operator to the cluster specified in ~/.kube/config.
+	@# Ensure namespace exists
+	@echo "Checking if namespace '$(NAMESPACE)' exists..."
+	@kubectl get namespace $(NAMESPACE) >/dev/null 2>&1 || \
+		(echo "Creating namespace '$(NAMESPACE)'..." && kubectl create namespace $(NAMESPACE))
+	@# Check for webhook certificates and prepare CA bundle
+	@HELM_EXTRA_ARGS=""; \
+	if [ -f /tmp/k8s-webhook-server/serving-certs/tls.crt ] && [ -f /tmp/k8s-webhook-server/serving-certs/tls.key ]; then \
+		echo "Creating webhook certificate secret in namespace '$(NAMESPACE)'..."; \
+		kubectl create secret tls konfidence-webhook-server-cert \
+			--cert=/tmp/k8s-webhook-server/serving-certs/tls.crt \
+			--key=/tmp/k8s-webhook-server/serving-certs/tls.key \
+			--namespace=$(NAMESPACE) \
+			--dry-run=client -o yaml | kubectl apply -f - || true; \
+		echo "✓ Webhook certificate secret created/updated"; \
+		if [ -f /tmp/k8s-webhook-server/serving-certs/ca.crt ]; then \
+			echo "Setting webhook CA bundle from ca.crt..."; \
+			CA_BUNDLE=$$(base64 < /tmp/k8s-webhook-server/serving-certs/ca.crt | tr -d '\n'); \
+			HELM_EXTRA_ARGS="--set-string webhook.caBundle=$$CA_BUNDLE"; \
+		fi; \
+	elif grep -q "webhook.enabled.*true" charts/konfidence/values.yaml 2>/dev/null; then \
+		echo ""; \
+		echo "⚠️  Warning: Webhooks are enabled but certificates not found."; \
+		echo ""; \
+		echo "Generate certificates first by running:"; \
+		echo "  make webhook-certs"; \
+		echo ""; \
+		echo "Or disable webhooks with:"; \
+		echo "  --set webhook.enabled=false"; \
+		echo ""; \
+		read -p "Continue deployment without webhook certificates? (y/N): " -n 1 -r CONTINUE; \
+		echo ""; \
+		if [[ ! $$CONTINUE =~ ^[Yy]$$ ]]; then \
+			echo "Deployment cancelled."; \
+			exit 1; \
+		fi; \
+	fi; \
 	$(HELM) upgrade --install konfidence charts/konfidence \
+		--namespace=$(NAMESPACE) \
 		--set image.repository=$(REGISTRY)/konfidence-operator \
 		--set image.tag=$(TAG) \
-		--set crd.keep=false
+		--set crd.keep=false \
+		$$HELM_EXTRA_ARGS
 
 .PHONY: undeploy
 undeploy: hermit ## Undeploy the konfidence operator. Use ignore-not-found=true to suppress errors.
-	$(HELM) uninstall konfidence --ignore-not-found
+	$(HELM) uninstall konfidence \
+		--namespace=$(NAMESPACE) \
+		--ignore-not-found
 
 ##@ Developer Setup
 

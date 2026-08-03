@@ -47,9 +47,8 @@ const (
 )
 
 var (
-	errNamespaceConflict      = errors.New("namespace conflict")
-	errNamespaceTerminating   = errors.New("namespace terminating")
-	errInvalidParentNamespace = errors.New("invalid parent namespace")
+	errNamespaceConflict    = errors.New("namespace conflict")
+	errNamespaceTerminating = errors.New("namespace terminating")
 )
 
 // LandscapeReconciler reconciles a Landscape object
@@ -111,19 +110,6 @@ func (r *LandscapeReconciler) reconcileLandscape(ctx context.Context, landscape 
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling landscape")
 
-	if err := r.validateParentNamespace(ctx, landscape); err != nil {
-		msg := fmt.Sprintf("Landscape must be created in a project namespace: %s", err.Error())
-		r.setCondition(landscape, konfidence.LandscapeNamespaceReadyCondition, metav1.ConditionFalse,
-			konfidence.LandscapeInvalidNamespaceReason, msg)
-		r.setCondition(landscape, konfidence.LandscapeReadyCondition, metav1.ConditionFalse,
-			konfidence.LandscapeInvalidNamespaceReason, msg)
-		r.Recorder.Eventf(landscape, nil, corev1.EventTypeWarning,
-			konfidence.LandscapeInvalidNamespaceReason, konfidence.LandscapeInvalidNamespaceReason, msg)
-		// Do not return error - this is a permanent user error that won't fix itself.
-		// Status and events are set, requeue at normal interval to avoid hot loop.
-		return nil
-	}
-
 	// Retrieve project name
 	projectName, err := r.getProjectName(ctx, landscape)
 	if err != nil {
@@ -162,28 +148,6 @@ func (r *LandscapeReconciler) reconcileLandscape(ctx context.Context, landscape 
 		r.Recorder.Eventf(landscape, nil, corev1.EventTypeNormal, reason, reason, msg)
 		log.Info(msg)
 	}
-	return nil
-}
-
-// validateParentNamespace checks that the Landscape is created in a valid project namespace.
-func (r *LandscapeReconciler) validateParentNamespace(ctx context.Context, landscape *konfidence.Landscape) error {
-	parentNS := &corev1.Namespace{}
-	if err := r.Get(ctx, types.NamespacedName{Name: landscape.Namespace}, parentNS); err != nil {
-		return fmt.Errorf("failed to get parent namespace %s: %w", landscape.Namespace, err)
-	}
-
-	nsType, hasType := parentNS.Labels[pkgctrl.ProjectTypeLabel]
-	if !hasType || nsType != "project" {
-		return fmt.Errorf("%w: namespace %s is not a project namespace (missing or incorrect %s label)",
-			errInvalidParentNamespace, landscape.Namespace, pkgctrl.ProjectTypeLabel)
-	}
-
-	projectName, hasProject := parentNS.Labels[pkgctrl.ProjectNameLabel]
-	if !hasProject || projectName == "" {
-		return fmt.Errorf("%w: namespace %s is missing %s label",
-			errInvalidParentNamespace, landscape.Namespace, pkgctrl.ProjectNameLabel)
-	}
-
 	return nil
 }
 
@@ -381,8 +345,6 @@ func namespaceFailureReason(err error) string {
 		return konfidence.LandscapeNamespaceConflictReason
 	case errors.Is(err, errNamespaceTerminating):
 		return konfidence.LandscapeNamespaceTerminatingReason
-	case errors.Is(err, errInvalidParentNamespace):
-		return konfidence.LandscapeInvalidNamespaceReason
 	default:
 		return konfidence.LandscapeNamespaceCreateFailedReason
 	}
