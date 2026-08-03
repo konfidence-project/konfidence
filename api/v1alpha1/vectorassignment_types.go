@@ -5,6 +5,9 @@ import (
 )
 
 const (
+	// VectorAssignmentKind is the kind of the VectorAssignment resource.
+	VectorAssignmentKind = "VectorAssignment"
+
 	// VectorAssignmentReadyCondition indicates that the deployer has successfully processed the VectorAssignment. This usually
 	// means that any assignment-specific configuration such as routing configuration has been created or updated.
 	//
