@@ -183,7 +183,7 @@ test("switches projects, opens URL-controlled settings, and persists theme", asy
 test("switches language and persists German across CSR and SSR routes", async ({ page }) => {
   await page.goto("/projects/payments-platform/vector-deployments?settings=appearance");
 
-  await page.getByLabel("Language").selectOption("de");
+  await page.getByRole("dialog", { name: "Settings" }).getByLabel("Language").selectOption("de");
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
   await expect(page.getByRole("dialog", { name: "Einstellungen" })).toBeVisible();
