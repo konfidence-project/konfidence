@@ -90,7 +90,7 @@ spec:
                 description: |-
                   Source is the OCM component reference to promote from.
                   This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.
-                  The format is <registry>//<component-name>:<version>.
+                  The format is `<registry>//<component-name>:<version>`.
                 minLength: 1
                 pattern: ^[^/].+//.+:.+$
                 type: string
@@ -101,7 +101,7 @@ spec:
                 description: |-
                   Target is the OCM component reference to promote to.
                   This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.
-                  The format is <registry>//<component-name>:<version>.
+                  The format is `<registry>//<component-name>:<version>`.
                 minLength: 1
                 pattern: ^[^/].+//.+:.+$
                 type: string

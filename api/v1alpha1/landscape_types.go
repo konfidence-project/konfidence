@@ -49,7 +49,7 @@ type LandscapeSpec struct {
 	DisplayName string `json:"displayName,omitempty"`
 
 	// Namespace overrides the name of the namespace created for this landscape.
-	// When unset it defaults to "kden-l-<landscape-name>-<hash>". It is
+	// When unset it defaults to `kden-l-<landscape-name>-<hash>`. It is
 	// immutable once the Landscape exists, because the namespace and everything
 	// it holds are bound to this name.
 	// +kubebuilder:validation:MaxLength=63

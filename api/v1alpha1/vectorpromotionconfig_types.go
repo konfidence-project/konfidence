@@ -13,7 +13,7 @@ const (
 type VectorPromotionConfigSpec struct {
 	// Source is the OCM component reference to promote from.
 	// This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.
-	// The format is <registry>//<component-name>:<version>.
+	// The format is `<registry>//<component-name>:<version>`.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^[^/].+//.+:.+$`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="source is immutable after it has been set"
@@ -21,7 +21,7 @@ type VectorPromotionConfigSpec struct {
 
 	// Target is the OCM component reference to promote to.
 	// This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.
-	// The format is <registry>//<component-name>:<version>.
+	// The format is `<registry>//<component-name>:<version>`.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^[^/].+//.+:.+$`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="target is immutable after it has been set"

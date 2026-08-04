@@ -470,7 +470,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `displayName` _string_ | DisplayName is the human-readable name of the landscape, shown in user<br />interfaces. It does not affect the namespace name or any label, and it<br />may be changed at any time. |  | MaxLength: 253 <br />MinLength: 1 <br />Optional: \{\} <br /> |
-| `namespace` _string_ | Namespace overrides the name of the namespace created for this landscape.<br />When unset it defaults to "kden-l-<landscape-name>-<hash>". It is<br />immutable once the Landscape exists, because the namespace and everything<br />it holds are bound to this name. |  | MaxLength: 63 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Optional: \{\} <br /> |
+| `namespace` _string_ | Namespace overrides the name of the namespace created for this landscape.<br />When unset it defaults to `kden-l-<landscape-name>-<hash>`. It is<br />immutable once the Landscape exists, because the namespace and everything<br />it holds are bound to this name. |  | MaxLength: 63 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Optional: \{\} <br /> |
 
 
 #### LandscapeStatus
@@ -506,6 +506,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `name` _string_ | Name	is the name of the ArtifactDeployment. Required. |  |  |
+| `collisionCount` _integer_ | CollisionCount salts the ArtifactDeployment name hash to recover from a<br />(rare) hash collision with a different artifact. nil and 0 both mean "no<br />salt" and yield the original, unsalted name. Once bumped it is permanent<br />for this artifact slot. Mirrors Deployment.Status.CollisionCount. |  | Optional: \{\} <br /> |
 
 
 #### LocalObjectReference
@@ -674,7 +675,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `displayName` _string_ | DisplayName is the human-readable name of the project, shown in user<br />interfaces. It does not affect the namespace name or any label, and it<br />may be changed at any time. |  | MaxLength: 253 <br />MinLength: 1 <br />Optional: \{\} <br /> |
-| `namespace` _string_ | Namespace overrides the name of the namespace created for this project.<br />When unset it defaults to "kden-p-<project-name>". It is immutable<br />once the Project exists, because the namespace and everything it holds<br />are bound to this name. |  | MaxLength: 63 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Optional: \{\} <br /> |
+| `namespace` _string_ | Namespace overrides the name of the namespace created for this project.<br />When unset it defaults to `kden-p-<project-name>`. It is immutable<br />once the Project exists, because the namespace and everything it holds<br />are bound to this name. |  | MaxLength: 63 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Optional: \{\} <br /> |
 | `roleBindings` _object (keys:string, values:[Subjects](#subjects))_ | RoleBindings grants project roles to callers. It maps a role name to the<br />list of subjects that hold that role; a caller holds the role if any<br />subject in the list matches (OR). The role names are a fixed, well-known<br />set for now (for example "admin", "pm", "dev"), but the field is a map so<br />the set can be extended without a schema change. See the Project<br />multi-tenancy ADR for the meaning of each role and the authorization flow.<br />RoleBindings is currently schema-only: no authorization is enforced yet. |  | MaxProperties: 32 <br />Optional: \{\} <br /> |
 
 
@@ -1486,7 +1487,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `features` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Features carries the optional "features" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
 | `authored` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Authored carries the optional "authored" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
-| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults aggregated from underlying ArtifactDeployments, keyed<br />"<componentName>/<resultName>". |  | Optional: \{\} <br /> |
+| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults aggregated from underlying ArtifactDeployments, keyed<br />`<componentName>/<resultName>`. |  | Optional: \{\} <br /> |
 
 
 #### VectorDataStatus
@@ -1755,8 +1756,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `source` _string_ | Source is the OCM component reference to promote from.<br />This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.<br />The format is <registry>//<component-name>:<version>. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
-| `target` _string_ | Target is the OCM component reference to promote to.<br />This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.<br />The format is <registry>//<component-name>:<version>. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
+| `source` _string_ | Source is the OCM component reference to promote from.<br />This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.<br />The format is `<registry>//<component-name>:<version>`. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
+| `target` _string_ | Target is the OCM component reference to promote to.<br />This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.<br />The format is `<registry>//<component-name>:<version>`. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
 | `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repository access and vector verification key material. |  | Optional: \{\} <br /> |
 | `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against the<br />source vector before promotion proceeds. Absence disables vector<br />verification. |  | Optional: \{\} <br /> |
 

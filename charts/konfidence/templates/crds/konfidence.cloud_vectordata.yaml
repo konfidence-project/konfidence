@@ -88,7 +88,7 @@ spec:
                   type: object
                 description: |-
                   DeploymentResults aggregated from underlying ArtifactDeployments, keyed
-                  "<componentName>/<resultName>".
+                  `<componentName>/<resultName>`.
                 type: object
               features:
                 description: Features carries the optional "features" subset of the
