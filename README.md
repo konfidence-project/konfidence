@@ -32,6 +32,18 @@ For a step-by-step guide including cluster setup, component installation, and yo
 
 For detailed installation instructions and production deployment considerations, see the [Installation Guide](https://konfidence.cloud/docs/deploy-operate/installation.html).
 
+## UI Prototype
+
+The experimental UI prototype lives in `apps/konfidence-ui-prototype`. It uses a mock API and does not define the production UI's deployment architecture.
+
+```sh
+source ./bin/activate-hermit
+pnpm install
+pnpm --filter konfidence-ui dev:mock
+```
+
+Use `pnpm ui:verify`, `pnpm ui:test`, and `pnpm ui:build` to check the prototype.
+
 ## Support, Feedback, Contributing
 
 This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://github.com/konfidence-project/konfidence/issues). 

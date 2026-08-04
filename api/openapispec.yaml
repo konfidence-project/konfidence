@@ -1,0 +1,481 @@
+openapi: "3.0.3"
+
+info:
+  title: Konfidence UI Prototype API
+  version: v1
+  description: >
+    Prototype-only contract used by the experimental UI and its mock API. This
+    does not define the production Konfidence API contract.
+
+servers:
+  - url: /api/v1
+    description: Stage resources (versioned API)
+  - url: /
+    description: Auth and identity endpoints
+
+paths:
+  /api/login:
+    get:
+      operationId: loginStart
+      summary: Initiate OIDC login
+      description: >
+        Redirects the browser to the IDP authorization endpoint, beginning the
+        PKCE auth flow. On successful authentication the IDP redirects back to
+        /api/auth/callback.
+      tags: [auth]
+      responses:
+        "302":
+          description: Redirect to IDP authorization endpoint.
+
+  /api/auth/callback:
+    get:
+      operationId: authCallback
+      summary: OIDC callback
+      description: >
+        Receives the authorization code from the IDP after successful login.
+        Exchanges the code for tokens and establishes a session cookie.
+      tags: [auth]
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the application after successful authentication.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/logout:
+    post:
+      operationId: logout
+      summary: Terminate the current session
+      description: Clears the session cookie. Requires an active session.
+      tags: [auth]
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Session terminated successfully.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/identity:
+    get:
+      operationId: getIdentity
+      summary: Get the current user identity
+      description: Returns identity claims for the authenticated session.
+      tags: [auth]
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects:
+    get:
+      operationId: listProjects
+      summary: List all projects
+      description: Returns all Project resources visible to the authenticated user.
+      tags: [ projects ]
+      security:
+        - sessionCookie: [ ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{projectId}/landscapes:
+    get:
+      operationId: listLandscapes
+      summary: List all landscapes for a specific project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+      description: Returns all landscape resources for a project.
+      tags: [ projects ]
+      security:
+        - sessionCookie: [ ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LandscapeListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{projectId}/stages:
+    get:
+      operationId: listStages
+      summary: List all stages for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/LandscapeQueryId"
+      description: Returns all stage resources for a project. Can be filtered by landscape.
+      tags: [projects]
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StageListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{projectId}/vectorDeployments:
+    get:
+      operationId: listVectorDeployments
+      summary: List all vectorDeployments for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/LandscapeQueryId"
+      description: Returns all vectorDeployments resources for a project. Can be filtered by landscape.
+      tags: [ projects ]
+      security:
+        - sessionCookie: [ ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VectorDeploymentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{projectId}/artifactDeployments:
+    get:
+      operationId: listArtifactDeployments
+      summary: List all artifactDeployments for a project.
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/LandscapeQueryId"
+        - $ref: "#/components/parameters/VectorDeploymentQueryId"
+      description: Returns all artifactDeployments resources for a project. Can be filtered by landscape or vectorDeployment.
+      tags: [ projects ]
+      security:
+        - sessionCookie: [ ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtifactDeploymentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: kden_session
+
+  parameters:
+    ProjectPathId:
+      name: projectId
+      in: path
+      required: true
+      description: Project Id
+      schema:
+        type: string
+    LandscapePathId:
+      name: landscapeId
+      in: path
+      required: true
+      description: Landscape Id
+      schema:
+        type: string
+    LandscapeQueryId:
+      name: landscapeId
+      in: query
+      required: false
+      description: Filter by landscapeId
+      schema:
+        type: string
+    VectorDeploymentQueryId:
+      name: vectorDeploymentId
+      in: query
+      required: false
+      description: Filter by vectorDeploymentId
+      schema:
+        type: string
+
+  schemas:
+    ProjectListResponse:
+      type: object
+      required: [ data ]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectResponse"
+
+    ProjectResponse:
+      type: object
+      required: [ id, name ]
+      properties:
+        id:
+          $ref: "#/components/schemas/ProjectId"
+        name:
+          type: string
+          description: The name of the project
+
+    LandscapeListResponse:
+      type: object
+      required: [ data ]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LandscapeResponse"
+
+    LandscapeResponse:
+      type: object
+      required: [ id, name ]
+      properties:
+        id:
+          $ref: "#/components/schemas/LandscapeId"
+        name:
+          type: string
+          description: The name of the landscape
+
+    VectorDeploymentListResponse:
+      type: object
+      required: [ data ]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/VectorDeploymentResponse"
+
+    VectorDeploymentResponse:
+      type: object
+      required: [ id, landscapeId, stageId, vector, status ]
+      properties:
+        id:
+          $ref: "#/components/schemas/VectorDeploymentId"
+        landscapeId:
+          $ref: "#/components/schemas/LandscapeId"
+        stageId:
+          $ref: "#/components/schemas/StageId"
+        vector:
+          $ref: "#/components/schemas/VectorReference"
+        status:
+          type: string
+          # TODO add status values
+          enum: [VectorDownloaded, ArtifactDeploymentCreated]
+          description: The vectorDeployment status
+
+    ArtifactDeploymentListResponse:
+      type: object
+      required: [ data ]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArtifactDeploymentResponse"
+
+    ArtifactDeploymentResponse:
+      type: object
+      required: [ id, landscapeId, vectorDeploymentIds, stageIds, artifact, status ]
+      properties:
+        id:
+          $ref: "#/components/schemas/ArtifactDeploymentId"
+        landscapeId:
+          $ref: "#/components/schemas/LandscapeId"
+        vectorDeploymentIds:
+          type: array
+          minLength: 1
+          items:
+            $ref: "#/components/schemas/VectorDeploymentId"
+        stageIds:
+          type: array
+          minLength: 1
+          items:
+            $ref: "#/components/schemas/StageId"
+        artifact:
+          $ref: "#/components/schemas/ArtifactReference"
+        status:
+          type: string
+          # TODO add status values
+          enum: [ArtifactFetched, ArtifactDeployed]
+          description: The artifactDeployment status
+
+    StageResponse:
+      type: object
+      required: [id, name, landscapeId, targetStageVersion]
+      properties:
+        id:
+          $ref: "#/components/schemas/StageId"
+        name:
+          type: string
+          description: The stage name
+        landscapeId:
+          $ref: "#/components/schemas/LandscapeId"
+        targetStageVersion:
+          $ref: "#/components/schemas/StageVersion"
+
+    StageVersion:
+      type: object
+      required: [id, vector, stageGeneration, active, status]
+      properties:
+        id:
+          $ref: "#/components/schemas/StageVersionId"
+        vector:
+          $ref: "#/components/schemas/VectorReference"
+          description: StageVersion vector
+        stageGeneration:
+          type: integer
+          description: Generation of the parent stage
+        active:
+          type: boolean
+          description: Indicates if this is the latest active stageVersion
+        status:
+          type: string
+          enum: [DeploymentCreated, MigrationTasks, Active]
+
+    StageListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/StageResponse"
+
+    IdentityResponse:
+      type: object
+      required: [name, givenName, familyName, email, roles]
+      properties:
+        name:
+          type: string
+        givenName:
+          type: string
+        familyName:
+          type: string
+        middleName:
+          type: string
+        email:
+          type: string
+        roles:
+          type: array
+          minItems: 1
+          items:
+            type: string
+
+    ArtifactReference:
+      allOf:
+        - $ref: "#/components/schemas/ComponentReference"
+
+    VectorReference:
+      allOf:
+        - $ref: "#/components/schemas/ComponentReference"
+
+    ComponentReference:
+      type: object
+      required: [repository, componentName, componentVersion]
+      properties:
+        repository:
+          type: string
+        componentName:
+          type: string
+        componentVersion:
+          type: string
+
+    ProjectId:
+      type: string
+
+    LandscapeId:
+      type: string
+      description: The id of a landscape
+
+    VectorDeploymentId:
+      type: string
+      description: The id of a vectorDeployment
+
+    ArtifactDeploymentId:
+      type: string
+      description: The id of an artifactDeployment
+
+    StageId:
+      type: string
+      description: The id of a stage
+
+    StageVersionId:
+      type: string
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+  responses:
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentication required or session expired.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    BadRequest:
+      description: Invalid request parameters.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: An unexpected server error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
