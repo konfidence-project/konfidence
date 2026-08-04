@@ -229,10 +229,6 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 docker-build: hermit ## Build the konfidence operator container image (local use only).
 	$(CONTAINER_TOOL) build -f Dockerfile --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
 
-.PHONY: docker-bake
-docker-bake: hermit ## Build all container images using docker buildx bake (multi-platform, CI-compatible).
-	$(CONTAINER_TOOL) buildx bake --file docker-bake.hcl
-
 .PHONY: docker-push
 docker-push: ## Push the konfidence operator container image.
 	$(CONTAINER_TOOL) push $(OPERATOR_IMAGE)
