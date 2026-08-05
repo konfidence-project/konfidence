@@ -37,6 +37,13 @@ var _ = Describe("VectorPromotion execution controller", Ordered, Serial, func()
 		}, promotion)).To(Succeed())
 	}
 
+	configReadyCondition := func(config *konfidence.VectorPromotionConfig) *metav1.Condition {
+		ExpectWithOffset(1, k8sClient.Get(ctx, types.NamespacedName{
+			Name: config.Name, Namespace: testNamespace,
+		}, config)).To(Succeed())
+		return meta.FindStatusCondition(config.Status.Conditions, konfidence.VectorPromotionConfigReadyCondition)
+	}
+
 	It("auto-approves and promotes to the target stage", func() {
 		createLandscapeWithNamespace("exec-auto-landscape", "kden-l-exec-auto")
 		stage := createStage("kden-l-exec-auto", "exec-stage", "registry.example//konfidence.io/promo/app:0.9.0")
@@ -64,6 +71,11 @@ var _ = Describe("VectorPromotion execution controller", Ordered, Serial, func()
 			Name: stage.Name, Namespace: stage.Namespace,
 		}, stage)).To(Succeed())
 		Expect(stage.Spec.Vector).To(Equal(testVector))
+
+		ready := configReadyCondition(config)
+		Expect(ready).NotTo(BeNil())
+		Expect(ready.Status).To(Equal(metav1.ConditionTrue))
+		Expect(ready.Reason).To(Equal(konfidence.VectorPromotionConfigTargetResolvedReason))
 	})
 
 	It("waits for approval and promotes once approved", func() {
@@ -163,7 +175,7 @@ var _ = Describe("VectorPromotion execution controller", Ordered, Serial, func()
 		Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionConfigurationNotFound))
 	})
 
-	It("retries with backoff while the landscape is unresolved", func() {
+	It("reports a missing landscape on the config and keeps the promotion approved", func() {
 		config := createConfig("exec-nolandscape-config",
 			templateSource("some-template"), stageTargetInLandscape("some-stage", "missing-landscape"))
 		promotion := createPromotion("exec-nolandscape-promotion", config.Name)
@@ -172,9 +184,99 @@ var _ = Describe("VectorPromotion execution controller", Ordered, Serial, func()
 		_, err := newReconciler().Reconcile(ctx, ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: promotion.Name, Namespace: testNamespace},
 		})
-		Expect(err).To(MatchError(ContainSubstring(`failed to resolve landscape "missing-landscape"`)))
+		Expect(err).To(MatchError(ContainSubstring(`landscape "missing-landscape" does not exist`)))
+
 		refresh(promotion)
-		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateInProgress))
+		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateApproved))
+
+		ready := configReadyCondition(config)
+		Expect(ready).NotTo(BeNil())
+		Expect(ready.Status).To(Equal(metav1.ConditionFalse))
+		Expect(ready.Reason).To(Equal(konfidence.VectorPromotionConfigLandscapeNotFoundReason))
+	})
+
+	It("reports a missing stage on the config and promotes once it exists", func() {
+		createLandscapeWithNamespace("exec-nostage-landscape", "kden-l-exec-nostage")
+		config := createConfig("exec-nostage-config",
+			templateSource("some-template"), stageTargetInLandscape("late-stage", "exec-nostage-landscape"))
+		promotion := createPromotion("exec-nostage-promotion", config.Name)
+
+		By("resolution fails while the stage does not exist; the stage is not created")
+		reconcile(promotion.Name)
+		_, err := newReconciler().Reconcile(ctx, ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: promotion.Name, Namespace: testNamespace},
+		})
+		Expect(err).To(MatchError(ContainSubstring(`stage "late-stage" does not exist`)))
+
+		refresh(promotion)
+		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateApproved))
+		Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name: "late-stage", Namespace: "kden-l-exec-nostage",
+		}, &konfidence.Stage{})).To(MatchError(ContainSubstring("not found")))
+
+		ready := configReadyCondition(config)
+		Expect(ready).NotTo(BeNil())
+		Expect(ready.Status).To(Equal(metav1.ConditionFalse))
+		Expect(ready.Reason).To(Equal(konfidence.VectorPromotionConfigStageNotFoundReason))
+
+		By("creating the stage lets the next reconcile promote")
+		stage := createStage("kden-l-exec-nostage", "late-stage", "registry.example//konfidence.io/promo/app:0.9.0")
+		reconcile(promotion.Name)
+		refresh(promotion)
+		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+
+		Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name: stage.Name, Namespace: stage.Namespace,
+		}, stage)).To(Succeed())
+		Expect(stage.Spec.Vector).To(Equal(testVector))
+
+		ready = configReadyCondition(config)
+		Expect(ready.Status).To(Equal(metav1.ConditionTrue))
+	})
+
+	It("does not supersede a newer promotion that is still waiting for approval", func() {
+		createLandscapeWithNamespace("exec-newer-landscape", "kden-l-exec-newer")
+		createStage("kden-l-exec-newer", "newer-stage", "registry.example//konfidence.io/promo/app:0.9.0")
+		config := createConfig("exec-newer-config",
+			stageSource("other-stage"), stageTargetInLandscape("newer-stage", "exec-newer-landscape"))
+		older := createPromotionRequiringApproval("exec-newer-a", config.Name)
+		newer := createPromotionRequiringApproval("exec-newer-b", config.Name)
+		approvePromotion(older)
+		reconcile(newer.Name)
+
+		By("the older approved promotion executes without superseding the waiting newer one")
+		reconcile(older.Name)
+		refresh(older)
+		refresh(newer)
+		Expect(older.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(newer.Status.State).To(Equal(konfidence.PromotionStateWaitingForApproval))
+
+		By("approving the newer promotion still lets it run")
+		approvePromotion(newer)
+		reconcile(newer.Name)
+		refresh(newer)
+		Expect(newer.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+	})
+
+	It("resumes an interrupted execution idempotently", func() {
+		createLandscapeWithNamespace("exec-resume-landscape", "kden-l-exec-resume")
+		stage := createStage("kden-l-exec-resume", "resume-stage", testVector)
+		config := createConfig("exec-resume-config",
+			templateSource("some-template"), stageTargetInLandscape("resume-stage", "exec-resume-landscape"))
+		promotion := createPromotion("exec-resume-promotion", config.Name)
+
+		By("simulating a crash after the Running patch and the stage write")
+		reconcile(promotion.Name)
+		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionRunning, metav1.Now().Time)
+
+		By("the next reconcile completes without re-patching the stage")
+		reconcile(promotion.Name)
+		refresh(promotion)
+		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name: stage.Name, Namespace: stage.Namespace,
+		}, stage)).To(Succeed())
+		Expect(stage.Spec.Vector).To(Equal(testVector))
 	})
 
 	It("does not touch a terminal promotion", func() {

@@ -67,8 +67,7 @@ func DeriveState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState 
 }
 
 // NewestApproved returns the most recently created promotion that is approved
-// and not terminal, preferring the lexically greater name on identical
-// creation timestamps. Returns nil if no promotion qualifies.
+// and not terminal. Returns nil if no promotion qualifies.
 func NewestApproved(promotions []konfidence.VectorPromotion) *konfidence.VectorPromotion {
 	var newest *konfidence.VectorPromotion
 	for i := range promotions {
@@ -76,14 +75,17 @@ func NewestApproved(promotions []konfidence.VectorPromotion) *konfidence.VectorP
 		if !IsApproved(p) || IsTerminal(p) {
 			continue
 		}
-		if newest == nil || isNewer(p, newest) {
+		if newest == nil || Newer(p, newest) {
 			newest = p
 		}
 	}
 	return newest
 }
 
-func isNewer(p, than *konfidence.VectorPromotion) bool {
+// Newer reports whether p was created after than. Creation timestamps have
+// second resolution; ties are broken by name, which is deterministic across
+// reconciles but otherwise arbitrary.
+func Newer(p, than *konfidence.VectorPromotion) bool {
 	if p.CreationTimestamp.Equal(&than.CreationTimestamp) {
 		return p.Name > than.Name
 	}

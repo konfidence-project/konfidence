@@ -64,9 +64,9 @@ var _ = BeforeSuite(func() {
 })
 
 // startManager registers the TTL and status propagation controllers. The
-// execution controller is intentionally absent: it only writes a stub
-// condition (see VectorPromotionReconciler) and would race the manually
-// driven conditions these tests use.
+// execution controller is intentionally absent: its specs drive Reconcile
+// directly for determinism, and registering it would race the manually driven
+// conditions the TTL and propagation tests use.
 func startManager() {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:  scheme.Scheme,

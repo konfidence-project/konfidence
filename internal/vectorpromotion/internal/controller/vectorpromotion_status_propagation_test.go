@@ -190,6 +190,39 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 		}, timeout, interval).Should(Succeed())
 	})
 
+	It("should propagate reason-only transitions that keep the transition timestamp", func() {
+		By("creating VectorPromotionConfig and a running promotion")
+		config := createConfig("sp-reason-config", templateSource("sp-template"), stageTarget("sp-stage"))
+		promotion := createPromotion("sp-reason-promotion", config.Name)
+		transitionTime := time.Now()
+		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionRunning, transitionTime)
+
+		By("waiting for the running conditions to reach the config")
+		Eventually(func(g Gomega) {
+			updatedConfig := &konfidence.VectorPromotionConfig{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name: config.Name, Namespace: testNamespace,
+			}, updatedConfig)).To(Succeed())
+			cond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionRunning))
+		}, timeout, interval).Should(Succeed())
+
+		By("terminating with the same status and transition timestamp, only the reason changes")
+		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionSuperseded, transitionTime)
+
+		By("asserting the terminal reason still reaches the config")
+		Eventually(func(g Gomega) {
+			updatedConfig := &konfidence.VectorPromotionConfig{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name: config.Name, Namespace: testNamespace,
+			}, updatedConfig)).To(Succeed())
+			cond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSuperseded))
+		}, timeout, interval).Should(Succeed())
+	})
+
 	It("should propagate status when config is created after promotion completes", func() {
 		By("creating VectorPromotion referencing a config that does not exist yet")
 		promotion := createPromotion("sp-delayed-promotion", "sp-delayed-config")

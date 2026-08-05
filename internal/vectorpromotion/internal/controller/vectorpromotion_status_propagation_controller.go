@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -51,9 +52,16 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 		return ctrl.Result{}, fmt.Errorf("failed to get VectorPromotionConfig: %w", err)
 	}
 
+	// Skip when the config already captured strictly newer conditions, or the
+	// exact same ones. Timestamp comparison alone is not enough: condition
+	// timestamps have second resolution and a reason-only transition (e.g.
+	// Running to Superseded) can share its predecessor's timestamp.
 	promotionCondition := meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 	configCondition := meta.FindStatusCondition(config.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
-	if configCondition != nil && !promotionCondition.LastTransitionTime.After(configCondition.LastTransitionTime.Time) {
+	if configCondition != nil && promotionCondition.LastTransitionTime.Before(&configCondition.LastTransitionTime) {
+		return requeueIfNotTerminal(p), nil
+	}
+	if reflect.DeepEqual(config.Status.LastPromotionConditions, p.Status.Conditions) {
 		return requeueIfNotTerminal(p), nil
 	}
 
