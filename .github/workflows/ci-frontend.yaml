@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload Vitest attachments
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vitest-attachments
           path: apps/konfidence-ui-prototype/.vitest-attachments/
@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: apps/konfidence-ui-prototype/playwright-report/
