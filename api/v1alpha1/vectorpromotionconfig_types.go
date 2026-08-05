@@ -7,6 +7,18 @@ import (
 const (
 	// VectorPromotionConfigKind is kind of the VectorPromotionConfig resource.
 	VectorPromotionConfigKind = "VectorPromotionConfig"
+
+	// VectorPromotionConfigReadyCondition reports whether the config's references resolve.
+	VectorPromotionConfigReadyCondition = "Ready"
+
+	// VectorPromotionConfigTargetResolvedReason indicates the target Stage resolved.
+	VectorPromotionConfigTargetResolvedReason = "TargetResolved"
+	// VectorPromotionConfigLandscapeNotFoundReason indicates the referenced Landscape does not exist.
+	VectorPromotionConfigLandscapeNotFoundReason = "LandscapeNotFound"
+	// VectorPromotionConfigLandscapeNotReadyReason indicates the referenced Landscape has no managed namespace yet.
+	VectorPromotionConfigLandscapeNotReadyReason = "LandscapeNotReady"
+	// VectorPromotionConfigStageNotFoundReason indicates the referenced Stage does not exist in the landscape namespace.
+	VectorPromotionConfigStageNotFoundReason = "StageNotFound"
 )
 
 // PromotionSourceReference identifies the in-cluster resource whose current
@@ -83,6 +95,11 @@ type VectorPromotionConfigSpec struct {
 
 // VectorPromotionConfigStatus defines the observed state of VectorPromotionConfig.
 type VectorPromotionConfigStatus struct {
+	// Conditions reports on the config itself, e.g. whether its references
+	// resolve to existing resources. Promotion results are reported separately
+	// in `LastPromotionConditions`.
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
 	// LastPromotionConditions contains the result of the most recent VectorPromotion execution
 	LastPromotionConditions []metav1.Condition `json:"lastPromotionConditions,omitempty"`
 	// LastSuccessfulPromotionConditions contains the result of the most recent VectorPromotion execution, that was successful
@@ -93,6 +110,7 @@ type VectorPromotionConfigStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
+// +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description="Indicates if the config's references resolve"
 // +kubebuilder:printcolumn:name="Last-Succeeded",type=string,JSONPath=".status.lastPromotionConditions[0].status",description="Last promotion succeeded"
 // +kubebuilder:printcolumn:name="Last-Condition-Reason",type=string,JSONPath=".status.lastPromotionConditions[0].reason",description="Last promotion condition reason"
 // +kubebuilder:printcolumn:name="Last-Time",type=date,JSONPath=".status.lastPromotionConditions[0].lastTransitionTime",description="Time of the last promotion"
