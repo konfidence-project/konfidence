@@ -7,34 +7,33 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/konfidence-project/konfidence/internal/api/config"
-	"github.com/konfidence-project/konfidence/internal/api/router"
+	"github.com/konfidence-project/konfidence/internal/api/handler"
+	"github.com/konfidence-project/konfidence/internal/api/middleware"
 )
 
 // Server wraps an http.Server with graceful shutdown support.
 type Server struct {
-	cfg    config.Parsed
-	logger *slog.Logger
-	mounts []router.MountFunc
+	cfg     config.Parsed
+	logger  *slog.Logger
+	handler http.Handler
 }
 
-// New creates a Server from a validated Parsed config and optional domain
-// mount functions. Signal handling belongs in the caller (cmd layer).
-func New(cfg config.Parsed, mounts ...router.MountFunc) *Server {
-	level := resolveLogLevel(cfg.LogLevel)
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
-	return &Server{cfg: cfg, logger: logger, mounts: mounts}
+// New creates a Server from validated config and an http.Handler. Signal
+// handling belongs in the caller (cmd layer).
+func New(cfg config.Parsed, logger *slog.Logger, apiHandler http.Handler) *Server {
+	return &Server{cfg: cfg, logger: logger, handler: apiHandler}
 }
 
-// Run starts the HTTP server and blocks until ctx is cancelled, then performs
+// ListenAndServe starts the HTTP server and blocks until ctx is canceled, then performs
 // a graceful shutdown. The optional onAddr callback is called with the actual
 // bound address once the server is listening — useful in tests with ":0".
-func (s *Server) Run(ctx context.Context, onAddr ...func(string)) error {
-	ln, err := net.Listen("tcp", s.cfg.Addr)
+func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) error {
+	ln, err := net.Listen("tcp", s.cfg.Server.Addr)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", s.cfg.Addr, err)
+		return fmt.Errorf("failed to listen on %s: %w", s.cfg.Server.Addr, err)
 	}
 
 	if len(onAddr) > 0 && onAddr[0] != nil {
@@ -42,9 +41,9 @@ func (s *Server) Run(ctx context.Context, onAddr ...func(string)) error {
 	}
 
 	srv := &http.Server{
-		Handler:      router.New(s.logger, s.cfg.Scheme, s.mounts...),
-		ReadTimeout:  s.cfg.ReadTimeout,
-		WriteTimeout: s.cfg.WriteTimeout,
+		Handler:      s.router(),
+		ReadTimeout:  s.cfg.Server.ReadTimeout,
+		WriteTimeout: s.cfg.Server.WriteTimeout,
 	}
 
 	errCh := make(chan error, 1)
@@ -63,7 +62,7 @@ func (s *Server) Run(ctx context.Context, onAddr ...func(string)) error {
 		s.logger.Info("shutting down api server")
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), s.cfg.ShutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Server.ShutdownTimeout)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -74,15 +73,12 @@ func (s *Server) Run(ctx context.Context, onAddr ...func(string)) error {
 	return nil
 }
 
-func resolveLogLevel(level string) slog.Level {
-	switch level {
-	case "debug":
-		return slog.LevelDebug
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
+func (s *Server) router() http.Handler {
+	r := chi.NewRouter()
+	r.Use(middleware.Recovery(s.logger))
+	r.Use(middleware.Logging(s.logger))
+	r.Method(http.MethodGet, "/healthz", middleware.Handle(s.logger, handler.Healthz))
+	r.Method(http.MethodGet, "/readyz", middleware.Handle(s.logger, handler.Readyz))
+	r.Mount("/", s.handler)
+	return r
 }

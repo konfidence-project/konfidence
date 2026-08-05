@@ -44,6 +44,9 @@ bin/kden
 # Ignore Helm chart packages
 *.tgz
 
+# Ignore local helm values
+charts/konfidence/values.local.yaml
+
 # Generated plain CRDs used by envtest suites and sample validation
 test/data/crds/
 
@@ -72,3 +75,4 @@ node_modules/
 .svelte-kit/
 build/
 *.tsbuildinfo
+/AGENTS.md

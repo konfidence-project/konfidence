@@ -1,0 +1,13 @@
+users:
+  alice:
+    displayname: 'Alice Sarah Watson'
+    email: "alice@example.com"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$PHkWMor5DE3Oi1KCtZIJsQ$kvqKLrr8O4t46CHwjVumkYDOmgfKd4cJOdjfiXCVlrY"
+    preferred_username: Alice
+    given_name: Alice
+    middle_name: Sarah
+    family_name: Watson
+    groups:
+      - admins
+      - developers
+

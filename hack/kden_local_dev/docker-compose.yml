@@ -1,0 +1,54 @@
+networks:
+  oidc_net:
+    name: oidc_net
+
+services:
+  authelia:
+    image: authelia/authelia:4.39.20
+    container_name: authelia
+    volumes:
+      - ./authelia/configuration.yml:/config/configuration.yml
+      - ./authelia/users.yml:/config/users.yml
+    ports:
+      - "9091:9091"
+    environment:
+      - TZ=Europe/Berlin
+    restart: unless-stopped
+    networks:
+      - oidc_net
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  
+    networks:
+    - oidc_net
+    depends_on:
+      - authelia
+
+  db:
+    image: postgres:18-alpine
+    container_name: postgres_kden
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: kden
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_kden_data:/var/lib/postgresql
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_kden_data:     

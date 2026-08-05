@@ -5,12 +5,18 @@ package openapi
 
 import (
 	"bytes"
+	"compress/flate"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
+	"strings"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
 	"github.com/oapi-codegen/runtime"
 )
@@ -111,17 +117,11 @@ type ErrorResponse struct {
 	} `json:"error"`
 }
 
-// HealthStatus defines model for HealthStatus.
-type HealthStatus struct {
-	Status string `json:"status"`
-}
-
 // Identity defines model for Identity.
 type Identity struct {
 	Email      string   `json:"email"`
 	FamilyName string   `json:"familyName"`
 	GivenName  string   `json:"givenName"`
-	MiddleName *string  `json:"middleName,omitempty"`
 	Name       string   `json:"name"`
 	Roles      []string `json:"roles"`
 }
@@ -159,9 +159,6 @@ type ProjectId = string
 type ProjectList struct {
 	Data []Project `json:"data"`
 }
-
-// ReadinessStatus defines model for ReadinessStatus.
-type ReadinessStatus = HealthStatus
 
 // Session defines model for Session.
 type Session struct {
@@ -262,20 +259,25 @@ type InternalError = ErrorResponse
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = ErrorResponse
 
-// AuthCallbackParams defines parameters for AuthCallback.
-type AuthCallbackParams struct {
+// AuthCallbackV1Params defines parameters for AuthCallbackV1.
+type AuthCallbackV1Params struct {
 	Code  string `form:"code" json:"code"`
 	State string `form:"state" json:"state"`
 }
 
-// PostExchangeCodeJSONBody defines parameters for PostExchangeCode.
-type PostExchangeCodeJSONBody struct {
+// PostExchangeCodeV1JSONBody defines parameters for PostExchangeCodeV1.
+type PostExchangeCodeV1JSONBody struct {
 	Code     *string `json:"code,omitempty"`
 	Verifier *string `json:"verifier,omitempty"`
 }
 
-// ListArtifactDeploymentsParams defines parameters for ListArtifactDeployments.
-type ListArtifactDeploymentsParams struct {
+// LoginV1Params defines parameters for LoginV1.
+type LoginV1Params struct {
+	ReturnUrl *string `form:"return_url,omitempty" json:"return_url,omitempty"`
+}
+
+// ListArtifactDeploymentsV1Params defines parameters for ListArtifactDeploymentsV1.
+type ListArtifactDeploymentsV1Params struct {
 	// LandscapeId Filter by landscapeId
 	LandscapeId *LandscapeQueryId `form:"landscapeId,omitempty" json:"landscapeId,omitempty"`
 
@@ -283,134 +285,116 @@ type ListArtifactDeploymentsParams struct {
 	VectorDeploymentId *VectorDeploymentQueryId `form:"vectorDeploymentId,omitempty" json:"vectorDeploymentId,omitempty"`
 }
 
-// ListStagesParams defines parameters for ListStages.
-type ListStagesParams struct {
+// ListStagesV1Params defines parameters for ListStagesV1.
+type ListStagesV1Params struct {
 	// LandscapeId Filter by landscapeId
 	LandscapeId *LandscapeQueryId `form:"landscapeId,omitempty" json:"landscapeId,omitempty"`
 }
 
-// ListVectorDeploymentsParams defines parameters for ListVectorDeployments.
-type ListVectorDeploymentsParams struct {
+// ListVectorDeploymentsV1Params defines parameters for ListVectorDeploymentsV1.
+type ListVectorDeploymentsV1Params struct {
 	// LandscapeId Filter by landscapeId
 	LandscapeId *LandscapeQueryId `form:"landscapeId,omitempty" json:"landscapeId,omitempty"`
 }
 
-// PostExchangeCodeJSONRequestBody defines body for PostExchangeCode for application/json ContentType.
-type PostExchangeCodeJSONRequestBody PostExchangeCodeJSONBody
+// PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
+type PostExchangeCodeV1JSONRequestBody PostExchangeCodeV1JSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// AuthCallback OIDC callback
-	// (GET /auth/callback)
-	AuthCallback(w http.ResponseWriter, r *http.Request, params AuthCallbackParams)
-	// PostExchangeCode Send temp exchange code and PKCE verifier to get session
-	// (POST /exchange)
-	PostExchangeCode(w http.ResponseWriter, r *http.Request)
-	// GetHealthStatus Health status endpoint
-	// (GET /healthz)
-	GetHealthStatus(w http.ResponseWriter, r *http.Request)
-	// GetIdentity Get the current user identity
-	// (GET /identity)
-	GetIdentity(w http.ResponseWriter, r *http.Request)
-	// Login Initiate OIDC login
-	// (GET /login)
-	Login(w http.ResponseWriter, r *http.Request)
-	// Logout Terminate the current session
-	// (POST /logout)
-	Logout(w http.ResponseWriter, r *http.Request)
-	// ListProjects List all projects
-	// (GET /projects)
-	ListProjects(w http.ResponseWriter, r *http.Request)
-	// ListArtifactDeployments List all artifactDeployments for a project.
-	// (GET /projects/{projectId}/artifactDeployments)
-	ListArtifactDeployments(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsParams)
-	// ListLandscapes List all landscapes for a specific project
-	// (GET /projects/{projectId}/landscapes)
-	ListLandscapes(w http.ResponseWriter, r *http.Request, projectId ProjectPathId)
-	// ListStages List all stages for a project
-	// (GET /projects/{projectId}/stages)
-	ListStages(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListStagesParams)
-	// ListVectorDeployments List all vectorDeployments for a project
-	// (GET /projects/{projectId}/vectorDeployments)
-	ListVectorDeployments(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListVectorDeploymentsParams)
-	// GetReadinessStatus Readiness status endpoint
-	// (GET /readyz)
-	GetReadinessStatus(w http.ResponseWriter, r *http.Request)
+	// AuthCallbackV1 OIDC callback
+	// (GET /v1/auth/callback)
+	AuthCallbackV1(w http.ResponseWriter, r *http.Request, params AuthCallbackV1Params)
+	// PostExchangeCodeV1 Send temp exchange code and PKCE verifier to get session
+	// (POST /v1/exchange)
+	PostExchangeCodeV1(w http.ResponseWriter, r *http.Request)
+	// GetIdentityV1 Get the current user identity
+	// (GET /v1/identity)
+	GetIdentityV1(w http.ResponseWriter, r *http.Request)
+	// LoginV1 Initiate OIDC login
+	// (GET /v1/login)
+	LoginV1(w http.ResponseWriter, r *http.Request, params LoginV1Params)
+	// LogoutV1 Terminate the current session
+	// (POST /v1/logout)
+	LogoutV1(w http.ResponseWriter, r *http.Request)
+	// ListProjectsV1 List all projects
+	// (GET /v1/projects)
+	ListProjectsV1(w http.ResponseWriter, r *http.Request)
+	// ListArtifactDeploymentsV1 List all artifactDeployments for a project.
+	// (GET /v1/projects/{projectId}/artifactDeployments)
+	ListArtifactDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsV1Params)
+	// ListLandscapesV1 List all landscapes for a specific project
+	// (GET /v1/projects/{projectId}/landscapes)
+	ListLandscapesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId)
+	// ListStagesV1 List all stages for a project
+	// (GET /v1/projects/{projectId}/stages)
+	ListStagesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListStagesV1Params)
+	// ListVectorDeploymentsV1 List all vectorDeployments for a project
+	// (GET /v1/projects/{projectId}/vectorDeployments)
+	ListVectorDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListVectorDeploymentsV1Params)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
 
-// AuthCallback OIDC callback
-// (GET /auth/callback)
-func (_ Unimplemented) AuthCallback(w http.ResponseWriter, r *http.Request, params AuthCallbackParams) {
+// AuthCallbackV1 OIDC callback
+// (GET /v1/auth/callback)
+func (_ Unimplemented) AuthCallbackV1(w http.ResponseWriter, r *http.Request, params AuthCallbackV1Params) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// PostExchangeCode Send temp exchange code and PKCE verifier to get session
-// (POST /exchange)
-func (_ Unimplemented) PostExchangeCode(w http.ResponseWriter, r *http.Request) {
+// PostExchangeCodeV1 Send temp exchange code and PKCE verifier to get session
+// (POST /v1/exchange)
+func (_ Unimplemented) PostExchangeCodeV1(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// GetHealthStatus Health status endpoint
-// (GET /healthz)
-func (_ Unimplemented) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
+// GetIdentityV1 Get the current user identity
+// (GET /v1/identity)
+func (_ Unimplemented) GetIdentityV1(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// GetIdentity Get the current user identity
-// (GET /identity)
-func (_ Unimplemented) GetIdentity(w http.ResponseWriter, r *http.Request) {
+// LoginV1 Initiate OIDC login
+// (GET /v1/login)
+func (_ Unimplemented) LoginV1(w http.ResponseWriter, r *http.Request, params LoginV1Params) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Login Initiate OIDC login
-// (GET /login)
-func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request) {
+// LogoutV1 Terminate the current session
+// (POST /v1/logout)
+func (_ Unimplemented) LogoutV1(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Logout Terminate the current session
-// (POST /logout)
-func (_ Unimplemented) Logout(w http.ResponseWriter, r *http.Request) {
+// ListProjectsV1 List all projects
+// (GET /v1/projects)
+func (_ Unimplemented) ListProjectsV1(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// ListProjects List all projects
-// (GET /projects)
-func (_ Unimplemented) ListProjects(w http.ResponseWriter, r *http.Request) {
+// ListArtifactDeploymentsV1 List all artifactDeployments for a project.
+// (GET /v1/projects/{projectId}/artifactDeployments)
+func (_ Unimplemented) ListArtifactDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsV1Params) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// ListArtifactDeployments List all artifactDeployments for a project.
-// (GET /projects/{projectId}/artifactDeployments)
-func (_ Unimplemented) ListArtifactDeployments(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsParams) {
+// ListLandscapesV1 List all landscapes for a specific project
+// (GET /v1/projects/{projectId}/landscapes)
+func (_ Unimplemented) ListLandscapesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// ListLandscapes List all landscapes for a specific project
-// (GET /projects/{projectId}/landscapes)
-func (_ Unimplemented) ListLandscapes(w http.ResponseWriter, r *http.Request, projectId ProjectPathId) {
+// ListStagesV1 List all stages for a project
+// (GET /v1/projects/{projectId}/stages)
+func (_ Unimplemented) ListStagesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListStagesV1Params) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// ListStages List all stages for a project
-// (GET /projects/{projectId}/stages)
-func (_ Unimplemented) ListStages(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListStagesParams) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// ListVectorDeployments List all vectorDeployments for a project
-// (GET /projects/{projectId}/vectorDeployments)
-func (_ Unimplemented) ListVectorDeployments(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListVectorDeploymentsParams) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// GetReadinessStatus Readiness status endpoint
-// (GET /readyz)
-func (_ Unimplemented) GetReadinessStatus(w http.ResponseWriter, r *http.Request) {
+// ListVectorDeploymentsV1 List all vectorDeployments for a project
+// (GET /v1/projects/{projectId}/vectorDeployments)
+func (_ Unimplemented) ListVectorDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListVectorDeploymentsV1Params) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -423,14 +407,14 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// AuthCallback operation middleware
-func (siw *ServerInterfaceWrapper) AuthCallback(w http.ResponseWriter, r *http.Request) {
+// AuthCallbackV1 operation middleware
+func (siw *ServerInterfaceWrapper) AuthCallbackV1(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params AuthCallbackParams
+	var params AuthCallbackV1Params
 
 	// ------------- Required query parameter "code" -------------
 
@@ -459,7 +443,7 @@ func (siw *ServerInterfaceWrapper) AuthCallback(w http.ResponseWriter, r *http.R
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AuthCallback(w, r, params)
+		siw.Handler.AuthCallbackV1(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -469,11 +453,11 @@ func (siw *ServerInterfaceWrapper) AuthCallback(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// PostExchangeCode operation middleware
-func (siw *ServerInterfaceWrapper) PostExchangeCode(w http.ResponseWriter, r *http.Request) {
+// PostExchangeCodeV1 operation middleware
+func (siw *ServerInterfaceWrapper) PostExchangeCodeV1(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostExchangeCode(w, r)
+		siw.Handler.PostExchangeCodeV1(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -483,11 +467,11 @@ func (siw *ServerInterfaceWrapper) PostExchangeCode(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
-// GetHealthStatus operation middleware
-func (siw *ServerInterfaceWrapper) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
+// GetIdentityV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetIdentityV1(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetHealthStatus(w, r)
+		siw.Handler.GetIdentityV1(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -497,11 +481,30 @@ func (siw *ServerInterfaceWrapper) GetHealthStatus(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
-// GetIdentity operation middleware
-func (siw *ServerInterfaceWrapper) GetIdentity(w http.ResponseWriter, r *http.Request) {
+// LoginV1 operation middleware
+func (siw *ServerInterfaceWrapper) LoginV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LoginV1Params
+
+	// ------------- Optional query parameter "return_url" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "return_url", r.URL.Query(), &params.ReturnUrl, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "return_url"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "return_url", Err: err})
+		}
+		return
+	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetIdentity(w, r)
+		siw.Handler.LoginV1(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -511,11 +514,11 @@ func (siw *ServerInterfaceWrapper) GetIdentity(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
-// Login operation middleware
-func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
+// LogoutV1 operation middleware
+func (siw *ServerInterfaceWrapper) LogoutV1(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Login(w, r)
+		siw.Handler.LogoutV1(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -525,11 +528,11 @@ func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request)
 	handler.ServeHTTP(w, r)
 }
 
-// Logout operation middleware
-func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
+// ListProjectsV1 operation middleware
+func (siw *ServerInterfaceWrapper) ListProjectsV1(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Logout(w, r)
+		siw.Handler.ListProjectsV1(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -539,22 +542,8 @@ func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request
 	handler.ServeHTTP(w, r)
 }
 
-// ListProjects operation middleware
-func (siw *ServerInterfaceWrapper) ListProjects(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListProjects(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// ListArtifactDeployments operation middleware
-func (siw *ServerInterfaceWrapper) ListArtifactDeployments(w http.ResponseWriter, r *http.Request) {
+// ListArtifactDeploymentsV1 operation middleware
+func (siw *ServerInterfaceWrapper) ListArtifactDeploymentsV1(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -569,7 +558,7 @@ func (siw *ServerInterfaceWrapper) ListArtifactDeployments(w http.ResponseWriter
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params ListArtifactDeploymentsParams
+	var params ListArtifactDeploymentsV1Params
 
 	// ------------- Optional query parameter "landscapeId" -------------
 
@@ -598,7 +587,7 @@ func (siw *ServerInterfaceWrapper) ListArtifactDeployments(w http.ResponseWriter
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListArtifactDeployments(w, r, projectId, params)
+		siw.Handler.ListArtifactDeploymentsV1(w, r, projectId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -608,8 +597,8 @@ func (siw *ServerInterfaceWrapper) ListArtifactDeployments(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
-// ListLandscapes operation middleware
-func (siw *ServerInterfaceWrapper) ListLandscapes(w http.ResponseWriter, r *http.Request) {
+// ListLandscapesV1 operation middleware
+func (siw *ServerInterfaceWrapper) ListLandscapesV1(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -624,7 +613,7 @@ func (siw *ServerInterfaceWrapper) ListLandscapes(w http.ResponseWriter, r *http
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListLandscapes(w, r, projectId)
+		siw.Handler.ListLandscapesV1(w, r, projectId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -634,8 +623,8 @@ func (siw *ServerInterfaceWrapper) ListLandscapes(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
-// ListStages operation middleware
-func (siw *ServerInterfaceWrapper) ListStages(w http.ResponseWriter, r *http.Request) {
+// ListStagesV1 operation middleware
+func (siw *ServerInterfaceWrapper) ListStagesV1(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -650,7 +639,7 @@ func (siw *ServerInterfaceWrapper) ListStages(w http.ResponseWriter, r *http.Req
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params ListStagesParams
+	var params ListStagesV1Params
 
 	// ------------- Optional query parameter "landscapeId" -------------
 
@@ -666,7 +655,7 @@ func (siw *ServerInterfaceWrapper) ListStages(w http.ResponseWriter, r *http.Req
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListStages(w, r, projectId, params)
+		siw.Handler.ListStagesV1(w, r, projectId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -676,8 +665,8 @@ func (siw *ServerInterfaceWrapper) ListStages(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// ListVectorDeployments operation middleware
-func (siw *ServerInterfaceWrapper) ListVectorDeployments(w http.ResponseWriter, r *http.Request) {
+// ListVectorDeploymentsV1 operation middleware
+func (siw *ServerInterfaceWrapper) ListVectorDeploymentsV1(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -692,7 +681,7 @@ func (siw *ServerInterfaceWrapper) ListVectorDeployments(w http.ResponseWriter, 
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params ListVectorDeploymentsParams
+	var params ListVectorDeploymentsV1Params
 
 	// ------------- Optional query parameter "landscapeId" -------------
 
@@ -708,21 +697,7 @@ func (siw *ServerInterfaceWrapper) ListVectorDeployments(w http.ResponseWriter, 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListVectorDeployments(w, r, projectId, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetReadinessStatus operation middleware
-func (siw *ServerInterfaceWrapper) GetReadinessStatus(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetReadinessStatus(w, r)
+		siw.Handler.ListVectorDeploymentsV1(w, r, projectId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -846,40 +821,34 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/healthz", wrapper.GetHealthStatus)
+		r.Get(options.BaseURL+"/v1/login", wrapper.LoginV1)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/readyz", wrapper.GetReadinessStatus)
+		r.Get(options.BaseURL+"/v1/auth/callback", wrapper.AuthCallbackV1)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/login", wrapper.Login)
+		r.Post(options.BaseURL+"/v1/logout", wrapper.LogoutV1)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/auth/callback", wrapper.AuthCallback)
+		r.Get(options.BaseURL+"/v1/identity", wrapper.GetIdentityV1)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/logout", wrapper.Logout)
+		r.Post(options.BaseURL+"/v1/exchange", wrapper.PostExchangeCodeV1)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/identity", wrapper.GetIdentity)
+		r.Get(options.BaseURL+"/v1/projects", wrapper.ListProjectsV1)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/exchange", wrapper.PostExchangeCode)
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/landscapes", wrapper.ListLandscapesV1)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/projects", wrapper.ListProjects)
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/stages", wrapper.ListStagesV1)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/projects/{projectId}/landscapes", wrapper.ListLandscapes)
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectorDeployments", wrapper.ListVectorDeploymentsV1)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/projects/{projectId}/stages", wrapper.ListStages)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/projects/{projectId}/vectorDeployments", wrapper.ListVectorDeployments)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/projects/{projectId}/artifactDeployments", wrapper.ListArtifactDeployments)
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/artifactDeployments", wrapper.ListArtifactDeploymentsV1)
 	})
 
 	return r
@@ -893,25 +862,37 @@ type InternalErrorJSONResponse ErrorResponse
 
 type UnauthorizedJSONResponse ErrorResponse
 
-type AuthCallbackRequestObject struct {
-	Params AuthCallbackParams
+type AuthCallbackV1RequestObject struct {
+	Params AuthCallbackV1Params
 }
 
-type AuthCallbackResponseObject interface {
-	VisitAuthCallbackResponse(w http.ResponseWriter) error
+type AuthCallbackV1ResponseObject interface {
+	VisitAuthCallbackV1Response(w http.ResponseWriter) error
 }
 
-type AuthCallback302Response struct {
+type AuthCallbackV1302ResponseHeaders struct {
+	Location  *string
+	SetCookie *string
 }
 
-func (response AuthCallback302Response) VisitAuthCallbackResponse(w http.ResponseWriter) error {
+type AuthCallbackV1302Response struct {
+	Headers AuthCallbackV1302ResponseHeaders
+}
+
+func (response AuthCallbackV1302Response) VisitAuthCallbackV1Response(w http.ResponseWriter) error {
+	if response.Headers.Location != nil {
+		w.Header().Set("Location", fmt.Sprint(*response.Headers.Location))
+	}
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
 	w.WriteHeader(302)
 	return nil
 }
 
-type AuthCallback400JSONResponse struct{ BadRequestJSONResponse }
+type AuthCallbackV1400JSONResponse struct{ BadRequestJSONResponse }
 
-func (response AuthCallback400JSONResponse) VisitAuthCallbackResponse(w http.ResponseWriter) error {
+func (response AuthCallbackV1400JSONResponse) VisitAuthCallbackV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -923,45 +904,9 @@ func (response AuthCallback400JSONResponse) VisitAuthCallbackResponse(w http.Res
 	return err
 }
 
-type AuthCallback500JSONResponse struct{ InternalErrorJSONResponse }
+type AuthCallbackV1401JSONResponse struct{ UnauthorizedJSONResponse }
 
-func (response AuthCallback500JSONResponse) VisitAuthCallbackResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type PostExchangeCodeRequestObject struct {
-	Body *PostExchangeCodeJSONRequestBody
-}
-
-type PostExchangeCodeResponseObject interface {
-	VisitPostExchangeCodeResponse(w http.ResponseWriter) error
-}
-
-type PostExchangeCode200JSONResponse Session
-
-func (response PostExchangeCode200JSONResponse) VisitPostExchangeCodeResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type PostExchangeCode401JSONResponse struct{ UnauthorizedJSONResponse }
-
-func (response PostExchangeCode401JSONResponse) VisitPostExchangeCodeResponse(w http.ResponseWriter) error {
+func (response AuthCallbackV1401JSONResponse) VisitAuthCallbackV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -973,9 +918,9 @@ func (response PostExchangeCode401JSONResponse) VisitPostExchangeCodeResponse(w 
 	return err
 }
 
-type PostExchangeCode500JSONResponse struct{ InternalErrorJSONResponse }
+type AuthCallbackV1500JSONResponse struct{ InternalErrorJSONResponse }
 
-func (response PostExchangeCode500JSONResponse) VisitPostExchangeCodeResponse(w http.ResponseWriter) error {
+func (response AuthCallbackV1500JSONResponse) VisitAuthCallbackV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -987,16 +932,17 @@ func (response PostExchangeCode500JSONResponse) VisitPostExchangeCodeResponse(w 
 	return err
 }
 
-type GetHealthStatusRequestObject struct {
+type PostExchangeCodeV1RequestObject struct {
+	Body *PostExchangeCodeV1JSONRequestBody
 }
 
-type GetHealthStatusResponseObject interface {
-	VisitGetHealthStatusResponse(w http.ResponseWriter) error
+type PostExchangeCodeV1ResponseObject interface {
+	VisitPostExchangeCodeV1Response(w http.ResponseWriter) error
 }
 
-type GetHealthStatus200JSONResponse HealthStatus
+type PostExchangeCodeV1200JSONResponse Session
 
-func (response GetHealthStatus200JSONResponse) VisitGetHealthStatusResponse(w http.ResponseWriter) error {
+func (response PostExchangeCodeV1200JSONResponse) VisitPostExchangeCodeV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1008,30 +954,9 @@ func (response GetHealthStatus200JSONResponse) VisitGetHealthStatusResponse(w ht
 	return err
 }
 
-type GetIdentityRequestObject struct {
-}
+type PostExchangeCodeV1401JSONResponse struct{ UnauthorizedJSONResponse }
 
-type GetIdentityResponseObject interface {
-	VisitGetIdentityResponse(w http.ResponseWriter) error
-}
-
-type GetIdentity200JSONResponse Identity
-
-func (response GetIdentity200JSONResponse) VisitGetIdentityResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetIdentity401JSONResponse struct{ UnauthorizedJSONResponse }
-
-func (response GetIdentity401JSONResponse) VisitGetIdentityResponse(w http.ResponseWriter) error {
+func (response PostExchangeCodeV1401JSONResponse) VisitPostExchangeCodeV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1043,9 +968,9 @@ func (response GetIdentity401JSONResponse) VisitGetIdentityResponse(w http.Respo
 	return err
 }
 
-type GetIdentity500JSONResponse struct{ InternalErrorJSONResponse }
+type PostExchangeCodeV1500JSONResponse struct{ InternalErrorJSONResponse }
 
-func (response GetIdentity500JSONResponse) VisitGetIdentityResponse(w http.ResponseWriter) error {
+func (response PostExchangeCodeV1500JSONResponse) VisitPostExchangeCodeV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1057,39 +982,119 @@ func (response GetIdentity500JSONResponse) VisitGetIdentityResponse(w http.Respo
 	return err
 }
 
-type LoginRequestObject struct {
+type GetIdentityV1RequestObject struct {
 }
 
-type LoginResponseObject interface {
-	VisitLoginResponse(w http.ResponseWriter) error
+type GetIdentityV1ResponseObject interface {
+	VisitGetIdentityV1Response(w http.ResponseWriter) error
 }
 
-type Login302Response struct {
+type GetIdentityV1200JSONResponse Identity
+
+func (response GetIdentityV1200JSONResponse) VisitGetIdentityV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
-func (response Login302Response) VisitLoginResponse(w http.ResponseWriter) error {
+type GetIdentityV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetIdentityV1401JSONResponse) VisitGetIdentityV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetIdentityV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetIdentityV1500JSONResponse) VisitGetIdentityV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LoginV1RequestObject struct {
+	Params LoginV1Params
+}
+
+type LoginV1ResponseObject interface {
+	VisitLoginV1Response(w http.ResponseWriter) error
+}
+
+type LoginV1302ResponseHeaders struct {
+	Location *string
+}
+
+type LoginV1302Response struct {
+	Headers LoginV1302ResponseHeaders
+}
+
+func (response LoginV1302Response) VisitLoginV1Response(w http.ResponseWriter) error {
+	if response.Headers.Location != nil {
+		w.Header().Set("Location", fmt.Sprint(*response.Headers.Location))
+	}
 	w.WriteHeader(302)
 	return nil
 }
 
-type LogoutRequestObject struct {
+type LoginV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response LoginV1500JSONResponse) VisitLoginV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
-type LogoutResponseObject interface {
-	VisitLogoutResponse(w http.ResponseWriter) error
+type LogoutV1RequestObject struct {
 }
 
-type Logout200Response struct {
+type LogoutV1ResponseObject interface {
+	VisitLogoutV1Response(w http.ResponseWriter) error
 }
 
-func (response Logout200Response) VisitLogoutResponse(w http.ResponseWriter) error {
+type LogoutV1200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type LogoutV1200Response struct {
+	Headers LogoutV1200ResponseHeaders
+}
+
+func (response LogoutV1200Response) VisitLogoutV1Response(w http.ResponseWriter) error {
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
 	w.WriteHeader(200)
 	return nil
 }
 
-type Logout401JSONResponse struct{ UnauthorizedJSONResponse }
+type LogoutV1401JSONResponse struct{ UnauthorizedJSONResponse }
 
-func (response Logout401JSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+func (response LogoutV1401JSONResponse) VisitLogoutV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1101,16 +1106,16 @@ func (response Logout401JSONResponse) VisitLogoutResponse(w http.ResponseWriter)
 	return err
 }
 
-type ListProjectsRequestObject struct {
+type ListProjectsV1RequestObject struct {
 }
 
-type ListProjectsResponseObject interface {
-	VisitListProjectsResponse(w http.ResponseWriter) error
+type ListProjectsV1ResponseObject interface {
+	VisitListProjectsV1Response(w http.ResponseWriter) error
 }
 
-type ListProjects200JSONResponse ProjectList
+type ListProjectsV1200JSONResponse ProjectList
 
-func (response ListProjects200JSONResponse) VisitListProjectsResponse(w http.ResponseWriter) error {
+func (response ListProjectsV1200JSONResponse) VisitListProjectsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1122,9 +1127,9 @@ func (response ListProjects200JSONResponse) VisitListProjectsResponse(w http.Res
 	return err
 }
 
-type ListProjects401JSONResponse struct{ UnauthorizedJSONResponse }
+type ListProjectsV1401JSONResponse struct{ UnauthorizedJSONResponse }
 
-func (response ListProjects401JSONResponse) VisitListProjectsResponse(w http.ResponseWriter) error {
+func (response ListProjectsV1401JSONResponse) VisitListProjectsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1136,9 +1141,9 @@ func (response ListProjects401JSONResponse) VisitListProjectsResponse(w http.Res
 	return err
 }
 
-type ListProjects500JSONResponse struct{ InternalErrorJSONResponse }
+type ListProjectsV1500JSONResponse struct{ InternalErrorJSONResponse }
 
-func (response ListProjects500JSONResponse) VisitListProjectsResponse(w http.ResponseWriter) error {
+func (response ListProjectsV1500JSONResponse) VisitListProjectsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1150,18 +1155,18 @@ func (response ListProjects500JSONResponse) VisitListProjectsResponse(w http.Res
 	return err
 }
 
-type ListArtifactDeploymentsRequestObject struct {
+type ListArtifactDeploymentsV1RequestObject struct {
 	ProjectId ProjectPathId `json:"projectId"`
-	Params    ListArtifactDeploymentsParams
+	Params    ListArtifactDeploymentsV1Params
 }
 
-type ListArtifactDeploymentsResponseObject interface {
-	VisitListArtifactDeploymentsResponse(w http.ResponseWriter) error
+type ListArtifactDeploymentsV1ResponseObject interface {
+	VisitListArtifactDeploymentsV1Response(w http.ResponseWriter) error
 }
 
-type ListArtifactDeployments200JSONResponse ArtifactDeploymentList
+type ListArtifactDeploymentsV1200JSONResponse ArtifactDeploymentList
 
-func (response ListArtifactDeployments200JSONResponse) VisitListArtifactDeploymentsResponse(w http.ResponseWriter) error {
+func (response ListArtifactDeploymentsV1200JSONResponse) VisitListArtifactDeploymentsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1173,9 +1178,9 @@ func (response ListArtifactDeployments200JSONResponse) VisitListArtifactDeployme
 	return err
 }
 
-type ListArtifactDeployments401JSONResponse struct{ UnauthorizedJSONResponse }
+type ListArtifactDeploymentsV1401JSONResponse struct{ UnauthorizedJSONResponse }
 
-func (response ListArtifactDeployments401JSONResponse) VisitListArtifactDeploymentsResponse(w http.ResponseWriter) error {
+func (response ListArtifactDeploymentsV1401JSONResponse) VisitListArtifactDeploymentsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1187,9 +1192,9 @@ func (response ListArtifactDeployments401JSONResponse) VisitListArtifactDeployme
 	return err
 }
 
-type ListArtifactDeployments403JSONResponse struct{ ForbiddenJSONResponse }
+type ListArtifactDeploymentsV1403JSONResponse struct{ ForbiddenJSONResponse }
 
-func (response ListArtifactDeployments403JSONResponse) VisitListArtifactDeploymentsResponse(w http.ResponseWriter) error {
+func (response ListArtifactDeploymentsV1403JSONResponse) VisitListArtifactDeploymentsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1201,9 +1206,9 @@ func (response ListArtifactDeployments403JSONResponse) VisitListArtifactDeployme
 	return err
 }
 
-type ListArtifactDeployments500JSONResponse struct{ InternalErrorJSONResponse }
+type ListArtifactDeploymentsV1500JSONResponse struct{ InternalErrorJSONResponse }
 
-func (response ListArtifactDeployments500JSONResponse) VisitListArtifactDeploymentsResponse(w http.ResponseWriter) error {
+func (response ListArtifactDeploymentsV1500JSONResponse) VisitListArtifactDeploymentsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1215,17 +1220,17 @@ func (response ListArtifactDeployments500JSONResponse) VisitListArtifactDeployme
 	return err
 }
 
-type ListLandscapesRequestObject struct {
+type ListLandscapesV1RequestObject struct {
 	ProjectId ProjectPathId `json:"projectId"`
 }
 
-type ListLandscapesResponseObject interface {
-	VisitListLandscapesResponse(w http.ResponseWriter) error
+type ListLandscapesV1ResponseObject interface {
+	VisitListLandscapesV1Response(w http.ResponseWriter) error
 }
 
-type ListLandscapes200JSONResponse LandscapeList
+type ListLandscapesV1200JSONResponse LandscapeList
 
-func (response ListLandscapes200JSONResponse) VisitListLandscapesResponse(w http.ResponseWriter) error {
+func (response ListLandscapesV1200JSONResponse) VisitListLandscapesV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1237,9 +1242,9 @@ func (response ListLandscapes200JSONResponse) VisitListLandscapesResponse(w http
 	return err
 }
 
-type ListLandscapes401JSONResponse struct{ UnauthorizedJSONResponse }
+type ListLandscapesV1401JSONResponse struct{ UnauthorizedJSONResponse }
 
-func (response ListLandscapes401JSONResponse) VisitListLandscapesResponse(w http.ResponseWriter) error {
+func (response ListLandscapesV1401JSONResponse) VisitListLandscapesV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1251,9 +1256,9 @@ func (response ListLandscapes401JSONResponse) VisitListLandscapesResponse(w http
 	return err
 }
 
-type ListLandscapes403JSONResponse struct{ ForbiddenJSONResponse }
+type ListLandscapesV1403JSONResponse struct{ ForbiddenJSONResponse }
 
-func (response ListLandscapes403JSONResponse) VisitListLandscapesResponse(w http.ResponseWriter) error {
+func (response ListLandscapesV1403JSONResponse) VisitListLandscapesV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1265,9 +1270,9 @@ func (response ListLandscapes403JSONResponse) VisitListLandscapesResponse(w http
 	return err
 }
 
-type ListLandscapes500JSONResponse struct{ InternalErrorJSONResponse }
+type ListLandscapesV1500JSONResponse struct{ InternalErrorJSONResponse }
 
-func (response ListLandscapes500JSONResponse) VisitListLandscapesResponse(w http.ResponseWriter) error {
+func (response ListLandscapesV1500JSONResponse) VisitListLandscapesV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1279,18 +1284,18 @@ func (response ListLandscapes500JSONResponse) VisitListLandscapesResponse(w http
 	return err
 }
 
-type ListStagesRequestObject struct {
+type ListStagesV1RequestObject struct {
 	ProjectId ProjectPathId `json:"projectId"`
-	Params    ListStagesParams
+	Params    ListStagesV1Params
 }
 
-type ListStagesResponseObject interface {
-	VisitListStagesResponse(w http.ResponseWriter) error
+type ListStagesV1ResponseObject interface {
+	VisitListStagesV1Response(w http.ResponseWriter) error
 }
 
-type ListStages200JSONResponse StageList
+type ListStagesV1200JSONResponse StageList
 
-func (response ListStages200JSONResponse) VisitListStagesResponse(w http.ResponseWriter) error {
+func (response ListStagesV1200JSONResponse) VisitListStagesV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1302,9 +1307,9 @@ func (response ListStages200JSONResponse) VisitListStagesResponse(w http.Respons
 	return err
 }
 
-type ListStages401JSONResponse struct{ UnauthorizedJSONResponse }
+type ListStagesV1401JSONResponse struct{ UnauthorizedJSONResponse }
 
-func (response ListStages401JSONResponse) VisitListStagesResponse(w http.ResponseWriter) error {
+func (response ListStagesV1401JSONResponse) VisitListStagesV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1316,9 +1321,9 @@ func (response ListStages401JSONResponse) VisitListStagesResponse(w http.Respons
 	return err
 }
 
-type ListStages403JSONResponse struct{ ForbiddenJSONResponse }
+type ListStagesV1403JSONResponse struct{ ForbiddenJSONResponse }
 
-func (response ListStages403JSONResponse) VisitListStagesResponse(w http.ResponseWriter) error {
+func (response ListStagesV1403JSONResponse) VisitListStagesV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1330,9 +1335,9 @@ func (response ListStages403JSONResponse) VisitListStagesResponse(w http.Respons
 	return err
 }
 
-type ListStages500JSONResponse struct{ InternalErrorJSONResponse }
+type ListStagesV1500JSONResponse struct{ InternalErrorJSONResponse }
 
-func (response ListStages500JSONResponse) VisitListStagesResponse(w http.ResponseWriter) error {
+func (response ListStagesV1500JSONResponse) VisitListStagesV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1344,18 +1349,18 @@ func (response ListStages500JSONResponse) VisitListStagesResponse(w http.Respons
 	return err
 }
 
-type ListVectorDeploymentsRequestObject struct {
+type ListVectorDeploymentsV1RequestObject struct {
 	ProjectId ProjectPathId `json:"projectId"`
-	Params    ListVectorDeploymentsParams
+	Params    ListVectorDeploymentsV1Params
 }
 
-type ListVectorDeploymentsResponseObject interface {
-	VisitListVectorDeploymentsResponse(w http.ResponseWriter) error
+type ListVectorDeploymentsV1ResponseObject interface {
+	VisitListVectorDeploymentsV1Response(w http.ResponseWriter) error
 }
 
-type ListVectorDeployments200JSONResponse VectorDeploymentList
+type ListVectorDeploymentsV1200JSONResponse VectorDeploymentList
 
-func (response ListVectorDeployments200JSONResponse) VisitListVectorDeploymentsResponse(w http.ResponseWriter) error {
+func (response ListVectorDeploymentsV1200JSONResponse) VisitListVectorDeploymentsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1367,9 +1372,9 @@ func (response ListVectorDeployments200JSONResponse) VisitListVectorDeploymentsR
 	return err
 }
 
-type ListVectorDeployments401JSONResponse struct{ UnauthorizedJSONResponse }
+type ListVectorDeploymentsV1401JSONResponse struct{ UnauthorizedJSONResponse }
 
-func (response ListVectorDeployments401JSONResponse) VisitListVectorDeploymentsResponse(w http.ResponseWriter) error {
+func (response ListVectorDeploymentsV1401JSONResponse) VisitListVectorDeploymentsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1381,9 +1386,9 @@ func (response ListVectorDeployments401JSONResponse) VisitListVectorDeploymentsR
 	return err
 }
 
-type ListVectorDeployments403JSONResponse struct{ ForbiddenJSONResponse }
+type ListVectorDeploymentsV1403JSONResponse struct{ ForbiddenJSONResponse }
 
-func (response ListVectorDeployments403JSONResponse) VisitListVectorDeploymentsResponse(w http.ResponseWriter) error {
+func (response ListVectorDeploymentsV1403JSONResponse) VisitListVectorDeploymentsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1395,9 +1400,9 @@ func (response ListVectorDeployments403JSONResponse) VisitListVectorDeploymentsR
 	return err
 }
 
-type ListVectorDeployments500JSONResponse struct{ InternalErrorJSONResponse }
+type ListVectorDeploymentsV1500JSONResponse struct{ InternalErrorJSONResponse }
 
-func (response ListVectorDeployments500JSONResponse) VisitListVectorDeploymentsResponse(w http.ResponseWriter) error {
+func (response ListVectorDeploymentsV1500JSONResponse) VisitListVectorDeploymentsV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1405,69 +1410,42 @@ func (response ListVectorDeployments500JSONResponse) VisitListVectorDeploymentsR
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetReadinessStatusRequestObject struct {
-}
-
-type GetReadinessStatusResponseObject interface {
-	VisitGetReadinessStatusResponse(w http.ResponseWriter) error
-}
-
-type GetReadinessStatus200JSONResponse ReadinessStatus
-
-func (response GetReadinessStatus200JSONResponse) VisitGetReadinessStatusResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
 	_, err := buf.WriteTo(w)
 	return err
 }
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// AuthCallback OIDC callback
-	// (GET /auth/callback)
-	AuthCallback(ctx context.Context, request AuthCallbackRequestObject) (AuthCallbackResponseObject, error)
-	// PostExchangeCode Send temp exchange code and PKCE verifier to get session
-	// (POST /exchange)
-	PostExchangeCode(ctx context.Context, request PostExchangeCodeRequestObject) (PostExchangeCodeResponseObject, error)
-	// GetHealthStatus Health status endpoint
-	// (GET /healthz)
-	GetHealthStatus(ctx context.Context, request GetHealthStatusRequestObject) (GetHealthStatusResponseObject, error)
-	// GetIdentity Get the current user identity
-	// (GET /identity)
-	GetIdentity(ctx context.Context, request GetIdentityRequestObject) (GetIdentityResponseObject, error)
-	// Login Initiate OIDC login
-	// (GET /login)
-	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
-	// Logout Terminate the current session
-	// (POST /logout)
-	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
-	// ListProjects List all projects
-	// (GET /projects)
-	ListProjects(ctx context.Context, request ListProjectsRequestObject) (ListProjectsResponseObject, error)
-	// ListArtifactDeployments List all artifactDeployments for a project.
-	// (GET /projects/{projectId}/artifactDeployments)
-	ListArtifactDeployments(ctx context.Context, request ListArtifactDeploymentsRequestObject) (ListArtifactDeploymentsResponseObject, error)
-	// ListLandscapes List all landscapes for a specific project
-	// (GET /projects/{projectId}/landscapes)
-	ListLandscapes(ctx context.Context, request ListLandscapesRequestObject) (ListLandscapesResponseObject, error)
-	// ListStages List all stages for a project
-	// (GET /projects/{projectId}/stages)
-	ListStages(ctx context.Context, request ListStagesRequestObject) (ListStagesResponseObject, error)
-	// ListVectorDeployments List all vectorDeployments for a project
-	// (GET /projects/{projectId}/vectorDeployments)
-	ListVectorDeployments(ctx context.Context, request ListVectorDeploymentsRequestObject) (ListVectorDeploymentsResponseObject, error)
-	// GetReadinessStatus Readiness status endpoint
-	// (GET /readyz)
-	GetReadinessStatus(ctx context.Context, request GetReadinessStatusRequestObject) (GetReadinessStatusResponseObject, error)
+	// AuthCallbackV1 OIDC callback
+	// (GET /v1/auth/callback)
+	AuthCallbackV1(ctx context.Context, request AuthCallbackV1RequestObject) (AuthCallbackV1ResponseObject, error)
+	// PostExchangeCodeV1 Send temp exchange code and PKCE verifier to get session
+	// (POST /v1/exchange)
+	PostExchangeCodeV1(ctx context.Context, request PostExchangeCodeV1RequestObject) (PostExchangeCodeV1ResponseObject, error)
+	// GetIdentityV1 Get the current user identity
+	// (GET /v1/identity)
+	GetIdentityV1(ctx context.Context, request GetIdentityV1RequestObject) (GetIdentityV1ResponseObject, error)
+	// LoginV1 Initiate OIDC login
+	// (GET /v1/login)
+	LoginV1(ctx context.Context, request LoginV1RequestObject) (LoginV1ResponseObject, error)
+	// LogoutV1 Terminate the current session
+	// (POST /v1/logout)
+	LogoutV1(ctx context.Context, request LogoutV1RequestObject) (LogoutV1ResponseObject, error)
+	// ListProjectsV1 List all projects
+	// (GET /v1/projects)
+	ListProjectsV1(ctx context.Context, request ListProjectsV1RequestObject) (ListProjectsV1ResponseObject, error)
+	// ListArtifactDeploymentsV1 List all artifactDeployments for a project.
+	// (GET /v1/projects/{projectId}/artifactDeployments)
+	ListArtifactDeploymentsV1(ctx context.Context, request ListArtifactDeploymentsV1RequestObject) (ListArtifactDeploymentsV1ResponseObject, error)
+	// ListLandscapesV1 List all landscapes for a specific project
+	// (GET /v1/projects/{projectId}/landscapes)
+	ListLandscapesV1(ctx context.Context, request ListLandscapesV1RequestObject) (ListLandscapesV1ResponseObject, error)
+	// ListStagesV1 List all stages for a project
+	// (GET /v1/projects/{projectId}/stages)
+	ListStagesV1(ctx context.Context, request ListStagesV1RequestObject) (ListStagesV1ResponseObject, error)
+	// ListVectorDeploymentsV1 List all vectorDeployments for a project
+	// (GET /v1/projects/{projectId}/vectorDeployments)
+	ListVectorDeploymentsV1(ctx context.Context, request ListVectorDeploymentsV1RequestObject) (ListVectorDeploymentsV1ResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -1509,25 +1487,25 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
-// AuthCallback operation middleware
-func (sh *strictHandler) AuthCallback(w http.ResponseWriter, r *http.Request, params AuthCallbackParams) {
-	var request AuthCallbackRequestObject
+// AuthCallbackV1 operation middleware
+func (sh *strictHandler) AuthCallbackV1(w http.ResponseWriter, r *http.Request, params AuthCallbackV1Params) {
+	var request AuthCallbackV1RequestObject
 
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.AuthCallback(ctx, request.(AuthCallbackRequestObject))
+		return sh.ssi.AuthCallbackV1(ctx, request.(AuthCallbackV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "AuthCallback")
+		handler = middleware(handler, "AuthCallbackV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(AuthCallbackResponseObject); ok {
-		if err := validResponse.VisitAuthCallbackResponse(w); err != nil {
+	} else if validResponse, ok := response.(AuthCallbackV1ResponseObject); ok {
+		if err := validResponse.VisitAuthCallbackV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1535,11 +1513,11 @@ func (sh *strictHandler) AuthCallback(w http.ResponseWriter, r *http.Request, pa
 	}
 }
 
-// PostExchangeCode operation middleware
-func (sh *strictHandler) PostExchangeCode(w http.ResponseWriter, r *http.Request) {
-	var request PostExchangeCodeRequestObject
+// PostExchangeCodeV1 operation middleware
+func (sh *strictHandler) PostExchangeCodeV1(w http.ResponseWriter, r *http.Request) {
+	var request PostExchangeCodeV1RequestObject
 
-	var body PostExchangeCodeJSONRequestBody
+	var body PostExchangeCodeV1JSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
 		return
@@ -1547,18 +1525,18 @@ func (sh *strictHandler) PostExchangeCode(w http.ResponseWriter, r *http.Request
 	request.Body = &body
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.PostExchangeCode(ctx, request.(PostExchangeCodeRequestObject))
+		return sh.ssi.PostExchangeCodeV1(ctx, request.(PostExchangeCodeV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PostExchangeCode")
+		handler = middleware(handler, "PostExchangeCodeV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(PostExchangeCodeResponseObject); ok {
-		if err := validResponse.VisitPostExchangeCodeResponse(w); err != nil {
+	} else if validResponse, ok := response.(PostExchangeCodeV1ResponseObject); ok {
+		if err := validResponse.VisitPostExchangeCodeV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1566,23 +1544,23 @@ func (sh *strictHandler) PostExchangeCode(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// GetHealthStatus operation middleware
-func (sh *strictHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
-	var request GetHealthStatusRequestObject
+// GetIdentityV1 operation middleware
+func (sh *strictHandler) GetIdentityV1(w http.ResponseWriter, r *http.Request) {
+	var request GetIdentityV1RequestObject
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetHealthStatus(ctx, request.(GetHealthStatusRequestObject))
+		return sh.ssi.GetIdentityV1(ctx, request.(GetIdentityV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetHealthStatus")
+		handler = middleware(handler, "GetIdentityV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetHealthStatusResponseObject); ok {
-		if err := validResponse.VisitGetHealthStatusResponse(w); err != nil {
+	} else if validResponse, ok := response.(GetIdentityV1ResponseObject); ok {
+		if err := validResponse.VisitGetIdentityV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1590,23 +1568,25 @@ func (sh *strictHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-// GetIdentity operation middleware
-func (sh *strictHandler) GetIdentity(w http.ResponseWriter, r *http.Request) {
-	var request GetIdentityRequestObject
+// LoginV1 operation middleware
+func (sh *strictHandler) LoginV1(w http.ResponseWriter, r *http.Request, params LoginV1Params) {
+	var request LoginV1RequestObject
+
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetIdentity(ctx, request.(GetIdentityRequestObject))
+		return sh.ssi.LoginV1(ctx, request.(LoginV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetIdentity")
+		handler = middleware(handler, "LoginV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetIdentityResponseObject); ok {
-		if err := validResponse.VisitGetIdentityResponse(w); err != nil {
+	} else if validResponse, ok := response.(LoginV1ResponseObject); ok {
+		if err := validResponse.VisitLoginV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1614,23 +1594,23 @@ func (sh *strictHandler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Login operation middleware
-func (sh *strictHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var request LoginRequestObject
+// LogoutV1 operation middleware
+func (sh *strictHandler) LogoutV1(w http.ResponseWriter, r *http.Request) {
+	var request LogoutV1RequestObject
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.Login(ctx, request.(LoginRequestObject))
+		return sh.ssi.LogoutV1(ctx, request.(LogoutV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "Login")
+		handler = middleware(handler, "LogoutV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(LoginResponseObject); ok {
-		if err := validResponse.VisitLoginResponse(w); err != nil {
+	} else if validResponse, ok := response.(LogoutV1ResponseObject); ok {
+		if err := validResponse.VisitLogoutV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1638,23 +1618,23 @@ func (sh *strictHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Logout operation middleware
-func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	var request LogoutRequestObject
+// ListProjectsV1 operation middleware
+func (sh *strictHandler) ListProjectsV1(w http.ResponseWriter, r *http.Request) {
+	var request ListProjectsV1RequestObject
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.Logout(ctx, request.(LogoutRequestObject))
+		return sh.ssi.ListProjectsV1(ctx, request.(ListProjectsV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "Logout")
+		handler = middleware(handler, "ListProjectsV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(LogoutResponseObject); ok {
-		if err := validResponse.VisitLogoutResponse(w); err != nil {
+	} else if validResponse, ok := response.(ListProjectsV1ResponseObject); ok {
+		if err := validResponse.VisitListProjectsV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1662,50 +1642,26 @@ func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ListProjects operation middleware
-func (sh *strictHandler) ListProjects(w http.ResponseWriter, r *http.Request) {
-	var request ListProjectsRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListProjects(ctx, request.(ListProjectsRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListProjects")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListProjectsResponseObject); ok {
-		if err := validResponse.VisitListProjectsResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// ListArtifactDeployments operation middleware
-func (sh *strictHandler) ListArtifactDeployments(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsParams) {
-	var request ListArtifactDeploymentsRequestObject
+// ListArtifactDeploymentsV1 operation middleware
+func (sh *strictHandler) ListArtifactDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsV1Params) {
+	var request ListArtifactDeploymentsV1RequestObject
 
 	request.ProjectId = projectId
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListArtifactDeployments(ctx, request.(ListArtifactDeploymentsRequestObject))
+		return sh.ssi.ListArtifactDeploymentsV1(ctx, request.(ListArtifactDeploymentsV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListArtifactDeployments")
+		handler = middleware(handler, "ListArtifactDeploymentsV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListArtifactDeploymentsResponseObject); ok {
-		if err := validResponse.VisitListArtifactDeploymentsResponse(w); err != nil {
+	} else if validResponse, ok := response.(ListArtifactDeploymentsV1ResponseObject); ok {
+		if err := validResponse.VisitListArtifactDeploymentsV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1713,25 +1669,25 @@ func (sh *strictHandler) ListArtifactDeployments(w http.ResponseWriter, r *http.
 	}
 }
 
-// ListLandscapes operation middleware
-func (sh *strictHandler) ListLandscapes(w http.ResponseWriter, r *http.Request, projectId ProjectPathId) {
-	var request ListLandscapesRequestObject
+// ListLandscapesV1 operation middleware
+func (sh *strictHandler) ListLandscapesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId) {
+	var request ListLandscapesV1RequestObject
 
 	request.ProjectId = projectId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListLandscapes(ctx, request.(ListLandscapesRequestObject))
+		return sh.ssi.ListLandscapesV1(ctx, request.(ListLandscapesV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListLandscapes")
+		handler = middleware(handler, "ListLandscapesV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListLandscapesResponseObject); ok {
-		if err := validResponse.VisitListLandscapesResponse(w); err != nil {
+	} else if validResponse, ok := response.(ListLandscapesV1ResponseObject); ok {
+		if err := validResponse.VisitListLandscapesV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1739,53 +1695,26 @@ func (sh *strictHandler) ListLandscapes(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
-// ListStages operation middleware
-func (sh *strictHandler) ListStages(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListStagesParams) {
-	var request ListStagesRequestObject
-
-	request.ProjectId = projectId
-	request.Params = params
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListStages(ctx, request.(ListStagesRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListStages")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListStagesResponseObject); ok {
-		if err := validResponse.VisitListStagesResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// ListVectorDeployments operation middleware
-func (sh *strictHandler) ListVectorDeployments(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListVectorDeploymentsParams) {
-	var request ListVectorDeploymentsRequestObject
+// ListStagesV1 operation middleware
+func (sh *strictHandler) ListStagesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListStagesV1Params) {
+	var request ListStagesV1RequestObject
 
 	request.ProjectId = projectId
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListVectorDeployments(ctx, request.(ListVectorDeploymentsRequestObject))
+		return sh.ssi.ListStagesV1(ctx, request.(ListStagesV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListVectorDeployments")
+		handler = middleware(handler, "ListStagesV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListVectorDeploymentsResponseObject); ok {
-		if err := validResponse.VisitListVectorDeploymentsResponse(w); err != nil {
+	} else if validResponse, ok := response.(ListStagesV1ResponseObject); ok {
+		if err := validResponse.VisitListStagesV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1793,26 +1722,162 @@ func (sh *strictHandler) ListVectorDeployments(w http.ResponseWriter, r *http.Re
 	}
 }
 
-// GetReadinessStatus operation middleware
-func (sh *strictHandler) GetReadinessStatus(w http.ResponseWriter, r *http.Request) {
-	var request GetReadinessStatusRequestObject
+// ListVectorDeploymentsV1 operation middleware
+func (sh *strictHandler) ListVectorDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListVectorDeploymentsV1Params) {
+	var request ListVectorDeploymentsV1RequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetReadinessStatus(ctx, request.(GetReadinessStatusRequestObject))
+		return sh.ssi.ListVectorDeploymentsV1(ctx, request.(ListVectorDeploymentsV1RequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetReadinessStatus")
+		handler = middleware(handler, "ListVectorDeploymentsV1")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetReadinessStatusResponseObject); ok {
-		if err := validResponse.VisitGetReadinessStatusResponse(w); err != nil {
+	} else if validResponse, ok := response.(ListVectorDeploymentsV1ResponseObject); ok {
+		if err := validResponse.VisitListVectorDeploymentsV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
 	}
+}
+
+// Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
+// Stored as a slice of fixed-width chunks rather than one concatenated
+// const string: with thousands of chunks the chained `+` fold is several
+// times slower for the Go compiler than parsing a slice literal.
+var swaggerSpec = []string{
+	"3Fpbc9u4Ff4rGLQP7QxXsjfbF71l5STVxNOodtYvrqcDkUcSEhJgAFCO6tF/7+DCK0CRcpRsxm8ScTm3",
+	"D985OOQTjnmWcwZMSTx7wjkRJAMFwvy7JiyRMcnh3wWI/SLRzxKQsaC5opzhGX5LUwUCrfYoLecuEhxh",
+	"qge/6FU4woxkgGe4PUPGW8iI3lHtcz0slaBsgw+HCC8F/wSxWhK1DQl1w6iWlBO1rQXldtwMC/hSUAEJ",
+	"nilRwHGxdxArLq4gT/k+A6ZGWL3rLOk1PjixX5mD1lzmnEkwkfidJDfwpQCp9L+YMwXM/CR5ntKYaMWm",
+	"n6TW7qmx7V8FrPEM/2VaR3lqR+X0jRBc3DghVmTbygXbkZQmSFjBqMbGBB8i/JaLFU0SYD9Oo9dxDFIi",
+	"xhUiacofITGaLJgCwUhq1v9AbRgqGHzNIVaQIAliBwKBXoV4HBdCOPX+YKRQWy7o/yD5gdoVagtMud1R",
+	"eQ4QF0iClPoZfM2pVfJQYtGA7bVQdE1iVaPVUIPgOQhFLSCJmzOkZ7nXDaxBAItBe4QmY5e1DswhanHI",
+	"wBbXjanaPkU2sEiM8lRBJofW39oFem1G2TWwjdri2WVUnlUiBNm7nVUhfZb4uAVEPDuQmx5hYEWGZ/eV",
+	"u9+CiregeaFtPST4IeoyRBRglPG23flsNGDmoUml9zqCUYfQQ/o03B7VkKlcVpvFV5qxtRLByI/1rVHL",
+	"85S/5TWVAUwnRJHRLgwcksOA08z+x2yuD4k+YWn6YY1n98fVmJePGgfs4RDhwHPP3mq7f5kc9eR7rppx",
+	"B0JSy0/eJAE5l1RxsQ+n1aYLGnOjjvyAtJCv2sTn2QRlDuiamoQtzEBKsoFhzc0O9Xxftc58q0jIgkWi",
+	"eVntA8pnhKZBNdcko+m+N04bugPWO8r6BgRPoU0a3pSjgGY2brX0lqKRs6eUE/JFRdK+M+ipDF+a6TOF",
+	"HkF8jdQW6jrVZ4oQx5lNj2reR0+VoB5WqjY4AxnVbnw2B7mi+jlxWFb19ugouBL9G2NQCw4KdEJ6/O8W",
+	"n8H7peue7ftbW5D1+X7QRcE9laO1U6PZqHueX231o8AUBMgxh083RGxAGRUaKWdQ3XJuP3y61UpAUK8X",
+	"+/BlTQmjyyw8A7ZsGJ+PrI4nO0V8rOguEKcFS/S9ASSi+rhSiah05Kn0TdCus/aXm1fCV5ynQNi4Or+p",
+	"X6NOfwcMBFFO6bZy9VhFJkS4wnrTABVlCjYg2hV6WXPXVdtcAFFHS2xfhabWrgUwjsmquV0rozIWR2vj",
+	"jrf6QVnqFsZmt/p/DkuEbxDffD07gZyOXbu6dxH/0uX0548s5SQJ3LrGY2PYTY3afPgeVXqijZY+SATi",
+	"MM4j46BxBgbz0PZsMus68xsvSRpDEBeCqv2tnmhtc82ROeefqRFhunmx/Vu18z4nwH5xU2s/kpy+h73t",
+	"xlC25n4o/vnx4xJtiIJHskcrUI8ADM2vF9M/FihOqdYaEZYYWnvP2ZomWls0v7mSk/8YSVSlWlRj8PVy",
+	"YcDiSB7vLrWzeA6M5BTP8KvJxeQVjkyT1Jg43V1OSaG205ik6YrEn/XDDShf3RuIge7Akn/ZxbLcq+9D",
+	"aC14ZsYWV0tE1goEkoVp0q2LFKV8Q9kEvfkabwnbuF3sOi6Q4p+BWWtBKrJKqdyCRKRqT1mfW7M1+oxc",
+	"jW/T25o73e8ujWl12/r+KdiAdfe3E/rB4X30WTxto4dOL/fVxa8hTydU6GJVcevsujPoO5a0ensTHOEt",
+	"kKRs2vO4J3NWMgqRDnTgb0H9Uh+B9jZzzhShzIazDNbianK8oX2I8G8XF31kUTlo2uh0myWXw0taDdZD",
+	"hP8xRk67adwkAzy7f4iwLLKMiD2e4Q+LqzmqjoouHTcaZlgLxYZG9IECh3LDllwGDtMdSWliqipzBjTw",
+	"dyDomoIwfwSoQjBZuZSukWnATzz8L7lU5ama8wTMGXBt+t95sj+pyzyyUVKqGsZLtxdy6B6Q7guNX22M",
+	"ztILL69PgS74h/c/C4puQdM6ZDkqkVLDYPl+/qbGguJoAwo1sksQcLTRRuohb4unciKKU0IzacnX8blj",
+	"EfP+wojzwfYOVNmxcjj7TmGs+mI/RxyryL0DZTNXIcw9o5AgKqf2hsckvyOxsVRsSXQl+KO0ka+SaSvZ",
+	"AktyTpmK0Ao2lDHKNmamAY6eitYpf5ygD6w/TVRbi0q2JjQtdEpy6hUFocR7rY0am3Etn/13KNmcnB77",
+	"3XP+THg4PxEsGFWUKEAmr1iYHAERL1R/SpmnQEQ7EbuqCd1Y+tUFVnVf7zvi10ZM7+nuXH6dIAUio8xy",
+	"R4W5dN+JwbFC4gYyXhaXHfVH1BInU0HrUH8stW8d7SHOdR1FOci5JE1R+ZmCAMkLEYNEOyrpKoWqxmsR",
+	"sKaVQGioVG4j+X3pt9kP/ckYWOtkXFr5vw5Q9cgL0vSp+hDkMPVfFo4LYmBdI6A6lZJSqwmaE4ZWgNbm",
+	"8xBIWp/FIC68S3g43H4fQoYoN+TOesq0/Q2Nvs0MLPA+9hmxpu+LGY/UzwnUnte558XsbxevhhfVn8Cc",
+	"FeUhzLWRdjr+KxyOg30N2z6wB6FbYegMiP2eEGq/e3s5yKmj7KIlc4jpmsbNF26nAce0I8eBxr4PeRY7",
+	"huFkur1/Evl9T/jVL4deDvQsTtoxPx1t3Qw5DnjeqnOCsJvjXiAeg13/lwNNHx5jUNq+wnkvBu4fdEjs",
+	"V58WA4F3hA0c/s016CFBr5eLv+MI67vnDOu7Nz48HP4fAAD//w==",
+}
+
+// decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
+// after base64-decoding and flate-decompressing the embedded blob.
+func decodeSpec() ([]byte, error) {
+	encoded := strings.Join(swaggerSpec, "")
+	compressed, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("error base64 decoding spec: %w", err)
+	}
+	zr := flate.NewReader(bytes.NewReader(compressed))
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(zr); err != nil {
+		return nil, fmt.Errorf("read flate: %w", err)
+	}
+	if err := zr.Close(); err != nil {
+		return nil, fmt.Errorf("close flate reader: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+var rawSpec = decodeSpecCached()
+
+// a naive cache of the decoded OpenAPI spec
+func decodeSpecCached() func() ([]byte, error) {
+	data, err := decodeSpec()
+	return func() ([]byte, error) {
+		return data, err
+	}
+}
+
+// Constructs a synthetic filesystem for resolving external references when loading openapi specifications.
+func PathToRawSpec(pathToFile string) map[string]func() ([]byte, error) {
+	res := make(map[string]func() ([]byte, error))
+	if len(pathToFile) > 0 {
+		res[pathToFile] = rawSpec
+	}
+
+	return res
+}
+
+// GetSpec returns the OpenAPI specification corresponding to the generated
+// code in this file. External references in the spec are resolved through
+// PathToRawSpec; externally-referenced files must be embedded in their
+// corresponding Go packages (via the import-mapping feature). URL-based
+// external refs are not supported.
+func GetSpec() (swagger *openapi3.T, err error) {
+	resolvePath := PathToRawSpec("")
+
+	loader := openapi3.NewLoader()
+	loader.IsExternalRefsAllowed = true
+	loader.ReadFromURIFunc = func(loader *openapi3.Loader, url *url.URL) ([]byte, error) {
+		pathToFile := url.String()
+		pathToFile = path.Clean(pathToFile)
+		getSpec, ok := resolvePath[pathToFile]
+		if !ok {
+			err1 := fmt.Errorf("path not found: %s", pathToFile)
+			return nil, err1
+		}
+		return getSpec()
+	}
+	var specData []byte
+	specData, err = rawSpec()
+	if err != nil {
+		return
+	}
+	swagger, err = loader.LoadFromData(specData)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// GetSpecJSON returns the raw JSON bytes of the embedded OpenAPI
+// specification: decompressed but not unmarshaled. External references
+// are not resolved here; the bytes are the spec exactly as embedded by
+// codegen. The result is cached at package init time, so repeated calls
+// are cheap.
+func GetSpecJSON() ([]byte, error) {
+	return rawSpec()
+}
+
+// GetSwagger returns the OpenAPI specification corresponding to the
+// generated code in this file.
+//
+// Deprecated: GetSwagger predates kin-openapi renaming openapi3.Swagger
+// to openapi3.T. Use [GetSpec] instead. This wrapper is retained for
+// backwards compatibility.
+func GetSwagger() (*openapi3.T, error) {
+	return GetSpec()
 }
