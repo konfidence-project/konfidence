@@ -30,10 +30,11 @@ type VectorTemplateSpec struct {
 	// UploadTarget defines the target OCM component where the assembled vector will be uploaded.
 	UploadTarget string `json:"uploadTarget"`
 
-	// Base represents an optional base component version to build upon.
+	// Base references another VectorTemplate whose most recently assembled vector
+	// (status.latestVector) is used as the base for this vector's assembly.
 	// +kubebuilder:validation:Optional
 	// +optional
-	Base *string `json:"base,omitempty"`
+	Base *VectorTemplateReference `json:"base,omitempty"`
 
 	// Components lists the components to be included in the vector.
 	// +kubebuilder:validation:MinItems=1
@@ -74,6 +75,12 @@ type Component struct {
 // VectorTemplateStatus defines the observed state of VectorTemplate.
 type VectorTemplateStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// LatestVector is the concrete OCM component version of the most recently
+	// assembled vector, in the form <repository>//<component>:<version>. It is
+	// empty until the first successful assembly. 
+	// +optional
+	LatestVector string `json:"latestVector,omitempty"`
 }
 
 //nolint:lll // Kubebuilder annotations are intentionally long.
@@ -83,6 +90,7 @@ type VectorTemplateStatus struct {
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description="Indicates if the vector template is ready"
 // +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].reason",description="The reason of the Ready condition"
 // +kubebuilder:printcolumn:name="Upload-Target",type=string,JSONPath=".spec.uploadTarget",description="The upload target of the vector template"
+// +kubebuilder:printcolumn:name="Latest-Vector",type=string,JSONPath=".status.latestVector",description="The most recently assembled concrete vector version"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Time since creation of the vector template"
 
 // VectorTemplate represents a template for assembling OCM components into an OCM component
