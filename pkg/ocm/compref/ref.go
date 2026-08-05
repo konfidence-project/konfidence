@@ -38,6 +38,12 @@ const (
 	// VersionValidationAliasOnly requires versions to be aliases (non-semver tags).
 	// Semantic versions will be rejected.
 	VersionValidationAliasOnly
+
+	// VersionValidationNoVersion requires the reference to carry no version at all
+	// (repository and component only). A non-empty version is rejected. Use this for
+	// references that name a component whose version is assigned by the system rather
+	// than the user, e.g. a VectorTemplate uploadTarget.
+	VersionValidationNoVersion
 )
 
 // ParseOption configures the behavior of Parse.
@@ -159,6 +165,14 @@ func Validate(ref compref.Ref, opts ...ValidationOption) error {
 		opt(&cfg)
 	}
 
+	if cfg.versionMode == VersionValidationNoVersion {
+		if ref.Version != "" {
+			return fmt.Errorf(
+				"%w: component reference %q must not carry a version", ErrInvalidComponentReference, ref)
+		}
+		return nil
+	}
+
 	if ref.Version == "" {
 		return fmt.Errorf("%w: component reference %q is missing version", ErrInvalidComponentReference, ref)
 	}
@@ -183,6 +197,8 @@ func Validate(ref compref.Ref, opts ...ValidationOption) error {
 		}
 	case VersionValidationPermissive:
 		// Accept both semver and aliases - no additional checks needed
+	case VersionValidationNoVersion:
+		// handled above
 	}
 
 	return nil
