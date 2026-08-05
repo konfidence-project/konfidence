@@ -13,8 +13,6 @@ const (
 	// ConditionTypeApproved is the condition type for promotion approval.
 	ConditionTypeApproved = "Approved"
 
-	// ReasonPromotionStatusUnknown indicates that the promotion status is unknown.
-	ReasonPromotionStatusUnknown = "PromotionStatusUnknown"
 	// ReasonPromotionSucceeded indicates the promotion completed successfully.
 	ReasonPromotionSucceeded = "PromotionSucceeded"
 	// ReasonInvalidPromotionConfiguration indicates the promotion configuration is invalid.
@@ -81,8 +79,8 @@ type VectorPromotionSpec struct {
 	// execution (source kind `Stage`); false means the promotion is
 	// auto-approved (source kind `VectorTemplate`).
 	// +kubebuilder:default=false
-	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="requireApproval is immutable after it has been set"
+	// +optional
 	RequireApproval bool `json:"requireApproval,omitempty"`
 
 	// TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
@@ -99,7 +97,7 @@ type VectorPromotionStatus struct {
 	// State summarizes Conditions for display. Conditions are the source of
 	// truth; State is recomputed whenever conditions are written.
 	// +kubebuilder:validation:Enum=Pending;WaitingForApproval;Approved;InProgress;Succeeded;Failed;Superseded
-	// +kubebuilder:validation:Optional
+	// +optional
 	State VectorPromotionState `json:"state,omitempty"`
 }
 
