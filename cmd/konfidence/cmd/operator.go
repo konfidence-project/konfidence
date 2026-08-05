@@ -156,9 +156,7 @@ func buildControllerSetups(ctx context.Context, cancel context.CancelFunc, mgr m
 			})
 		},
 		vectorpromotion.OperatorFlagName: func() error {
-			return vectorpromotion.SetupControllers(ctx, mgr, vectorpromotion.Options{
-				Limiter: limiter,
-			})
+			return vectorpromotion.SetupControllers(ctx, mgr, vectorpromotion.Options{})
 		},
 	}
 

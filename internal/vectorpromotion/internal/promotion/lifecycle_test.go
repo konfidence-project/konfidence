@@ -31,56 +31,6 @@ var _ = Describe("Lifecycle", func() {
 		})
 	})
 
-	Describe("IsRunning", func() {
-		It("returns false when no conditions exist", func() {
-			p := &konfidence.VectorPromotion{}
-
-			Expect(IsRunning(p)).To(BeFalse())
-		})
-
-		It("returns true when reason is PromotionRunning", func() {
-			p := &konfidence.VectorPromotion{
-				Status: konfidence.VectorPromotionStatus{
-					Conditions: []metav1.Condition{{
-						Type:   konfidence.ConditionTypeSucceeded,
-						Status: metav1.ConditionFalse,
-						Reason: konfidence.ReasonPromotionRunning,
-					}},
-				},
-			}
-
-			Expect(IsRunning(p)).To(BeTrue())
-		})
-
-		It("returns false when succeeded", func() {
-			p := &konfidence.VectorPromotion{
-				Status: konfidence.VectorPromotionStatus{
-					Conditions: []metav1.Condition{{
-						Type:   konfidence.ConditionTypeSucceeded,
-						Status: metav1.ConditionTrue,
-						Reason: konfidence.ReasonPromotionSucceeded,
-					}},
-				},
-			}
-
-			Expect(IsRunning(p)).To(BeFalse())
-		})
-
-		It("returns false when failed", func() {
-			p := &konfidence.VectorPromotion{
-				Status: konfidence.VectorPromotionStatus{
-					Conditions: []metav1.Condition{{
-						Type:   konfidence.ConditionTypeSucceeded,
-						Status: metav1.ConditionFalse,
-						Reason: konfidence.ReasonPromotionFailed,
-					}},
-				},
-			}
-
-			Expect(IsRunning(p)).To(BeFalse())
-		})
-	})
-
 	Describe("IsTerminal", func() {
 		Context("non-terminal states", func() {
 			It("returns false when no conditions exist", func() {
@@ -139,7 +89,7 @@ var _ = Describe("Lifecycle", func() {
 						Conditions: []metav1.Condition{{
 							Type:   konfidence.ConditionTypeSucceeded,
 							Status: metav1.ConditionUnknown,
-							Reason: konfidence.ReasonPromotionStatusUnknown,
+							Reason: "SomeUnexpectedReason",
 						}},
 					},
 				}
@@ -224,7 +174,7 @@ var _ = Describe("Lifecycle", func() {
 				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionFailed)),
 				konfidence.PromotionStateFailed),
 			Entry("status unknown",
-				promotionWith(false, succeededCondition(metav1.ConditionUnknown, konfidence.ReasonPromotionStatusUnknown)),
+				promotionWith(false, succeededCondition(metav1.ConditionUnknown, "SomeUnexpectedReason")),
 				konfidence.PromotionStateFailed),
 		)
 	})
