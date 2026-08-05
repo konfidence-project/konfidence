@@ -18,7 +18,7 @@ type projectRepository struct {
 	err      error
 }
 
-func (r *projectRepository) Get(context.Context, string) (*konfidence.Project, error) {
+func (r *projectRepository) Get(_ context.Context, _ string) (*konfidence.Project, error) {
 	return nil, project.ErrNotFound
 }
 
@@ -53,10 +53,12 @@ func authorizedContext(projectRoles auth.ProjectRoles) context.Context {
 
 func TestListProjectsV1(t *testing.T) {
 	t.Run("returns only matching projects", func(t *testing.T) {
-		h := &projectHandler{projectRepo: &projectRepository{projects: []konfidence.Project{
-			projectFixture("visible", "Visible Project", "platform-engineers"),
-			projectFixture("hidden", "Hidden Project", "platform-managers"),
-		}}}
+		h := &projectHandler{
+			projectRepo: &projectRepository{projects: []konfidence.Project{
+				projectFixture("visible", "Visible Project", "platform-engineers"),
+				projectFixture("hidden", "Hidden Project", "platform-managers"),
+			}},
+		}
 
 		response, err := h.ListProjectsV1(authorizedContext(auth.ProjectRoles{
 			"visible": {"admin"},
@@ -71,9 +73,11 @@ func TestListProjectsV1(t *testing.T) {
 	})
 
 	t.Run("returns an empty list when no project matches", func(t *testing.T) {
-		h := &projectHandler{projectRepo: &projectRepository{projects: []konfidence.Project{
-			projectFixture("hidden", "Hidden Project", "platform-engineers"),
-		}}}
+		h := &projectHandler{
+			projectRepo: &projectRepository{projects: []konfidence.Project{
+				projectFixture("hidden", "Hidden Project", "platform-engineers"),
+			}},
+		}
 
 		response, err := h.ListProjectsV1(authorizedContext(auth.ProjectRoles{}), openapi.ListProjectsV1RequestObject{})
 		if err != nil {
