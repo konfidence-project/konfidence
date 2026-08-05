@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -24,9 +23,8 @@ import (
 const (
 	VectorPromotionControllerName = "vector-promotion-controller"
 
-	EventActionUnknownPromotionStatus = "ReconcileRunningPromotion"
-	EventActionStatusPatch            = "StatusPatch"
-	EventActionReconciling            = "Reconciling"
+	EventActionStatusPatch = "StatusPatch"
+	EventActionReconciling = "Reconciling"
 
 	executionPendingMessage = "promotion execution is disabled pending the ADR-0032 execution rework " +
 		"(konfidence-project#867)"
@@ -52,7 +50,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded) != nil {
+	if !promotion.IsPending(vectorPromotion) {
 		return ctrl.Result{}, nil
 	}
 
@@ -62,23 +60,25 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	log.Info(executionPendingMessage)
 	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionExecutionPending",
 		EventActionReconciling, executionPendingMessage)
-	if err := setAndPatchPromotionCondition(
-		ctx, log, r.Client, r.Recorder, vectorPromotion, original,
-		metav1.ConditionUnknown, konfidence.ReasonPromotionExecutionPending, executionPendingMessage); err != nil {
+
+	setPromotionCondition(vectorPromotion,
+		metav1.ConditionUnknown, konfidence.ReasonPromotionExecutionPending, executionPendingMessage)
+	if err := patchPromotionStatus(ctx, r.Client, vectorPromotion, original); err != nil {
+		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch,
+			err.Error())
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func setAndPatchPromotionCondition(
-	ctx context.Context,
-	log logr.Logger,
-	c client.Client,
-	recorder events.EventRecorder,
-	vectorPromotion, original *konfidence.VectorPromotion,
+// setPromotionCondition writes the Succeeded condition and refreshes the
+// derived status.state.
+func setPromotionCondition(
+	vectorPromotion *konfidence.VectorPromotion,
 	status metav1.ConditionStatus,
-	reason, message string) error {
+	reason, message string,
+) {
 	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
 		Type:               konfidence.ConditionTypeSucceeded,
 		Status:             status,
@@ -87,15 +87,20 @@ func setAndPatchPromotionCondition(
 		Message:            message,
 	})
 	vectorPromotion.Status.State = promotion.DeriveState(vectorPromotion)
-	if !reflect.DeepEqual(vectorPromotion.Status, original.Status) {
-		if err := c.Status().Patch(ctx, vectorPromotion, client.MergeFrom(original)); err != nil {
-			log.Error(err, fmt.Sprintf("failed to patch promotion status of promotion %q in namespace %q",
-				vectorPromotion.Name, vectorPromotion.Namespace))
-			recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch,
-				fmt.Sprintf("wanted to set condition of type %q to status %q with reason %q and message %q "+
-					"but failed with error: %s", konfidence.ConditionTypeSucceeded, status, reason, message, err.Error()))
-			return fmt.Errorf("failed to patch VectorPromotion status: %w", err)
-		}
+}
+
+// patchPromotionStatus patches the promotion status if it changed relative to original.
+func patchPromotionStatus(
+	ctx context.Context,
+	c client.Client,
+	vectorPromotion, original *konfidence.VectorPromotion,
+) error {
+	if reflect.DeepEqual(vectorPromotion.Status, original.Status) {
+		return nil
+	}
+	if err := c.Status().Patch(ctx, vectorPromotion, client.MergeFrom(original)); err != nil {
+		return fmt.Errorf("failed to patch status of VectorPromotion %q in namespace %q: %w",
+			vectorPromotion.Name, vectorPromotion.Namespace, err)
 	}
 	return nil
 }

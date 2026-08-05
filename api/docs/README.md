@@ -1940,6 +1940,24 @@ VectorTemplateList contains a list of VectorTemplate
 | `items` _[VectorTemplate](#vectortemplate) array_ |  |  |  |
 
 
+#### VectorTemplateReference
+
+
+
+VectorTemplateReference holds a reference to a VectorTemplate in the same namespace,
+used as the base of another VectorTemplate.
+
+
+
+_Appears in:_
+- [VectorTemplateSpec](#vectortemplatespec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `kind` _string_ | Kind is the kind of the referenced object. Only VectorTemplate is supported for now. | VectorTemplate | Enum: [VectorTemplate] <br /> |
+| `name` _string_ | Name is the name of the referenced VectorTemplate. Required. |  | MinLength: 1 <br /> |
+
+
 #### VectorTemplateSpec
 
 
@@ -1957,7 +1975,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `reconcileInterval` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | ReconcileInterval defines how often the assembly controller should check for drift.<br />If not set, the controller's default reconcile interval will be used. |  | Optional: \{\} <br /> |
 | `uploadTarget` _string_ | UploadTarget defines the target OCM component where the assembled vector will be uploaded. |  |  |
-| `base` _string_ | Base represents an optional base component version to build upon. |  | Optional: \{\} <br />Optional: \{\} <br /> |
+| `base` _[VectorTemplateReference](#vectortemplatereference)_ | Base references another VectorTemplate whose most recently assembled vector<br />(status.latestVector) is used as the base for this vector's assembly. |  | Optional: \{\} <br />Optional: \{\} <br /> |
 | `components` _[Component](#component) array_ | Components lists the components to be included in the vector. |  | MinItems: 1 <br /> |
 | `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories<br />and signing/verification key material. |  | Optional: \{\} <br /> |
 | `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every<br />artifact pulled into the assembly. Absence disables artifact<br />verification. |  | Optional: \{\} <br /> |
@@ -1980,6 +1998,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+| `latestVector` _string_ | LatestVector is the concrete OCM component version of the most recently<br />assembled vector, in the form <repository>//<component>:<version>. It is<br />empty until the first successful assembly. |  | Optional: \{\} <br /> |
 
 
 #### Verify

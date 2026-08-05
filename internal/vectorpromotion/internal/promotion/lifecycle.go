@@ -16,11 +16,6 @@ func IsPending(p *konfidence.VectorPromotion) bool {
 	return getSucceededCondition(p) == nil
 }
 
-func IsRunning(p *konfidence.VectorPromotion) bool {
-	cond := getSucceededCondition(p)
-	return cond != nil && cond.Reason == konfidence.ReasonPromotionRunning
-}
-
 func IsSucceeded(p *konfidence.VectorPromotion) bool {
 	cond := getSucceededCondition(p)
 	return cond != nil && cond.Status == metav1.ConditionTrue
