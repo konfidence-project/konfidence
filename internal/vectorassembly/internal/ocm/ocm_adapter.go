@@ -168,7 +168,7 @@ func (a Adapter) getVectorConfiguration(ctx context.Context, vectorRef compref.R
 	return vectorConfiguration, nil
 }
 
-func (a Adapter) CreateVector(ctx context.Context, repoSpec runtime.Typed, v vector.Vector, alias string) error {
+func (a Adapter) CreateVector(ctx context.Context, repoSpec runtime.Typed, v vector.Vector) error {
 	if err := a.copyArtifacts(ctx, v.Artifacts, repoSpec); err != nil {
 		return fmt.Errorf("unable to copy artifact components to target repository: %w", err)
 	}
@@ -196,14 +196,6 @@ func (a Adapter) CreateVector(ctx context.Context, repoSpec runtime.Typed, v vec
 			return nil
 		}
 		return fmt.Errorf("unable to save ocm descriptor for vector (%s) version (%s): %w", v.Name, v.Version, err)
-	}
-	aliasRef := compref.Ref{
-		Repository: repoSpec,
-		Component:  vectorDescriptor.Component.Name,
-		Version:    vectorDescriptor.Component.Version,
-	}
-	if err := a.ocmClient.AddAlias(ctx, aliasRef, alias); err != nil {
-		return fmt.Errorf("unable to add alias (%s) for vector (%s) version (%s): %w", alias, v.Name, v.Version, err)
 	}
 	return nil
 }

@@ -20,8 +20,7 @@ type OcmPort interface {
 	GetVector(ctx context.Context, vectorRef compref.Ref) (Vector, error)
 
 	// CreateVector creates the specified vector in the repository specified by repoSpec.
-	// After CreateVector returns the vector is retrievable via its alias.
-	CreateVector(ctx context.Context, repoSpec runtime.Typed, vector Vector, alias string) error
+	CreateVector(ctx context.Context, repoSpec runtime.Typed, vector Vector) error
 }
 
 var (
