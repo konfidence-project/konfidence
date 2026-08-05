@@ -16,15 +16,20 @@ const (
 	timeout       = 30 * time.Second
 	interval      = 250 * time.Millisecond
 
-	testVector = "registry.example//konfidence.io/promo/app:1.0.0"
+	testVector    = "registry.example//konfidence.io/promo/app:1.0.0"
+	testLandscape = "test-landscape"
 )
 
 func templateSource(name string) konfidence.PromotionSourceReference {
 	return konfidence.PromotionSourceReference{Kind: konfidence.VectorTemplateKind, Name: name}
 }
 
+func stageSource(name string) konfidence.PromotionSourceReference {
+	return konfidence.PromotionSourceReference{Kind: konfidence.StageKind, Name: name, Landscape: testLandscape}
+}
+
 func stageTarget(name string) konfidence.PromotionTargetReference {
-	return konfidence.PromotionTargetReference{Kind: konfidence.StageKind, Name: name}
+	return konfidence.PromotionTargetReference{Kind: konfidence.StageKind, Name: name, Landscape: testLandscape}
 }
 
 // cleanupPromotions deletes all VectorPromotion and VectorPromotionConfig objects and waits for them to be gone.

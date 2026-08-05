@@ -89,69 +89,67 @@ spec:
               source:
                 description: Source references the resource to promote from.
                 properties:
-                  apiGroup:
-                    default: konfidence.cloud
-                    description: APIGroup of the source resource.
-                    maxLength: 253
-                    type: string
                   kind:
                     description: |-
-                      Kind of the source resource. A `VectorTemplate` source promotes its
-                      latest assembled vector automatically; a `Stage` source promotes the
-                      vector currently active on that stage and requires approval.
+                      Kind is the kind of the source resource. A `VectorTemplate` source
+                      promotes its latest assembled vector automatically; a `Stage` source
+                      promotes the vector currently active on that stage and requires approval.
                     enum:
                     - VectorTemplate
                     - Stage
                     type: string
-                  name:
-                    description: Name of the source resource.
-                    maxLength: 253
+                  landscape:
+                    description: |-
+                      Landscape is the name of the `Landscape` in the config's namespace whose
+                      namespace hosts the referenced `Stage`. Required for `Stage` references;
+                      must be omitted for `VectorTemplate` references, which are resolved in
+                      the config's namespace.
+                    maxLength: 63
                     minLength: 1
                     type: string
-                  namespace:
-                    description: |-
-                      Namespace of the source resource. Defaults to the namespace of the
-                      VectorPromotionConfig. Cross-namespace references are accepted by the
-                      schema but not yet acted on by controllers.
-                    maxLength: 63
+                  name:
+                    description: Name is the name of the source resource.
+                    maxLength: 253
+                    minLength: 1
                     type: string
                 required:
                 - kind
                 - name
                 type: object
+                x-kubernetes-validations:
+                - message: landscape is required for Stage references and must be
+                    omitted for VectorTemplate references
+                  rule: (self.kind == 'Stage') == has(self.landscape)
               target:
                 description: Target references the Stage to promote to.
                 properties:
-                  apiGroup:
-                    default: konfidence.cloud
-                    description: APIGroup of the target resource.
-                    maxLength: 253
-                    type: string
                   kind:
-                    description: Kind of the target resource.
+                    description: Kind is the kind of the target resource.
                     enum:
                     - Stage
                     type: string
+                  landscape:
+                    description: |-
+                      Landscape is the name of the `Landscape` in the config's namespace whose
+                      namespace hosts the target `Stage`.
+                    maxLength: 63
+                    minLength: 1
+                    type: string
                   name:
-                    description: Name of the target resource.
+                    description: Name is the name of the target `Stage`.
                     maxLength: 253
                     minLength: 1
                     type: string
-                  namespace:
-                    description: |-
-                      Namespace of the target resource. Defaults to the namespace of the
-                      VectorPromotionConfig. Cross-namespace references are accepted by the
-                      schema but not yet acted on by controllers.
-                    maxLength: 63
-                    type: string
                 required:
                 - kind
+                - landscape
                 - name
                 type: object
               ttlAfterFinished:
                 description: |-
-                  TTLAfterFinished is copied onto every VectorPromotion created for this
-                  config. See `VectorPromotionSpec.TTLAfterFinished`.
+                  TTLAfterFinished will be copied onto every VectorPromotion the drift
+                  controller creates for this config (pending the ADR-0032 rework). See
+                  `VectorPromotionSpec.TTLAfterFinished`.
                 type: string
               verifyVector:
                 description: |-
