@@ -10,6 +10,8 @@ const (
 
 	// ConditionTypeSucceeded is the condition type for promotion results.
 	ConditionTypeSucceeded = "Succeeded"
+	// ConditionTypeApproved is the condition type for promotion approval.
+	ConditionTypeApproved = "Approved"
 
 	// ReasonPromotionStatusUnknown indicates that the promotion status is unknown.
 	ReasonPromotionStatusUnknown = "PromotionStatusUnknown"
@@ -27,6 +29,39 @@ const (
 	ReasonPromotionRunning = "PromotionRunning"
 	// ReasonPromotionSourceVerificationFailed indicates that the verification of the source vector failed.
 	ReasonPromotionSourceVerificationFailed = "PromotionSourceVerificationFailed"
+	// ReasonPromotionWaitingForApproval indicates the promotion waits for manual approval.
+	ReasonPromotionWaitingForApproval = "WaitingForApproval"
+	// ReasonPromotionAutoApproved indicates the promotion was approved automatically
+	// because its source is a VectorTemplate.
+	ReasonPromotionAutoApproved = "AutoApproved"
+	// ReasonPromotionManuallyApproved indicates the promotion was approved manually.
+	ReasonPromotionManuallyApproved = "ManuallyApproved"
+	// ReasonPromotionSuperseded indicates a newer promotion for the same config replaced this one.
+	ReasonPromotionSuperseded = "PromotionSuperseded"
+	// ReasonPromotionExecutionPending indicates promotion execution is not yet
+	// implemented for structured references (ADR-0032 rework).
+	ReasonPromotionExecutionPending = "PromotionExecutionPending"
+)
+
+// VectorPromotionState summarizes the promotion lifecycle for display.
+// Conditions are the source of truth; the state is derived from them.
+type VectorPromotionState string
+
+const (
+	// PromotionStatePending means the promotion has not started yet.
+	PromotionStatePending VectorPromotionState = "Pending"
+	// PromotionStateWaitingForApproval means the promotion requires approval and has not been approved yet.
+	PromotionStateWaitingForApproval VectorPromotionState = "WaitingForApproval"
+	// PromotionStateApproved means the promotion is approved but execution has not started.
+	PromotionStateApproved VectorPromotionState = "Approved"
+	// PromotionStateInProgress means the promotion is executing.
+	PromotionStateInProgress VectorPromotionState = "InProgress"
+	// PromotionStateSucceeded means the promotion completed successfully.
+	PromotionStateSucceeded VectorPromotionState = "Succeeded"
+	// PromotionStateFailed means the promotion reached a terminal state without success.
+	PromotionStateFailed VectorPromotionState = "Failed"
+	// PromotionStateSuperseded means a newer promotion replaced this one.
+	PromotionStateSuperseded VectorPromotionState = "Superseded"
 )
 
 // VectorPromotionSpec defines the desired state of VectorPromotion.
@@ -34,6 +69,21 @@ type VectorPromotionSpec struct {
 	// VectorPromotionConfigRef is the name of the VectorPromotionConfig that defines the promotion flow to execute.
 	// +kubebuilder:validation:MinLength=1
 	VectorPromotionConfigRef string `json:"vectorPromotionConfigRef"`
+
+	// Vector is the concrete OCM component version reference
+	// (`<registry>//<component>:<version>`) pinned when the promotion was created.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[^/].+//.+:.+$`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="vector is immutable after it has been set"
+	Vector string `json:"vector"`
+
+	// RequireApproval is true when the promotion must be approved before
+	// execution (source kind `Stage`); false means the promotion is
+	// auto-approved (source kind `VectorTemplate`).
+	// +kubebuilder:default=false
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="requireApproval is immutable after it has been set"
+	RequireApproval bool `json:"requireApproval,omitempty"`
 
 	// TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
 	// Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
@@ -45,13 +95,19 @@ type VectorPromotionSpec struct {
 // VectorPromotionStatus defines the observed state of VectorPromotion.
 type VectorPromotionStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// State summarizes Conditions for display. Conditions are the source of
+	// truth; State is recomputed whenever conditions are written.
+	// +kubebuilder:validation:Enum=Pending;WaitingForApproval;Approved;InProgress;Succeeded;Failed;Superseded
+	// +kubebuilder:validation:Optional
+	State VectorPromotionState `json:"state,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Config",type=string,JSONPath=".spec.vectorPromotionConfigRef",description="The referenced VectorPromotionConfig"
-// +kubebuilder:printcolumn:name="Promotion Succeeded",type=string,JSONPath=".status.conditions[0].status",description="Promotion was successful"
-// +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".status.conditions[0].reason",description="Promotion condition reason"
+// +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=".spec.vector",description="The promoted vector version"
+// +kubebuilder:printcolumn:name="State",type=string,JSONPath=".status.state",description="Promotion state"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Age"
 
 // VectorPromotion triggers a one-time execution of a promotion flow defined by a VectorPromotionConfig.

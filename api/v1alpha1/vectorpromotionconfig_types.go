@@ -9,23 +9,72 @@ const (
 	VectorPromotionConfigKind = "VectorPromotionConfig"
 )
 
+// PromotionSourceReference identifies the in-cluster resource whose current
+// vector is promoted from.
+type PromotionSourceReference struct {
+	// Kind of the source resource. A `VectorTemplate` source promotes its
+	// latest assembled vector automatically; a `Stage` source promotes the
+	// vector currently active on that stage and requires approval.
+	// +kubebuilder:validation:Enum=VectorTemplate;Stage
+	Kind string `json:"kind"`
+
+	// Name of the source resource.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	Name string `json:"name"`
+
+	// APIGroup of the source resource.
+	// +kubebuilder:default="konfidence.cloud"
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Optional
+	APIGroup string `json:"apiGroup,omitempty"`
+
+	// Namespace of the source resource. Defaults to the namespace of the
+	// VectorPromotionConfig. Cross-namespace references are accepted by the
+	// schema but not yet acted on by controllers.
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Optional
+	Namespace string `json:"namespace,omitempty"`
+}
+
+// PromotionTargetReference identifies the Stage whose `spec.vector` is the
+// promotion target.
+type PromotionTargetReference struct {
+	// Kind of the target resource.
+	// +kubebuilder:validation:Enum=Stage
+	Kind string `json:"kind"`
+
+	// Name of the target resource.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	Name string `json:"name"`
+
+	// APIGroup of the target resource.
+	// +kubebuilder:default="konfidence.cloud"
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Optional
+	APIGroup string `json:"apiGroup,omitempty"`
+
+	// Namespace of the target resource. Defaults to the namespace of the
+	// VectorPromotionConfig. Cross-namespace references are accepted by the
+	// schema but not yet acted on by controllers.
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Optional
+	Namespace string `json:"namespace,omitempty"`
+}
+
 // VectorPromotionConfigSpec defines the desired state of VectorPromotionConfig.
 type VectorPromotionConfigSpec struct {
-	// Source is the OCM component reference to promote from.
-	// This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.
-	// The format is `<registry>//<component-name>:<version>`.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Pattern=`^[^/].+//.+:.+$`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="source is immutable after it has been set"
-	Source string `json:"source"`
+	// Source references the resource to promote from.
+	Source PromotionSourceReference `json:"source"`
 
-	// Target is the OCM component reference to promote to.
-	// This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.
-	// The format is `<registry>//<component-name>:<version>`.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Pattern=`^[^/].+//.+:.+$`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="target is immutable after it has been set"
-	Target string `json:"target"`
+	// Target references the Stage to promote to.
+	Target PromotionTargetReference `json:"target"`
+
+	// TTLAfterFinished is copied onto every VectorPromotion created for this
+	// config. See `VectorPromotionSpec.TTLAfterFinished`.
+	// +kubebuilder:validation:Optional
+	TTLAfterFinished *metav1.Duration `json:"ttlAfterFinished,omitempty"`
 
 	// Credentials supplies credentials for OCM repository access and vector verification key material.
 	// +optional

@@ -696,6 +696,46 @@ _Appears in:_
 | `namespace` _string_ | Namespace is the name of the namespace managed for this project. |  | Optional: \{\} <br /> |
 
 
+#### PromotionSourceReference
+
+
+
+PromotionSourceReference identifies the in-cluster resource whose current
+vector is promoted from.
+
+
+
+_Appears in:_
+- [VectorPromotionConfigSpec](#vectorpromotionconfigspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `kind` _string_ | Kind of the source resource. A `VectorTemplate` source promotes its<br />latest assembled vector automatically; a `Stage` source promotes the<br />vector currently active on that stage and requires approval. |  | Enum: [VectorTemplate Stage] <br /> |
+| `name` _string_ | Name of the source resource. |  | MinLength: 1 <br /> |
+| `apiGroup` _string_ | APIGroup of the source resource. | konfidence.cloud | Optional: \{\} <br /> |
+| `namespace` _string_ | Namespace of the source resource. Defaults to the namespace of the<br />VectorPromotionConfig. Cross-namespace references are accepted by the<br />schema but not yet acted on by controllers. |  | Optional: \{\} <br /> |
+
+
+#### PromotionTargetReference
+
+
+
+PromotionTargetReference identifies the Stage whose `spec.vector` is the
+promotion target.
+
+
+
+_Appears in:_
+- [VectorPromotionConfigSpec](#vectorpromotionconfigspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `kind` _string_ | Kind of the target resource. |  | Enum: [Stage] <br /> |
+| `name` _string_ | Name of the target resource. |  | MinLength: 1 <br /> |
+| `apiGroup` _string_ | APIGroup of the target resource. | konfidence.cloud | Optional: \{\} <br /> |
+| `namespace` _string_ | Namespace of the target resource. Defaults to the namespace of the<br />VectorPromotionConfig. Cross-namespace references are accepted by the<br />schema but not yet acted on by controllers. |  | Optional: \{\} <br /> |
+
+
 #### SessionSubject
 
 
@@ -1756,8 +1796,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `source` _string_ | Source is the OCM component reference to promote from.<br />This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.<br />The format is `<registry>//<component-name>:<version>`. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
-| `target` _string_ | Target is the OCM component reference to promote to.<br />This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.<br />The format is `<registry>//<component-name>:<version>`. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
+| `source` _[PromotionSourceReference](#promotionsourcereference)_ | Source references the resource to promote from. |  |  |
+| `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target references the Stage to promote to. |  |  |
+| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished is copied onto every VectorPromotion created for this<br />config. See `VectorPromotionSpec.TTLAfterFinished`. |  | Optional: \{\} <br /> |
 | `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repository access and vector verification key material. |  | Optional: \{\} <br /> |
 | `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against the<br />source vector before promotion proceeds. Absence disables vector<br />verification. |  | Optional: \{\} <br /> |
 
@@ -1813,7 +1854,32 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `vectorPromotionConfigRef` _string_ | VectorPromotionConfigRef is the name of the VectorPromotionConfig that defines the promotion flow to execute. |  | MinLength: 1 <br /> |
+| `vector` _string_ | Vector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) pinned when the promotion was created. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
+| `requireApproval` _boolean_ | RequireApproval is true when the promotion must be approved before<br />execution (source kind `Stage`); false means the promotion is<br />auto-approved (source kind `VectorTemplate`). | false | Optional: \{\} <br /> |
 | `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
+
+
+#### VectorPromotionState
+
+_Underlying type:_ _string_
+
+VectorPromotionState summarizes the promotion lifecycle for display.
+Conditions are the source of truth; the state is derived from them.
+
+
+
+_Appears in:_
+- [VectorPromotionStatus](#vectorpromotionstatus)
+
+| Field | Description |
+| --- | --- |
+| `Pending` | PromotionStatePending means the promotion has not started yet.<br /> |
+| `WaitingForApproval` | PromotionStateWaitingForApproval means the promotion requires approval and has not been approved yet.<br /> |
+| `Approved` | PromotionStateApproved means the promotion is approved but execution has not started.<br /> |
+| `InProgress` | PromotionStateInProgress means the promotion is executing.<br /> |
+| `Succeeded` | PromotionStateSucceeded means the promotion completed successfully.<br /> |
+| `Failed` | PromotionStateFailed means the promotion reached a terminal state without success.<br /> |
+| `Superseded` | PromotionStateSuperseded means a newer promotion replaced this one.<br /> |
 
 
 #### VectorPromotionStatus
@@ -1830,6 +1896,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes Conditions for display. Conditions are the source of<br />truth; State is recomputed whenever conditions are written. |  | Enum: [Pending WaitingForApproval Approved InProgress Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
 
 
 #### VectorTemplate
@@ -1915,6 +1982,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
+| `latestVector` _string_ | LatestVector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) of the most recently assembled<br />vector for this template. |  | Optional: \{\} <br /> |
 
 
 #### Verify

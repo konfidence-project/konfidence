@@ -177,6 +177,58 @@ var _ = Describe("Lifecycle", func() {
 		})
 	})
 
+	Describe("DeriveState", func() {
+		promotionWith := func(requireApproval bool, conditions ...metav1.Condition) *konfidence.VectorPromotion {
+			return &konfidence.VectorPromotion{
+				Spec:   konfidence.VectorPromotionSpec{RequireApproval: requireApproval},
+				Status: konfidence.VectorPromotionStatus{Conditions: conditions},
+			}
+		}
+		succeededCondition := func(status metav1.ConditionStatus, reason string) metav1.Condition {
+			return metav1.Condition{Type: konfidence.ConditionTypeSucceeded, Status: status, Reason: reason}
+		}
+
+		DescribeTable("derives the state from conditions",
+			func(p *konfidence.VectorPromotion, expected konfidence.VectorPromotionState) {
+				Expect(DeriveState(p)).To(Equal(expected))
+			},
+			Entry("no conditions, no approval required",
+				promotionWith(false), konfidence.PromotionStatePending),
+			Entry("no conditions, approval required",
+				promotionWith(true), konfidence.PromotionStateWaitingForApproval),
+			Entry("approved, approval required, not started",
+				promotionWith(true, metav1.Condition{
+					Type:   konfidence.ConditionTypeApproved,
+					Status: metav1.ConditionTrue,
+					Reason: konfidence.ReasonPromotionManuallyApproved,
+				}), konfidence.PromotionStateApproved),
+			Entry("approval condition false, approval required",
+				promotionWith(true, metav1.Condition{
+					Type:   konfidence.ConditionTypeApproved,
+					Status: metav1.ConditionFalse,
+					Reason: konfidence.ReasonPromotionWaitingForApproval,
+				}), konfidence.PromotionStateWaitingForApproval),
+			Entry("running",
+				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionRunning)),
+				konfidence.PromotionStateInProgress),
+			Entry("succeeded",
+				promotionWith(false, succeededCondition(metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded)),
+				konfidence.PromotionStateSucceeded),
+			Entry("superseded",
+				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionSuperseded)),
+				konfidence.PromotionStateSuperseded),
+			Entry("execution pending stub",
+				promotionWith(false, succeededCondition(metav1.ConditionUnknown, konfidence.ReasonPromotionExecutionPending)),
+				konfidence.PromotionStatePending),
+			Entry("failed",
+				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionFailed)),
+				konfidence.PromotionStateFailed),
+			Entry("status unknown",
+				promotionWith(false, succeededCondition(metav1.ConditionUnknown, konfidence.ReasonPromotionStatusUnknown)),
+				konfidence.PromotionStateFailed),
+		)
+	})
+
 	Describe("TTLStatus", func() {
 		Context("when TTL is not configured", func() {
 			It("returns shouldDelete=false", func() {

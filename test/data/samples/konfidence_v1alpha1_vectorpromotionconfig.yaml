@@ -4,5 +4,10 @@ metadata:
   namespace: default
   name: sample-promotion-config
 spec:
-  source: https://registry.kdenv.lab/sample-project//konfidence-project.com/constructed-vector:latest
-  target: https://registry.dwc.com/sample-project//dwc.tools.sap/sample-vector:promoted
+  source:
+    kind: VectorTemplate
+    name: sample-vector-template
+  target:
+    kind: Stage
+    name: sample-stage
+  ttlAfterFinished: 1h
