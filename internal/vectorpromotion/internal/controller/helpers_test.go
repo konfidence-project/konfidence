@@ -1,31 +1,30 @@
 package controller
 
 import (
-	"context"
-	"fmt"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
-	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"ocm.software/open-component-model/bindings/go/oci/compref"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// sourceRef creates a compref.Ref pointing to the source registry.
-func sourceRef(component string) compref.Ref {
-	return ocm.ParseRef(sourceRegistryEndpoint, component)
+const (
+	testNamespace = "default"
+	timeout       = 30 * time.Second
+	interval      = 250 * time.Millisecond
+
+	testVector = "registry.example//konfidence.io/promo/app:1.0.0"
+)
+
+func templateSource(name string) konfidence.PromotionSourceReference {
+	return konfidence.PromotionSourceReference{Kind: konfidence.VectorTemplateKind, Name: name}
 }
 
-// targetRef creates a compref.Ref pointing to the target registry.
-func targetRef(component string) compref.Ref {
-	return ocm.ParseRef(targetRegistryEndpoint, component)
-}
-
-// sourceRefWithSubPath creates a compref.Ref for the source registry with a sub path.
-func sourceRefWithSubPath(subPath, component string) compref.Ref {
-	return ocm.ParseRef(fmt.Sprintf("%s/%s", sourceRegistryEndpoint, subPath), component)
+func stageTarget(name string) konfidence.PromotionTargetReference {
+	return konfidence.PromotionTargetReference{Kind: konfidence.StageKind, Name: name}
 }
 
 // cleanupPromotions deletes all VectorPromotion and VectorPromotionConfig objects and waits for them to be gone.
@@ -42,34 +41,11 @@ func cleanupPromotions() {
 	}, timeout, interval).Should(Succeed())
 }
 
-// pushComponent pushes a minimal OCM component to the source registry.
-func pushComponent(ctx context.Context, ref compref.Ref, alias *string) {
-	ocm.PushComponent(ctx, ocmClient, ref, alias)
-}
-
-func createConfig(name, source, target string) *konfidence.VectorPromotionConfig {
-	refs := make([]konfidence.CredentialRef, len(credSecretNames))
-	for i, n := range credSecretNames {
-		refs[i] = konfidence.CredentialRef{Name: n}
-	}
-	return createConfigWithCredentials(name, source, target, &konfidence.Credentials{
-		OCM: &konfidence.OCMCredentials{Refs: refs},
-	})
-}
-
-// createConfigWithCredentials creates a VectorPromotionConfig with credentials in the test namespace.
-func createConfigWithCredentials(
-	name, source, target string,
-	creds *konfidence.Credentials,
-) *konfidence.VectorPromotionConfig {
-	return createPKIConfig(name, source, target, creds, nil)
-}
-
-// createPKIConfig creates a VectorPromotionConfig with credentials and optional verification in the test namespace.
-func createPKIConfig(
-	name, source, target string,
-	creds *konfidence.Credentials,
-	verify *konfidence.Verify,
+// createConfig creates a VectorPromotionConfig with structured references in the test namespace.
+func createConfig(
+	name string,
+	source konfidence.PromotionSourceReference,
+	target konfidence.PromotionTargetReference,
 ) *konfidence.VectorPromotionConfig {
 	config := &konfidence.VectorPromotionConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -77,10 +53,8 @@ func createPKIConfig(
 			Namespace: testNamespace,
 		},
 		Spec: konfidence.VectorPromotionConfigSpec{
-			Source:       source,
-			Target:       target,
-			Credentials:  creds,
-			VerifyVector: verify,
+			Source: source,
+			Target: target,
 		},
 	}
 	ExpectWithOffset(1, k8sClient.Create(ctx, config)).To(Succeed())
@@ -96,6 +70,7 @@ func createPromotion(name, configRef string) *konfidence.VectorPromotion {
 		},
 		Spec: konfidence.VectorPromotionSpec{
 			VectorPromotionConfigRef: configRef,
+			Vector:                   testVector,
 		},
 	}
 	ExpectWithOffset(1, k8sClient.Create(ctx, promotion)).To(Succeed())
@@ -111,9 +86,37 @@ func createPromotionWithTTL(name, configRef string, ttl time.Duration) *konfiden
 		},
 		Spec: konfidence.VectorPromotionSpec{
 			VectorPromotionConfigRef: configRef,
+			Vector:                   testVector,
 			TTLAfterFinished:         &metav1.Duration{Duration: ttl},
 		},
 	}
 	ExpectWithOffset(1, k8sClient.Create(ctx, promotion)).To(Succeed())
 	return promotion
+}
+
+// setSucceededCondition writes the Succeeded condition on a promotion directly.
+// The execution controller is not registered in this suite; tests drive
+// promotion conditions manually to exercise the TTL and status propagation
+// controllers.
+func setSucceededCondition(
+	promotion *konfidence.VectorPromotion,
+	status metav1.ConditionStatus,
+	reason string,
+	transitionTime time.Time,
+) {
+	EventuallyWithOffset(1, func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name: promotion.Name, Namespace: testNamespace,
+		}, promotion)).To(Succeed())
+		meta.SetStatusCondition(&promotion.Status.Conditions, metav1.Condition{
+			Type:    konfidence.ConditionTypeSucceeded,
+			Status:  status,
+			Reason:  reason,
+			Message: "set by test",
+		})
+		// meta.SetStatusCondition stamps its own transition time; force the test-controlled one.
+		cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
+		cond.LastTransitionTime = metav1.NewTime(transitionTime.Truncate(time.Second))
+		g.Expect(k8sClient.Status().Update(ctx, promotion)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
 }

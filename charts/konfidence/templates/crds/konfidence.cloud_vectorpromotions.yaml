@@ -23,13 +23,13 @@ spec:
       jsonPath: .spec.vectorPromotionConfigRef
       name: Config
       type: string
-    - description: Promotion was successful
-      jsonPath: .status.conditions[0].status
-      name: Promotion Succeeded
+    - description: The promoted vector version
+      jsonPath: .spec.vector
+      name: Vector
       type: string
-    - description: Promotion condition reason
-      jsonPath: .status.conditions[0].reason
-      name: Reason
+    - description: Promotion state
+      jsonPath: .status.state
+      name: State
       type: string
     - description: Age
       jsonPath: .metadata.creationTimestamp
@@ -61,18 +61,39 @@ spec:
           spec:
             description: VectorPromotionSpec defines the desired state of VectorPromotion.
             properties:
+              requireApproval:
+                default: false
+                description: |-
+                  RequireApproval is true when the promotion must be approved before
+                  execution (source kind `Stage`); false means the promotion is
+                  auto-approved (source kind `VectorTemplate`).
+                type: boolean
+                x-kubernetes-validations:
+                - message: requireApproval is immutable after it has been set
+                  rule: self == oldSelf
               ttlAfterFinished:
                 description: |-
                   TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
                   Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
                   the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
                 type: string
+              vector:
+                description: |-
+                  Vector is the concrete OCM component version reference
+                  (`<registry>//<component>:<version>`) pinned when the promotion was created.
+                minLength: 1
+                pattern: ^[^/].+//.+:.+$
+                type: string
+                x-kubernetes-validations:
+                - message: vector is immutable after it has been set
+                  rule: self == oldSelf
               vectorPromotionConfigRef:
                 description: VectorPromotionConfigRef is the name of the VectorPromotionConfig
                   that defines the promotion flow to execute.
                 minLength: 1
                 type: string
             required:
+            - vector
             - vectorPromotionConfigRef
             type: object
           status:
@@ -134,6 +155,19 @@ spec:
                   - type
                   type: object
                 type: array
+              state:
+                description: |-
+                  State summarizes Conditions for display. Conditions are the source of
+                  truth; State is recomputed whenever conditions are written.
+                enum:
+                - Pending
+                - WaitingForApproval
+                - Approved
+                - InProgress
+                - Succeeded
+                - Failed
+                - Superseded
+                type: string
             type: object
         type: object
     served: true
