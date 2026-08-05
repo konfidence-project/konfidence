@@ -1,14 +1,12 @@
 package controller
 
 import (
-	"fmt"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,17 +17,11 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 	BeforeEach(func() { cleanupPromotions() })
 
 	It("should delete VectorPromotion after TTL expires (successful promotion)", func() {
-		By("pushing component to source registry")
-		ref := sourceRef("konfidence.io/promo/ttl-success:v1.0.0")
-		pushComponent(ctx, ref, new("latest"))
-
-		By("creating VectorPromotionConfig")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/ttl-success:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/ttl-success:promoted", targetRegistryEndpoint)
-		config := createConfig("ttl-success-config", source, target)
-
 		By("creating VectorPromotion with short TTL")
-		promotion := createPromotionWithTTL("ttl-success-promotion", config.Name, 2*time.Second)
+		promotion := createPromotionWithTTL("ttl-success-promotion", "ttl-success-config", 2*time.Second)
+
+		By("marking the promotion as succeeded")
+		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
 
 		By("asserting the VectorPromotion is eventually deleted")
 		Eventually(func() bool {
@@ -41,8 +33,11 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 	})
 
 	It("should delete VectorPromotion after TTL expires (failed promotion)", func() {
-		By("creating VectorPromotion referencing non-existent config with short TTL")
-		promotion := createPromotionWithTTL("ttl-failed-promotion", "non-existent-config", 2*time.Second)
+		By("creating VectorPromotion with short TTL")
+		promotion := createPromotionWithTTL("ttl-failed-promotion", "ttl-failed-config", 2*time.Second)
+
+		By("marking the promotion as failed")
+		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionFailed, time.Now())
 
 		By("asserting the VectorPromotion is eventually deleted")
 		Eventually(func() bool {
@@ -54,27 +49,11 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 	})
 
 	It("should not delete VectorPromotion when no TTL is configured", func() {
-		By("pushing component to source registry")
-		ref := sourceRef("konfidence.io/promo/ttl-none:v1.0.0")
-		pushComponent(ctx, ref, new("latest"))
-
-		By("creating VectorPromotionConfig")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/ttl-none:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/ttl-none:promoted", targetRegistryEndpoint)
-		config := createConfig("ttl-none-config", source, target)
-
 		By("creating VectorPromotion without TTL")
-		promotion := createPromotion("ttl-none-promotion", config.Name)
+		promotion := createPromotion("ttl-none-promotion", "ttl-none-config")
 
-		By("waiting for promotion to complete")
-		Eventually(func(g Gomega) {
-			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Name: promotion.Name, Namespace: testNamespace,
-			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-			g.Expect(cond).NotTo(BeNil())
-			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-		}, timeout, interval).Should(Succeed())
+		By("marking the promotion as succeeded")
+		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
 
 		By("asserting the VectorPromotion persists")
 		Consistently(func(g Gomega) {
@@ -85,27 +64,11 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 	})
 
 	It("should not delete VectorPromotion when TTL has not yet expired", func() {
-		By("pushing component to source registry")
-		ref := sourceRef("konfidence.io/promo/ttl-long:v1.0.0")
-		pushComponent(ctx, ref, new("latest"))
-
-		By("creating VectorPromotionConfig")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/ttl-long:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/ttl-long:promoted", targetRegistryEndpoint)
-		config := createConfig("ttl-long-config", source, target)
-
 		By("creating VectorPromotion with long TTL")
-		promotion := createPromotionWithTTL("ttl-long-promotion", config.Name, time.Hour)
+		promotion := createPromotionWithTTL("ttl-long-promotion", "ttl-long-config", time.Hour)
 
-		By("waiting for promotion to complete")
-		Eventually(func(g Gomega) {
-			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Name: promotion.Name, Namespace: testNamespace,
-			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-			g.Expect(cond).NotTo(BeNil())
-			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-		}, timeout, interval).Should(Succeed())
+		By("marking the promotion as succeeded")
+		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
 
 		By("asserting the VectorPromotion persists (TTL not expired)")
 		Consistently(func(g Gomega) {
@@ -116,27 +79,11 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 	})
 
 	It("should delete VectorPromotion when TTL is added via spec update after promotion completes", func() {
-		By("pushing component to source registry")
-		ref := sourceRef("konfidence.io/promo/ttl-patch:v1.0.0")
-		pushComponent(ctx, ref, new("latest"))
-
-		By("creating VectorPromotionConfig")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/ttl-patch:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/ttl-patch:promoted", targetRegistryEndpoint)
-		config := createConfig("ttl-patch-config", source, target)
-
 		By("creating VectorPromotion without TTL")
-		promotion := createPromotion("ttl-patch-promotion", config.Name)
+		promotion := createPromotion("ttl-patch-promotion", "ttl-patch-config")
 
-		By("waiting for promotion to complete")
-		Eventually(func(g Gomega) {
-			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Name: promotion.Name, Namespace: testNamespace,
-			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-			g.Expect(cond).NotTo(BeNil())
-			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-		}, timeout, interval).Should(Succeed())
+		By("marking the promotion as succeeded")
+		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
 
 		By("patching TTLAfterFinished onto the completed promotion")
 		patch := client.MergeFrom(promotion.DeepCopy())

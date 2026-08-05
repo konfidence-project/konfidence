@@ -5,6 +5,9 @@ import (
 )
 
 const (
+	// VectorTemplateKind is kind of the VectorTemplate resource.
+	VectorTemplateKind = "VectorTemplate"
+
 	// VectorTemplateReadyCondition is the ready condition for the VectorTemplate resource.
 	VectorTemplateReadyCondition = "Ready"
 

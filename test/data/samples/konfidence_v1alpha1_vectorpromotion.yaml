@@ -5,4 +5,6 @@ metadata:
   name: sample-vector-promotion
 spec:
   vectorPromotionConfigRef: sample-promotion-config
+  vector: registry.kdenv.lab/sample-project//konfidence-project.com/constructed-vector:2026.8.5-090000000Z
+  requireApproval: false
   ttlAfterFinished: 1h

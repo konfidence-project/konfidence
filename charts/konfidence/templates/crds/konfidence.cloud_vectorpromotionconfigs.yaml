@@ -87,27 +87,72 @@ spec:
                 - message: at least one credential surface must be set
                   rule: has(self.ocm)
               source:
-                description: |-
-                  Source is the OCM component reference to promote from.
-                  This usually points to a version alias (e.g. :latest) that resolves to the component version to be promoted.
-                  The format is `<registry>//<component-name>:<version>`.
-                minLength: 1
-                pattern: ^[^/].+//.+:.+$
-                type: string
-                x-kubernetes-validations:
-                - message: source is immutable after it has been set
-                  rule: self == oldSelf
+                description: Source references the resource to promote from.
+                properties:
+                  apiGroup:
+                    default: konfidence.cloud
+                    description: APIGroup of the source resource.
+                    maxLength: 253
+                    type: string
+                  kind:
+                    description: |-
+                      Kind of the source resource. A `VectorTemplate` source promotes its
+                      latest assembled vector automatically; a `Stage` source promotes the
+                      vector currently active on that stage and requires approval.
+                    enum:
+                    - VectorTemplate
+                    - Stage
+                    type: string
+                  name:
+                    description: Name of the source resource.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the source resource. Defaults to the namespace of the
+                      VectorPromotionConfig. Cross-namespace references are accepted by the
+                      schema but not yet acted on by controllers.
+                    maxLength: 63
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
               target:
+                description: Target references the Stage to promote to.
+                properties:
+                  apiGroup:
+                    default: konfidence.cloud
+                    description: APIGroup of the target resource.
+                    maxLength: 253
+                    type: string
+                  kind:
+                    description: Kind of the target resource.
+                    enum:
+                    - Stage
+                    type: string
+                  name:
+                    description: Name of the target resource.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the target resource. Defaults to the namespace of the
+                      VectorPromotionConfig. Cross-namespace references are accepted by the
+                      schema but not yet acted on by controllers.
+                    maxLength: 63
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              ttlAfterFinished:
                 description: |-
-                  Target is the OCM component reference to promote to.
-                  This usually points to a version alias (e.g. :promoted). The actual version string is taken from the source component version.
-                  The format is `<registry>//<component-name>:<version>`.
-                minLength: 1
-                pattern: ^[^/].+//.+:.+$
+                  TTLAfterFinished is copied onto every VectorPromotion created for this
+                  config. See `VectorPromotionSpec.TTLAfterFinished`.
                 type: string
-                x-kubernetes-validations:
-                - message: target is immutable after it has been set
-                  rule: self == oldSelf
               verifyVector:
                 description: |-
                   VerifyVector lists candidate signatures evaluated against the

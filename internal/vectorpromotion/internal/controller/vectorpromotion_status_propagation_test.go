@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -18,17 +17,12 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 	BeforeEach(func() { cleanupPromotions() })
 
 	It("should propagate successful promotion conditions to config", func() {
-		By("pushing component to source registry")
-		ref := sourceRef("konfidence.io/promo/sp-success:v1.0.0")
-		pushComponent(ctx, ref, new("latest"))
-
 		By("creating VectorPromotionConfig")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/sp-success:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/sp-success:promoted", targetRegistryEndpoint)
-		config := createConfig("sp-success-config", source, target)
+		config := createConfig("sp-success-config", templateSource("sp-template"), stageTarget("sp-stage"))
 
-		By("creating VectorPromotion")
-		createPromotion("sp-success-promotion", config.Name)
+		By("creating VectorPromotion and marking it succeeded")
+		promotion := createPromotion("sp-success-promotion", config.Name)
+		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
 
 		By("asserting config has both LastPromotionConditions and LastSuccessfulPromotionConditions")
 		Eventually(func(g Gomega) {
@@ -51,13 +45,12 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 	})
 
 	It("should propagate failed promotion conditions without setting LastSuccessfulPromotionConditions", func() {
-		By("creating VectorPromotionConfig pointing to non-existent source")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/sp-failed-nonexistent:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/sp-failed-nonexistent:promoted", targetRegistryEndpoint)
-		config := createConfig("sp-failed-config", source, target)
+		By("creating VectorPromotionConfig")
+		config := createConfig("sp-failed-config", templateSource("sp-template"), stageTarget("sp-stage"))
 
-		By("creating VectorPromotion")
-		createPromotion("sp-failed-promotion", config.Name)
+		By("creating VectorPromotion and marking it failed")
+		promotion := createPromotion("sp-failed-promotion", config.Name)
+		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionFailed, time.Now())
 
 		By("asserting config has LastPromotionConditions with failure but no LastSuccessfulPromotionConditions")
 		Eventually(func(g Gomega) {
@@ -69,23 +62,18 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 			readyCond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(readyCond).NotTo(BeNil())
 			g.Expect(readyCond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(readyCond.Reason).To(Equal(konfidence.ReasonPromotionSourceNotFound))
+			g.Expect(readyCond.Reason).To(Equal(konfidence.ReasonPromotionFailed))
 			g.Expect(updatedConfig.Status.LastSuccessfulPromotionConditions).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
 	})
 
 	It("should update config conditions with the latest successful promotion", func() {
-		By("pushing component v1 to source registry")
-		ref := sourceRef("konfidence.io/promo/sp-seq:v1.0.0")
-		pushComponent(ctx, ref, new("latest"))
-
 		By("creating VectorPromotionConfig")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/sp-seq:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/sp-seq:promoted", targetRegistryEndpoint)
-		config := createConfig("sp-sequential-config", source, target)
+		config := createConfig("sp-sequential-config", templateSource("sp-template"), stageTarget("sp-stage"))
 
-		By("creating first VectorPromotion")
-		createPromotion("sp-sequential-first", config.Name)
+		By("creating first VectorPromotion and marking it succeeded")
+		first := createPromotion("sp-sequential-first", config.Name)
+		setSucceededCondition(first, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
 
 		By("waiting for config to be updated with first promotion conditions")
 		var firstTransitionTime metav1.Time
@@ -102,10 +90,10 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 			firstTransitionTime = cond.LastTransitionTime
 		}, timeout, interval).Should(Succeed())
 
-		By("pushing component v2 and creating second VectorPromotion")
-		ref2 := sourceRef("konfidence.io/promo/sp-seq:v2.0.0")
-		pushComponent(ctx, ref2, new("latest"))
-		createPromotion("sp-sequential-second", config.Name)
+		By("creating second VectorPromotion succeeding strictly later")
+		second := createPromotion("sp-sequential-second", config.Name)
+		setSucceededCondition(second, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded,
+			firstTransitionTime.Add(2*time.Second))
 
 		By("waiting for config to be updated with second promotion conditions")
 		Eventually(func(g Gomega) {
@@ -124,36 +112,13 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 	})
 
 	It("should not overwrite config conditions when config has more recent timestamp", func() {
-		By("pushing component to source registry")
-		ref := sourceRef("konfidence.io/promo/sp-dedup:v1.0.0")
-		pushComponent(ctx, ref, new("latest"))
-
 		By("creating VectorPromotionConfig")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/sp-dedup:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/sp-dedup:promoted", targetRegistryEndpoint)
-		config := createConfig("sp-dedup-config", source, target)
-
-		By("creating first VectorPromotion and waiting for propagation")
-		createPromotion("sp-dedup-first", config.Name)
-		Eventually(func(g Gomega) {
-			updatedConfig := &konfidence.VectorPromotionConfig{}
-			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Name: config.Name, Namespace: testNamespace,
-			}, updatedConfig)).To(Succeed())
-			g.Expect(updatedConfig.Status.LastPromotionConditions).NotTo(BeEmpty())
-			cond := meta.FindStatusCondition(updatedConfig.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
-			g.Expect(cond).NotTo(BeNil())
-			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-		}, timeout, interval).Should(Succeed())
+		config := createConfig("sp-dedup-config", templateSource("sp-template"), stageTarget("sp-stage"))
 
 		By("patching config status with a future timestamp to simulate newer conditions")
-		updatedConfig := &konfidence.VectorPromotionConfig{}
-		Expect(k8sClient.Get(ctx, types.NamespacedName{
-			Name: config.Name, Namespace: testNamespace,
-		}, updatedConfig)).To(Succeed())
-		originalConfig := updatedConfig.DeepCopy()
+		originalConfig := config.DeepCopy()
 		futureTime := metav1.NewTime(time.Now().Add(1 * time.Hour).Truncate(time.Second))
-		updatedConfig.Status.LastPromotionConditions = []metav1.Condition{
+		config.Status.LastPromotionConditions = []metav1.Condition{
 			{
 				Type:               konfidence.ConditionTypeSucceeded,
 				Status:             metav1.ConditionTrue,
@@ -162,22 +127,11 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 				LastTransitionTime: futureTime,
 			},
 		}
-		Expect(k8sClient.Status().Patch(ctx, updatedConfig, client.MergeFrom(originalConfig))).To(Succeed())
+		Expect(k8sClient.Status().Patch(ctx, config, client.MergeFrom(originalConfig))).To(Succeed())
 
-		By("creating a second VectorPromotion that will also succeed")
-		ref2 := sourceRef("konfidence.io/promo/sp-dedup:v2.0.0")
-		pushComponent(ctx, ref2, new("latest"))
-		promotion2 := createPromotion("sp-dedup-second", config.Name)
-
-		By("waiting for second promotion to reach terminal state")
-		Eventually(func(g Gomega) {
-			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Name: promotion2.Name, Namespace: testNamespace,
-			}, promotion2)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion2.Status.Conditions, konfidence.ConditionTypeSucceeded)
-			g.Expect(cond).NotTo(BeNil())
-			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-		}, timeout, interval).Should(Succeed())
+		By("creating a VectorPromotion succeeding now (older than the config's conditions)")
+		promotion := createPromotion("sp-dedup-promotion", config.Name)
+		setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
 
 		By("asserting config conditions were NOT overwritten (future timestamp preserved)")
 		Consistently(func(g Gomega) {
@@ -194,15 +148,10 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 	})
 
 	It("should preserve LastSuccessfulPromotionConditions when a subsequent promotion fails", func() {
-		By("creating VectorPromotionConfig with non-existent source")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/sp-preserve-nonexistent:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/sp-preserve-nonexistent:promoted", targetRegistryEndpoint)
-		config := createConfig("sp-preserve-config", source, target)
+		By("creating VectorPromotionConfig")
+		config := createConfig("sp-preserve-config", templateSource("sp-template"), stageTarget("sp-stage"))
 
 		By("manually setting LastSuccessfulPromotionConditions to simulate prior success")
-		Expect(k8sClient.Get(ctx, types.NamespacedName{
-			Name: config.Name, Namespace: testNamespace,
-		}, config)).To(Succeed())
 		originalConfig := config.DeepCopy()
 		priorSuccessTime := metav1.NewTime(time.Now().Add(-1 * time.Hour).Truncate(time.Second))
 		config.Status.LastSuccessfulPromotionConditions = []metav1.Condition{
@@ -216,8 +165,9 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 		}
 		Expect(k8sClient.Status().Patch(ctx, config, client.MergeFrom(originalConfig))).To(Succeed())
 
-		By("creating VectorPromotion that will fail (source not found)")
-		createPromotion("sp-preserve-promotion", config.Name)
+		By("creating VectorPromotion and marking it failed")
+		promotion := createPromotion("sp-preserve-promotion", config.Name)
+		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionSourceNotFound, time.Now())
 
 		By("asserting config has failure in LastPromotionConditions but preserves LastSuccessfulPromotionConditions")
 		Eventually(func(g Gomega) {
@@ -244,21 +194,11 @@ var _ = Describe("VectorPromotion status propagation controller tests", Ordered,
 		By("creating VectorPromotion referencing a config that does not exist yet")
 		promotion := createPromotion("sp-delayed-promotion", "sp-delayed-config")
 
-		By("waiting for promotion to fail with config not found")
-		Eventually(func(g Gomega) {
-			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Name: promotion.Name, Namespace: testNamespace,
-			}, promotion)).To(Succeed())
-			cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-			g.Expect(cond).NotTo(BeNil())
-			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionConfigurationNotFound))
-		}, timeout, interval).Should(Succeed())
+		By("marking the promotion as failed with config not found")
+		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionConfigurationNotFound, time.Now())
 
 		By("creating VectorPromotionConfig after promotion has already completed")
-		source := fmt.Sprintf("http://%s//konfidence.io/promo/sp-delayed:latest", sourceRegistryEndpoint)
-		target := fmt.Sprintf("http://%s//konfidence.io/promo/sp-delayed:promoted", targetRegistryEndpoint)
-		config := createConfig("sp-delayed-config", source, target)
+		config := createConfig("sp-delayed-config", templateSource("sp-template"), stageTarget("sp-stage"))
 
 		By("asserting status propagation controller retries and eventually propagates conditions to the config")
 		Eventually(func(g Gomega) {
