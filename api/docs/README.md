@@ -712,17 +712,16 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `kind` _string_ | Kind of the source resource. A `VectorTemplate` source promotes its<br />latest assembled vector automatically; a `Stage` source promotes the<br />vector currently active on that stage and requires approval. |  | Enum: [VectorTemplate Stage] <br /> |
-| `name` _string_ | Name of the source resource. |  | MinLength: 1 <br /> |
-| `apiGroup` _string_ | APIGroup of the source resource. | konfidence.cloud | Optional: \{\} <br /> |
-| `namespace` _string_ | Namespace of the source resource. Defaults to the namespace of the<br />VectorPromotionConfig. Cross-namespace references are accepted by the<br />schema but not yet acted on by controllers. |  | Optional: \{\} <br /> |
+| `kind` _string_ | Kind is the kind of the source resource. A `VectorTemplate` source<br />promotes its latest assembled vector automatically; a `Stage` source<br />promotes the vector currently active on that stage and requires approval. |  | Enum: [VectorTemplate Stage] <br /> |
+| `name` _string_ | Name is the name of the source resource. |  | MaxLength: 253 <br />MinLength: 1 <br /> |
+| `landscape` _string_ | Landscape is the name of the `Landscape` in the config's namespace whose<br />namespace hosts the referenced `Stage`. Required for `Stage` references;<br />must be omitted for `VectorTemplate` references, which are resolved in<br />the config's namespace. |  | MaxLength: 63 <br />MinLength: 1 <br />Optional: \{\} <br /> |
 
 
 #### PromotionTargetReference
 
 
 
-PromotionTargetReference identifies the Stage whose `spec.vector` is the
+PromotionTargetReference identifies the `Stage` whose `spec.vector` is the
 promotion target.
 
 
@@ -732,10 +731,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `kind` _string_ | Kind of the target resource. |  | Enum: [Stage] <br /> |
-| `name` _string_ | Name of the target resource. |  | MinLength: 1 <br /> |
-| `apiGroup` _string_ | APIGroup of the target resource. | konfidence.cloud | Optional: \{\} <br /> |
-| `namespace` _string_ | Namespace of the target resource. Defaults to the namespace of the<br />VectorPromotionConfig. Cross-namespace references are accepted by the<br />schema but not yet acted on by controllers. |  | Optional: \{\} <br /> |
+| `kind` _string_ | Kind is the kind of the target resource. |  | Enum: [Stage] <br /> |
+| `name` _string_ | Name is the name of the target `Stage`. |  | MaxLength: 253 <br />MinLength: 1 <br /> |
+| `landscape` _string_ | Landscape is the name of the `Landscape` in the config's namespace whose<br />namespace hosts the target `Stage`. |  | MaxLength: 63 <br />MinLength: 1 <br /> |
 
 
 #### SessionSubject
@@ -1800,7 +1798,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `source` _[PromotionSourceReference](#promotionsourcereference)_ | Source references the resource to promote from. |  |  |
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target references the Stage to promote to. |  |  |
-| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished is copied onto every VectorPromotion created for this<br />config. See `VectorPromotionSpec.TTLAfterFinished`. |  | Optional: \{\} <br /> |
+| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished will be copied onto every VectorPromotion the drift<br />controller creates for this config (pending the ADR-0032 rework). See<br />`VectorPromotionSpec.TTLAfterFinished`. |  | Optional: \{\} <br /> |
 | `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repository access and vector verification key material. |  | Optional: \{\} <br /> |
 | `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against the<br />source vector before promotion proceeds. Absence disables vector<br />verification. |  | Optional: \{\} <br /> |
 
@@ -1984,7 +1982,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
-| `latestVector` _string_ | LatestVector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) of the most recently assembled<br />vector for this template. |  | Optional: \{\} <br /> |
 
 
 #### Verify
