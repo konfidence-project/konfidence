@@ -12,9 +12,13 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
 	authdomain "github.com/konfidence-project/konfidence/internal/auth"
+	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// APIHandler is the public handle used in tests.
+type APIHandler = apiHandler
 
 type apiHandler struct {
 	authHandler
@@ -29,13 +33,21 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 
 	authRepo := authdomain.NewRepository(k8sClient)
 	projectRepo := projectdomain.NewRepository(k8sClient)
+	landscapeRepo := landscapedomain.NewRepository(k8sClient)
 
-	project := newProjectHandler(projectRepo)
+	project := newProjectHandler(projectRepo, landscapeRepo)
 	api := &apiHandler{
 		authHandler:    *auth,
 		projectHandler: *project,
 	}
 	return middleware.SessionAuthentication(logger, sessionStore, authRepo, cfg, api.handler())
+}
+
+// NewAPIHandlerWithRepos constructs an APIHandler with injected repositories, used in tests.
+func NewAPIHandlerWithRepos(projectRepo projectdomain.Repository, landscapeRepo landscapedomain.Repository) *APIHandler {
+	return &apiHandler{
+		projectHandler: *newProjectHandler(projectRepo, landscapeRepo),
+	}
 }
 
 func (s *apiHandler) handler() http.Handler {
