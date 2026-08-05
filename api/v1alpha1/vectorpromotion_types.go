@@ -45,9 +45,6 @@ const (
 	// ReasonPromotionTargetUnresolved indicates the target Stage or its Landscape does not
 	// resolve yet. The promotion stays live and execution is retried.
 	ReasonPromotionTargetUnresolved = "PromotionTargetUnresolved"
-	// ReasonPromotionExecutionPending indicates promotion execution is not yet
-	// implemented for structured references (ADR-0032 rework).
-	ReasonPromotionExecutionPending = "PromotionExecutionPending"
 )
 
 // VectorPromotionState summarizes the promotion lifecycle for display.

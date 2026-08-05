@@ -16,6 +16,15 @@ func IsPending(p *konfidence.VectorPromotion) bool {
 	return getSucceededCondition(p) == nil
 }
 
+func IsApproved(p *konfidence.VectorPromotion) bool {
+	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeApproved)
+}
+
+func IsInProgress(p *konfidence.VectorPromotion) bool {
+	cond := getSucceededCondition(p)
+	return cond != nil && cond.Reason == konfidence.ReasonPromotionRunning
+}
+
 func IsSucceeded(p *konfidence.VectorPromotion) bool {
 	cond := getSucceededCondition(p)
 	return cond != nil && cond.Status == metav1.ConditionTrue
@@ -53,10 +62,32 @@ func DeriveState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState 
 		return konfidence.PromotionStateInProgress
 	case konfidence.ReasonPromotionSuperseded:
 		return konfidence.PromotionStateSuperseded
-	case konfidence.ReasonPromotionExecutionPending:
-		return konfidence.PromotionStatePending
 	}
 	return konfidence.PromotionStateFailed
+}
+
+// NewestApproved returns the most recently created promotion that is approved
+// and not terminal, preferring the lexically greater name on identical
+// creation timestamps. Returns nil if no promotion qualifies.
+func NewestApproved(promotions []konfidence.VectorPromotion) *konfidence.VectorPromotion {
+	var newest *konfidence.VectorPromotion
+	for i := range promotions {
+		p := &promotions[i]
+		if !IsApproved(p) || IsTerminal(p) {
+			continue
+		}
+		if newest == nil || isNewer(p, newest) {
+			newest = p
+		}
+	}
+	return newest
+}
+
+func isNewer(p, than *konfidence.VectorPromotion) bool {
+	if p.CreationTimestamp.Equal(&than.CreationTimestamp) {
+		return p.Name > than.Name
+	}
+	return p.CreationTimestamp.After(than.CreationTimestamp.Time)
 }
 
 func deriveApprovalState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState {

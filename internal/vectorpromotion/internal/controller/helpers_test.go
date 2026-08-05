@@ -4,7 +4,9 @@ import (
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,7 +31,43 @@ func stageSource(name string) konfidence.PromotionSourceReference {
 }
 
 func stageTarget(name string) konfidence.PromotionTargetReference {
-	return konfidence.PromotionTargetReference{Kind: konfidence.StageKind, Name: name, Landscape: testLandscape}
+	return stageTargetInLandscape(name, testLandscape)
+}
+
+func stageTargetInLandscape(name, landscape string) konfidence.PromotionTargetReference {
+	return konfidence.PromotionTargetReference{Kind: konfidence.StageKind, Name: name, Landscape: landscape}
+}
+
+// createLandscapeWithNamespace creates a namespace, a Landscape in the test
+// namespace, and points the Landscape's status at the created namespace, as
+// the landscape controller (not running here) would.
+func createLandscapeWithNamespace(name, namespace string) {
+	ExpectWithOffset(1, k8sClient.Create(ctx, &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: namespace},
+	})).To(Succeed())
+	landscape := &konfidence.Landscape{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNamespace},
+	}
+	ExpectWithOffset(1, k8sClient.Create(ctx, landscape)).To(Succeed())
+	original := landscape.DeepCopy()
+	landscape.Status.Namespace = namespace
+	ExpectWithOffset(1, k8sClient.Status().Patch(ctx, landscape, client.MergeFrom(original))).To(Succeed())
+	DeferCleanup(func() {
+		Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, landscape))).To(Succeed())
+	})
+}
+
+// createStage creates a Stage with the given vector in the given namespace.
+func createStage(namespace, name, vector string) *konfidence.Stage {
+	stage := &konfidence.Stage{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec:       konfidence.StageSpec{Vector: vector},
+	}
+	ExpectWithOffset(1, k8sClient.Create(ctx, stage)).To(Succeed())
+	DeferCleanup(func() {
+		Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, stage))).To(Succeed())
+	})
+	return stage
 }
 
 // cleanupPromotions deletes all VectorPromotion and VectorPromotionConfig objects and waits for them to be gone.
@@ -82,6 +120,39 @@ func createPromotion(name, configRef string) *konfidence.VectorPromotion {
 	}
 	ExpectWithOffset(1, k8sClient.Create(ctx, promotion)).To(Succeed())
 	return promotion
+}
+
+// createPromotionRequiringApproval creates a VectorPromotion with requireApproval set.
+func createPromotionRequiringApproval(name, configRef string) *konfidence.VectorPromotion {
+	promotion := &konfidence.VectorPromotion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: testNamespace,
+		},
+		Spec: konfidence.VectorPromotionSpec{
+			VectorPromotionConfigRef: configRef,
+			Vector:                   testVector,
+			RequireApproval:          true,
+		},
+	}
+	ExpectWithOffset(1, k8sClient.Create(ctx, promotion)).To(Succeed())
+	return promotion
+}
+
+// approvePromotion sets the Approved condition, as the konfidence API would.
+func approvePromotion(promotion *konfidence.VectorPromotion) {
+	EventuallyWithOffset(1, func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name: promotion.Name, Namespace: testNamespace,
+		}, promotion)).To(Succeed())
+		meta.SetStatusCondition(&promotion.Status.Conditions, metav1.Condition{
+			Type:    konfidence.ConditionTypeApproved,
+			Status:  metav1.ConditionTrue,
+			Reason:  konfidence.ReasonPromotionManuallyApproved,
+			Message: "approved by test",
+		})
+		g.Expect(k8sClient.Status().Update(ctx, promotion)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
 }
 
 // createPromotionWithTTL creates a VectorPromotion with TTLAfterFinished set.

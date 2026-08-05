@@ -167,9 +167,6 @@ var _ = Describe("Lifecycle", func() {
 			Entry("superseded",
 				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionSuperseded)),
 				konfidence.PromotionStateSuperseded),
-			Entry("execution pending stub",
-				promotionWith(false, succeededCondition(metav1.ConditionUnknown, konfidence.ReasonPromotionExecutionPending)),
-				konfidence.PromotionStatePending),
 			Entry("failed",
 				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionFailed)),
 				konfidence.PromotionStateFailed),
@@ -177,6 +174,62 @@ var _ = Describe("Lifecycle", func() {
 				promotionWith(false, succeededCondition(metav1.ConditionUnknown, "SomeUnexpectedReason")),
 				konfidence.PromotionStateFailed),
 		)
+	})
+
+	Describe("NewestApproved", func() {
+		approvedAt := func(name string, created time.Time, conditions ...metav1.Condition) konfidence.VectorPromotion {
+			all := append([]metav1.Condition{{
+				Type:   konfidence.ConditionTypeApproved,
+				Status: metav1.ConditionTrue,
+				Reason: konfidence.ReasonPromotionManuallyApproved,
+			}}, conditions...)
+			return konfidence.VectorPromotion{
+				ObjectMeta: metav1.ObjectMeta{Name: name, CreationTimestamp: metav1.NewTime(created)},
+				Status:     konfidence.VectorPromotionStatus{Conditions: all},
+			}
+		}
+		unapproved := func(name string, created time.Time) konfidence.VectorPromotion {
+			return konfidence.VectorPromotion{
+				ObjectMeta: metav1.ObjectMeta{Name: name, CreationTimestamp: metav1.NewTime(created)},
+			}
+		}
+		now := time.Now().Truncate(time.Second)
+
+		It("returns nil when nothing is approved", func() {
+			Expect(NewestApproved([]konfidence.VectorPromotion{unapproved("a", now)})).To(BeNil())
+		})
+
+		It("returns the most recently created approved promotion", func() {
+			result := NewestApproved([]konfidence.VectorPromotion{
+				approvedAt("old", now.Add(-time.Minute)),
+				approvedAt("new", now),
+				unapproved("newest-but-unapproved", now.Add(time.Minute)),
+			})
+			Expect(result).NotTo(BeNil())
+			Expect(result.Name).To(Equal("new"))
+		})
+
+		It("skips terminal promotions", func() {
+			result := NewestApproved([]konfidence.VectorPromotion{
+				approvedAt("terminal", now, metav1.Condition{
+					Type:   konfidence.ConditionTypeSucceeded,
+					Status: metav1.ConditionTrue,
+					Reason: konfidence.ReasonPromotionSucceeded,
+				}),
+				approvedAt("live", now.Add(-time.Minute)),
+			})
+			Expect(result).NotTo(BeNil())
+			Expect(result.Name).To(Equal("live"))
+		})
+
+		It("breaks creation timestamp ties by name", func() {
+			result := NewestApproved([]konfidence.VectorPromotion{
+				approvedAt("promo-a", now),
+				approvedAt("promo-b", now),
+			})
+			Expect(result).NotTo(BeNil())
+			Expect(result.Name).To(Equal("promo-b"))
+		})
 	})
 
 	Describe("TTLStatus", func() {
