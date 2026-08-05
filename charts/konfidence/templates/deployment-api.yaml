@@ -43,6 +43,9 @@ spec:
             - --read-timeout={{ .Values.api.server.readTimeout }}
             - --write-timeout={{ .Values.api.server.writeTimeout }}
             - --shutdown-timeout={{ .Values.api.server.shutdownTimeout }}
+            - --auth-issuer-url={{ .Values.api.auth.issuerURL }}
+            - --auth-client-id={{ .Values.api.auth.clientId }}
+            - --auth-redirect-url={{ .Values.api.auth.redirectURL }}
             {{- with .Values.api.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

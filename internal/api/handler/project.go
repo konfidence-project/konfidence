@@ -7,7 +7,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ProjectHandler struct{ k8s func() (client.Client, error) }
+type ProjectHandler struct{ k8s client.Client }
+
+func NewProjectHandler(k8s client.Client) *ProjectHandler {
+	return &ProjectHandler{k8s: k8s}
+}
 
 func (h *ProjectHandler) ListProjects(_ context.Context, _ openapi.ListProjectsRequestObject) (openapi.ListProjectsResponseObject, error) {
 	return nil, nil

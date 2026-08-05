@@ -14,6 +14,9 @@ type Config struct {
 	WriteTimeout    string
 	ShutdownTimeout string
 	LogLevel        string
+	AuthIssuerURL   string
+	AuthClientID    string
+	AuthRedirectURL string
 	Scheme          *runtime.Scheme
 }
 
@@ -21,6 +24,9 @@ type Config struct {
 type Parsed struct {
 	Addr            string
 	LogLevel        string
+	AuthIssuerURL   string
+	AuthClientID    string
+	AuthRedirectURL string
 	Scheme          *runtime.Scheme
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
@@ -50,9 +56,21 @@ func (c Config) Validate() (Parsed, error) {
 	default:
 		return Parsed{}, fmt.Errorf("invalid log-level %q: must be one of debug, info, warn, error", c.LogLevel)
 	}
+	if c.AuthIssuerURL == "" {
+		return Parsed{}, fmt.Errorf("auth-issuer-url must not be empty")
+	}
+	if c.AuthClientID == "" {
+		return Parsed{}, fmt.Errorf("auth-client-id must not be empty")
+	}
+	if c.AuthRedirectURL == "" {
+		return Parsed{}, fmt.Errorf("auth-redirect-url must not be empty")
+	}
 	return Parsed{
 		Addr:            c.Addr,
 		LogLevel:        c.LogLevel,
+		AuthIssuerURL:   c.AuthIssuerURL,
+		AuthClientID:    c.AuthClientID,
+		AuthRedirectURL: c.AuthRedirectURL,
 		Scheme:          c.Scheme,
 		ReadTimeout:     read,
 		WriteTimeout:    write,

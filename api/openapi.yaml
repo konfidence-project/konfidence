@@ -11,32 +11,6 @@ servers:
     description: Stage resources (versioned API)
 
 paths:
-  /healthz:
-    get:
-      operationId: getHealthStatus
-      summary: Health status endpoint
-      description: Indicates if the api service is healthy
-      tags: [ info ]
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthStatus"
-  /readyz:
-    get:
-      operationId: getReadinessStatus
-      summary: Readiness status endpoint
-      description: Indicates if the api service is ready for traffic
-      tags: [ info ]
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReadinessStatus"
   /login:
     get:
       operationId: login
@@ -46,9 +20,22 @@ paths:
         PKCE auth flow. On successful authentication the IDP redirects back to
         /api/v1/auth/callback.
       tags: [auth]
+      parameters:
+        - name: return_url
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "302":
           description: Redirect to IDP authorization endpoint.
+          headers:
+            Location:
+              description: Redirect url
+              schema:
+                type: string
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /auth/callback:
     get:
@@ -72,8 +59,19 @@ paths:
       responses:
         "302":
           description: Redirect to the application after successful authentication.
+          headers:
+            Set-Cookie:
+              description: Contains the session ID.
+              schema:
+                type: string
+            Location:
+              description: Redirect url
+              schema:
+                type: string
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -88,6 +86,11 @@ paths:
       responses:
         "200":
           description: Session terminated successfully.
+          headers:
+            Set-Cookie:
+              description: Removes the session cookie.
+              schema:
+                type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
 

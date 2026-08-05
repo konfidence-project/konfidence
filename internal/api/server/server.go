@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/router"
@@ -22,9 +21,7 @@ type Server struct {
 
 // New creates a Server from a validated Parsed config and optional domain
 // mount functions. Signal handling belongs in the caller (cmd layer).
-func New(cfg config.Parsed, mounts ...router.MountFunc) *Server {
-	level := resolveLogLevel(cfg.LogLevel)
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+func New(cfg config.Parsed, logger *slog.Logger, mounts ...router.MountFunc) *Server {
 	return &Server{cfg: cfg, logger: logger, mounts: mounts}
 }
 
@@ -42,7 +39,7 @@ func (s *Server) Run(ctx context.Context, onAddr ...func(string)) error {
 	}
 
 	srv := &http.Server{
-		Handler:      router.New(s.logger, s.cfg.Scheme, s.mounts...),
+		Handler:      router.New(s.logger, s.mounts...),
 		ReadTimeout:  s.cfg.ReadTimeout,
 		WriteTimeout: s.cfg.WriteTimeout,
 	}
@@ -72,17 +69,4 @@ func (s *Server) Run(ctx context.Context, onAddr ...func(string)) error {
 
 	s.logger.Info("api server stopped")
 	return nil
-}
-
-func resolveLogLevel(level string) slog.Level {
-	switch level {
-	case "debug":
-		return slog.LevelDebug
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
 }

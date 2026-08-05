@@ -5,12 +5,31 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
+	"github.com/konfidence-project/konfidence/internal/api/session"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Mount(r chi.Router, _ *slog.Logger, k8s func() (client.Client, error)) {
-	h := NewServerHandler(k8s)
+type ServerHandler struct {
+	AuthHandler
+	ProjectHandler
+}
+
+var _ openapi.StrictServerInterface = (*ServerHandler)(nil)
+
+func NewServerHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Client,
+	stateStore oidc.StateStore, sessionStore session.SessionStore) (*ServerHandler, error) {
+	authHandler := NewAuthHandler(logger, oidcClient, stateStore, sessionStore, k8s)
+	projectHandler := NewProjectHandler(k8s)
+
+	return &ServerHandler{
+		*authHandler,
+		*projectHandler,
+	}, nil
+}
+
+func (s *ServerHandler) Mount(r chi.Router) {
 	errHandler := func(w http.ResponseWriter, r *http.Request, err error) {
 		if apiErr := AsAPIError(err); apiErr != nil {
 			WriteAPIError(w, apiErr)
@@ -18,7 +37,12 @@ func Mount(r chi.Router, _ *slog.Logger, k8s func() (client.Client, error)) {
 		}
 		WriteInternalError(w)
 	}
-	openapi.HandlerWithOptions(openapi.NewStrictHandlerWithOptions(h, nil, openapi.StrictHTTPServerOptions{
+
+	strictMiddlewares := []openapi.StrictMiddlewareFunc{
+		s.SessionAuthMiddleware,
+	}
+
+	openapi.HandlerWithOptions(openapi.NewStrictHandlerWithOptions(s, strictMiddlewares, openapi.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc:  errHandler,
 		ResponseErrorHandlerFunc: errHandler,
 	}), openapi.ChiServerOptions{
@@ -26,19 +50,3 @@ func Mount(r chi.Router, _ *slog.Logger, k8s func() (client.Client, error)) {
 		BaseRouter: r,
 	})
 }
-
-func NewServerHandler(k8s func() (client.Client, error)) *ServerHandler {
-	return &ServerHandler{
-		InfoHandler{k8s: k8s},
-		AuthHandler{k8s: k8s},
-		ProjectHandler{k8s: k8s},
-	}
-}
-
-type ServerHandler struct {
-	InfoHandler
-	AuthHandler
-	ProjectHandler
-}
-
-var _ openapi.StrictServerInterface = (*ServerHandler)(nil)

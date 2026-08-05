@@ -1,18 +1,24 @@
-package handler // nolint
+package handler
 
 import (
-	"context"
-
-	"github.com/konfidence-project/konfidence/internal/api/openapi"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"net/http"
 )
 
-type InfoHandler struct{ k8s func() (client.Client, error) }
-
-func (h *InfoHandler) GetHealthStatus(_ context.Context, _ openapi.GetHealthStatusRequestObject) (openapi.GetHealthStatusResponseObject, error) {
-	return openapi.GetHealthStatus200JSONResponse{Status: "ok"}, nil
+// Healthz handles GET /healthz — liveness probe.
+// Always returns 200 {"status":"ok"} while the process is alive.
+func Healthz(w http.ResponseWriter, _ *http.Request) error {
+	writeJSON(w, http.StatusOK, struct {
+		Status string `json:"status"`
+	}{Status: "ok"})
+	return nil
 }
 
-func (h *InfoHandler) GetReadinessStatus(_ context.Context, _ openapi.GetReadinessStatusRequestObject) (openapi.GetReadinessStatusResponseObject, error) {
-	return openapi.GetReadinessStatus200JSONResponse{Status: "ok"}, nil
+// Readyz handles GET /readyz — readiness probe.
+// Returns 200 {"status":"ok"} when the server is ready to accept traffic.
+// Gate additional dependency checks here once they exist (e.g. cluster reachability).
+func Readyz(w http.ResponseWriter, _ *http.Request) error {
+	writeJSON(w, http.StatusOK, struct {
+		Status string `json:"status"`
+	}{Status: "ok"})
+	return nil
 }

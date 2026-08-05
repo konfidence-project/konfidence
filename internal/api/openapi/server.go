@@ -111,18 +111,13 @@ type ErrorResponse struct {
 	} `json:"error"`
 }
 
-// HealthStatus defines model for HealthStatus.
-type HealthStatus struct {
-	Status string `json:"status"`
-}
-
 // Identity defines model for Identity.
 type Identity struct {
 	Email      string   `json:"email"`
-	FamilyName string   `json:"familyName"`
+	Name       string   `json:"name"`
 	GivenName  string   `json:"givenName"`
 	MiddleName *string  `json:"middleName,omitempty"`
-	Name       string   `json:"name"`
+	FamilyName string   `json:"familyName"`
 	Roles      []string `json:"roles"`
 }
 
@@ -159,9 +154,6 @@ type ProjectId = string
 type ProjectList struct {
 	Data []Project `json:"data"`
 }
-
-// ReadinessStatus defines model for ReadinessStatus.
-type ReadinessStatus = HealthStatus
 
 // Session defines model for Session.
 type Session struct {
@@ -274,6 +266,11 @@ type PostExchangeCodeJSONBody struct {
 	Verifier *string `json:"verifier,omitempty"`
 }
 
+// LoginParams defines parameters for Login.
+type LoginParams struct {
+	ReturnUrl *string `form:"return_url,omitempty" json:"return_url,omitempty"`
+}
+
 // ListArtifactDeploymentsParams defines parameters for ListArtifactDeployments.
 type ListArtifactDeploymentsParams struct {
 	// LandscapeId Filter by landscapeId
@@ -306,15 +303,12 @@ type ServerInterface interface {
 	// PostExchangeCode Send temp exchange code and PKCE verifier to get session
 	// (POST /exchange)
 	PostExchangeCode(w http.ResponseWriter, r *http.Request)
-	// GetHealthStatus Health status endpoint
-	// (GET /healthz)
-	GetHealthStatus(w http.ResponseWriter, r *http.Request)
 	// GetIdentity Get the current user identity
 	// (GET /identity)
 	GetIdentity(w http.ResponseWriter, r *http.Request)
 	// Login Initiate OIDC login
 	// (GET /login)
-	Login(w http.ResponseWriter, r *http.Request)
+	Login(w http.ResponseWriter, r *http.Request, params LoginParams)
 	// Logout Terminate the current session
 	// (POST /logout)
 	Logout(w http.ResponseWriter, r *http.Request)
@@ -333,9 +327,6 @@ type ServerInterface interface {
 	// ListVectorDeployments List all vectorDeployments for a project
 	// (GET /projects/{projectId}/vectorDeployments)
 	ListVectorDeployments(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListVectorDeploymentsParams)
-	// GetReadinessStatus Readiness status endpoint
-	// (GET /readyz)
-	GetReadinessStatus(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -354,12 +345,6 @@ func (_ Unimplemented) PostExchangeCode(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// GetHealthStatus Health status endpoint
-// (GET /healthz)
-func (_ Unimplemented) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
 // GetIdentity Get the current user identity
 // (GET /identity)
 func (_ Unimplemented) GetIdentity(w http.ResponseWriter, r *http.Request) {
@@ -368,7 +353,7 @@ func (_ Unimplemented) GetIdentity(w http.ResponseWriter, r *http.Request) {
 
 // Login Initiate OIDC login
 // (GET /login)
-func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request, params LoginParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -405,12 +390,6 @@ func (_ Unimplemented) ListStages(w http.ResponseWriter, r *http.Request, projec
 // ListVectorDeployments List all vectorDeployments for a project
 // (GET /projects/{projectId}/vectorDeployments)
 func (_ Unimplemented) ListVectorDeployments(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListVectorDeploymentsParams) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// GetReadinessStatus Readiness status endpoint
-// (GET /readyz)
-func (_ Unimplemented) GetReadinessStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -483,20 +462,6 @@ func (siw *ServerInterfaceWrapper) PostExchangeCode(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
-// GetHealthStatus operation middleware
-func (siw *ServerInterfaceWrapper) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetHealthStatus(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // GetIdentity operation middleware
 func (siw *ServerInterfaceWrapper) GetIdentity(w http.ResponseWriter, r *http.Request) {
 
@@ -514,8 +479,27 @@ func (siw *ServerInterfaceWrapper) GetIdentity(w http.ResponseWriter, r *http.Re
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LoginParams
+
+	// ------------- Optional query parameter "return_url" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "return_url", r.URL.Query(), &params.ReturnUrl, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "return_url"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "return_url", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Login(w, r)
+		siw.Handler.Login(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -718,20 +702,6 @@ func (siw *ServerInterfaceWrapper) ListVectorDeployments(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
-// GetReadinessStatus operation middleware
-func (siw *ServerInterfaceWrapper) GetReadinessStatus(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetReadinessStatus(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -846,12 +816,6 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/healthz", wrapper.GetHealthStatus)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/readyz", wrapper.GetReadinessStatus)
-	})
-	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/login", wrapper.Login)
 	})
 	r.Group(func(r chi.Router) {
@@ -901,10 +865,22 @@ type AuthCallbackResponseObject interface {
 	VisitAuthCallbackResponse(w http.ResponseWriter) error
 }
 
+type AuthCallback302ResponseHeaders struct {
+	Location  *string
+	SetCookie *string
+}
+
 type AuthCallback302Response struct {
+	Headers AuthCallback302ResponseHeaders
 }
 
 func (response AuthCallback302Response) VisitAuthCallbackResponse(w http.ResponseWriter) error {
+	if response.Headers.Location != nil {
+		w.Header().Set("Location", fmt.Sprint(*response.Headers.Location))
+	}
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
 	w.WriteHeader(302)
 	return nil
 }
@@ -919,6 +895,20 @@ func (response AuthCallback400JSONResponse) VisitAuthCallbackResponse(w http.Res
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AuthCallback401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response AuthCallback401JSONResponse) VisitAuthCallbackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -987,27 +977,6 @@ func (response PostExchangeCode500JSONResponse) VisitPostExchangeCodeResponse(w 
 	return err
 }
 
-type GetHealthStatusRequestObject struct {
-}
-
-type GetHealthStatusResponseObject interface {
-	VisitGetHealthStatusResponse(w http.ResponseWriter) error
-}
-
-type GetHealthStatus200JSONResponse HealthStatus
-
-func (response GetHealthStatus200JSONResponse) VisitGetHealthStatusResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
 type GetIdentityRequestObject struct {
 }
 
@@ -1058,18 +1027,41 @@ func (response GetIdentity500JSONResponse) VisitGetIdentityResponse(w http.Respo
 }
 
 type LoginRequestObject struct {
+	Params LoginParams
 }
 
 type LoginResponseObject interface {
 	VisitLoginResponse(w http.ResponseWriter) error
 }
 
+type Login302ResponseHeaders struct {
+	Location *string
+}
+
 type Login302Response struct {
+	Headers Login302ResponseHeaders
 }
 
 func (response Login302Response) VisitLoginResponse(w http.ResponseWriter) error {
+	if response.Headers.Location != nil {
+		w.Header().Set("Location", fmt.Sprint(*response.Headers.Location))
+	}
 	w.WriteHeader(302)
 	return nil
+}
+
+type Login500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response Login500JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 type LogoutRequestObject struct {
@@ -1079,10 +1071,18 @@ type LogoutResponseObject interface {
 	VisitLogoutResponse(w http.ResponseWriter) error
 }
 
+type Logout200ResponseHeaders struct {
+	SetCookie *string
+}
+
 type Logout200Response struct {
+	Headers Logout200ResponseHeaders
 }
 
 func (response Logout200Response) VisitLogoutResponse(w http.ResponseWriter) error {
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
 	w.WriteHeader(200)
 	return nil
 }
@@ -1409,27 +1409,6 @@ func (response ListVectorDeployments500JSONResponse) VisitListVectorDeploymentsR
 	return err
 }
 
-type GetReadinessStatusRequestObject struct {
-}
-
-type GetReadinessStatusResponseObject interface {
-	VisitGetReadinessStatusResponse(w http.ResponseWriter) error
-}
-
-type GetReadinessStatus200JSONResponse ReadinessStatus
-
-func (response GetReadinessStatus200JSONResponse) VisitGetReadinessStatusResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// AuthCallback OIDC callback
@@ -1438,9 +1417,6 @@ type StrictServerInterface interface {
 	// PostExchangeCode Send temp exchange code and PKCE verifier to get session
 	// (POST /exchange)
 	PostExchangeCode(ctx context.Context, request PostExchangeCodeRequestObject) (PostExchangeCodeResponseObject, error)
-	// GetHealthStatus Health status endpoint
-	// (GET /healthz)
-	GetHealthStatus(ctx context.Context, request GetHealthStatusRequestObject) (GetHealthStatusResponseObject, error)
 	// GetIdentity Get the current user identity
 	// (GET /identity)
 	GetIdentity(ctx context.Context, request GetIdentityRequestObject) (GetIdentityResponseObject, error)
@@ -1465,9 +1441,6 @@ type StrictServerInterface interface {
 	// ListVectorDeployments List all vectorDeployments for a project
 	// (GET /projects/{projectId}/vectorDeployments)
 	ListVectorDeployments(ctx context.Context, request ListVectorDeploymentsRequestObject) (ListVectorDeploymentsResponseObject, error)
-	// GetReadinessStatus Readiness status endpoint
-	// (GET /readyz)
-	GetReadinessStatus(ctx context.Context, request GetReadinessStatusRequestObject) (GetReadinessStatusResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -1566,30 +1539,6 @@ func (sh *strictHandler) PostExchangeCode(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// GetHealthStatus operation middleware
-func (sh *strictHandler) GetHealthStatus(w http.ResponseWriter, r *http.Request) {
-	var request GetHealthStatusRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetHealthStatus(ctx, request.(GetHealthStatusRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetHealthStatus")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetHealthStatusResponseObject); ok {
-		if err := validResponse.VisitGetHealthStatusResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
 // GetIdentity operation middleware
 func (sh *strictHandler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 	var request GetIdentityRequestObject
@@ -1615,8 +1564,10 @@ func (sh *strictHandler) GetIdentity(w http.ResponseWriter, r *http.Request) {
 }
 
 // Login operation middleware
-func (sh *strictHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) Login(w http.ResponseWriter, r *http.Request, params LoginParams) {
 	var request LoginRequestObject
+
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.Login(ctx, request.(LoginRequestObject))
@@ -1786,30 +1737,6 @@ func (sh *strictHandler) ListVectorDeployments(w http.ResponseWriter, r *http.Re
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListVectorDeploymentsResponseObject); ok {
 		if err := validResponse.VisitListVectorDeploymentsResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetReadinessStatus operation middleware
-func (sh *strictHandler) GetReadinessStatus(w http.ResponseWriter, r *http.Request) {
-	var request GetReadinessStatusRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetReadinessStatus(ctx, request.(GetReadinessStatusRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetReadinessStatus")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetReadinessStatusResponseObject); ok {
-		if err := validResponse.VisitGetReadinessStatusResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

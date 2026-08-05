@@ -2,10 +2,11 @@ package server_test
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
-	"github.com/konfidence-project/konfidence/internal/api/handler"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -20,6 +21,9 @@ func validParsed(addr string) config.Parsed {
 		ReadTimeout:     "5s",
 		WriteTimeout:    "5s",
 		ShutdownTimeout: "2s",
+		AuthIssuerURL:   "http://localhost:5556/dex",
+		AuthClientID:    "konfidence",
+		AuthRedirectURL: "http://localhost:8090/api/v1/auth/callback",
 	}
 	parsed, err := cfg.Validate()
 	if err != nil {
@@ -28,10 +32,14 @@ func validParsed(addr string) config.Parsed {
 	return parsed
 }
 
+func getLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+}
+
 var _ = Describe("Server", func() {
 	Describe("Run", func() {
 		It("starts and stops cleanly when context is cancelled", func() {
-			srv := server.New(validParsed("127.0.0.1:0"))
+			srv := server.New(validParsed("127.0.0.1:0"), getLogger())
 			ctx, cancel := context.WithCancel(context.Background())
 
 			errCh := make(chan error, 1)
@@ -45,8 +53,8 @@ var _ = Describe("Server", func() {
 			Eventually(errCh, "3s").Should(Receive(BeNil()))
 		})
 
-		It("serves /api/v1/healthz while running", func() {
-			srv := server.New(validParsed("127.0.0.1:19090"), handler.Mount)
+		It("serves /healthz while running", func() {
+			srv := server.New(validParsed("127.0.0.1:19090"), getLogger())
 			ctx, cancel := context.WithCancel(context.Background())
 			DeferCleanup(cancel)
 
@@ -54,7 +62,7 @@ var _ = Describe("Server", func() {
 			go func() { _ = srv.Run(ctx, func(addr string) { addrCh <- addr }) }()
 
 			Eventually(func() error {
-				resp, err := http.Get("http://127.0.0.1:19090/api/v1/healthz") //nolint:noctx
+				resp, err := http.Get("http://127.0.0.1:19090/healthz") //nolint:noctx
 				if err != nil {
 					return err
 				}
@@ -62,7 +70,7 @@ var _ = Describe("Server", func() {
 				return nil
 			}, "3s", "50ms").Should(Succeed())
 
-			resp, err := http.Get("http://127.0.0.1:19090/api/v1/healthz") //nolint:noctx
+			resp, err := http.Get("http://127.0.0.1:19090/healthz") //nolint:noctx
 			Expect(err).NotTo(HaveOccurred())
 			defer func() { _ = resp.Body.Close() }()
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))

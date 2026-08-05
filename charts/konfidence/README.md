@@ -25,6 +25,9 @@ Kubernetes: `>=1.27.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| api.auth.clientId | string | `"konfidence"` |  |
+| api.auth.issuerURL | string | `"http://localhost:5556/dex"` |  |
+| api.auth.redirectURL | string | `"http://localhost:8090/api/v1/auth/callback"` |  |
 | api.enabled | bool | `true` |  |
 | api.env | list | `[]` |  |
 | api.extraArgs | list | `[]` |  |

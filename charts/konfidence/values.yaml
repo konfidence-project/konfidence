@@ -78,6 +78,11 @@ api:
     writeTimeout: "10s"
     shutdownTimeout: "15s"
 
+  auth:
+    issuerURL: "http://localhost:5556/dex"
+    clientId: "konfidence"
+    redirectURL: "http://localhost:8090/api/v1/auth/callback"
+
   # Extra CLI arguments appended to the container args list.
   extraArgs: []
 

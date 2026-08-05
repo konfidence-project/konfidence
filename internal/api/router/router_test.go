@@ -15,7 +15,7 @@ var _ = Describe("Router", func() {
 	var h http.Handler
 
 	BeforeEach(func() {
-		h = router.New(slog.Default(), nil)
+		h = router.New(slog.Default())
 	})
 
 	It("returns 404 for unknown paths", func() {

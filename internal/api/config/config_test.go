@@ -17,6 +17,9 @@ var _ = Describe("Config.Validate", func() {
 			WriteTimeout:    "10s",
 			ShutdownTimeout: "15s",
 			LogLevel:        "info",
+			AuthIssuerURL:   "http://localhost:5556/dex",
+			AuthClientID:    "konfidence",
+			AuthRedirectURL: "http://localhost:8090/api/v1/auth/callback",
 		}
 	}
 
@@ -24,6 +27,9 @@ var _ = Describe("Config.Validate", func() {
 		parsed, err := valid().Validate()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(parsed.Addr).To(Equal(":8090"))
+		Expect(parsed.AuthIssuerURL).To(Equal("http://localhost:5556/dex"))
+		Expect(parsed.AuthClientID).To(Equal("konfidence"))
+		Expect(parsed.AuthRedirectURL).To(Equal("http://localhost:8090/api/v1/auth/callback"))
 		Expect(parsed.ReadTimeout.Seconds()).To(Equal(10.0))
 		Expect(parsed.WriteTimeout.Seconds()).To(Equal(10.0))
 		Expect(parsed.ShutdownTimeout.Seconds()).To(Equal(15.0))
@@ -55,6 +61,18 @@ var _ = Describe("Config.Validate", func() {
 		Expect(err).To(MatchError(ContainSubstring("log-level")))
 	})
 
+	DescribeTable("rejects empty auth config",
+		func(field string, mutate func(*config.Config)) {
+			c := valid()
+			mutate(&c)
+			_, err := c.Validate()
+			Expect(err).To(MatchError(ContainSubstring(field)))
+		},
+		Entry("auth-issuer-url", "auth-issuer-url", func(c *config.Config) { c.AuthIssuerURL = "" }),
+		Entry("auth-client-id", "auth-client-id", func(c *config.Config) { c.AuthClientID = "" }),
+		Entry("auth-redirect-url", "auth-redirect-url", func(c *config.Config) { c.AuthRedirectURL = "" }),
+	)
+
 	It("returns parsed durations on success", func() {
 		c := config.Config{
 			Addr:            ":8090",
@@ -62,6 +80,9 @@ var _ = Describe("Config.Validate", func() {
 			WriteTimeout:    "7s",
 			ShutdownTimeout: "20s",
 			LogLevel:        "debug",
+			AuthIssuerURL:   "https://idp.example.com",
+			AuthClientID:    "konfidence",
+			AuthRedirectURL: "https://konfidence.example.com/auth/callback",
 		}
 		parsed, err := c.Validate()
 		Expect(err).NotTo(HaveOccurred())
