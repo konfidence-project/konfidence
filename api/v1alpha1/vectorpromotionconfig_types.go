@@ -11,56 +11,49 @@ const (
 
 // PromotionSourceReference identifies the in-cluster resource whose current
 // vector is promoted from.
+//
+// +kubebuilder:validation:XValidation:rule="(self.kind == 'Stage') == has(self.landscape)",message="landscape is required for Stage references and must be omitted for VectorTemplate references"
+//
+//nolint:lll // Kubebuilder annotations are intentionally long.
 type PromotionSourceReference struct {
-	// Kind of the source resource. A `VectorTemplate` source promotes its
-	// latest assembled vector automatically; a `Stage` source promotes the
-	// vector currently active on that stage and requires approval.
+	// Kind is the kind of the source resource. A `VectorTemplate` source
+	// promotes its latest assembled vector automatically; a `Stage` source
+	// promotes the vector currently active on that stage and requires approval.
 	// +kubebuilder:validation:Enum=VectorTemplate;Stage
 	Kind string `json:"kind"`
 
-	// Name of the source resource.
+	// Name is the name of the source resource.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
 	Name string `json:"name"`
 
-	// APIGroup of the source resource.
-	// +kubebuilder:default="konfidence.cloud"
-	// +kubebuilder:validation:MaxLength=253
-	// +kubebuilder:validation:Optional
-	APIGroup string `json:"apiGroup,omitempty"`
-
-	// Namespace of the source resource. Defaults to the namespace of the
-	// VectorPromotionConfig. Cross-namespace references are accepted by the
-	// schema but not yet acted on by controllers.
+	// Landscape is the name of the `Landscape` in the config's namespace whose
+	// namespace hosts the referenced `Stage`. Required for `Stage` references;
+	// must be omitted for `VectorTemplate` references, which are resolved in
+	// the config's namespace.
+	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Optional
-	Namespace string `json:"namespace,omitempty"`
+	// +optional
+	Landscape string `json:"landscape,omitempty"`
 }
 
-// PromotionTargetReference identifies the Stage whose `spec.vector` is the
+// PromotionTargetReference identifies the `Stage` whose `spec.vector` is the
 // promotion target.
 type PromotionTargetReference struct {
-	// Kind of the target resource.
+	// Kind is the kind of the target resource.
 	// +kubebuilder:validation:Enum=Stage
 	Kind string `json:"kind"`
 
-	// Name of the target resource.
+	// Name is the name of the target `Stage`.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
 	Name string `json:"name"`
 
-	// APIGroup of the target resource.
-	// +kubebuilder:default="konfidence.cloud"
-	// +kubebuilder:validation:MaxLength=253
-	// +kubebuilder:validation:Optional
-	APIGroup string `json:"apiGroup,omitempty"`
-
-	// Namespace of the target resource. Defaults to the namespace of the
-	// VectorPromotionConfig. Cross-namespace references are accepted by the
-	// schema but not yet acted on by controllers.
+	// Landscape is the name of the `Landscape` in the config's namespace whose
+	// namespace hosts the target `Stage`.
+	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Optional
-	Namespace string `json:"namespace,omitempty"`
+	Landscape string `json:"landscape"`
 }
 
 // VectorPromotionConfigSpec defines the desired state of VectorPromotionConfig.
@@ -71,9 +64,10 @@ type VectorPromotionConfigSpec struct {
 	// Target references the Stage to promote to.
 	Target PromotionTargetReference `json:"target"`
 
-	// TTLAfterFinished is copied onto every VectorPromotion created for this
-	// config. See `VectorPromotionSpec.TTLAfterFinished`.
-	// +kubebuilder:validation:Optional
+	// TTLAfterFinished will be copied onto every VectorPromotion the drift
+	// controller creates for this config (pending the ADR-0032 rework). See
+	// `VectorPromotionSpec.TTLAfterFinished`.
+	// +optional
 	TTLAfterFinished *metav1.Duration `json:"ttlAfterFinished,omitempty"`
 
 	// Credentials supplies credentials for OCM repository access and vector verification key material.

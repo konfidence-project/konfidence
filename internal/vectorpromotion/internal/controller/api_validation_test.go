@@ -40,21 +40,37 @@ var _ = Describe("Promotion CRD schema validation", Ordered, Serial, func() {
 						Target: stageTarget("some-stage"),
 					},
 				}, "Unsupported value"),
+			Entry("Stage source without landscape",
+				&konfidence.VectorPromotionConfig{
+					ObjectMeta: metav1.ObjectMeta{Name: "schema-stage-source-no-landscape", Namespace: testNamespace},
+					Spec: konfidence.VectorPromotionConfigSpec{
+						Source: konfidence.PromotionSourceReference{Kind: konfidence.StageKind, Name: "stage-a"},
+						Target: stageTarget("stage-b"),
+					},
+				}, "landscape is required for Stage references"),
+			Entry("VectorTemplate source with landscape",
+				&konfidence.VectorPromotionConfig{
+					ObjectMeta: metav1.ObjectMeta{Name: "schema-template-source-landscape", Namespace: testNamespace},
+					Spec: konfidence.VectorPromotionConfigSpec{
+						Source: konfidence.PromotionSourceReference{
+							Kind: konfidence.VectorTemplateKind, Name: "some-template", Landscape: testLandscape,
+						},
+						Target: stageTarget("some-stage"),
+					},
+				}, "must be omitted for VectorTemplate references"),
+			Entry("target without landscape",
+				&konfidence.VectorPromotionConfig{
+					ObjectMeta: metav1.ObjectMeta{Name: "schema-target-no-landscape", Namespace: testNamespace},
+					Spec: konfidence.VectorPromotionConfigSpec{
+						Source: templateSource("some-template"),
+						Target: konfidence.PromotionTargetReference{Kind: konfidence.StageKind, Name: "some-stage"},
+					},
+				}, "spec.target.landscape"),
 		)
 
 		It("accepts a Stage source targeting a different Stage", func() {
-			config := newConfig(
-				konfidence.PromotionSourceReference{Kind: konfidence.StageKind, Name: "stage-a"},
-				stageTarget("stage-b"),
-			)
+			config := newConfig(stageSource("stage-a"), stageTarget("stage-b"))
 			Expect(k8sClient.Create(ctx, config)).To(Succeed())
-		})
-
-		It("defaults apiGroup on both references", func() {
-			config := newConfig(templateSource("some-template"), stageTarget("some-stage"))
-			Expect(k8sClient.Create(ctx, config)).To(Succeed())
-			Expect(config.Spec.Source.APIGroup).To(Equal("konfidence.cloud"))
-			Expect(config.Spec.Target.APIGroup).To(Equal("konfidence.cloud"))
 		})
 
 		It("allows repointing source and target", func() {
@@ -62,7 +78,7 @@ var _ = Describe("Promotion CRD schema validation", Ordered, Serial, func() {
 			Expect(k8sClient.Create(ctx, config)).To(Succeed())
 
 			patch := client.MergeFrom(config.DeepCopy())
-			config.Spec.Source = konfidence.PromotionSourceReference{Kind: konfidence.StageKind, Name: "other-stage"}
+			config.Spec.Source = stageSource("other-stage")
 			config.Spec.Target = stageTarget("another-stage")
 			Expect(k8sClient.Patch(ctx, config, patch)).To(Succeed())
 		})
