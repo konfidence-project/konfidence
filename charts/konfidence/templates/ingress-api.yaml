@@ -21,7 +21,7 @@ spec:
   {{- end }}
   rules:
     {{- range .Values.api.ingress.hosts }}
-    - host: {{ .host | quote }}
+    - host: {{ required "api.ingress.hosts.host is required" .host | quote }}
       http:
         paths:
           {{- range .paths }}
