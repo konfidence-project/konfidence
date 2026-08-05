@@ -35,9 +35,10 @@ CRD_STAGING_DIR ?= $(REPO_ROOT)/.tmp/crds
 # Merged API package (single group konfidence.cloud).
 API_PATHS = paths="./api/v1alpha1/..."
 
-# Internal controller packages of the konfidence operator.
-# Auto-discover by finding all internal/ subdirs containing setup.go, then append /internal/controller
-OPERATOR_INTERNAL_DIRS = $(shell find internal -maxdepth 2 -name setup.go -exec dirname {} \; | sed 's|^|./|; s|$$|/internal/controller|' | sort)
+# Internal packages of the konfidence operator.
+# Auto-discover by finding all internal/ subdirs containing setup.go (the
+# operator domains), then every Ginkgo suite below them.
+OPERATOR_INTERNAL_DIRS = $(shell find internal -maxdepth 2 -name setup.go -exec dirname {} \; | xargs -I{} find {} -name "*suite_test.go" | xargs -n1 dirname | sort -u | sed 's|^|./|')
 OPERATOR_INTERNAL_PATHS = $(foreach d,$(OPERATOR_INTERNAL_DIRS),paths="$(d)")
 
 # Kubernetes / envtest versions
