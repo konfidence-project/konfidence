@@ -19,6 +19,9 @@ const (
 	VectorTemplateVectorCreationFailedReason = "VectorCreationFailed"
 	// VectorTemplateDriftDetectionFailedReason indicates that drift detection failed.
 	VectorTemplateDriftDetectionFailedReason = "DriftDetectionFailed"
+	// VectorTemplateWaitingForBaseReason indicates assembly is waiting for the base
+	// VectorTemplate to assemble a vector (its status.latestVector is not set yet).
+	VectorTemplateWaitingForBaseReason = "WaitingForBase"
 )
 
 // VectorTemplateSpec defines the desired state of VectorTemplate.
