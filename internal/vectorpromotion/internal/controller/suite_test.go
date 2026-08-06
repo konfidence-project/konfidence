@@ -77,6 +77,8 @@ func startManager() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 
+	Expect(RegisterFieldIndexes(ctx, mgr)).To(Succeed())
+
 	Expect(NewVectorPromotionTTLReconciler(mgr).
 		SetupWithManager(mgr)).To(Succeed())
 

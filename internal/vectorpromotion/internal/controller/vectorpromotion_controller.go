@@ -2,20 +2,9 @@ package controller
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"reflect"
-	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
-	utils "github.com/konfidence-project/konfidence/pkg/controller"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,33 +23,23 @@ const (
 	EventActionApproval    = "Approval"
 	EventActionExecution   = "Execution"
 
-	// siblingBlockedRequeueInterval paces re-evaluation while another
-	// promotion of the same config is executing.
-	siblingBlockedRequeueInterval = 10 * time.Second
-
-	// inProgressStaleTimeout is how long a sibling may claim InProgress before
-	// it stops blocking others. Execution is a single resolve+patch, so a
-	// Running condition this old is a crashed or wedged attempt, and honoring
-	// it forever would deadlock the config.
-	inProgressStaleTimeout = 5 * time.Minute
+	// promotionConfigRefField indexes promotions by their config reference,
+	// both in the manager cache (RegisterFieldIndexes) and server-side via the
+	// CRD's selectableFields, so sibling listing works on cached and direct
+	// clients alike.
+	promotionConfigRefField = "spec.vectorPromotionConfigRef"
 )
 
 // VectorPromotionReconciler executes approved VectorPromotions: it gates on
-// approval, serializes execution per VectorPromotionConfig, supersedes stale
-// approved promotions, and writes the promoted vector to the target Stage.
+// approval (vectorpromotion_approval.go), serializes execution per
+// VectorPromotionConfig (vectorpromotion_serialization.go), and writes the
+// promoted vector to the target Stage (vectorpromotion_execution.go). See
+// doc.go for the lifecycle narrative and the invariants that tie the phases
+// together.
 type VectorPromotionReconciler struct {
 	client.Client
 	Recorder events.EventRecorder
 }
-
-// resolutionError is a definitive target-resolution failure that is surfaced
-// on the VectorPromotionConfig, as opposed to a transient API error.
-type resolutionError struct {
-	reason  string
-	message string
-}
-
-func (e *resolutionError) Error() string { return e.message }
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions/status,verbs=get;update;patch
@@ -89,352 +68,17 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	return r.reconcileExecution(ctx, vectorPromotion)
 }
 
-// reconcileApproval moves an unapproved promotion into WaitingForApproval or
-// approves it directly when it does not require approval. The status update
-// retriggers reconciliation, which then proceeds to execution.
-func (r *VectorPromotionReconciler) reconcileApproval(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
-	original := vectorPromotion.DeepCopy()
-
-	if vectorPromotion.Spec.RequireApproval {
-		setApprovedCondition(vectorPromotion, metav1.ConditionFalse, konfidence.ReasonPromotionWaitingForApproval,
-			"promotion requires approval before execution")
-		if err := r.patchStatusWithEvent(ctx, vectorPromotion, original); err != nil {
-			return err
-		}
-		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionWaitingForApproval",
-			EventActionApproval, "promotion is waiting for approval")
-		return nil
-	}
-
-	setApprovedCondition(vectorPromotion, metav1.ConditionTrue, konfidence.ReasonPromotionAutoApproved,
-		"promotion is approved automatically because it does not require approval")
-	if err := r.patchStatusWithEvent(ctx, vectorPromotion, original); err != nil {
-		return err
-	}
-	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionAutoApproved",
-		EventActionApproval, "promotion approved automatically")
-	return nil
-}
-
-// reconcileExecution serializes execution per config: at most one promotion is
-// in progress, only the newest approved one executes, and stale approved
-// promotions are superseded.
-func (r *VectorPromotionReconciler) reconcileExecution(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) (ctrl.Result, error) {
-	siblings, err := listSiblingPromotions(ctx, r.Client, vectorPromotion)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	for i := range siblings {
-		sibling := &siblings[i]
-		if sibling.UID == vectorPromotion.UID || !promotion.IsInProgress(sibling) {
-			continue
-		}
-		if promotion.InProgressLongerThan(sibling, inProgressStaleTimeout) {
-			r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StaleSiblingIgnored",
-				EventActionExecution,
-				fmt.Sprintf("sibling promotion %q has been in progress for over %s; ignoring it", sibling.Name, inProgressStaleTimeout))
-			continue
-		}
-		return ctrl.Result{RequeueAfter: siblingBlockedRequeueInterval}, nil
-	}
-
-	newest := promotion.NewestApproved(siblings)
-	if newest == nil || newest.UID != vectorPromotion.UID {
-		return ctrl.Result{}, r.supersede(ctx, vectorPromotion, newest)
-	}
-
-	if err := r.supersedeStaleSiblings(ctx, vectorPromotion, siblings); err != nil {
-		return ctrl.Result{}, err
-	}
-	return ctrl.Result{}, r.execute(ctx, vectorPromotion)
-}
-
-// supersedeStaleSiblings marks older non-terminal siblings as superseded
-// before the newest approved promotion executes. Siblings created after the
-// executing promotion (e.g. still waiting for approval) keep their chance to
-// run later.
-func (r *VectorPromotionReconciler) supersedeStaleSiblings(ctx context.Context, newest *konfidence.VectorPromotion, siblings []konfidence.VectorPromotion) error {
-	var errs []error
-	for i := range siblings {
-		sibling := &siblings[i]
-		if sibling.UID == newest.UID || promotion.IsTerminal(sibling) || promotion.Newer(sibling, newest) {
-			continue
-		}
-		errs = append(errs, r.supersede(ctx, sibling, newest))
-	}
-	return errors.Join(errs...)
-}
-
-// supersede terminates a promotion because a newer approved promotion for the
-// same config exists.
-func (r *VectorPromotionReconciler) supersede(ctx context.Context, vectorPromotion, newest *konfidence.VectorPromotion) error {
-	message := "promotion was superseded by a newer approved promotion"
-	if newest != nil {
-		message = fmt.Sprintf("promotion was superseded by newer approved promotion %q", newest.Name)
-	}
-	original := vectorPromotion.DeepCopy()
-	setPromotionCondition(vectorPromotion, metav1.ConditionFalse, konfidence.ReasonPromotionSuperseded, message)
-	if err := r.patchStatusWithEvent(ctx, vectorPromotion, original); err != nil {
-		return err
-	}
-	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionSuperseded", EventActionExecution, message)
-	return nil
-}
-
-// execute resolves the target, then writes the pinned vector to the target
-// Stage and marks the promotion succeeded. A missing config is terminal; an
-// unresolvable target is surfaced on the config and retried with backoff
-// while the promotion stays approved.
-func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
-	original := vectorPromotion.DeepCopy()
-
-	config, err := getPromotionConfig(ctx, r.Client, vectorPromotion)
-	if apierrors.IsNotFound(err) {
-		msg := fmt.Sprintf("promotion configuration %q not found", vectorPromotion.Spec.VectorPromotionConfigRef)
-		setPromotionCondition(vectorPromotion, metav1.ConditionFalse, konfidence.ReasonPromotionConfigurationNotFound, msg)
-		return r.patchStatusWithEvent(ctx, vectorPromotion, original)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to fetch promotion configuration: %w", err)
-	}
-
-	stage, err := r.resolveTargetStage(ctx, config)
-	if err != nil {
-		return r.reportUnresolvedTarget(ctx, vectorPromotion, original, config, err)
-	}
-	if err := r.setConfigReadyCondition(ctx, config, metav1.ConditionTrue,
-		konfidence.VectorPromotionConfigTargetResolvedReason, "target stage resolved"); err != nil {
-		return err
-	}
-
-	if !promotion.IsInProgress(vectorPromotion) {
-		setPromotionCondition(vectorPromotion, metav1.ConditionFalse, konfidence.ReasonPromotionRunning, "promotion is executing")
-		if err := r.patchStatusWithEvent(ctx, vectorPromotion, original); err != nil {
-			return err
-		}
-		if err := r.propagateToConfig(ctx, config, vectorPromotion); err != nil {
-			return err
-		}
-		original = vectorPromotion.DeepCopy()
-	}
-
-	if err := r.promoteStage(ctx, stage, vectorPromotion); err != nil {
-		return err
-	}
-
-	msg := fmt.Sprintf("promoted vector to stage %q in namespace %q", stage.Name, stage.Namespace)
-	setPromotionCondition(vectorPromotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, msg)
-	vectorPromotion.Status.PromotedStageRef = &corev1.TypedObjectReference{
-		APIGroup:  ptr.To(konfidence.GroupVersion.Group),
-		Kind:      konfidence.StageKind,
-		Name:      stage.Name,
-		Namespace: ptr.To(stage.Namespace),
-	}
-	if err := r.patchStatusWithEvent(ctx, vectorPromotion, original); err != nil {
-		return err
-	}
-	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionSuccessful", EventActionExecution, msg)
-	return r.propagateToConfig(ctx, config, vectorPromotion)
-}
-
-// reportUnresolvedTarget surfaces a definitive resolution failure on both
-// objects: the promotion goes Blocked (non-terminal, retried) and the config's
-// Ready condition names what is missing. Transient API errors are returned
-// as-is for plain backoff.
-func (r *VectorPromotionReconciler) reportUnresolvedTarget(ctx context.Context, vectorPromotion, original *konfidence.VectorPromotion, config *konfidence.VectorPromotionConfig, err error) error {
-	var resErr *resolutionError
-	if !errors.As(err, &resErr) {
-		return err
-	}
-	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "PromotionTargetUnresolved",
-		EventActionExecution, resErr.message)
-	setPromotionCondition(vectorPromotion, metav1.ConditionFalse, konfidence.ReasonPromotionTargetUnresolved, resErr.message)
-	if patchErr := r.patchStatusWithEvent(ctx, vectorPromotion, original); patchErr != nil {
-		return errors.Join(err, patchErr)
-	}
-	if patchErr := r.setConfigReadyCondition(ctx, config, metav1.ConditionFalse, resErr.reason, resErr.message); patchErr != nil {
-		return errors.Join(err, patchErr)
-	}
-	if patchErr := r.propagateToConfig(ctx, config, vectorPromotion); patchErr != nil {
-		return errors.Join(err, patchErr)
-	}
-	return err
-}
-
-// propagateToConfig mirrors the promotion's conditions onto its config so the
-// config always shows the outcome of the promotion currently acting on it.
-// Only the executing promotion propagates; superseded losers stay silent.
-func (r *VectorPromotionReconciler) propagateToConfig(ctx context.Context, config *konfidence.VectorPromotionConfig, vectorPromotion *konfidence.VectorPromotion) error {
-	original := config.DeepCopy()
-	config.Status.LastPromotionConditions = vectorPromotion.Status.Conditions
-	if promotion.IsSucceeded(vectorPromotion) {
-		config.Status.LastSuccessfulPromotionConditions = vectorPromotion.Status.Conditions
-	}
-	if reflect.DeepEqual(config.Status, original.Status) {
-		return nil
-	}
-	if err := r.Status().Patch(ctx, config, client.MergeFrom(original)); err != nil {
-		return fmt.Errorf("failed to propagate promotion conditions to VectorPromotionConfig %q in namespace %q: %w",
-			config.Name, config.Namespace, err)
-	}
-	return nil
-}
-
-// setConfigReadyCondition writes the config's Ready condition, telling users
-// whether the resources their config references actually exist.
-func (r *VectorPromotionReconciler) setConfigReadyCondition(
-	ctx context.Context,
-	config *konfidence.VectorPromotionConfig,
-	status metav1.ConditionStatus,
-	reason, message string,
-) error {
-	original := config.DeepCopy()
-	meta.SetStatusCondition(&config.Status.Conditions, metav1.Condition{
-		Type:               konfidence.VectorPromotionConfigReadyCondition,
-		Status:             status,
-		ObservedGeneration: config.Generation,
-		Reason:             reason,
-		Message:            message,
-	})
-	if reflect.DeepEqual(config.Status, original.Status) {
-		return nil
-	}
-	if err := r.Status().Patch(ctx, config, client.MergeFrom(original)); err != nil {
-		return fmt.Errorf("failed to patch Ready condition of VectorPromotionConfig %q in namespace %q: %w",
-			config.Name, config.Namespace, err)
-	}
-	return nil
-}
-
-// resolveTargetStage resolves the config's target Stage through the Landscape
-// in the config's namespace. The Stage is never created here: a missing
-// landscape or stage is reported as a resolutionError for the user to act on.
-func (r *VectorPromotionReconciler) resolveTargetStage(ctx context.Context, config *konfidence.VectorPromotionConfig) (*konfidence.Stage, error) {
-	landscape := &konfidence.Landscape{}
-	key := types.NamespacedName{Namespace: config.Namespace, Name: config.Spec.Target.Landscape}
-	err := r.Get(ctx, key, landscape)
-	if apierrors.IsNotFound(err) {
-		return nil, &resolutionError{
-			reason:  konfidence.VectorPromotionConfigLandscapeNotFoundReason,
-			message: fmt.Sprintf("landscape %q does not exist in namespace %q", key.Name, key.Namespace),
-		}
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch landscape %q: %w", key.Name, err)
-	}
-	if landscape.Status.Namespace == "" {
-		return nil, &resolutionError{
-			reason:  konfidence.VectorPromotionConfigLandscapeNotReadyReason,
-			message: fmt.Sprintf("landscape %q has no managed namespace yet", landscape.Name),
-		}
-	}
-
-	stage := &konfidence.Stage{}
-	key = types.NamespacedName{Namespace: landscape.Status.Namespace, Name: config.Spec.Target.Name}
-	err = r.Get(ctx, key, stage)
-	if apierrors.IsNotFound(err) {
-		return nil, &resolutionError{
-			reason: konfidence.VectorPromotionConfigStageNotFoundReason,
-			message: fmt.Sprintf("stage %q does not exist in landscape namespace %q; create it before promoting",
-				key.Name, key.Namespace),
-		}
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch stage %q in landscape namespace %q: %w", key.Name, key.Namespace, err)
-	}
-	return stage, nil
-}
-
-// promoteStage writes the promoted vector to the stage spec if it differs and
-// records the writing promotion for provenance.
-func (r *VectorPromotionReconciler) promoteStage(ctx context.Context, stage *konfidence.Stage, vectorPromotion *konfidence.VectorPromotion) error {
-	promotedBy := fmt.Sprintf("%s/%s", vectorPromotion.Namespace, vectorPromotion.Name)
-	if stage.Spec.Vector == vectorPromotion.Spec.Vector && stage.Annotations[utils.PromotedByAnnotation] == promotedBy {
-		return nil
-	}
-	original := stage.DeepCopy()
-	stage.Spec.Vector = vectorPromotion.Spec.Vector
-	if stage.Annotations == nil {
-		stage.Annotations = map[string]string{}
-	}
-	stage.Annotations[utils.PromotedByAnnotation] = promotedBy
-	if err := r.Patch(ctx, stage, client.MergeFrom(original)); err != nil {
-		return fmt.Errorf("failed to patch vector onto stage %q in namespace %q: %w", stage.Name, stage.Namespace, err)
-	}
-	return nil
-}
-
-// patchStatusWithEvent patches the promotion status if it changed and emits a
-// warning event when the patch fails.
-func (r *VectorPromotionReconciler) patchStatusWithEvent(ctx context.Context, vectorPromotion, original *konfidence.VectorPromotion) error {
-	err := patchPromotionStatus(ctx, r.Client, vectorPromotion, original)
-	if err != nil {
-		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch, err.Error())
-	}
-	return err
-}
-
-// setPromotionCondition writes the Succeeded condition and refreshes the
-// derived status.state. A reason change on an unchanged status still moves
-// LastTransitionTime: the status propagation controller and the TTL clock key
-// on it, and e.g. Running to Superseded must register as a transition.
-func setPromotionCondition(
-	vectorPromotion *konfidence.VectorPromotion,
-	status metav1.ConditionStatus,
-	reason, message string,
-) {
-	previous := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-	reasonOnlyChange := previous != nil && previous.Status == status && previous.Reason != reason
-	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
-		Type:               konfidence.ConditionTypeSucceeded,
-		Status:             status,
-		ObservedGeneration: vectorPromotion.Generation,
-		Reason:             reason,
-		Message:            message,
-	})
-	if reasonOnlyChange {
-		current := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-		current.LastTransitionTime = metav1.Now()
-	}
-	vectorPromotion.Status.State = promotion.DeriveState(vectorPromotion)
-}
-
-// setApprovedCondition writes the Approved condition and refreshes the
-// derived status.state.
-func setApprovedCondition(
-	vectorPromotion *konfidence.VectorPromotion,
-	status metav1.ConditionStatus,
-	reason, message string,
-) {
-	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
-		Type:               konfidence.ConditionTypeApproved,
-		Status:             status,
-		ObservedGeneration: vectorPromotion.Generation,
-		Reason:             reason,
-		Message:            message,
-	})
-	vectorPromotion.Status.State = promotion.DeriveState(vectorPromotion)
-}
-
-// patchPromotionStatus patches the promotion status if it changed relative to
-// original. The patch is optimistic-locked: promotion status is also written
-// by the external approver, and a stale write must conflict and retrigger
-// reconciliation instead of silently overwriting the conditions array.
-func patchPromotionStatus(
-	ctx context.Context,
-	c client.Client,
-	vectorPromotion, original *konfidence.VectorPromotion,
-) error {
-	if reflect.DeepEqual(vectorPromotion.Status, original.Status) {
-		return nil
-	}
-	patch := client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})
-	if err := c.Status().Patch(ctx, vectorPromotion, patch); err != nil {
-		return fmt.Errorf("failed to patch status of VectorPromotion %q in namespace %q: %w",
-			vectorPromotion.Name, vectorPromotion.Namespace, err)
-	}
-	return nil
+// RegisterFieldIndexes registers the cache indexes the promotion controllers
+// rely on. Call once per manager, before registering the controllers.
+func RegisterFieldIndexes(ctx context.Context, mgr ctrl.Manager) error {
+	return mgr.GetFieldIndexer().IndexField(ctx, &konfidence.VectorPromotion{}, promotionConfigRefField,
+		func(obj client.Object) []string {
+			vectorPromotion, ok := obj.(*konfidence.VectorPromotion)
+			if !ok {
+				return nil
+			}
+			return []string{vectorPromotion.Spec.VectorPromotionConfigRef}
+		})
 }
 
 // NewVectorPromotionReconciler wires a VectorPromotionReconciler for the given manager.
@@ -458,7 +102,9 @@ func (r *VectorPromotionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// The serialization invariants (one InProgress per config, newest
 		// approved wins) are enforced by read-check-write over the informer
 		// cache and depend on a single writer: exactly one worker here, and
-		// leader election in multi-replica deployments.
+		// leader election in multi-replica deployments. The unlocked config
+		// status patches in vectorpromotion_execution.go depend on the same
+		// single-writer property.
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: 1}).
 		Named("vectorPromotion").
 		Complete(r)

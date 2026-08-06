@@ -10,12 +10,16 @@ import (
 
 const OperatorFlagName = "VectorPromotion"
 
-// Options configures the vector promotion controllers. It is empty while
-// promotion execution is stubbed pending the ADR-0032 execution rework.
+// Options configures the vector promotion controllers. Currently empty; kept
+// so enabling future options does not change the call signature.
 type Options struct{}
 
 // SetupControllers registers all vector promotion controllers with the given manager.
-func SetupControllers(_ context.Context, mgr ctrl.Manager, _ Options) error {
+func SetupControllers(ctx context.Context, mgr ctrl.Manager, _ Options) error {
+	if err := controller.RegisterFieldIndexes(ctx, mgr); err != nil {
+		return err
+	}
+
 	if err := controller.NewVectorPromotionReconciler(mgr).
 		SetupWithManager(mgr); err != nil {
 		return err

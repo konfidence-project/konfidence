@@ -12,10 +12,6 @@ func getSucceededCondition(p *konfidence.VectorPromotion) *metav1.Condition {
 	return meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
 
-func IsPending(p *konfidence.VectorPromotion) bool {
-	return getSucceededCondition(p) == nil
-}
-
 func IsApproved(p *konfidence.VectorPromotion) bool {
 	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeApproved)
 }

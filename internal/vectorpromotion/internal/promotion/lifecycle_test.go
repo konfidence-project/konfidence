@@ -10,27 +10,6 @@ import (
 )
 
 var _ = Describe("Lifecycle", func() {
-	Describe("IsPending", func() {
-		It("returns true when no conditions exist", func() {
-			p := &konfidence.VectorPromotion{}
-
-			Expect(IsPending(p)).To(BeTrue())
-		})
-
-		It("returns false when Succeeded condition exists", func() {
-			p := &konfidence.VectorPromotion{
-				Status: konfidence.VectorPromotionStatus{
-					Conditions: []metav1.Condition{{
-						Type:   konfidence.ConditionTypeSucceeded,
-						Status: metav1.ConditionTrue,
-					}},
-				},
-			}
-
-			Expect(IsPending(p)).To(BeFalse())
-		})
-	})
-
 	Describe("IsTerminal", func() {
 		Context("non-terminal states", func() {
 			It("returns false when no conditions exist", func() {

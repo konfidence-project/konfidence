@@ -23,19 +23,19 @@ func getPromotionConfig(
 }
 
 // listSiblingPromotions returns all promotions in the promotion's namespace
-// that reference the same VectorPromotionConfig, including the promotion itself.
+// that reference the same VectorPromotionConfig, including the promotion
+// itself. The field selector is served by the manager cache index
+// (RegisterFieldIndexes) for cached clients and by the CRD's selectableFields
+// for direct clients.
 func listSiblingPromotions(
 	ctx context.Context, clusterClient client.Client, vectorPromotion *konfidence.VectorPromotion,
 ) ([]konfidence.VectorPromotion, error) {
 	list := &konfidence.VectorPromotionList{}
-	if err := clusterClient.List(ctx, list, client.InNamespace(vectorPromotion.Namespace)); err != nil {
+	err := clusterClient.List(ctx, list,
+		client.InNamespace(vectorPromotion.Namespace),
+		client.MatchingFields{promotionConfigRefField: vectorPromotion.Spec.VectorPromotionConfigRef})
+	if err != nil {
 		return nil, fmt.Errorf("failed to list sibling promotions: %w", err)
 	}
-	siblings := make([]konfidence.VectorPromotion, 0, len(list.Items))
-	for _, item := range list.Items {
-		if item.Spec.VectorPromotionConfigRef == vectorPromotion.Spec.VectorPromotionConfigRef {
-			siblings = append(siblings, item)
-		}
-	}
-	return siblings, nil
+	return list.Items, nil
 }
