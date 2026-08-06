@@ -19,12 +19,14 @@ const (
 	VectorPromotionConfigLandscapeNotReadyReason = "LandscapeNotReady"
 	// VectorPromotionConfigStageNotFoundReason indicates the referenced Stage does not exist in the landscape namespace.
 	VectorPromotionConfigStageNotFoundReason = "StageNotFound"
+	// VectorPromotionConfigSourceNotFoundReason indicates the referenced source resource does not exist.
+	VectorPromotionConfigSourceNotFoundReason = "SourceNotFound"
 )
 
 // PromotionSourceReference identifies the in-cluster resource whose current
-// vector is promoted from. The source is resolved by the promotion's creator
-// (the drift controller), which pins the concrete vector into
-// `VectorPromotionSpec.Vector`; the execution controller never reads it.
+// vector is promoted from. The source is resolved by the config reconciler,
+// which pins the concrete vector into `VectorPromotionSpec.Vector`; the
+// execution controller never reads it.
 //
 // +kubebuilder:validation:XValidation:rule="(self.kind == 'Stage') == has(self.landscape)",message="landscape is required for Stage references and must be omitted for VectorTemplate references"
 //
@@ -106,9 +108,8 @@ type VectorPromotionConfigStatus struct {
 	LastSuccessfulPromotionConditions []metav1.Condition `json:"lastSuccessfulPromotionConditions,omitempty"`
 
 	// Sequence is the monotonic counter of promotions created for this config.
-	// The drift controller (not yet implemented) increments it and stamps the
-	// value into each created promotion's `spec.sequence`; until then it stays
-	// zero.
+	// The config reconciler increments it and stamps the value into each
+	// created promotion's `spec.sequence`.
 	// +optional
 	Sequence int64 `json:"sequence,omitempty"`
 }

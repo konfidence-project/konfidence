@@ -322,9 +322,8 @@ spec:
               sequence:
                 description: |-
                   Sequence is the monotonic counter of promotions created for this config.
-                  The drift controller (not yet implemented) increments it and stamps the
-                  value into each created promotion's `spec.sequence`; until then it stays
-                  zero.
+                  The config reconciler increments it and stamps the value into each
+                  created promotion's `spec.sequence`.
                 format: int64
                 type: integer
             type: object

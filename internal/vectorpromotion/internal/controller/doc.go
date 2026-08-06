@@ -5,18 +5,20 @@
 // A `VectorPromotionConfig` declares one promotion flow (source, target
 // landscape/stage) and is mutable. A `VectorPromotion` is one execution
 // request against it: `spec.vector`, `spec.requireApproval` and
-// `spec.sequence` are pinned at creation and immutable. Promotions are meant
-// to be created by the drift controller (not yet implemented on this branch;
-// until it lands, `spec.sequence` stays zero and ordering degrades to
-// creation timestamp plus name).
+// `spec.sequence` are pinned at creation and immutable. Promotions are
+// created by the config reconciler (vectorpromotionconfig_controller.go) when
+// the source vector drifts from the target stage; it stamps `spec.sequence`
+// from the config's `status.sequence` and sets a controller owner reference,
+// so deleting a config garbage-collects its promotions.
 //
 // Conditions are the source of truth; `status.state` is display only,
 // recomputed from conditions on every write. Promotion status has two
 // writers — this controller and the external approver
 // (`vectorpromotion.Approve`) — so every promotion status patch is
-// optimistic-locked. Config status has exactly one writer, this single-worker
-// controller, so config status patches are plain merge patches; that only
-// holds while `MaxConcurrentReconciles` stays 1.
+// optimistic-locked. Config status has two writers with disjoint fields —
+// the execution controller mirrors `lastPromotion*`, the config reconciler
+// owns `conditions` (Ready) and `sequence` — so config status patches are
+// plain merge patches; that only holds while the fields stay disjoint.
 //
 // # Lifecycle
 //
@@ -53,8 +55,9 @@
 //
 // The reconciler is split by phase: approval
 // (vectorpromotion_approval.go), serialization
-// (vectorpromotion_serialization.go), execution and config status
+// (vectorpromotion_serialization.go), execution and config mirroring
 // (vectorpromotion_execution.go), condition/patch plumbing
-// (vectorpromotion_status.go), TTL and retention
+// (vectorpromotion_status.go), drift detection and Ready monitoring
+// (vectorpromotionconfig_controller.go), TTL and retention
 // (vectorpromotion_ttl_controller.go).
 package controller

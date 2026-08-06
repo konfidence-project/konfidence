@@ -719,9 +719,9 @@ _Appears in:_
 
 
 PromotionSourceReference identifies the in-cluster resource whose current
-vector is promoted from. The source is resolved by the promotion's creator
-(the drift controller), which pins the concrete vector into
-`VectorPromotionSpec.Vector`; the execution controller never reads it.
+vector is promoted from. The source is resolved by the config reconciler,
+which pins the concrete vector into `VectorPromotionSpec.Vector`; the
+execution controller never reads it.
 
 
 
@@ -1838,7 +1838,7 @@ _Appears in:_
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions reports on the config itself, e.g. whether its references<br />resolve to existing resources. Promotion results are reported separately<br />in `LastPromotionConditions`. |  |  |
 | `lastPromotionConditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | LastPromotionConditions contains the result of the most recent VectorPromotion execution |  |  |
 | `lastSuccessfulPromotionConditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | LastSuccessfulPromotionConditions contains the result of the most recent VectorPromotion execution, that was successful |  |  |
-| `sequence` _integer_ | Sequence is the monotonic counter of promotions created for this config.<br />The drift controller (not yet implemented) increments it and stamps the<br />value into each created promotion's `spec.sequence`; until then it stays<br />zero. |  | Optional: \{\} <br /> |
+| `sequence` _integer_ | Sequence is the monotonic counter of promotions created for this config.<br />The config reconciler increments it and stamps the value into each<br />created promotion's `spec.sequence`. |  | Optional: \{\} <br /> |
 
 
 #### VectorPromotionList
@@ -1880,7 +1880,7 @@ _Appears in:_
 | `vector` _string_ | Vector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) pinned when the promotion was created. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
 | `requireApproval` _boolean_ | RequireApproval is true when the promotion must be approved before<br />execution (source kind `Stage`); false means the promotion is<br />auto-approved (source kind `VectorTemplate`). | false | Optional: \{\} <br /> |
 | `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
-| `sequence` _integer_ | Sequence is a monotonic ordinal assigned by the creator (the drift<br />controller, from the config's `status.sequence`). Promotions with a<br />higher sequence are newer regardless of creation timestamps, which only<br />have second resolution. Unpopulated until the drift controller lands;<br />ordering degrades to timestamp+name until then. |  | Minimum: 0 <br />Optional: \{\} <br /> |
+| `sequence` _integer_ | Sequence is a monotonic ordinal assigned by the creator (the config<br />reconciler, from the config's `status.sequence`). Promotions with a<br />higher sequence are newer regardless of creation timestamps, which only<br />have second resolution. |  | Minimum: 0 <br />Optional: \{\} <br /> |
 
 
 #### VectorPromotionState

@@ -10,7 +10,6 @@ import (
 	utils "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -53,13 +52,9 @@ func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion
 		return fmt.Errorf("failed to fetch promotion configuration: %w", err)
 	}
 
-	stage, err := r.resolveTargetStage(ctx, config)
+	stage, err := resolveTargetStage(ctx, r.Client, config)
 	if err != nil {
 		return r.reportUnresolvedTarget(ctx, vectorPromotion, original, config, err)
-	}
-	if err := r.setConfigReadyCondition(ctx, config, metav1.ConditionTrue,
-		konfidence.VectorPromotionConfigTargetResolvedReason, "target stage resolved"); err != nil {
-		return err
 	}
 
 	if !promotion.IsInProgress(vectorPromotion) {
@@ -92,10 +87,11 @@ func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion
 	return r.propagateToConfig(ctx, config, vectorPromotion)
 }
 
-// reportUnresolvedTarget surfaces a definitive resolution failure on both
-// objects: the promotion goes Blocked (non-terminal, retried) and the config's
-// Ready condition names what is missing. Transient API errors are returned
-// as-is for plain backoff.
+// reportUnresolvedTarget surfaces a definitive resolution failure on the
+// promotion: it goes Blocked (non-terminal, retried) and mirrors onto the
+// config's last-promotion view. The config's Ready condition itself is owned
+// by the config reconciler, which watches the same resources. Transient API
+// errors are returned as-is for plain backoff.
 func (r *VectorPromotionReconciler) reportUnresolvedTarget(ctx context.Context, vectorPromotion, original *konfidence.VectorPromotion, config *konfidence.VectorPromotionConfig, err error) error {
 	var resErr *resolutionError
 	if !errors.As(err, &resErr) {
@@ -107,41 +103,48 @@ func (r *VectorPromotionReconciler) reportUnresolvedTarget(ctx context.Context, 
 	if patchErr := r.patchStatusWithEvent(ctx, vectorPromotion, original); patchErr != nil {
 		return errors.Join(err, patchErr)
 	}
-	if patchErr := r.setConfigReadyCondition(ctx, config, metav1.ConditionFalse, resErr.reason, resErr.message); patchErr != nil {
-		return errors.Join(err, patchErr)
-	}
 	if patchErr := r.propagateToConfig(ctx, config, vectorPromotion); patchErr != nil {
 		return errors.Join(err, patchErr)
 	}
 	return err
 }
 
-// resolveTargetStage resolves the config's target Stage through the Landscape
-// in the config's namespace. The Stage is never created here: a missing
-// landscape or stage is reported as a resolutionError for the user to act on.
-func (r *VectorPromotionReconciler) resolveTargetStage(ctx context.Context, config *konfidence.VectorPromotionConfig) (*konfidence.Stage, error) {
+// resolveLandscapeNamespace resolves a Landscape name (in the config's
+// namespace) to the namespace it manages.
+func resolveLandscapeNamespace(ctx context.Context, c client.Client, namespace, name string) (string, error) {
 	landscape := &konfidence.Landscape{}
-	key := types.NamespacedName{Namespace: config.Namespace, Name: config.Spec.Target.Landscape}
-	err := r.Get(ctx, key, landscape)
+	key := types.NamespacedName{Namespace: namespace, Name: name}
+	err := c.Get(ctx, key, landscape)
 	if apierrors.IsNotFound(err) {
-		return nil, &resolutionError{
+		return "", &resolutionError{
 			reason:  konfidence.VectorPromotionConfigLandscapeNotFoundReason,
 			message: fmt.Sprintf("landscape %q does not exist in namespace %q", key.Name, key.Namespace),
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch landscape %q: %w", key.Name, err)
+		return "", fmt.Errorf("failed to fetch landscape %q: %w", key.Name, err)
 	}
 	if landscape.Status.Namespace == "" {
-		return nil, &resolutionError{
+		return "", &resolutionError{
 			reason:  konfidence.VectorPromotionConfigLandscapeNotReadyReason,
 			message: fmt.Sprintf("landscape %q has no managed namespace yet", landscape.Name),
 		}
 	}
+	return landscape.Status.Namespace, nil
+}
+
+// resolveTargetStage resolves the config's target Stage through the Landscape
+// in the config's namespace. The Stage is never created here: a missing
+// landscape or stage is reported as a resolutionError for the user to act on.
+func resolveTargetStage(ctx context.Context, c client.Client, config *konfidence.VectorPromotionConfig) (*konfidence.Stage, error) {
+	namespace, err := resolveLandscapeNamespace(ctx, c, config.Namespace, config.Spec.Target.Landscape)
+	if err != nil {
+		return nil, err
+	}
 
 	stage := &konfidence.Stage{}
-	key = types.NamespacedName{Namespace: landscape.Status.Namespace, Name: config.Spec.Target.Name}
-	err = r.Get(ctx, key, stage)
+	key := types.NamespacedName{Namespace: namespace, Name: config.Spec.Target.Name}
+	err = c.Get(ctx, key, stage)
 	if apierrors.IsNotFound(err) {
 		return nil, &resolutionError{
 			reason: konfidence.VectorPromotionConfigStageNotFoundReason,
@@ -182,36 +185,9 @@ func (r *VectorPromotionReconciler) promoteStage(ctx context.Context, stage *kon
 	return nil
 }
 
-// The two config status writers below use plain merge patches, unlike every
-// promotion status patch: config status has exactly one writer, this
-// controller with its single worker. Do not remove MaxConcurrentReconciles: 1
-// in SetupWithManager without adding optimistic locking here.
-
-// setConfigReadyCondition writes the config's Ready condition, telling users
-// whether the resources their config references actually exist.
-func (r *VectorPromotionReconciler) setConfigReadyCondition(
-	ctx context.Context,
-	config *konfidence.VectorPromotionConfig,
-	status metav1.ConditionStatus,
-	reason, message string,
-) error {
-	original := config.DeepCopy()
-	meta.SetStatusCondition(&config.Status.Conditions, metav1.Condition{
-		Type:               konfidence.VectorPromotionConfigReadyCondition,
-		Status:             status,
-		ObservedGeneration: config.Generation,
-		Reason:             reason,
-		Message:            message,
-	})
-	if reflect.DeepEqual(config.Status, original.Status) {
-		return nil
-	}
-	if err := r.Status().Patch(ctx, config, client.MergeFrom(original)); err != nil {
-		return fmt.Errorf("failed to patch Ready condition of VectorPromotionConfig %q in namespace %q: %w",
-			config.Name, config.Namespace, err)
-	}
-	return nil
-}
+// propagateToConfig uses a plain merge patch: config status writers are
+// field-disjoint (lastPromotion* here, conditions and sequence in the config
+// reconciler), so unlocked patches cannot clobber each other.
 
 // propagateToConfig mirrors the promotion's conditions onto its config so the
 // config always shows the outcome of the promotion currently acting on it.

@@ -71,13 +71,54 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 // RegisterFieldIndexes registers the cache indexes the promotion controllers
 // rely on. Call once per manager, before registering the controllers.
 func RegisterFieldIndexes(ctx context.Context, mgr ctrl.Manager) error {
-	return mgr.GetFieldIndexer().IndexField(ctx, &konfidence.VectorPromotion{}, promotionConfigRefField,
+	indexer := mgr.GetFieldIndexer()
+	if err := indexer.IndexField(ctx, &konfidence.VectorPromotion{}, promotionConfigRefField,
 		func(obj client.Object) []string {
 			vectorPromotion, ok := obj.(*konfidence.VectorPromotion)
 			if !ok {
 				return nil
 			}
 			return []string{vectorPromotion.Spec.VectorPromotionConfigRef}
+		}); err != nil {
+		return err
+	}
+	if err := indexer.IndexField(ctx, &konfidence.VectorPromotionConfig{}, configSourceTemplateField,
+		func(obj client.Object) []string {
+			config, ok := obj.(*konfidence.VectorPromotionConfig)
+			if !ok || config.Spec.Source.Kind != konfidence.VectorTemplateKind {
+				return nil
+			}
+			return []string{config.Spec.Source.Name}
+		}); err != nil {
+		return err
+	}
+	if err := indexer.IndexField(ctx, &konfidence.VectorPromotionConfig{}, configSourceStageField,
+		func(obj client.Object) []string {
+			config, ok := obj.(*konfidence.VectorPromotionConfig)
+			if !ok || config.Spec.Source.Kind != konfidence.StageKind {
+				return nil
+			}
+			return []string{config.Spec.Source.Landscape + "/" + config.Spec.Source.Name}
+		}); err != nil {
+		return err
+	}
+	if err := indexer.IndexField(ctx, &konfidence.VectorPromotionConfig{}, configTargetStageField,
+		func(obj client.Object) []string {
+			config, ok := obj.(*konfidence.VectorPromotionConfig)
+			if !ok {
+				return nil
+			}
+			return []string{config.Spec.Target.Landscape + "/" + config.Spec.Target.Name}
+		}); err != nil {
+		return err
+	}
+	return indexer.IndexField(ctx, &konfidence.Landscape{}, landscapeNamespaceField,
+		func(obj client.Object) []string {
+			landscape, ok := obj.(*konfidence.Landscape)
+			if !ok || landscape.Status.Namespace == "" {
+				return nil
+			}
+			return []string{landscape.Status.Namespace}
 		})
 }
 

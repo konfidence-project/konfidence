@@ -78,12 +78,10 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		Expect(promotion.Status.PromotedStageRef.Name).To(Equal(stage.Name))
 		Expect(*promotion.Status.PromotedStageRef.Namespace).To(Equal(stage.Namespace))
 
-		ready := configReadyCondition(config)
-		Expect(ready).NotTo(BeNil())
-		Expect(ready.Status).To(Equal(metav1.ConditionTrue))
-		Expect(ready.Reason).To(Equal(konfidence.VectorPromotionConfigTargetResolvedReason))
-
 		By("the promotion outcome is mirrored onto the config")
+		Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name: config.Name, Namespace: testNamespace,
+		}, config)).To(Succeed())
 		mirrored := meta.FindStatusCondition(config.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 		Expect(mirrored).NotTo(BeNil())
 		Expect(mirrored.Status).To(Equal(metav1.ConditionTrue))
@@ -116,10 +114,6 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		refreshPromotion(promotion)
 		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateBlocked))
 
-		ready := configReadyCondition(config)
-		Expect(ready).NotTo(BeNil())
-		Expect(ready.Status).To(Equal(metav1.ConditionFalse))
-		Expect(ready.Reason).To(Equal(konfidence.VectorPromotionConfigLandscapeNotFoundReason))
 	})
 
 	It("reports a missing stage on the config and promotes once it exists", func() {
@@ -141,11 +135,6 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 			Name: "late-stage", Namespace: "kden-l-exec-nostage",
 		}, &konfidence.Stage{})).To(MatchError(ContainSubstring("not found")))
 
-		ready := configReadyCondition(config)
-		Expect(ready).NotTo(BeNil())
-		Expect(ready.Status).To(Equal(metav1.ConditionFalse))
-		Expect(ready.Reason).To(Equal(konfidence.VectorPromotionConfigStageNotFoundReason))
-
 		By("creating the stage lets the next reconcile promote")
 		stage := createStage("kden-l-exec-nostage", "late-stage", "registry.example//konfidence.io/promo/app:0.9.0")
 		reconcilePromotion(promotion.Name)
@@ -157,8 +146,6 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		}, stage)).To(Succeed())
 		Expect(stage.Spec.Vector).To(Equal(testVector))
 
-		ready = configReadyCondition(config)
-		Expect(ready.Status).To(Equal(metav1.ConditionTrue))
 	})
 
 	It("preserves the last successful conditions while a later promotion is blocked", func() {

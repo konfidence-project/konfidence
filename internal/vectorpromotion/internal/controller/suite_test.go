@@ -63,10 +63,12 @@ var _ = BeforeSuite(func() {
 	startManager()
 })
 
-// startManager registers the TTL controller. The execution controller is
-// intentionally absent: its specs drive Reconcile directly for determinism,
-// and registering it would race the manually driven conditions the TTL tests
-// use.
+// startManager registers the config and TTL controllers. The execution
+// controller is intentionally absent: its specs drive Reconcile directly for
+// determinism, and registering it would race the manually driven conditions
+// the TTL tests use. The config reconciler is safe to run alongside: the
+// execution specs reference sources that do not exist, so it never creates
+// promotions for them.
 func startManager() {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:  scheme.Scheme,
@@ -78,6 +80,9 @@ func startManager() {
 	Expect(err).NotTo(HaveOccurred())
 
 	Expect(RegisterFieldIndexes(ctx, mgr)).To(Succeed())
+
+	Expect(NewVectorPromotionConfigReconciler(mgr).
+		SetupWithManager(mgr)).To(Succeed())
 
 	Expect(NewVectorPromotionTTLReconciler(mgr).
 		SetupWithManager(mgr)).To(Succeed())
