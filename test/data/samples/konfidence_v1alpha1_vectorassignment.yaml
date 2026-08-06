@@ -6,7 +6,7 @@ metadata:
   name: vectorassignment-sample
 spec:
   manifest:
-    type: cloud.konfidence.flux.helm
+    type: helm.konfidence.cloud
     allowReuse: true
   artifactDeploymentRef:
     name: artifactdeployment-1

@@ -20,6 +20,8 @@ Package v1alpha1 contains API Schema definitions for the konfidence v1alpha1 API
 - [ActivationTaskExecution](#activationtaskexecution)
 - [ActivationTaskRegistration](#activationtaskregistration)
 - [ArtifactDeployment](#artifactdeployment)
+- [DeploymentClass](#deploymentclass)
+- [DeploymentTarget](#deploymenttarget)
 - [Landscape](#landscape)
 - [Project](#project)
 - [Stage](#stage)
@@ -215,7 +217,7 @@ metadata:
   namespace: default
 spec:
   component:
-    name: cloud.konfidence.flux.helm
+    name: konfidence.cloud/podinfo-example
     resources:
       - content:
           helmChart: podinfo:6.9.1
@@ -226,7 +228,7 @@ spec:
     version: 1.0.0
   manifest:
     allowReuse: true
-    type: cloud.konfidence.flux.helm
+    type: helm.konfidence.cloud
   taskManifests: [ ]
 ```
 
@@ -283,7 +285,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _string_ | Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",<br />or any custom deployer type). Deployers implement their own interpretation<br />of the artifact's contents. |  |  |
+| `type` _string_ | Type specifies the name of the DeploymentClass that should handle this artifact (e.g., "helm.konfidence.cloud").<br />This must match a DeploymentClass.metadata.name in the cluster.<br />Deployers implement their own interpretation of the artifact's contents. |  |  |
 | `allowReuse` _boolean_ | AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.<br />Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific<br />runtime context. |  |  |
 
 
@@ -324,6 +326,24 @@ _Appears in:_
 | `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains deployer-specific structured data. Its format is determined by the Type field. |  |  |
 
 
+### ConnectionRef
+
+
+
+ConnectionRef identifies a Secret or ConfigMap in the same namespace.
+
+
+
+_Appears in:_
+- [DeploymentTargetConnection](#deploymenttargetconnection)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiGroup` _string_ | APIGroup is the group for the resource being referenced.<br />Defaults to the core API group ("") for Secret and ConfigMap.<br />For deployer-specific CRDs, set this to the appropriate API group. |  | Optional: \{\} <br /> |
+| `kind` _string_ | Kind is the resource kind (e.g., "Secret", "ConfigMap", or a deployer-specific kind). |  | MaxLength: 64 <br />MinLength: 1 <br />Required: \{\} <br /> |
+| `name` _string_ | Name is the name of the referenced resource. |  | MaxLength: 253 <br />MinLength: 1 <br />Required: \{\} <br /> |
+
+
 ### CredentialRef
 
 
@@ -357,6 +377,59 @@ _Appears in:_
 | `ocm` _[OCMCredentials](#ocmcredentials)_ |  |  | Optional: \{\} <br /> |
 
 
+### DeploymentClass
+
+
+
+DeploymentClass declares a deployment capability provided by a deployer (controller). It is a cluster-scoped resource
+installed by deployers to advertise their capabilities. Its immutable spec ensures that ownership of resources using
+the class cannot change on the fly. Its metadata.name is the deployment class identifier referenced by
+ArtifactDeployments and DeploymentTargets. The name must be unique across all DeploymentClasses in the cluster and
+should follow the pattern `<class-name>.<vendor-domain>` (e.g., `helm.konfidence.cloud`).
+
+
+
+_Appears in:_
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `DeploymentClass` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[DeploymentClassSpec](#deploymentclassspec)_ |  |  |  |
+
+
+#### Example
+
+```yaml
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentClass
+metadata:
+  name: kustomize.konfidence.cloud
+spec:
+  controller: konfidence.cloud/kubernetes-landscape-orchestrator
+```
+
+### DeploymentClassSpec
+
+
+
+DeploymentClassSpec defines the desired state of DeploymentClass. It is immutable because changing it requires
+transfer of deployment ownership to a different controller. This process is currently not well-supported and
+is therefor not recommended.
+
+
+
+_Appears in:_
+- [DeploymentClass](#deploymentclass)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `controller` _string_ | Controller is the name of the controller that implements this deployment class.<br />This identifies which operator/controller is responsible for reconciling<br />resources of this deployment class (e.g., "kubernetes-landscape-orchestrator"). |  | MaxLength: 253 <br />MinLength: 1 <br />Required: \{\} <br /> |
+
+
 ### DeploymentResult
 
 
@@ -375,6 +448,104 @@ _Appears in:_
 | `name` _string_ | Name identifies the result. |  | MaxLength: 253 <br /> |
 | `type` _string_ | Type describes the structure contained in Spec. Each deployer may define multiple result types. |  | MaxLength: 63 <br /> |
 | `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains deployer-specific structured data. Its format is determined by the Type field. |  |  |
+
+
+### DeploymentTarget
+
+
+
+DeploymentTarget is the Schema for the deploymenttargets API. A DeploymentTarget
+configures a concrete deployment destination within a landscape for a specific
+deployment class. It is namespace-scoped and created in landscape namespaces.
+Multiple DeploymentTargets can exist in the same landscape, but their deployment
+class names must be unique within the namespace.
+
+
+
+_Appears in:_
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `DeploymentTarget` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[DeploymentTargetSpec](#deploymenttargetspec)_ |  |  |  |
+| `status` _[DeploymentTargetStatus](#deploymenttargetstatus)_ |  |  |  |
+
+
+#### Example
+
+```yaml
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: production-kustomize
+  namespace: kden-l-production-abc123
+spec:
+  deploymentClassName: kustomize.konfidence.cloud
+  connection:
+    type: kubeconfig
+    ref:
+      kind: Secret
+      name: prod-cluster-kubeconfig
+```
+
+### DeploymentTargetConnection
+
+
+
+DeploymentTargetConnection defines connection information for a deployment target.
+
+
+
+_Appears in:_
+- [DeploymentTargetSpec](#deploymenttargetspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `type` _string_ | Type is a hint for how to interpret the connection reference. It is advisory<br />and informational only. The deployer controller interprets and enforces its meaning. |  | MaxLength: 64 <br />MinLength: 1 <br />Required: \{\} <br /> |
+| `ref` _[ConnectionRef](#connectionref)_ | Ref references a resource containing connection details. This can be a Secret, ConfigMap,<br />or a custom resource defined by the deployer. The deployer is responsible for interpreting<br />and validating the referenced resource. |  | Optional: \{\} <br /> |
+
+
+### DeploymentTargetSpec
+
+
+
+DeploymentTargetSpec defines the desired state of DeploymentTarget.
+
+
+
+_Appears in:_
+- [DeploymentTarget](#deploymenttarget)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `deploymentClassName` _string_ | DeploymentClassName references a DeploymentClass by its metadata.name. The referenced DeploymentClass determines<br />which controller is responsible for reconciling the DeploymentTarget resource. If there is no DeploymentClass<br />with that name, the DeploymentTarget will be marked as not ready. DeploymentClassName<br />is immutable because changing it would transfer ownership of the DeploymentTarget to a different controller.<br />There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique<br />across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of<br />Konfidence. |  | Required: \{\} <br /> |
+| `connection` _[DeploymentTargetConnection](#deploymenttargetconnection)_ | Connection defines how to connect to this deployment target.<br />The structure and interpretation of connection details is specific to the<br />deployment class and its implementing controller. |  | Required: \{\} <br /> |
+
+
+### DeploymentTargetStatus
+
+
+
+DeploymentTargetStatus defines the observed state of DeploymentTarget.
+The deployer controller responsible for this target's DeploymentClass is expected
+to set the Ready condition once it has accepted the resource. What "accepted" means
+is up to the deployer. It may include connectivity checks or simply validate the
+configuration.
+
+
+
+_Appears in:_
+- [DeploymentTarget](#deploymenttarget)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  | Optional: \{\} <br /> |
+
+
 
 
 ### GlobMatch
@@ -1336,7 +1507,7 @@ metadata:
   name: vectorassignment-sample
 spec:
   manifest:
-    type: cloud.konfidence.flux.helm
+    type: helm.konfidence.cloud
     allowReuse: true
   artifactDeploymentRef:
     name: artifactdeployment-1

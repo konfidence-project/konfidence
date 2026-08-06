@@ -94,6 +94,7 @@ manifests: hermit manifests-crds ## Generate CRDs, RBAC, and webhook manifests f
 	@mkdir -p $(CRD_DIR) charts/konfidence/templates/crds config/rbac config/webhook
 	$(CONTROLLER_GEN) rbac:roleName=konfidence-manager \
 		$(OPERATOR_INTERNAL_PATHS) \
+		$(API_PATHS) \
 		output:rbac:artifacts:config=config/rbac
 	$(CONTROLLER_GEN) webhook $(API_PATHS) output:webhook:artifacts:config=config/webhook
 	@rm -f $(CRD_DIR)/*.yaml charts/konfidence/templates/crds/*.yaml

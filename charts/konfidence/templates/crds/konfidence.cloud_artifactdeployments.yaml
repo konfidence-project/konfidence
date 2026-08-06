@@ -111,9 +111,9 @@ spec:
                     type: boolean
                   type:
                     description: |-
-                      Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",
-                      or any custom deployer type). Deployers implement their own interpretation
-                      of the artifact's contents.
+                      Type specifies the name of the DeploymentClass that should handle this artifact (e.g., "helm.konfidence.cloud").
+                      This must match a DeploymentClass.metadata.name in the cluster.
+                      Deployers implement their own interpretation of the artifact's contents.
                     type: string
                 required:
                 - allowReuse

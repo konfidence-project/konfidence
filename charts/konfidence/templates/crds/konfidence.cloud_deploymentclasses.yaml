@@ -1,0 +1,83 @@
+{{- if .Values.crd.install -}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+{{- include "konfidence.crdAnnotations" . | nindent 4 }}
+    controller-gen.kubebuilder.io/version: v0.20.0
+  labels:
+{{- include "konfidence.crdLabels" . | nindent 4 }}
+  name: deploymentclasses.konfidence.cloud
+spec:
+  group: konfidence.cloud
+  names:
+    categories:
+    - konfidence
+    - kden
+    kind: DeploymentClass
+    listKind: DeploymentClassList
+    plural: deploymentclasses
+    singular: deploymentclass
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - description: Controller name
+      jsonPath: .spec.controller
+      name: Controller
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          DeploymentClass declares a deployment capability provided by a deployer (controller). It is a cluster-scoped resource
+          installed by deployers to advertise their capabilities. Its immutable spec ensures that ownership of resources using
+          the class cannot change on the fly. Its metadata.name is the deployment class identifier referenced by
+          ArtifactDeployments and DeploymentTargets. The name must be unique across all DeploymentClasses in the cluster and
+          should follow the pattern `<class-name>.<vendor-domain>` (e.g., `helm.konfidence.cloud`).
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              DeploymentClassSpec defines the desired state of DeploymentClass. It is immutable because changing it requires
+              transfer of deployment ownership to a different controller. This process is currently not well-supported and
+              is therefor not recommended.
+            properties:
+              controller:
+                description: |-
+                  Controller is the name of the controller that implements this deployment class.
+                  This identifies which operator/controller is responsible for reconciling
+                  resources of this deployment class (e.g., "kubernetes-landscape-orchestrator").
+                maxLength: 253
+                minLength: 1
+                type: string
+            required:
+            - controller
+            type: object
+            x-kubernetes-validations:
+            - message: DeploymentClass spec is immutable
+              rule: self == oldSelf
+        type: object
+    served: true
+    storage: true
+    subresources: {}
+{{- end }}
