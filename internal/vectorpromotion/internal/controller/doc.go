@@ -57,7 +57,11 @@
 // (vectorpromotion_approval.go), serialization
 // (vectorpromotion_serialization.go), execution and config mirroring
 // (vectorpromotion_execution.go), condition/patch plumbing
-// (vectorpromotion_status.go), drift detection and Ready monitoring
-// (vectorpromotionconfig_controller.go), TTL and retention
-// (vectorpromotion_ttl_controller.go).
+// (vectorpromotion_status.go), TTL and retention
+// (vectorpromotion_ttl_controller.go). The config reconciler is split the
+// same way: reference resolution (vectorpromotionconfig_resolution.go),
+// drift creation (vectorpromotionconfig_drift.go), watch mapping and
+// predicates (vectorpromotionconfig_watches.go), config status plumbing
+// (vectorpromotionconfig_status.go), with the reconciler and wiring in
+// vectorpromotionconfig_controller.go.
 package controller
