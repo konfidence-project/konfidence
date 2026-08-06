@@ -727,6 +727,7 @@ vector is promoted from. The source is resolved by the promotion's creator
 
 _Appears in:_
 - [VectorPromotionConfigSpec](#vectorpromotionconfigspec)
+- [VectorPromotionSpec](#vectorpromotionspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -746,6 +747,7 @@ promotion target.
 
 _Appears in:_
 - [VectorPromotionConfigSpec](#vectorpromotionconfigspec)
+- [VectorPromotionSpec](#vectorpromotionspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -1873,6 +1875,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `vectorPromotionConfigRef` _string_ | VectorPromotionConfigRef is the name of the VectorPromotionConfig that defines the promotion flow to execute. |  | MinLength: 1 <br /> |
+| `source` _[PromotionSourceReference](#promotionsourcereference)_ | Source is a snapshot of the config's source reference at creation time,<br />recorded so a promotion is self-describing. |  |  |
+| `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target is a snapshot of the config's target reference at creation time.<br />Execution resolves and writes this target: approving a promotion approves<br />exactly this destination, regardless of later config edits. |  |  |
 | `vector` _string_ | Vector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) pinned when the promotion was created. |  | MinLength: 1 <br />Pattern: `^[^/].+//.+:.+$` <br /> |
 | `requireApproval` _boolean_ | RequireApproval is true when the promotion must be approved before<br />execution (source kind `Stage`); false means the promotion is<br />auto-approved (source kind `VectorTemplate`). | false | Optional: \{\} <br /> |
 | `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |

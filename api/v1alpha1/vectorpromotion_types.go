@@ -39,6 +39,9 @@ const (
 	ReasonPromotionManuallyApproved = "ManuallyApproved"
 	// ReasonPromotionSuperseded indicates a newer promotion for the same config replaced this one.
 	ReasonPromotionSuperseded = "PromotionSuperseded"
+	// ReasonPromotionTimedOut indicates the promotion stayed in progress past the
+	// execution deadline and was retired.
+	ReasonPromotionTimedOut = "PromotionTimedOut"
 	// ReasonPromotionTargetUnresolved indicates the target Stage or its Landscape does not
 	// resolve yet. The promotion stays live and execution is retried.
 	ReasonPromotionTargetUnresolved = "PromotionTargetUnresolved"
@@ -76,6 +79,17 @@ type VectorPromotionSpec struct {
 	// VectorPromotionConfigRef is the name of the VectorPromotionConfig that defines the promotion flow to execute.
 	// +kubebuilder:validation:MinLength=1
 	VectorPromotionConfigRef string `json:"vectorPromotionConfigRef"`
+
+	// Source is a snapshot of the config's source reference at creation time,
+	// recorded so a promotion is self-describing.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="source is immutable after it has been set"
+	Source PromotionSourceReference `json:"source"`
+
+	// Target is a snapshot of the config's target reference at creation time.
+	// Execution resolves and writes this target: approving a promotion approves
+	// exactly this destination, regardless of later config edits.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="target is immutable after it has been set"
+	Target PromotionTargetReference `json:"target"`
 
 	// Vector is the concrete OCM component version reference
 	// (`<registry>//<component>:<version>`) pinned when the promotion was created.

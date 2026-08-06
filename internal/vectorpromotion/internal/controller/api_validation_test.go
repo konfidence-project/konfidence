@@ -90,6 +90,8 @@ var _ = Describe("Promotion CRD schema validation", Ordered, Serial, func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "schema-bad-vector", Namespace: testNamespace},
 				Spec: konfidence.VectorPromotionSpec{
 					VectorPromotionConfigRef: "some-config",
+					Source:                   templateSource("some-template"),
+					Target:                   stageTarget("some-stage"),
 					Vector:                   "not-a-valid-reference",
 				},
 			}
@@ -110,6 +112,8 @@ var _ = Describe("Promotion CRD schema validation", Ordered, Serial, func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "schema-immutable-approval", Namespace: testNamespace},
 				Spec: konfidence.VectorPromotionSpec{
 					VectorPromotionConfigRef: "some-config",
+					Source:                   templateSource("some-template"),
+					Target:                   stageTarget("some-stage"),
 					Vector:                   testVector,
 					RequireApproval:          true,
 				},

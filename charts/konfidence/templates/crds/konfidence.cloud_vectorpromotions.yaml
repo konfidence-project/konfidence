@@ -84,6 +84,75 @@ spec:
                 x-kubernetes-validations:
                 - message: sequence is immutable after it has been set
                   rule: self == oldSelf
+              source:
+                description: |-
+                  Source is a snapshot of the config's source reference at creation time,
+                  recorded so a promotion is self-describing.
+                properties:
+                  kind:
+                    description: |-
+                      Kind is the kind of the source resource. A `VectorTemplate` source
+                      promotes its latest assembled vector automatically; a `Stage` source
+                      promotes the vector currently active on that stage and requires approval.
+                    enum:
+                    - VectorTemplate
+                    - Stage
+                    type: string
+                  landscape:
+                    description: |-
+                      Landscape is the name of the `Landscape` in the config's namespace whose
+                      namespace hosts the referenced `Stage`. Required for `Stage` references;
+                      must be omitted for `VectorTemplate` references, which are resolved in
+                      the config's namespace.
+                    maxLength: 63
+                    minLength: 1
+                    type: string
+                  name:
+                    description: Name is the name of the source resource.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+                x-kubernetes-validations:
+                - message: source is immutable after it has been set
+                  rule: self == oldSelf
+                - message: landscape is required for Stage references and must be
+                    omitted for VectorTemplate references
+                  rule: (self.kind == 'Stage') == has(self.landscape)
+              target:
+                description: |-
+                  Target is a snapshot of the config's target reference at creation time.
+                  Execution resolves and writes this target: approving a promotion approves
+                  exactly this destination, regardless of later config edits.
+                properties:
+                  kind:
+                    description: Kind is the kind of the target resource.
+                    enum:
+                    - Stage
+                    type: string
+                  landscape:
+                    description: |-
+                      Landscape is the name of the `Landscape` in the config's namespace whose
+                      namespace hosts the target `Stage`.
+                    maxLength: 63
+                    minLength: 1
+                    type: string
+                  name:
+                    description: Name is the name of the target `Stage`.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                required:
+                - kind
+                - landscape
+                - name
+                type: object
+                x-kubernetes-validations:
+                - message: target is immutable after it has been set
+                  rule: self == oldSelf
               ttlAfterFinished:
                 description: |-
                   TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
@@ -106,6 +175,8 @@ spec:
                 minLength: 1
                 type: string
             required:
+            - source
+            - target
             - vector
             - vectorPromotionConfigRef
             type: object

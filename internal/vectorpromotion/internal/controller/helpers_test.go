@@ -75,6 +75,8 @@ func createPromotion(name, configRef string) *konfidence.VectorPromotion {
 		},
 		Spec: konfidence.VectorPromotionSpec{
 			VectorPromotionConfigRef: configRef,
+			Source:                   templateSource("some-template"),
+			Target:                   stageTarget("some-stage"),
 			Vector:                   testVector,
 		},
 	}
@@ -91,6 +93,8 @@ func createPromotionWithTTL(name, configRef string, ttl time.Duration) *konfiden
 		},
 		Spec: konfidence.VectorPromotionSpec{
 			VectorPromotionConfigRef: configRef,
+			Source:                   templateSource("some-template"),
+			Target:                   stageTarget("some-stage"),
 			Vector:                   testVector,
 			TTLAfterFinished:         &metav1.Duration{Duration: ttl},
 		},
