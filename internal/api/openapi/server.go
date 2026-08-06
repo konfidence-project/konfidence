@@ -114,10 +114,9 @@ type ErrorResponse struct {
 // Identity defines model for Identity.
 type Identity struct {
 	Email      string   `json:"email"`
-	Name       string   `json:"name"`
-	GivenName  string   `json:"givenName"`
-	MiddleName *string  `json:"middleName,omitempty"`
 	FamilyName string   `json:"familyName"`
+	GivenName  string   `json:"givenName"`
+	Name       string   `json:"name"`
 	Roles      []string `json:"roles"`
 }
 

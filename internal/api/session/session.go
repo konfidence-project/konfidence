@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 )
@@ -19,7 +20,6 @@ type Session struct {
 	Email             string       `json:"email,omitempty"`
 	Name              string       `json:"name"`
 	GivenName         string       `json:"given_name,omitempty"`
-	MiddleName        string       `json:"middle_name,omitempty"`
 	FamilyName        string       `json:"family_name,omitempty"`
 	PreferredUsername string       `json:"preferred_username,omitempty"`
 	Roles             []string     `json:"roles,omitempty"`
@@ -30,11 +30,11 @@ type Session struct {
 	Expiry            int64        `json:"expiry"`
 }
 
-func GetSessionIdFromContext(ctx context.Context) *string {
+func GetSessionIdFromContext(ctx context.Context) (string, error) {
 	sessionId, ok := ctx.Value(ContextId).(string)
 	if !ok {
-		return nil
+		return "", fmt.Errorf("sessionId not found in context")
 	}
 
-	return &sessionId
+	return sessionId, nil
 }

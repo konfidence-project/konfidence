@@ -466,8 +466,6 @@ components:
           type: string
         familyName:
           type: string
-        middleName:
-          type: string
         email:
           type: string
         roles:

@@ -34,6 +34,7 @@ func NewAuthHandler(logger *slog.Logger, oidcClient oidc.Client,
 
 func (a *AuthHandler) Login(_ context.Context, request openapi.LoginRequestObject) (openapi.LoginResponseObject, error) {
 	returnUrl := "/"
+	// TODO need to validate returnUrl parameter to prevent
 	if request.Params.ReturnUrl != nil && *request.Params.ReturnUrl != "" {
 		returnUrl = *request.Params.ReturnUrl
 	}
@@ -77,7 +78,7 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 	// entry does not exist or has been invalidated
 	if storedState == nil {
 		a.logger.Error("oidc state does not exist or has expired")
-		return openapi.AuthCallback500JSONResponse{}, nil
+		return openapi.AuthCallback400JSONResponse{}, nil
 	}
 
 	err = a.stateCache.Delete(*storedState)
@@ -122,7 +123,6 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 	sess := session.Session{
 		Name:              claims.Name,
 		GivenName:         claims.GivenName,
-		MiddleName:        claims.MiddleName,
 		FamilyName:        claims.FamilyName,
 		PreferredUsername: claims.PreferredUsername,
 		Email:             claims.Email,
@@ -162,11 +162,14 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 
 func (a *AuthHandler) Logout(ctx context.Context, _ openapi.LogoutRequestObject) (openapi.LogoutResponseObject, error) {
 	// delete session
-	sessionId := session.GetSessionIdFromContext(ctx)
-	if sessionId != nil {
-		if err := a.sessionStore.Delete(*sessionId); err != nil {
-			a.logger.Error("failed to delete session", "error", err)
-		}
+	sessionId, err := session.GetSessionIdFromContext(ctx)
+	if err != nil {
+		a.logger.Error("failed to get sessionId from context", "error", err)
+		return openapi.Logout401JSONResponse{}, nil
+	}
+
+	if err := a.sessionStore.Delete(sessionId); err != nil {
+		a.logger.Error("failed to delete session", "error", err)
 	}
 
 	// clear session cookie
@@ -190,35 +193,30 @@ func (a *AuthHandler) Logout(ctx context.Context, _ openapi.LogoutRequestObject)
 }
 
 func (a *AuthHandler) GetIdentity(ctx context.Context, _ openapi.GetIdentityRequestObject) (openapi.GetIdentityResponseObject, error) {
-	sessionId := session.GetSessionIdFromContext(ctx)
-	if sessionId != nil {
-		storedSession, err := a.sessionStore.Get(*sessionId)
-		if err != nil {
-			a.logger.Error("failed to get session from store", "error", err)
-			return openapi.GetIdentity500JSONResponse{}, err
-		}
-
-		if storedSession == nil {
-			a.logger.Error("session does not exist in session store")
-			return openapi.GetIdentity401JSONResponse{}, nil
-		}
-
-		middleName := ""
-		if storedSession.MiddleName != "" {
-			middleName = storedSession.MiddleName
-		}
-
-		return openapi.GetIdentity200JSONResponse{
-			Email:      storedSession.Email,
-			Name:       storedSession.Name,
-			GivenName:  storedSession.GivenName,
-			MiddleName: &middleName,
-			FamilyName: storedSession.FamilyName,
-			Roles:      storedSession.Roles,
-		}, nil
+	sessionId, err := session.GetSessionIdFromContext(ctx)
+	if err != nil {
+		a.logger.Error("session does not exist in session store")
+		return openapi.GetIdentity401JSONResponse{}, nil
 	}
 
-	return openapi.GetIdentity401JSONResponse{}, nil
+	storedSession, err := a.sessionStore.Get(sessionId)
+	if err != nil {
+		a.logger.Error("failed to get session from store", "error", err)
+		return openapi.GetIdentity500JSONResponse{}, err
+	}
+
+	if storedSession == nil {
+		a.logger.Error("session does not exist in session store")
+		return openapi.GetIdentity401JSONResponse{}, nil
+	}
+
+	return openapi.GetIdentity200JSONResponse{
+		Email:      storedSession.Email,
+		Name:       storedSession.Name,
+		GivenName:  storedSession.GivenName,
+		FamilyName: storedSession.FamilyName,
+		Roles:      storedSession.Roles,
+	}, nil
 }
 
 func (a *AuthHandler) PostExchangeCode(_ context.Context, _ openapi.PostExchangeCodeRequestObject) (openapi.PostExchangeCodeResponseObject, error) {
