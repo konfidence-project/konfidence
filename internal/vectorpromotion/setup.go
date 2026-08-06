@@ -21,11 +21,6 @@ func SetupControllers(_ context.Context, mgr ctrl.Manager, _ Options) error {
 		return err
 	}
 
-	if err := controller.NewVectorPromotionTTLReconciler(mgr).
-		SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	return controller.NewVectorPromotionStatusPropagationReconciler(mgr).
+	return controller.NewVectorPromotionTTLReconciler(mgr).
 		SetupWithManager(mgr)
 }

@@ -122,6 +122,23 @@ func createPromotion(name, configRef string) *konfidence.VectorPromotion {
 	return promotion
 }
 
+// createConfigWithRetention creates a VectorPromotionConfig with a retention bound.
+func createConfigWithRetention(name string, keep int32) *konfidence.VectorPromotionConfig {
+	config := &konfidence.VectorPromotionConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: testNamespace,
+		},
+		Spec: konfidence.VectorPromotionConfigSpec{
+			Source:             templateSource("some-template"),
+			Target:             stageTarget("some-stage"),
+			KeepLastPromotions: &keep,
+		},
+	}
+	ExpectWithOffset(1, k8sClient.Create(ctx, config)).To(Succeed())
+	return config
+}
+
 // createPromotionRequiringApproval creates a VectorPromotion with requireApproval set.
 func createPromotionRequiringApproval(name, configRef string) *konfidence.VectorPromotion {
 	promotion := &konfidence.VectorPromotion{

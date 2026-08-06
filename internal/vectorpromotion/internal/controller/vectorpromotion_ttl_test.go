@@ -78,6 +78,30 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 		}, 5*time.Second, interval).Should(Succeed())
 	})
 
+	It("should reap terminal promotions beyond the config's retention bound", func() {
+		By("creating a config that keeps a single terminal promotion")
+		config := createConfigWithRetention("ttl-retention-config", 1)
+
+		By("driving three promotions to terminal states")
+		for _, name := range []string{"ttl-retention-a", "ttl-retention-b", "ttl-retention-c"} {
+			promotion := createPromotion(name, config.Name)
+			setSucceededCondition(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, time.Now())
+		}
+
+		By("asserting only the newest terminal promotion survives")
+		Eventually(func(g Gomega) {
+			promotions := &konfidence.VectorPromotionList{}
+			g.Expect(k8sClient.List(ctx, promotions, client.InNamespace(testNamespace))).To(Succeed())
+			names := []string{}
+			for _, item := range promotions.Items {
+				if item.Spec.VectorPromotionConfigRef == config.Name {
+					names = append(names, item.Name)
+				}
+			}
+			g.Expect(names).To(ConsistOf("ttl-retention-c"))
+		}, timeout, interval).Should(Succeed())
+	})
+
 	It("should delete VectorPromotion when TTL is added via spec update after promotion completes", func() {
 		By("creating VectorPromotion without TTL")
 		promotion := createPromotion("ttl-patch-promotion", "ttl-patch-config")

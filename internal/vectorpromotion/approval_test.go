@@ -67,6 +67,9 @@ var _ = Describe("Approve", func() {
 		Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionManuallyApproved))
 		Expect(cond.Message).To(Equal("approved by alice@example.com"))
 		Expect(approved.Status.State).To(Equal(konfidence.PromotionStateApproved))
+		Expect(approved.Status.Approvals).To(HaveLen(1))
+		Expect(approved.Status.Approvals[0].ApprovedBy).To(Equal("alice@example.com"))
+		Expect(approved.Status.Approvals[0].ApprovedAt.IsZero()).To(BeFalse())
 	})
 
 	It("rejects an already approved promotion", func() {

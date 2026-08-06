@@ -73,7 +73,6 @@ rules:
   - vectorassignments
   - vectordeployments
   - vectormigrations
-  - vectorpromotions
   verbs:
   - create
   - delete
@@ -129,6 +128,15 @@ rules:
   - vectorpromotionconfigs
   - vectortemplates
   verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - konfidence.cloud
+  resources:
+  - vectorpromotions
+  verbs:
+  - delete
   - get
   - list
   - watch

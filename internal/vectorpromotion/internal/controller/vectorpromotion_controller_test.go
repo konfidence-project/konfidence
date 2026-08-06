@@ -1,7 +1,10 @@
 package controller
 
 import (
+	"time"
+
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	utils "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -71,11 +74,23 @@ var _ = Describe("VectorPromotion execution controller", Ordered, Serial, func()
 			Name: stage.Name, Namespace: stage.Namespace,
 		}, stage)).To(Succeed())
 		Expect(stage.Spec.Vector).To(Equal(testVector))
+		Expect(stage.Annotations).To(HaveKeyWithValue(utils.PromotedByAnnotation,
+			testNamespace+"/"+promotion.Name))
+
+		Expect(promotion.Status.PromotedStageRef).NotTo(BeNil())
+		Expect(promotion.Status.PromotedStageRef.Name).To(Equal(stage.Name))
+		Expect(*promotion.Status.PromotedStageRef.Namespace).To(Equal(stage.Namespace))
 
 		ready := configReadyCondition(config)
 		Expect(ready).NotTo(BeNil())
 		Expect(ready.Status).To(Equal(metav1.ConditionTrue))
 		Expect(ready.Reason).To(Equal(konfidence.VectorPromotionConfigTargetResolvedReason))
+
+		By("the promotion outcome is mirrored onto the config")
+		mirrored := meta.FindStatusCondition(config.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
+		Expect(mirrored).NotTo(BeNil())
+		Expect(mirrored.Status).To(Equal(metav1.ConditionTrue))
+		Expect(config.Status.LastSuccessfulPromotionConditions).NotTo(BeEmpty())
 	})
 
 	It("waits for approval and promotes once approved", func() {
@@ -187,7 +202,7 @@ var _ = Describe("VectorPromotion execution controller", Ordered, Serial, func()
 		Expect(err).To(MatchError(ContainSubstring(`landscape "missing-landscape" does not exist`)))
 
 		refresh(promotion)
-		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateApproved))
+		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateBlocked))
 
 		ready := configReadyCondition(config)
 		Expect(ready).NotTo(BeNil())
@@ -209,7 +224,7 @@ var _ = Describe("VectorPromotion execution controller", Ordered, Serial, func()
 		Expect(err).To(MatchError(ContainSubstring(`stage "late-stage" does not exist`)))
 
 		refresh(promotion)
-		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateApproved))
+		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateBlocked))
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: "late-stage", Namespace: "kden-l-exec-nostage",
 		}, &konfidence.Stage{})).To(MatchError(ContainSubstring("not found")))
@@ -277,6 +292,55 @@ var _ = Describe("VectorPromotion execution controller", Ordered, Serial, func()
 			Name: stage.Name, Namespace: stage.Namespace,
 		}, stage)).To(Succeed())
 		Expect(stage.Spec.Vector).To(Equal(testVector))
+	})
+
+	It("ignores a stale in-progress sibling instead of deadlocking", func() {
+		createLandscapeWithNamespace("exec-stale-ip-landscape", "kden-l-exec-stale-ip")
+		createStage("kden-l-exec-stale-ip", "stale-ip-stage", "registry.example//konfidence.io/promo/app:0.9.0")
+		config := createConfig("exec-stale-ip-config",
+			stageSource("other-stage"), stageTargetInLandscape("stale-ip-stage", "exec-stale-ip-landscape"))
+		phantom := createPromotion("exec-stale-ip-a", config.Name)
+		setSucceededCondition(phantom, metav1.ConditionFalse, konfidence.ReasonPromotionRunning,
+			time.Now().Add(-10*time.Minute))
+		blocked := createPromotionRequiringApproval("exec-stale-ip-b", config.Name)
+		approvePromotion(blocked)
+
+		reconcile(blocked.Name)
+		refresh(blocked)
+		Expect(blocked.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+	})
+
+	It("preserves the last successful conditions while a later promotion is blocked", func() {
+		createLandscapeWithNamespace("exec-preserve-landscape", "kden-l-exec-preserve")
+		createStage("kden-l-exec-preserve", "preserve-stage", "registry.example//konfidence.io/promo/app:0.9.0")
+		config := createConfig("exec-preserve-config",
+			stageSource("other-stage"), stageTargetInLandscape("preserve-stage", "exec-preserve-landscape"))
+
+		By("a first promotion succeeds")
+		first := createPromotion("exec-preserve-a", config.Name)
+		reconcile(first.Name)
+		reconcile(first.Name)
+		refresh(first)
+		Expect(first.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+
+		By("the target stage disappears and a second promotion blocks")
+		stage := &konfidence.Stage{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "preserve-stage", Namespace: "kden-l-exec-preserve"}, stage)).To(Succeed())
+		Expect(k8sClient.Delete(ctx, stage)).To(Succeed())
+		second := createPromotion("exec-preserve-b", config.Name)
+		reconcile(second.Name)
+		_, err := newReconciler().Reconcile(ctx, ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: second.Name, Namespace: testNamespace},
+		})
+		Expect(err).To(HaveOccurred())
+
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: config.Name, Namespace: testNamespace}, config)).To(Succeed())
+		blockedCond := meta.FindStatusCondition(config.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
+		Expect(blockedCond).NotTo(BeNil())
+		Expect(blockedCond.Reason).To(Equal(konfidence.ReasonPromotionTargetUnresolved))
+		successCond := meta.FindStatusCondition(config.Status.LastSuccessfulPromotionConditions, konfidence.ConditionTypeSucceeded)
+		Expect(successCond).NotTo(BeNil())
+		Expect(successCond.Status).To(Equal(metav1.ConditionTrue))
 	})
 
 	It("does not touch a terminal promotion", func() {

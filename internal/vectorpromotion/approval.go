@@ -48,6 +48,10 @@ func Approve(ctx context.Context, c client.Client, key types.NamespacedName, app
 		Reason:             konfidence.ReasonPromotionManuallyApproved,
 		Message:            fmt.Sprintf("approved by %s", approvedBy),
 	})
+	vectorPromotion.Status.Approvals = append(vectorPromotion.Status.Approvals, konfidence.PromotionApproval{
+		ApprovedBy: approvedBy,
+		ApprovedAt: metav1.Now(),
+	})
 	vectorPromotion.Status.State = promotion.DeriveState(vectorPromotion)
 
 	patch := client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})

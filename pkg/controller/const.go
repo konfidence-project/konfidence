@@ -33,4 +33,8 @@ const (
 	VectorDeploymentUIDAnnotation = "konfidence.cloud/vector-deployment-uid"
 	// AllowReuseAnnotation marks an ArtifactDeployment as reusable across vector deployments.
 	AllowReuseAnnotation = "konfidence.cloud/allow-reuse"
+
+	// PromotedByAnnotation records the VectorPromotion (namespace/name) that last
+	// wrote a Stage's vector.
+	PromotedByAnnotation = "konfidence.cloud/promoted-by"
 )
