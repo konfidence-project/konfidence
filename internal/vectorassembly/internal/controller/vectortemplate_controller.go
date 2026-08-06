@@ -279,7 +279,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		return err
 	}
 
-	// Record the concrete version of the freshly assembled vector 
+	// Record the concrete version of the freshly assembled vector
 	latestVectorRef := compref.Ref{
 		Repository: vectorOCMComponent.Repository,
 		Component:  vectorOCMComponent.Component,
