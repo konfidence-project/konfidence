@@ -89,6 +89,18 @@ func NewestApproved(promotions []konfidence.VectorPromotion) *konfidence.VectorP
 	return newest
 }
 
+// Newest returns the newest promotion by Newer ordering, regardless of state.
+// Returns nil for an empty slice.
+func Newest(promotions []konfidence.VectorPromotion) *konfidence.VectorPromotion {
+	var newest *konfidence.VectorPromotion
+	for i := range promotions {
+		if newest == nil || Newer(&promotions[i], newest) {
+			newest = &promotions[i]
+		}
+	}
+	return newest
+}
+
 // Newer reports whether p is newer than than. The creator-assigned
 // `spec.sequence` wins when both carry one; creation timestamps only have
 // second resolution, and their ties are broken by name, which is

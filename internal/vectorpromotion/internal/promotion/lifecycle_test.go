@@ -104,13 +104,13 @@ var _ = Describe("Lifecycle", func() {
 				Expect(IsTerminal(p)).To(BeTrue())
 			})
 
-			It("returns true when config not found", func() {
+			It("returns true when timed out", func() {
 				p := &konfidence.VectorPromotion{
 					Status: konfidence.VectorPromotionStatus{
 						Conditions: []metav1.Condition{{
 							Type:   konfidence.ConditionTypeSucceeded,
 							Status: metav1.ConditionFalse,
-							Reason: konfidence.ReasonPromotionConfigurationNotFound,
+							Reason: konfidence.ReasonPromotionTimedOut,
 						}},
 					},
 				}

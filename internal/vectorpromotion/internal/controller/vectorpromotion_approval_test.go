@@ -18,7 +18,8 @@ var _ = Describe("VectorPromotion approval phase", Ordered, Serial, func() {
 		stage := createStage("kden-l-exec-manual", "manual-stage", "registry.example//konfidence.io/promo/app:0.9.0")
 		config := createConfig("exec-manual-config",
 			stageSource("other-stage"), stageTargetInLandscape("manual-stage", "exec-manual-landscape"))
-		promotion := createPromotionRequiringApproval("exec-manual-promotion", config.Name)
+		promotion := createPromotionTargeting("exec-manual-promotion", config.Name,
+			stageTargetInLandscape("manual-stage", "exec-manual-landscape"), true)
 
 		By("first reconcile parks the promotion in WaitingForApproval")
 		reconcilePromotion(promotion.Name)

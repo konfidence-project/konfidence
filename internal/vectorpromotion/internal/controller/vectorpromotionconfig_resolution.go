@@ -14,7 +14,7 @@ import (
 // an empty source vector with a nil error means the source exists but has not
 // assembled a vector yet.
 func (r *VectorPromotionConfigReconciler) resolveReferences(ctx context.Context, config *konfidence.VectorPromotionConfig) (*konfidence.Stage, string, error) {
-	target, err := resolveTargetStage(ctx, r.Client, config)
+	target, err := resolveTargetStage(ctx, r.Client, config.Namespace, config.Spec.Target)
 	if err != nil {
 		return nil, "", err
 	}

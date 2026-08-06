@@ -18,8 +18,6 @@ const (
 	ReasonPromotionSucceeded = "PromotionSucceeded"
 	// ReasonInvalidPromotionConfiguration indicates the promotion configuration is invalid.
 	ReasonInvalidPromotionConfiguration = "InvalidPromotionConfiguration"
-	// ReasonPromotionConfigurationNotFound indicates the referenced VectorPromotionConfig was not found.
-	ReasonPromotionConfigurationNotFound = "PromotionConfigurationNotFound"
 	// ReasonPromotionSourceNotFound indicates the source vector was not found.
 	// Not yet written: source misses surface on the config's Ready condition instead.
 	ReasonPromotionSourceNotFound = "PromotionSourceNotFound"

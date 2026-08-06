@@ -30,12 +30,20 @@ func getPromotionConfig(
 func listSiblingPromotions(
 	ctx context.Context, clusterClient client.Client, vectorPromotion *konfidence.VectorPromotion,
 ) ([]konfidence.VectorPromotion, error) {
+	return listPromotionsForConfig(ctx, clusterClient, vectorPromotion.Namespace, vectorPromotion.Spec.VectorPromotionConfigRef)
+}
+
+// listPromotionsForConfig returns all promotions in the namespace referencing
+// the named VectorPromotionConfig.
+func listPromotionsForConfig(
+	ctx context.Context, clusterClient client.Client, namespace, configName string,
+) ([]konfidence.VectorPromotion, error) {
 	list := &konfidence.VectorPromotionList{}
 	err := clusterClient.List(ctx, list,
-		client.InNamespace(vectorPromotion.Namespace),
-		client.MatchingFields{promotionConfigRefField: vectorPromotion.Spec.VectorPromotionConfigRef})
+		client.InNamespace(namespace),
+		client.MatchingFields{promotionConfigRefField: configName})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list sibling promotions: %w", err)
+		return nil, fmt.Errorf("failed to list promotions of config %q: %w", configName, err)
 	}
 	return list.Items, nil
 }

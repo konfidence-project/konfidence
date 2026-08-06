@@ -84,6 +84,8 @@ var _ = Describe("VectorPromotionConfig drift detection", Ordered, Serial, func(
 			g.Expect(created.Spec.Sequence).To(Equal(int64(1)))
 			g.Expect(created.Spec.TTLAfterFinished).NotTo(BeNil())
 			g.Expect(created.Spec.TTLAfterFinished.Duration).To(Equal(time.Hour))
+			g.Expect(created.Spec.Source).To(Equal(config.Spec.Source))
+			g.Expect(created.Spec.Target).To(Equal(config.Spec.Target))
 			g.Expect(metav1.IsControlledBy(&created, config)).To(BeTrue())
 		}, timeout, interval).Should(Succeed())
 

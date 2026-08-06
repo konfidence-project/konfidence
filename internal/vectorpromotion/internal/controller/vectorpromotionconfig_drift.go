@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -17,21 +16,12 @@ import (
 
 // createPromotionForDrift creates the next sequence-stamped promotion for the
 // drifted source vector, unless a live promotion already pins it.
-func (r *VectorPromotionConfigReconciler) createPromotionForDrift(ctx context.Context, config *konfidence.VectorPromotionConfig, sourceVector string) error {
+func (r *VectorPromotionConfigReconciler) createPromotionForDrift(ctx context.Context, config *konfidence.VectorPromotionConfig, sourceVector string, promotions []konfidence.VectorPromotion) error {
 	log := logf.FromContext(ctx)
 
-	list := &konfidence.VectorPromotionList{}
-
-	// we need all pre-existing vector promotions in order to supersede existing ones
-	err := r.List(ctx, list,
-		client.InNamespace(config.Namespace),
-		client.MatchingFields{promotionConfigRefField: config.Name})
-	if err != nil {
-		return fmt.Errorf("failed to list promotions of config %q: %w", config.Name, err)
-	}
-	for i := range list.Items {
+	for i := range promotions {
 		// if there is a promotion already running at any point in time and this promotion caters towards the vector we're targeting we can assume that the promotion already exists
-		if !promotion.IsTerminal(&list.Items[i]) && list.Items[i].Spec.Vector == sourceVector {
+		if !promotion.IsTerminal(&promotions[i]) && promotions[i].Spec.Vector == sourceVector {
 			return nil
 		}
 	}
@@ -51,6 +41,8 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(ctx context.Co
 		},
 		Spec: konfidence.VectorPromotionSpec{
 			VectorPromotionConfigRef: config.Name,
+			Source:                   config.Spec.Source,
+			Target:                   config.Spec.Target,
 			Vector:                   sourceVector,
 			RequireApproval:          config.Spec.Source.Kind == konfidence.StageKind,
 			TTLAfterFinished:         config.Spec.TTLAfterFinished,

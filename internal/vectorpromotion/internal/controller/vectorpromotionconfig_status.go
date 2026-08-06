@@ -3,11 +3,14 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
 // patchConfigStatus applies mutate to the config status and patches it if it
@@ -45,15 +48,27 @@ func setConfigReadyCondition(
 }
 
 func equalConfigStatus(a, b *konfidence.VectorPromotionConfig) bool {
-	if a.Status.Sequence != b.Status.Sequence {
-		return false
+	return reflect.DeepEqual(a.Status, b.Status)
+}
+
+// aggregatePromotionResults mirrors the newest promotion's conditions onto
+// the config's last-promotion view, Deployment-style: the config owns its
+// promotions and recomputes the aggregate from the full list, so the result
+// is independent of event ordering. With no promotions left (e.g. after
+// retention reaping) the last known views are kept.
+func aggregatePromotionResults(config *konfidence.VectorPromotionConfig, promotions []konfidence.VectorPromotion) {
+	if newest := promotion.Newest(promotions); newest != nil && len(newest.Status.Conditions) > 0 {
+		config.Status.LastPromotionConditions = newest.Status.Conditions
 	}
-	current := meta.FindStatusCondition(a.Status.Conditions, konfidence.VectorPromotionConfigReadyCondition)
-	previous := meta.FindStatusCondition(b.Status.Conditions, konfidence.VectorPromotionConfigReadyCondition)
-	if current == nil || previous == nil {
-		return current == previous
+	succeeded := make([]konfidence.VectorPromotion, 0, len(promotions))
+	for i := range promotions {
+		if promotion.IsSucceeded(&promotions[i]) {
+			succeeded = append(succeeded, promotions[i])
+		}
 	}
-	return current.Status == previous.Status && current.Reason == previous.Reason && current.Message == previous.Message
+	if newestSucceeded := promotion.Newest(succeeded); newestSucceeded != nil {
+		config.Status.LastSuccessfulPromotionConditions = newestSucceeded.Status.Conditions
+	}
 }
 
 // promotionName builds `<config>-<sequence>`, trimming the config part when

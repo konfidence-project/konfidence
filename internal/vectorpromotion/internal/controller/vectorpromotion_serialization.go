@@ -20,13 +20,13 @@ const (
 	// promotion of the same config is executing.
 	siblingBlockedRequeueInterval = 10 * time.Second
 
-	// inProgressStaleTimeout is how long a sibling may claim InProgress before
-	// it stops blocking others. Execution is a single resolve+patch, so a
-	// Running condition this old is a crashed or wedged attempt, and honoring
-	// it forever would deadlock the config. Note the stale promotion itself is
-	// only driven terminal once a newer approved sibling executes and
-	// supersedes it; see doc.go, "Crash recovery".
-	inProgressStaleTimeout = 5 * time.Minute
+	// executionDeadline is how long a promotion may stay InProgress. Execution
+	// is a single resolve+patch, so a Running condition this old is a crashed
+	// or wedged attempt. Whoever observes the overrun (the promotion itself on
+	// a retry, or a blocked sibling) retires it to Failed/PromotionTimedOut,
+	// keeping the one-InProgress-per-config invariant intact instead of
+	// ignoring it.
+	executionDeadline = 5 * time.Minute
 )
 
 // reconcileExecution serializes execution per config: at most one promotion is
@@ -34,6 +34,10 @@ const (
 // promotions are superseded.
 func (r *VectorPromotionReconciler) reconcileExecution(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+
+	if promotion.IsInProgress(vectorPromotion) && promotion.InProgressLongerThan(vectorPromotion, executionDeadline) {
+		return ctrl.Result{}, r.timeOut(ctx, vectorPromotion)
+	}
 
 	siblings, err := listSiblingPromotions(ctx, r.Client, vectorPromotion)
 	if err != nil {
@@ -45,11 +49,10 @@ func (r *VectorPromotionReconciler) reconcileExecution(ctx context.Context, vect
 		if sibling.UID == vectorPromotion.UID || !promotion.IsInProgress(sibling) {
 			continue
 		}
-		if promotion.InProgressLongerThan(sibling, inProgressStaleTimeout) {
-			log.Info("ignoring stale in-progress sibling", "sibling", sibling.Name, "staleAfter", inProgressStaleTimeout)
-			r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StaleSiblingIgnored",
-				EventActionExecution,
-				fmt.Sprintf("sibling promotion %q has been in progress for over %s; ignoring it", sibling.Name, inProgressStaleTimeout))
+		if promotion.InProgressLongerThan(sibling, executionDeadline) {
+			if err := r.timeOut(ctx, sibling); err != nil {
+				return ctrl.Result{}, err
+			}
 			continue
 		}
 		log.V(1).Info("execution blocked by in-progress sibling", "sibling", sibling.Name)
@@ -65,6 +68,22 @@ func (r *VectorPromotionReconciler) reconcileExecution(ctx context.Context, vect
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, r.execute(ctx, vectorPromotion)
+}
+
+// timeOut retires a promotion stuck InProgress past the execution deadline.
+// The optimistic-locked patch makes racing observers conflict harmlessly.
+func (r *VectorPromotionReconciler) timeOut(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
+	log := logf.FromContext(ctx)
+
+	message := fmt.Sprintf("promotion stayed in progress for over %s and was retired", executionDeadline)
+	original := vectorPromotion.DeepCopy()
+	setPromotionCondition(vectorPromotion, metav1.ConditionFalse, konfidence.ReasonPromotionTimedOut, message)
+	if err := r.patchStatusWithEvent(ctx, vectorPromotion, original); err != nil {
+		return err
+	}
+	log.Info("timed out promotion", "promotion", vectorPromotion.Name, "deadline", executionDeadline)
+	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "PromotionTimedOut", EventActionExecution, message)
+	return nil
 }
 
 // supersedeStaleSiblings marks older non-terminal siblings as superseded

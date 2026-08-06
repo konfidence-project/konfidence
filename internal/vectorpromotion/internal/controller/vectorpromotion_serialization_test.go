@@ -19,8 +19,10 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		createStage("kden-l-exec-super", "super-stage", "registry.example//konfidence.io/promo/app:0.9.0")
 		config := createConfig("exec-super-config",
 			stageSource("other-stage"), stageTargetInLandscape("super-stage", "exec-super-landscape"))
-		older := createPromotionRequiringApproval("exec-super-a", config.Name)
-		newer := createPromotionRequiringApproval("exec-super-b", config.Name)
+		older := createPromotionTargeting("exec-super-a", config.Name,
+			stageTargetInLandscape("super-stage", "exec-super-landscape"), true)
+		newer := createPromotionTargeting("exec-super-b", config.Name,
+			stageTargetInLandscape("super-stage", "exec-super-landscape"), true)
 		approvePromotion(older)
 		approvePromotion(newer)
 
@@ -43,8 +45,10 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		createStage("kden-l-exec-stale", "stale-stage", "registry.example//konfidence.io/promo/app:0.9.0")
 		config := createConfig("exec-stale-config",
 			stageSource("other-stage"), stageTargetInLandscape("stale-stage", "exec-stale-landscape"))
-		older := createPromotionRequiringApproval("exec-stale-a", config.Name)
-		newer := createPromotionRequiringApproval("exec-stale-b", config.Name)
+		older := createPromotionTargeting("exec-stale-a", config.Name,
+			stageTargetInLandscape("stale-stage", "exec-stale-landscape"), true)
+		newer := createPromotionTargeting("exec-stale-b", config.Name,
+			stageTargetInLandscape("stale-stage", "exec-stale-landscape"), true)
 		approvePromotion(older)
 		approvePromotion(newer)
 
@@ -70,7 +74,7 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		Expect(meta.FindStatusCondition(blocked.Status.Conditions, konfidence.ConditionTypeSucceeded)).To(BeNil())
 	})
 
-	It("ignores a stale in-progress sibling instead of deadlocking", func() {
+	It("retires a stale in-progress sibling and proceeds", func() {
 		createLandscapeWithNamespace("exec-stale-ip-landscape", "kden-l-exec-stale-ip")
 		createStage("kden-l-exec-stale-ip", "stale-ip-stage", "registry.example//konfidence.io/promo/app:0.9.0")
 		config := createConfig("exec-stale-ip-config",
@@ -78,20 +82,42 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		phantom := createPromotion("exec-stale-ip-a", config.Name)
 		setSucceededCondition(phantom, metav1.ConditionFalse, konfidence.ReasonPromotionRunning,
 			time.Now().Add(-10*time.Minute))
-		blocked := createPromotionRequiringApproval("exec-stale-ip-b", config.Name)
+		blocked := createPromotionTargeting("exec-stale-ip-b", config.Name,
+			stageTargetInLandscape("stale-ip-stage", "exec-stale-ip-landscape"), true)
 		approvePromotion(blocked)
 
 		reconcilePromotion(blocked.Name)
 		refreshPromotion(blocked)
+		refreshPromotion(phantom)
 		Expect(blocked.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(phantom.Status.State).To(Equal(konfidence.PromotionStateFailed))
+		cond := meta.FindStatusCondition(phantom.Status.Conditions, konfidence.ConditionTypeSucceeded)
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionTimedOut))
+	})
+
+	It("times itself out when stuck in progress past the deadline", func() {
+		promotion := createPromotion("exec-selftimeout", "selftimeout-config")
+		approvePromotion(promotion)
+		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionRunning,
+			time.Now().Add(-10*time.Minute))
+
+		reconcilePromotion(promotion.Name)
+		refreshPromotion(promotion)
+		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateFailed))
+		cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionTimedOut))
 	})
 	It("does not supersede a newer promotion that is still waiting for approval", func() {
 		createLandscapeWithNamespace("exec-newer-landscape", "kden-l-exec-newer")
 		createStage("kden-l-exec-newer", "newer-stage", "registry.example//konfidence.io/promo/app:0.9.0")
 		config := createConfig("exec-newer-config",
 			stageSource("other-stage"), stageTargetInLandscape("newer-stage", "exec-newer-landscape"))
-		older := createPromotionRequiringApproval("exec-newer-a", config.Name)
-		newer := createPromotionRequiringApproval("exec-newer-b", config.Name)
+		older := createPromotionTargeting("exec-newer-a", config.Name,
+			stageTargetInLandscape("newer-stage", "exec-newer-landscape"), true)
+		newer := createPromotionTargeting("exec-newer-b", config.Name,
+			stageTargetInLandscape("newer-stage", "exec-newer-landscape"), true)
 		approvePromotion(older)
 		reconcilePromotion(newer.Name)
 

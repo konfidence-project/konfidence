@@ -10,7 +10,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -118,6 +120,7 @@ func createPromotion(name, configRef string) *konfidence.VectorPromotion {
 			Vector:                   testVector,
 		},
 	}
+	ownPromotionIfConfigExists(promotion, configRef)
 	ExpectWithOffset(1, k8sClient.Create(ctx, promotion)).To(Succeed())
 	return promotion
 }
@@ -139,6 +142,38 @@ func createConfigWithRetention(name string, keep int32) *konfidence.VectorPromot
 	return config
 }
 
+// ownPromotionIfConfigExists mirrors the drift controller's owner reference so
+// Owns() aggregation triggers work for test-created promotions too.
+func ownPromotionIfConfigExists(promotion *konfidence.VectorPromotion, configRef string) {
+	config := &konfidence.VectorPromotionConfig{}
+	err := k8sClient.Get(ctx, types.NamespacedName{Name: configRef, Namespace: testNamespace}, config)
+	if err != nil {
+		return
+	}
+	ExpectWithOffset(2, controllerutil.SetControllerReference(config, promotion, scheme.Scheme)).To(Succeed())
+}
+
+// createPromotionTargeting creates a VectorPromotion carrying a real target
+// snapshot, for specs that execute against an actual Stage.
+func createPromotionTargeting(name, configRef string, target konfidence.PromotionTargetReference, requireApproval bool) *konfidence.VectorPromotion {
+	promotion := &konfidence.VectorPromotion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: testNamespace,
+		},
+		Spec: konfidence.VectorPromotionSpec{
+			VectorPromotionConfigRef: configRef,
+			Source:                   templateSource("some-template"),
+			Target:                   target,
+			Vector:                   testVector,
+			RequireApproval:          requireApproval,
+		},
+	}
+	ownPromotionIfConfigExists(promotion, configRef)
+	ExpectWithOffset(1, k8sClient.Create(ctx, promotion)).To(Succeed())
+	return promotion
+}
+
 // createPromotionRequiringApproval creates a VectorPromotion with requireApproval set.
 func createPromotionRequiringApproval(name, configRef string) *konfidence.VectorPromotion {
 	promotion := &konfidence.VectorPromotion{
@@ -148,10 +183,13 @@ func createPromotionRequiringApproval(name, configRef string) *konfidence.Vector
 		},
 		Spec: konfidence.VectorPromotionSpec{
 			VectorPromotionConfigRef: configRef,
+			Source:                   templateSource("some-template"),
+			Target:                   stageTarget("some-stage"),
 			Vector:                   testVector,
 			RequireApproval:          true,
 		},
 	}
+	ownPromotionIfConfigExists(promotion, configRef)
 	ExpectWithOffset(1, k8sClient.Create(ctx, promotion)).To(Succeed())
 	return promotion
 }

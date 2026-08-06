@@ -58,12 +58,20 @@ func (r *VectorPromotionConfigReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// Owns() delivers promotion status changes here; the aggregate is
+	// recomputed from the full list on every pass.
+	promotions, err := listPromotionsForConfig(ctx, r.Client, config.Namespace, config.Name)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// get target = Stage and sourceVector = type dependent based on our current VectorPromotionConfig CR
 	target, sourceVector, err := r.resolveReferences(ctx, config)
 	var resErr *resolutionError
 	if errors.As(err, &resErr) {
 		return ctrl.Result{}, r.patchConfigStatus(ctx, config, func() {
 			setConfigReadyCondition(config, metav1.ConditionFalse, resErr.reason, resErr.message)
+			aggregatePromotionResults(config, promotions)
 		})
 	}
 	if err != nil {
@@ -73,6 +81,7 @@ func (r *VectorPromotionConfigReconciler) Reconcile(ctx context.Context, req ctr
 	if err := r.patchConfigStatus(ctx, config, func() {
 		setConfigReadyCondition(config, metav1.ConditionTrue,
 			konfidence.VectorPromotionConfigTargetResolvedReason, "source and target resolve")
+		aggregatePromotionResults(config, promotions)
 	}); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -80,7 +89,7 @@ func (r *VectorPromotionConfigReconciler) Reconcile(ctx context.Context, req ctr
 	if sourceVector == "" || sourceVector == target.Spec.Vector {
 		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{}, r.createPromotionForDrift(ctx, config, sourceVector)
+	return ctrl.Result{}, r.createPromotionForDrift(ctx, config, sourceVector, promotions)
 }
 
 // NewVectorPromotionConfigReconciler wires a VectorPromotionConfigReconciler for the given manager.
