@@ -5,6 +5,7 @@ import (
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/deploymenttarget"
 	"github.com/konfidence-project/konfidence/internal/landscape"
 	"github.com/konfidence-project/konfidence/internal/project"
 	"github.com/konfidence-project/konfidence/internal/stage"
@@ -27,6 +28,7 @@ import (
 // sorted by name.
 func controllerDomains() []operator.Domain {
 	return []operator.Domain{
+		deploymenttarget.Domain(),
 		landscape.Domain(),
 		project.Domain(),
 		stage.Domain(),
@@ -136,6 +138,10 @@ func startOperator(_ *cobra.Command, _ []string) error {
 		// Landscape namespace resources
 		if err := konfidence.SetupStageWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to set up Stage webhook")
+			return err
+		}
+		if err := konfidence.SetupDeploymentTargetWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to set up DeploymentTarget webhook")
 			return err
 		}
 	} else {

@@ -5,7 +5,7 @@ metadata:
   namespace: default
 spec:
   component:
-    name: cloud.konfidence.flux.helm
+    name: konfidence.cloud/podinfo-example
     resources:
       - content:
           helmChart: podinfo:6.9.1
@@ -16,5 +16,5 @@ spec:
     version: 1.0.0
   manifest:
     allowReuse: true
-    type: cloud.konfidence.flux.helm
+    type: helm.konfidence.cloud
   taskManifests: [ ]
