@@ -82,6 +82,14 @@ type VectorPromotionConfigSpec struct {
 	// +optional
 	TTLAfterFinished *metav1.Duration `json:"ttlAfterFinished,omitempty"`
 
+	// KeepLastPromotions bounds how many terminal VectorPromotions are
+	// retained per config; the oldest beyond the bound are deleted. Retention
+	// by count keeps an audit trail even when `ttlAfterFinished` is short.
+	// +kubebuilder:default=10
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	KeepLastPromotions *int32 `json:"keepLastPromotions,omitempty"`
+
 	// Credentials supplies credentials for OCM repository access and vector verification key material.
 	// +optional
 	Credentials *Credentials `json:"credentials,omitempty"`
@@ -104,6 +112,12 @@ type VectorPromotionConfigStatus struct {
 	LastPromotionConditions []metav1.Condition `json:"lastPromotionConditions,omitempty"`
 	// LastSuccessfulPromotionConditions contains the result of the most recent VectorPromotion execution, that was successful
 	LastSuccessfulPromotionConditions []metav1.Condition `json:"lastSuccessfulPromotionConditions,omitempty"`
+
+	// Sequence is the monotonic counter of promotions created for this config.
+	// The drift controller increments it and stamps the value into each
+	// created promotion's `spec.sequence`.
+	// +optional
+	Sequence int64 `json:"sequence,omitempty"`
 }
 
 //nolint:lll // Kubebuilder annotations are intentionally long.
@@ -111,9 +125,9 @@ type VectorPromotionConfigStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description="Indicates if the config's references resolve"
-// +kubebuilder:printcolumn:name="Last-Succeeded",type=string,JSONPath=".status.lastPromotionConditions[0].status",description="Last promotion succeeded"
-// +kubebuilder:printcolumn:name="Last-Condition-Reason",type=string,JSONPath=".status.lastPromotionConditions[0].reason",description="Last promotion condition reason"
-// +kubebuilder:printcolumn:name="Last-Time",type=date,JSONPath=".status.lastPromotionConditions[0].lastTransitionTime",description="Time of the last promotion"
+// +kubebuilder:printcolumn:name="Last-Succeeded",type=string,JSONPath=".status.lastPromotionConditions[?(@.type==\"Succeeded\")].status",description="Last promotion succeeded"
+// +kubebuilder:printcolumn:name="Last-Condition-Reason",type=string,JSONPath=".status.lastPromotionConditions[?(@.type==\"Succeeded\")].reason",description="Last promotion condition reason"
+// +kubebuilder:printcolumn:name="Last-Time",type=date,JSONPath=".status.lastPromotionConditions[?(@.type==\"Succeeded\")].lastTransitionTime",description="Time of the last promotion"
 
 // VectorPromotionConfig describes a promotion flow for a vector between a source and a target.
 type VectorPromotionConfig struct {

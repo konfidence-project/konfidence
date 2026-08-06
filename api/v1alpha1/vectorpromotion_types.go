@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -36,6 +37,9 @@ const (
 	ReasonPromotionManuallyApproved = "ManuallyApproved"
 	// ReasonPromotionSuperseded indicates a newer promotion for the same config replaced this one.
 	ReasonPromotionSuperseded = "PromotionSuperseded"
+	// ReasonPromotionTargetUnresolved indicates the target Stage or its Landscape does not
+	// resolve yet. The promotion stays live and execution is retried.
+	ReasonPromotionTargetUnresolved = "PromotionTargetUnresolved"
 	// ReasonPromotionExecutionPending indicates promotion execution is not yet
 	// implemented for structured references (ADR-0032 rework).
 	ReasonPromotionExecutionPending = "PromotionExecutionPending"
@@ -54,6 +58,9 @@ const (
 	PromotionStateApproved VectorPromotionState = "Approved"
 	// PromotionStateInProgress means the promotion is executing.
 	PromotionStateInProgress VectorPromotionState = "InProgress"
+	// PromotionStateBlocked means the promotion is approved but cannot execute
+	// because its target does not resolve; see the config's Ready condition.
+	PromotionStateBlocked VectorPromotionState = "Blocked"
 	// PromotionStateSucceeded means the promotion completed successfully.
 	PromotionStateSucceeded VectorPromotionState = "Succeeded"
 	// PromotionStateFailed means the promotion reached a terminal state without success.
@@ -88,6 +95,25 @@ type VectorPromotionSpec struct {
 	// the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
 	// +kubebuilder:validation:Optional
 	TTLAfterFinished *metav1.Duration `json:"ttlAfterFinished,omitempty"`
+
+	// Sequence is a monotonic ordinal assigned by the creator (the drift
+	// controller, from the config's `status.sequence`). Promotions with a
+	// higher sequence are newer regardless of creation timestamps, which only
+	// have second resolution.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="sequence is immutable after it has been set"
+	// +optional
+	Sequence int64 `json:"sequence,omitempty"`
+}
+
+// PromotionApproval records a granted approval.
+type PromotionApproval struct {
+	// ApprovedBy is the identity that granted the approval, as reported by the
+	// konfidence API.
+	ApprovedBy string `json:"approvedBy"`
+
+	// ApprovedAt is the time the approval was granted.
+	ApprovedAt metav1.Time `json:"approvedAt"`
 }
 
 // VectorPromotionStatus defines the observed state of VectorPromotion.
@@ -96,13 +122,25 @@ type VectorPromotionStatus struct {
 
 	// State summarizes Conditions for display. Conditions are the source of
 	// truth; State is recomputed whenever conditions are written.
-	// +kubebuilder:validation:Enum=Pending;WaitingForApproval;Approved;InProgress;Succeeded;Failed;Superseded
+	// +kubebuilder:validation:Enum=Pending;WaitingForApproval;Approved;InProgress;Blocked;Succeeded;Failed;Superseded
 	// +optional
 	State VectorPromotionState `json:"state,omitempty"`
+
+	// Approvals records every granted approval for auditing.
+	// +optional
+	Approvals []PromotionApproval `json:"approvals,omitempty"`
+
+	// PromotedStageRef records the Stage this promotion actually wrote its
+	// vector to, so the promotion is self-describing even after the config
+	// changed or was deleted.
+	// +optional
+	PromotedStageRef *corev1.TypedObjectReference `json:"promotedStageRef,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:selectablefield:JSONPath=`.spec.vectorPromotionConfigRef`
+// +kubebuilder:selectablefield:JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="Config",type=string,JSONPath=".spec.vectorPromotionConfigRef",description="The referenced VectorPromotionConfig"
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=".spec.vector",description="The promoted vector version"
 // +kubebuilder:printcolumn:name="State",type=string,JSONPath=".status.state",description="Promotion state"

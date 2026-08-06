@@ -71,6 +71,18 @@ spec:
                 x-kubernetes-validations:
                 - message: requireApproval is immutable after it has been set
                   rule: self == oldSelf
+              sequence:
+                description: |-
+                  Sequence is a monotonic ordinal assigned by the creator (the drift
+                  controller, from the config's `status.sequence`). Promotions with a
+                  higher sequence are newer regardless of creation timestamps, which only
+                  have second resolution.
+                format: int64
+                minimum: 0
+                type: integer
+                x-kubernetes-validations:
+                - message: sequence is immutable after it has been set
+                  rule: self == oldSelf
               ttlAfterFinished:
                 description: |-
                   TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
@@ -99,6 +111,25 @@ spec:
           status:
             description: VectorPromotionStatus defines the observed state of VectorPromotion.
             properties:
+              approvals:
+                description: Approvals records every granted approval for auditing.
+                items:
+                  description: PromotionApproval records a granted approval.
+                  properties:
+                    approvedAt:
+                      description: ApprovedAt is the time the approval was granted.
+                      format: date-time
+                      type: string
+                    approvedBy:
+                      description: |-
+                        ApprovedBy is the identity that granted the approval, as reported by the
+                        konfidence API.
+                      type: string
+                  required:
+                  - approvedAt
+                  - approvedBy
+                  type: object
+                type: array
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -155,6 +186,34 @@ spec:
                   - type
                   type: object
                 type: array
+              promotedStageRef:
+                description: |-
+                  PromotedStageRef records the Stage this promotion actually wrote its
+                  vector to, so the promotion is self-describing even after the config
+                  changed or was deleted.
+                properties:
+                  apiGroup:
+                    description: |-
+                      APIGroup is the group for the resource being referenced.
+                      If APIGroup is not specified, the specified Kind must be in the core API group.
+                      For any other third-party types, APIGroup is required.
+                    type: string
+                  kind:
+                    description: Kind is the type of resource being referenced
+                    type: string
+                  name:
+                    description: Name is the name of resource being referenced
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace is the namespace of resource being referenced
+                      Note that when a namespace is specified, a gateway.networking.k8s.io/ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details.
+                      (Alpha) This field requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
               state:
                 description: |-
                   State summarizes Conditions for display. Conditions are the source of
@@ -164,12 +223,16 @@ spec:
                 - WaitingForApproval
                 - Approved
                 - InProgress
+                - Blocked
                 - Succeeded
                 - Failed
                 - Superseded
                 type: string
             type: object
         type: object
+    selectableFields:
+    - jsonPath: .spec.vectorPromotionConfigRef
+    - jsonPath: .status.state
     served: true
     storage: true
     subresources:

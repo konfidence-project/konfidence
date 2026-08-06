@@ -24,15 +24,15 @@ spec:
       name: Ready
       type: string
     - description: Last promotion succeeded
-      jsonPath: .status.lastPromotionConditions[0].status
+      jsonPath: .status.lastPromotionConditions[?(@.type=="Succeeded")].status
       name: Last-Succeeded
       type: string
     - description: Last promotion condition reason
-      jsonPath: .status.lastPromotionConditions[0].reason
+      jsonPath: .status.lastPromotionConditions[?(@.type=="Succeeded")].reason
       name: Last-Condition-Reason
       type: string
     - description: Time of the last promotion
-      jsonPath: .status.lastPromotionConditions[0].lastTransitionTime
+      jsonPath: .status.lastPromotionConditions[?(@.type=="Succeeded")].lastTransitionTime
       name: Last-Time
       type: date
     name: v1alpha1
@@ -90,6 +90,15 @@ spec:
                 x-kubernetes-validations:
                 - message: at least one credential surface must be set
                   rule: has(self.ocm)
+              keepLastPromotions:
+                default: 10
+                description: |-
+                  KeepLastPromotions bounds how many terminal VectorPromotions are
+                  retained per config; the oldest beyond the bound are deleted. Retention
+                  by count keeps an audit trail even when `ttlAfterFinished` is short.
+                format: int32
+                minimum: 0
+                type: integer
               source:
                 description: Source references the resource to promote from.
                 properties:
@@ -418,6 +427,13 @@ spec:
                   - type
                   type: object
                 type: array
+              sequence:
+                description: |-
+                  Sequence is the monotonic counter of promotions created for this config.
+                  The drift controller increments it and stamps the value into each
+                  created promotion's `spec.sequence`.
+                format: int64
+                type: integer
             type: object
         type: object
         x-kubernetes-validations:
