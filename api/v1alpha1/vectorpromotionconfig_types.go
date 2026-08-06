@@ -91,18 +91,6 @@ type VectorPromotionConfigSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	KeepLastPromotions *int32 `json:"keepLastPromotions,omitempty"`
-
-	// Credentials supplies credentials for OCM repository access and vector verification key material.
-	// Not yet consumed on this branch: reserved for source verification (ADR-0032 follow-up).
-	// +optional
-	Credentials *Credentials `json:"credentials,omitempty"`
-
-	// VerifyVector lists candidate signatures evaluated against the
-	// source vector before promotion proceeds. Absence disables vector
-	// verification. Not yet consumed on this branch: reserved for source
-	// verification (ADR-0032 follow-up).
-	// +optional
-	VerifyVector *Verify `json:"verifyVector,omitempty"`
 }
 
 // VectorPromotionConfigStatus defines the observed state of VectorPromotionConfig.

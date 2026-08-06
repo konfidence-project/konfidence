@@ -344,7 +344,6 @@ repository access and signing/verification key material.
 
 _Appears in:_
 - [StageConfigurationSpec](#stageconfigurationspec)
-- [VectorPromotionConfigSpec](#vectorpromotionconfigspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |
@@ -1819,8 +1818,6 @@ _Appears in:_
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target references the Stage to promote to. |  |  |
 | `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished will be copied onto every VectorPromotion the drift<br />controller creates for this config (pending the ADR-0032 rework). See<br />`VectorPromotionSpec.TTLAfterFinished`. |  | Optional: \{\} <br /> |
 | `keepLastPromotions` _integer_ | KeepLastPromotions bounds how many terminal VectorPromotions are<br />retained per config; the oldest beyond the bound are deleted. Retention<br />by count keeps an audit trail even when `ttlAfterFinished` is short. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
-| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repository access and vector verification key material.<br />Not yet consumed on this branch: reserved for source verification (ADR-0032 follow-up). |  | Optional: \{\} <br /> |
-| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against the<br />source vector before promotion proceeds. Absence disables vector<br />verification. Not yet consumed on this branch: reserved for source<br />verification (ADR-0032 follow-up). |  | Optional: \{\} <br /> |
 
 
 #### VectorPromotionConfigStatus
@@ -2040,7 +2037,6 @@ descriptor. Absence on a spec disables verification.
 
 _Appears in:_
 - [StageConfigurationSpec](#stageconfigurationspec)
-- [VectorPromotionConfigSpec](#vectorpromotionconfigspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |
