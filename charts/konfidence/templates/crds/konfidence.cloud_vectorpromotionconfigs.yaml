@@ -62,8 +62,9 @@ spec:
             description: Spec defines the desired state of the VectorPromotionConfig.
             properties:
               credentials:
-                description: Credentials supplies credentials for OCM repository access
-                  and vector verification key material.
+                description: |-
+                  Credentials supplies credentials for OCM repository access and vector verification key material.
+                  Not yet consumed on this branch: reserved for source verification (ADR-0032 follow-up).
                 properties:
                   ocm:
                     description: |-
@@ -168,7 +169,8 @@ spec:
                 description: |-
                   VerifyVector lists candidate signatures evaluated against the
                   source vector before promotion proceeds. Absence disables vector
-                  verification.
+                  verification. Not yet consumed on this branch: reserved for source
+                  verification (ADR-0032 follow-up).
                 properties:
                   signatures:
                     items:
@@ -430,8 +432,9 @@ spec:
               sequence:
                 description: |-
                   Sequence is the monotonic counter of promotions created for this config.
-                  The drift controller increments it and stamps the value into each
-                  created promotion's `spec.sequence`.
+                  The drift controller (not yet implemented) increments it and stamps the
+                  value into each created promotion's `spec.sequence`; until then it stays
+                  zero.
                 format: int64
                 type: integer
             type: object

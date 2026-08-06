@@ -22,7 +22,9 @@ const (
 )
 
 // PromotionSourceReference identifies the in-cluster resource whose current
-// vector is promoted from.
+// vector is promoted from. The source is resolved by the promotion's creator
+// (the drift controller), which pins the concrete vector into
+// `VectorPromotionSpec.Vector`; the execution controller never reads it.
 //
 // +kubebuilder:validation:XValidation:rule="(self.kind == 'Stage') == has(self.landscape)",message="landscape is required for Stage references and must be omitted for VectorTemplate references"
 //
@@ -91,12 +93,14 @@ type VectorPromotionConfigSpec struct {
 	KeepLastPromotions *int32 `json:"keepLastPromotions,omitempty"`
 
 	// Credentials supplies credentials for OCM repository access and vector verification key material.
+	// Not yet consumed on this branch: reserved for source verification (ADR-0032 follow-up).
 	// +optional
 	Credentials *Credentials `json:"credentials,omitempty"`
 
 	// VerifyVector lists candidate signatures evaluated against the
 	// source vector before promotion proceeds. Absence disables vector
-	// verification.
+	// verification. Not yet consumed on this branch: reserved for source
+	// verification (ADR-0032 follow-up).
 	// +optional
 	VerifyVector *Verify `json:"verifyVector,omitempty"`
 }
@@ -114,8 +118,9 @@ type VectorPromotionConfigStatus struct {
 	LastSuccessfulPromotionConditions []metav1.Condition `json:"lastSuccessfulPromotionConditions,omitempty"`
 
 	// Sequence is the monotonic counter of promotions created for this config.
-	// The drift controller increments it and stamps the value into each
-	// created promotion's `spec.sequence`.
+	// The drift controller (not yet implemented) increments it and stamps the
+	// value into each created promotion's `spec.sequence`; until then it stays
+	// zero.
 	// +optional
 	Sequence int64 `json:"sequence,omitempty"`
 }

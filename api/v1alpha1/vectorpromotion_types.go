@@ -21,12 +21,14 @@ const (
 	// ReasonPromotionConfigurationNotFound indicates the referenced VectorPromotionConfig was not found.
 	ReasonPromotionConfigurationNotFound = "PromotionConfigurationNotFound"
 	// ReasonPromotionSourceNotFound indicates the source vector was not found.
+	// Not yet written on this branch: reserved for the drift controller.
 	ReasonPromotionSourceNotFound = "PromotionSourceNotFound"
 	// ReasonPromotionFailed is a catch-all for other promotion errors.
 	ReasonPromotionFailed = "PromotionFailed"
 	// ReasonPromotionRunning indicates that the promotion is still running.
 	ReasonPromotionRunning = "PromotionRunning"
 	// ReasonPromotionSourceVerificationFailed indicates that the verification of the source vector failed.
+	// Not yet written on this branch: reserved for source verification (ADR-0032 follow-up).
 	ReasonPromotionSourceVerificationFailed = "PromotionSourceVerificationFailed"
 	// ReasonPromotionWaitingForApproval indicates the promotion waits for manual approval.
 	ReasonPromotionWaitingForApproval = "WaitingForApproval"
@@ -99,7 +101,8 @@ type VectorPromotionSpec struct {
 	// Sequence is a monotonic ordinal assigned by the creator (the drift
 	// controller, from the config's `status.sequence`). Promotions with a
 	// higher sequence are newer regardless of creation timestamps, which only
-	// have second resolution.
+	// have second resolution. Unpopulated until the drift controller lands;
+	// ordering degrades to timestamp+name until then.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="sequence is immutable after it has been set"
 	// +optional
