@@ -1,0 +1,30 @@
+{
+  "lsp": {
+    "oxlint": {
+      "binary": {
+        "path": "apps/konfidence-ui/node_modules/.bin/oxlint",
+        "arguments": ["--lsp"]
+      },
+      "initialization_options": {
+        "settings": {
+          "configPath": "apps/konfidence-ui/oxlint.config.ts",
+          "disableNestedConfig": true,
+          "fixKind": "safe_fix",
+          "run": "onType",
+          "unusedDisableDirectives": "deny"
+        }
+      }
+    }
+  },
+  "languages": {
+    "JavaScript": {
+      "language_servers": ["oxlint", "!eslint", "..."]
+    },
+    "Svelte": {
+      "language_servers": ["oxlint", "eslint", "..."]
+    },
+    "TypeScript": {
+      "language_servers": ["oxlint", "!eslint", "..."]
+    }
+  }
+}

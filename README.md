@@ -32,17 +32,42 @@ For a step-by-step guide including cluster setup, component installation, and yo
 
 For detailed installation instructions and production deployment considerations, see the [Installation Guide](https://konfidence.cloud/docs/deploy-operate/installation.html).
 
-## UI Prototype
+## Dashboard Development
 
-The experimental UI prototype lives in `apps/konfidence-ui-prototype`. It uses a mock API and does not define the production UI's deployment architecture.
+The production dashboard lives in `apps/konfidence-ui`. Activate Hermit and install the workspace dependencies before starting it:
 
 ```sh
 source ./bin/activate-hermit
 pnpm install
-pnpm --filter konfidence-ui dev:mock
+pnpm ui:dev
 ```
 
-Use `pnpm ui:verify`, `pnpm ui:test`, and `pnpm ui:build` to check the prototype.
+Install Chromium once before running browser-based tests:
+
+```sh
+pnpm --filter konfidence-ui exec playwright install chromium
+```
+
+Run the static checks and each test layer with repository commands:
+
+```sh
+pnpm ui:check
+pnpm ui:check:svelte
+pnpm ui:lint
+pnpm ui:fmt:check
+pnpm ui:test:unit
+pnpm ui:test:browser
+pnpm ui:test:e2e
+```
+
+`pnpm ui:verify` runs all static checks, while `pnpm ui:test` runs every test layer. `pnpm ui:all` runs both groups.
+
+Build and start the production Node.js server with:
+
+```sh
+pnpm ui:build
+pnpm ui:start
+```
 
 ## Support, Feedback, Contributing
 
