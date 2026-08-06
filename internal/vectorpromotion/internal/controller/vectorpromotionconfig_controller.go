@@ -58,6 +58,7 @@ func (r *VectorPromotionConfigReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// get target = Stage and sourceVector = type dependent based on our current VectorPromotionConfig CR
 	target, sourceVector, err := r.resolveReferences(ctx, config)
 	var resErr *resolutionError
 	if errors.As(err, &resErr) {
@@ -98,13 +99,17 @@ func NewVectorPromotionConfigReconciler(mgr ctrl.Manager) *VectorPromotionConfig
 func (r *VectorPromotionConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorPromotionConfig{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		// bubble up vector promotion conditions
 		Owns(&konfidence.VectorPromotion{}).
+		// We have relations to vector templates via source
 		Watches(&konfidence.VectorTemplate{},
 			handler.EnqueueRequestsFromMapFunc(r.mapVectorTemplateToConfigs),
 			builder.WithPredicates(latestVectorChanged())).
+		// We have relations to stages via source AND target
 		Watches(&konfidence.Stage{},
 			handler.EnqueueRequestsFromMapFunc(r.mapStageToConfigs),
 			builder.WithPredicates(stageVectorChanged())).
+		// We have relations to landscapes via the namespace
 		Watches(&konfidence.Landscape{},
 			handler.EnqueueRequestsFromMapFunc(r.mapLandscapeToConfigs),
 			builder.WithPredicates(landscapeNamespaceChanged())).

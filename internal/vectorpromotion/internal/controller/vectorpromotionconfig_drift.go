@@ -21,6 +21,8 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(ctx context.Co
 	log := logf.FromContext(ctx)
 
 	list := &konfidence.VectorPromotionList{}
+
+	// we need all pre-existing vector promotions in order to supersede existing ones
 	err := r.List(ctx, list,
 		client.InNamespace(config.Namespace),
 		client.MatchingFields{promotionConfigRefField: config.Name})
@@ -28,6 +30,7 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(ctx context.Co
 		return fmt.Errorf("failed to list promotions of config %q: %w", config.Name, err)
 	}
 	for i := range list.Items {
+		// if there is a promotion already running at any point in time and this promotion caters towards the vector we're targeting we can assume that the promotion already exists
 		if !promotion.IsTerminal(&list.Items[i]) && list.Items[i].Spec.Vector == sourceVector {
 			return nil
 		}
@@ -35,6 +38,8 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(ctx context.Co
 
 	// The sequence is committed before the create: a crash in between leaves a
 	// gap in the sequence, never a duplicate.
+	//
+	// We use a sequence here in order to get a true order and not just a pseudo-order based on a timestamp, that might not be monotonic
 	if err := r.patchConfigStatus(ctx, config, func() { config.Status.Sequence++ }); err != nil {
 		return err
 	}

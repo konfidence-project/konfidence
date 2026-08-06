@@ -62,9 +62,11 @@ func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion
 		if err := r.patchStatusWithEvent(ctx, vectorPromotion, original); err != nil {
 			return err
 		}
+
 		if err := r.propagateToConfig(ctx, config, vectorPromotion); err != nil {
 			return err
 		}
+
 		original = vectorPromotion.DeepCopy()
 	}
 
