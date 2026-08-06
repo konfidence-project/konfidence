@@ -19,6 +19,52 @@ webhooks:
     service:
       name: {{ include "konfidence.fullname" . }}-webhook-service
       namespace: {{ .Release.Namespace }}
+      path: /validate-konfidence-cloud-v1alpha1-deploymentclass
+    {{- if .Values.webhook.caBundle }}
+    caBundle: {{ .Values.webhook.caBundle | quote }}
+    {{- end }}
+  failurePolicy: {{ .Values.webhook.failurePolicy }}
+  name: vdeploymentclass.konfidence.cloud
+  rules:
+  - apiGroups:
+    - konfidence.cloud
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - deploymentclasses
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "konfidence.fullname" . }}-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-konfidence-cloud-v1alpha1-deploymenttarget
+    {{- if .Values.webhook.caBundle }}
+    caBundle: {{ .Values.webhook.caBundle | quote }}
+    {{- end }}
+  failurePolicy: {{ .Values.webhook.failurePolicy }}
+  name: vdeploymenttarget.konfidence.cloud
+  rules:
+  - apiGroups:
+    - konfidence.cloud
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - deploymenttargets
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "konfidence.fullname" . }}-webhook-service
+      namespace: {{ .Release.Namespace }}
       path: /validate-konfidence-cloud-v1alpha1-landscape
     {{- if .Values.webhook.caBundle }}
     caBundle: {{ .Values.webhook.caBundle | quote }}

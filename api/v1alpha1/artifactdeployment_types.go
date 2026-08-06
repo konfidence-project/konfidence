@@ -141,9 +141,9 @@ type ArtifactDeployment struct {
 // ArtifactManifest describes the content of the artifact, thus it determines the deployer implementation responsible
 // for handling it.
 type ArtifactManifest struct {
-	// Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",
-	// or any custom deployer type). Deployers implement their own interpretation
-	// of the artifact's contents.
+	// Type specifies the deployment class type that should handle this artifact (e.g., "konfidence.cloud/helm").
+	// This must match a DeploymentClass.spec.type in the cluster.
+	// Deployers implement their own interpretation of the artifact's contents.
 	Type string `json:"type"`
 
 	// AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.

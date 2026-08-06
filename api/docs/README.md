@@ -15,6 +15,10 @@ Package v1alpha1 contains API Schema definitions for the konfidence v1alpha1 API
 - [ActivationTaskRegistrationList](#activationtaskregistrationlist)
 - [ArtifactDeployment](#artifactdeployment)
 - [ArtifactDeploymentList](#artifactdeploymentlist)
+- [DeploymentClass](#deploymentclass)
+- [DeploymentClassList](#deploymentclasslist)
+- [DeploymentTarget](#deploymenttarget)
+- [DeploymentTargetList](#deploymenttargetlist)
 - [Landscape](#landscape)
 - [LandscapeList](#landscapelist)
 - [Project](#project)
@@ -276,7 +280,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `observedGeneration` _integer_ | ObservedGeneration is the last observed generation. |  | Optional: \{\} <br /> |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions describes the state of the deployment lifecycle. The following conditions are expected:<br />  - ArtifactFetched: the artifact was successfully retrieved<br />  - ArtifactDeployed: the artifact was successfully deployed<br />  - AppHealthy: the deployer reports the workload as healthy<br />Conditions progress in a linear order:<br />ArtifactFetched -> ArtifactDeployed -> AppHealthy |  | Optional: \{\} <br /> |
-| `deploymentResult` _[DeploymentResult](#deploymentresult) array_ | DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as<br />computed DNS names, service endpoints, generated configuration, or other workload-specific details.<br />Results should be treated as immutable for a given generation and may be consumed by later stages of a vector<br />rollout (e.g., routing configuration).<br />Results are unique by (name, type). |  | Optional: \{\} <br /> |
+| `deploymentResult` _[DeploymentResult](#deploymentresult) array_ | DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as<br />computed DNS names, service endpoints, generated configuration, or other workload-specific details.<br />Results should be treated as immutable for a given generation and may be consumed by later stages of a vector<br />rollout (e.g., routing configuration).<br />Each result must have a unique Name. |  | Optional: \{\} <br /> |
 
 
 #### ArtifactManifest
@@ -294,7 +298,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _string_ | Type specifies the deployer that should handle this artifact (e.g., "cloud.konfidence.flux.helm",<br />or any custom deployer type). Deployers implement their own interpretation<br />of the artifact's contents. |  |  |
+| `type` _string_ | Type specifies the deployment class type that should handle this artifact (e.g., "konfidence.cloud/helm").<br />This must match a DeploymentClass.spec.type in the cluster.<br />Deployers implement their own interpretation of the artifact's contents. |  |  |
 | `allowReuse` _boolean_ | AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.<br />Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific<br />runtime context. |  |  |
 
 
@@ -315,24 +319,22 @@ _Appears in:_
 | `name` _string_ |  |  |  |
 
 
-#### ComponentDeploymentResults
+#### ConnectionRef
 
-_Underlying type:_ _[DeploymentResult](#deploymentresult)_
 
-ComponentDeploymentResults lists the deployment results emitted by a single component.
 
-_Validation:_
-- MaxItems: 16
+ConnectionRef identifies a Secret or ConfigMap in the same namespace.
+
+
 
 _Appears in:_
-- [VectorDataSpec](#vectordataspec)
-- [VectorDeploymentStatus](#vectordeploymentstatus)
+- [DeploymentTargetConnection](#deploymenttargetconnection)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name identifies the result. |  | MaxLength: 253 <br /> |
-| `type` _string_ | Type describes the structure contained in Spec. Each deployer may define multiple result types. |  | MaxLength: 63 <br /> |
-| `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains deployer-specific structured data. Its format is determined by the Type field. |  |  |
+| `apiGroup` _string_ | APIGroup is the group for the resource being referenced.<br />Defaults to the core API group ("") for Secret and ConfigMap.<br />For deployer-specific CRDs, set this to the appropriate API group. |  | Optional: \{\} <br /> |
+| `kind` _string_ | Kind is the resource kind (e.g., "Secret", "ConfigMap", or a deployer-specific kind). |  | MaxLength: 64 <br />MinLength: 1 <br />Required: \{\} <br /> |
+| `name` _string_ | Name is the name of the referenced resource. |  | MaxLength: 253 <br />MinLength: 1 <br />Required: \{\} <br /> |
 
 
 #### CredentialRef
@@ -368,6 +370,70 @@ _Appears in:_
 | `ocm` _[OCMCredentials](#ocmcredentials)_ |  |  | Optional: \{\} <br /> |
 
 
+#### DeploymentClass
+
+
+
+DeploymentClass is the Schema for the deploymentclasses API. A DeploymentClass
+declares a deployment capability provided by a deployer (controller). It is a
+cluster-scoped resource installed by deployers to advertise their capabilities.
+Artifacts reference the spec.type field to select which deployer handles their deployment.
+The type must be unique across all DeploymentClasses in the cluster.
+
+
+
+_Appears in:_
+- [DeploymentClassList](#deploymentclasslist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `DeploymentClass` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[DeploymentClassSpec](#deploymentclassspec)_ |  |  |  |
+
+
+#### DeploymentClassList
+
+
+
+DeploymentClassList contains a list of DeploymentClass.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `DeploymentClassList` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[DeploymentClass](#deploymentclass) array_ |  |  |  |
+
+
+#### DeploymentClassSpec
+
+
+
+DeploymentClassSpec defines the desired state of DeploymentClass.
+
+
+
+_Appears in:_
+- [DeploymentClass](#deploymentclass)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `type` _string_ | Type is the unique deployment class type identifier (e.g., "konfidence.cloud/helm").<br />This is what artifacts reference in their manifest.type field to select which<br />deployer handles their deployment. The type must be unique across all DeploymentClasses<br />in the cluster and follows the pattern "<vendor-domain>/<class-name>". |  | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*\/[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Required: \{\} <br /> |
+| `controller` _string_ | Controller is the name of the controller that implements this deployment class.<br />This identifies which operator/controller is responsible for reconciling<br />resources of this deployment class (e.g., "kubernetes-landscape-orchestrator"). |  | MaxLength: 253 <br />MinLength: 1 <br />Required: \{\} <br /> |
+
+
+
+
 #### DeploymentResult
 
 
@@ -379,13 +445,115 @@ from the deployer to later phases of the vector lifecycle.
 
 _Appears in:_
 - [ArtifactDeploymentStatus](#artifactdeploymentstatus)
-- [ComponentDeploymentResults](#componentdeploymentresults)
+- [VectorDataSpec](#vectordataspec)
+- [VectorDeploymentStatus](#vectordeploymentstatus)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name identifies the result. |  | MaxLength: 253 <br /> |
-| `type` _string_ | Type describes the structure contained in Spec. Each deployer may define multiple result types. |  | MaxLength: 63 <br /> |
+| `name` _string_ | Name is a unique identifier for the result within an ArtifactDeploymentStatus. |  |  |
+| `type` _string_ | Type describes the structure contained in Spec. Each deployer may define multiple result types. |  |  |
 | `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains deployer-specific structured data. Its format is determined by the Type field. |  |  |
+
+
+#### DeploymentTarget
+
+
+
+DeploymentTarget is the Schema for the deploymenttargets API. A DeploymentTarget
+configures a concrete deployment destination within a landscape for a specific
+deployment class. It is namespace-scoped and created in landscape namespaces.
+Multiple DeploymentTargets of different types can exist in the same landscape,
+and multiple targets of the same type can share underlying infrastructure
+(e.g., two Kubernetes deployment classes targeting the same cluster).
+
+
+
+_Appears in:_
+- [DeploymentTargetList](#deploymenttargetlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `DeploymentTarget` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[DeploymentTargetSpec](#deploymenttargetspec)_ |  |  |  |
+| `status` _[DeploymentTargetStatus](#deploymenttargetstatus)_ |  |  |  |
+
+
+#### DeploymentTargetConnection
+
+
+
+DeploymentTargetConnection defines connection information for a deployment target.
+
+
+
+_Appears in:_
+- [DeploymentTargetSpec](#deploymenttargetspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `type` _string_ | Type is a hint for how to interpret the connection reference. It is advisory<br />and informational only. The deployer controller interprets and enforces its meaning. |  | MaxLength: 64 <br />MinLength: 1 <br />Required: \{\} <br /> |
+| `ref` _[ConnectionRef](#connectionref)_ | Ref references a Secret or ConfigMap containing connection details.<br />The structure of the referenced resource depends on the connection type<br />and the deployment class requirements. |  | Optional: \{\} <br /> |
+
+
+#### DeploymentTargetList
+
+
+
+DeploymentTargetList contains a list of DeploymentTarget.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
+| `kind` _string_ | `DeploymentTargetList` | | |
+| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
+| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[DeploymentTarget](#deploymenttarget) array_ |  |  |  |
+
+
+#### DeploymentTargetSpec
+
+
+
+DeploymentTargetSpec defines the desired state of DeploymentTarget.
+
+
+
+_Appears in:_
+- [DeploymentTarget](#deploymenttarget)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `type` _string_ | Type references a DeploymentClass by its spec.type field.<br />The referenced DeploymentClass must exist in the cluster.<br />This determines which controller will handle deployments to this target. |  | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*\/[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Required: \{\} <br /> |
+| `connection` _[DeploymentTargetConnection](#deploymenttargetconnection)_ | Connection defines how to connect to this deployment target.<br />The structure and interpretation of connection details is specific to the<br />deployment class and its implementing controller. |  | Required: \{\} <br /> |
+
+
+#### DeploymentTargetStatus
+
+
+
+DeploymentTargetStatus defines the observed state of DeploymentTarget.
+The deployer controller responsible for this target's DeploymentClass is expected
+to set the Ready condition once it has accepted the resource. What "accepted" means
+is up to the deployer. It may include connectivity checks or simply validate the
+configuration.
+
+
+
+_Appears in:_
+- [DeploymentTarget](#deploymenttarget)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  | Optional: \{\} <br /> |
 
 
 #### GlobMatch
@@ -1483,7 +1651,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `features` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Features carries the optional "features" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
 | `authored` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Authored carries the optional "authored" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
-| `deploymentResults` _object (keys:string, values:[ComponentDeploymentResults](#componentdeploymentresults))_ | DeploymentResults aggregated from underlying ArtifactDeployments, keyed by artifact<br />component name; the value lists every result emitted by that component. Within a<br />component's list, results are unique by (name, type). |  | MaxProperties: 64 <br />Optional: \{\} <br /> |
+| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults aggregated from underlying ArtifactDeployments, keyed by artifact<br />component name; the value lists every result emitted by that component. |  | Optional: \{\} <br /> |
 
 
 #### VectorDataStatus
@@ -1597,7 +1765,7 @@ _Appears in:_
 | `resultingVectorData` _[LocalObjectReference](#localobjectreference)_ | ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData<br />CR is the contract between the vector deployment controller (which resolves the OCM payload) and the runtime-specific implementor<br />(which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the<br />CR. Names are stable across reconciliations. |  |  |
 | `resultingArtifactDeployments` _object (keys:string, values:[LocalArtifactDeploymentReference](#localartifactdeploymentreference))_ | ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The<br />map key is the component name of the artifact as defined inside the vector. Keys remain stable across<br />reconciliations and re-creations. |  |  |
 | `resultingVectorAssignments` _object (keys:string, values:[LocalVectorAssignmentReference](#localvectorassignmentreference))_ | ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are<br />not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of<br />assignments.<br />The map key is the component name of the artifact. Keys are stable across reconcilations. |  |  |
-| `deploymentResults` _object (keys:string, values:[ComponentDeploymentResults](#componentdeploymentresults))_ | DeploymentResults exposes an aggregated view of the deployment results produced<br />by all underlying ArtifactDeployments. The map key is the artifact component name;<br />the value lists every result emitted by that ArtifactDeployment. Within a component's<br />list, results are unique by (name, type). |  | MaxProperties: 64 <br /> |
+| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults exposes an aggregated view of the deployment results produced<br />by all underlying ArtifactDeployments. The map key is the artifact component name;<br />the value lists every result emitted by that ArtifactDeployment. |  |  |
 
 
 #### VectorMigration
