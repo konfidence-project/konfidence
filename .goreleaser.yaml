@@ -123,3 +123,6 @@ dockers_v2:
 
 changelog:
   use: github-native
+
+release:
+  use_existing_draft: true
