@@ -41,7 +41,7 @@
     "@playwright/test": "^1.60.0",
     "@sap-theming/theming-base-content": "^11.36.4",
     "@sveltejs/adapter-node": "^5.5.4",
-    "@sveltejs/kit": "^2.69.1",
+    "@sveltejs/kit": "^2.70.2",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@typescript-eslint/parser": "^8.62.1",
     "@typescript/native-preview": "7.0.0-dev.20260702.3",
