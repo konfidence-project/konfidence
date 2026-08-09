@@ -1,8 +1,6 @@
 package oidc
 
 import (
-	"time"
-
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/maypok86/otter/v2"
 )
@@ -33,11 +31,9 @@ func (s *StateCacheStore) Get(id string) (*StateData, error) {
 	return nil, nil
 }
 
-func NewStateCacheStore(_ config.Parsed) *StateCacheStore {
-	// TODO use value from cfg
-	oidcStateExpiration := 15 * time.Minute
+func NewStateCacheStore(cfg config.Parsed) *StateCacheStore {
 	cache := otter.Must(&otter.Options[string, StateData]{
-		ExpiryCalculator: otter.ExpiryCreating[string, StateData](oidcStateExpiration),
+		ExpiryCalculator: otter.ExpiryCreating[string, StateData](cfg.OIDCStateExpiration),
 	})
 
 	return &StateCacheStore{cache: *cache}

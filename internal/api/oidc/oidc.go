@@ -13,9 +13,11 @@ import (
 
 type Config struct {
 	IdentityProviderURI string
+	TokenURL            string
+	AuthorizationURL    string
+	DeviceAuthURL       string
 	ClientID            string
 	RedirectURI         string
-	Scopes              []string
 	PKCEEnabled         bool
 }
 
@@ -78,11 +80,22 @@ func (c *Client) Setup(ctx context.Context) error {
 	}
 	c.oidcProvider = oidcProvider
 
-	// TODO init scopes from cfg
+	endpoint := c.oidcProvider.Endpoint()
+	if c.config.TokenURL != "" {
+		endpoint.TokenURL = c.config.TokenURL
+	}
+	if c.config.AuthorizationURL != "" {
+		endpoint.AuthURL = c.config.AuthorizationURL
+	}
+	if c.config.DeviceAuthURL != "" {
+		endpoint.DeviceAuthURL = c.config.DeviceAuthURL
+	}
+
 	c.oauth2Config = oauth2.Config{
 		ClientID:    c.config.ClientID,
 		RedirectURL: c.config.RedirectURI,
-		Endpoint:    c.oidcProvider.Endpoint(), Scopes: []string{oidc.ScopeOpenID, "profile", "email", "groups"},
+		Endpoint:    endpoint,
+		Scopes:      []string{oidc.ScopeOpenID, "profile", "email", "groups"},
 	}
 
 	// create an ID Token verifier.

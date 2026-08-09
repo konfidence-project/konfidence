@@ -16,14 +16,21 @@ import (
 
 func validParsed(addr string) config.Parsed {
 	cfg := config.Config{
-		Addr:            addr,
-		LogLevel:        "error",
-		ReadTimeout:     "5s",
-		WriteTimeout:    "5s",
-		ShutdownTimeout: "2s",
-		AuthIssuerURL:   "http://localhost:5556/dex",
-		AuthClientID:    "konfidence",
-		AuthRedirectURL: "http://localhost:8090/api/v1/auth/callback",
+		Addr:                  addr,
+		LogLevel:              "error",
+		ReadTimeout:           "5s",
+		WriteTimeout:          "5s",
+		ShutdownTimeout:       "2s",
+		OIDCIssuerURL:         "http://localhost:5556/oidc",
+		OIDCClientID:          "konfidence",
+		OIDCRedirectURL:       "http://localhost:8090/api/v1/auth/callback",
+		OIDCPKCEEnabled:       true,
+		OIDCStateExpiration:   "15m",
+		SessionCookieName:     "kden-session",
+		SessionCookieHTTPOnly: true,
+		SessionCookieSecure:   false,
+		SessionCookieSameSite: "SameSiteStrictMode",
+		SessionExpiry:         "12h",
 	}
 	parsed, err := cfg.Validate()
 	if err != nil {
@@ -38,6 +45,13 @@ func getLogger() *slog.Logger {
 
 var _ = Describe("Server", func() {
 	Describe("Run", func() {
+		It("uses the parsed shutdown timeout from config", func() {
+			parsed := validParsed("127.0.0.1:0")
+			Expect(parsed.ShutdownTimeout).To(Equal(2 * time.Second))
+			Expect(parsed.OIDCStateExpiration).To(Equal(15 * time.Minute))
+			Expect(parsed.SessionExpiry).To(Equal(12 * time.Hour))
+		})
+
 		It("starts and stops cleanly when context is cancelled", func() {
 			srv := server.New(validParsed("127.0.0.1:0"), getLogger())
 			ctx, cancel := context.WithCancel(context.Background())

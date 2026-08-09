@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
@@ -16,16 +17,18 @@ type AuthHandler struct {
 	oidcClient   oidc.Client
 	stateCache   oidc.StateStore
 	sessionStore session.SessionStore
+	config       config.Parsed
 	k8s          client.Client
 }
 
 func NewAuthHandler(logger *slog.Logger, oidcClient oidc.Client,
-	stateStore oidc.StateStore, sessionStore session.SessionStore, k8s client.Client) *AuthHandler {
+	stateStore oidc.StateStore, sessionStore session.SessionStore, cfg config.Parsed, k8s client.Client) *AuthHandler {
 	return &AuthHandler{
 		logger:       logger,
 		oidcClient:   oidcClient,
 		stateCache:   stateStore,
 		sessionStore: sessionStore,
+		config:       cfg,
 		k8s:          k8s,
 	}
 }
@@ -140,14 +143,12 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 		return openapi.AuthCallback500JSONResponse{}, err
 	}
 
-	// TODO use config values
-	// TODO configure MaxAge
 	sessionCookie := &http.Cookie{
-		Name:     session.Id,
+		Name:     a.config.SessionCookieName,
 		Value:    sessionId,
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		HttpOnly: a.config.SessionCookieHTTPOnly,
+		Secure:   a.config.SessionCookieSecure,
+		SameSite: sameSiteMode(a.config.SessionCookieSameSite),
 		Path:     "/",
 	}
 
@@ -173,14 +174,13 @@ func (a *AuthHandler) Logout(ctx context.Context, _ openapi.LogoutRequestObject)
 	}
 
 	// clear session cookie
-	// TODO use config values
 	sessionCookie := &http.Cookie{
-		Name:     session.Id,
+		Name:     a.config.SessionCookieName,
 		Value:    "",
 		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		HttpOnly: a.config.SessionCookieHTTPOnly,
+		Secure:   a.config.SessionCookieSecure,
+		SameSite: sameSiteMode(a.config.SessionCookieSameSite),
 		Path:     "/",
 	}
 
@@ -233,7 +233,7 @@ func (a *AuthHandler) SessionAuthMiddleware(f openapi.StrictHandlerFunc, operati
 		}
 
 		if !publicOperations[operationId] {
-			sessionCookie, err := r.Cookie(session.Id)
+			sessionCookie, err := r.Cookie(a.config.SessionCookieName)
 			if err != nil {
 				a.logger.Error("failed to get session cookie from request", "error", err)
 				http.Error(w, "", http.StatusUnauthorized)
@@ -258,4 +258,18 @@ func (a *AuthHandler) SessionAuthMiddleware(f openapi.StrictHandlerFunc, operati
 
 		return f(ctx, w, r, request)
 	}
+}
+
+func sameSiteMode(mode string) http.SameSite {
+	switch mode {
+	case "SameSiteDefaultMode", "Default":
+		return http.SameSiteDefaultMode
+	case "SameSiteLaxMode", "Lax":
+		return http.SameSiteLaxMode
+	case "SameSiteNoneMode", "None":
+		return http.SameSiteNoneMode
+	case "SameSiteStrictMode", "Strict":
+		return http.SameSiteStrictMode
+	}
+	return http.SameSiteDefaultMode
 }

@@ -56,9 +56,32 @@ ENVTEST        ?= setup-envtest
 GOLANGCI_LINT   = golangci-lint
 HELM           ?= helm
 HELM_DOCS      ?= helm-docs
+OAPI_CODEGEN   ?= go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
 
 ## Image names
 OPERATOR_IMAGE = $(REGISTRY)/konfidence-operator:$(TAG)
+
+## Local API server configuration
+API_ADDR ?= :8090
+API_LOG_LEVEL ?= info
+API_READ_TIMEOUT ?= 10s
+API_WRITE_TIMEOUT ?= 10s
+API_SHUTDOWN_TIMEOUT ?= 15s
+API_OIDC_ISSUER_URL ?= http://localhost:5556/oidc
+API_OIDC_CLIENT_ID ?= konfidence
+API_OIDC_REDIRECT_URL ?= http://localhost:8090/api/v1/auth/callback
+API_OIDC_TOKEN_URL ?=
+API_OIDC_AUTHORIZATION_URL ?=
+API_OIDC_DEVICE_AUTH_URL ?=
+API_OIDC_USER_INFO_URL ?=
+API_OIDC_JWKS_URL ?=
+API_OIDC_PKCE_ENABLED ?= true
+API_OIDC_STATE_EXPIRATION ?= 15m
+API_SESSION_COOKIE_NAME ?= kden-session
+API_SESSION_COOKIE_HTTP_ONLY ?= true
+API_SESSION_COOKIE_SECURE ?= false
+API_SESSION_COOKIE_SAME_SITE ?= SameSiteStrictMode
+API_SESSION_EXPIRY ?= 12h
 
 .PHONY: all
 all: api build
@@ -135,7 +158,12 @@ webhook-certs: ## Generate self-signed certificates for local webhook developmen
 ##@ API
 
 .PHONY: api
-api: hermit manifests generate docs schemas helm-lint ## Run full API generation pipeline (manifests, deepcopy, docs, schemas, helm lint).
+api: hermit manifests generate generate-api docs schemas helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, docs, schemas, helm lint).
+
+.PHONY: generate-api
+generate-api: hermit ## Generate the OpenAPI server and kden API client from api/openapi.yaml.
+	$(OAPI_CODEGEN) -config api/codegen-server.yaml api/openapi.yaml
+	$(OAPI_CODEGEN) -config api/codegen-client.yaml api/openapi.yaml
 
 .PHONY: docs
 docs: hermit ## Generate CRD reference documentation for the konfidence.cloud API.
@@ -231,12 +259,33 @@ run: manifests generate fmt vet ## Run the konfidence operator from your host.
 
 .PHONY: run-kden-api
 run-kden-api: fmt vet ## Run the kden API server locally.
-	go run ./cmd/api/main.go
+	go run ./cmd/api/main.go \
+		--addr=$(API_ADDR) \
+		--log-level=$(API_LOG_LEVEL) \
+		--read-timeout=$(API_READ_TIMEOUT) \
+		--write-timeout=$(API_WRITE_TIMEOUT) \
+		--shutdown-timeout=$(API_SHUTDOWN_TIMEOUT) \
+		--oidc-issuer-url=$(API_OIDC_ISSUER_URL) \
+		--oidc-client-id=$(API_OIDC_CLIENT_ID) \
+		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
+		--oidc-token-url=$(API_OIDC_TOKEN_URL) \
+		--oidc-authorization-url=$(API_OIDC_AUTHORIZATION_URL) \
+		--oidc-device-auth-url=$(API_OIDC_DEVICE_AUTH_URL) \
+		--oidc-user-info-url=$(API_OIDC_USER_INFO_URL) \
+		--oidc-jwks-url=$(API_OIDC_JWKS_URL) \
+		--oidc-pkce-enabled=$(API_OIDC_PKCE_ENABLED) \
+		--oidc-state-expiration=$(API_OIDC_STATE_EXPIRATION) \
+		--session-cookie-name=$(API_SESSION_COOKIE_NAME) \
+		--session-cookie-http-only=$(API_SESSION_COOKIE_HTTP_ONLY) \
+		--session-cookie-secure=$(API_SESSION_COOKIE_SECURE) \
+		--session-cookie-same-site=$(API_SESSION_COOKIE_SAME_SITE) \
+		--session-expiry=$(API_SESSION_EXPIRY)
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
 docker-build: hermit ## Build the konfidence operator container image (local use only).
 	$(CONTAINER_TOOL) build -f Dockerfile --build-arg TARGETPLATFORM=bin --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
+
 .PHONY: docker-push
 docker-push: ## Push the konfidence operator container image.
 	$(CONTAINER_TOOL) push $(OPERATOR_IMAGE)

@@ -43,9 +43,21 @@ spec:
             - --read-timeout={{ .Values.api.server.readTimeout }}
             - --write-timeout={{ .Values.api.server.writeTimeout }}
             - --shutdown-timeout={{ .Values.api.server.shutdownTimeout }}
-            - --auth-issuer-url={{ .Values.api.auth.issuerURL }}
-            - --auth-client-id={{ .Values.api.auth.clientId }}
-            - --auth-redirect-url={{ .Values.api.auth.redirectURL }}
+            - --oidc-issuer-url={{ required "api.oidc.issuerURL is required" .Values.api.oidc.issuerURL }}
+            - --oidc-client-id={{ required "api.oidc.clientId is required" .Values.api.oidc.clientId }}
+            - --oidc-redirect-url={{ required "api.oidc.redirectURL is required" .Values.api.oidc.redirectURL }}
+            - --oidc-token-url={{ .Values.api.oidc.tokenURL }}
+            - --oidc-authorization-url={{ .Values.api.oidc.authorizationURL }}
+            - --oidc-device-auth-url={{ .Values.api.oidc.deviceAuthURL }}
+            - --oidc-user-info-url={{ .Values.api.oidc.userInfoURL }}
+            - --oidc-jwks-url={{ .Values.api.oidc.jwksURL }}
+            - --oidc-pkce-enabled={{ .Values.api.oidc.pkceEnabled }}
+            - --oidc-state-expiration={{ .Values.api.oidc.stateExpiration }}
+            - --session-cookie-name={{ .Values.api.session.cookie.name }}
+            - --session-cookie-http-only={{ .Values.api.session.cookie.httpOnly }}
+            - --session-cookie-secure={{ .Values.api.session.cookie.secure }}
+            - --session-cookie-same-site={{ .Values.api.session.cookie.sameSite }}
+            - --session-expiry={{ .Values.api.session.expiry }}
             {{- with .Values.api.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

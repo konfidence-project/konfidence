@@ -78,10 +78,25 @@ api:
     writeTimeout: "10s"
     shutdownTimeout: "15s"
 
-  auth:
-    issuerURL: "http://localhost:5556/dex"
-    clientId: "konfidence"
-    redirectURL: "http://localhost:8090/api/v1/auth/callback"
+  oidc:
+    issuerURL: ""
+    tokenURL: ""
+    authorizationURL: ""
+    deviceAuthURL: ""
+    userInfoURL: ""
+    jwksURL: ""
+    clientId: ""
+    redirectURL: ""
+    pkceEnabled: true
+    stateExpiration: 15m
+
+  session:
+    cookie:
+      name: "kden-session"
+      httpOnly: true
+      secure: false
+      sameSite: SameSiteStrictMode
+    expiry: 12h
 
   # Extra CLI arguments appended to the container args list.
   extraArgs: []
@@ -113,7 +128,7 @@ api:
     className: ""
     annotations: {}
     hosts:
-      - host: konfidence-api.example.com
+      - host: ""
         paths:
           - path: /
             pathType: Prefix

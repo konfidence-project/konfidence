@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/konfidence-project/konfidence/internal/api/handler"
@@ -43,9 +44,12 @@ by the flags below.
   API_READ_TIMEOUT       HTTP read deadline                 (default: 10s)
   API_WRITE_TIMEOUT      HTTP write deadline                (default: 10s)
   API_SHUTDOWN_TIMEOUT   Graceful shutdown window           (default: 15s)
-  API_AUTH_ISSUER_URL    External IDP issuer URL            (default: http://localhost:5556/dex)
-  API_AUTH_CLIENT_ID     External IDP client ID             (default: konfidence)
-  API_AUTH_REDIRECT_URL  OAuth redirect URL                 (default: http://localhost:8090/api/v1/auth/callback)
+  API_OIDC_ISSUER_URL    External IDP issuer URL
+  API_OIDC_CLIENT_ID     External IDP client ID
+  API_OIDC_REDIRECT_URL  OAuth redirect URL
+  API_OIDC_PKCE_ENABLED  Enable PKCE for OIDC auth flow     (default: true)
+  API_OIDC_STATE_EXPIRATION OIDC state cache expiration      (default: 15m)
+  API_SESSION_EXPIRY     Server-side session expiry          (default: 12h)
 
 Kubernetes client config is resolved automatically via the standard KUBECONFIG
 env var or in-cluster config when deployed as a pod.`,
@@ -73,12 +77,36 @@ func init() {
 		"Maximum duration before timing out writes of the response. Env: API_WRITE_TIMEOUT")
 	rootCmd.Flags().StringVar(&cfg.ShutdownTimeout, "shutdown-timeout", envOr("API_SHUTDOWN_TIMEOUT", "15s"),
 		"Maximum duration for a graceful shutdown. Env: API_SHUTDOWN_TIMEOUT")
-	rootCmd.Flags().StringVar(&cfg.AuthIssuerURL, "auth-issuer-url", envOr("API_AUTH_ISSUER_URL", "http://localhost:5556/dex"),
-		"External identity provider issuer URL. Env: API_AUTH_ISSUER_URL")
-	rootCmd.Flags().StringVar(&cfg.AuthClientID, "auth-client-id", envOr("API_AUTH_CLIENT_ID", "konfidence"),
-		"External identity provider client ID. Env: API_AUTH_CLIENT_ID")
-	rootCmd.Flags().StringVar(&cfg.AuthRedirectURL, "auth-redirect-url", envOr("API_AUTH_REDIRECT_URL", "http://localhost:8090/api/v1/auth/callback"),
-		"OAuth redirect URL for the API authentication flow. Env: API_AUTH_REDIRECT_URL")
+	rootCmd.Flags().StringVar(&cfg.OIDCIssuerURL, "oidc-issuer-url", envOr("API_OIDC_ISSUER_URL", ""),
+		"External identity provider issuer URL. Env: API_OIDC_ISSUER_URL")
+	rootCmd.Flags().StringVar(&cfg.OIDCTokenURL, "oidc-token-url", envOr("API_OIDC_TOKEN_URL", ""),
+		"External identity provider token URL. Env: API_OIDC_TOKEN_URL")
+	rootCmd.Flags().StringVar(&cfg.OIDCAuthorizationURL, "oidc-authorization-url", envOr("API_OIDC_AUTHORIZATION_URL", ""),
+		"External identity provider authorization URL. Env: API_OIDC_AUTHORIZATION_URL")
+	rootCmd.Flags().StringVar(&cfg.OIDCDeviceAuthURL, "oidc-device-auth-url", envOr("API_OIDC_DEVICE_AUTH_URL", ""),
+		"External identity provider device authorization URL. Env: API_OIDC_DEVICE_AUTH_URL")
+	rootCmd.Flags().StringVar(&cfg.OIDCUserInfoURL, "oidc-user-info-url", envOr("API_OIDC_USER_INFO_URL", ""),
+		"External identity provider user info URL. Env: API_OIDC_USER_INFO_URL")
+	rootCmd.Flags().StringVar(&cfg.OIDCJWKSURL, "oidc-jwks-url", envOr("API_OIDC_JWKS_URL", ""),
+		"External identity provider JWKS URL. Env: API_OIDC_JWKS_URL")
+	rootCmd.Flags().StringVar(&cfg.OIDCClientID, "oidc-client-id", envOr("API_OIDC_CLIENT_ID", ""),
+		"External identity provider client ID. Env: API_OIDC_CLIENT_ID")
+	rootCmd.Flags().StringVar(&cfg.OIDCRedirectURL, "oidc-redirect-url", envOr("API_OIDC_REDIRECT_URL", ""),
+		"OAuth redirect URL for the API authentication flow. Env: API_OIDC_REDIRECT_URL")
+	rootCmd.Flags().BoolVar(&cfg.OIDCPKCEEnabled, "oidc-pkce-enabled", envBoolOr("API_OIDC_PKCE_ENABLED", true),
+		"Enable PKCE for the OIDC authentication flow. Env: API_OIDC_PKCE_ENABLED")
+	rootCmd.Flags().StringVar(&cfg.OIDCStateExpiration, "oidc-state-expiration", envOr("API_OIDC_STATE_EXPIRATION", "15m"),
+		"OIDC state cache expiration duration. Env: API_OIDC_STATE_EXPIRATION")
+	rootCmd.Flags().StringVar(&cfg.SessionCookieName, "session-cookie-name", envOr("API_SESSION_COOKIE_NAME", "kden-session"),
+		"Session cookie name. Env: API_SESSION_COOKIE_NAME")
+	rootCmd.Flags().BoolVar(&cfg.SessionCookieHTTPOnly, "session-cookie-http-only", envBoolOr("API_SESSION_COOKIE_HTTP_ONLY", true),
+		"Set HttpOnly on the session cookie. Env: API_SESSION_COOKIE_HTTP_ONLY")
+	rootCmd.Flags().BoolVar(&cfg.SessionCookieSecure, "session-cookie-secure", envBoolOr("API_SESSION_COOKIE_SECURE", false),
+		"Set Secure on the session cookie. Env: API_SESSION_COOKIE_SECURE")
+	rootCmd.Flags().StringVar(&cfg.SessionCookieSameSite, "session-cookie-same-site", envOr("API_SESSION_COOKIE_SAME_SITE", "SameSiteStrictMode"),
+		"Session cookie SameSite mode. Env: API_SESSION_COOKIE_SAME_SITE")
+	rootCmd.Flags().StringVar(&cfg.SessionExpiry, "session-expiry", envOr("API_SESSION_EXPIRY", "12h"),
+		"Server-side session expiry duration. Env: API_SESSION_EXPIRY")
 }
 
 func startServer(cmd *cobra.Command, _ []string) error {
@@ -104,12 +132,14 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to build k8s client: %w", err)
 	}
 
-	// TODO add PKCEEnabled to config
 	oidcConfig := oidc.Config{
-		IdentityProviderURI: cfg.AuthIssuerURL,
-		RedirectURI:         cfg.AuthRedirectURL,
-		ClientID:            cfg.AuthClientID,
-		PKCEEnabled:         true,
+		IdentityProviderURI: parsed.OIDCIssuerURL,
+		TokenURL:            parsed.OIDCTokenURL,
+		AuthorizationURL:    parsed.OIDCAuthorizationURL,
+		DeviceAuthURL:       parsed.OIDCDeviceAuthURL,
+		RedirectURI:         parsed.OIDCRedirectURL,
+		ClientID:            parsed.OIDCClientID,
+		PKCEEnabled:         parsed.OIDCPKCEEnabled,
 	}
 
 	oidcClient := oidc.NewOIDCClient(oidcConfig)
@@ -120,7 +150,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	stateStore := oidc.NewStateCacheStore(parsed)
 	sessionStore := session.NewSessionCacheStore(parsed)
 
-	serverHandler, err := handler.NewServerHandler(logger, k8sClient, *oidcClient, stateStore, sessionStore)
+	serverHandler, err := handler.NewServerHandler(logger, k8sClient, *oidcClient, stateStore, sessionStore, parsed)
 	if err != nil {
 		return fmt.Errorf("failed to create server handler: %w", err)
 	}
@@ -132,6 +162,16 @@ func startServer(cmd *cobra.Command, _ []string) error {
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func envBoolOr(key string, fallback bool) bool {
+	if v := os.Getenv(key); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			return parsed
+		}
 	}
 	return fallback
 }

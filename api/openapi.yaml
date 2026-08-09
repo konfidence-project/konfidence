@@ -302,17 +302,6 @@ components:
         type: string
 
   schemas:
-    HealthStatus:
-      type: object
-      required: [ status ]
-      properties:
-        status:
-          type: string
-
-    ReadinessStatus:
-      allOf:
-        - $ref: "#/components/schemas/HealthStatus"
-
     ProjectList:
       type: object
       required: [ data ]

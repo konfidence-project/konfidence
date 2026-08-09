@@ -25,9 +25,10 @@ Kubernetes: `>=1.27.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
-| api.auth.clientId | string | `"konfidence"` |  |
-| api.auth.issuerURL | string | `"http://localhost:5556/dex"` |  |
-| api.auth.redirectURL | string | `"http://localhost:8090/api/v1/auth/callback"` |  |
+| api.auth.clientId | string | `""` |  |
+| api.auth.issuerURL | string | `""` |  |
+| api.auth.pkceEnabled | bool | `true` |  |
+| api.auth.redirectURL | string | `""` |  |
 | api.enabled | bool | `true` |  |
 | api.env | list | `[]` |  |
 | api.extraArgs | list | `[]` |  |
@@ -37,10 +38,20 @@ Kubernetes: `>=1.27.0-0`
 | api.ingress.annotations | object | `{}` |  |
 | api.ingress.className | string | `""` |  |
 | api.ingress.enabled | bool | `false` |  |
-| api.ingress.hosts[0].host | string | `"konfidence-api.example.com"` |  |
+| api.ingress.hosts[0].host | string | `""` |  |
 | api.ingress.hosts[0].paths[0].path | string | `"/"` |  |
 | api.ingress.hosts[0].paths[0].pathType | string | `"Prefix"` |  |
 | api.ingress.tls | list | `[]` |  |
+| api.oidc.authorizationURL | string | `""` |  |
+| api.oidc.clientId | string | `""` |  |
+| api.oidc.deviceAuthURL | string | `""` |  |
+| api.oidc.issuerURL | string | `""` |  |
+| api.oidc.jwksURL | string | `""` |  |
+| api.oidc.pkceEnabled | bool | `true` |  |
+| api.oidc.redirectURL | string | `""` |  |
+| api.oidc.stateExpiration | string | `"15m"` |  |
+| api.oidc.tokenURL | string | `""` |  |
+| api.oidc.userInfoURL | string | `""` |  |
 | api.podAnnotations | object | `{}` |  |
 | api.podDisruptionBudget.enabled | bool | `false` |  |
 | api.podDisruptionBudget.maxUnavailable | int | `1` |  |
@@ -57,6 +68,11 @@ Kubernetes: `>=1.27.0-0`
 | api.service.nodePort | string | `""` |  |
 | api.service.port | int | `8090` |  |
 | api.service.type | string | `"ClusterIP"` |  |
+| api.session.cookie.httpOnly | bool | `true` |  |
+| api.session.cookie.name | string | `"kden-session"` |  |
+| api.session.cookie.sameSite | string | `"SameSiteStrictMode"` |  |
+| api.session.cookie.secure | bool | `false` |  |
+| api.session.expiry | string | `"12h"` |  |
 | api.volumeMounts | list | `[]` |  |
 | api.volumes | list | `[]` |  |
 | containerSecurityContext.allowPrivilegeEscalation | bool | `false` |  |

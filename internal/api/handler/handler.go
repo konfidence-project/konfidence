@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
@@ -19,8 +20,8 @@ type ServerHandler struct {
 var _ openapi.StrictServerInterface = (*ServerHandler)(nil)
 
 func NewServerHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Client,
-	stateStore oidc.StateStore, sessionStore session.SessionStore) (*ServerHandler, error) {
-	authHandler := NewAuthHandler(logger, oidcClient, stateStore, sessionStore, k8s)
+	stateStore oidc.StateStore, sessionStore session.SessionStore, cfg config.Parsed) (*ServerHandler, error) {
+	authHandler := NewAuthHandler(logger, oidcClient, stateStore, sessionStore, cfg, k8s)
 	projectHandler := NewProjectHandler(k8s)
 
 	return &ServerHandler{

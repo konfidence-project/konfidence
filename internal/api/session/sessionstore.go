@@ -2,7 +2,6 @@ package session
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/konfidence-project/konfidence/internal/api/config"
@@ -41,11 +40,9 @@ func (s *SessionCacheStore) Get(id string) (*Session, error) {
 	return nil, nil
 }
 
-func NewSessionCacheStore(_ config.Parsed) *SessionCacheStore {
-	// TODO use value from cfg
-	oidcSessionExpiration := 30 * time.Minute
+func NewSessionCacheStore(cfg config.Parsed) *SessionCacheStore {
 	cache := otter.Must(&otter.Options[string, Session]{
-		ExpiryCalculator: otter.ExpiryAccessing[string, Session](oidcSessionExpiration),
+		ExpiryCalculator: otter.ExpiryAccessing[string, Session](cfg.SessionExpiry),
 	})
 
 	return &SessionCacheStore{cache: *cache}
