@@ -25,10 +25,6 @@ Kubernetes: `>=1.27.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
-| api.auth.clientId | string | `""` |  |
-| api.auth.issuerURL | string | `""` |  |
-| api.auth.pkceEnabled | bool | `true` |  |
-| api.auth.redirectURL | string | `""` |  |
 | api.enabled | bool | `true` |  |
 | api.env | list | `[]` |  |
 | api.extraArgs | list | `[]` |  |
