@@ -10,7 +10,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/controller"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
-	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
+	"github.com/konfidence-project/konfidence/pkg/lrucache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"github.com/konfidence-project/konfidence/pkg/operator"
 )
@@ -42,13 +42,13 @@ func SetupControllers(mgr ctrl.Manager, opts Options) error {
 
 	log := logf.Log.WithName("vectorassembly")
 
-	cache, err := clientcache.New(
-		clientcache.DefaultClientCacheSize,
-		clientcache.DefaultExtract[*konfidence.VectorTemplate],
+	cache, err := lrucache.New(
+		lrucache.DefaultCacheSize,
+		lrucache.CRExtract[*konfidence.VectorTemplate],
 		controller.NewCacheFactory(log, opts.Limiter),
 	)
 	if err != nil {
-		return fmt.Errorf("creating clientcache: %w", err)
+		return fmt.Errorf("creating cache: %w", err)
 	}
 
 	if err := controller.NewVectorTemplateReconciler(mgr, cache, vector.TimestampVectorVersionGenerator).

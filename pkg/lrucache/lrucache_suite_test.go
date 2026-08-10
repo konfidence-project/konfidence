@@ -1,4 +1,4 @@
-package clientcache_test
+package lrucache_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestClientCache(t *testing.T) {
+func TestLRUCache(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "ClientCache Suite")
+	RunSpecs(t, "LRUCache Suite")
 }

@@ -11,7 +11,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
-	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
+	"github.com/konfidence-project/konfidence/pkg/lrucache"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -46,7 +46,7 @@ var errBaseVectorNotReady = errors.New("base vector not ready")
 type VectorTemplateReconciler struct {
 	client.Client
 	Recorder         events.EventRecorder
-	Cache            *clientcache.Cache[*konfidence.VectorTemplate, vector.OcmPort]
+	Cache            *lrucache.Cache[*konfidence.VectorTemplate, vector.OcmPort]
 	VersionGenerator vector.VersionGenerator
 }
 
@@ -463,7 +463,7 @@ func getVectorConfiguration(vectorTemplate konfidence.VectorTemplate) (*vector.V
 // NewVectorTemplateReconciler wires a VectorTemplateReconciler for the given manager.
 func NewVectorTemplateReconciler(
 	mgr ctrl.Manager,
-	cache *clientcache.Cache[*konfidence.VectorTemplate, vector.OcmPort],
+	cache *lrucache.Cache[*konfidence.VectorTemplate, vector.OcmPort],
 	versionGenerator vector.VersionGenerator,
 ) *VectorTemplateReconciler {
 	return &VectorTemplateReconciler{
