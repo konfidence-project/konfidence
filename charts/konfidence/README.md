@@ -41,6 +41,7 @@ Kubernetes: `>=1.27.0-0`
 | api.oidc.authorizationURL                         | string | `""` |  |
 | api.oidc.clientId                                 | string | `""` |  |
 | api.oidc.clientSecret                             | string | `""` |  |
+| api.oidc.scopes                                   | string | `"openid,profile,email,groups,offline_access"` |  |
 | api.oidc.deviceAuthURL                            | string | `""` |  |
 | api.oidc.issuerURL                                | string | `""` |  |
 | api.oidc.jwksURL                                  | string | `""` |  |

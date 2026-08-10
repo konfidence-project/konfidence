@@ -47,6 +47,8 @@ by the flags below.
   API_SHUTDOWN_TIMEOUT   Graceful shutdown window           (default: 15s)
   API_OIDC_ISSUER_URL    External IDP issuer URL
   API_OIDC_CLIENT_ID     External IDP client ID
+  API_OIDC_CLIENT_SECRET External IDP client secret
+  API_OIDC_SCOPES        External IDP client scopes
   API_OIDC_REDIRECT_URL  OAuth redirect URL
   API_OIDC_PKCE_ENABLED  Enable PKCE for OIDC auth flow     (default: true)
   API_OIDC_STATE_EXPIRATION OIDC state cache expiration      (default: 15m)
@@ -94,6 +96,8 @@ func init() {
 		"External identity provider client ID. Env: API_OIDC_CLIENT_ID")
 	rootCmd.Flags().StringVar(&cfg.OIDCClientSecret, "oidc-client-secret", envOr("API_OIDC_CLIENT_SECRET", ""),
 		"External identity provider client Secret. Env: API_OIDC_CLIENT_SECRET")
+	rootCmd.Flags().StringVar(&cfg.OIDCScopes, "oidc-scopes", envOr("API_OIDC_SCOPES", ""),
+		"External identity provider client scopes. Env: API_OIDC_SCOPES")
 	rootCmd.Flags().StringVar(&cfg.OIDCRedirectURL, "oidc-redirect-url", envOr("API_OIDC_REDIRECT_URL", ""),
 		"OAuth redirect URL for the API authentication flow. Env: API_OIDC_REDIRECT_URL")
 	rootCmd.Flags().BoolVar(&cfg.OIDCPKCEEnabled, "oidc-pkce-enabled", envBoolOr("API_OIDC_PKCE_ENABLED", true),
@@ -147,6 +151,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		RedirectURI:         parsed.OIDCRedirectURL,
 		ClientID:            parsed.OIDCClientID,
 		ClientSecret:        parsed.OIDCClientSecret,
+		Scopes:              parsed.OIDCScopes,
 		PKCEEnabled:         parsed.OIDCPKCEEnabled,
 	}
 

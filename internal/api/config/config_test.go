@@ -19,6 +19,8 @@ var _ = Describe("Config.Validate", func() {
 			LogLevel:              "info",
 			OIDCIssuerURL:         "http://localhost:5556/oauth",
 			OIDCClientID:          "konfidence",
+			OIDCClientSecret:      "secret",
+			OIDCScopes:            "openid,customScope",
 			OIDCRedirectURL:       "http://localhost:8090/api/v1/auth/callback",
 			OIDCPKCEEnabled:       true,
 			OIDCStateExpiration:   "15m",
@@ -36,6 +38,8 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.Addr).To(Equal(":8090"))
 		Expect(parsed.OIDCIssuerURL).To(Equal("http://localhost:5556/oauth"))
 		Expect(parsed.OIDCClientID).To(Equal("konfidence"))
+		Expect(parsed.OIDCClientSecret).To(Equal("secret"))
+		Expect(parsed.OIDCScopes).To(ConsistOf([]string{"openid", "profile", "offline_access", "groups", "customScope"}))
 		Expect(parsed.OIDCRedirectURL).To(Equal("http://localhost:8090/api/v1/auth/callback"))
 		Expect(parsed.OIDCPKCEEnabled).To(BeTrue())
 		Expect(parsed.OIDCStateExpiration.Minutes()).To(Equal(15.0))
@@ -86,6 +90,7 @@ var _ = Describe("Config.Validate", func() {
 		},
 		Entry("oidc-issuer-url", "oidc-issuer-url", func(c *config.Config) { c.OIDCIssuerURL = "" }),
 		Entry("oidc-client-id", "oidc-client-id", func(c *config.Config) { c.OIDCClientID = "" }),
+		Entry("oidc-client-secret", "oidc-client-secret", func(c *config.Config) { c.OIDCClientSecret = "" }),
 		Entry("oidc-redirect-url", "oidc-redirect-url", func(c *config.Config) { c.OIDCRedirectURL = "" }),
 		Entry("session-cookie-name", "session-cookie-name", func(c *config.Config) { c.SessionCookieName = "" }),
 	)
@@ -104,6 +109,7 @@ var _ = Describe("Config.Validate", func() {
 			OIDCUserInfoURL:       "https://idp.example.com/userinfo",
 			OIDCJWKSURL:           "https://idp.example.com/jwks",
 			OIDCClientID:          "konfidence",
+			OIDCClientSecret:      "secret",
 			OIDCRedirectURL:       "https://konfidence.example.com/auth/callback",
 			OIDCPKCEEnabled:       false,
 			OIDCStateExpiration:   "5m",

@@ -45,6 +45,7 @@ spec:
             - --shutdown-timeout={{ .Values.api.server.shutdownTimeout }}
             - --oidc-issuer-url={{ required "api.oidc.issuerURL is required" .Values.api.oidc.issuerURL }}
             - --oidc-client-id={{ required "api.oidc.clientId is required" .Values.api.oidc.clientId }}
+            - --oidc-scopes={{ .Values.api.oidc.scopes }}
             - --oidc-redirect-url={{ required "api.oidc.redirectURL is required" .Values.api.oidc.redirectURL }}
             - --oidc-token-url={{ .Values.api.oidc.tokenURL }}
             - --oidc-authorization-url={{ .Values.api.oidc.authorizationURL }}

@@ -69,6 +69,7 @@ API_WRITE_TIMEOUT ?= 10s
 API_SHUTDOWN_TIMEOUT ?= 15s
 API_OIDC_ISSUER_URL ?= http://localhost:5556/oidc
 API_OIDC_CLIENT_ID ?= konfidence
+API_OIDC_SCOPES ?= openid,profile,email,groups,offline_access
 API_OIDC_REDIRECT_URL ?= http://localhost:8090/api/v1/auth/callback
 API_OIDC_TOKEN_URL ?=
 API_OIDC_AUTHORIZATION_URL ?=
@@ -268,6 +269,7 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--oidc-issuer-url=$(API_OIDC_ISSUER_URL) \
 		--oidc-client-id=$(API_OIDC_CLIENT_ID) \
 		--oidc-client-secret=$(API_OIDC_CLIENT_SECRET) \
+		--oidc-scopes=$(API_OIDC_SCOPES) \
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-token-url=$(API_OIDC_TOKEN_URL) \
 		--oidc-authorization-url=$(API_OIDC_AUTHORIZATION_URL) \

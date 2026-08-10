@@ -87,6 +87,7 @@ api:
     jwksURL: ""
     clientId: ""
     clientSecret: ""
+    scopes: "openid,profile,email,groups,offline_access"
     redirectURL: ""
     pkceEnabled: true
     stateExpiration: 15m

@@ -2,8 +2,13 @@ package config
 
 import (
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 	"time"
+	"unicode"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -22,6 +27,7 @@ type Config struct {
 	OIDCJWKSURL           string
 	OIDCClientID          string
 	OIDCClientSecret      string
+	OIDCScopes            string
 	OIDCRedirectURL       string
 	OIDCPKCEEnabled       bool
 	OIDCStateExpiration   string
@@ -45,6 +51,7 @@ type Parsed struct {
 	OIDCJWKSURL           string
 	OIDCClientID          string
 	OIDCClientSecret      string
+	OIDCScopes            []string
 	OIDCRedirectURL       string
 	OIDCPKCEEnabled       bool
 	OIDCStateExpiration   time.Duration
@@ -105,6 +112,8 @@ func (c Config) Validate() (Parsed, error) {
 	if c.SessionCookieName == "" {
 		return Parsed{}, fmt.Errorf("session-cookie-name must not be empty")
 	}
+
+	scopes := c.mergeScopes(parseCommaSeparatedList(c.OIDCScopes))
 	return Parsed{
 		Addr:                  c.Addr,
 		LogLevel:              c.LogLevel,
@@ -116,6 +125,7 @@ func (c Config) Validate() (Parsed, error) {
 		OIDCJWKSURL:           c.OIDCJWKSURL,
 		OIDCClientID:          c.OIDCClientID,
 		OIDCClientSecret:      c.OIDCClientSecret,
+		OIDCScopes:            scopes,
 		OIDCRedirectURL:       c.OIDCRedirectURL,
 		OIDCPKCEEnabled:       c.OIDCPKCEEnabled,
 		OIDCStateExpiration:   oidcStateExpiration,
@@ -129,4 +139,23 @@ func (c Config) Validate() (Parsed, error) {
 		WriteTimeout:          write,
 		ShutdownTimeout:       shutdown,
 	}, nil
+}
+
+func parseCommaSeparatedList(csl string) []string {
+	return strings.FieldsFunc(csl, func(r rune) bool {
+		return r == ',' || unicode.IsSpace(r)
+	})
+}
+
+func (c Config) mergeScopes(scopes []string) []string {
+	// default scopes
+	scopeMap := map[string]bool{
+		oidc.ScopeOpenID: true, "profile": true, "groups": true, "offline_access": true,
+	}
+
+	for _, scope := range scopes {
+		scopeMap[scope] = true
+	}
+
+	return slices.Collect(maps.Keys(scopeMap))
 }

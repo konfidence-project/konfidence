@@ -18,6 +18,7 @@ type Config struct {
 	DeviceAuthURL       string
 	ClientID            string
 	ClientSecret        string
+	Scopes              []string
 	RedirectURI         string
 	PKCEEnabled         bool
 }
@@ -92,7 +93,7 @@ func (c *Client) Setup(ctx context.Context) error {
 		ClientSecret: c.config.ClientSecret,
 		RedirectURL:  c.config.RedirectURI,
 		Endpoint:     endpoint,
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email", "groups", "offline_access"},
+		Scopes:       c.config.Scopes,
 	}
 
 	// create an ID Token verifier.
