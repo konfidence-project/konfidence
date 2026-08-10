@@ -1,6 +1,7 @@
 package vectorassembly
 
 import (
+	"context"
 	"fmt"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -11,9 +12,21 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/operator"
 )
 
 const OperatorFlagName = "VectorAssembly"
+
+// Domain wires the vector assembly controllers into the operator's --controllers flag.
+func Domain() operator.Domain {
+	return operator.Domain{
+		Name:        OperatorFlagName,
+		Controllers: "VectorTemplate",
+		Setup: func(_ context.Context, deps operator.Deps) error {
+			return SetupControllers(deps.Mgr, Options{Limiter: deps.Limiter})
+		},
+	}
+}
 
 // Options configures the vector assembly controllers.
 type Options struct {

@@ -11,9 +11,21 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/operator"
 )
 
 const OperatorFlagName = "VectorPromotion"
+
+// Domain wires the vector promotion controllers into the operator's --controllers flag.
+func Domain() operator.Domain {
+	return operator.Domain{
+		Name:        OperatorFlagName,
+		Controllers: "VectorPromotion, VectorPromotionTTL, VectorPromotionStatusPropagation",
+		Setup: func(ctx context.Context, deps operator.Deps) error {
+			return SetupControllers(ctx, deps.Mgr, Options{Limiter: deps.Limiter})
+		},
+	}
+}
 
 // Options configures the vector promotion controllers.
 type Options struct {

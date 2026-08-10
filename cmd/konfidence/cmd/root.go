@@ -84,7 +84,7 @@ func controllersHelp() string {
 		"A spec with only negations enables everything else, e.g. '!VectorAssembly'. " +
 		"Examples: '*' (all), 'Stage', 'Vector*'.\nController groups and the controllers they run:")
 	for _, domain := range controllerDomains() {
-		fmt.Fprintf(&b, "\n  %-18s  %s", domain.name, domain.controllers)
+		fmt.Fprintf(&b, "\n  %-18s  %s", domain.Name, domain.Controllers)
 	}
 	return b.String()
 }

@@ -1,6 +1,7 @@
 package stageconfiguration
 
 import (
+	"context"
 	"fmt"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -10,9 +11,21 @@ import (
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/operator"
 )
 
 const OperatorFlagName = "StageConfiguration"
+
+// Domain wires the stage configuration controllers into the operator's --controllers flag.
+func Domain() operator.Domain {
+	return operator.Domain{
+		Name:        OperatorFlagName,
+		Controllers: "StageConfiguration",
+		Setup: func(_ context.Context, deps operator.Deps) error {
+			return SetupControllers(deps.Mgr, Options{Limiter: deps.Limiter})
+		},
+	}
+}
 
 // Options configures the stage configuration controllers.
 type Options struct {
