@@ -92,6 +92,8 @@ func init() {
 		"External identity provider JWKS URL. Env: API_OIDC_JWKS_URL")
 	rootCmd.Flags().StringVar(&cfg.OIDCClientID, "oidc-client-id", envOr("API_OIDC_CLIENT_ID", ""),
 		"External identity provider client ID. Env: API_OIDC_CLIENT_ID")
+	rootCmd.Flags().StringVar(&cfg.OIDCClientSecret, "oidc-client-secret", envOr("API_OIDC_CLIENT_SECRET", ""),
+		"External identity provider client Secret. Env: API_OIDC_CLIENT_SECRET")
 	rootCmd.Flags().StringVar(&cfg.OIDCRedirectURL, "oidc-redirect-url", envOr("API_OIDC_REDIRECT_URL", ""),
 		"OAuth redirect URL for the API authentication flow. Env: API_OIDC_REDIRECT_URL")
 	rootCmd.Flags().BoolVar(&cfg.OIDCPKCEEnabled, "oidc-pkce-enabled", envBoolOr("API_OIDC_PKCE_ENABLED", true),
@@ -144,6 +146,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		DeviceAuthURL:       parsed.OIDCDeviceAuthURL,
 		RedirectURI:         parsed.OIDCRedirectURL,
 		ClientID:            parsed.OIDCClientID,
+		ClientSecret:        parsed.OIDCClientSecret,
 		PKCEEnabled:         parsed.OIDCPKCEEnabled,
 	}
 

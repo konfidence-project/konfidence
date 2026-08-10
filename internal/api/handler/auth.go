@@ -37,7 +37,7 @@ func NewAuthHandler(logger *slog.Logger, oidcClient oidc.Client,
 
 func (a *AuthHandler) Login(_ context.Context, request openapi.LoginRequestObject) (openapi.LoginResponseObject, error) {
 	returnUrl := "/"
-	// TODO need to validate returnUrl parameter to prevent
+	// TODO need to validate returnUrl parameter
 	if request.Params.ReturnUrl != nil && *request.Params.ReturnUrl != "" {
 		returnUrl = *request.Params.ReturnUrl
 	}
@@ -110,14 +110,19 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 		return openapi.AuthCallback400JSONResponse{}, nil
 	}
 
-	// extract claims
-	claims, err := a.oidcClient.GetClaims(idToken)
+	userInformation, err := a.oidcClient.GetUserInformation(ctx, tokenResponse.AccessToken)
 	if err != nil {
-		a.logger.Error("failed to parse idToken claims")
+		a.logger.Error("failed to get user information")
+		return openapi.AuthCallback401JSONResponse{}, err
+	}
+
+	// extract additional claims
+	claims, err := a.oidcClient.GetClaims(userInformation)
+	if err != nil {
+		a.logger.Error("failed to parse idToken additional claims from user information")
 		return openapi.AuthCallback500JSONResponse{}, err
 	}
 
-	// TODO get groups from external endpoint
 	// TODO determine roles, for now use some default ones
 	roles := []string{"admin", "dev"}
 

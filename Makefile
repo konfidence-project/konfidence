@@ -267,6 +267,7 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--shutdown-timeout=$(API_SHUTDOWN_TIMEOUT) \
 		--oidc-issuer-url=$(API_OIDC_ISSUER_URL) \
 		--oidc-client-id=$(API_OIDC_CLIENT_ID) \
+		--oidc-client-secret=$(API_OIDC_CLIENT_SECRET) \
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-token-url=$(API_OIDC_TOKEN_URL) \
 		--oidc-authorization-url=$(API_OIDC_AUTHORIZATION_URL) \

@@ -17,6 +17,7 @@ type Config struct {
 	AuthorizationURL    string
 	DeviceAuthURL       string
 	ClientID            string
+	ClientSecret        string
 	RedirectURI         string
 	PKCEEnabled         bool
 }
@@ -53,16 +54,9 @@ type TokenResponse struct {
 	Expiry       time.Time
 }
 
-// IDTokenClaims represents the claims in the ID token.
-type IDTokenClaims struct {
-	// Standard OIDC claims
-	Iss               string   `json:"iss"`
-	Sub               string   `json:"sub"`
-	Aud               string   `json:"aud"`
-	Exp               int64    `json:"exp"`
-	Iat               int64    `json:"iat"`
+// IDTokenAdditionalClaims represents the claims in the ID token.
+type IDTokenAdditionalClaims struct {
 	Nbf               int64    `json:"nbf,omitempty"`
-	Nonce             string   `json:"nonce,omitempty"`
 	Email             string   `json:"email,omitempty"`
 	Groups            []string `json:"groups,omitempty"`
 	Name              string   `json:"name,omitempty"`
@@ -91,11 +85,14 @@ func (c *Client) Setup(ctx context.Context) error {
 		endpoint.DeviceAuthURL = c.config.DeviceAuthURL
 	}
 
+	endpoint.AuthStyle = oauth2.AuthStyleInHeader
+
 	c.oauth2Config = oauth2.Config{
-		ClientID:    c.config.ClientID,
-		RedirectURL: c.config.RedirectURI,
-		Endpoint:    endpoint,
-		Scopes:      []string{oidc.ScopeOpenID, "profile", "email", "groups"},
+		ClientID:     c.config.ClientID,
+		ClientSecret: c.config.ClientSecret,
+		RedirectURL:  c.config.RedirectURI,
+		Endpoint:     endpoint,
+		Scopes:       []string{oidc.ScopeOpenID, "profile", "email", "groups", "offline_access"},
 	}
 
 	// create an ID Token verifier.
@@ -175,13 +172,22 @@ func (c *Client) VerifyAndGetIdToken(ctx context.Context, token *oauth2.Token) (
 	return idToken, nil
 }
 
-func (c *Client) GetClaims(token *oidc.IDToken) (*IDTokenClaims, error) {
-	var claims IDTokenClaims
-	if err := token.Claims(&claims); err != nil {
+func (c *Client) GetClaims(userInformation *oidc.UserInfo) (*IDTokenAdditionalClaims, error) {
+	var claims IDTokenAdditionalClaims
+	if err := userInformation.Claims(&claims); err != nil {
 		return nil, fmt.Errorf("failed to parse claims: %w", err)
 	}
 
 	return &claims, nil
+}
+
+func (c *Client) GetUserInformation(ctx context.Context, accessToken string) (*oidc.UserInfo, error) {
+	token := &oauth2.Token{
+		AccessToken: accessToken,
+		TokenType:   "Bearer",
+	}
+	tokenSource := oauth2.StaticTokenSource(token)
+	return c.oidcProvider.UserInfo(ctx, tokenSource)
 }
 
 func generateRandomString(length int) (string, error) {

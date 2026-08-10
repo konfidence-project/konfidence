@@ -23,6 +23,7 @@ func validParsed(addr string) config.Parsed {
 		ShutdownTimeout:       "2s",
 		OIDCIssuerURL:         "http://localhost:5556/oidc",
 		OIDCClientID:          "konfidence",
+		OIDCClientSecret:      "a secret",
 		OIDCRedirectURL:       "http://localhost:8090/api/v1/auth/callback",
 		OIDCPKCEEnabled:       true,
 		OIDCStateExpiration:   "15m",

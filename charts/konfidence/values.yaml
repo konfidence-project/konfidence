@@ -86,6 +86,7 @@ api:
     userInfoURL: ""
     jwksURL: ""
     clientId: ""
+    clientSecret: ""
     redirectURL: ""
     pkceEnabled: true
     stateExpiration: 15m

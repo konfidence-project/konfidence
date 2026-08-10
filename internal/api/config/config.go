@@ -21,6 +21,7 @@ type Config struct {
 	OIDCUserInfoURL       string
 	OIDCJWKSURL           string
 	OIDCClientID          string
+	OIDCClientSecret      string
 	OIDCRedirectURL       string
 	OIDCPKCEEnabled       bool
 	OIDCStateExpiration   string
@@ -43,6 +44,7 @@ type Parsed struct {
 	OIDCUserInfoURL       string
 	OIDCJWKSURL           string
 	OIDCClientID          string
+	OIDCClientSecret      string
 	OIDCRedirectURL       string
 	OIDCPKCEEnabled       bool
 	OIDCStateExpiration   time.Duration
@@ -94,6 +96,9 @@ func (c Config) Validate() (Parsed, error) {
 	if c.OIDCClientID == "" {
 		return Parsed{}, fmt.Errorf("oidc-client-id must not be empty")
 	}
+	if c.OIDCClientSecret == "" {
+		return Parsed{}, fmt.Errorf("oidc-client-secret must not be empty")
+	}
 	if c.OIDCRedirectURL == "" {
 		return Parsed{}, fmt.Errorf("oidc-redirect-url must not be empty")
 	}
@@ -110,6 +115,7 @@ func (c Config) Validate() (Parsed, error) {
 		OIDCUserInfoURL:       c.OIDCUserInfoURL,
 		OIDCJWKSURL:           c.OIDCJWKSURL,
 		OIDCClientID:          c.OIDCClientID,
+		OIDCClientSecret:      c.OIDCClientSecret,
 		OIDCRedirectURL:       c.OIDCRedirectURL,
 		OIDCPKCEEnabled:       c.OIDCPKCEEnabled,
 		OIDCStateExpiration:   oidcStateExpiration,
