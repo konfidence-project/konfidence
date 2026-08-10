@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"time"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
@@ -34,6 +35,7 @@ const (
 	EventActionStatusPatch       = "StatusPatch"
 	EventActionDriftDetection    = "DriftDetection"
 	EventActionVectorCreation    = "VectorCreation"
+	VectorCacheSize              = 2048
 )
 
 // errBaseVectorNotReady signals that the referenced base VectorTemplate has not assembled
@@ -47,6 +49,7 @@ type VectorTemplateReconciler struct {
 	client.Client
 	Recorder         events.EventRecorder
 	Cache            *lrucache.Cache[*konfidence.VectorTemplate, vector.OcmPort]
+	VectorCache      *lru.Cache[string, vector.Vector]
 	VersionGenerator vector.VersionGenerator
 }
 
@@ -221,7 +224,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 			return err
 		}
 
-		currentVector, err = ocmAdapter.GetVector(ctx, *latestVectorRef)
+		currentVector, err = r.getVectorCached(ctx, ocmAdapter, *latestVectorRef)
 		if errors.Is(err, vector.ErrVectorNotFound) {
 			msg := "Vector referenced by status.latestVector not found in OCM repository - creating new vector"
 			r.Recorder.Eventf(template, nil, corev1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
@@ -358,7 +361,7 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
 		return nil, err
 	}
 
-	baseVector, err := ocmAdapter.GetVector(ctx, *baseVectorOCMComponent)
+	baseVector, err := r.getVectorCached(ctx, ocmAdapter, *baseVectorOCMComponent)
 	if err != nil {
 		err = fmt.Errorf("unable to get artifacts from base vector (%s): %w", baseVectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -460,16 +463,34 @@ func getVectorConfiguration(vectorTemplate konfidence.VectorTemplate) (*vector.V
 	}, nil
 }
 
+// getVectorCached returns a verified vector from the LRU, calling
+// adapter.GetVector (OCI fetch + signature verify) only on a cache miss.
+// ErrVectorNotFound propagates uncached so the caller triggers a new assembly.
+func (r *VectorTemplateReconciler) getVectorCached(ctx context.Context, adapter vector.OcmPort, ref compref.Ref) (vector.Vector, error) {
+	key := ref.String()
+	if v, ok := r.VectorCache.Get(key); ok {
+		return v, nil
+	}
+	v, err := adapter.GetVector(ctx, ref)
+	if err != nil {
+		return vector.Vector{}, err
+	}
+	r.VectorCache.Add(key, v)
+	return v, nil
+}
+
 // NewVectorTemplateReconciler wires a VectorTemplateReconciler for the given manager.
 func NewVectorTemplateReconciler(
 	mgr ctrl.Manager,
 	cache *lrucache.Cache[*konfidence.VectorTemplate, vector.OcmPort],
+	vectorCache *lru.Cache[string, vector.Vector],
 	versionGenerator vector.VersionGenerator,
 ) *VectorTemplateReconciler {
 	return &VectorTemplateReconciler{
 		Client:           mgr.GetClient(),
 		Recorder:         mgr.GetEventRecorder(VectorAssemblyControllerName),
 		Cache:            cache,
+		VectorCache:      vectorCache,
 		VersionGenerator: versionGenerator,
 	}
 }

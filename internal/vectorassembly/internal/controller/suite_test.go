@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/lrucache"
@@ -172,7 +173,10 @@ func startManager() {
 	)
 	Expect(err).NotTo(HaveOccurred())
 
-	Expect(NewVectorTemplateReconciler(mgr, cache, testVersionGenerator).
+	vectorCache, err := lru.New[string, vector.Vector](VectorCacheSize)
+	Expect(err).NotTo(HaveOccurred())
+
+	Expect(NewVectorTemplateReconciler(mgr, cache, vectorCache, testVersionGenerator).
 		SetupWithManager(mgr)).To(Succeed())
 
 	managerCtx, managerCancel := context.WithCancel(ctx)

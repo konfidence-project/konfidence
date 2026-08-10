@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -51,7 +52,12 @@ func SetupControllers(mgr ctrl.Manager, opts Options) error {
 		return fmt.Errorf("creating cache: %w", err)
 	}
 
-	if err := controller.NewVectorTemplateReconciler(mgr, cache, vector.TimestampVectorVersionGenerator).
+	vectorCache, err := lru.New[string, vector.Vector](controller.VectorCacheSize)
+	if err != nil {
+		return fmt.Errorf("creating vector cache: %w", err)
+	}
+
+	if err := controller.NewVectorTemplateReconciler(mgr, cache, vectorCache, vector.TimestampVectorVersionGenerator).
 		SetupWithManager(mgr); err != nil {
 		return err
 	}
