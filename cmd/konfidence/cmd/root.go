@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/spf13/cobra"
@@ -71,9 +73,18 @@ func init() {
 		"Directory containing TLS certificate files (tls.crt and tls.key) for the webhook server. Only used when --enable-webhooks is true.")
 	rootCmd.PersistentFlags().IntVar(&webhookPort, "webhook-port", 9443,
 		"Port the webhook server listens on. Only used when --enable-webhooks is true.")
-	rootCmd.Flags().StringVar(&controllersSpec, "controllers", "*",
-		"Comma-separated glob expression selecting which controllers to enable. "+
-			"Examples: '*' (all), 'Stage', '!VectorAssembly,*' (all except), 'Vector*'. "+
-			"Tokens are set-based and order-independent; '!' negates.")
+	rootCmd.Flags().StringVar(&controllersSpec, "controllers", "*", controllersHelp())
 	rootCmd.Flags().StringVar(&leaseID, "lease-id", "konfidence-operator.konfidence.cloud", "The ID used for leader election.")
+}
+
+func controllersHelp() string {
+	var b strings.Builder
+	b.WriteString("Comma-separated list of [!]<glob> tokens selecting which controller groups to enable. " +
+		"Tokens are set-based and order-independent; '!' negates. " +
+		"A spec with only negations enables everything else, e.g. '!VectorAssembly'. " +
+		"Examples: '*' (all), 'Stage', 'Vector*'.\nController groups and the controllers they run:")
+	for _, domain := range controllerDomains() {
+		fmt.Fprintf(&b, "\n  %-18s  %s", domain.name, domain.controllers)
+	}
+	return b.String()
 }

@@ -53,22 +53,29 @@ func startOperator(_ *cobra.Command, _ []string) error {
 	signalContext, cancel := context.WithCancel(ctrl.SetupSignalHandler())
 	defer cancel()
 
-	controllerSetups := buildControllerSetups(signalContext, cancel, mgr)
+	domains := controllerDomains()
 
-	enabled, err := pkgcmd.FilterEnabledControllers(controllersSpec, controllerSetups)
+	enabled, err := pkgcmd.FilterEnabledControllers(controllersSpec, domainNames(domains))
 	if err != nil {
 		setupLog.Error(err, "invalid --controllers flag")
 		return err
 	}
 
-	for name, setup := range controllerSetups {
-		if !enabled[name] {
-			setupLog.Info("controller disabled", "controller", name)
+	deps := operatorDeps{
+		ctx:     signalContext,
+		cancel:  cancel,
+		mgr:     mgr,
+		limiter: crypto.NewLimiter(0),
+	}
+
+	for _, domain := range domains {
+		if !enabled[domain.name] {
+			setupLog.Info("controller disabled", "controller", domain.name)
 			continue
 		}
-		setupLog.Info("setting up controller", "controller", name)
-		if err := setup(); err != nil {
-			setupLog.Error(err, "unable to set up controller", "controller", name)
+		setupLog.Info("setting up controller", "controller", domain.name)
+		if err := domain.setup(deps); err != nil {
+			setupLog.Error(err, "unable to set up controller", "controller", domain.name)
 			return err
 		}
 	}
@@ -123,66 +130,92 @@ func startOperator(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// buildControllerSetups returns the registry of controller setup closures.
-func buildControllerSetups(ctx context.Context, cancel context.CancelFunc, mgr manager.Manager) map[string]func() error {
-	limiter := crypto.NewLimiter(0)
+// operatorDeps carries the runtime dependencies injected into a controller
+// domain's setup once it is enabled.
+type operatorDeps struct {
+	ctx     context.Context
+	cancel  context.CancelFunc
+	mgr     manager.Manager
+	limiter crypto.Limiter
+}
 
-	setups := map[string]func() error{
-		stage.OperatorFlagName: func() error {
-			if err := stage.SetupControllers(mgr, setupLog); err != nil {
-				return err
-			}
-			gc := stage.NewGarbageCollector(mgr)
-			setupLog.Info("Starting stageVersion garbage collector")
-			go func() {
-				if err := gc.Start(ctx); err != nil {
-					cancel()
-					setupLog.Error(err, "An error occurred while starting/running the stageVersion garbage collector")
+// controllerDomain is one --controllers toggle: the domain flag name and the
+// controllers it runs, as listed in the flag help.
+type controllerDomain struct {
+	name        string
+	controllers string
+	setup       func(operatorDeps) error
+}
+
+// controllerDomains is the --controllers registry, sorted by name. It is
+// dependency-free so the flag help can render it at init time.
+func controllerDomains() []controllerDomain {
+	return []controllerDomain{
+		{landscape.OperatorFlagName, "Landscape", func(d operatorDeps) error {
+			return landscape.SetupControllers(d.mgr, landscape.Options{})
+		}},
+		{project.OperatorFlagName, "Project", func(d operatorDeps) error {
+			return project.SetupControllers(d.mgr, project.Options{})
+		}},
+		{stage.OperatorFlagName,
+			"Stage, StageVersion, StageVersionUsage, stageVersion garbage collector",
+			func(d operatorDeps) error {
+				if err := stage.SetupControllers(d.mgr, setupLog); err != nil {
+					return err
 				}
-			}()
-			return nil
-		},
-		landscape.OperatorFlagName: func() error {
-			return landscape.SetupControllers(mgr, landscape.Options{})
-		},
-		taskorchestration.OperatorFlagName: func() error {
-			return taskorchestration.SetupControllers(mgr, setupLog)
-		},
-		vectoractivation.OperatorFlagName: func() error {
-			return vectoractivation.SetupControllers(mgr, setupLog)
-		},
-		vectordeployment.OperatorFlagName: func() error {
-			registrySecret, err := resolveRegistryCredentials(ctx, mgr)
+				gc := stage.NewGarbageCollector(d.mgr)
+				setupLog.Info("Starting stageVersion garbage collector")
+				go func() {
+					if err := gc.Start(d.ctx); err != nil {
+						d.cancel()
+						setupLog.Error(err, "An error occurred while starting/running the stageVersion garbage collector")
+					}
+				}()
+				return nil
+			}},
+		{stageconfiguration.OperatorFlagName, "StageConfiguration", func(d operatorDeps) error {
+			return stageconfiguration.SetupControllers(d.mgr, stageconfiguration.Options{
+				Limiter: d.limiter,
+			})
+		}},
+		{taskorchestration.OperatorFlagName, "TaskOrchestration", func(d operatorDeps) error {
+			return taskorchestration.SetupControllers(d.mgr, setupLog)
+		}},
+		{vectoractivation.OperatorFlagName, "VectorActivation", func(d operatorDeps) error {
+			return vectoractivation.SetupControllers(d.mgr, setupLog)
+		}},
+		{vectorassembly.OperatorFlagName, "VectorTemplate", func(d operatorDeps) error {
+			return vectorassembly.SetupControllers(d.mgr, vectorassembly.Options{
+				Limiter: d.limiter,
+			})
+		}},
+		{vectordeployment.OperatorFlagName, "VectorDeployment", func(d operatorDeps) error {
+			registrySecret, err := resolveRegistryCredentials(d.ctx, d.mgr)
 			if err != nil {
 				setupLog.Error(err, "unable to load registry credentials secret")
 				return err
 			}
-			return vectordeployment.SetupControllers(ctx, mgr, setupLog, vectordeployment.Options{
+			return vectordeployment.SetupControllers(d.ctx, d.mgr, setupLog, vectordeployment.Options{
 				OCISecret: registrySecret,
-				Limiter:   limiter,
+				Limiter:   d.limiter,
 			})
-		},
-		project.OperatorFlagName: func() error {
-			return project.SetupControllers(mgr, project.Options{})
-		},
-		stageconfiguration.OperatorFlagName: func() error {
-			return stageconfiguration.SetupControllers(mgr, stageconfiguration.Options{
-				Limiter: limiter,
-			})
-		},
-		vectorassembly.OperatorFlagName: func() error {
-			return vectorassembly.SetupControllers(mgr, vectorassembly.Options{
-				Limiter: limiter,
-			})
-		},
-		vectorpromotion.OperatorFlagName: func() error {
-			return vectorpromotion.SetupControllers(ctx, mgr, vectorpromotion.Options{
-				Limiter: limiter,
-			})
-		},
+		}},
+		{vectorpromotion.OperatorFlagName,
+			"VectorPromotion, VectorPromotionConfig, VectorPromotion TTL",
+			func(d operatorDeps) error {
+				return vectorpromotion.SetupControllers(d.ctx, d.mgr, vectorpromotion.Options{
+					Limiter: d.limiter,
+				})
+			}},
 	}
+}
 
-	return setups
+func domainNames(domains []controllerDomain) []string {
+	names := make([]string, len(domains))
+	for i, domain := range domains {
+		names[i] = domain.name
+	}
+	return names
 }
 
 // resolveRegistryCredentials loads the registry credentials secret from the k8s cluster.
