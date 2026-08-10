@@ -9,7 +9,7 @@ import (
 )
 
 type SessionStore interface {
-	Save(state Session) (string, error)
+	Save(state *Session) (string, error)
 	Get(id string) (*Session, error)
 	Delete(id string) error
 }
@@ -17,14 +17,18 @@ type SessionCacheStore struct {
 	cache otter.Cache[string, Session]
 }
 
-func (s *SessionCacheStore) Save(session Session) (string, error) {
+func (s *SessionCacheStore) Save(session *Session) (string, error) {
+	if session == nil {
+		return "", fmt.Errorf("failed to store session: session is empty")
+	}
+
 	uuid7, err := uuid.NewV7()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate session id: %w", err)
 	}
 
 	id := uuid7.String()
-	s.cache.Set(id, session)
+	s.cache.Set(id, *session)
 	return id, nil
 }
 

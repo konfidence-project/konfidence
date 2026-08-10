@@ -47,7 +47,7 @@ func (a *AuthHandler) Login(_ context.Context, request openapi.LoginRequestObjec
 		return nil, err
 	}
 
-	err = a.stateCache.Save(*state)
+	err = a.stateCache.Save(state)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 		return openapi.AuthCallback400JSONResponse{}, nil
 	}
 
-	err = a.stateCache.Delete(*storedState)
+	err = a.stateCache.Delete(storedState)
 	if err != nil {
 		a.logger.Error("failed to get delete stored oidc state", "error", err)
 		// no error thrown here since stateStore should remove entry after TTL
@@ -137,7 +137,7 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 		Expiry:            tokenResponse.Expiry.Unix(),
 	}
 
-	sessionId, err := a.sessionStore.Save(sess)
+	sessionId, err := a.sessionStore.Save(&sess)
 	if err != nil {
 		a.logger.Error("failed to create session")
 		return openapi.AuthCallback500JSONResponse{}, err

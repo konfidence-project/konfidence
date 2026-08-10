@@ -11,6 +11,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	"github.com/konfidence-project/konfidence/internal/kden/log"
 	"github.com/spf13/cobra"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -119,8 +120,12 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	level := resolveLogLevel(cfg.LogLevel)
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	logHandler, err := log.ResolveLogHandler(cfg.LogLevel, "json")
+	if err != nil {
+		return fmt.Errorf("failed to initialize log handler: %w", err)
+	}
+
+	logger := slog.New(logHandler)
 
 	k8sConfig, err := ctrl.GetConfig()
 	if err != nil {
@@ -174,17 +179,4 @@ func envBoolOr(key string, fallback bool) bool {
 		}
 	}
 	return fallback
-}
-
-func resolveLogLevel(level string) slog.Level {
-	switch level {
-	case "debug":
-		return slog.LevelDebug
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
 }
