@@ -14,6 +14,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectordeployment"
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
+	"github.com/konfidence-project/konfidence/pkg/operator"
 )
 
 var _ = Describe("controllerDomains", func() {
@@ -30,21 +31,21 @@ var _ = Describe("controllerDomains", func() {
 	}
 
 	It("registers all controller groups", func() {
-		Expect(domainNames(controllerDomains())).To(ConsistOf(allControllers))
+		Expect(operator.Names(controllerDomains())).To(ConsistOf(allControllers))
 	})
 
 	It("lists the controllers of every group in the flag help", func() {
 		help := controllersHelp()
 		for _, domain := range controllerDomains() {
-			Expect(domain.controllers).NotTo(BeEmpty())
-			Expect(help).To(ContainSubstring(domain.name))
-			Expect(help).To(ContainSubstring(domain.controllers))
+			Expect(domain.Controllers).NotTo(BeEmpty())
+			Expect(help).To(ContainSubstring(domain.Name))
+			Expect(help).To(ContainSubstring(domain.Controllers))
 		}
 	})
 
 	It("accepts any controller group in the --controllers filter", func() {
 		enabled, err := pkgcmd.FilterEnabledControllers(stageconfiguration.OperatorFlagName,
-			domainNames(controllerDomains()))
+			operator.Names(controllerDomains()))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(enabled).To(Equal(map[string]bool{stageconfiguration.OperatorFlagName: true}))
 	})

@@ -8,6 +8,8 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	ocmcredentials "ocm.software/open-component-model/bindings/go/credentials"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -16,6 +18,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectordeployment/internal/ocm"
 	pkgcredentials "github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/operator"
 )
 
 const OperatorFlagName = "VectorDeployment"
@@ -26,6 +29,41 @@ const (
 	CredentialsSecretNameEnv = "KONFIDENCE_DEPLOYMENT_CREDENTIALS_SECRET_NAME"
 	CredentialsSecretNsEnv   = "KONFIDENCE_DEPLOYMENT_CREDENTIALS_SECRET_NAMESPACE"
 )
+
+// Domain wires the vector deployment controllers into the operator's --controllers flag.
+func Domain() operator.Domain {
+	return operator.Domain{
+		Name:        OperatorFlagName,
+		Controllers: "VectorDeployment",
+		Setup: func(ctx context.Context, deps operator.Deps) error {
+			registrySecret, err := resolveRegistryCredentials(ctx, deps.Mgr)
+			if err != nil {
+				return fmt.Errorf("load registry credentials secret: %w", err)
+			}
+			return SetupControllers(ctx, deps.Mgr, deps.Logger, Options{
+				OCISecret: registrySecret,
+				Limiter:   deps.Limiter,
+			})
+		},
+	}
+}
+
+// resolveRegistryCredentials loads the optional registry-credentials secret;
+// nil means no secret is configured.
+func resolveRegistryCredentials(ctx context.Context, mgr manager.Manager) (*corev1.Secret, error) {
+	const secretName = "registry-credentials"
+	const secretNamespace = "konfidence-system"
+
+	secret := &corev1.Secret{}
+	err := mgr.GetAPIReader().Get(ctx, types.NamespacedName{Namespace: secretNamespace, Name: secretName}, secret)
+	if apierrors.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret %s/%s: %w", secretNamespace, secretName, err)
+	}
+	return secret, nil
+}
 
 // Options configures the vector deployment controllers.
 type Options struct {
