@@ -8,15 +8,11 @@ import (
 )
 
 var _ = Describe("Filter", func() {
-	registered := map[string]func() error{
-		"StageConfiguration": func() error { return nil },
-		"VectorAssembly":     func() error { return nil },
-		"VectorPromotion":    func() error { return nil },
-	}
+	registered := []string{"StageConfiguration", "VectorAssembly", "VectorPromotion"}
 
 	all := func() map[string]bool {
 		out := map[string]bool{}
-		for n := range registered {
+		for _, n := range registered {
 			out[n] = true
 		}
 		return out
@@ -79,6 +75,33 @@ var _ = Describe("Filter", func() {
 				"StageConfiguration": true,
 				"VectorPromotion":    true,
 			}))
+		})
+
+		It("implies the full set when the spec has only negations", func() {
+			got, err := cmd.FilterEnabledControllers("!VectorAssembly", registered)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(Equal(map[string]bool{
+				"StageConfiguration": true,
+				"VectorPromotion":    true,
+			}))
+		})
+
+		It("implies the full set for multiple pure negations", func() {
+			got, err := cmd.FilterEnabledControllers("!VectorAssembly,!VectorPromotion", registered)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(Equal(map[string]bool{"StageConfiguration": true}))
+		})
+
+		It("implies the full set for a negated glob", func() {
+			got, err := cmd.FilterEnabledControllers("!Vector*", registered)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(Equal(map[string]bool{"StageConfiguration": true}))
+		})
+
+		It("does not imply the full set once a positive token is present", func() {
+			got, err := cmd.FilterEnabledControllers("VectorPromotion,!VectorAssembly", registered)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(Equal(map[string]bool{"VectorPromotion": true}))
 		})
 	})
 

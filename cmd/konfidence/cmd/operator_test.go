@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"context"
-
 	"github.com/konfidence-project/konfidence/internal/landscape"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,7 +16,7 @@ import (
 	pkgcmd "github.com/konfidence-project/konfidence/pkg/cmd"
 )
 
-var _ = Describe("buildControllerSetups", func() {
+var _ = Describe("controllerDomains", func() {
 	allControllers := []string{
 		stage.OperatorFlagName,
 		taskorchestration.OperatorFlagName,
@@ -31,24 +29,22 @@ var _ = Describe("buildControllerSetups", func() {
 		vectorpromotion.OperatorFlagName,
 	}
 
-	// The setup closures are only invoked once a controller is enabled and
-	// the manager runs, so a nil manager is safe for map-shape assertions.
-	build := func() map[string]func() error {
-		ctx, cancel := context.WithCancel(context.Background())
-		DeferCleanup(cancel)
-		return buildControllerSetups(ctx, cancel, nil)
-	}
+	It("registers all controller groups", func() {
+		Expect(domainNames(controllerDomains())).To(ConsistOf(allControllers))
+	})
 
-	It("registers all controllers", func() {
-		setups := build()
-		Expect(setups).To(HaveLen(len(allControllers)))
-		for _, name := range allControllers {
-			Expect(setups).To(HaveKey(name))
+	It("lists the controllers of every group in the flag help", func() {
+		help := controllersHelp()
+		for _, domain := range controllerDomains() {
+			Expect(domain.controllers).NotTo(BeEmpty())
+			Expect(help).To(ContainSubstring(domain.name))
+			Expect(help).To(ContainSubstring(domain.controllers))
 		}
 	})
 
-	It("accepts any controller in the --controllers filter", func() {
-		enabled, err := pkgcmd.FilterEnabledControllers(stageconfiguration.OperatorFlagName, build())
+	It("accepts any controller group in the --controllers filter", func() {
+		enabled, err := pkgcmd.FilterEnabledControllers(stageconfiguration.OperatorFlagName,
+			domainNames(controllerDomains()))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(enabled).To(Equal(map[string]bool{stageconfiguration.OperatorFlagName: true}))
 	})
