@@ -3,209 +3,207 @@
 ## Context
 
 Layers 1 and 2 are already shipped on `perf/async-assembly`:
-- **Layer 1**: `pkg/ocm/clientcache` → `pkg/lrucache` (generic LRU rename)
-- **Layer 2**: `lru.Cache[string, vector.Vector]` on the reconciler — `GetVector` served from memory on cache hits, zero OCI on the no-drift hot path
+- **Layer 1**: `lrucache.Cache` for OCM adapters — caches credentials resolver + OCI client + verifiers by `namespace/name/generation`. A spec change bumps generation → natural eviction.
+- **Layer 2**: `lru.Cache[string, vector.Vector]` for fetched vectors — `getVectorCached` serves from memory on ref hits, avoiding OCI reads for vectors that haven't changed.
 
-This document covers **Layer 3: async assembly**. The problem it solves: even with the vector cache, `GetArtifacts` and `CreateVector` still block the controller-runtime worker goroutine for the full duration of OCM I/O. Under `MaxConcurrentReconciles=1` every other VectorTemplate waits behind the slowest OCI call.
+This document covers **Layer 3: async assembly**. Even with both caches, `GetArtifacts` (OCI reads for upstream component descriptors) and `CreateVector` (OCI write) block the controller-runtime worker goroutine. Under `MaxConcurrentReconciles=1` every other VectorTemplate waits behind the slowest OCI call.
 
 The fix: fire OCM work on a background goroutine, return the worker to the queue immediately, apply the result on a later tick.
 
 ---
 
-## Primitives rejected
+## Why there is no synchronous drift-check path
 
-- **`singleflight`** — adds no value under `MaxConcurrentReconciles=1`. Singleflight deduplicates concurrent callers of the same key; with serial reconciles there is only ever one caller at a time.
-- **`go-pkgz/pool`** — fire-and-forget stream pool; no per-key result retrieval, no dedup, no way to hand a result to a later reconcile of the same key.
+Drift detection compares a `currentVector` (what we last built) against a `desiredVector` (what we want now). The desired vector is constructed from `GetArtifacts` results — upstream component descriptors fetched from OCI. This call always hits the network because its purpose is to detect upstream version changes that produce no Kubernetes event.
 
-**Settled primitive**: mutex-guarded `map[jobKey]*inflightJob` on the reconciler.
+Therefore every reconcile that wants to answer "is there drift?" must do at least one OCI call. The async design accepts this and launches a background job on every reconcile cycle.
 
 ---
 
-## Data types
+## Primitive
 
-### Job key — generation is load-bearing
+Mutex-guarded `map[types.NamespacedName]*inflightJob` on the reconciler.
 
-```go
-type jobKey struct {
-    types.NamespacedName
-    generation int64
-}
-```
+Rejected alternatives:
+- **`singleflight`** — deduplicates concurrent callers of the same key; useless under `MaxConcurrentReconciles=1` where there is only ever one caller.
+- **`go-pkgz/pool`** — fire-and-forget; no per-key result retrieval, no way to hand a result to a later reconcile.
 
-The controller-runtime work queue deduplicates by `NamespacedName`: rapid spec edits collapse to one pending entry; `r.Get` always returns the current (latest) object. The synchronous design therefore never processes a stale generation. The async design breaks this invariant:
+---
 
-- `gen=3` job is inflight → `gen=4` reconcile arrives
-- **Without generation in key**: Reconcile sees "job running" → returns `RequeueAfter` → `gen=4` spec change silently dropped until next poll. **Correctness bug.**
-- **With generation in key**: mismatch detected immediately → cancel `gen=3` context → launch `gen=4`. Spec change never lost.
-
-### Result type — no Kubernetes types in the goroutine
+## Types
 
 ```go
-type assemblyOutcome int
-
-const (
-    OutcomeNoDrift assemblyOutcome = iota // HasDrift false, no OCM write
-    OutcomeCreated                        // drift resolved, new vector written
-    OutcomeFailed                         // OCM error
-)
-
 type assemblyResult struct {
-    outcome       assemblyOutcome
-    latestVector  string // OutcomeCreated: ref string written to status.latestVector
-    vectorVersion string // NoDrift: current version; Created: new version (for messages)
+    latestVector  string // non-empty when drift was resolved and a new vector was written
+    vectorVersion string // current (no-drift) or new (created) version for condition messages
     componentName string // for log/event messages
-    err           error  // OutcomeFailed
+    err           error  // non-nil means the assembly failed
 }
 ```
 
-The goroutine produces a plain Go value. All Kubernetes type construction (conditions, events) happens in the reconcile goroutine via pure mapping functions.
-
-### Job lifecycle
+Interpreting the result:
+- `err != nil` → assembly failed (OCI error)
+- `err == nil && latestVector != ""` → drift resolved, new vector written
+- `err == nil && latestVector == ""` → no drift detected
 
 ```go
-type jobPhase int
-
-const (
-    PhaseAssembling jobPhase = iota
-    PhaseDone
-    PhaseFailed
-)
-
-type jobStatus struct {
-    Phase  jobPhase
-    Result assemblyResult // valid when Phase is terminal
-}
-
 type inflightJob struct {
-    cancel context.CancelFunc
-    status chan jobStatus // buffered capacity 1; goroutine does non-blocking replace
+    generation int64
+    cancel     context.CancelFunc
+    result     chan assemblyResult // buffered cap 1, sent exactly once
 }
 ```
 
-**Channel semantics**: buffered capacity 1. The goroutine sends with a non-blocking select, replacing a stale intermediate value if one is already sitting in the buffer. This means the reconcile goroutine always reads the latest status — no goroutine leak, no blocking send.
-
-**Methods** — channel mechanics never leak to callers:
-
-```go
-func (j *inflightJob) Status() jobStatus  // non-blocking snapshot of latest phase
-func (j *inflightJob) Consume() jobStatus // drain terminal result, release resources
-func (j *inflightJob) Cancel()            // cancel context; goroutine exits on next ctx check
-```
+A job is **done** when `len(job.result) > 0`. No lifecycle enum — the result encodes the outcome.
 
 ---
 
-## Reconciler additions
-
-Two new fields, never touched outside the named methods below:
+## Reconciler
 
 ```go
 type VectorTemplateReconciler struct {
     // ... existing fields ...
     mu       sync.Mutex
-    inflight map[jobKey]*inflightJob
+    inflight map[types.NamespacedName]*inflightJob
 }
 ```
 
-### Named methods — the only call sites for `r.mu` and `r.inflight`
+Helper methods (the only code that touches `r.mu`/`r.inflight`):
 
 ```go
-func (r *VectorTemplateReconciler) launchAssembly(key jobKey, ctx context.Context, ...)
-func (r *VectorTemplateReconciler) pollAssembly(key jobKey) (jobStatus, bool) // false = no job for this key
-func (r *VectorTemplateReconciler) completeAssembly(key jobKey)               // Consume + map delete
-func (r *VectorTemplateReconciler) cancelAssembly(key jobKey)                 // Cancel + map delete
+func (r *Reconciler) getJob(nn types.NamespacedName) (*inflightJob, bool)
+func (r *Reconciler) launchJob(nn types.NamespacedName, gen int64, fn func() assemblyResult) *inflightJob
+func (r *Reconciler) removeJob(nn types.NamespacedName)
 ```
 
-`launchAssembly` spawns the goroutine with a derived `context.WithCancel`, stores the `inflightJob` in the map, and returns immediately. The goroutine runs `GetArtifacts`, `HasDrift`, and optionally `CreateVector`, then pushes the result into the channel.
+`launchJob` creates a `context.WithCancel`, stores the job, and spawns a goroutine that calls `fn()` and sends the result into the channel.
 
 ---
 
-## Reconcile state machine
+## What the reconcile goroutine does (synchronous — no OCI)
+
+Before checking or launching a job, the reconcile goroutine performs cheap Kubernetes-only setup:
+
+1. `r.Get(ctx, req.NamespacedName, vt)` — fetch the VectorTemplate
+2. `r.Cache.Lookup(ctx, r.Client, vt)` — get or create the OCM adapter (Layer 1 cache; resolves credentials from k8s Secrets on miss)
+3. Parse `spec.components` → `[]compref.Ref` and `spec.uploadTarget` → upload ref
+4. If `spec.base != nil`: `r.Get` the base VectorTemplate → read `status.latestVector` → if empty, patch "waiting for base" condition and return (no requeue — re-enqueue comes from the base VT watch)
+
+All values computed here are passed **by value** into the background goroutine. The goroutine never calls `r.Get` or touches Kubernetes types.
+
+---
+
+## What the background goroutine does (OCI I/O)
+
+The goroutine receives: the OCM adapter, component refs, upload target ref, base vector ref (if applicable), current vector ref (from `status.latestVector`), desired vector config, and the version generator.
+
+```
+1. If base vector ref is set:
+     baseVector := getVectorCached(adapter, baseRef)   // Layer 2 cache hit or OCI read
+     baseArtifacts := baseVector.Artifacts
+
+2. If current vector ref is set:
+     currentVector := getVectorCached(adapter, currentRef) // Layer 2 cache hit or OCI read
+   else:
+     currentVector is zero (first build → drift will be detected)
+
+3. componentArtifacts := adapter.GetArtifacts(ctx, componentRefs)  // ALWAYS OCI — fetches upstream descriptors
+
+4. desiredArtifacts := combine(baseArtifacts, componentArtifacts)  // base artifacts overwritten by same-name component artifacts
+   desiredVector := Vector{Artifacts: desiredArtifacts, VectorConfig: vectorConfig}
+
+5. if !HasDrift(currentVector, desiredVector):
+     return assemblyResult{vectorVersion: currentVector.Version}   // no drift
+
+6. newVersion := versionGenerator.Generate()
+   newVector := desiredVector with version = newVersion
+   adapter.CreateVector(ctx, uploadTarget, newVector)              // OCI write
+   return assemblyResult{latestVector: refString, vectorVersion: newVersion, componentName: ...}
+```
+
+On any error at steps 1-6: return `assemblyResult{err: theError}`.
+
+Steps 1-2 benefit from the Layer 2 LRU cache — on steady-state reconciles both vectors are cached, so the only network call is `GetArtifacts` (step 3), plus `CreateVector` (step 6) if drift is found.
+
+---
+
+## State machine
 
 ```
 Reconcile(req):
 
-  1. Fast sync path (always runs, cheap — no OCM I/O):
-       r.Get → parse uploadTarget → resolve base VT (k8s Get) → note base latestVector ref
+  1. Synchronous setup (see above) → produces adapter, refs, config
 
-  2. Check inflight[{nn, gen}]:
-       hit + PhaseAssembling → patch Assembling condition → return RequeueAfter(5s)
-       hit + terminal        → completeAssembly(key) → apply result → patch status → return
-       miss                  → continue to step 3
+  2. job, exists := r.getJob(nn)
 
-  3. Check for any inflight job for nn with a DIFFERENT generation:
-       found → cancelAssembly(oldKey)   (context cancelled, goroutine exits at next ctx check)
+     exists && job.generation != vt.Generation:
+         job.Cancel() → r.removeJob(nn) → fall through to 3
 
-  4. Vector cache + drift check (cheap — memory only if both vectors cached):
-       own + base cache hits AND HasDrift false → NoDriftDetected condition → return
-       cache miss OR drift detected             → launchAssembly(key, ...) → patch Assembling
-                                                → return RequeueAfter(5s)
+     exists && job.generation == vt.Generation && not done:
+         patch Assembling condition → return RequeueAfter(5s)
+
+     exists && job.generation == vt.Generation && done:
+         res := <-job.result → r.removeJob(nn) → apply result → patch status
+         → return RequeueAfter(reconcileInterval)
+
+  3. r.launchJob(nn, vt.Generation, assemblyFn)
+     → patch Assembling condition → return RequeueAfter(5s)
 ```
 
-**What stays synchronous**: the `r.Get` on the base VectorTemplate (step 1). Base resolution needs the current cluster state at dispatch time. The resolved base artifacts are passed *into* the goroutine as a value — the goroutine never touches the Kubernetes API.
+After applying a terminal result, the reconcile returns `RequeueAfter(reconcileInterval)` (default 1 min) which drives the next periodic drift check. The 5s requeue is only for polling the inflight job.
 
 ---
 
-## Correctness: defence in depth
+## Correctness
 
-Three independent layers, each catching a different failure mode:
-
-| Layer | Mechanism | What it catches |
-|-------|-----------|-----------------|
-| 1 | `jobKey` includes `generation` | Stale inflight job detected at step 3; `gen=3` cancelled before `gen=4` launches |
-| 2 | Apply-time `vt.Generation == job.key.generation` guard before status patch | `gen=3` goroutine finishes *after* `gen=4` already wrote status; stale result silently discarded |
-| 3 | `resourceVersion` optimistic lock via `client.MergeFrom` | API server returns 409 on any conflicting concurrent write → controller-runtime backoff → requeue → fresh `r.Get` → self-healing |
-
-Layer 3 is a free backstop: `client.MergeFrom` captures `resourceVersion` at `r.Get` time. Any concurrent write (spec change, another controller's status patch) bumps `resourceVersion`, causing the patch to fail with 409. The backoff requeue picks up the latest object and self-heals. Note: `resourceVersion` increments on **any** write (spec or status subresource), not just spec changes — so it catches more races than `generation` alone.
+| Mechanism | What it catches |
+|-----------|-----------------|
+| `job.generation != vt.Generation` at step 2 | Stale job from older spec; cancelled before new work launches |
+| Generation re-check before status patch | Race where object was updated between poll and patch |
+| `client.MergeFrom` optimistic lock | API server 409 on any conflicting write → backoff → requeue → self-healing |
 
 ---
 
-## Status surface — pure mapping functions
+## Status surface
 
-Kubernetes types are never constructed inside the goroutine. Three pure functions handle the translation:
+Pure mapping functions translate results to Kubernetes types:
 
 ```go
-// assemblyResultToCondition maps a terminal result to the Ready condition.
-func assemblyResultToCondition(result assemblyResult, vt *konfidence.VectorTemplate) metav1.Condition
-
-// assemblyResultToEvent extracts event fields from a terminal result.
-func assemblyResultToEvent(result assemblyResult) (eventType, reason, action, message string)
-
-// assemblingCondition produces the in-progress condition patched while the goroutine runs.
-func assemblingCondition(vt *konfidence.VectorTemplate) metav1.Condition
+func assemblyResultToCondition(res assemblyResult, vt *v1alpha1.VectorTemplate) metav1.Condition
+func assemblyResultToEvent(res assemblyResult) (eventType, reason, action, message string)
+func assemblingCondition(vt *v1alpha1.VectorTemplate) metav1.Condition
 ```
-
-### Observable status surface (non-breaking)
 
 | Outcome | Condition reason | Message |
 |---------|-----------------|---------|
-| NoDrift | `NoDriftDetected` | `"No drift detected for vector - vector version is still %s"` |
-| Created | `VectorCreated` | `"Drift detected and new vector created successfully - new vector version is %s"` |
+| NoDrift | `NoDriftDetected` | `"No drift detected — vector version is still %s"` |
+| Created | `VectorCreated` | `"Drift detected and new vector created — version %s"` |
 | Failed  | `VectorCreationFailed` | `err.Error()` |
-| In-progress (new) | `Assembling` | `"Assembling vector in background"` |
+| In-progress | `Assembling` | `"Assembling vector in background"` |
 
-`Assembling` is the only new observable state. It is transient: the next reconcile tick (RequeueAfter 5s) replaces it with a terminal condition.
+`Assembling` is the only new observable state. Transient — replaced on the next tick.
 
 ---
 
-## Test additions
+## Tests
 
-Existing two-phase drift specs (`Eventually` polls) already tolerate async behaviour — no structural changes needed.
+Existing drift specs (`Eventually` polls) tolerate async without changes.
 
-Add two new specs:
+New specs:
 
-1. **`Assembling` condition appears before `VectorCreated`**: trigger drift, assert `Ready=False/Assembling` within the first requeue window, then assert `Ready=True/VectorCreated` after the goroutine completes.
+1. **Assembling → terminal**: trigger drift, assert `Assembling` within first requeue window, then assert `VectorCreated` after completion.
 
-2. **Generation guard**: create a VectorTemplate, trigger a spec change while a slow assembly is inflight (use a mock adapter with a delay), assert the stale result is not applied — `status.latestVector` reflects the `gen=N+1` outcome, not the cancelled `gen=N`.
+2. **Generation guard**: spec change while slow assembly is inflight (mock adapter with delay). Assert stale result discarded — status reflects the newer generation's outcome.
 
 ---
 
 ## File map
 
-All changes are in `internal/vectorassembly/internal/controller/`:
+All changes in `internal/vectorassembly/internal/controller/`:
 
 | File | Change |
 |------|--------|
-| `vectortemplate_controller.go` | Add `mu`, `inflight` fields; add `jobKey`, `assemblyOutcome`, `assemblyResult`, `jobPhase`, `jobStatus`, `inflightJob` types; add `launchAssembly`, `pollAssembly`, `completeAssembly`, `cancelAssembly` methods; rework `Reconcile` to the state machine above; add `assemblyResultToCondition`, `assemblyResultToEvent`, `assemblingCondition` |
-| `vectortemplate_controller_test.go` | Add `Assembling` condition spec and generation guard spec |
+| `vectortemplate_controller.go` | Add types, reconciler fields, helper methods, rewrite `Reconcile` to state machine, add mapping functions |
+| `vectortemplate_controller_test.go` | Add Assembling + generation guard specs |
 
-No API type changes. No changes outside the vectorassembly controller package.
+No API type changes. No changes outside the controller package.
