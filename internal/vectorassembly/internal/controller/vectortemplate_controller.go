@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/go-logr/logr"
 	lru "github.com/hashicorp/golang-lru/v2"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
@@ -31,6 +32,7 @@ import (
 
 const (
 	defaultReconcileInterval     = time.Minute
+	defaultAssemblyPollInterval  = 5 * time.Second
 	VectorAssemblyControllerName = "vector-assembly-controller"
 	EventActionStatusPatch       = "StatusPatch"
 	EventActionDriftDetection    = "DriftDetection"
@@ -38,19 +40,25 @@ const (
 	VectorCacheSize              = 2048
 )
 
-// errBaseVectorNotReady signals that the referenced base VectorTemplate has not assembled
-// a vector yet. It is a normal transient state, not a failure: the caller stops the current
-// reconcile without returning an error (no backoff) and relies on the base VectorTemplate
-// watch to re-enqueue this template once the base's status.latestVector is populated.
-var errBaseVectorNotReady = errors.New("base vector not ready")
+var (
+	// errBaseVectorNotReady signals that the referenced base VectorTemplate has not assembled
+	// a vector yet. It is a normal transient state, not a failure: the caller stops the current
+	// reconcile without returning an error (no backoff) and relies on the base VectorTemplate
+	// watch to re-enqueue this template once the base's status.latestVector is populated.
+	errBaseVectorNotReady = errors.New("base vector not ready")
+
+	errDriftDetectionFailed = errors.New("drift detection failed")
+)
 
 // VectorTemplateReconciler reconciles a VectorTemplate object
 type VectorTemplateReconciler struct {
 	client.Client
-	Recorder         events.EventRecorder
-	Cache            *clientcache.Cache[*konfidence.VectorTemplate, vector.OcmPort]
-	VectorCache      *lru.Cache[string, vector.Vector]
-	VersionGenerator vector.VersionGenerator
+	Recorder             events.EventRecorder
+	Cache                *clientcache.Cache[*konfidence.VectorTemplate, vector.OcmPort]
+	VectorCache          *lru.Cache[string, vector.Vector]
+	VersionGenerator     vector.VersionGenerator
+	jobs                 *jobRegistry
+	assemblyPollInterval time.Duration
 }
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
@@ -73,17 +81,18 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	originalVectorTemplate := vectorTemplate.DeepCopy()
 	patch := client.MergeFrom(originalVectorTemplate)
 
-	driftErr := r.detectAndActOnDrift(ctx, vectorTemplate)
+	result, reconcileErr := r.reconcileAsync(ctx, req.NamespacedName, vectorTemplate)
+
 	// errBaseVectorNotReady is a normal transient state, not a failure. Swallow it so the
 	// reconcile does not back off or record an error; the base VectorTemplate watch
 	// re-enqueues this template once the base's status.latestVector is populated. The
 	// informative waiting condition set on the status is still patched below.
-	waitingForBase := errors.Is(driftErr, errBaseVectorNotReady)
+	waitingForBase := errors.Is(reconcileErr, errBaseVectorNotReady)
 	if waitingForBase {
 		log.Info("waiting for base VectorTemplate to assemble a vector", "name", req.NamespacedName)
-		driftErr = nil
-	} else if driftErr != nil {
-		log.Error(driftErr, "error detecting or acting on drift for Vector template")
+		reconcileErr = nil
+	} else if reconcileErr != nil {
+		log.Error(reconcileErr, "error detecting or acting on drift for Vector template")
 	}
 
 	// patch the vector template status updates (regardless of error in drift detection/handling)
@@ -95,7 +104,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if err := errors.Join(driftErr, patchErr); err != nil {
+	if err := errors.Join(reconcileErr, patchErr); err != nil {
 		return ctrl.Result{}, err
 	}
 	// While waiting for the base to assemble, do not poll: the base VectorTemplate watch
@@ -103,227 +112,242 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if waitingForBase {
 		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{RequeueAfter: requeueAfterFromSpecOrDefault(vectorTemplate)}, nil
+	return result, nil
 }
 
-func (r *VectorTemplateReconciler) detectAndActOnDrift(
+func (r *VectorTemplateReconciler) reconcileAsync(
 	ctx context.Context,
-	template *konfidence.VectorTemplate,
-) error {
+	nn types.NamespacedName,
+	vt *konfidence.VectorTemplate,
+) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	ocmAdapter, err := r.Cache.Lookup(ctx, r.Client, template)
+	ocmAdapter, err := r.Cache.Lookup(ctx, r.Client, vt)
 	if err != nil {
-		err = fmt.Errorf("building OCM clients: %w", err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-		return err
+		return ctrl.Result{}, r.setDriftDetectionFailed(vt, fmt.Errorf("building OCM clients: %w", err))
 	}
 
-	ocmComponentsFromComponentList, err := mapComponentsToOCMReferences(template.Spec.Components)
+	ocmComponentRefs, err := mapComponentsToOCMReferences(vt.Spec.Components)
 	if err != nil {
-		err = fmt.Errorf("unable to map vector template components to ocm references: %w", err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-		return err
+		return ctrl.Result{}, r.setDriftDetectionFailed(vt,
+			fmt.Errorf("unable to map vector template components to ocm references: %w", err))
 	}
 
 	vectorOCMComponent, err := konfcompref.Parse(
-		template.Spec.UploadTarget, konfcompref.WithVersionValidation(konfcompref.VersionValidationNoVersion))
+		vt.Spec.UploadTarget, konfcompref.WithVersionValidation(konfcompref.VersionValidationNoVersion))
 	if err != nil {
-		err = fmt.Errorf("unable to create ocm reference from vector template upload target (%s): %w", template.Spec.UploadTarget, err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-		return err
+		return ctrl.Result{}, r.setDriftDetectionFailed(vt,
+			fmt.Errorf("unable to create ocm reference from vector template upload target (%s): %w", vt.Spec.UploadTarget, err))
 	}
 
-	var desiredArtifacts []vector.Artifact
-	if template.Spec.Base != nil {
-		if desiredArtifacts, err = r.getArtifactsFromBaseVector(ctx, ocmAdapter, template, vectorOCMComponent.Component); err != nil {
-			return err
+	var baseVectorRef *compref.Ref
+	if vt.Spec.Base != nil {
+		ref, baseErr := r.resolveBaseRef(ctx, vt)
+		if baseErr != nil {
+			return ctrl.Result{}, baseErr
 		}
+		baseVectorRef = ref
 	}
 
-	latestArtifactsFromComponentList, err := ocmAdapter.GetArtifacts(ctx, ocmComponentsFromComponentList)
-	if err != nil {
-		err = fmt.Errorf("unable to get desired artifacts for vector (%s): %w", vectorOCMComponent, err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-		return err
-	}
-
-	desiredArtifacts = combineBaseArtifactsAndComponentArtifacts(desiredArtifacts, latestArtifactsFromComponentList)
-	desiredVectorConfiguration, err := getVectorConfiguration(*template)
-	if err != nil {
-		err = fmt.Errorf("unable to build desired vector configuration: %w", err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-		return err
-	}
-	desiredVector := vector.Vector{
-		Name:         vectorOCMComponent.Component,
-		Artifacts:    desiredArtifacts,
-		VectorConfig: desiredVectorConfiguration,
-	}
-
-	var currentVector vector.Vector
-	// An empty latestVector means no vector has been assembled yet - treat as first build.
-	if template.Status.LatestVector == "" {
-		msg := "No latest vector recorded in status - creating new vector"
-		r.Recorder.Eventf(template, nil, corev1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
-		log.Info(msg, "VectorOCMComponent", vectorOCMComponent.Component)
-	} else {
-		latestVectorRef, parseErr := konfcompref.Parse(
-			template.Status.LatestVector, konfcompref.WithVersionValidation(konfcompref.VersionValidationSemverOnly))
+	// Parse the current vector ref from status.latestVector.
+	var currentVectorRef *compref.Ref
+	if vt.Status.LatestVector != "" {
+		ref, parseErr := konfcompref.Parse(
+			vt.Status.LatestVector, konfcompref.WithVersionValidation(konfcompref.VersionValidationSemverOnly))
 		if parseErr != nil {
-			err = fmt.Errorf("unable to parse status.latestVector (%s): %w", template.Status.LatestVector, parseErr)
-			meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-				Type:               konfidence.VectorTemplateReadyCondition,
-				Status:             metav1.ConditionUnknown,
-				Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-				Message:            err.Error(),
-				ObservedGeneration: template.Generation,
-				LastTransitionTime: metav1.Now(),
-			})
-			r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-			return err
+			return ctrl.Result{}, r.setDriftDetectionFailed(vt,
+				fmt.Errorf("unable to parse status.latestVector (%s): %w", vt.Status.LatestVector, parseErr))
 		}
+		currentVectorRef = ref
+	}
 
-		currentVector, err = r.getVectorCached(ctx, ocmAdapter, *latestVectorRef)
-		if errors.Is(err, vector.ErrVectorNotFound) {
-			msg := "Vector referenced by status.latestVector not found in OCM repository - creating new vector"
-			r.Recorder.Eventf(template, nil, corev1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
-			log.Info(msg, "LatestVector", template.Status.LatestVector)
-		} else if err != nil {
-			err = fmt.Errorf("unable to get current artifacts from vector (%s): %w", latestVectorRef, err)
-			meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-				Type:               konfidence.VectorTemplateReadyCondition,
-				Status:             metav1.ConditionUnknown,
-				Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-				Message:            err.Error(),
-				ObservedGeneration: template.Generation,
-				LastTransitionTime: metav1.Now(),
-			})
-			r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-			return err
+	desiredVectorConfig, err := getVectorConfiguration(*vt)
+	if err != nil {
+		return ctrl.Result{}, r.setDriftDetectionFailed(vt,
+			fmt.Errorf("unable to build desired vector configuration: %w", err))
+	}
+
+	// Check for an inflight job.
+	job, exists := r.jobs.get(nn)
+	if exists {
+		// Stale generation — cancel it and fall through to launch a new one.
+		if job.generation != vt.Generation {
+			log.Info("cancelling stale inflight assembly job",
+				"jobGeneration", job.generation, "currentGeneration", vt.Generation)
+			r.jobs.remove(nn)
+		} else if !job.done() {
+			// Still running for the current generation — poll later.
+			return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
+		} else { //nolint:gocritic // cleaner to keep as if-else chain
+			// Finished — apply the result.
+			res := <-job.result
+			r.jobs.remove(nn)
+			return r.applyAssemblyResult(vt, res, log)
 		}
 	}
 
-	driftDetected := vector.HasDrift(currentVector, desiredVector)
-	if !driftDetected {
-		msg := fmt.Sprintf("No drift detected for vector - vector version is still %s", currentVector.Version)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+	// Launch a new assembly job.
+	r.jobs.launch(nn, vt.Generation, func(jobCtx context.Context) assemblyResult {
+		return r.runAssembly(jobCtx, ocmAdapter, ocmComponentRefs,
+			vectorOCMComponent, baseVectorRef, currentVectorRef, desiredVectorConfig)
+	})
+	log.Info("launched background assembly job", "generation", vt.Generation)
+	return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
+}
+
+func (r *VectorTemplateReconciler) runAssembly(
+	ctx context.Context,
+	adapter vector.OcmPort,
+	componentRefs []compref.Ref,
+	uploadTarget *compref.Ref,
+	baseVectorRef *compref.Ref,
+	currentVectorRef *compref.Ref,
+	desiredVectorConfig *vector.VectorConfiguration,
+) assemblyResult {
+	// Resolve base vector artifacts (if applicable).
+	var baseArtifacts []vector.Artifact
+	if baseVectorRef != nil {
+		baseVector, err := r.getVectorCached(ctx, adapter, *baseVectorRef)
+		if err != nil {
+			return assemblyResult{err: fmt.Errorf("unable to get artifacts from base vector (%s): %w %w", baseVectorRef, err, errDriftDetectionFailed)}
+		}
+		baseArtifacts = baseVector.Artifacts
+	}
+
+	// Resolve current vector (for drift comparison).
+	var currentVector vector.Vector
+	if currentVectorRef != nil {
+		cv, err := r.getVectorCached(ctx, adapter, *currentVectorRef)
+		if err != nil && !errors.Is(err, vector.ErrVectorNotFound) {
+			return assemblyResult{err: fmt.Errorf("unable to get current artifacts from vector (%s): %w %w", currentVectorRef, err, errDriftDetectionFailed)}
+		}
+		currentVector = cv
+	}
+
+	// Fetch upstream component artifacts (always OCI — this detects upstream changes).
+	componentArtifacts, err := adapter.GetArtifacts(ctx, componentRefs)
+	if err != nil {
+		return assemblyResult{err: fmt.Errorf("unable to get desired artifacts for vector (%s): %w %w", uploadTarget, err, errDriftDetectionFailed)}
+	}
+
+	// Combine base + component artifacts and check for drift.
+	desiredArtifacts := combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts)
+	desiredVector := vector.Vector{
+		Name:         uploadTarget.Component,
+		Artifacts:    desiredArtifacts,
+		VectorConfig: desiredVectorConfig,
+	}
+
+	if !vector.HasDrift(currentVector, desiredVector) {
+		return assemblyResult{vectorVersion: currentVector.Version, componentName: uploadTarget.Component}
+	}
+
+	// Drift detected — create a new vector.
+	newVersion := r.VersionGenerator.Generate()
+	newVector := vector.Vector{
+		Version:      newVersion,
+		Name:         uploadTarget.Component,
+		Artifacts:    desiredArtifacts,
+		VectorConfig: desiredVectorConfig,
+	}
+
+	if err = adapter.CreateVector(ctx, uploadTarget.Repository, newVector); err != nil {
+		return assemblyResult{err: fmt.Errorf("unable to create new vector (%s) on drift: %w", uploadTarget, err)}
+	}
+
+	latestRef := compref.Ref{
+		Repository: uploadTarget.Repository,
+		Component:  uploadTarget.Component,
+		Version:    newVersion,
+	}
+	return assemblyResult{
+		latestVector:  latestRef.String(),
+		vectorVersion: newVersion,
+		componentName: uploadTarget.Component,
+	}
+}
+
+// applyAssemblyResult maps a completed assemblyResult onto the VectorTemplate status
+// conditions and events.
+func (r *VectorTemplateReconciler) applyAssemblyResult(
+	vt *konfidence.VectorTemplate,
+	res assemblyResult,
+	log logr.Logger,
+) (ctrl.Result, error) {
+	switch {
+	case res.failed():
+		reason := konfidence.VectorTemplateVectorCreationFailedReason
+		status := metav1.ConditionFalse
+		eventAction := EventActionVectorCreation
+		if errors.Is(res.err, errDriftDetectionFailed) {
+			reason = konfidence.VectorTemplateDriftDetectionFailedReason
+			status = metav1.ConditionUnknown
+			eventAction = EventActionDriftDetection
+		}
+		meta.SetStatusCondition(&vt.Status.Conditions, metav1.Condition{
+			Type:               konfidence.VectorTemplateReadyCondition,
+			Status:             status,
+			Reason:             reason,
+			Message:            res.err.Error(),
+			ObservedGeneration: vt.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		r.Recorder.Eventf(vt, nil, corev1.EventTypeWarning, reason, eventAction, res.err.Error())
+		log.Error(res.err, "assembly failed", "component", res.componentName)
+		return ctrl.Result{}, res.err
+
+	case res.created():
+		vt.Status.LatestVector = res.latestVector
+		msg := fmt.Sprintf("Drift detected and new vector created successfully - new vector version is %s", res.vectorVersion)
+		meta.SetStatusCondition(&vt.Status.Conditions, metav1.Condition{
+			Type:               konfidence.VectorTemplateReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.VectorTemplateVectorCreatedReason,
+			Message:            msg,
+			ObservedGeneration: vt.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		r.Recorder.Eventf(vt, nil, corev1.EventTypeNormal, konfidence.VectorTemplateVectorCreatedReason, EventActionVectorCreation, msg)
+		log.Info(msg, "VectorVersion", res.vectorVersion, "VectorOCMComponent", res.componentName)
+
+	default: // noDrift
+		msg := fmt.Sprintf("No drift detected for vector - vector version is still %s", res.vectorVersion)
+		meta.SetStatusCondition(&vt.Status.Conditions, metav1.Condition{
 			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionTrue,
 			Reason:             konfidence.VectorTemplateNoDriftDetectedReason,
 			Message:            msg,
-			ObservedGeneration: template.Generation,
+			ObservedGeneration: vt.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeNormal, konfidence.VectorTemplateNoDriftDetectedReason, EventActionDriftDetection, msg)
-		log.Info(msg, "VectorVersion", currentVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
-		return nil
+		r.Recorder.Eventf(vt, nil, corev1.EventTypeNormal, konfidence.VectorTemplateNoDriftDetectedReason, EventActionDriftDetection, msg)
+		log.Info(msg, "VectorVersion", res.vectorVersion, "VectorOCMComponent", res.componentName)
 	}
 
-	newVector := vector.Vector{
-		Version:      r.VersionGenerator.Generate(),
-		Name:         vectorOCMComponent.Component,
-		Artifacts:    desiredArtifacts,
-		VectorConfig: desiredVectorConfiguration,
-	}
-
-	err = ocmAdapter.CreateVector(ctx, vectorOCMComponent.Repository, newVector)
-	if err != nil {
-		err = fmt.Errorf("unable to create new vector (%s) on drift: %w", vectorOCMComponent, err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionFalse,
-			Reason:             konfidence.VectorTemplateVectorCreationFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateVectorCreationFailedReason, EventActionVectorCreation, err.Error())
-		return err
-	}
-
-	// Record the concrete version of the freshly assembled vector
-	latestVectorRef := compref.Ref{
-		Repository: vectorOCMComponent.Repository,
-		Component:  vectorOCMComponent.Component,
-		Version:    newVector.Version,
-	}
-	template.Status.LatestVector = latestVectorRef.String()
-
-	msg := fmt.Sprintf("Drift detected and new vector created successfully - new vector version is %s", newVector.Version)
-	meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-		Type:               konfidence.VectorTemplateReadyCondition,
-		Status:             metav1.ConditionTrue,
-		Reason:             konfidence.VectorTemplateVectorCreatedReason,
-		Message:            msg,
-		ObservedGeneration: template.Generation,
-		LastTransitionTime: metav1.Now(),
-	})
-	r.Recorder.Eventf(template, nil, corev1.EventTypeNormal, konfidence.VectorTemplateVectorCreatedReason, "VectorCreation", msg)
-	log.Info(msg, "VectorVersion", newVector.Version, "VectorOCMComponent", vectorOCMComponent.Component)
-	return nil
+	return ctrl.Result{RequeueAfter: requeueAfterFromSpecOrDefault(vt)}, nil
 }
 
-func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
-	ctx context.Context, ocmAdapter vector.OcmPort, template *konfidence.VectorTemplate,
-	vectorOCMComponentName string,
-) ([]vector.Artifact, error) {
-	// Resolve the base by reading the referenced VectorTemplate's status.latestVector,
-	// which holds the concrete version of its most recently assembled vector.
+func (r *VectorTemplateReconciler) setDriftDetectionFailed(vt *konfidence.VectorTemplate, err error) error {
+	meta.SetStatusCondition(&vt.Status.Conditions, metav1.Condition{
+		Type:               konfidence.VectorTemplateReadyCondition,
+		Status:             metav1.ConditionUnknown,
+		Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
+		Message:            err.Error(),
+		ObservedGeneration: vt.Generation,
+		LastTransitionTime: metav1.Now(),
+	})
+	r.Recorder.Eventf(vt, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+	return err
+}
+
+// resolveBaseRef reads the base VectorTemplate's status.latestVector and returns it
+// as a parsed compref.Ref. Returns errBaseVectorNotReady if the base hasn't assembled yet.
+func (r *VectorTemplateReconciler) resolveBaseRef(ctx context.Context, vt *konfidence.VectorTemplate) (*compref.Ref, error) {
 	baseTemplate := &konfidence.VectorTemplate{}
-	baseKey := types.NamespacedName{Namespace: template.Namespace, Name: template.Spec.Base.Name}
+	baseKey := types.NamespacedName{Namespace: vt.Namespace, Name: vt.Spec.Base.Name}
 	if err := r.Get(ctx, baseKey, baseTemplate); err != nil {
-		err = fmt.Errorf("unable to get base VectorTemplate (%s): %w", template.Spec.Base.Name, err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-		return nil, err
+		return nil, r.setDriftDetectionFailed(vt,
+			fmt.Errorf("unable to get base VectorTemplate (%s): %w", vt.Spec.Base.Name, err))
 	}
 
 	// The base has not assembled a vector yet. This is a normal transient state, not an
@@ -331,57 +355,43 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
 	// backoff. The Watches mapping on base VectorTemplates re-enqueues this template as
 	// soon as the base's status.latestVector is populated.
 	if baseTemplate.Status.LatestVector == "" {
-		msg := fmt.Sprintf("waiting for base VectorTemplate (%s) to assemble a vector", template.Spec.Base.Name)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+		msg := fmt.Sprintf("waiting for base VectorTemplate (%s) to assemble a vector", vt.Spec.Base.Name)
+		meta.SetStatusCondition(&vt.Status.Conditions, metav1.Condition{
 			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionFalse,
 			Reason:             konfidence.VectorTemplateWaitingForBaseReason,
 			Message:            msg,
-			ObservedGeneration: template.Generation,
+			ObservedGeneration: vt.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeNormal, konfidence.VectorTemplateWaitingForBaseReason, EventActionDriftDetection, msg)
+		r.Recorder.Eventf(vt, nil, corev1.EventTypeNormal, konfidence.VectorTemplateWaitingForBaseReason, EventActionDriftDetection, msg)
 		return nil, errBaseVectorNotReady
 	}
 
-	baseVectorOCMComponent, err := konfcompref.Parse(
+	ref, err := konfcompref.Parse(
 		baseTemplate.Status.LatestVector, konfcompref.WithVersionValidation(konfcompref.VersionValidationSemverOnly))
 	if err != nil {
-		err = fmt.Errorf("unable to create ocm reference from base VectorTemplate (%s) status.latestVector (%s): %w",
-			template.Spec.Base.Name, baseTemplate.Status.LatestVector, err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-		return nil, err
+		return nil, r.setDriftDetectionFailed(vt,
+			fmt.Errorf("unable to create ocm reference from base VectorTemplate (%s) status.latestVector (%s): %w",
+				vt.Spec.Base.Name, baseTemplate.Status.LatestVector, err))
 	}
+	return ref, nil
+}
 
-	baseVector, err := r.getVectorCached(ctx, ocmAdapter, *baseVectorOCMComponent)
+// getVectorCached returns a verified vector from the LRU, calling
+// adapter.GetVector (OCI fetch + signature verify) only on a cache miss.
+// ErrVectorNotFound propagates uncached so the caller triggers a new assembly.
+func (r *VectorTemplateReconciler) getVectorCached(ctx context.Context, adapter vector.OcmPort, ref compref.Ref) (vector.Vector, error) {
+	key := ref.String()
+	if v, ok := r.VectorCache.Get(key); ok {
+		return v, nil
+	}
+	v, err := adapter.GetVector(ctx, ref)
 	if err != nil {
-		err = fmt.Errorf("unable to get artifacts from base vector (%s): %w", baseVectorOCMComponent, err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-		return nil, err
+		return vector.Vector{}, err
 	}
-	log := logf.FromContext(ctx)
-	log.Info("Using base vector for vector OCM component",
-		"BaseVectorVersion", baseVector.Version,
-		"BaseVectorOCMComponent", baseVectorOCMComponent.Component,
-		"VectorOCMComponent", vectorOCMComponentName)
-
-	return baseVector.Artifacts, nil
+	r.VectorCache.Add(key, v)
+	return v, nil
 }
 
 func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []vector.Artifact) []vector.Artifact {
@@ -463,22 +473,6 @@ func getVectorConfiguration(vectorTemplate konfidence.VectorTemplate) (*vector.V
 	}, nil
 }
 
-// getVectorCached returns a verified vector from the LRU, calling
-// adapter.GetVector (OCI fetch + signature verify) only on a cache miss.
-// ErrVectorNotFound propagates uncached so the caller triggers a new assembly.
-func (r *VectorTemplateReconciler) getVectorCached(ctx context.Context, adapter vector.OcmPort, ref compref.Ref) (vector.Vector, error) {
-	key := ref.String()
-	if v, ok := r.VectorCache.Get(key); ok {
-		return v, nil
-	}
-	v, err := adapter.GetVector(ctx, ref)
-	if err != nil {
-		return vector.Vector{}, err
-	}
-	r.VectorCache.Add(key, v)
-	return v, nil
-}
-
 // NewVectorTemplateReconciler wires a VectorTemplateReconciler for the given manager.
 func NewVectorTemplateReconciler(
 	mgr ctrl.Manager,
@@ -487,11 +481,13 @@ func NewVectorTemplateReconciler(
 	versionGenerator vector.VersionGenerator,
 ) *VectorTemplateReconciler {
 	return &VectorTemplateReconciler{
-		Client:           mgr.GetClient(),
-		Recorder:         mgr.GetEventRecorder(VectorAssemblyControllerName),
-		Cache:            cache,
-		VectorCache:      vectorCache,
-		VersionGenerator: versionGenerator,
+		Client:               mgr.GetClient(),
+		Recorder:             mgr.GetEventRecorder(VectorAssemblyControllerName),
+		Cache:                cache,
+		VectorCache:          vectorCache,
+		VersionGenerator:     versionGenerator,
+		jobs:                 newJobRegistry(),
+		assemblyPollInterval: defaultAssemblyPollInterval,
 	}
 }
 
