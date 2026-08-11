@@ -249,7 +249,7 @@ endif
 
 .PHONY: install
 install: hermit manifests ## Install CRDs into the cluster specified in ~/.kube/config.
-	$(HELM) upgrade --install konfidence charts/konfidence --set controller.install=false --set crd.keep=false
+	$(HELM) upgrade --install konfidence charts/konfidence --set controller.install=false --set api.enabled=false --set crd.keep=false
 
 .PHONY: uninstall
 uninstall: hermit ## Uninstall CRDs from the cluster. Use ignore-not-found=true to suppress errors.
@@ -297,6 +297,8 @@ deploy: hermit manifests ## Deploy the konfidence operator to the cluster specif
 		--namespace=$(NAMESPACE) \
 		--set image.repository=$(REGISTRY)/konfidence-operator \
 		--set image.tag=$(TAG) \
+		--set api.image.repository=$(REGISTRY)/api \
+		--set api.image.tag=$(TAG) \
 		--set crd.keep=false \
 		$$HELM_EXTRA_ARGS
 
