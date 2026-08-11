@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/konfidence-project/konfidence/internal/api/handler"
+	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
 )
 
@@ -51,12 +51,12 @@ var _ = Describe("ErrorHandler middleware", func() {
 		logger = slog.Default()
 	})
 
-	wrap := func(h handler.Handler) http.Handler {
+	wrap := func(h middleware.ErrHandler) http.Handler {
 		return middleware.Handle(logger, h)
 	}
 
 	It("does nothing when handler returns nil", func() {
-		h := handler.Handler(func(w http.ResponseWriter, _ *http.Request) error {
+		h := middleware.ErrHandler(func(w http.ResponseWriter, _ *http.Request) error {
 			w.WriteHeader(http.StatusOK)
 			return nil
 		})
@@ -66,8 +66,8 @@ var _ = Describe("ErrorHandler middleware", func() {
 	})
 
 	It("writes the APIError status and body when handler returns *APIError", func() {
-		h := handler.Handler(func(_ http.ResponseWriter, _ *http.Request) error {
-			return handler.NewNotFound("stage", "prod")
+		h := middleware.ErrHandler(func(_ http.ResponseWriter, _ *http.Request) error {
+			return apierror.NewNotFound("stage", "prod")
 		})
 		rec := httptest.NewRecorder()
 		wrap(h).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -84,7 +84,7 @@ var _ = Describe("ErrorHandler middleware", func() {
 	})
 
 	It("writes 500 and does not leak detail when handler returns a plain error", func() {
-		h := handler.Handler(func(_ http.ResponseWriter, _ *http.Request) error {
+		h := middleware.ErrHandler(func(_ http.ResponseWriter, _ *http.Request) error {
 			return fmt.Errorf("db password is hunter2")
 		})
 		rec := httptest.NewRecorder()
@@ -100,8 +100,8 @@ var _ = Describe("ErrorHandler middleware", func() {
 	})
 
 	It("does not leak the internal cause of an *APIError to the client", func() {
-		h := handler.Handler(func(_ http.ResponseWriter, _ *http.Request) error {
-			return handler.NewInternal(fmt.Errorf("secret connection string"))
+		h := middleware.ErrHandler(func(_ http.ResponseWriter, _ *http.Request) error {
+			return apierror.NewInternal(fmt.Errorf("secret connection string"))
 		})
 		rec := httptest.NewRecorder()
 		wrap(h).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
