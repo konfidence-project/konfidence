@@ -79,7 +79,7 @@ func newSessionAuthMiddleware(sessions *sessionMiddleware) (func(http.Handler) h
 
 	authMiddleware := nethttpmiddleware.OapiRequestValidatorWithOptions(spec, &nethttpmiddleware.Options{
 		DoNotValidateServers: true,
-		Prefix:               "/api/v1",
+		Prefix:               "/api",
 		Options: openapi3filter.Options{
 			AuthenticationFunc: sessions.AuthenticateSession,
 		},
@@ -101,7 +101,7 @@ func (s *APIHandler) Handler() http.Handler {
 	}
 
 	apiRouter := chi.NewRouter()
-	apiRouter.Mount("/api/v1",
+	apiRouter.Mount("/api",
 		openapi.Handler(openapi.NewStrictHandlerWithOptions(s, nil, openapi.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc:  errHandler,
 			ResponseErrorHandlerFunc: errHandler,
