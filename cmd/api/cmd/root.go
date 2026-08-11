@@ -7,7 +7,10 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	db "github.com/konfidence-project/konfidence/cmd/api/db/sqlc"
 	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/session"
@@ -27,6 +30,8 @@ import (
 var scheme = runtime.NewScheme()
 
 var cfg = config.Config{}
+
+var dbPool *pgxpool.Pool
 
 var rootCmd = &cobra.Command{
 	Use:   "api",
@@ -53,6 +58,7 @@ by the flags below.
   API_OIDC_PKCE_ENABLED  Enable PKCE for OIDC auth flow     (default: true)
   API_OIDC_STATE_EXPIRATION OIDC state cache expiration      (default: 15m)
   API_SESSION_EXPIRY     Server-side session expiry          (default: 12h)
+  API_DB_CONNECTION      Postgres DB Connection string
 
 Kubernetes client config is resolved automatically via the standard KUBECONFIG
 env var or in-cluster config when deployed as a pod.`,
@@ -114,6 +120,8 @@ func init() {
 		"Session cookie SameSite mode. Env: API_SESSION_COOKIE_SAME_SITE")
 	rootCmd.Flags().StringVar(&cfg.SessionExpiry, "session-expiry", envOr("API_SESSION_EXPIRY", "12h"),
 		"Server-side session expiry duration. Env: API_SESSION_EXPIRY")
+	rootCmd.Flags().StringVar(&cfg.DBConnection, "db-connection", envOr("API_DB_CONNECTION", ""),
+		"API DB connection string. Env: API_DB_CONNECTION")
 }
 
 func startServer(cmd *cobra.Command, _ []string) error {
@@ -161,7 +169,35 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	}
 
 	stateStore := oidc.NewStateCacheStore(parsed)
-	sessionStore := session.NewSessionCacheStore(parsed)
+
+	var sessionStore session.SessionStore
+	if parsed.DBConnection != "" {
+		// init database config
+		dbConfig, err := pgxpool.ParseConfig(parsed.DBConnection)
+		if err != nil {
+			return fmt.Errorf("unable to parse connection string: %w", err)
+		}
+
+		// TODO configure pool settings
+		dbConfig.MaxConns = 10
+		dbConfig.MinConns = 5
+		dbConfig.MaxConnLifetime = 30 * time.Minute
+		dbConfig.MaxConnIdleTime = 5 * time.Minute
+
+		dbPool, err = pgxpool.NewWithConfig(ctx, dbConfig)
+		if err != nil {
+			return fmt.Errorf("unable to create connection pool: %w", err)
+		}
+		defer dbPool.Close()
+
+		if err := dbPool.Ping(ctx); err != nil {
+			return fmt.Errorf("database unreachable: %w", err)
+		}
+		queries := db.New(dbPool)
+		sessionStore = session.NewDbSessionStore(*queries)
+	} else {
+		sessionStore = session.NewCacheSessionStore(parsed)
+	}
 
 	serverHandler, err := handler.NewServerHandler(logger, k8sClient, *oidcClient, stateStore, sessionStore, parsed)
 	if err != nil {

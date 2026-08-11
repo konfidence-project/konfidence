@@ -29,6 +29,7 @@ var _ = Describe("Config.Validate", func() {
 			SessionCookieSecure:   false,
 			SessionCookieSameSite: "SameSiteStrictMode",
 			SessionExpiry:         "12h",
+			DBConnection:          "dbConn",
 		}
 	}
 
@@ -51,6 +52,7 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.WriteTimeout.Seconds()).To(Equal(10.0))
 		Expect(parsed.ShutdownTimeout.Seconds()).To(Equal(15.0))
 		Expect(parsed.SessionExpiry.Hours()).To(Equal(12.0))
+		Expect(parsed.DBConnection).To(Equal("dbConn"))
 	})
 
 	It("rejects an empty addr", func() {

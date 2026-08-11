@@ -1,0 +1,84 @@
+server:
+  address: 'tcp://0.0.0.0:9091'
+
+log:
+  level: debug
+
+authentication_backend:
+  file:
+    path: /config/users.yml
+    password:
+      algorithm: 'argon2'
+  password_reset:
+    disable: true
+
+access_control:
+  default_policy: 'one_factor'
+
+session:
+  secret: '5c0ee8ec746ea6a4265a0c7a44979509c4d38c310e586957776690a2407ca0ac'
+  same_site: 'lax'
+  cookies:
+    - domain: 'auth.localhost'
+      authelia_url: 'https://auth.localhost'
+
+notifier:
+  filesystem:
+    filename: /dev/null
+
+storage:
+  encryption_key: 'ba1bcef9ff52c24b1bbe9ac57115b52af99a3e02a0409ed48792a4ef0cafbd4f'
+  local:
+    path: '/config/db.sqlite3'
+
+identity_providers:
+  oidc:
+    hmac_secret: 'd687969061ac4ff91fc07ad78685af6bd7850ae1896beb98bacc354f1fae879b7e6eb6ebf7ac38a0aa3a55d0b96f1ab3d0f273657b52c45a8b9f6916a6f7dcfc'
+    enforce_pkce: always
+    jwks:
+      - key_id: 'local-key'
+        algorithm: 'RS256'
+        use: 'sig'
+        key: |
+          -----BEGIN RSA PRIVATE KEY-----
+          MIIEowIBAAKCAQEA2bmWmTB+yGE7DqKl0/KeLkqdj6lkDWNmHSS7lVqSc95tWUXK
+          aaWOxBgWSATBrTMZdc+8uI82tXJ4wmkOucZ1EqzeCN+w2vQAf6LJjQBp1o9YAet6
+          g3xs+keOdB+SrMJByl+US6qt8PNjjS5fmic0ZfppL0QA03JfJhr6UIyck+WWTOmJ
+          +LRgR99P/bj30mH/eM1M0F2fQ2R3llwqUs5VJ8rJAwtH1gP5vWVrVgTHJD2EbF0y
+          wZhZNk2phEKk0nXaJCqBiAtGYCCBwFq1muH+giLfq3tg+FW4xUthqh6sglsVXxdR
+          sCigRtSmFtXSoNQG/KaIAlsPKX8h96eMOFAYLwIDAQABAoIBAHPH6JkQG+utIP24
+          apzaQVn2nfE+sBEakbvfw805u/XYC6hUn74sp04KTRcBSIk1Sk3HKeGvbvVwqV0h
+          Bw6txaYnvW9UnTTiWr2FMM9FsALEeZWTxrPTYBR8JvoDrDkomFnpF/BhFFy04XS7
+          e2V7gbbVQkg7ToEjKgwWfpSFIeLXUfPDe7MnkpuKmFEdLN4fG4/MinuT+/Ik8kxX
+          K28BC0ZdCt3kXK0l7FGhSqVKEgPeMKkgbf5DNpg0LgOYp0qjRGniGd2S3i4lWxEA
+          fLQYnckcH09MOagQYvpeolLXMob3Monao3ik+fdmOUJMH6/DTA1MgjlSSFjkL5mV
+          EFbO7ikCgYEA+NQh6NHmHThK9/eNiRxwJTWbg8mJuacxI94w0YoDjJuKGLjaOeYw
+          GorjEBH/2Knzj4ZF8yAGn0CPLayhuonGiVmEqscpM2T4fM8xUVGJVdL2FAxJJFfN
+          k0cT/K5jGMFioeZ8Nvm+KXUnMQRMyKqc2dxgmFTs2XJyzmVmqIK6NcsCgYEA3//4
+          uUqvzxxDhY+0SaSSmuaACRB58lxxHVaQwt/8YslwWExBCMEkZ7XdhSr3NTN/jaPV
+          Tn5S4P282fhL9RCn+hzoK819cvzGl/fTz5JJDOx7TxjOKywCSb7B3ijUozNG2LMp
+          0ZuFP7efGWkk2l0ICovQu+ohZldiD2f/OIWleq0CgYEAj6l6gn9dipVLw2rsDrOa
+          lAElbqtXlxbOqlTIftJeRjovOyLO7ArYzxpNCqQ5wRAujTkK/doJuLx/bfFz1s1h
+          ET/b9vXR9dhgFz9QzBB1aFXKubx2JkODb3rkMUlF8a8FkVAPe3YpsqnvHL/MzTak
+          JKy2IH032jvXyQ6GfNgtRo0CgYBRCQxVFCToG0R+JA/H+IalDTBSlyhWuoSdZXy3
+          U0q9/jvrZaK9ZQojjtKV44ZNM9U4S4XWgLLA/Gp+vGnWPXFXdW+0sQFqQPIjdh+l
+          XzmYOFEfu0ySp7goL595HHJYnCtMJ/y//LBG7cnb6oLPkIphLlWUNc5hdMlf43Kc
+          YxULfQKBgBN8SZVbSyu7zGtPBoxpF+l6gh3d7RdV3Rjaglc/YrS1lsEuiiDr8F+7
+          anclY0DagecEbeBhC/DmKLFvv4qceixmI0rd4Vt0ajGZgAgQX8cZ6SsvUidyiA7w
+          0mTSjzX2zx8I5HznSMni0FS51YK0fcpt9+7ljEq4+wZSP2S7baEJ
+          -----END RSA PRIVATE KEY-----
+
+    clients:
+      - client_id: konfidence
+        client_secret: '$pbkdf2-sha512$310000$OqBrWGx89ehU2Mo0qNgNxw$SoyNV8hli4154Ixgt2qJc9K/XePpRwqApNmgPaDh/ssryxelwF6KS3PJxvg9vvrBnDbVExh5QBrOD1jHkPj6LA'
+        public: false
+        authorization_policy: one_factor
+        redirect_uris:
+          - https://api.localhost/api/v1/auth/callback
+        scopes: [openid, profile, email, groups, offline_access]
+        token_endpoint_auth_method: 'client_secret_basic'
+        grant_types:
+          - 'authorization_code'
+          - 'refresh_token'
+        response_types:
+          - 'code'

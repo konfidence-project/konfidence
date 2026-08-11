@@ -36,6 +36,7 @@ type Config struct {
 	SessionCookieSecure   bool
 	SessionCookieSameSite string
 	SessionExpiry         string
+	DBConnection          string
 	Scheme                *runtime.Scheme
 }
 
@@ -60,6 +61,7 @@ type Parsed struct {
 	SessionCookieSecure   bool
 	SessionCookieSameSite string
 	SessionExpiry         time.Duration
+	DBConnection          string
 	Scheme                *runtime.Scheme
 	ReadTimeout           time.Duration
 	WriteTimeout          time.Duration
@@ -134,6 +136,7 @@ func (c Config) Validate() (Parsed, error) {
 		SessionCookieSecure:   c.SessionCookieSecure,
 		SessionCookieSameSite: c.SessionCookieSameSite,
 		SessionExpiry:         sessionExpiry,
+		DBConnection:          c.DBConnection,
 		Scheme:                c.Scheme,
 		ReadTimeout:           read,
 		WriteTimeout:          write,

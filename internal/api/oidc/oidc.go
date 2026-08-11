@@ -58,14 +58,14 @@ type TokenResponse struct {
 // IDTokenAdditionalClaims represents the claims in the ID token.
 type IDTokenAdditionalClaims struct {
 	Nbf               int64    `json:"nbf,omitempty"`
-	Email             string   `json:"email,omitempty"`
+	Email             *string  `json:"email,omitempty"`
 	Groups            []string `json:"groups,omitempty"`
-	Name              string   `json:"name,omitempty"`
-	PreferredUsername string   `json:"preferred_username,omitempty"`
-	GivenName         string   `json:"given_name,omitempty"`
-	MiddleName        string   `json:"middle_name,omitempty"`
-	FamilyName        string   `json:"family_name,omitempty"`
-	JobTitle          string   `json:"job_title,omitempty"`
+	Name              *string  `json:"name,omitempty"`
+	PreferredUsername *string  `json:"preferred_username,omitempty"`
+	GivenName         *string  `json:"given_name,omitempty"`
+	MiddleName        *string  `json:"middle_name,omitempty"`
+	FamilyName        *string  `json:"family_name,omitempty"`
+	JobTitle          *string  `json:"job_title,omitempty"`
 }
 
 func (c *Client) Setup(ctx context.Context) error {

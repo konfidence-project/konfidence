@@ -9,6 +9,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -129,6 +130,7 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 	// create and save session
 	// TODO encrypt session id
 	sess := session.Session{
+		Subject:           idToken.Subject,
 		Name:              claims.Name,
 		GivenName:         claims.GivenName,
 		FamilyName:        claims.FamilyName,
@@ -136,13 +138,12 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 		Email:             claims.Email,
 		Groups:            claims.Groups,
 		Roles:             roles,
-		IdToken:           *idToken,
 		AccessToken:       tokenResponse.AccessToken,
-		RefreshToken:      tokenResponse.RefreshToken,
+		RefreshToken:      &tokenResponse.RefreshToken,
 		Expiry:            tokenResponse.Expiry.Unix(),
 	}
 
-	sessionId, err := a.sessionStore.Save(&sess)
+	sessionId, err := a.sessionStore.Save(ctx, &sess)
 	if err != nil {
 		a.logger.Error("failed to create session")
 		return openapi.AuthCallback500JSONResponse{}, err
@@ -174,7 +175,7 @@ func (a *AuthHandler) Logout(ctx context.Context, _ openapi.LogoutRequestObject)
 		return openapi.Logout401JSONResponse{}, nil
 	}
 
-	if err := a.sessionStore.Delete(sessionId); err != nil {
+	if err := a.sessionStore.Delete(ctx, sessionId); err != nil {
 		a.logger.Error("failed to delete session", "error", err)
 	}
 
@@ -204,7 +205,7 @@ func (a *AuthHandler) GetIdentity(ctx context.Context, _ openapi.GetIdentityRequ
 		return openapi.GetIdentity401JSONResponse{}, nil
 	}
 
-	storedSession, err := a.sessionStore.Get(sessionId)
+	storedSession, err := a.sessionStore.Get(ctx, sessionId)
 	if err != nil {
 		a.logger.Error("failed to get session from store", "error", err)
 		return openapi.GetIdentity500JSONResponse{}, err
@@ -216,10 +217,10 @@ func (a *AuthHandler) GetIdentity(ctx context.Context, _ openapi.GetIdentityRequ
 	}
 
 	return openapi.GetIdentity200JSONResponse{
-		Email:      storedSession.Email,
-		Name:       storedSession.Name,
-		GivenName:  storedSession.GivenName,
-		FamilyName: storedSession.FamilyName,
+		Email:      lo.FromPtr(storedSession.Email),
+		Name:       lo.FromPtr(storedSession.Name),
+		GivenName:  lo.FromPtr(storedSession.GivenName),
+		FamilyName: lo.FromPtr(storedSession.FamilyName),
 		Roles:      storedSession.Roles,
 	}, nil
 }
@@ -245,7 +246,7 @@ func (a *AuthHandler) SessionAuthMiddleware(f openapi.StrictHandlerFunc, operati
 				return nil, nil
 			}
 
-			storedSession, err := a.sessionStore.Get(sessionCookie.Value)
+			storedSession, err := a.sessionStore.Get(ctx, sessionCookie.Value)
 			if err != nil {
 				a.logger.Error("failed to get session", "error", err)
 				http.Error(w, "", http.StatusInternalServerError)
