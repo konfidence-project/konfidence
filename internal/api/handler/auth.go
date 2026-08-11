@@ -10,7 +10,6 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
 	"github.com/samber/lo"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type AuthHandler struct {
@@ -19,18 +18,16 @@ type AuthHandler struct {
 	stateCache oidc.StateStore
 	sessions   session.SessionStore
 	config     config.Parsed
-	k8s        client.Client
 }
 
 func NewAuthHandler(logger *slog.Logger, oidcClient oidc.Client,
-	stateStore oidc.StateStore, sessions session.SessionStore, cfg config.Parsed, k8s client.Client) *AuthHandler {
+	stateStore oidc.StateStore, sessions session.SessionStore, cfg config.Parsed) *AuthHandler {
 	return &AuthHandler{
 		logger:     logger,
 		oidcClient: oidcClient,
 		stateCache: stateStore,
 		sessions:   sessions,
 		config:     cfg,
-		k8s:        k8s,
 	}
 }
 

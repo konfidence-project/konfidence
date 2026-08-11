@@ -56,10 +56,9 @@ var _ openapi.StrictServerInterface = (*APIHandler)(nil)
 
 func NewAPIHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Client,
 	stateStore oidc.StateStore, sessionStore session.SessionStore, cfg config.Parsed) (*APIHandler, error) {
-	sessions := &sessionMiddleware{logger: logger, store: sessionStore, config: cfg}
-	authHandler := NewAuthHandler(logger, oidcClient, stateStore, sessionStore, cfg, k8s)
+	authHandler := NewAuthHandler(logger, oidcClient, stateStore, sessionStore, cfg)
 	projectHandler := NewProjectHandler(k8s)
-	authMiddleware, err := newSessionAuthMiddleware(sessions)
+	authMiddleware, err := newSessionAuthMiddleware(&sessionMiddleware{logger: logger, store: sessionStore, config: cfg})
 	if err != nil {
 		return nil, err
 	}
