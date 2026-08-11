@@ -65,8 +65,9 @@ spec:
                 default: false
                 description: |-
                   RequireApproval is true when the promotion must be approved before
-                  execution (source kind `Stage`); false means the promotion is
-                  auto-approved (source kind `VectorTemplate`).
+                  execution; false means the promotion is approved automatically. It is
+                  independent of the source kind: the config controller defaults it to
+                  true for `Stage` sources, but any combination is valid.
                 type: boolean
                 x-kubernetes-validations:
                 - message: requireApproval is immutable after it has been set

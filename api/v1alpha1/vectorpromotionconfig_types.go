@@ -29,8 +29,11 @@ const (
 //nolint:lll // Kubebuilder annotations are intentionally long.
 type PromotionSourceReference struct {
 	// Kind is the kind of the source resource. A `VectorTemplate` source
-	// promotes its latest assembled vector automatically; a `Stage` source
-	// promotes the vector currently active on that stage and requires approval.
+	// promotes its latest assembled vector; a `Stage` source promotes the
+	// vector currently active on that stage. Whether the resulting promotion
+	// requires approval is recorded on the promotion itself
+	// (`VectorPromotionSpec.RequireApproval`); the controller defaults it
+	// from the source kind.
 	// +kubebuilder:validation:Enum=VectorTemplate;Stage
 	Kind string `json:"kind"`
 
@@ -39,10 +42,11 @@ type PromotionSourceReference struct {
 	// +kubebuilder:validation:MaxLength=253
 	Name string `json:"name"`
 
-	// Landscape is the name of the `Landscape` in the config's namespace whose
-	// namespace hosts the referenced `Stage`. Required for `Stage` references;
-	// must be omitted for `VectorTemplate` references, which are resolved in
-	// the config's namespace.
+	// Landscape is the `metadata.name` of the `Landscape` in the config's
+	// namespace (not its managed namespace) whose namespace hosts the
+	// referenced `Stage`. Required for `Stage` references; must be omitted
+	// for `VectorTemplate` references, which are resolved in the config's
+	// namespace.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +optional
@@ -52,7 +56,7 @@ type PromotionSourceReference struct {
 // PromotionTargetReference identifies the `Stage` whose `spec.vector` is the
 // promotion target.
 type PromotionTargetReference struct {
-	// Kind is the kind of the target resource.
+	// Kind is the kind of the target resource. Only `Stage` is supported.
 	// +kubebuilder:validation:Enum=Stage
 	Kind string `json:"kind"`
 
@@ -61,8 +65,9 @@ type PromotionTargetReference struct {
 	// +kubebuilder:validation:MaxLength=253
 	Name string `json:"name"`
 
-	// Landscape is the name of the `Landscape` in the config's namespace whose
-	// namespace hosts the target `Stage`.
+	// Landscape is the `metadata.name` of the `Landscape` in the config's
+	// namespace (not its managed namespace) whose namespace hosts the target
+	// `Stage`.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	Landscape string `json:"landscape"`
@@ -77,7 +82,7 @@ type VectorPromotionConfigSpec struct {
 	Target PromotionTargetReference `json:"target"`
 
 	// TTLAfterFinished will be copied onto every VectorPromotion the drift
-	// controller creates for this config (pending the ADR-0032 rework). See
+	// controller creates for this config. See
 	// `VectorPromotionSpec.TTLAfterFinished`.
 	// +optional
 	TTLAfterFinished *metav1.Duration `json:"ttlAfterFinished,omitempty"`

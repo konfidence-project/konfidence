@@ -96,18 +96,22 @@ spec:
                   kind:
                     description: |-
                       Kind is the kind of the source resource. A `VectorTemplate` source
-                      promotes its latest assembled vector automatically; a `Stage` source
-                      promotes the vector currently active on that stage and requires approval.
+                      promotes its latest assembled vector; a `Stage` source promotes the
+                      vector currently active on that stage. Whether the resulting promotion
+                      requires approval is recorded on the promotion itself
+                      (`VectorPromotionSpec.RequireApproval`); the controller defaults it
+                      from the source kind.
                     enum:
                     - VectorTemplate
                     - Stage
                     type: string
                   landscape:
                     description: |-
-                      Landscape is the name of the `Landscape` in the config's namespace whose
-                      namespace hosts the referenced `Stage`. Required for `Stage` references;
-                      must be omitted for `VectorTemplate` references, which are resolved in
-                      the config's namespace.
+                      Landscape is the `metadata.name` of the `Landscape` in the config's
+                      namespace (not its managed namespace) whose namespace hosts the
+                      referenced `Stage`. Required for `Stage` references; must be omitted
+                      for `VectorTemplate` references, which are resolved in the config's
+                      namespace.
                     maxLength: 63
                     minLength: 1
                     type: string
@@ -128,14 +132,16 @@ spec:
                 description: Target references the Stage to promote to.
                 properties:
                   kind:
-                    description: Kind is the kind of the target resource.
+                    description: Kind is the kind of the target resource. Only `Stage`
+                      is supported.
                     enum:
                     - Stage
                     type: string
                   landscape:
                     description: |-
-                      Landscape is the name of the `Landscape` in the config's namespace whose
-                      namespace hosts the target `Stage`.
+                      Landscape is the `metadata.name` of the `Landscape` in the config's
+                      namespace (not its managed namespace) whose namespace hosts the target
+                      `Stage`.
                     maxLength: 63
                     minLength: 1
                     type: string
@@ -152,7 +158,7 @@ spec:
               ttlAfterFinished:
                 description: |-
                   TTLAfterFinished will be copied onto every VectorPromotion the drift
-                  controller creates for this config (pending the ADR-0032 rework). See
+                  controller creates for this config. See
                   `VectorPromotionSpec.TTLAfterFinished`.
                 type: string
               verifyVector:

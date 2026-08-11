@@ -59,6 +59,8 @@ const (
 	// PromotionStateFailed means the promotion reached a terminal state without success.
 	PromotionStateFailed VectorPromotionState = "Failed"
 	// PromotionStateSuperseded means a newer promotion replaced this one.
+	// Superseded promotions are locked: they can never be approved or
+	// executed afterwards. The newer promotion is the one to act on.
 	PromotionStateSuperseded VectorPromotionState = "Superseded"
 )
 
@@ -76,8 +78,9 @@ type VectorPromotionSpec struct {
 	Vector string `json:"vector"`
 
 	// RequireApproval is true when the promotion must be approved before
-	// execution (source kind `Stage`); false means the promotion is
-	// auto-approved (source kind `VectorTemplate`).
+	// execution; false means the promotion is approved automatically. It is
+	// independent of the source kind: the config controller defaults it to
+	// true for `Stage` sources, but any combination is valid.
 	// +kubebuilder:default=false
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="requireApproval is immutable after it has been set"
 	// +optional
