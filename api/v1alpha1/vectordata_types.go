@@ -29,10 +29,10 @@ type VectorDataSpec struct {
 	// +optional
 	Authored *runtime.RawExtension `json:"authored,omitempty"`
 
-	// DeploymentResults aggregated from underlying ArtifactDeployments, keyed
-	// `<componentName>/<resultName>`.
+	// DeploymentResults aggregated from underlying ArtifactDeployments, keyed by artifact
+	// component name; the value lists every result emitted by that component.
 	// +optional
-	DeploymentResults map[string]DeploymentResult `json:"deploymentResults,omitempty"`
+	DeploymentResults map[string][]DeploymentResult `json:"deploymentResults,omitempty"`
 }
 
 type VectorDataStatus struct {

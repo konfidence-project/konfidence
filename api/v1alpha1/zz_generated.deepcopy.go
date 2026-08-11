@@ -1803,9 +1803,20 @@ func (in *VectorDataSpec) DeepCopyInto(out *VectorDataSpec) {
 	}
 	if in.DeploymentResults != nil {
 		in, out := &in.DeploymentResults, &out.DeploymentResults
-		*out = make(map[string]DeploymentResult, len(*in))
+		*out = make(map[string][]DeploymentResult, len(*in))
 		for key, val := range *in {
-			(*out)[key] = *val.DeepCopy()
+			var outVal []DeploymentResult
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				inVal := (*in)[key]
+				in, out := &inVal, &outVal
+				*out = make([]DeploymentResult, len(*in))
+				for i := range *in {
+					(*in)[i].DeepCopyInto(&(*out)[i])
+				}
+			}
+			(*out)[key] = outVal
 		}
 	}
 }
@@ -1947,9 +1958,20 @@ func (in *VectorDeploymentStatus) DeepCopyInto(out *VectorDeploymentStatus) {
 	}
 	if in.DeploymentResults != nil {
 		in, out := &in.DeploymentResults, &out.DeploymentResults
-		*out = make(map[string]DeploymentResult, len(*in))
+		*out = make(map[string][]DeploymentResult, len(*in))
 		for key, val := range *in {
-			(*out)[key] = *val.DeepCopy()
+			var outVal []DeploymentResult
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				inVal := (*in)[key]
+				in, out := &inVal, &outVal
+				*out = make([]DeploymentResult, len(*in))
+				for i := range *in {
+					(*in)[i].DeepCopyInto(&(*out)[i])
+				}
+			}
+			(*out)[key] = outVal
 		}
 	}
 }

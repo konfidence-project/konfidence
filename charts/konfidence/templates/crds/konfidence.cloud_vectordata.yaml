@@ -64,31 +64,33 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
               deploymentResults:
                 additionalProperties:
-                  description: |-
-                    DeploymentResult contains a single output produced by a deployer. These results are used to transport information
-                    from the deployer to later phases of the vector lifecycle.
-                  properties:
-                    name:
-                      description: Name is a unique identifier for the result within
-                        an ArtifactDeploymentStatus.
-                      type: string
-                    spec:
-                      description: Spec contains deployer-specific structured data.
-                        Its format is determined by the Type field.
-                      type: object
-                      x-kubernetes-preserve-unknown-fields: true
-                    type:
-                      description: Type describes the structure contained in Spec.
-                        Each deployer may define multiple result types.
-                      type: string
-                  required:
-                  - name
-                  - spec
-                  - type
-                  type: object
+                  items:
+                    description: |-
+                      DeploymentResult contains a single output produced by a deployer. These results are used to transport information
+                      from the deployer to later phases of the vector lifecycle.
+                    properties:
+                      name:
+                        description: Name is a unique identifier for the result within
+                          an ArtifactDeploymentStatus.
+                        type: string
+                      spec:
+                        description: Spec contains deployer-specific structured data.
+                          Its format is determined by the Type field.
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      type:
+                        description: Type describes the structure contained in Spec.
+                          Each deployer may define multiple result types.
+                        type: string
+                    required:
+                    - name
+                    - spec
+                    - type
+                    type: object
+                  type: array
                 description: |-
-                  DeploymentResults aggregated from underlying ArtifactDeployments, keyed
-                  `<componentName>/<resultName>`.
+                  DeploymentResults aggregated from underlying ArtifactDeployments, keyed by artifact
+                  component name; the value lists every result emitted by that component.
                 type: object
               features:
                 description: Features carries the optional "features" subset of the

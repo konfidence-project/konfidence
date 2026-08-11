@@ -40,7 +40,7 @@ func newReconciler(t *testing.T, objects ...client.Object) (*VectorDeploymentRec
 	return &VectorDeploymentReconciler{Client: c, Scheme: scheme, Recorder: noopRecorder{}}, c
 }
 
-func newVD(name string, results map[string]konfidence.DeploymentResult) *konfidence.VectorDeployment {
+func newVD(name string, results map[string][]konfidence.DeploymentResult) *konfidence.VectorDeployment {
 	return &konfidence.VectorDeployment{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "landscape-a", UID: types.UID("uid-" + name), Generation: 1},
 		Spec:       konfidence.VectorDeploymentSpec{Vector: "https://example/vector:1.0.0"},
@@ -52,8 +52,8 @@ func newVD(name string, results map[string]konfidence.DeploymentResult) *konfide
 // the features/authored subsets as RawExtension, plus the aggregated DeploymentResults.
 func TestHandleVectorData_CreatesWithSplitEnvelope(t *testing.T) {
 	envelope := []byte(`{"features":{"darkMode":true},"authored":{"db":{"host":"mysql"}}}`)
-	results := map[string]konfidence.DeploymentResult{
-		"svc-a/result-1": {Name: "result-1", Type: "test", Spec: runtime.RawExtension{Raw: []byte(`{"endpoint":"http://a"}`)}},
+	results := map[string][]konfidence.DeploymentResult{
+		"github.com/acme/svc-a": {{Name: "result-1", Type: "test", Spec: runtime.RawExtension{Raw: []byte(`{"endpoint":"http://a"}`)}}},
 	}
 	vd := newVD("vd-1", results)
 	r, c := newReconciler(t, vd)
@@ -80,6 +80,35 @@ func TestHandleVectorData_CreatesWithSplitEnvelope(t *testing.T) {
 	}
 	if !meta.IsStatusConditionTrue(vd.Status.Conditions, konfidence.VectorDataCreatedCondition) {
 		t.Errorf("expected VectorDataCreated=True")
+	}
+}
+
+// TestHandleVectorData_MultipleResultsPerComponent: a single component may expose more than one Service, so its
+// aggregated entry is a slice; all results are carried into VectorData.Spec verbatim under the component key.
+func TestHandleVectorData_MultipleResultsPerComponent(t *testing.T) {
+	results := map[string][]konfidence.DeploymentResult{
+		"github.com/acme/shop/storefront": {
+			{Name: "storefront", Type: "http-k8s-service", Spec: runtime.RawExtension{Raw: []byte(`{"K8sName":"storefront-a1b2"}`)}},
+			{Name: "storefront-admin", Type: "http-k8s-service", Spec: runtime.RawExtension{Raw: []byte(`{"K8sName":"storefront-admin-a1b2"}`)}},
+		},
+	}
+	vd := newVD("vd-multi", results)
+	r, c := newReconciler(t, vd)
+
+	if err := r.handleVectorData(context.Background(), vd, []byte(`{}`), logf.Log); err != nil {
+		t.Fatalf("handleVectorData: %v", err)
+	}
+
+	got := &konfidence.VectorData{}
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "vd-multi", Namespace: "landscape-a"}, got); err != nil {
+		t.Fatalf("get VectorData: %v", err)
+	}
+	entry := got.Spec.DeploymentResults["github.com/acme/shop/storefront"]
+	if len(entry) != 2 {
+		t.Fatalf("results for component: got %d, want 2", len(entry))
+	}
+	if entry[0].Name != "storefront" || entry[1].Name != "storefront-admin" {
+		t.Errorf("result names not preserved in order: %q, %q", entry[0].Name, entry[1].Name)
 	}
 }
 
