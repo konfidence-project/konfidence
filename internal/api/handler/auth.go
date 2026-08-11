@@ -36,7 +36,7 @@ func NewAuthHandler(logger *slog.Logger, oidcClient oidc.Client,
 
 // TODO check error handling in all implemented methods
 
-func (a *AuthHandler) Login(_ context.Context, request openapi.LoginRequestObject) (openapi.LoginResponseObject, error) {
+func (a *AuthHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error) {
 	returnUrl := "/"
 	// TODO need to validate returnUrl parameter
 	if request.Params.ReturnUrl != nil && *request.Params.ReturnUrl != "" {
@@ -55,34 +55,34 @@ func (a *AuthHandler) Login(_ context.Context, request openapi.LoginRequestObjec
 
 	// generate redirect url
 	authCodeUrl := a.oidcClient.AuthCodeURL(state)
-	return openapi.Login302Response{
-		Headers: openapi.Login302ResponseHeaders{Location: &authCodeUrl},
+	return openapi.LoginV1302Response{
+		Headers: openapi.LoginV1302ResponseHeaders{Location: &authCodeUrl},
 	}, nil
 }
 
-func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCallbackRequestObject) (openapi.AuthCallbackResponseObject, error) {
+func (a *AuthHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error) {
 	state := request.Params.State
 	if state == "" {
 		a.logger.Error("missing state parameter")
-		return openapi.AuthCallback400JSONResponse{}, nil
+		return openapi.AuthCallbackV1400JSONResponse{}, nil
 	}
 
 	code := request.Params.Code
 	if code == "" {
 		a.logger.Error("missing authorization code parameter")
-		return openapi.AuthCallback400JSONResponse{}, nil
+		return openapi.AuthCallbackV1400JSONResponse{}, nil
 	}
 
 	storedState, err := a.stateCache.Get(state)
 	if err != nil {
 		a.logger.Error("failed to get stored oidc state", "error", err)
-		return openapi.AuthCallback500JSONResponse{}, nil
+		return openapi.AuthCallbackV1500JSONResponse{}, nil
 	}
 
 	// entry does not exist or has been invalidated
 	if storedState == nil {
 		a.logger.Error("oidc state does not exist or has expired")
-		return openapi.AuthCallback400JSONResponse{}, nil
+		return openapi.AuthCallbackV1400JSONResponse{}, nil
 	}
 
 	err = a.stateCache.Delete(storedState)
@@ -95,33 +95,33 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 	tokenResponse, err := a.oidcClient.Exchange(ctx, code, storedState)
 	if err != nil {
 		a.logger.Error("token exchange failed", "error", err)
-		return openapi.AuthCallback401JSONResponse{}, nil
+		return openapi.AuthCallbackV1401JSONResponse{}, nil
 	}
 
 	// verify and extract the id token
 	idToken, err := a.oidcClient.VerifyAndGetIdToken(ctx, tokenResponse)
 	if err != nil {
 		a.logger.Error("failed to verify or extract idToken")
-		return openapi.AuthCallback500JSONResponse{}, err
+		return openapi.AuthCallbackV1500JSONResponse{}, err
 	}
 
 	// check that nonce values match
 	if storedState.Nonce != "" && storedState.Nonce != idToken.Nonce {
 		a.logger.Error("invalid nonce value in idToken")
-		return openapi.AuthCallback400JSONResponse{}, nil
+		return openapi.AuthCallbackV1400JSONResponse{}, nil
 	}
 
 	userInformation, err := a.oidcClient.GetUserInformation(ctx, tokenResponse.AccessToken)
 	if err != nil {
 		a.logger.Error("failed to get user information")
-		return openapi.AuthCallback401JSONResponse{}, err
+		return openapi.AuthCallbackV1401JSONResponse{}, err
 	}
 
 	// extract additional claims
 	claims, err := a.oidcClient.GetClaims(userInformation)
 	if err != nil {
 		a.logger.Error("failed to parse idToken additional claims from user information")
-		return openapi.AuthCallback500JSONResponse{}, err
+		return openapi.AuthCallbackV1500JSONResponse{}, err
 	}
 
 	// TODO determine roles, for now use some default ones
@@ -146,7 +146,7 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 	sessionId, err := a.sessions.Save(ctx, &sess)
 	if err != nil {
 		a.logger.Error("failed to create session")
-		return openapi.AuthCallback500JSONResponse{}, err
+		return openapi.AuthCallbackV1500JSONResponse{}, err
 	}
 
 	sessionCookie := &http.Cookie{
@@ -159,20 +159,20 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 	}
 
 	sCookieStr := sessionCookie.String()
-	return openapi.AuthCallback302Response{
-		Headers: openapi.AuthCallback302ResponseHeaders{
+	return openapi.AuthCallbackV1302Response{
+		Headers: openapi.AuthCallbackV1302ResponseHeaders{
 			Location:  &storedState.ReturnURL,
 			SetCookie: &sCookieStr,
 		},
 	}, nil
 }
 
-func (a *AuthHandler) Logout(ctx context.Context, _ openapi.LogoutRequestObject) (openapi.LogoutResponseObject, error) {
+func (a *AuthHandler) LogoutV1(ctx context.Context, _ openapi.LogoutV1RequestObject) (openapi.LogoutV1ResponseObject, error) {
 	// delete session
 	storedSession, err := session.FromContext(ctx)
 	if err != nil {
 		a.logger.Error("failed to get session from context", "error", err)
-		return openapi.Logout401JSONResponse{}, nil
+		return openapi.LogoutV1401JSONResponse{}, nil
 	}
 
 	if err := a.sessions.Delete(ctx, storedSession.ID); err != nil {
@@ -191,21 +191,21 @@ func (a *AuthHandler) Logout(ctx context.Context, _ openapi.LogoutRequestObject)
 	}
 
 	sCookieStr := sessionCookie.String()
-	return openapi.Logout200Response{
-		Headers: openapi.Logout200ResponseHeaders{
+	return openapi.LogoutV1200Response{
+		Headers: openapi.LogoutV1200ResponseHeaders{
 			SetCookie: &sCookieStr,
 		},
 	}, nil
 }
 
-func (a *AuthHandler) GetIdentity(ctx context.Context, _ openapi.GetIdentityRequestObject) (openapi.GetIdentityResponseObject, error) {
+func (a *AuthHandler) GetIdentityV1(ctx context.Context, _ openapi.GetIdentityV1RequestObject) (openapi.GetIdentityV1ResponseObject, error) {
 	storedSession, err := session.FromContext(ctx)
 	if err != nil {
 		a.logger.Error("session does not exist in context")
-		return openapi.GetIdentity401JSONResponse{}, nil
+		return openapi.GetIdentityV1401JSONResponse{}, nil
 	}
 
-	return openapi.GetIdentity200JSONResponse{
+	return openapi.GetIdentityV1200JSONResponse{
 		Email:      lo.FromPtr(storedSession.Email),
 		Name:       lo.FromPtr(storedSession.Name),
 		GivenName:  lo.FromPtr(storedSession.GivenName),
@@ -214,7 +214,7 @@ func (a *AuthHandler) GetIdentity(ctx context.Context, _ openapi.GetIdentityRequ
 	}, nil
 }
 
-func (a *AuthHandler) PostExchangeCode(_ context.Context, _ openapi.PostExchangeCodeRequestObject) (openapi.PostExchangeCodeResponseObject, error) {
+func (a *AuthHandler) PostExchangeCodeV1(_ context.Context, _ openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
 	return nil, nil
 }
 

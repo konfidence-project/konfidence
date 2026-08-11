@@ -7,16 +7,16 @@ info:
     HTTP gateway between CLI/UI clients and the Konfidence CRDs.
 
 servers:
-  - url: /api/v1
+  - url: /api
     description: Stage resources (versioned API)
 
 security:
   - sessionCookie: []
 
 paths:
-  /login:
+  /v1/login:
     get:
-      operationId: login
+      operationId: loginV1
       summary: Initiate OIDC login
       description: >
         Redirects the browser to the IDP authorization endpoint, beginning the
@@ -41,9 +41,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /auth/callback:
+  /v1/auth/callback:
     get:
-      operationId: authCallback
+      operationId: authCallbackV1
       summary: OIDC callback
       description: >
         Receives the authorization code from the IDP after successful login.
@@ -80,9 +80,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /logout:
+  /v1/logout:
     post:
-      operationId: logout
+      operationId: logoutV1
       summary: Terminate the current session
       description: Clears the session cookie. Requires an active session.
       tags: [auth]
@@ -97,9 +97,9 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /identity:
+  /v1/identity:
     get:
-      operationId: getIdentity
+      operationId: getIdentityV1
       summary: Get the current user identity
       description: Returns identity claims for the authenticated session.
       tags: [auth]
@@ -115,9 +115,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /exchange:
+  /v1/exchange:
     post:
-      operationId: postExchangeCode
+      operationId: postExchangeCodeV1
       summary: Send temp exchange code and PKCE verifier to get session
       description: Validates code and verifier and returns session if valid.
       tags: [auth]
@@ -146,9 +146,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /projects:
+  /v1/projects:
     get:
-      operationId: listProjects
+      operationId: listProjectsV1
       summary: List all projects
       description: Returns all Project resources visible to the authenticated user.
       tags: [ projects ]
@@ -164,9 +164,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /projects/{projectId}/landscapes:
+  /v1/projects/{projectId}/landscapes:
     get:
-      operationId: listLandscapes
+      operationId: listLandscapesV1
       summary: List all landscapes for a specific project
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
@@ -186,9 +186,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /projects/{projectId}/stages:
+  /v1/projects/{projectId}/stages:
     get:
-      operationId: listStages
+      operationId: listStagesV1
       summary: List all stages for a project
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
@@ -209,9 +209,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /projects/{projectId}/vectorDeployments:
+  /v1/projects/{projectId}/vectorDeployments:
     get:
-      operationId: listVectorDeployments
+      operationId: listVectorDeploymentsV1
       summary: List all vectorDeployments for a project
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
@@ -232,9 +232,9 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /projects/{projectId}/artifactDeployments:
+  /v1/projects/{projectId}/artifactDeployments:
     get:
-      operationId: listArtifactDeployments
+      operationId: listArtifactDeploymentsV1
       summary: List all artifactDeployments for a project.
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
