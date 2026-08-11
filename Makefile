@@ -69,6 +69,7 @@ API_WRITE_TIMEOUT ?= 10s
 API_SHUTDOWN_TIMEOUT ?= 15s
 API_OIDC_ISSUER_URL ?= http://localhost:5556/oidc
 API_OIDC_CLIENT_ID ?= konfidence
+API_OIDC_CLIENT_SECRET ?= konfidence-local-secret
 API_OIDC_SCOPES ?= openid,profile,email,groups,offline_access
 API_OIDC_REDIRECT_URL ?= http://localhost:8090/api/v1/auth/callback
 API_OIDC_TOKEN_URL ?=
@@ -157,6 +158,14 @@ webhook-certs: ## Generate self-signed certificates for local webhook developmen
 	@./hack/generate-webhook-certs.sh
 
 ##@ API
+
+.PHONY: idp-up
+idp-up: ## Start the local Dex identity provider.
+	$(CONTAINER_TOOL) compose up -d dex
+
+.PHONY: idp-down
+idp-down: ## Stop the local Dex identity provider.
+	$(CONTAINER_TOOL) compose down
 
 .PHONY: api
 api: hermit manifests generate generate-api docs schemas helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, docs, schemas, helm lint).

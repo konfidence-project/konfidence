@@ -14,7 +14,11 @@ func NewProjectHandler(k8s client.Client) *ProjectHandler {
 }
 
 func (h *ProjectHandler) ListProjects(_ context.Context, _ openapi.ListProjectsRequestObject) (openapi.ListProjectsResponseObject, error) {
-	return nil, nil
+	return openapi.ListProjects200JSONResponse{
+		Data: []openapi.Project{
+			{Id: "sample-project", Name: "Sample Project"},
+		},
+	}, nil
 }
 
 func (h *ProjectHandler) ListLandscapes(_ context.Context, _ openapi.ListLandscapesRequestObject) (openapi.ListLandscapesResponseObject, error) {
