@@ -83,10 +83,6 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	result, reconcileErr := r.reconcileAsync(ctx, req.NamespacedName, vectorTemplate)
 
-	// errBaseVectorNotReady is a normal transient state, not a failure. Swallow it so the
-	// reconcile does not back off or record an error; the base VectorTemplate watch
-	// re-enqueues this template once the base's status.latestVector is populated. The
-	// informative waiting condition set on the status is still patched below.
 	waitingForBase := errors.Is(reconcileErr, errBaseVectorNotReady)
 	if waitingForBase {
 		log.Info("waiting for base VectorTemplate to assemble a vector", "name", req.NamespacedName)
@@ -168,22 +164,19 @@ func (r *VectorTemplateReconciler) reconcileAsync(
 	}
 
 	// Check for an inflight job.
-	job, exists := r.jobs.get(nn)
-	if exists {
-		// Stale generation — cancel it and fall through to launch a new one.
-		if job.generation != vt.Generation {
-			log.Info("cancelling stale inflight assembly job",
-				"jobGeneration", job.generation, "currentGeneration", vt.Generation)
-			r.jobs.remove(nn)
-		} else if !job.done() {
-			// Still running for the current generation — poll later.
-			return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
-		} else { //nolint:gocritic // cleaner to keep as if-else chain
-			// Finished — apply the result.
+	if job, exists := r.jobs.get(nn); exists {
+		if job.generation == vt.Generation {
+			if !job.done() {
+				return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
+			}
 			res := <-job.result
 			r.jobs.remove(nn)
 			return r.applyAssemblyResult(vt, res, log)
 		}
+		// Stale generation — cancel and fall through to launch a new one.
+		log.Info("cancelling stale inflight assembly job",
+			"jobGeneration", job.generation, "currentGeneration", vt.Generation)
+		r.jobs.remove(nn)
 	}
 
 	// Launch a new assembly job.
@@ -350,10 +343,6 @@ func (r *VectorTemplateReconciler) resolveBaseRef(ctx context.Context, vt *konfi
 			fmt.Errorf("unable to get base VectorTemplate (%s): %w", vt.Spec.Base.Name, err))
 	}
 
-	// The base has not assembled a vector yet. This is a normal transient state, not an
-	// error: set a waiting condition and return the sentinel so the caller stops without
-	// backoff. The Watches mapping on base VectorTemplates re-enqueues this template as
-	// soon as the base's status.latestVector is populated.
 	if baseTemplate.Status.LatestVector == "" {
 		msg := fmt.Sprintf("waiting for base VectorTemplate (%s) to assemble a vector", vt.Spec.Base.Name)
 		meta.SetStatusCondition(&vt.Status.Conditions, metav1.Condition{
