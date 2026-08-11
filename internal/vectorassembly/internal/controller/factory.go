@@ -10,16 +10,16 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	vectorocm "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
-	"github.com/konfidence-project/konfidence/pkg/lrucache"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
 
-// NewCacheFactory returns the production cache factory for VectorAssembly.
+// NewCacheFactory returns the production clientcache factory for VectorAssembly.
 // Exported so that setup.go and envtest suites both use the exact same production
 // code path — no duplication, no drift.
-func NewCacheFactory(log logr.Logger, limiter crypto.Limiter) lrucache.Factory[*konfidence.VectorTemplate, vector.OcmPort] {
+func NewCacheFactory(log logr.Logger, limiter crypto.Limiter) clientcache.Factory[*konfidence.VectorTemplate, vector.OcmPort] {
 	return func(ctx context.Context, k8sClient client.Reader, cr *konfidence.VectorTemplate) (vector.OcmPort, error) {
 		resolver, err := credentials.ResolverFromCredentials(ctx, k8sClient, cr.Namespace, cr.Spec.Credentials)
 		if err != nil {

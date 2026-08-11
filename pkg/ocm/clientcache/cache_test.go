@@ -1,4 +1,4 @@
-package lrucache_test
+package clientcache_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/konfidence-project/konfidence/pkg/lrucache"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -21,19 +21,19 @@ type cr struct {
 }
 
 func extract(c cr) uint64 {
-	return lrucache.HashKey(c.namespace, c.name, c.generation)
+	return clientcache.HashKey(c.namespace, c.name, c.generation)
 }
 
 var _ = Describe("Cache", func() {
 	var (
 		calls atomic.Int32
-		cache *lrucache.Cache[cr, string]
+		cache *clientcache.Cache[cr, string]
 	)
 
 	BeforeEach(func() {
 		calls.Store(0)
 		var err error
-		cache, err = lrucache.New(lrucache.DefaultCacheSize, extract,
+		cache, err = clientcache.New(clientcache.DefaultClientCacheSize, extract,
 			func(_ context.Context, _ client.Reader, c cr) (string, error) {
 				calls.Add(1)
 				return fmt.Sprintf("%s/%s@%d", c.namespace, c.name, c.generation), nil
@@ -72,7 +72,7 @@ var _ = Describe("Cache", func() {
 
 		It("propagates factory errors without caching", func() {
 			boom := fmt.Errorf("factory error")
-			errCache, err := lrucache.New(lrucache.DefaultCacheSize, extract,
+			errCache, err := clientcache.New(clientcache.DefaultClientCacheSize, extract,
 				func(_ context.Context, _ client.Reader, _ cr) (string, error) {
 					return "", boom
 				},

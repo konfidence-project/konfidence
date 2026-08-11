@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
-	"github.com/konfidence-project/konfidence/pkg/lrucache"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 )
 
 const (
@@ -39,7 +39,7 @@ const (
 type VectorPromotionReconciler struct {
 	client.Client
 	Recorder events.EventRecorder
-	Cache    *lrucache.Cache[*konfidence.VectorPromotionConfig, promotion.OcmPort]
+	Cache    *clientcache.Cache[*konfidence.VectorPromotionConfig, promotion.OcmPort]
 }
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;create;update;patch
@@ -198,7 +198,7 @@ func parsePromotionParameters(config *konfidence.VectorPromotionConfig) (source,
 // NewVectorPromotionReconciler wires a VectorPromotionReconciler for the given manager.
 func NewVectorPromotionReconciler(
 	mgr ctrl.Manager,
-	cache *lrucache.Cache[*konfidence.VectorPromotionConfig, promotion.OcmPort],
+	cache *clientcache.Cache[*konfidence.VectorPromotionConfig, promotion.OcmPort],
 ) *VectorPromotionReconciler {
 	return &VectorPromotionReconciler{
 		Client:   mgr.GetClient(),

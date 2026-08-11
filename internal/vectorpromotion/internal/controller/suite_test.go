@@ -11,7 +11,7 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
-	"github.com/konfidence-project/konfidence/pkg/lrucache"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -190,7 +190,7 @@ func startManager() {
 	// Wrap the production factory with the failClientCreationSecret guard used by
 	// existing tests to simulate credential resolution failures.
 	baseFactory := NewCacheFactory(log, limiter)
-	wrappedFactory := lrucache.Factory[*konfidence.VectorPromotionConfig, promotion.OcmPort](
+	wrappedFactory := clientcache.Factory[*konfidence.VectorPromotionConfig, promotion.OcmPort](
 		func(ctx context.Context, k8sReader client.Reader, cr *konfidence.VectorPromotionConfig) (promotion.OcmPort, error) {
 			if cr.Spec.Credentials != nil && cr.Spec.Credentials.OCM != nil {
 				for _, ref := range cr.Spec.Credentials.OCM.Refs {
@@ -203,9 +203,9 @@ func startManager() {
 		},
 	)
 
-	promotionCache, err := lrucache.New(
-		lrucache.DefaultCacheSize,
-		lrucache.CRExtract[*konfidence.VectorPromotionConfig],
+	promotionCache, err := clientcache.New(
+		clientcache.DefaultClientCacheSize,
+		clientcache.DefaultExtract[*konfidence.VectorPromotionConfig],
 		wrappedFactory,
 	)
 	Expect(err).NotTo(HaveOccurred())

@@ -9,7 +9,7 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/controller"
-	"github.com/konfidence-project/konfidence/pkg/lrucache"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"github.com/konfidence-project/konfidence/pkg/operator"
 )
@@ -41,13 +41,13 @@ func SetupControllers(ctx context.Context, mgr ctrl.Manager, opts Options) error
 
 	log := logf.Log.WithName("vectorpromotion")
 
-	cache, err := lrucache.New(
-		lrucache.DefaultCacheSize,
-		lrucache.CRExtract[*konfidence.VectorPromotionConfig],
+	cache, err := clientcache.New(
+		clientcache.DefaultClientCacheSize,
+		clientcache.DefaultExtract[*konfidence.VectorPromotionConfig],
 		controller.NewCacheFactory(log, opts.Limiter),
 	)
 	if err != nil {
-		return fmt.Errorf("creating cache: %w", err)
+		return fmt.Errorf("creating clientcache: %w", err)
 	}
 
 	if err := controller.NewVectorPromotionReconciler(mgr, cache).

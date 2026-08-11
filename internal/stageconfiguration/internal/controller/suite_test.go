@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
-	"github.com/konfidence-project/konfidence/pkg/lrucache"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -137,9 +137,9 @@ var _ = BeforeSuite(func() {
 	limiter := cryptopkg.NewLimiter(0)
 	log := ctrl.Log.WithName("stageconfiguration")
 
-	cache, err := lrucache.New(
-		lrucache.DefaultCacheSize,
-		lrucache.CRExtract[*konfidence.StageConfiguration],
+	cache, err := clientcache.New(
+		clientcache.DefaultClientCacheSize,
+		clientcache.DefaultExtract[*konfidence.StageConfiguration],
 		NewCacheFactory(log, limiter),
 	)
 	Expect(err).NotTo(HaveOccurred())

@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/konfidence-project/konfidence/internal/stageconfiguration/internal/ports"
-	"github.com/konfidence-project/konfidence/pkg/lrucache"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 )
 
 const (
@@ -44,7 +44,7 @@ const (
 type StageConfigurationReconciler struct {
 	client.Client
 	Recorder events.EventRecorder
-	Cache    *lrucache.Cache[*konfidence.StageConfiguration, ports.VectorPort]
+	Cache    *clientcache.Cache[*konfidence.StageConfiguration, ports.VectorPort]
 }
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=stageconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -270,7 +270,7 @@ func reconcilePredicate() predicate.Predicate {
 // NewStageConfigurationReconciler wires a StageConfigurationReconciler for the given manager.
 func NewStageConfigurationReconciler(
 	mgr ctrl.Manager,
-	cache *lrucache.Cache[*konfidence.StageConfiguration, ports.VectorPort],
+	cache *clientcache.Cache[*konfidence.StageConfiguration, ports.VectorPort],
 ) *StageConfigurationReconciler {
 	return &StageConfigurationReconciler{
 		Client:   mgr.GetClient(),

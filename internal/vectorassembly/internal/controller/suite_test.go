@@ -13,7 +13,7 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
-	"github.com/konfidence-project/konfidence/pkg/lrucache"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -166,9 +166,9 @@ func startManager() {
 	limiter := cryptopkg.NewLimiter(0)
 	log := ctrl.Log.WithName("vectorassembly")
 
-	cache, err := lrucache.New(
-		lrucache.DefaultCacheSize,
-		lrucache.CRExtract[*konfidence.VectorTemplate],
+	cache, err := clientcache.New(
+		clientcache.DefaultClientCacheSize,
+		clientcache.DefaultExtract[*konfidence.VectorTemplate],
 		NewCacheFactory(log, limiter),
 	)
 	Expect(err).NotTo(HaveOccurred())

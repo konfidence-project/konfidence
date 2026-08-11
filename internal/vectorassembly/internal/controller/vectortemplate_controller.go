@@ -12,7 +12,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
-	"github.com/konfidence-project/konfidence/pkg/lrucache"
+	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -48,7 +48,7 @@ var errBaseVectorNotReady = errors.New("base vector not ready")
 type VectorTemplateReconciler struct {
 	client.Client
 	Recorder         events.EventRecorder
-	Cache            *lrucache.Cache[*konfidence.VectorTemplate, vector.OcmPort]
+	Cache            *clientcache.Cache[*konfidence.VectorTemplate, vector.OcmPort]
 	VectorCache      *lru.Cache[string, vector.Vector]
 	VersionGenerator vector.VersionGenerator
 }
@@ -482,7 +482,7 @@ func (r *VectorTemplateReconciler) getVectorCached(ctx context.Context, adapter 
 // NewVectorTemplateReconciler wires a VectorTemplateReconciler for the given manager.
 func NewVectorTemplateReconciler(
 	mgr ctrl.Manager,
-	cache *lrucache.Cache[*konfidence.VectorTemplate, vector.OcmPort],
+	cache *clientcache.Cache[*konfidence.VectorTemplate, vector.OcmPort],
 	vectorCache *lru.Cache[string, vector.Vector],
 	versionGenerator vector.VersionGenerator,
 ) *VectorTemplateReconciler {
