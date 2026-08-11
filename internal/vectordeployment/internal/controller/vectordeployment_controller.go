@@ -222,7 +222,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	// DeepEqual compares nil (server value after omitempty round-trip) vs. empty map.
 	var (
 		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifactReferences))
-		deploymentResults            = make(map[string]konfidence.DeploymentResult)
+		deploymentResults            = make(map[string][]konfidence.DeploymentResult)
 	)
 	allReady := true
 
@@ -341,9 +341,8 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 
 		// state management for VectorDeployedCondition
 		if meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.DeploymentResultCreatedCondition) {
-			// collect deployment results
-			for _, result := range artifactDeployment.Status.DeploymentResults {
-				deploymentResults[artifactRef.Component+"/"+result.Name] = result
+			if len(artifactDeployment.Status.DeploymentResults) > 0 {
+				deploymentResults[artifactRef.Component] = artifactDeployment.Status.DeploymentResults
 			}
 		}
 		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.ArtifactDeploymentReadyCondition) {

@@ -82,9 +82,9 @@ type VectorDeploymentStatus struct {
 	ResultingVectorAssignments map[string]LocalVectorAssignmentReference `json:"resultingVectorAssignments,omitempty"`
 
 	// DeploymentResults exposes an aggregated view of the deployment results produced
-	// by all underlying ArtifactDeployments. The map key is composed of the component
-	// name and the individual result name, ensuring uniqueness.
-	DeploymentResults map[string]DeploymentResult `json:"deploymentResults,omitempty"`
+	// by all underlying ArtifactDeployments. The map key is the artifact component name;
+	// the value lists every result emitted by that ArtifactDeployment.
+	DeploymentResults map[string][]DeploymentResult `json:"deploymentResults,omitempty"`
 }
 
 // LocalObjectReference references an object by name within the same namespace as the parent.
