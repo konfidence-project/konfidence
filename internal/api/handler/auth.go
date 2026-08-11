@@ -12,7 +12,7 @@ import (
 	"github.com/samber/lo"
 )
 
-type AuthHandler struct {
+type authHandler struct {
 	logger     *slog.Logger
 	oidcClient oidc.Client
 	stateCache oidc.StateStore
@@ -20,9 +20,8 @@ type AuthHandler struct {
 	config     config.Parsed
 }
 
-func NewAuthHandler(logger *slog.Logger, oidcClient oidc.Client,
-	stateStore oidc.StateStore, sessions session.SessionStore, cfg config.Parsed) *AuthHandler {
-	return &AuthHandler{
+func newAuthHandler(logger *slog.Logger, oidcClient oidc.Client, stateStore oidc.StateStore, sessions session.SessionStore, cfg config.Parsed) *authHandler {
+	return &authHandler{
 		logger:     logger,
 		oidcClient: oidcClient,
 		stateCache: stateStore,
@@ -33,7 +32,7 @@ func NewAuthHandler(logger *slog.Logger, oidcClient oidc.Client,
 
 // TODO check error handling in all implemented methods
 
-func (a *AuthHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error) {
+func (a *authHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error) {
 	returnUrl := "/"
 	// TODO need to validate returnUrl parameter
 	if request.Params.ReturnUrl != nil && *request.Params.ReturnUrl != "" {
@@ -57,7 +56,7 @@ func (a *AuthHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestO
 	}, nil
 }
 
-func (a *AuthHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error) {
+func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error) {
 	state := request.Params.State
 	if state == "" {
 		a.logger.Error("missing state parameter")
@@ -164,7 +163,7 @@ func (a *AuthHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 	}, nil
 }
 
-func (a *AuthHandler) LogoutV1(ctx context.Context, _ openapi.LogoutV1RequestObject) (openapi.LogoutV1ResponseObject, error) {
+func (a *authHandler) LogoutV1(ctx context.Context, _ openapi.LogoutV1RequestObject) (openapi.LogoutV1ResponseObject, error) {
 	// delete session
 	storedSession, err := session.FromContext(ctx)
 	if err != nil {
@@ -195,7 +194,7 @@ func (a *AuthHandler) LogoutV1(ctx context.Context, _ openapi.LogoutV1RequestObj
 	}, nil
 }
 
-func (a *AuthHandler) GetIdentityV1(ctx context.Context, _ openapi.GetIdentityV1RequestObject) (openapi.GetIdentityV1ResponseObject, error) {
+func (a *authHandler) GetIdentityV1(ctx context.Context, _ openapi.GetIdentityV1RequestObject) (openapi.GetIdentityV1ResponseObject, error) {
 	storedSession, err := session.FromContext(ctx)
 	if err != nil {
 		a.logger.Error("session does not exist in context")
@@ -211,7 +210,7 @@ func (a *AuthHandler) GetIdentityV1(ctx context.Context, _ openapi.GetIdentityV1
 	}, nil
 }
 
-func (a *AuthHandler) PostExchangeCodeV1(_ context.Context, _ openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
+func (a *authHandler) PostExchangeCodeV1(_ context.Context, _ openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
 	return nil, nil
 }
 

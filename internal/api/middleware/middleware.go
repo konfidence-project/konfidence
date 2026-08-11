@@ -6,17 +6,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/konfidence-project/konfidence/internal/api/handler"
+	"github.com/konfidence-project/konfidence/internal/api/apierror"
 )
 
-// Handle wraps a handler.Handler as an http.Handler, logging and responding to
+type ErrHandler func(http.ResponseWriter, *http.Request) error
+
+// Handle wraps an ErrHandler as an http.Handler, logging and responding to
 // any returned error in one place.
 //
-//   - *handler.APIError  → write its Status + Code + Message. Internal cause
+//   - *apierror.Error    → write its Status + Code + Message. Internal cause
 //     (Err != nil) is logged but never sent to the client.
 //   - any other error    → log at error level, respond 500 with a generic body.
 //   - nil                → handler already wrote its own response; do nothing.
-func Handle(logger *slog.Logger, h handler.Handler) http.Handler {
+func Handle(logger *slog.Logger, h ErrHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := h(w, r); err != nil {
 			handleError(w, r, err, logger)
@@ -43,7 +45,7 @@ func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 
 // Recovery is a last-resort safety net that catches unexpected panics so the
 // server process stays alive. It is NOT the primary error handling path —
-// handlers must return errors via handler.Handler, not panic.
+// handlers must return errors via ErrHandler, not panic.
 // Panics that reach here represent programming bugs and are always logged as errors.
 func Recovery(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -55,7 +57,7 @@ func Recovery(logger *slog.Logger) func(http.Handler) http.Handler {
 						"method", r.Method,
 						"path", r.URL.Path,
 					)
-					handler.WriteInternalError(w)
+					apierror.WriteInternal(w)
 				}
 			}()
 			next.ServeHTTP(w, r)
@@ -64,7 +66,7 @@ func Recovery(logger *slog.Logger) func(http.Handler) http.Handler {
 }
 
 func handleError(w http.ResponseWriter, r *http.Request, err error, logger *slog.Logger) {
-	if apiErr := handler.AsAPIError(err); apiErr != nil {
+	if apiErr := apierror.As(err); apiErr != nil {
 		if apiErr.Err != nil {
 			logger.Error("request failed",
 				"method", r.Method,
@@ -73,7 +75,7 @@ func handleError(w http.ResponseWriter, r *http.Request, err error, logger *slog
 				"error", apiErr.Err.Error(),
 			)
 		}
-		handler.WriteAPIError(w, apiErr)
+		apierror.Write(w, apiErr)
 		return
 	}
 
@@ -82,7 +84,7 @@ func handleError(w http.ResponseWriter, r *http.Request, err error, logger *slog
 		"path", r.URL.Path,
 		"error", err.Error(),
 	)
-	handler.WriteInternalError(w)
+	apierror.WriteInternal(w)
 }
 
 // responseWriter wraps http.ResponseWriter to capture the written status code.

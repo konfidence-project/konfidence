@@ -1,4 +1,4 @@
-package handler
+package middleware_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/konfidence-project/konfidence/internal/api/config"
+	"github.com/konfidence-project/konfidence/internal/api/middleware"
 	"github.com/konfidence-project/konfidence/internal/api/session"
 )
 
@@ -28,15 +29,6 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 	store := &testSessionStore{sessions: map[string]*session.Session{
 		"valid-session": {ID: "valid-session"},
 	}}
-	sessions := &sessionMiddleware{
-		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-		store:  store,
-		config: config.Parsed{SessionCookieName: "session"},
-	}
-	middleware, err := newSessionAuthMiddleware(sessions)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/identity" {
@@ -47,7 +39,15 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
-	h := middleware(next)
+	h, err := middleware.SessionAuthentication(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		store,
+		config.Parsed{SessionCookieName: "session"},
+		next,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("public operation bypasses authentication", func(t *testing.T) {
 		before := store.getCalls
@@ -65,7 +65,6 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 	t.Run("protected operation rejects missing session", func(t *testing.T) {
 		response := httptest.NewRecorder()
 		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil))
-
 		if response.Code != http.StatusUnauthorized {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
 		}
@@ -76,7 +75,6 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
 		request.AddCookie(&http.Cookie{Name: "session", Value: "valid-session"})
 		h.ServeHTTP(response, request)
-
 		if response.Code != http.StatusNoContent {
 			t.Fatalf("expected status %d, got %d", http.StatusNoContent, response.Code)
 		}
@@ -87,7 +85,6 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
 		request.AddCookie(&http.Cookie{Name: "session", Value: "unknown"})
 		h.ServeHTTP(response, request)
-
 		if response.Code != http.StatusUnauthorized {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
 		}
