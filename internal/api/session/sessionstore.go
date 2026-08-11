@@ -33,6 +33,7 @@ func (s *CacheSessionStore) Save(_ context.Context, session *Session) (string, e
 	}
 
 	id := uuid7.String()
+	session.ID = id
 	s.cache.Set(id, *session)
 	return id, nil
 }

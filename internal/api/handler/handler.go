@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -21,13 +22,44 @@ type ServerHandler struct {
 	authMiddleware func(http.Handler) http.Handler
 }
 
+type sessionMiddleware struct {
+	logger *slog.Logger
+	store  session.SessionStore
+	config config.Parsed
+}
+
+func (m *sessionMiddleware) AuthenticateSession(ctx context.Context, input *openapi3filter.AuthenticationInput) error {
+	if input.SecuritySchemeName != "sessionCookie" {
+		return fmt.Errorf("security scheme %q is not sessionCookie", input.SecuritySchemeName)
+	}
+
+	r := input.RequestValidationInput.Request
+	sessionCookie, err := r.Cookie(m.config.SessionCookieName)
+	if err != nil {
+		return fmt.Errorf("getting session cookie: %w", err)
+	}
+
+	storedSession, err := m.store.Get(ctx, sessionCookie.Value)
+	if err != nil {
+		m.logger.Error("failed to get session", "error", err)
+		return fmt.Errorf("getting session: %w", err)
+	}
+	if storedSession == nil {
+		return fmt.Errorf("no matching session found")
+	}
+
+	*r = *r.WithContext(session.NewContext(r.Context(), storedSession))
+	return nil
+}
+
 var _ openapi.StrictServerInterface = (*ServerHandler)(nil)
 
 func NewServerHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Client,
 	stateStore oidc.StateStore, sessionStore session.SessionStore, cfg config.Parsed) (*ServerHandler, error) {
+	sessions := &sessionMiddleware{logger: logger, store: sessionStore, config: cfg}
 	authHandler := NewAuthHandler(logger, oidcClient, stateStore, sessionStore, cfg, k8s)
 	projectHandler := NewProjectHandler(k8s)
-	authMiddleware, err := newSessionAuthMiddleware(authHandler)
+	authMiddleware, err := newSessionAuthMiddleware(sessions)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +71,7 @@ func NewServerHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Cl
 	}, nil
 }
 
-func newSessionAuthMiddleware(authHandler *AuthHandler) (func(http.Handler) http.Handler, error) {
+func newSessionAuthMiddleware(sessions *sessionMiddleware) (func(http.Handler) http.Handler, error) {
 	spec, err := openapi.GetSpec()
 	if err != nil {
 		return nil, fmt.Errorf("loading OpenAPI spec: %w", err)
@@ -49,7 +81,7 @@ func newSessionAuthMiddleware(authHandler *AuthHandler) (func(http.Handler) http
 		DoNotValidateServers: true,
 		Prefix:               "/api/v1",
 		Options: openapi3filter.Options{
-			AuthenticationFunc: authHandler.AuthenticateSession,
+			AuthenticationFunc: sessions.AuthenticateSession,
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ string, statusCode int) {
 			http.Error(w, "", statusCode)
