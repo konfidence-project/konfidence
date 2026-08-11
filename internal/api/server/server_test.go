@@ -54,12 +54,12 @@ var _ = Describe("Server", func() {
 		})
 
 		It("starts and stops cleanly when context is cancelled", func() {
-			srv := server.New(validParsed("127.0.0.1:0"), getLogger())
+			srv := server.New(validParsed("127.0.0.1:0"), getLogger(), http.NotFoundHandler())
 			ctx, cancel := context.WithCancel(context.Background())
 
 			errCh := make(chan error, 1)
 			go func() {
-				errCh <- srv.Run(ctx)
+				errCh <- srv.ListenAndServe(ctx)
 			}()
 
 			time.Sleep(50 * time.Millisecond)
@@ -69,12 +69,12 @@ var _ = Describe("Server", func() {
 		})
 
 		It("serves /healthz while running", func() {
-			srv := server.New(validParsed("127.0.0.1:19090"), getLogger())
+			srv := server.New(validParsed("127.0.0.1:19090"), getLogger(), http.NotFoundHandler())
 			ctx, cancel := context.WithCancel(context.Background())
 			DeferCleanup(cancel)
 
 			addrCh := make(chan string, 1)
-			go func() { _ = srv.Run(ctx, func(addr string) { addrCh <- addr }) }()
+			go func() { _ = srv.ListenAndServe(ctx, func(addr string) { addrCh <- addr }) }()
 
 			Eventually(func() error {
 				resp, err := http.Get("http://127.0.0.1:19090/healthz") //nolint:noctx

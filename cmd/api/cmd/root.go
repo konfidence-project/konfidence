@@ -199,12 +199,12 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		sessionStore = session.NewCacheSessionStore(parsed)
 	}
 
-	serverHandler, err := handler.NewServerHandler(logger, k8sClient, *oidcClient, stateStore, sessionStore, parsed)
+	api, err := handler.NewAPIHandler(logger, k8sClient, *oidcClient, stateStore, sessionStore, parsed)
 	if err != nil {
 		return fmt.Errorf("failed to create server handler: %w", err)
 	}
 
-	return server.New(parsed, logger, serverHandler.Mount).Run(ctx)
+	return server.New(parsed, logger, api.Handler()).ListenAndServe(ctx)
 }
 
 // envOr returns the value of the environment variable key, or fallback if unset.

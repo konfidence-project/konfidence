@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ServerHandler struct {
+type APIHandler struct {
 	AuthHandler
 	ProjectHandler
 	authMiddleware func(http.Handler) http.Handler
@@ -52,10 +52,10 @@ func (m *sessionMiddleware) AuthenticateSession(ctx context.Context, input *open
 	return nil
 }
 
-var _ openapi.StrictServerInterface = (*ServerHandler)(nil)
+var _ openapi.StrictServerInterface = (*APIHandler)(nil)
 
-func NewServerHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Client,
-	stateStore oidc.StateStore, sessionStore session.SessionStore, cfg config.Parsed) (*ServerHandler, error) {
+func NewAPIHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Client,
+	stateStore oidc.StateStore, sessionStore session.SessionStore, cfg config.Parsed) (*APIHandler, error) {
 	sessions := &sessionMiddleware{logger: logger, store: sessionStore, config: cfg}
 	authHandler := NewAuthHandler(logger, oidcClient, stateStore, sessionStore, cfg, k8s)
 	projectHandler := NewProjectHandler(k8s)
@@ -64,7 +64,7 @@ func NewServerHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Cl
 		return nil, err
 	}
 
-	return &ServerHandler{
+	return &APIHandler{
 		AuthHandler:    *authHandler,
 		ProjectHandler: *projectHandler,
 		authMiddleware: authMiddleware,
@@ -91,7 +91,7 @@ func newSessionAuthMiddleware(sessions *sessionMiddleware) (func(http.Handler) h
 	return authMiddleware, nil
 }
 
-func (s *ServerHandler) Mount(r chi.Router) {
+func (s *APIHandler) Handler() http.Handler {
 	errHandler := func(w http.ResponseWriter, r *http.Request, err error) {
 		if apiErr := AsAPIError(err); apiErr != nil {
 			WriteAPIError(w, apiErr)
@@ -101,12 +101,10 @@ func (s *ServerHandler) Mount(r chi.Router) {
 	}
 
 	apiRouter := chi.NewRouter()
-	openapi.HandlerWithOptions(openapi.NewStrictHandlerWithOptions(s, nil, openapi.StrictHTTPServerOptions{
-		RequestErrorHandlerFunc:  errHandler,
-		ResponseErrorHandlerFunc: errHandler,
-	}), openapi.ChiServerOptions{
-		BaseURL:    "/api/v1",
-		BaseRouter: apiRouter,
-	})
-	r.Mount("/", s.authMiddleware(apiRouter))
+	apiRouter.Mount("/api/v1",
+		openapi.Handler(openapi.NewStrictHandlerWithOptions(s, nil, openapi.StrictHTTPServerOptions{
+			RequestErrorHandlerFunc:  errHandler,
+			ResponseErrorHandlerFunc: errHandler,
+		})))
+	return s.authMiddleware(apiRouter)
 }
