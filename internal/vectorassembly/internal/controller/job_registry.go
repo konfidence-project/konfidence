@@ -17,7 +17,6 @@ type assemblyResult struct {
 
 func (r assemblyResult) failed() bool  { return r.err != nil }
 func (r assemblyResult) created() bool { return r.err == nil && r.latestVector != "" }
-func (r assemblyResult) noDrift() bool { return r.err == nil && r.latestVector == "" }
 
 // inflightJob tracks a single background assembly goroutine.
 type inflightJob struct {
