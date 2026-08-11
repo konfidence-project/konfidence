@@ -98,7 +98,9 @@ type VectorPromotionStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// State summarizes Conditions for display. Conditions are the source of
-	// truth; State is recomputed whenever conditions are written.
+	// truth; State is recomputed whenever conditions are written. `Superseded`
+	// is a locked terminal state: a superseded promotion can never be
+	// approved or executed afterwards, only its successor can.
 	// +kubebuilder:validation:Enum=Pending;WaitingForApproval;Approved;InProgress;Succeeded;Failed;Superseded
 	// +optional
 	State VectorPromotionState `json:"state,omitempty"`

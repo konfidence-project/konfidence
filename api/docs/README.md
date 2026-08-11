@@ -1895,7 +1895,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
-| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes Conditions for display. Conditions are the source of<br />truth; State is recomputed whenever conditions are written. |  | Enum: [Pending WaitingForApproval Approved InProgress Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
+| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes Conditions for display. Conditions are the source of<br />truth; State is recomputed whenever conditions are written. `Superseded`<br />is a locked terminal state: a superseded promotion can never be<br />approved or executed afterwards, only its successor can. |  | Enum: [Pending WaitingForApproval Approved InProgress Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
 
 
 #### VectorTemplate
