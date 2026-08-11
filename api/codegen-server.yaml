@@ -3,4 +3,5 @@ generate:
   chi-server: true
   strict-server: true
   models: true
-output: ../internal/api/openapi/server.go
+  embedded-spec: true
+output: internal/api/openapi/server.go

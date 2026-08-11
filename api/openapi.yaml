@@ -10,6 +10,9 @@ servers:
   - url: /api/v1
     description: Stage resources (versioned API)
 
+security:
+  - sessionCookie: []
+
 paths:
   /login:
     get:
@@ -20,6 +23,7 @@ paths:
         PKCE auth flow. On successful authentication the IDP redirects back to
         /api/v1/auth/callback.
       tags: [auth]
+      security: []
       parameters:
         - name: return_url
           in: query
@@ -45,6 +49,7 @@ paths:
         Receives the authorization code from the IDP after successful login.
         Exchanges the code for tokens and establishes a session cookie.
       tags: [auth]
+      security: []
       parameters:
         - name: code
           in: query
@@ -81,8 +86,6 @@ paths:
       summary: Terminate the current session
       description: Clears the session cookie. Requires an active session.
       tags: [auth]
-      security:
-        - sessionCookie: []
       responses:
         "200":
           description: Session terminated successfully.
@@ -100,8 +103,6 @@ paths:
       summary: Get the current user identity
       description: Returns identity claims for the authenticated session.
       tags: [auth]
-      security:
-        - sessionCookie: []
       responses:
         "200":
           description: OK
@@ -120,6 +121,7 @@ paths:
       summary: Send temp exchange code and PKCE verifier to get session
       description: Validates code and verifier and returns session if valid.
       tags: [auth]
+      security: []
       requestBody:
         required: true
         content:
@@ -150,8 +152,6 @@ paths:
       summary: List all projects
       description: Returns all Project resources visible to the authenticated user.
       tags: [ projects ]
-      security:
-        - sessionCookie: [ ]
       responses:
         "200":
           description: OK
@@ -172,8 +172,6 @@ paths:
         - $ref: "#/components/parameters/ProjectPathId"
       description: Returns all landscape resources for a project.
       tags: [ projects ]
-      security:
-        - sessionCookie: [ ]
       responses:
         "200":
           description: OK
@@ -197,8 +195,6 @@ paths:
         - $ref: "#/components/parameters/LandscapeQueryId"
       description: Returns all stage resources for a project. Can be filtered by landscape.
       tags: [projects]
-      security:
-        - sessionCookie: []
       responses:
         "200":
           description: OK
@@ -222,8 +218,6 @@ paths:
         - $ref: "#/components/parameters/LandscapeQueryId"
       description: Returns all vectorDeployments resources for a project. Can be filtered by landscape.
       tags: [ projects ]
-      security:
-        - sessionCookie: [ ]
       responses:
         "200":
           description: OK
@@ -248,8 +242,6 @@ paths:
         - $ref: "#/components/parameters/VectorDeploymentQueryId"
       description: Returns all artifactDeployments resources for a project. Can be filtered by landscape or vectorDeployment.
       tags: [ projects ]
-      security:
-        - sessionCookie: [ ]
       responses:
         "200":
           description: OK
