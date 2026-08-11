@@ -7,13 +7,11 @@ import (
 
 type contextKey string
 
-const (
-	Id        string     = "session_id"
-	ContextId contextKey = contextKey(Id)
-)
+const contextSession contextKey = "session"
 
 // Session represents a client session for an authenticated user.
 type Session struct {
+	ID string `json:"-"`
 	// TODO add/refine session fields
 	Subject           string   `json:"subject"`
 	Name              *string  `json:"name,omitempty"`
@@ -28,11 +26,15 @@ type Session struct {
 	Expiry            int64    `json:"expiry"`
 }
 
-func GetSessionIdFromContext(ctx context.Context) (string, error) {
-	sessionId, ok := ctx.Value(ContextId).(string)
-	if !ok {
-		return "", fmt.Errorf("sessionId not found in context")
+func NewContext(ctx context.Context, session *Session) context.Context {
+	return context.WithValue(ctx, contextSession, session)
+}
+
+func FromContext(ctx context.Context) (*Session, error) {
+	session, ok := ctx.Value(contextSession).(*Session)
+	if !ok || session == nil {
+		return nil, fmt.Errorf("session not found in context")
 	}
 
-	return sessionId, nil
+	return session, nil
 }

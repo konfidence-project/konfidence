@@ -14,23 +14,23 @@ import (
 )
 
 type AuthHandler struct {
-	logger       *slog.Logger
-	oidcClient   oidc.Client
-	stateCache   oidc.StateStore
-	sessionStore session.SessionStore
-	config       config.Parsed
-	k8s          client.Client
+	logger     *slog.Logger
+	oidcClient oidc.Client
+	stateCache oidc.StateStore
+	sessions   session.SessionStore
+	config     config.Parsed
+	k8s        client.Client
 }
 
 func NewAuthHandler(logger *slog.Logger, oidcClient oidc.Client,
-	stateStore oidc.StateStore, sessionStore session.SessionStore, cfg config.Parsed, k8s client.Client) *AuthHandler {
+	stateStore oidc.StateStore, sessions session.SessionStore, cfg config.Parsed, k8s client.Client) *AuthHandler {
 	return &AuthHandler{
-		logger:       logger,
-		oidcClient:   oidcClient,
-		stateCache:   stateStore,
-		sessionStore: sessionStore,
-		config:       cfg,
-		k8s:          k8s,
+		logger:     logger,
+		oidcClient: oidcClient,
+		stateCache: stateStore,
+		sessions:   sessions,
+		config:     cfg,
+		k8s:        k8s,
 	}
 }
 
@@ -143,7 +143,7 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 		Expiry:            tokenResponse.Expiry.Unix(),
 	}
 
-	sessionId, err := a.sessionStore.Save(ctx, &sess)
+	sessionId, err := a.sessions.Save(ctx, &sess)
 	if err != nil {
 		a.logger.Error("failed to create session")
 		return openapi.AuthCallback500JSONResponse{}, err
@@ -169,13 +169,13 @@ func (a *AuthHandler) AuthCallback(ctx context.Context, request openapi.AuthCall
 
 func (a *AuthHandler) Logout(ctx context.Context, _ openapi.LogoutRequestObject) (openapi.LogoutResponseObject, error) {
 	// delete session
-	sessionId, err := session.GetSessionIdFromContext(ctx)
+	storedSession, err := session.FromContext(ctx)
 	if err != nil {
-		a.logger.Error("failed to get sessionId from context", "error", err)
+		a.logger.Error("failed to get session from context", "error", err)
 		return openapi.Logout401JSONResponse{}, nil
 	}
 
-	if err := a.sessionStore.Delete(ctx, sessionId); err != nil {
+	if err := a.sessions.Delete(ctx, storedSession.ID); err != nil {
 		a.logger.Error("failed to delete session", "error", err)
 	}
 
@@ -199,20 +199,9 @@ func (a *AuthHandler) Logout(ctx context.Context, _ openapi.LogoutRequestObject)
 }
 
 func (a *AuthHandler) GetIdentity(ctx context.Context, _ openapi.GetIdentityRequestObject) (openapi.GetIdentityResponseObject, error) {
-	sessionId, err := session.GetSessionIdFromContext(ctx)
+	storedSession, err := session.FromContext(ctx)
 	if err != nil {
-		a.logger.Error("session does not exist in session store")
-		return openapi.GetIdentity401JSONResponse{}, nil
-	}
-
-	storedSession, err := a.sessionStore.Get(ctx, sessionId)
-	if err != nil {
-		a.logger.Error("failed to get session from store", "error", err)
-		return openapi.GetIdentity500JSONResponse{}, err
-	}
-
-	if storedSession == nil {
-		a.logger.Error("session does not exist in session store")
+		a.logger.Error("session does not exist in context")
 		return openapi.GetIdentity401JSONResponse{}, nil
 	}
 
@@ -227,43 +216,6 @@ func (a *AuthHandler) GetIdentity(ctx context.Context, _ openapi.GetIdentityRequ
 
 func (a *AuthHandler) PostExchangeCode(_ context.Context, _ openapi.PostExchangeCodeRequestObject) (openapi.PostExchangeCodeResponseObject, error) {
 	return nil, nil
-}
-
-func (a *AuthHandler) SessionAuthMiddleware(f openapi.StrictHandlerFunc, operationId string) openapi.StrictHandlerFunc {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
-		// specify which operations are not secured
-		publicOperations := map[string]bool{
-			"Login":            true,
-			"AuthCallback":     true,
-			"PostExchangeCode": true,
-		}
-
-		if !publicOperations[operationId] {
-			sessionCookie, err := r.Cookie(a.config.SessionCookieName)
-			if err != nil {
-				a.logger.Error("failed to get session cookie from request", "error", err)
-				http.Error(w, "", http.StatusUnauthorized)
-				return nil, nil
-			}
-
-			storedSession, err := a.sessionStore.Get(ctx, sessionCookie.Value)
-			if err != nil {
-				a.logger.Error("failed to get session", "error", err)
-				http.Error(w, "", http.StatusInternalServerError)
-				return nil, nil
-			}
-
-			if storedSession == nil {
-				a.logger.Error("no matching session found")
-				http.Error(w, "", http.StatusUnauthorized)
-				return nil, nil
-			}
-
-			ctx = context.WithValue(ctx, session.ContextId, sessionCookie.Value)
-		}
-
-		return f(ctx, w, r, request)
-	}
 }
 
 func sameSiteMode(mode string) http.SameSite {
