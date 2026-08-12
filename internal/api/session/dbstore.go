@@ -11,7 +11,7 @@ import (
 )
 
 type DBStore struct {
-	queries db.Queries
+	queries db.Querier
 }
 
 func (s *DBStore) Save(ctx context.Context, session *Session) (string, error) {
@@ -89,6 +89,6 @@ func getDBID(id string) (pgtype.UUID, error) {
 	return dbID, nil
 }
 
-func NewDBStore(queries db.Queries) *DBStore {
+func NewDBStore(queries db.Querier) *DBStore {
 	return &DBStore{queries: queries}
 }
