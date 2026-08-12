@@ -159,14 +159,6 @@ webhook-certs: ## Generate self-signed certificates for local webhook developmen
 
 ##@ API
 
-.PHONY: idp-up
-idp-up: ## Start the local Dex identity provider.
-	$(CONTAINER_TOOL) compose up -d dex
-
-.PHONY: idp-down
-idp-down: ## Stop the local Dex identity provider.
-	$(CONTAINER_TOOL) compose down
-
 .PHONY: api
 api: hermit manifests generate generate-api docs schemas helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, docs, schemas, helm lint).
 
