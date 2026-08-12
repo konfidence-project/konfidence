@@ -1,4 +1,4 @@
-FROM ghcr.io/pnpm/pnpm:11.19.0 AS base
+FROM ghcr.io/pnpm/pnpm:11.21.0 AS base
 
 WORKDIR /workspace
 
