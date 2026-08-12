@@ -192,7 +192,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("database unreachable: %w", err)
 		}
 		queries := db.New(dbPool)
-		sessionStore = session.NewDBStore(*queries)
+		sessionStore = session.NewDBStore(queries)
 	} else {
 		sessionStore = session.NewInMemoryStore(parsed)
 	}
