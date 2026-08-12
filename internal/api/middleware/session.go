@@ -13,7 +13,7 @@ import (
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 )
 
-func SessionAuthentication(logger *slog.Logger, store session.SessionStore, cfg config.Parsed, next http.Handler) (http.Handler, error) {
+func SessionAuthentication(logger *slog.Logger, store session.Reader, cfg config.Parsed, next http.Handler) (http.Handler, error) {
 	spec, err := openapi.GetSpec()
 	if err != nil {
 		return nil, fmt.Errorf("loading OpenAPI spec: %w", err)
@@ -40,7 +40,7 @@ func SessionAuthentication(logger *slog.Logger, store session.SessionStore, cfg 
 
 type sessionAuthenticator struct {
 	logger     *slog.Logger
-	store      session.SessionStore
+	store      session.Reader
 	cookieName string
 }
 

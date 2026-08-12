@@ -168,7 +168,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to create oidc client: %w", err)
 	}
 
-	var sessionStore session.SessionStore
+	var sessionStore session.Store
 	if parsed.DBConnection != "" {
 		// init database config
 		dbConfig, err := pgxpool.ParseConfig(parsed.DBConnection)
@@ -192,9 +192,9 @@ func startServer(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("database unreachable: %w", err)
 		}
 		queries := db.New(dbPool)
-		sessionStore = session.NewDbSessionStore(*queries)
+		sessionStore = session.NewDBStore(*queries)
 	} else {
-		sessionStore = session.NewCacheSessionStore(parsed)
+		sessionStore = session.NewInMemoryStore(parsed)
 	}
 
 	api, err := handler.NewAPIHandler(logger, k8sClient, *oidcClient, sessionStore, parsed)

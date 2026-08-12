@@ -16,11 +16,11 @@ type authHandler struct {
 	logger     *slog.Logger
 	oidcClient oidc.Client
 	stateCache oidc.StateStore
-	sessions   session.SessionStore
+	sessions   session.Writer
 	config     config.Parsed
 }
 
-func newAuthHandler(logger *slog.Logger, oidcClient oidc.Client, stateStore oidc.StateStore, sessions session.SessionStore, cfg config.Parsed) *authHandler {
+func newAuthHandler(logger *slog.Logger, oidcClient oidc.Client, stateStore oidc.StateStore, sessions session.Writer, cfg config.Parsed) *authHandler {
 	return &authHandler{
 		logger:     logger,
 		oidcClient: oidcClient,
