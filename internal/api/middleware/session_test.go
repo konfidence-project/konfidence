@@ -18,8 +18,6 @@ type testSessionStore struct {
 	getCalls int
 }
 
-func (s *testSessionStore) Save(context.Context, *session.Session) (string, error) { return "", nil }
-func (s *testSessionStore) Delete(context.Context, string) error                   { return nil }
 func (s *testSessionStore) Get(_ context.Context, id string) (*session.Session, error) {
 	s.getCalls++
 	return s.sessions[id], nil

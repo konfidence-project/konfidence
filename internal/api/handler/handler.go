@@ -22,7 +22,7 @@ type apiHandler struct {
 var _ openapi.StrictServerInterface = (*apiHandler)(nil)
 
 func NewAPIHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Client,
-	sessionStore session.SessionStore, cfg config.Parsed) (http.Handler, error) {
+	sessionStore session.Store, cfg config.Parsed) (http.Handler, error) {
 	auth := newAuthHandler(logger, oidcClient, oidc.NewStateCacheStore(cfg), sessionStore, cfg)
 	project := newProjectHandler(k8s)
 	api := &apiHandler{
