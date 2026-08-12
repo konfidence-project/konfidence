@@ -3,6 +3,7 @@ package vector
 import (
 	"bytes"
 	"context"
+	"slices"
 
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -45,8 +46,18 @@ type VectorConfiguration struct {
 	Content []byte
 }
 
-func HasDrift(currentVector, desiredVector Vector) bool {
-	return hasArtifactDrift(currentVector.Artifacts, desiredVector.Artifacts) ||
+// Clone returns a deep copy of v. The caller may freely mutate Artifacts and
+// VectorConfig.Content without affecting the original — critical for cache safety.
+func (v Vector) Clone() Vector {
+	v.Artifacts = slices.Clone(v.Artifacts)
+	if v.VectorConfig != nil {
+		cfg := &VectorConfiguration{Content: slices.Clone(v.VectorConfig.Content)}
+		v.VectorConfig = cfg
+	}
+	return v
+}
+
+func HasDrift(currentVector, desiredVector Vector) bool {	return hasArtifactDrift(currentVector.Artifacts, desiredVector.Artifacts) ||
 		hasVectorConfigDrift(currentVector.VectorConfig, desiredVector.VectorConfig)
 }
 

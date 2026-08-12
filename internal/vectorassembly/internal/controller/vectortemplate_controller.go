@@ -373,14 +373,14 @@ func (r *VectorTemplateReconciler) resolveBaseRef(ctx context.Context, vt *konfi
 func (r *VectorTemplateReconciler) getVectorCached(ctx context.Context, adapter vector.OcmPort, ref compref.Ref) (vector.Vector, error) {
 	key := ref.String()
 	if v, ok := r.VectorCache.Get(key); ok {
-		return v, nil
+		return v.Clone(), nil
 	}
 	v, err := adapter.GetVector(ctx, ref)
 	if err != nil {
 		return vector.Vector{}, err
 	}
 	r.VectorCache.Add(key, v)
-	return v, nil
+	return v.Clone(), nil
 }
 
 func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []vector.Artifact) []vector.Artifact {
@@ -388,20 +388,23 @@ func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts
 		return componentArtifacts
 	}
 
+	result := make([]vector.Artifact, len(baseArtifacts))
+	copy(result, baseArtifacts)
+
 	for _, componentArtifact := range componentArtifacts {
 		found := false
-		for i, baseArtifact := range baseArtifacts {
+		for i, baseArtifact := range result {
 			if componentArtifact.Name == baseArtifact.Name {
-				baseArtifacts[i] = componentArtifact
+				result[i] = componentArtifact
 				found = true
 				break
 			}
 		}
 		if !found {
-			baseArtifacts = append(baseArtifacts, componentArtifact)
+			result = append(result, componentArtifact)
 		}
 	}
-	return baseArtifacts
+	return result
 }
 
 func mapComponentsToOCMReferences(components []konfidence.Component) ([]compref.Ref, error) {
