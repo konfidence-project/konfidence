@@ -118,6 +118,7 @@ func (s *DbSessionStore) Get(ctx context.Context, id string) (*Session, error) {
 	}
 
 	sess := &Session{
+		ID:                id,
 		Subject:           dbSess.Subject,
 		Name:              dbSess.Name,
 		Email:             dbSess.Email,
