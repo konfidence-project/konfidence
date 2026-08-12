@@ -10,7 +10,7 @@ const apiUrlSchema = valibot.pipe(
 // oxlint-disable-next-line import/prefer-default-export -- SvelteKit expects this named export.
 export const variables = defineEnvVars({
   KONFIDENCE_API_URL: {
-    description: "Base URL of the Konfidence API, including its port when required",
+    description: "Origin of the Konfidence API, including its port when required",
     schema: apiUrlSchema,
   },
 });
