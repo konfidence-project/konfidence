@@ -80,6 +80,16 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		}
 	})
 
+	t.Run("protected operation rejects a differently named cookie", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+		request.AddCookie(&http.Cookie{Name: "unknown-session-name", Value: "valid-session"})
+		h.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
+		}
+	})
+
 	t.Run("protected operation rejects unknown session", func(t *testing.T) {
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)

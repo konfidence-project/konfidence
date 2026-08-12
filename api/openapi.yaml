@@ -261,7 +261,7 @@ components:
     sessionCookie:
       type: apiKey
       in: cookie
-      name: kden_session
+      name: kden-session
 
   parameters:
     ProjectPathId:

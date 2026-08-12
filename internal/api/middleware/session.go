@@ -18,6 +18,11 @@ func SessionAuthentication(logger *slog.Logger, store session.SessionStore, cfg 
 	if err != nil {
 		return nil, fmt.Errorf("loading OpenAPI spec: %w", err)
 	}
+	securityScheme := spec.Components.SecuritySchemes["sessionCookie"]
+	if securityScheme == nil || securityScheme.Value == nil {
+		return nil, fmt.Errorf("sessionCookie security scheme is missing from OpenAPI spec")
+	}
+	securityScheme.Value.Name = cfg.SessionCookieName
 
 	authenticator := sessionAuthenticator{logger: logger, store: store, cookieName: cfg.SessionCookieName}
 	validate := nethttpmiddleware.OapiRequestValidatorWithOptions(spec, &nethttpmiddleware.Options{
