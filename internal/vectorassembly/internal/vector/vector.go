@@ -57,7 +57,8 @@ func (v Vector) Clone() Vector {
 	return v
 }
 
-func HasDrift(currentVector, desiredVector Vector) bool {	return hasArtifactDrift(currentVector.Artifacts, desiredVector.Artifacts) ||
+func HasDrift(currentVector, desiredVector Vector) bool {	
+	return hasArtifactDrift(currentVector.Artifacts, desiredVector.Artifacts) ||
 		hasVectorConfigDrift(currentVector.VectorConfig, desiredVector.VectorConfig)
 }
 
