@@ -590,8 +590,8 @@ ocm.software/open-component-model/bindings/go/wget v0.0.0-20260728064351-657389b
 ocm.software/open-component-model/bindings/go/wget v0.0.0-20260728064351-657389b11d79/go.mod h1:LhGwPklYuNhmBJCiO0QzP5R7CZfRIGHMqM2g3HXVbkc=
 ocm.software/open-component-model/cli v0.13.0 h1:NLDJ5p1dyKgj6PB/Pjv5A6Db0EJ7IJhuuNg08dvdFpo=
 ocm.software/open-component-model/cli v0.13.0/go.mod h1:pvPsz+rUcCsUk4Vti66k1vVKUV57g+x2yRpcwpN2YWo=
-ocm.software/open-component-model/kubernetes/controller v0.13.0-rc.1 h1:M7BIjk4dijqdI4jCEA70NM41gigCNXLvEKESui3CrQE=
-ocm.software/open-component-model/kubernetes/controller v0.13.0-rc.1/go.mod h1:iUtUdi7BkmfZvnF8dWRihE4nrm7hr+egiX+54l82fww=
+ocm.software/open-component-model/kubernetes/controller v0.13.0 h1:oM16H3rjy0kPCD9xAmj3qapAvLnNeba1biJz0lQrL2o=
+ocm.software/open-component-model/kubernetes/controller v0.13.0/go.mod h1:iUtUdi7BkmfZvnF8dWRihE4nrm7hr+egiX+54l82fww=
 oras.land/oras-go/v2 v2.6.2 h1:N04RXngAp1LJKTG6ifz3xHPipasEkWr+hFmInja5YKo=
 oras.land/oras-go/v2 v2.6.2/go.mod h1:PlTtg4JTDJkDe8yVHpM2wz7/YDc00GVas+i4jAW2TZ4=
 pgregory.net/rapid v1.2.0 h1:keKAYRcjm+e1F0oAuU5F5+YPAWcyxNNRK2wud503Gnk=

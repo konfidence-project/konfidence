@@ -54,7 +54,7 @@ require (
 	ocm.software/open-component-model/bindings/go/transfer v0.0.0-20260728010257-ba2ab4bca27b
 	ocm.software/open-component-model/bindings/go/transform v0.0.0-20260728010257-ba2ab4bca27b
 	ocm.software/open-component-model/cli v0.13.0
-	ocm.software/open-component-model/kubernetes/controller v0.13.0-rc.1
+	ocm.software/open-component-model/kubernetes/controller v0.13.0
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/yaml v1.6.0
 )
