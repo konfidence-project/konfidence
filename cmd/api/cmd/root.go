@@ -168,8 +168,6 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to create oidc client: %w", err)
 	}
 
-	stateStore := oidc.NewStateCacheStore(parsed)
-
 	var sessionStore session.SessionStore
 	if parsed.DBConnection != "" {
 		// init database config
@@ -199,7 +197,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		sessionStore = session.NewCacheSessionStore(parsed)
 	}
 
-	api, err := handler.NewAPIHandler(logger, k8sClient, *oidcClient, stateStore, sessionStore, parsed)
+	api, err := handler.NewAPIHandler(logger, k8sClient, *oidcClient, sessionStore, parsed)
 	if err != nil {
 		return fmt.Errorf("failed to create API handler: %w", err)
 	}
