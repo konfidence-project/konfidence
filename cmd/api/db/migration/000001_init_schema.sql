@@ -7,7 +7,6 @@ CREATE TABLE session (
     family_name TEXT,
     preferred_user_name TEXT,
     email TEXT,
-    roles TEXT[],
     groups TEXT[],
     access_token TEXT NOT NULL,
     refresh_token TEXT,

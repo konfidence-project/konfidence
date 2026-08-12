@@ -451,7 +451,6 @@ components:
           type: string
         roles:
           type: array
-          minItems: 1
           items:
             type: string
 

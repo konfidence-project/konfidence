@@ -64,6 +64,10 @@ func (a *sessionAuthenticator) authenticate(ctx context.Context, input *openapi3
 		return fmt.Errorf("no matching session found")
 	}
 
+	// TODO determine roles, for now use some default ones
+	roles := []string{"admin", "dev"}
+	storedSession.Roles = roles
+
 	*r = *r.WithContext(session.NewContext(r.Context(), storedSession))
 	return nil
 }

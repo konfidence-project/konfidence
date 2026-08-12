@@ -120,23 +120,21 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 		return openapi.AuthCallbackV1500JSONResponse{}, err
 	}
 
-	// TODO determine roles, for now use some default ones
-	roles := []string{"admin", "dev"}
-
 	// create and save session
 	// TODO encrypt session id
 	sess := session.Session{
-		Subject:           idToken.Subject,
-		Name:              claims.Name,
-		GivenName:         claims.GivenName,
-		FamilyName:        claims.FamilyName,
-		PreferredUsername: claims.PreferredUsername,
-		Email:             claims.Email,
-		Groups:            claims.Groups,
-		Roles:             roles,
-		AccessToken:       tokenResponse.AccessToken,
-		RefreshToken:      &tokenResponse.RefreshToken,
-		Expiry:            tokenResponse.Expiry.Unix(),
+		Subject: idToken.Subject,
+		Context: session.Context{
+			Name:              claims.Name,
+			GivenName:         claims.GivenName,
+			FamilyName:        claims.FamilyName,
+			PreferredUsername: claims.PreferredUsername,
+			Email:             claims.Email,
+			Groups:            claims.Groups,
+		},
+		AccessToken:  tokenResponse.AccessToken,
+		RefreshToken: &tokenResponse.RefreshToken,
+		Expiry:       tokenResponse.Expiry.Unix(),
 	}
 
 	sessionId, err := a.sessions.Save(ctx, &sess)
@@ -145,6 +143,7 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 		return openapi.AuthCallbackV1500JSONResponse{}, err
 	}
 
+	sess.ID = sessionId
 	sessionCookie := &http.Cookie{
 		Name:     a.config.SessionCookieName,
 		Value:    sessionId,

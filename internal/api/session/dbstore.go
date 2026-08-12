@@ -25,7 +25,6 @@ func (s *DBStore) Save(ctx context.Context, session *Session) (string, error) {
 		FamilyName:        session.FamilyName,
 		PreferredUserName: session.PreferredUsername,
 		Email:             session.Email,
-		Roles:             session.Roles,
 		Groups:            session.Groups,
 		AccessToken:       session.AccessToken,
 		RefreshToken:      session.RefreshToken,
@@ -66,18 +65,19 @@ func (s *DBStore) Get(ctx context.Context, id string) (*Session, error) {
 	}
 
 	return &Session{
-		ID:                id,
-		Subject:           dbSession.Subject,
-		Name:              dbSession.Name,
-		Email:             dbSession.Email,
-		GivenName:         dbSession.GivenName,
-		FamilyName:        dbSession.FamilyName,
-		PreferredUsername: dbSession.PreferredUserName,
-		Roles:             dbSession.Roles,
-		Groups:            dbSession.Groups,
-		AccessToken:       dbSession.AccessToken,
-		RefreshToken:      dbSession.RefreshToken,
-		Expiry:            dbSession.Expiry,
+		Subject: dbSession.Subject,
+		Context: Context{
+			ID:                id,
+			Name:              dbSession.Name,
+			Email:             dbSession.Email,
+			GivenName:         dbSession.GivenName,
+			FamilyName:        dbSession.FamilyName,
+			PreferredUsername: dbSession.PreferredUserName,
+			Groups:            dbSession.Groups,
+		},
+		AccessToken:  dbSession.AccessToken,
+		RefreshToken: dbSession.RefreshToken,
+		Expiry:       dbSession.Expiry,
 	}, nil
 }
 

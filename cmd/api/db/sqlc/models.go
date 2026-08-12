@@ -16,7 +16,6 @@ type Session struct {
 	FamilyName        *string
 	PreferredUserName *string
 	Email             *string
-	Roles             []string
 	Groups            []string
 	AccessToken       string
 	RefreshToken      *string

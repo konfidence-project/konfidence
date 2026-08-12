@@ -12,8 +12,8 @@ import (
 )
 
 const createSession = `-- name: CreateSession :one
-INSERT INTO session (subject, name, given_name, family_name, preferred_user_name, email, roles, groups, access_token, refresh_token, expiry)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO session (subject, name, given_name, family_name, preferred_user_name, email, groups, access_token, refresh_token, expiry)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING id
 `
 
@@ -24,7 +24,6 @@ type CreateSessionParams struct {
 	FamilyName        *string
 	PreferredUserName *string
 	Email             *string
-	Roles             []string
 	Groups            []string
 	AccessToken       string
 	RefreshToken      *string
@@ -39,7 +38,6 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (p
 		arg.FamilyName,
 		arg.PreferredUserName,
 		arg.Email,
-		arg.Roles,
 		arg.Groups,
 		arg.AccessToken,
 		arg.RefreshToken,
@@ -61,7 +59,7 @@ func (q *Queries) DeleteSession(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getSession = `-- name: GetSession :one
-SELECT id, subject, name, given_name, family_name, preferred_user_name, email, roles, groups, access_token, refresh_token, expiry, created_at FROM session
+SELECT id, subject, name, given_name, family_name, preferred_user_name, email, groups, access_token, refresh_token, expiry, created_at FROM session
 WHERE id = $1 LIMIT 1
 `
 
@@ -76,7 +74,6 @@ func (q *Queries) GetSession(ctx context.Context, id pgtype.UUID) (Session, erro
 		&i.FamilyName,
 		&i.PreferredUserName,
 		&i.Email,
-		&i.Roles,
 		&i.Groups,
 		&i.AccessToken,
 		&i.RefreshToken,
