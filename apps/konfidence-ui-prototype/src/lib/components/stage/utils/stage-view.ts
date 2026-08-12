@@ -1,10 +1,8 @@
-import type { Stage, StageStatus } from "$lib/stages";
-import type { components } from "$lib/konfidence-api/schema";
+import type { Stage } from "$lib/stages";
 
-type VectorReference = components["schemas"]["VectorReference"];
-
-type StageHealth = "deploying" | "healthy";
+type StageHealth = "deploying";
 type StagePhaseState = "cur" | "done" | "idle";
+type StagePhaseId = "Active" | "DeploymentCreated" | "MigrationTasks";
 
 interface StageChip {
   label: string;
@@ -13,7 +11,7 @@ interface StageChip {
 }
 
 interface StagePhase {
-  id: StageStatus;
+  id: StagePhaseId;
   label: string;
   message?: string;
   reason?: string;
@@ -25,8 +23,8 @@ interface VectorParts {
   version: string;
 }
 
-const STATUS_ORDER: StageStatus[] = ["DeploymentCreated", "MigrationTasks", "Active"];
-const STATUS_LABEL: Record<StageStatus, string> = {
+const STATUS_ORDER: StagePhaseId[] = ["DeploymentCreated", "MigrationTasks", "Active"];
+const STATUS_LABEL: Record<StagePhaseId, string> = {
   Active: "Active",
   DeploymentCreated: "Deploy",
   MigrationTasks: "Tasks",
@@ -34,26 +32,18 @@ const STATUS_LABEL: Record<StageStatus, string> = {
 const HASH_SUFFIX_PATTERN = /^(?<version>.+?)-(?<hash>[0-9a-f]{6,})$/i;
 const NUMERIC_VERSION_PATTERN = /^\d/;
 
-const getStageHealth = (stage: Stage): StageHealth => {
-  if (stage.status === "Active") {
-    return "healthy";
-  }
-  return "deploying";
-};
+const getStageHealth = (_stage: Stage): StageHealth => "deploying";
 
-const getStageStatusLabel = (stage: Stage): { label: "Deploying" | "Live"; tone: StageHealth } => {
-  const tone = getStageHealth(stage);
-  if (tone === "healthy") {
-    return { label: "Live", tone };
-  }
-  return { label: "Deploying", tone };
-};
+const getStageStatusLabel = (stage: Stage): { label: "Deploying"; tone: StageHealth } => ({
+  label: "Deploying",
+  tone: getStageHealth(stage),
+});
 
 const getPhases = (stage: Stage): StagePhase[] => {
   const currentIndex = STATUS_ORDER.indexOf(stage.status);
   return STATUS_ORDER.map((status, index) => {
     let state: StagePhaseState = "idle";
-    if (stage.status === "Active" || index < currentIndex) {
+    if (index < currentIndex) {
       state = "done";
     } else if (index === currentIndex) {
       state = "cur";
@@ -87,8 +77,8 @@ const toVectorParts = (version: string, hash?: string): VectorParts => {
   return { version };
 };
 
-const splitVector = (vector: VectorReference): VectorParts => {
-  const trimmed = vector.componentVersion.trim();
+const splitVector = (vector: string): VectorParts => {
+  const trimmed = vector.trim();
   if (!trimmed) {
     return { version: "—" };
   }

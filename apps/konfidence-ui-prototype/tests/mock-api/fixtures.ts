@@ -1,11 +1,11 @@
 import type { components } from "../../src/lib/konfidence-api/schema";
 
-type Project = components["schemas"]["ProjectResponse"];
-type Landscape = components["schemas"]["LandscapeResponse"];
-type Stage = components["schemas"]["StageResponse"];
+type Project = components["schemas"]["Project"];
+type Landscape = components["schemas"]["Landscape"];
+type Stage = components["schemas"]["Stage"];
 type StageStatus = Stage["targetStageVersion"]["status"];
-type VectorDeployment = components["schemas"]["VectorDeploymentResponse"];
-type ArtifactDeployment = components["schemas"]["ArtifactDeploymentResponse"];
+type VectorDeployment = components["schemas"]["VectorDeployment"];
+type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
 
 interface StageDefinition {
   id: string;
@@ -35,14 +35,14 @@ const deliveryLandscapes = [
 ] satisfies Landscape[];
 
 const deliveryStageDefinitions = [
-  { id: "dev-us30", landscapeId: "development", status: "MigrationTasks", vectorCount: 5 },
+  { id: "dev-us30", landscapeId: "development", status: "DeploymentCreated", vectorCount: 5 },
   { id: "dev-eu12", landscapeId: "development", status: "DeploymentCreated", vectorCount: 3 },
-  { id: "test-us20", landscapeId: "test", status: "MigrationTasks", vectorCount: 4 },
-  { id: "perf-us30", landscapeId: "performance", status: "MigrationTasks", vectorCount: 2 },
-  { id: "prod-eu30", landscapeId: "production", status: "Active", vectorCount: 2 },
-  { id: "prod-us30", landscapeId: "production", status: "Active", vectorCount: 2 },
-  { id: "prod-ap30", landscapeId: "production", status: "Active", vectorCount: 1 },
-  { id: "tsm-prod", landscapeId: "production", status: "Active", vectorCount: 1 },
+  { id: "test-us20", landscapeId: "test", status: "DeploymentCreated", vectorCount: 4 },
+  { id: "perf-us30", landscapeId: "performance", status: "DeploymentCreated", vectorCount: 2 },
+  { id: "prod-eu30", landscapeId: "production", status: "DeploymentCreated", vectorCount: 2 },
+  { id: "prod-us30", landscapeId: "production", status: "DeploymentCreated", vectorCount: 2 },
+  { id: "prod-ap30", landscapeId: "production", status: "DeploymentCreated", vectorCount: 1 },
+  { id: "tsm-prod", landscapeId: "production", status: "DeploymentCreated", vectorCount: 1 },
 ] satisfies StageDefinition[];
 
 const deliveryStages = deliveryStageDefinitions.map(
@@ -51,15 +51,11 @@ const deliveryStages = deliveryStageDefinitions.map(
     landscapeId: definition.landscapeId,
     name: definition.id,
     targetStageVersion: {
-      active: definition.status === "Active",
+      active: false,
       id: `${definition.id}-v${index + 1}`,
       stageGeneration: index + 1,
       status: definition.status,
-      vector: {
-        componentName: definition.id,
-        componentVersion: `2026.${index + 1}.0-${(index + 1).toString(HEX_RADIX).padStart(REVISION_WIDTH, "0")}`,
-        repository: "ghcr.io/konfidence/mock",
-      },
+      vector: `2026.${index + 1}.0-${(index + 1).toString(HEX_RADIX).padStart(REVISION_WIDTH, "0")}`,
     },
   }),
 );

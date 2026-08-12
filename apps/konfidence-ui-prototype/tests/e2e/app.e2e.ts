@@ -20,7 +20,6 @@ test("authenticates through the mock API and renders a project landscape", async
     page.getByLabel("Stage dev-us30").getByText("Deploying", { exact: true }),
   ).toBeVisible();
   await expect(page.getByLabel("Stage dev-us30").getByText("Tasks", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Stage prod-eu30").getByText("Live", { exact: true })).toBeVisible();
 });
 
 test("shows a chooser when multiple projects are available", async ({ page }) => {
@@ -111,7 +110,7 @@ test("clears the API session when signing out", async ({ page }) => {
   await page.goto("/projects/payments-platform/landscape");
   const accountMenu = page.getByLabel("Open account menu for Alex Example");
   await expect(accountMenu).toBeVisible();
-  await page.route("**/api/login?**", (route) => route.abort());
+  await page.route("**/api/v1/login?**", (route) => route.abort());
 
   await accountMenu.click();
   await page.getByRole("button", { name: "Sign Out" }).click();

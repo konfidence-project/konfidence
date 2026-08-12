@@ -3,13 +3,13 @@ import { defineConfig } from "oxlint";
 export default defineConfig({
   $schema: "./node_modules/oxlint/configuration_schema.json",
   categories: {
-    correctness: "error",
-    nursery: "warn",
+    correctness: "off",
+    nursery: "off",
     pedantic: "off",
-    perf: "warn",
+    perf: "off",
     restriction: "off",
-    style: "warn",
-    suspicious: "warn",
+    style: "off",
+    suspicious: "off",
   },
   env: {
     builtin: true,

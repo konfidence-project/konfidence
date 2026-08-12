@@ -3,13 +3,9 @@ auth.localhost {
 }
 
 api.localhost {
-	@callback path */auth/callback*
-    redir @callback http://localhost:8090{uri} permanent
+	reverse_proxy host.docker.internal:8090
+}
 
-	reverse_proxy host.docker.internal:8090 {
-		header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-	}
+frontend.localhost {
+   reverse_proxy host.docker.internal:5173
 }

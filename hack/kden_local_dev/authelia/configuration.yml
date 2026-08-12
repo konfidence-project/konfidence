@@ -74,6 +74,7 @@ identity_providers:
         public: false
         authorization_policy: one_factor
         redirect_uris:
+          - https://frontend.localhost/api/v1/auth/callback
           - https://api.localhost/api/v1/auth/callback
         scopes: [openid, profile, email, groups, offline_access]
         token_endpoint_auth_method: 'client_secret_basic'

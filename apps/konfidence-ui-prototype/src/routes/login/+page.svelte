@@ -2,7 +2,7 @@
     import { page } from "$app/state";
 
     const returnTo = $derived(page.url.searchParams.get("returnTo") ?? "/landscape");
-    const loginUrl = $derived(`/api/login?returnTo=${encodeURIComponent(returnTo)}`);
+    const loginUrl = $derived(`/api/v1/login?return_url=${encodeURIComponent(returnTo)}`);
 </script>
 
 <svelte:head>

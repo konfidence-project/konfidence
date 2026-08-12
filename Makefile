@@ -67,11 +67,11 @@ API_LOG_LEVEL ?= info
 API_READ_TIMEOUT ?= 10s
 API_WRITE_TIMEOUT ?= 10s
 API_SHUTDOWN_TIMEOUT ?= 15s
-API_OIDC_ISSUER_URL ?= http://localhost:5556/oidc
+API_OIDC_ISSUER_URL ?= https://auth.localhost
 API_OIDC_CLIENT_ID ?= konfidence
-API_OIDC_CLIENT_SECRET ?= konfidence-local-secret
+API_OIDC_CLIENT_SECRET ?= OPgn03UQhIG~qKndwZ5qT_zrDaHgLrbk9ZFUua5I0Un~JMwAZV05j6h098xcjqCq20fCT0Eh
 API_OIDC_SCOPES ?= openid,profile,email,groups,offline_access
-API_OIDC_REDIRECT_URL ?= http://localhost:8090/api/v1/auth/callback
+API_OIDC_REDIRECT_URL ?= https://api.localhost/api/v1/auth/callback
 API_OIDC_TOKEN_URL ?=
 API_OIDC_AUTHORIZATION_URL ?=
 API_OIDC_DEVICE_AUTH_URL ?=
@@ -84,7 +84,7 @@ API_SESSION_COOKIE_HTTP_ONLY ?= true
 API_SESSION_COOKIE_SECURE ?= false
 API_SESSION_COOKIE_SAME_SITE ?= SameSiteStrictMode
 API_SESSION_EXPIRY ?= 12h
-
+DB_CONNECTION ?= postgres://test_user:test_password@localhost:5432/kden?sslmode=disable
 .PHONY: all
 all: api build
 
@@ -283,7 +283,8 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--session-cookie-http-only=$(API_SESSION_COOKIE_HTTP_ONLY) \
 		--session-cookie-secure=$(API_SESSION_COOKIE_SECURE) \
 		--session-cookie-same-site=$(API_SESSION_COOKIE_SAME_SITE) \
-		--session-expiry=$(API_SESSION_EXPIRY)
+		--session-expiry=$(API_SESSION_EXPIRY) \
+		--db-connection=$(DB_CONNECTION)
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build

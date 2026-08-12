@@ -26,7 +26,6 @@
 
     const STATUS_DESIGN: Record<StageHealth, TagDesign> = {
         deploying: "Information",
-        healthy: "Positive",
     };
 
     const PHASE_DESIGN: Record<StagePhaseState, TagDesign> = {

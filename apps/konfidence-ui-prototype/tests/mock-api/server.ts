@@ -54,20 +54,20 @@ const server = createServer((request, response) => {
     json(response, HTTP_OK, { status: "ok" });
     return;
   }
-  if (url.pathname === "/api/login" && request.method === "GET") {
+  if (url.pathname === "/v1/login" && request.method === "GET") {
     response.writeHead(HTTP_FOUND, {
-      location: safeReturnTo(url.searchParams.get("returnTo")),
+      location: safeReturnTo(url.searchParams.get("return_url")),
       "set-cookie": `${SESSION_COOKIE}=mock-session; Path=/; HttpOnly; SameSite=Lax`,
     });
     response.end();
     return;
   }
-  if (url.pathname === "/api/auth/callback" && request.method === "GET") {
+  if (url.pathname === "/v1/auth/callback" && request.method === "GET") {
     response.writeHead(HTTP_FOUND, { location: "/" });
     response.end();
     return;
   }
-  if (url.pathname === "/api/logout" && request.method === "POST") {
+  if (url.pathname === "/v1/logout" && request.method === "POST") {
     if (!authenticated) {
       errorResponse(response, HTTP_UNAUTHORIZED, "Authentication required");
       return;
@@ -79,7 +79,7 @@ const server = createServer((request, response) => {
     response.end(JSON.stringify({}));
     return;
   }
-  if (url.pathname === "/api/identity" && request.method === "GET") {
+  if (url.pathname === "/v1/identity" && request.method === "GET") {
     if (!authenticated || scenario === "unauthenticated") {
       errorResponse(response, HTTP_UNAUTHORIZED, "Authentication required");
       return;
@@ -106,15 +106,15 @@ const server = createServer((request, response) => {
     errorResponse(response, HTTP_FORBIDDEN, "Access denied");
     return;
   }
-  if (scenario === "api-error" && url.pathname.startsWith("/projects")) {
+  if (scenario === "api-error" && url.pathname.startsWith("/v1/projects")) {
     errorResponse(response, HTTP_SERVICE_UNAVAILABLE, "Mock API unavailable");
     return;
   }
-  if (scenario === "invalid-response" && url.pathname === "/projects") {
+  if (scenario === "invalid-response" && url.pathname === "/v1/projects") {
     json(response, HTTP_OK, { unexpected: true });
     return;
   }
-  if (url.pathname === "/projects" && request.method === "GET") {
+  if (url.pathname === "/v1/projects" && request.method === "GET") {
     let data = projects;
     if (scenario === "no-projects") {
       data = [];
@@ -126,7 +126,7 @@ const server = createServer((request, response) => {
   }
 
   const match = url.pathname.match(
-    /^\/projects\/(?<projectId>[^/]+)\/(?<resource>landscapes|stages|vectorDeployments|artifactDeployments)$/,
+    /^\/v1\/projects\/(?<projectId>[^/]+)\/(?<resource>landscapes|stages|vectorDeployments|artifactDeployments)$/,
   );
   if (!match?.groups) {
     errorResponse(response, HTTP_NOT_FOUND, "Not found");

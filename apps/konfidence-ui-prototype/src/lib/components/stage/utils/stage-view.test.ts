@@ -15,34 +15,25 @@ const createStage = (status: StageStatus): Stage => ({
   landscapeName: "Production",
   name: "Production API",
   status,
-  vector: {
-    componentName: "api",
-    componentVersion: "2.14.0-a3f2c9",
-    repository: "ghcr.io/konfidence/mock",
-  },
+  vector: "2.14.0-a3f2c9",
 });
 
 describe("stage presentation", () => {
-  it.each([
-    ["DeploymentCreated", "Deploying", "deploying"],
-    ["MigrationTasks", "Deploying", "deploying"],
-    ["Active", "Live", "healthy"],
-  ] as const)("maps %s to %s", (status, label, tone) => {
-    expect(getStageStatusLabel(createStage(status))).toEqual({ label, tone });
+  it("maps the deployment status", () => {
+    expect(getStageStatusLabel(createStage("DeploymentCreated"))).toEqual({
+      label: "Deploying",
+      tone: "deploying",
+    });
   });
 
-  it.each([
-    ["DeploymentCreated", ["cur", "idle", "idle"]],
-    ["MigrationTasks", ["done", "cur", "idle"]],
-    ["Active", ["done", "done", "done"]],
-  ] as const)("maps %s to its three progress phases", (status, states) => {
-    const phases = getPhases(createStage(status));
+  it("maps the deployment status to its progress phase", () => {
+    const phases = getPhases(createStage("DeploymentCreated"));
     expect(phases.map((phase) => phase.label)).toEqual(["Deploy", "Tasks", "Active"]);
-    expect(phases.map((phase) => phase.state)).toEqual(states);
+    expect(phases.map((phase) => phase.state)).toEqual(["cur", "idle", "idle"]);
   });
 
   it("uses landscape and generation data supplied by the OpenAPI view model", () => {
-    const stage = createStage("Active");
+    const stage = createStage("DeploymentCreated");
     expect(getLandscapeLabel(stage)).toBe("PRODUCTION");
     expect(getChips(stage)).toEqual([{ label: "generation", value: 3 }]);
   });
@@ -50,32 +41,18 @@ describe("stage presentation", () => {
 
 describe("splitVector", () => {
   it("returns a placeholder for empty input", () => {
-    expect(splitVector({ componentName: "api", componentVersion: "", repository: "repo" })).toEqual(
-      { version: "—" },
-    );
+    expect(splitVector("")).toEqual({ version: "—" });
   });
 
   it("splits a digest from a component version", () => {
-    expect(
-      splitVector({
-        componentName: "vector",
-        componentVersion: "1.2.3@abcdef1234",
-        repository: "registry.example.com",
-      }),
-    ).toEqual({
+    expect(splitVector("1.2.3@abcdef1234")).toEqual({
       hash: "abcdef1234",
       version: "v1.2.3",
     });
   });
 
   it("extracts a trailing revision", () => {
-    expect(
-      splitVector({
-        componentName: "vector",
-        componentVersion: "1.2.3-deadbeef",
-        repository: "registry.example.com",
-      }),
-    ).toEqual({
+    expect(splitVector("1.2.3-deadbeef")).toEqual({
       hash: "deadbeef",
       version: "v1.2.3",
     });

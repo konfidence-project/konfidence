@@ -23,7 +23,6 @@
 
     const STATUS_DESIGN: Record<StageHealth, TagDesign> = {
         deploying: "Information",
-        healthy: "Positive",
     };
 
     const CHIP_DESIGN: Record<NonNullable<StageChip["tone"]>, TagDesign> = {

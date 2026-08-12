@@ -11,12 +11,8 @@ const stage: Stage = {
   landscapeId: "production",
   landscapeName: "Production",
   name: "Production API",
-  status: "Active",
-  vector: {
-    componentName: "api",
-    componentVersion: "2.14.0-a3f2c9",
-    repository: "ghcr.io/konfidence/mock",
-  },
+  status: "DeploymentCreated",
+  vector: "2.14.0-a3f2c9",
 };
 
 describe("StageCard", () => {
@@ -25,19 +21,11 @@ describe("StageCard", () => {
       const screen = await render(StageCard, { props: { stage, variant } });
 
       await expect.element(screen.getByText("Production API", { exact: true })).toBeVisible();
-      await expect.element(screen.getByText("Live", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("Deploying", { exact: true })).toBeVisible();
       await expect.element(screen.getByText("v2.14.0", { exact: true })).toBeVisible();
       await expect.element(screen.getByTitle("Deploy", { exact: true }).first()).toBeVisible();
       await expect.element(screen.getByTitle("Tasks", { exact: true }).first()).toBeVisible();
       await expect.element(screen.getByTitle("Active", { exact: true }).first()).toBeVisible();
     });
   }
-
-  it("shows a non-active stage as deploying", async () => {
-    const screen = await render(StageCard, {
-      props: { stage: { ...stage, status: "MigrationTasks" }, variant: "custom" },
-    });
-
-    await expect.element(screen.getByText("Deploying", { exact: true })).toBeVisible();
-  });
 });

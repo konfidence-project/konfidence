@@ -8,7 +8,7 @@ import { hasCredentials } from "$lib/server/auth/credentials";
 const IDENTITY_TIMEOUT_MS = 5000;
 const AUTH_ROLES = ["ADMIN", "DEV", "PM"] as const;
 
-type ApiIdentity = components["schemas"]["IdentityResponse"];
+type ApiIdentity = components["schemas"]["Identity"];
 interface IdentityResult {
   data?: ApiIdentity;
   response: Response;
@@ -32,7 +32,7 @@ const timeoutSignal = (): {
 
 const loadIdentity = async (event: RequestEvent, signal: AbortSignal): Promise<IdentityResult> => {
   const api = createRequestClient(event);
-  const result = await api.GET("/api/identity", { signal });
+  const result = await api.GET("/v1/identity", { signal });
   return { data: result.data, response: result.response };
 };
 
