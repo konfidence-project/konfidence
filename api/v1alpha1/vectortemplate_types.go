@@ -83,7 +83,7 @@ type VectorTemplateStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// LatestVector is the concrete OCM component version of the most recently
-	// assembled vector, in the form <repository>//<component>:<version>. It is
+	// assembled vector, in the form `<repository>//<component>:<version>`. It is
 	// empty until the first successful assembly.
 	// +optional
 	LatestVector string `json:"latestVector,omitempty"`
