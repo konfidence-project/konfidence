@@ -114,9 +114,9 @@ func init() {
 		"Session storage backend (in-memory, db-pg). Env: API_SESSION_STORAGE_TYPE")
 	rootCmd.Flags().StringVar(&cfg.Database.Connection, "db-connection", envOr("API_DB_CONNECTION", ""),
 		"API DB connection string. Env: API_DB_CONNECTION")
-	rootCmd.Flags().Int32Var(&cfg.Database.MaxConns, "db-max-conns", int32(envIntOr("API_DB_MAX_CONNS", 10)),
+	rootCmd.Flags().Int32Var(&cfg.Database.MaxConns, "db-max-conns", envInt32Or("API_DB_MAX_CONNS", 10),
 		"Maximum number of database pool connections. Env: API_DB_MAX_CONNS")
-	rootCmd.Flags().Int32Var(&cfg.Database.MinConns, "db-min-conns", int32(envIntOr("API_DB_MIN_CONNS", 5)),
+	rootCmd.Flags().Int32Var(&cfg.Database.MinConns, "db-min-conns", envInt32Or("API_DB_MIN_CONNS", 5),
 		"Minimum number of database pool connections. Env: API_DB_MIN_CONNS")
 	rootCmd.Flags().StringVar(&cfg.Database.MaxConnLifetime, "db-max-conn-lifetime", envOr("API_DB_MAX_CONN_LIFETIME", "30m"),
 		"Maximum lifetime of a database pool connection. Env: API_DB_MAX_CONN_LIFETIME")
@@ -230,11 +230,11 @@ func envBoolOr(key string, fallback bool) bool {
 	return fallback
 }
 
-func envIntOr(key string, fallback int) int {
+func envInt32Or(key string, fallback int32) int32 {
 	if v := os.Getenv(key); v != "" {
-		parsed, err := strconv.Atoi(v)
+		parsed, err := strconv.ParseInt(v, 10, 32)
 		if err == nil {
-			return parsed
+			return int32(parsed)
 		}
 	}
 	return fallback
