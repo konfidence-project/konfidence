@@ -62,36 +62,13 @@ OAPI_CODEGEN   ?= go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codege
 OPERATOR_IMAGE = $(REGISTRY)/konfidence-operator:$(TAG)
 
 ## Local API server configuration
-API_ADDR ?= :8090
-API_LOG_LEVEL ?= info
-API_READ_TIMEOUT ?= 10s
-API_WRITE_TIMEOUT ?= 10s
-API_SHUTDOWN_TIMEOUT ?= 15s
 API_OIDC_ENABLED ?= true
 API_OIDC_ISSUER_URL ?= http://localhost:5556/oidc
-API_OIDC_CLIENT_ID ?= konfidence
 API_OIDC_CLIENT_SECRET ?= konfidence-local-secret
 API_OIDC_SCOPES ?= openid,profile,email,groups
 API_OIDC_REDIRECT_URL ?= http://localhost:8090/api/v1/auth/callback
 API_OIDC_ALLOW_RETURN_URLS ?=
-API_OIDC_TOKEN_URL ?=
-API_OIDC_AUTHORIZATION_URL ?=
-API_OIDC_DEVICE_AUTH_URL ?=
-API_OIDC_USER_INFO_URL ?=
-API_OIDC_JWKS_URL ?=
-API_OIDC_PKCE_ENABLED ?= true
-API_OIDC_STATE_EXPIRATION ?= 15m
-API_SESSION_COOKIE_NAME ?= kden-session
-API_SESSION_COOKIE_HTTP_ONLY ?= true
-API_SESSION_COOKIE_SECURE ?= false
-API_SESSION_COOKIE_SAME_SITE ?= SameSiteStrictMode
-API_SESSION_EXPIRY ?= 12h
 API_SESSION_STORAGE_TYPE ?= in-memory
-API_DB_CONNECTION ?=
-API_DB_MAX_CONNS ?= 10
-API_DB_MIN_CONNS ?= 5
-API_DB_MAX_CONN_LIFETIME ?= 30m
-API_DB_MAX_CONN_IDLE_TIME ?= 5m
 
 .PHONY: all
 all: api build
@@ -270,36 +247,13 @@ run: manifests generate fmt vet ## Run the konfidence operator from your host.
 .PHONY: run-kden-api
 run-kden-api: fmt vet ## Run the kden API server locally.
 	go run ./cmd/api/main.go \
-		--addr=$(API_ADDR) \
-		--log-level=$(API_LOG_LEVEL) \
-		--read-timeout=$(API_READ_TIMEOUT) \
-		--write-timeout=$(API_WRITE_TIMEOUT) \
-		--shutdown-timeout=$(API_SHUTDOWN_TIMEOUT) \
 		--oidc-enabled=$(API_OIDC_ENABLED) \
 		--oidc-issuer-url=$(API_OIDC_ISSUER_URL) \
-		--oidc-client-id=$(API_OIDC_CLIENT_ID) \
 		--oidc-client-secret=$(API_OIDC_CLIENT_SECRET) \
 		--oidc-scopes=$(API_OIDC_SCOPES) \
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
-		--oidc-token-url=$(API_OIDC_TOKEN_URL) \
-		--oidc-authorization-url=$(API_OIDC_AUTHORIZATION_URL) \
-		--oidc-device-auth-url=$(API_OIDC_DEVICE_AUTH_URL) \
-		--oidc-user-info-url=$(API_OIDC_USER_INFO_URL) \
-		--oidc-jwks-url=$(API_OIDC_JWKS_URL) \
-		--oidc-pkce-enabled=$(API_OIDC_PKCE_ENABLED) \
-		--oidc-state-expiration=$(API_OIDC_STATE_EXPIRATION) \
-		--session-cookie-name=$(API_SESSION_COOKIE_NAME) \
-		--session-cookie-http-only=$(API_SESSION_COOKIE_HTTP_ONLY) \
-		--session-cookie-secure=$(API_SESSION_COOKIE_SECURE) \
-		--session-cookie-same-site=$(API_SESSION_COOKIE_SAME_SITE) \
-		--session-expiry=$(API_SESSION_EXPIRY) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
-		--db-connection=$(API_DB_CONNECTION) \
-		--db-max-conns=$(API_DB_MAX_CONNS) \
-		--db-min-conns=$(API_DB_MIN_CONNS) \
-		--db-max-conn-lifetime=$(API_DB_MAX_CONN_LIFETIME) \
-		--db-max-conn-idle-time=$(API_DB_MAX_CONN_IDLE_TIME)
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build

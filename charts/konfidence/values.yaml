@@ -99,7 +99,7 @@ api:
     cookie:
       name: "kden-session"
       httpOnly: true
-      secure: false
+      secure: true
       sameSite: SameSiteStrictMode
     expiry: 12h
 
