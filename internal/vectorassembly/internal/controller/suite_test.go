@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"testing"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -54,10 +55,16 @@ var (
 	// client from the credential Secret via NewCacheFactory.
 	ocmClient pkgocm.Client
 
-	testVersion    = "2026.1.2-000000000Z"
-	oldTestVersion = "2026.1.1-000000000Z"
-
-	testVersionGenerator = vector.VersionGeneratorFunc(func() string { return testVersion })
+	// testVersionGenerator returns a unique, monotonically increasing concrete version on
+	// every call, mirroring the production timestamp generator (which never repeats). A
+	// fixed version would collide on re-assembly: the OCI Save skips an already-existing
+	// name+version, so the descriptor would never be overwritten and drift could not be
+	// observed. Tests capture the produced version via status.latestVector rather than
+	// asserting a hardcoded constant.
+	testVersionSeq       atomic.Int32
+	testVersionGenerator = vector.VersionGeneratorFunc(func() string {
+		return fmt.Sprintf("2026.1.%d-000000000Z", testVersionSeq.Add(1))
+	})
 
 	vectorSigningKey   pki.RSAKeyPair
 	artifactSigningKey pki.RSAKeyPair
