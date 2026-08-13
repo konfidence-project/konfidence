@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/konfidence-project/konfidence/cmd/api/db/sqlc"
@@ -94,6 +94,8 @@ func init() {
 		"External identity provider client scopes. Env: API_OIDC_SCOPES")
 	rootCmd.Flags().StringVar(&cfg.OIDC.RedirectURL, "oidc-redirect-url", envOr("API_OIDC_REDIRECT_URL", ""),
 		"OAuth redirect URL for the API authentication flow. Env: API_OIDC_REDIRECT_URL")
+	rootCmd.Flags().StringSliceVar(&cfg.OIDC.AllowReturnURLs, "oidc-allow-return-urls", envList("API_OIDC_ALLOW_RETURN_URLS"),
+		"Fully qualified return URLs allowed after login. Env: API_OIDC_ALLOW_RETURN_URLS")
 	rootCmd.Flags().BoolVar(&cfg.OIDC.PKCEEnabled, "oidc-pkce-enabled", envBoolOr("API_OIDC_PKCE_ENABLED", true),
 		"Enable PKCE for the OIDC authentication flow. Env: API_OIDC_PKCE_ENABLED")
 	rootCmd.Flags().StringVar(&cfg.OIDC.StateExpiration, "oidc-state-expiration", envOr("API_OIDC_STATE_EXPIRATION", "15m"),
@@ -108,8 +110,18 @@ func init() {
 		"Session cookie SameSite mode. Env: API_SESSION_COOKIE_SAME_SITE")
 	rootCmd.Flags().StringVar(&cfg.Session.Expiry, "session-expiry", envOr("API_SESSION_EXPIRY", "12h"),
 		"Server-side session expiry duration. Env: API_SESSION_EXPIRY")
+	rootCmd.Flags().StringVar(&cfg.Session.StorageType, "session-storage-type", envOr("API_SESSION_STORAGE_TYPE", "in-memory"),
+		"Session storage backend (in-memory, db-pg). Env: API_SESSION_STORAGE_TYPE")
 	rootCmd.Flags().StringVar(&cfg.Database.Connection, "db-connection", envOr("API_DB_CONNECTION", ""),
 		"API DB connection string. Env: API_DB_CONNECTION")
+	rootCmd.Flags().Int32Var(&cfg.Database.MaxConns, "db-max-conns", int32(envIntOr("API_DB_MAX_CONNS", 10)),
+		"Maximum number of database pool connections. Env: API_DB_MAX_CONNS")
+	rootCmd.Flags().Int32Var(&cfg.Database.MinConns, "db-min-conns", int32(envIntOr("API_DB_MIN_CONNS", 5)),
+		"Minimum number of database pool connections. Env: API_DB_MIN_CONNS")
+	rootCmd.Flags().StringVar(&cfg.Database.MaxConnLifetime, "db-max-conn-lifetime", envOr("API_DB_MAX_CONN_LIFETIME", "30m"),
+		"Maximum lifetime of a database pool connection. Env: API_DB_MAX_CONN_LIFETIME")
+	rootCmd.Flags().StringVar(&cfg.Database.MaxConnIdleTime, "db-max-conn-idle-time", envOr("API_DB_MAX_CONN_IDLE_TIME", "5m"),
+		"Maximum idle time of a database pool connection. Env: API_DB_MAX_CONN_IDLE_TIME")
 }
 
 func loadOIDCClientSecret(cmd *cobra.Command, _ []string) {
@@ -164,18 +176,18 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	}
 
 	var sessionStore session.Store
-	if parsed.Database.Connection != "" {
+	switch parsed.Session.StorageType {
+	case "db-pg":
 		// init database config
 		dbConfig, err := pgxpool.ParseConfig(parsed.Database.Connection)
 		if err != nil {
 			return fmt.Errorf("unable to parse connection string: %w", err)
 		}
 
-		// TODO configure pool settings
-		dbConfig.MaxConns = 10
-		dbConfig.MinConns = 5
-		dbConfig.MaxConnLifetime = 30 * time.Minute
-		dbConfig.MaxConnIdleTime = 5 * time.Minute
+		dbConfig.MaxConns = parsed.Database.MaxConns
+		dbConfig.MinConns = parsed.Database.MinConns
+		dbConfig.MaxConnLifetime = parsed.Database.MaxConnLifetime
+		dbConfig.MaxConnIdleTime = parsed.Database.MaxConnIdleTime
 
 		dbPool, err = pgxpool.NewWithConfig(ctx, dbConfig)
 		if err != nil {
@@ -188,7 +200,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		}
 		queries := db.New(dbPool)
 		sessionStore = session.NewDBStore(queries)
-	} else {
+	case "in-memory":
 		sessionStore = session.NewInMemoryStore(parsed)
 	}
 
@@ -216,4 +228,22 @@ func envBoolOr(key string, fallback bool) bool {
 		}
 	}
 	return fallback
+}
+
+func envIntOr(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func envList(key string) []string {
+	value := os.Getenv(key)
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, ",")
 }

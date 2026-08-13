@@ -73,6 +73,7 @@ API_OIDC_CLIENT_ID ?= konfidence
 API_OIDC_CLIENT_SECRET ?= konfidence-local-secret
 API_OIDC_SCOPES ?= openid,profile,email,groups
 API_OIDC_REDIRECT_URL ?= http://localhost:8090/api/v1/auth/callback
+API_OIDC_ALLOW_RETURN_URLS ?=
 API_OIDC_TOKEN_URL ?=
 API_OIDC_AUTHORIZATION_URL ?=
 API_OIDC_DEVICE_AUTH_URL ?=
@@ -85,6 +86,12 @@ API_SESSION_COOKIE_HTTP_ONLY ?= true
 API_SESSION_COOKIE_SECURE ?= false
 API_SESSION_COOKIE_SAME_SITE ?= SameSiteStrictMode
 API_SESSION_EXPIRY ?= 12h
+API_SESSION_STORAGE_TYPE ?= in-memory
+API_DB_CONNECTION ?=
+API_DB_MAX_CONNS ?= 10
+API_DB_MIN_CONNS ?= 5
+API_DB_MAX_CONN_LIFETIME ?= 30m
+API_DB_MAX_CONN_IDLE_TIME ?= 5m
 
 .PHONY: all
 all: api build
@@ -274,6 +281,7 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--oidc-client-secret=$(API_OIDC_CLIENT_SECRET) \
 		--oidc-scopes=$(API_OIDC_SCOPES) \
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
+		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
 		--oidc-token-url=$(API_OIDC_TOKEN_URL) \
 		--oidc-authorization-url=$(API_OIDC_AUTHORIZATION_URL) \
 		--oidc-device-auth-url=$(API_OIDC_DEVICE_AUTH_URL) \
@@ -285,7 +293,13 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--session-cookie-http-only=$(API_SESSION_COOKIE_HTTP_ONLY) \
 		--session-cookie-secure=$(API_SESSION_COOKIE_SECURE) \
 		--session-cookie-same-site=$(API_SESSION_COOKIE_SAME_SITE) \
-		--session-expiry=$(API_SESSION_EXPIRY)
+		--session-expiry=$(API_SESSION_EXPIRY) \
+		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
+		--db-connection=$(API_DB_CONNECTION) \
+		--db-max-conns=$(API_DB_MAX_CONNS) \
+		--db-min-conns=$(API_DB_MIN_CONNS) \
+		--db-max-conn-lifetime=$(API_DB_MAX_CONN_LIFETIME) \
+		--db-max-conn-idle-time=$(API_DB_MAX_CONN_IDLE_TIME)
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build

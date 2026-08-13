@@ -11,7 +11,6 @@ const contextSession contextKey = "session"
 
 // Session represents a client session for an authenticated user.
 type Session struct {
-	// TODO add/refine session fields
 	Context
 	Subject      string  `json:"subject"`
 	AccessToken  string  `json:"access_token"`

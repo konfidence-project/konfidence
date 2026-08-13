@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"slices"
 
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
@@ -30,16 +31,13 @@ func newAuthHandler(logger *slog.Logger, oidcClient oidc.Client, stateStore oidc
 	}
 }
 
-// TODO check error handling in all implemented methods
-
 func (a *authHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error) {
-	returnUrl := "/"
-	// TODO need to validate returnUrl parameter
-	if request.Params.ReturnUrl != nil && *request.Params.ReturnUrl != "" {
-		returnUrl = *request.Params.ReturnUrl
+	if !allowedReturnURL(request.Params.ReturnUrl, a.config.OIDC.AllowReturnURLs) {
+		a.logger.Warn("return URL is not allowed", "return_url", request.Params.ReturnUrl)
+		return openapi.LoginV1400JSONResponse{}, nil
 	}
 
-	state, err := a.oidcClient.GenerateState(returnUrl)
+	state, err := a.oidcClient.GenerateState(request.Params.ReturnUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +52,10 @@ func (a *authHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestO
 	return openapi.LoginV1302Response{
 		Headers: openapi.LoginV1302ResponseHeaders{Location: &authCodeUrl},
 	}, nil
+}
+
+func allowedReturnURL(returnURL string, allowReturnURLs []string) bool {
+	return slices.Contains(allowReturnURLs, returnURL)
 }
 
 func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error) {
@@ -121,7 +123,6 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 	}
 
 	// create and save session
-	// TODO encrypt session id
 	sess := session.Session{
 		Subject: idToken.Subject,
 		Context: session.Context{

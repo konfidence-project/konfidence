@@ -90,16 +90,24 @@ api:
     clientSecret: ""
     scopes: "openid,profile,email"
     redirectURL: ""
+    allowReturnUrls: []
     pkceEnabled: true
     stateExpiration: 15m
 
   session:
+    storageType: in-memory
     cookie:
       name: "kden-session"
       httpOnly: true
       secure: false
       sameSite: SameSiteStrictMode
     expiry: 12h
+
+  database:
+    maxConns: 10
+    minConns: 5
+    maxConnLifetime: 30m
+    maxConnIdleTime: 5m
 
   # Extra CLI arguments appended to the container args list.
   extraArgs: []
