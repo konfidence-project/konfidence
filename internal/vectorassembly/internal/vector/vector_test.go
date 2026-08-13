@@ -13,6 +13,41 @@ func TestDomainVector(t *testing.T) {
 	RunSpecs(t, "vector domain Suite")
 }
 
+var _ = Describe("Vector.Clone", func() {
+	It("mutations to cloned Artifacts do not affect the original", func() {
+		original := Vector{
+			Artifacts: []Artifact{
+				{Name: "comp-a", Version: "1.0.0"},
+				{Name: "comp-b", Version: "2.0.0"},
+			},
+		}
+
+		cloned := original.Clone()
+		cloned.Artifacts[0] = Artifact{Name: "comp-a", Version: "MUTATED"}
+		cloned.Artifacts = append(cloned.Artifacts, Artifact{Name: "comp-c", Version: "3.0.0"})
+
+		Expect(original.Artifacts).To(HaveLen(2))
+		Expect(original.Artifacts[0].Version).To(Equal("1.0.0"))
+	})
+
+	It("mutations to cloned VectorConfig.Content do not affect the original", func() {
+		original := Vector{
+			VectorConfig: &VectorConfiguration{Content: []byte(`{"feature":"on"}`)},
+		}
+
+		cloned := original.Clone()
+		cloned.VectorConfig.Content[0] = 'X'
+
+		Expect(original.VectorConfig.Content[0]).To(Equal(byte('{')))
+	})
+
+	It("nil VectorConfig is preserved", func() {
+		original := Vector{Artifacts: []Artifact{{Name: "a", Version: "1.0.0"}}}
+		cloned := original.Clone()
+		Expect(cloned.VectorConfig).To(BeNil())
+	})
+})
+
 var _ = Describe("HasDrift", func() {
 
 	It("has drift when artifacts lengths differ", func() {

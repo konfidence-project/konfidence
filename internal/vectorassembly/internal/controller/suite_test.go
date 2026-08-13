@@ -9,7 +9,9 @@ import (
 	"runtime"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
@@ -172,8 +174,12 @@ func startManager() {
 	)
 	Expect(err).NotTo(HaveOccurred())
 
-	Expect(NewVectorTemplateReconciler(mgr, cache, testVersionGenerator).
-		SetupWithManager(mgr)).To(Succeed())
+	vectorCache, err := lru.New[string, vector.Vector](VectorCacheSize)
+	Expect(err).NotTo(HaveOccurred())
+
+	reconciler := NewVectorTemplateReconciler(mgr, cache, vectorCache, testVersionGenerator)
+	reconciler.assemblyPollInterval = 100 * time.Millisecond
+	Expect(reconciler.SetupWithManager(mgr)).To(Succeed())
 
 	managerCtx, managerCancel := context.WithCancel(ctx)
 	go func() {
