@@ -12,7 +12,6 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 	norm "ocm.software/open-component-model/bindings/go/descriptor/normalisation/json/v4alpha1"
-	"ocm.software/open-component-model/bindings/go/oci/compref"
 	"ocm.software/open-component-model/bindings/go/runtime"
 )
 
@@ -80,58 +79,24 @@ var _ = Describe("Adapter", func() {
 			ctrl.Finish()
 		})
 
-		It("should successfully create vector with alias", func() {
-			alias := "latest"
-			var capturedAliasRef compref.Ref
-			var capturedAlias string
-
-			// Setup expectations
+		It("should successfully create a vector", func() {
 			mockClient.EXPECT().Copy(ctx, gomock.Any(), repoSpec).Return(nil)
 			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256.String()).AnyTimes()
 			mockDigester.EXPECT().GetNormalisationAlgorithm().Return(norm.Algorithm).AnyTimes()
 			mockSigner.EXPECT().Sign(ctx, gomock.Any()).Return(nil)
 			mockClient.EXPECT().Save(ctx, repoSpec, gomock.Any()).Return(nil)
-			mockClient.EXPECT().
-				AddAlias(ctx, gomock.Any(), alias).
-				DoAndReturn(func(ctx context.Context, ref compref.Ref, a string) error {
-					capturedAliasRef = ref
-					capturedAlias = a
-					return nil
-				})
 
-			err := adapter.CreateVector(ctx, repoSpec, v, alias)
+			err := adapter.CreateVector(ctx, repoSpec, v)
 
 			Expect(err).ToNot(HaveOccurred())
-			Expect(capturedAlias).To(Equal(alias))
-			Expect(capturedAliasRef.Component).To(Equal(v.Name))
-			Expect(capturedAliasRef.Version).To(Equal(v.Version))
-			Expect(capturedAliasRef.Repository).To(Equal(repoSpec))
-		})
-
-		It("should return error when AddAlias fails", func() {
-			alias := "edge"
-			aliasErr := errors.New("alias creation failed")
-
-			mockClient.EXPECT().Copy(ctx, gomock.Any(), repoSpec).Return(nil)
-			mockDigester.EXPECT().GetHashAlgorithm().Return(crypto.SHA256.String()).AnyTimes()
-			mockDigester.EXPECT().GetNormalisationAlgorithm().Return(norm.Algorithm).AnyTimes()
-			mockSigner.EXPECT().Sign(ctx, gomock.Any()).Return(nil)
-			mockClient.EXPECT().Save(ctx, repoSpec, gomock.Any()).Return(nil)
-			mockClient.EXPECT().AddAlias(ctx, gomock.Any(), alias).Return(aliasErr)
-
-			err := adapter.CreateVector(ctx, repoSpec, v, alias)
-
-			Expect(err).To(HaveOccurred())
-			Expect(errors.Is(err, aliasErr)).To(BeTrue())
 		})
 
 		It("should return error when Copy artifacts fails", func() {
-			alias := "latest"
 			copyErr := errors.New("failed to copy artifacts")
 
 			mockClient.EXPECT().Copy(ctx, gomock.Any(), repoSpec).Return(copyErr)
 
-			err := adapter.CreateVector(ctx, repoSpec, v, alias)
+			err := adapter.CreateVector(ctx, repoSpec, v)
 
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("unable to copy artifact components"))
@@ -139,7 +104,6 @@ var _ = Describe("Adapter", func() {
 		})
 
 		It("should return error when Sign fails", func() {
-			alias := "edge"
 			signErr := errors.New("signing failed")
 
 			mockClient.EXPECT().Copy(ctx, gomock.Any(), repoSpec).Return(nil)
@@ -147,7 +111,7 @@ var _ = Describe("Adapter", func() {
 			mockDigester.EXPECT().GetNormalisationAlgorithm().Return(norm.Algorithm).AnyTimes()
 			mockSigner.EXPECT().Sign(ctx, gomock.Any()).Return(signErr)
 
-			err := adapter.CreateVector(ctx, repoSpec, v, alias)
+			err := adapter.CreateVector(ctx, repoSpec, v)
 
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("unable to Sign ocm descriptor"))
@@ -155,7 +119,6 @@ var _ = Describe("Adapter", func() {
 		})
 
 		It("should return error when Save fails with non-ErrComponentAlreadyExists error", func() {
-			alias := "prod"
 			saveErr := errors.New("repository unavailable")
 
 			mockClient.EXPECT().Copy(ctx, gomock.Any(), repoSpec).Return(nil)
@@ -164,7 +127,7 @@ var _ = Describe("Adapter", func() {
 			mockSigner.EXPECT().Sign(ctx, gomock.Any()).Return(nil)
 			mockClient.EXPECT().Save(ctx, repoSpec, gomock.Any()).Return(saveErr)
 
-			err := adapter.CreateVector(ctx, repoSpec, v, alias)
+			err := adapter.CreateVector(ctx, repoSpec, v)
 
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("unable to save ocm descriptor"))

@@ -36,3 +36,16 @@ type LocalVectorAssignmentReference struct {
 	// Name	is the name of the VectorAssignment. Required.
 	Name string `json:"name"`
 }
+
+// VectorTemplateReference holds a reference to a VectorTemplate in the same namespace,
+// used as the base of another VectorTemplate.
+type VectorTemplateReference struct {
+	// Kind is the kind of the referenced object. Only VectorTemplate is supported for now.
+	// +kubebuilder:validation:Enum=VectorTemplate
+	// +kubebuilder:default=VectorTemplate
+	Kind string `json:"kind"`
+
+	// Name is the name of the referenced VectorTemplate. Required.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+}

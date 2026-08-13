@@ -34,6 +34,10 @@ spec:
       jsonPath: .spec.uploadTarget
       name: Upload-Target
       type: string
+    - description: The most recently assembled concrete vector version
+      jsonPath: .status.latestVector
+      name: Latest-Vector
+      type: string
     - description: Time since creation of the vector template
       jsonPath: .metadata.creationTimestamp
       name: Age
@@ -66,9 +70,26 @@ spec:
             description: spec defines the desired state of VectorTemplate
             properties:
               base:
-                description: Base represents an optional base component version to
-                  build upon.
-                type: string
+                description: |-
+                  Base references another VectorTemplate whose most recently assembled vector
+                  (status.latestVector) is used as the base for this vector's assembly.
+                properties:
+                  kind:
+                    default: VectorTemplate
+                    description: Kind is the kind of the referenced object. Only VectorTemplate
+                      is supported for now.
+                    enum:
+                    - VectorTemplate
+                    type: string
+                  name:
+                    description: Name is the name of the referenced VectorTemplate.
+                      Required.
+                    minLength: 1
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
               components:
                 description: Components lists the components to be included in the
                   vector.
@@ -435,6 +456,12 @@ spec:
                   - type
                   type: object
                 type: array
+              latestVector:
+                description: |-
+                  LatestVector is the concrete OCM component version of the most recently
+                  assembled vector, in the form <repository>//<component>:<version>. It is
+                  empty until the first successful assembly.
+                type: string
             type: object
         required:
         - spec

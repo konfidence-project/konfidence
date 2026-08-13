@@ -16,11 +16,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -32,6 +35,12 @@ const (
 	EventActionDriftDetection    = "DriftDetection"
 	EventActionVectorCreation    = "VectorCreation"
 )
+
+// errBaseVectorNotReady signals that the referenced base VectorTemplate has not assembled
+// a vector yet. It is a normal transient state, not a failure: the caller stops the current
+// reconcile without returning an error (no backoff) and relies on the base VectorTemplate
+// watch to re-enqueue this template once the base's status.latestVector is populated.
+var errBaseVectorNotReady = errors.New("base vector not ready")
 
 // VectorTemplateReconciler reconciles a VectorTemplate object
 type VectorTemplateReconciler struct {
@@ -62,7 +71,15 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	patch := client.MergeFrom(originalVectorTemplate)
 
 	driftErr := r.detectAndActOnDrift(ctx, vectorTemplate)
-	if driftErr != nil {
+	// errBaseVectorNotReady is a normal transient state, not a failure. Swallow it so the
+	// reconcile does not back off or record an error; the base VectorTemplate watch
+	// re-enqueues this template once the base's status.latestVector is populated. The
+	// informative waiting condition set on the status is still patched below.
+	waitingForBase := errors.Is(driftErr, errBaseVectorNotReady)
+	if waitingForBase {
+		log.Info("waiting for base VectorTemplate to assemble a vector", "name", req.NamespacedName)
+		driftErr = nil
+	} else if driftErr != nil {
 		log.Error(driftErr, "error detecting or acting on drift for Vector template")
 	}
 
@@ -77,6 +94,11 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if err := errors.Join(driftErr, patchErr); err != nil {
 		return ctrl.Result{}, err
+	}
+	// While waiting for the base to assemble, do not poll: the base VectorTemplate watch
+	// re-enqueues this template the instant base.status.latestVector is set.
+	if waitingForBase {
+		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{RequeueAfter: requeueAfterFromSpecOrDefault(vectorTemplate)}, nil
 }
@@ -118,7 +140,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 	}
 
 	vectorOCMComponent, err := konfcompref.Parse(
-		template.Spec.UploadTarget, konfcompref.WithVersionValidation(konfcompref.VersionValidationAliasOnly))
+		template.Spec.UploadTarget, konfcompref.WithVersionValidation(konfcompref.VersionValidationNoVersion))
 	if err != nil {
 		err = fmt.Errorf("unable to create ocm reference from vector template upload target (%s): %w", template.Spec.UploadTarget, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -176,23 +198,47 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		VectorConfig: desiredVectorConfiguration,
 	}
 
-	currentVector, err := ocmAdapter.GetVector(ctx, *vectorOCMComponent)
-	if errors.Is(err, vector.ErrVectorNotFound) {
-		msg := "Vector not found in OCM repository - creating new vector"
+	var currentVector vector.Vector
+	// An empty latestVector means no vector has been assembled yet - treat as first build.
+	if template.Status.LatestVector == "" {
+		msg := "No latest vector recorded in status - creating new vector"
 		r.Recorder.Eventf(template, nil, corev1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
 		log.Info(msg, "VectorOCMComponent", vectorOCMComponent.Component)
-	} else if err != nil {
-		err = fmt.Errorf("unable to get current artifacts from vector (%s): %w", vectorOCMComponent, err)
-		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
-			Type:               konfidence.VectorTemplateReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
-			Message:            err.Error(),
-			ObservedGeneration: template.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
-		return err
+	} else {
+		latestVectorRef, parseErr := konfcompref.Parse(
+			template.Status.LatestVector, konfcompref.WithVersionValidation(konfcompref.VersionValidationSemverOnly))
+		if parseErr != nil {
+			err = fmt.Errorf("unable to parse status.latestVector (%s): %w", template.Status.LatestVector, parseErr)
+			meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+				Type:               konfidence.VectorTemplateReadyCondition,
+				Status:             metav1.ConditionUnknown,
+				Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
+				Message:            err.Error(),
+				ObservedGeneration: template.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
+			r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+			return err
+		}
+
+		currentVector, err = ocmAdapter.GetVector(ctx, *latestVectorRef)
+		if errors.Is(err, vector.ErrVectorNotFound) {
+			msg := "Vector referenced by status.latestVector not found in OCM repository - creating new vector"
+			r.Recorder.Eventf(template, nil, corev1.EventTypeNormal, "VectorNotFound", "ResolvingLatestVector", msg)
+			log.Info(msg, "LatestVector", template.Status.LatestVector)
+		} else if err != nil {
+			err = fmt.Errorf("unable to get current artifacts from vector (%s): %w", latestVectorRef, err)
+			meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+				Type:               konfidence.VectorTemplateReadyCondition,
+				Status:             metav1.ConditionUnknown,
+				Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
+				Message:            err.Error(),
+				ObservedGeneration: template.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
+			r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+			return err
+		}
 	}
 
 	driftDetected := vector.HasDrift(currentVector, desiredVector)
@@ -218,7 +264,7 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		VectorConfig: desiredVectorConfiguration,
 	}
 
-	err = ocmAdapter.CreateVector(ctx, vectorOCMComponent.Repository, newVector, vectorOCMComponent.Version)
+	err = ocmAdapter.CreateVector(ctx, vectorOCMComponent.Repository, newVector)
 	if err != nil {
 		err = fmt.Errorf("unable to create new vector (%s) on drift: %w", vectorOCMComponent, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -232,6 +278,14 @@ func (r *VectorTemplateReconciler) detectAndActOnDrift(
 		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateVectorCreationFailedReason, EventActionVectorCreation, err.Error())
 		return err
 	}
+
+	// Record the concrete version of the freshly assembled vector
+	latestVectorRef := compref.Ref{
+		Repository: vectorOCMComponent.Repository,
+		Component:  vectorOCMComponent.Component,
+		Version:    newVector.Version,
+	}
+	template.Status.LatestVector = latestVectorRef.String()
 
 	msg := fmt.Sprintf("Drift detected and new vector created successfully - new vector version is %s", newVector.Version)
 	meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
@@ -251,9 +305,47 @@ func (r *VectorTemplateReconciler) getArtifactsFromBaseVector(
 	ctx context.Context, ocmAdapter vector.OcmPort, template *konfidence.VectorTemplate,
 	vectorOCMComponentName string,
 ) ([]vector.Artifact, error) {
-	baseVectorOCMComponent, err := konfcompref.Parse(*template.Spec.Base)
+	// Resolve the base by reading the referenced VectorTemplate's status.latestVector,
+	// which holds the concrete version of its most recently assembled vector.
+	baseTemplate := &konfidence.VectorTemplate{}
+	baseKey := types.NamespacedName{Namespace: template.Namespace, Name: template.Spec.Base.Name}
+	if err := r.Get(ctx, baseKey, baseTemplate); err != nil {
+		err = fmt.Errorf("unable to get base VectorTemplate (%s): %w", template.Spec.Base.Name, err)
+		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+			Type:               konfidence.VectorTemplateReadyCondition,
+			Status:             metav1.ConditionUnknown,
+			Reason:             konfidence.VectorTemplateDriftDetectionFailedReason,
+			Message:            err.Error(),
+			ObservedGeneration: template.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		r.Recorder.Eventf(template, nil, corev1.EventTypeWarning, konfidence.VectorTemplateDriftDetectionFailedReason, EventActionDriftDetection, err.Error())
+		return nil, err
+	}
+
+	// The base has not assembled a vector yet. This is a normal transient state, not an
+	// error: set a waiting condition and return the sentinel so the caller stops without
+	// backoff. The Watches mapping on base VectorTemplates re-enqueues this template as
+	// soon as the base's status.latestVector is populated.
+	if baseTemplate.Status.LatestVector == "" {
+		msg := fmt.Sprintf("waiting for base VectorTemplate (%s) to assemble a vector", template.Spec.Base.Name)
+		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
+			Type:               konfidence.VectorTemplateReadyCondition,
+			Status:             metav1.ConditionFalse,
+			Reason:             konfidence.VectorTemplateWaitingForBaseReason,
+			Message:            msg,
+			ObservedGeneration: template.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		r.Recorder.Eventf(template, nil, corev1.EventTypeNormal, konfidence.VectorTemplateWaitingForBaseReason, EventActionDriftDetection, msg)
+		return nil, errBaseVectorNotReady
+	}
+
+	baseVectorOCMComponent, err := konfcompref.Parse(
+		baseTemplate.Status.LatestVector, konfcompref.WithVersionValidation(konfcompref.VersionValidationSemverOnly))
 	if err != nil {
-		err = fmt.Errorf("unable to create ocm reference from vector template base (%s): %w", *template.Spec.Base, err)
+		err = fmt.Errorf("unable to create ocm reference from base VectorTemplate (%s) status.latestVector (%s): %w",
+			template.Spec.Base.Name, baseTemplate.Status.LatestVector, err)
 		meta.SetStatusCondition(&template.Status.Conditions, metav1.Condition{
 			Type:               konfidence.VectorTemplateReadyCondition,
 			Status:             metav1.ConditionUnknown,
@@ -386,6 +478,61 @@ func NewVectorTemplateReconciler(
 func (r *VectorTemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorTemplate{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(
+			&konfidence.VectorTemplate{},
+			handler.EnqueueRequestsFromMapFunc(r.mapBaseToDependents),
+			builder.WithPredicates(latestVectorChangedPredicate()),
+		).
 		Named("vectortemplate").
 		Complete(r)
+}
+
+// latestVectorChangedPredicate fires the base-VectorTemplate watch only when a base's
+// status.latestVector actually changes on update - the sole event that gives a waiting
+// dependent something new to assemble against. Creates carry no signal (status.latestVector
+// is empty at creation and only ever populated by a later status update; a dependent's own
+// creation is handled by the For source), so they, deletes, and generic/no-op status churn
+// are all dropped. This bounds both the mapper's namespace List and dependent re-enqueues.
+func latestVectorChangedPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(event.CreateEvent) bool { return false },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldTemplate, okOld := e.ObjectOld.(*konfidence.VectorTemplate)
+			newTemplate, okNew := e.ObjectNew.(*konfidence.VectorTemplate)
+			if !okOld || !okNew {
+				return false
+			}
+			return oldTemplate.Status.LatestVector != newTemplate.Status.LatestVector
+		},
+		DeleteFunc:  func(event.DeleteEvent) bool { return false },
+		GenericFunc: func(event.GenericEvent) bool { return false },
+	}
+}
+
+// mapBaseToDependents enqueues every VectorTemplate in the same namespace that references
+// the changed VectorTemplate as its base. This wakes dependents as soon as a base assembles
+// or reassembles a vector (its status.latestVector changes) instead of relying on the periodic requeue interval.
+func (r *VectorTemplateReconciler) mapBaseToDependents(ctx context.Context, obj client.Object) []ctrl.Request {
+	base, ok := obj.(*konfidence.VectorTemplate)
+	if !ok {
+		return nil
+	}
+
+	dependents := &konfidence.VectorTemplateList{}
+	if err := r.List(ctx, dependents, client.InNamespace(base.Namespace)); err != nil {
+		logf.FromContext(ctx).Error(err, "unable to list VectorTemplates to map base to dependents",
+			"base", base.Name, "namespace", base.Namespace)
+		return nil
+	}
+
+	var requests []ctrl.Request
+	for i := range dependents.Items {
+		dependent := &dependents.Items[i]
+		if dependent.Spec.Base != nil && dependent.Spec.Base.Name == base.Name {
+			requests = append(requests, ctrl.Request{
+				NamespacedName: types.NamespacedName{Namespace: dependent.Namespace, Name: dependent.Name},
+			})
+		}
+	}
+	return requests
 }

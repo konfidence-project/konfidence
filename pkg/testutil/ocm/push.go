@@ -166,6 +166,19 @@ func ParseRef(registryEndpoint, component string) compref.Ref {
 	return *ref
 }
 
+// ParseBareRef parses a version-less component reference of the form
+// "http://<registry>//<component>" (no version/alias tag) and fails the current Gomega
+// test if parsing fails. Use this for a VectorTemplate uploadTarget, which must not carry
+// a version - the controller assigns the concrete version itself.
+func ParseBareRef(registryEndpoint, component string) compref.Ref {
+	ref, err := konfcompref.Parse(
+		fmt.Sprintf("http://%s//%s", registryEndpoint, component),
+		konfcompref.WithVersionValidation(konfcompref.VersionValidationNoVersion))
+	gomega.ExpectWithOffset(1, err).
+		NotTo(gomega.HaveOccurred(), "failed to parse bare reference for component %s", component)
+	return *ref
+}
+
 // PushComponent pushes a minimal OCM component descriptor into the OCI registry
 // identified by ref. If alias is non-nil the component is additionally tagged
 // with that alias via AddAlias.
@@ -185,12 +198,17 @@ func PushComponent(ctx context.Context, client pkgocm.Client, ref compref.Ref, a
 }
 
 // PushVector pushes a vector descriptor (an OCM component with references to
-// artifact components) into the OCI registry and tags it with the given alias.
+// artifact components) into the OCI registry at its concrete version. If alias is
+// non-empty the vector is additionally tagged with it via AddAlias; pass "" to push
+// the vector without moving any alias (the model used since ADR-0032, where vectors
+// are referenced by concrete version rather than an alias tag).
 // If vectorConfig is non-nil it is embedded as a local JSON resource named
 // "cloud-konfidence-vector-config" inside the vector descriptor.
 //
 // The function fails the current Gomega test on any error, reporting the failure
 // at the caller's location (offset 1).
+//
+// TODO: drop the alias parameter once all controllers stop using vector aliases.
 func PushVector(ctx context.Context, client pkgocm.Client, vector compref.Ref, artifacts []compref.Ref, alias string, vectorConfig []byte) {
 	descriptor := buildVectorDescriptor(ctx, client, vector, artifacts)
 
@@ -201,6 +219,9 @@ func PushVector(ctx context.Context, client pkgocm.Client, vector compref.Ref, a
 	gomega.ExpectWithOffset(1,
 		client.Save(ctx, vector.Repository, descriptor)).
 		NotTo(gomega.HaveOccurred(), "failed to push vector %s", vector)
+	if alias == "" {
+		return
+	}
 	gomega.ExpectWithOffset(1,
 		client.AddAlias(ctx, vector, alias)).
 		NotTo(gomega.HaveOccurred(), "failed to add alias %s for vector %s", alias, vector)

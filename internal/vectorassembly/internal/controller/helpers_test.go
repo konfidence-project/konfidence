@@ -8,14 +8,57 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // createReference creates a reference and fails the test in case of errors.
 func createReference(component string) compref.Ref {
 	return ocm.ParseRef(registryEndpoint, component)
+}
+
+// createBareReference creates a version-less reference (no tag) for use as a VectorTemplate
+// uploadTarget, and fails the test in case of errors.
+func createBareReference(component string) compref.Ref {
+	return ocm.ParseBareRef(registryEndpoint, component)
+}
+
+// updateVectorConfig sets the VectorTemplate's spec.vectorConfig and persists it. Because it
+// changes the spec, it bumps the generation and triggers a reconcile via the For predicate.
+// Pass nil to remove the vector configuration.
+func updateVectorConfig(vt *konfidence.VectorTemplate, cfg *konfidence.VectorConfig) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vt), vt)).To(Succeed())
+		vt.Spec.VectorConfig = cfg
+		g.Expect(k8sClient.Update(ctx, vt)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
+}
+
+// nudgeReconcile forces the controller to reconcile the VectorTemplate again by bumping a
+// spec field (reconcileInterval), which changes the object generation and therefore passes
+// the GenerationChangedPredicate on the For watch. Used to re-drive assembly after the OCI
+// state (e.g. a component alias) has changed, without altering the desired component set.
+func nudgeReconcile(vt *konfidence.VectorTemplate) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vt), vt)).To(Succeed())
+		cur := time.Hour
+		if vt.Spec.ReconcileInterval != nil {
+			cur = vt.Spec.ReconcileInterval.Duration
+		}
+		// Toggle between two long intervals so the generation changes but reconcile
+		// cadence stays effectively disabled (tests drive reconciles explicitly).
+		next := time.Hour
+		if cur == time.Hour {
+			next = 2 * time.Hour
+		}
+		vt.Spec.ReconcileInterval = &metav1.Duration{Duration: next}
+		g.Expect(k8sClient.Update(ctx, vt)).To(Succeed())
+	}, timeout, interval).Should(Succeed())
 }
 
 // createVectorTemplateCR creates a VectorTemplate CR with OCI credentials pre-wired.
@@ -26,9 +69,9 @@ func createVectorTemplateCR(
 	name, namespace string,
 	artifacts []compref.Ref,
 	vector compref.Ref,
-	base *compref.Ref,
+	baseName string,
 	vectorConfig *konfidence.VectorConfig) *konfidence.VectorTemplate {
-	return createPKIVectorTemplateCR(ctx, name, namespace, artifacts, vector, base,
+	return createPKIVectorTemplateCR(ctx, name, namespace, artifacts, vector, baseName,
 		pkiVectorTemplateOptions{credSecretNames: credSecretNames, vectorConfig: vectorConfig},
 	)
 }
@@ -67,16 +110,19 @@ func createPKIVectorTemplateCR(
 	name, namespace string,
 	artifacts []compref.Ref,
 	vector compref.Ref,
-	base *compref.Ref,
+	baseName string,
 	opts pkiVectorTemplateOptions,
 ) *konfidence.VectorTemplate {
 	components := make([]konfidence.Component, 0, len(artifacts))
 	for _, artifact := range artifacts {
 		components = append(components, konfidence.Component{Name: artifact.String()})
 	}
-	var baseRef *string
-	if base != nil {
-		baseRef = new(base.String())
+	var baseRef *konfidence.VectorTemplateReference
+	if baseName != "" {
+		baseRef = &konfidence.VectorTemplateReference{
+			Kind: konfidence.VectorTemplateKind,
+			Name: baseName,
+		}
 	}
 
 	var creds *konfidence.Credentials

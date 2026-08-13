@@ -186,6 +186,34 @@ var _ = Describe("Parse", func() {
 			})
 		})
 
+		Context("VersionValidationNoVersion", func() {
+			It("accepts a bare component reference without a version", func() {
+				ref, err := Parse("ghcr.io/org/components//github.com/org/app",
+					WithVersionValidation(VersionValidationNoVersion))
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ref.Version).To(BeEmpty())
+			})
+
+			It("rejects a semver version", func() {
+				_, err := Parse("ghcr.io/org/components//github.com/org/app:1.0.0",
+					WithVersionValidation(VersionValidationNoVersion))
+
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(MatchError(ContainSubstring("must not carry a version")))
+				Expect(errors.Is(err, ErrInvalidComponentReference)).To(BeTrue())
+			})
+
+			It("rejects an alias version", func() {
+				_, err := Parse("ghcr.io/org/components//github.com/org/app:latest",
+					WithVersionValidation(VersionValidationNoVersion))
+
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(MatchError(ContainSubstring("must not carry a version")))
+				Expect(errors.Is(err, ErrInvalidComponentReference)).To(BeTrue())
+			})
+		})
+
 		Context("VersionValidationPermissive (default)", func() {
 			It("accepts semver versions", func() {
 				ref, err := Parse("ghcr.io/org/components//github.com/org/app:1.0.0")
@@ -286,6 +314,24 @@ var _ = Describe("Validate", func() {
 
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(ContainSubstring("is a semantic version but only aliases are allowed")))
+				Expect(errors.Is(err, ErrInvalidComponentReference)).To(BeTrue())
+			})
+		})
+
+		Context("VersionValidationNoVersion", func() {
+			It("accepts a reference without a version", func() {
+				ref, _ := Parse("ghcr.io/org/components//github.com/org/app", WithoutValidation())
+				err := Validate(*ref, WithVersionValidationMode(VersionValidationNoVersion))
+
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("rejects a reference that carries a version", func() {
+				ref, _ := Parse("ghcr.io/org/components//github.com/org/app:1.0.0", WithoutValidation())
+				err := Validate(*ref, WithVersionValidationMode(VersionValidationNoVersion))
+
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(MatchError(ContainSubstring("must not carry a version")))
 				Expect(errors.Is(err, ErrInvalidComponentReference)).To(BeTrue())
 			})
 		})
