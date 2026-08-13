@@ -73,6 +73,7 @@ Kubernetes: `>=1.27.0-0`
 | api.service.nodePort | string | `""` |  |
 | api.service.port | int | `8090` |  |
 | api.service.type | string | `"ClusterIP"` |  |
+| api.session.cleanupInterval | string | `"15m"` |  |
 | api.session.cookie.httpOnly | bool | `true` |  |
 | api.session.cookie.name | string | `"kden-session"` |  |
 | api.session.cookie.sameSite | string | `"SameSiteStrictMode"` |  |
