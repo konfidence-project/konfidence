@@ -9,7 +9,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -17,9 +16,8 @@ const (
 	VectorPromotionControllerName = "vector-promotion-controller"
 )
 
-// VectorPromotionReconciler is a placeholder: promotion execution arrives
-// with the ADR-0032 execution rework (konfidence-project#868). Until then
-// promotions keep their derived Waiting/Ready state and are never executed.
+// VectorPromotionReconciler is a placeholder until the execution rework
+// (konfidence-project#868) lands; promotions are never executed here.
 type VectorPromotionReconciler struct {
 	client.Client
 	Recorder events.EventRecorder
@@ -30,14 +28,10 @@ type VectorPromotionReconciler struct {
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
 
 func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-
 	vectorPromotion := &konfidence.VectorPromotion{}
 	if err := r.Get(ctx, req.NamespacedName, vectorPromotion); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
-	log.V(1).Info("promotion execution is pending the ADR-0032 execution rework; nothing to do")
 	return ctrl.Result{}, nil
 }
 
