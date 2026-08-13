@@ -104,6 +104,7 @@ api:
       secure: true
       sameSite: SameSiteStrictMode
     expiry: 12h
+    cleanupInterval: 15m
 
   database:
     maxConns: 10
