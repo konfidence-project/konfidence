@@ -83,7 +83,6 @@ spec:
                   Vector is the concrete OCM component version reference
                   (`<registry>//<component>:<version>`) pinned when the promotion was created.
                 minLength: 1
-                pattern: ^[^/].+//.+:.+$
                 type: string
                 x-kubernetes-validations:
                 - message: vector is immutable after it has been set
@@ -163,9 +162,8 @@ spec:
                   is a locked terminal state: a superseded promotion can never be
                   approved or executed afterwards, only its successor can.
                 enum:
-                - Pending
-                - WaitingForApproval
-                - Approved
+                - Waiting
+                - Ready
                 - InProgress
                 - Succeeded
                 - Failed
