@@ -50,6 +50,9 @@ spec:
             - --oidc-client-secret={{ required "api.oidc.clientSecret is required" .Values.api.oidc.clientSecret }}
             - --oidc-scopes={{ .Values.api.oidc.scopes }}
             - --oidc-redirect-url={{ required "api.oidc.redirectURL is required" .Values.api.oidc.redirectURL }}
+            {{- with .Values.api.oidc.allowReturnUrls }}
+            - --oidc-allow-return-urls={{ join "," . | quote }}
+            {{- end }}
             - --oidc-token-url={{ .Values.api.oidc.tokenURL }}
             - --oidc-authorization-url={{ .Values.api.oidc.authorizationURL }}
             - --oidc-device-auth-url={{ .Values.api.oidc.deviceAuthURL }}
@@ -63,6 +66,11 @@ spec:
             - --session-cookie-secure={{ .Values.api.session.cookie.secure }}
             - --session-cookie-same-site={{ .Values.api.session.cookie.sameSite }}
             - --session-expiry={{ .Values.api.session.expiry }}
+            - --session-storage-type={{ .Values.api.session.storageType }}
+            - --db-max-conns={{ .Values.api.database.maxConns }}
+            - --db-min-conns={{ .Values.api.database.minConns }}
+            - --db-max-conn-lifetime={{ .Values.api.database.maxConnLifetime }}
+            - --db-max-conn-idle-time={{ .Values.api.database.maxConnIdleTime }}
             {{- with .Values.api.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

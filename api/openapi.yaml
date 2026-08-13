@@ -27,10 +27,14 @@ paths:
       parameters:
         - name: return_url
           in: query
-          required: false
+          description: Fully qualified URL to redirect to after login. The URL must be present in the API server allowlist.
+          required: true
           schema:
             type: string
+            format: uri
       responses:
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "302":
           description: Redirect to IDP authorization endpoint.
           headers:

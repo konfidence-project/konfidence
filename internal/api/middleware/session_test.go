@@ -50,7 +50,7 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 	t.Run("public operation bypasses authentication", func(t *testing.T) {
 		before := store.getCalls
 		response := httptest.NewRecorder()
-		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/login", nil))
+		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/login?return_url=https%3A%2F%2Fdashboard.example.com", nil))
 
 		if response.Code != http.StatusNoContent {
 			t.Fatalf("expected status %d, got %d", http.StatusNoContent, response.Code)

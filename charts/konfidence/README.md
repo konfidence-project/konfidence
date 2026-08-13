@@ -25,6 +25,10 @@ Kubernetes: `>=1.27.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| api.database.maxConnIdleTime | string | `"5m"` |  |
+| api.database.maxConnLifetime | string | `"30m"` |  |
+| api.database.maxConns | int | `10` |  |
+| api.database.minConns | int | `5` |  |
 | api.enabled | bool | `true` |  |
 | api.env | list | `[]` |  |
 | api.extraArgs | list | `[]` |  |
@@ -38,6 +42,7 @@ Kubernetes: `>=1.27.0-0`
 | api.ingress.hosts[0].paths[0].path | string | `"/"` |  |
 | api.ingress.hosts[0].paths[0].pathType | string | `"Prefix"` |  |
 | api.ingress.tls | list | `[]` |  |
+| api.oidc.allowReturnUrls | list | `[]` |  |
 | api.oidc.authorizationURL | string | `""` |  |
 | api.oidc.clientId | string | `""` |  |
 | api.oidc.clientSecret | string | `""` |  |
@@ -72,6 +77,7 @@ Kubernetes: `>=1.27.0-0`
 | api.session.cookie.sameSite | string | `"SameSiteStrictMode"` |  |
 | api.session.cookie.secure | bool | `false` |  |
 | api.session.expiry | string | `"12h"` |  |
+| api.session.storageType | string | `"in-memory"` |  |
 | api.volumeMounts | list | `[]` |  |
 | api.volumes | list | `[]` |  |
 | containerSecurityContext.allowPrivilegeEscalation | bool | `false` |  |

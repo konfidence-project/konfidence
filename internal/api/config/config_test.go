@@ -19,13 +19,17 @@ var _ = Describe("Config.Validate", func() {
 				Enabled:   true,
 				IssuerURL: "http://localhost:5556/oauth", ClientID: "konfidence", ClientSecret: "secret",
 				Scopes: "openid,customScope", RedirectURL: "http://localhost:8090/api/v1/auth/callback",
-				PKCEEnabled: true, StateExpiration: "15m",
+				AllowReturnURLs: []string{"https://dashboard.example.com/callback", "http://localhost:3000/auth"},
+				PKCEEnabled:     true, StateExpiration: "15m",
 			},
 			Session: config.SessionConfig{
-				Cookie: config.SessionCookieConfig{Name: "kden-session", HTTPOnly: true, SameSite: "SameSiteStrictMode"},
-				Expiry: "12h",
+				StorageType: "db-pg",
+				Cookie:      config.SessionCookieConfig{Name: "kden-session", HTTPOnly: true, SameSite: "SameSiteStrictMode"},
+				Expiry:      "12h",
 			},
-			Database: config.DatabaseConfig{Connection: "dbConn"},
+			Database: config.DatabaseConfig{
+				Connection: "dbConn", MaxConns: 10, MinConns: 5, MaxConnLifetime: "30m", MaxConnIdleTime: "5m",
+			},
 		}
 	}
 
@@ -39,6 +43,7 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.OIDC.ClientSecret).To(Equal("secret"))
 		Expect(parsed.OIDC.Scopes).To(ConsistOf([]string{"openid", "profile", "customScope"}))
 		Expect(parsed.OIDC.RedirectURL).To(Equal("http://localhost:8090/api/v1/auth/callback"))
+		Expect(parsed.OIDC.AllowReturnURLs).To(Equal([]string{"https://dashboard.example.com/callback", "http://localhost:3000/auth"}))
 		Expect(parsed.OIDC.PKCEEnabled).To(BeTrue())
 		Expect(parsed.OIDC.StateExpiration.Minutes()).To(Equal(15.0))
 		Expect(parsed.Session.Cookie.Name).To(Equal("kden-session"))
@@ -49,7 +54,12 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.Server.WriteTimeout.Seconds()).To(Equal(10.0))
 		Expect(parsed.Server.ShutdownTimeout.Seconds()).To(Equal(15.0))
 		Expect(parsed.Session.Expiry.Hours()).To(Equal(12.0))
+		Expect(parsed.Session.StorageType).To(Equal("db-pg"))
 		Expect(parsed.Database.Connection).To(Equal("dbConn"))
+		Expect(parsed.Database.MaxConns).To(Equal(int32(10)))
+		Expect(parsed.Database.MinConns).To(Equal(int32(5)))
+		Expect(parsed.Database.MaxConnLifetime.Minutes()).To(Equal(30.0))
+		Expect(parsed.Database.MaxConnIdleTime.Minutes()).To(Equal(5.0))
 	})
 
 	It("rejects an empty addr", func() {
@@ -71,7 +81,44 @@ var _ = Describe("Config.Validate", func() {
 		Entry("shutdown-timeout", "shutdown-timeout", func(c *config.Config) { c.Server.ShutdownTimeout = invalidDuration }),
 		Entry("oidc-state-expiration", "oidc-state-expiration", func(c *config.Config) { c.OIDC.StateExpiration = invalidDuration }),
 		Entry("session-expiry", "session-expiry", func(c *config.Config) { c.Session.Expiry = invalidDuration }),
+		Entry("db-max-conn-lifetime", "db-max-conn-lifetime", func(c *config.Config) { c.Database.MaxConnLifetime = invalidDuration }),
+		Entry("db-max-conn-idle-time", "db-max-conn-idle-time", func(c *config.Config) { c.Database.MaxConnIdleTime = invalidDuration }),
 	)
+
+	DescribeTable("rejects invalid database pool sizes",
+		func(field string, mutate func(*config.Config)) {
+			c := valid()
+			mutate(&c)
+			_, err := c.Validate()
+			Expect(err).To(MatchError(ContainSubstring(field)))
+		},
+		Entry("zero max connections", "db-max-conns", func(c *config.Config) { c.Database.MaxConns = 0 }),
+		Entry("negative minimum connections", "db-min-conns", func(c *config.Config) { c.Database.MinConns = -1 }),
+		Entry("minimum exceeds maximum", "db-min-conns", func(c *config.Config) { c.Database.MinConns = 11 }),
+	)
+
+	It("requires a database connection for PostgreSQL session storage", func() {
+		c := valid()
+		c.Database.Connection = ""
+		_, err := c.Validate()
+		Expect(err).To(MatchError(ContainSubstring("db-connection")))
+	})
+
+	It("rejects an unknown session storage type", func() {
+		c := valid()
+		c.Session.StorageType = "redis"
+		_, err := c.Validate()
+		Expect(err).To(MatchError(ContainSubstring("session-storage-type")))
+	})
+
+	It("allows database settings to be omitted for in-memory session storage", func() {
+		c := valid()
+		c.Session.StorageType = "in-memory"
+		c.Database = config.DatabaseConfig{}
+		parsed, err := c.Validate()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(parsed.Session.StorageType).To(Equal("in-memory"))
+	})
 
 	It("rejects an unknown log level", func() {
 		c := valid()
@@ -79,6 +126,20 @@ var _ = Describe("Config.Validate", func() {
 		_, err := c.Validate()
 		Expect(err).To(MatchError(ContainSubstring("log-level")))
 	})
+
+	DescribeTable("rejects invalid OIDC return URL allowlist entries",
+		func(returnURL string) {
+			c := valid()
+			c.OIDC.AllowReturnURLs = []string{returnURL}
+			_, err := c.Validate()
+			Expect(err).To(MatchError(ContainSubstring("oidc-allow-return-url")))
+		},
+		Entry("relative URL", "/callback"),
+		Entry("missing host", "https:///callback"),
+		Entry("port without hostname", "https://:8443/callback"),
+		Entry("unsupported scheme", "ftp://example.com/callback"),
+		Entry("credentials", "https://user:password@example.com/callback"),
+	)
 
 	It("allows OIDC provider settings to be omitted when OIDC is disabled", func() {
 		c := valid()
@@ -119,8 +180,9 @@ var _ = Describe("Config.Validate", func() {
 				StateExpiration: "5m",
 			},
 			Session: config.SessionConfig{
-				Cookie: config.SessionCookieConfig{Name: "custom-session", Secure: true, SameSite: "SameSiteNoneMode"},
-				Expiry: "1h",
+				StorageType: "in-memory",
+				Cookie:      config.SessionCookieConfig{Name: "custom-session", Secure: true, SameSite: "SameSiteNoneMode"},
+				Expiry:      "1h",
 			},
 		}
 		parsed, err := c.Validate()
