@@ -36,9 +36,6 @@ const (
 	ReasonPromotionManuallyApproved = "ManuallyApproved"
 	// ReasonPromotionSuperseded indicates a newer promotion for the same config replaced this one.
 	ReasonPromotionSuperseded = "PromotionSuperseded"
-	// ReasonPromotionExecutionPending indicates promotion execution is not yet
-	// implemented for structured references (ADR-0032 rework).
-	ReasonPromotionExecutionPending = "PromotionExecutionPending"
 )
 
 // VectorPromotionState summarizes the promotion lifecycle for display.
@@ -46,12 +43,13 @@ const (
 type VectorPromotionState string
 
 const (
-	// PromotionStatePending means the promotion has not started yet.
-	PromotionStatePending VectorPromotionState = "Pending"
-	// PromotionStateWaitingForApproval means the promotion requires approval and has not been approved yet.
-	PromotionStateWaitingForApproval VectorPromotionState = "WaitingForApproval"
-	// PromotionStateApproved means the promotion is approved but execution has not started.
-	PromotionStateApproved VectorPromotionState = "Approved"
+	// PromotionStateWaiting means at least one gate is still open: the
+	// promotion requires approval and has not been approved yet.
+	PromotionStateWaiting VectorPromotionState = "Waiting"
+	// PromotionStateReady means every gate has passed and the promotion is
+	// queued for execution. Promotions that require no approval are Ready
+	// from their first reconcile.
+	PromotionStateReady VectorPromotionState = "Ready"
 	// PromotionStateInProgress means the promotion is executing.
 	PromotionStateInProgress VectorPromotionState = "InProgress"
 	// PromotionStateSucceeded means the promotion completed successfully.
@@ -73,7 +71,6 @@ type VectorPromotionSpec struct {
 	// Vector is the concrete OCM component version reference
 	// (`<registry>//<component>:<version>`) pinned when the promotion was created.
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Pattern=`^[^/].+//.+:.+$`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="vector is immutable after it has been set"
 	Vector string `json:"vector"`
 
@@ -101,7 +98,7 @@ type VectorPromotionStatus struct {
 	// truth; State is recomputed whenever conditions are written. `Superseded`
 	// is a locked terminal state: a superseded promotion can never be
 	// approved or executed afterwards, only its successor can.
-	// +kubebuilder:validation:Enum=Pending;WaitingForApproval;Approved;InProgress;Succeeded;Failed;Superseded
+	// +kubebuilder:validation:Enum=Waiting;Ready;InProgress;Succeeded;Failed;Superseded
 	// +optional
 	State VectorPromotionState `json:"state,omitempty"`
 }

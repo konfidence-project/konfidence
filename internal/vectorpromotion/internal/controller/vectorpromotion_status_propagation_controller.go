@@ -39,7 +39,8 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if promotion.IsPending(p) {
+	promotionCondition := meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
+	if promotionCondition == nil {
 		return ctrl.Result{RequeueAfter: statusPropagationReconcileInterval}, nil
 	}
 
@@ -50,8 +51,6 @@ func (r *VectorPromotionStatusPropagationReconciler) Reconcile(ctx context.Conte
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get VectorPromotionConfig: %w", err)
 	}
-
-	promotionCondition := meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 	configCondition := meta.FindStatusCondition(config.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
 	if configCondition != nil && !promotionCondition.LastTransitionTime.After(configCondition.LastTransitionTime.Time) {
 		return requeueIfNotTerminal(p), nil

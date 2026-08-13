@@ -85,12 +85,11 @@ var _ = Describe("Promotion CRD schema validation", Ordered, Serial, func() {
 	})
 
 	Describe("VectorPromotion", func() {
-		It("rejects a vector that is not a component version reference", func() {
+		It("rejects an empty vector", func() {
 			promotion := &konfidence.VectorPromotion{
-				ObjectMeta: metav1.ObjectMeta{Name: "schema-bad-vector", Namespace: testNamespace},
+				ObjectMeta: metav1.ObjectMeta{Name: "schema-empty-vector", Namespace: testNamespace},
 				Spec: konfidence.VectorPromotionSpec{
 					VectorPromotionConfigRef: "some-config",
-					Vector:                   "not-a-valid-reference",
 				},
 			}
 			Expect(k8sClient.Create(ctx, promotion)).To(MatchError(ContainSubstring("spec.vector")))

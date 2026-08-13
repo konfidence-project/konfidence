@@ -2,13 +2,8 @@ package controller
 
 import (
 	"context"
-	"fmt"
-	"reflect"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -16,21 +11,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
 const (
 	VectorPromotionControllerName = "vector-promotion-controller"
-
-	EventActionStatusPatch = "StatusPatch"
-	EventActionReconciling = "Reconciling"
-
-	executionPendingMessage = "promotion execution is disabled pending the ADR-0032 execution rework " +
-		"(konfidence-project#867)"
 )
 
-// VectorPromotionReconciler reconciles a VectorPromotion object.
+// VectorPromotionReconciler is a placeholder: promotion execution arrives
+// with the ADR-0032 execution rework (konfidence-project#868). Until then
+// promotions keep their derived Waiting/Ready state and are never executed.
 type VectorPromotionReconciler struct {
 	client.Client
 	Recorder events.EventRecorder
@@ -42,67 +31,14 @@ type VectorPromotionReconciler struct {
 
 func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
-	ctx = logf.IntoContext(ctx, log)
-	log.Info("reconciling vector promotion")
 
 	vectorPromotion := &konfidence.VectorPromotion{}
 	if err := r.Get(ctx, req.NamespacedName, vectorPromotion); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !promotion.IsPending(vectorPromotion) {
-		return ctrl.Result{}, nil
-	}
-
-	// Take the snapshot before any modifications for the status patch.
-	original := vectorPromotion.DeepCopy()
-
-	log.Info(executionPendingMessage)
-	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionExecutionPending",
-		EventActionReconciling, executionPendingMessage)
-
-	setPromotionCondition(vectorPromotion,
-		metav1.ConditionUnknown, konfidence.ReasonPromotionExecutionPending, executionPendingMessage)
-	if err := patchPromotionStatus(ctx, r.Client, vectorPromotion, original); err != nil {
-		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch,
-			err.Error())
-		return ctrl.Result{}, err
-	}
-
+	log.V(1).Info("promotion execution is pending the ADR-0032 execution rework; nothing to do")
 	return ctrl.Result{}, nil
-}
-
-// setPromotionCondition writes the Succeeded condition and refreshes the
-// derived status.state.
-func setPromotionCondition(
-	vectorPromotion *konfidence.VectorPromotion,
-	status metav1.ConditionStatus,
-	reason, message string,
-) {
-	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
-		Type:               konfidence.ConditionTypeSucceeded,
-		Status:             status,
-		ObservedGeneration: vectorPromotion.Generation,
-		Reason:             reason,
-		Message:            message,
-	})
-	vectorPromotion.Status.State = promotion.DeriveState(vectorPromotion)
-}
-
-// patchPromotionStatus patches the promotion status if it changed relative to original.
-func patchPromotionStatus(
-	ctx context.Context,
-	c client.Client,
-	vectorPromotion, original *konfidence.VectorPromotion,
-) error {
-	if reflect.DeepEqual(vectorPromotion.Status, original.Status) {
-		return nil
-	}
-	if err := c.Status().Patch(ctx, vectorPromotion, client.MergeFrom(original)); err != nil {
-		return fmt.Errorf("failed to patch status of VectorPromotion %q in namespace %q: %w",
-			vectorPromotion.Name, vectorPromotion.Namespace, err)
-	}
-	return nil
 }
 
 // NewVectorPromotionReconciler wires a VectorPromotionReconciler for the given manager.

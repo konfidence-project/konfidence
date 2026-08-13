@@ -10,27 +10,6 @@ import (
 )
 
 var _ = Describe("Lifecycle", func() {
-	Describe("IsPending", func() {
-		It("returns true when no conditions exist", func() {
-			p := &konfidence.VectorPromotion{}
-
-			Expect(IsPending(p)).To(BeTrue())
-		})
-
-		It("returns false when Succeeded condition exists", func() {
-			p := &konfidence.VectorPromotion{
-				Status: konfidence.VectorPromotionStatus{
-					Conditions: []metav1.Condition{{
-						Type:   konfidence.ConditionTypeSucceeded,
-						Status: metav1.ConditionTrue,
-					}},
-				},
-			}
-
-			Expect(IsPending(p)).To(BeFalse())
-		})
-	})
-
 	Describe("IsTerminal", func() {
 		Context("non-terminal states", func() {
 			It("returns false when no conditions exist", func() {
@@ -143,21 +122,21 @@ var _ = Describe("Lifecycle", func() {
 				Expect(DeriveState(p)).To(Equal(expected))
 			},
 			Entry("no conditions, no approval required",
-				promotionWith(false), konfidence.PromotionStatePending),
+				promotionWith(false), konfidence.PromotionStateReady),
 			Entry("no conditions, approval required",
-				promotionWith(true), konfidence.PromotionStateWaitingForApproval),
+				promotionWith(true), konfidence.PromotionStateWaiting),
 			Entry("approved, approval required, not started",
 				promotionWith(true, metav1.Condition{
 					Type:   konfidence.ConditionTypeApproved,
 					Status: metav1.ConditionTrue,
 					Reason: konfidence.ReasonPromotionManuallyApproved,
-				}), konfidence.PromotionStateApproved),
+				}), konfidence.PromotionStateReady),
 			Entry("approval condition false, approval required",
 				promotionWith(true, metav1.Condition{
 					Type:   konfidence.ConditionTypeApproved,
 					Status: metav1.ConditionFalse,
 					Reason: konfidence.ReasonPromotionWaitingForApproval,
-				}), konfidence.PromotionStateWaitingForApproval),
+				}), konfidence.PromotionStateWaiting),
 			Entry("running",
 				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionRunning)),
 				konfidence.PromotionStateInProgress),
@@ -167,9 +146,6 @@ var _ = Describe("Lifecycle", func() {
 			Entry("superseded",
 				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionSuperseded)),
 				konfidence.PromotionStateSuperseded),
-			Entry("execution pending stub",
-				promotionWith(false, succeededCondition(metav1.ConditionUnknown, konfidence.ReasonPromotionExecutionPending)),
-				konfidence.PromotionStatePending),
 			Entry("failed",
 				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionFailed)),
 				konfidence.PromotionStateFailed),

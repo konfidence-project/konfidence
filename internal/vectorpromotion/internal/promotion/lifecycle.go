@@ -12,10 +12,6 @@ func getSucceededCondition(p *konfidence.VectorPromotion) *metav1.Condition {
 	return meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
 
-func IsPending(p *konfidence.VectorPromotion) bool {
-	return getSucceededCondition(p) == nil
-}
-
 func IsSucceeded(p *konfidence.VectorPromotion) bool {
 	cond := getSucceededCondition(p)
 	return cond != nil && cond.Status == metav1.ConditionTrue
@@ -53,20 +49,18 @@ func DeriveState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState 
 		return konfidence.PromotionStateInProgress
 	case konfidence.ReasonPromotionSuperseded:
 		return konfidence.PromotionStateSuperseded
-	case konfidence.ReasonPromotionExecutionPending:
-		return konfidence.PromotionStatePending
 	}
 	return konfidence.PromotionStateFailed
 }
 
+// deriveApprovalState projects the gate view: Ready means every gate has
+// passed (approval granted, or none required), Waiting means at least one
+// gate is still open.
 func deriveApprovalState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState {
-	if meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeApproved) {
-		return konfidence.PromotionStateApproved
+	if meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeApproved) || !p.Spec.RequireApproval {
+		return konfidence.PromotionStateReady
 	}
-	if p.Spec.RequireApproval {
-		return konfidence.PromotionStateWaitingForApproval
-	}
-	return konfidence.PromotionStatePending
+	return konfidence.PromotionStateWaiting
 }
 
 // TTLStatus returns whether the promotion should be deleted and the time remaining until expiry.
