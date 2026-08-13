@@ -29,9 +29,6 @@ const (
 	ReasonPromotionSourceVerificationFailed = "PromotionSourceVerificationFailed"
 	// ReasonPromotionWaitingForApproval indicates the promotion waits for manual approval.
 	ReasonPromotionWaitingForApproval = "WaitingForApproval"
-	// ReasonPromotionAutoApproved indicates the promotion was approved automatically
-	// because its source is a VectorTemplate.
-	ReasonPromotionAutoApproved = "AutoApproved"
 	// ReasonPromotionManuallyApproved indicates the promotion was approved manually.
 	ReasonPromotionManuallyApproved = "ManuallyApproved"
 	// ReasonPromotionSuperseded indicates a newer promotion for the same config replaced this one.
