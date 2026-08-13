@@ -25,9 +25,10 @@ func validParsed(addr string) config.Parsed {
 			RedirectURL: "http://localhost:8090/api/v1/auth/callback", PKCEEnabled: true, StateExpiration: "15m",
 		},
 		Session: config.SessionConfig{
-			StorageType: "in-memory",
-			Cookie:      config.SessionCookieConfig{Name: "kden-session", HTTPOnly: true, SameSite: "SameSiteStrictMode"},
-			Expiry:      "12h",
+			StorageType:     "in-memory",
+			Cookie:          config.SessionCookieConfig{Name: "kden-session", HTTPOnly: true, SameSite: "SameSiteStrictMode"},
+			Expiry:          "12h",
+			CleanupInterval: "15m",
 		},
 	}
 	parsed, err := cfg.Validate()

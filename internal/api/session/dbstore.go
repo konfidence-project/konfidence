@@ -5,13 +5,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/konfidence-project/konfidence/cmd/api/db/sqlc"
 )
 
 type DBStore struct {
-	queries db.Querier
+	queries       db.Querier
+	sessionExpiry time.Duration
 }
 
 func (s *DBStore) Save(ctx context.Context, session *Session) (string, error) {
@@ -56,7 +58,18 @@ func (s *DBStore) Get(ctx context.Context, id string) (*Session, error) {
 		return nil, err
 	}
 
-	dbSession, err := s.queries.GetSession(ctx, dbID)
+	now := time.Now()
+	dbSession, err := s.queries.GetAndTouchSession(ctx, db.GetAndTouchSessionParams{
+		ID: dbID,
+		AccessedAt: pgtype.Timestamptz{
+			Time:  now,
+			Valid: true,
+		},
+		SessionExpiry: pgtype.Timestamptz{
+			Time:  now.Add(-s.sessionExpiry),
+			Valid: true,
+		},
+	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -89,6 +102,6 @@ func getDBID(id string) (pgtype.UUID, error) {
 	return dbID, nil
 }
 
-func NewDBStore(queries db.Querier) *DBStore {
-	return &DBStore{queries: queries}
+func NewDBStore(queries db.Querier, sessionTimeout time.Duration) *DBStore {
+	return &DBStore{queries: queries, sessionExpiry: sessionTimeout}
 }

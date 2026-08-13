@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -112,6 +113,9 @@ func init() {
 		"Server-side session expiry duration. Env: API_SESSION_EXPIRY")
 	rootCmd.Flags().StringVar(&cfg.Session.StorageType, "session-storage-type", envOr("API_SESSION_STORAGE_TYPE", "in-memory"),
 		"Session storage backend (in-memory, db-pg). Env: API_SESSION_STORAGE_TYPE")
+	rootCmd.Flags().StringVar(&cfg.Session.CleanupInterval, "session-cleanup-interval", envOr("API_SESSION_CLEANUP_INTERVAL", "15m"),
+		"Expired database session cleanup interval. Env: API_SESSION_CLEANUP_INTERVAL",
+	)
 	rootCmd.Flags().StringVar(&cfg.Database.Connection, "db-connection", envOr("API_DB_CONNECTION", ""),
 		"API DB connection string. Env: API_DB_CONNECTION")
 	rootCmd.Flags().Int32Var(&cfg.Database.MaxConns, "db-max-conns", envInt32Or("API_DB_MAX_CONNS", 10),
@@ -198,8 +202,25 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		if err := dbPool.Ping(ctx); err != nil {
 			return fmt.Errorf("database unreachable: %w", err)
 		}
+
 		queries := db.New(dbPool)
-		sessionStore = session.NewDBStore(queries)
+		dbStore := session.NewDBStore(queries, parsed.Session.Expiry)
+		sessionStore = dbStore
+		cleanupCtx, cancelCleanup := context.WithCancel(ctx)
+		cleanupDone := make(chan struct{})
+		go func() {
+			defer close(cleanupDone)
+			dbStore.RunCleanup(
+				cleanupCtx,
+				logger,
+				parsed.Session.CleanupInterval,
+			)
+		}()
+
+		defer func() {
+			cancelCleanup()
+			<-cleanupDone
+		}()
 	case "in-memory":
 		sessionStore = session.NewInMemoryStore(parsed)
 	}

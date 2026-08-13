@@ -65,6 +65,7 @@ spec:
             - --session-cookie-secure={{ .Values.api.session.cookie.secure }}
             - --session-cookie-same-site={{ .Values.api.session.cookie.sameSite }}
             - --session-expiry={{ .Values.api.session.expiry }}
+            - --session-cleanup-interval={{ .Values.api.session.cleanupInterval }}
             - --session-storage-type={{ .Values.api.session.storageType }}
             - --db-max-conns={{ .Values.api.database.maxConns }}
             - --db-min-conns={{ .Values.api.database.minConns }}

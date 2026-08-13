@@ -48,6 +48,19 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (p
 	return id, err
 }
 
+const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
+DELETE FROM session
+WHERE last_accessed_at <= $1
+`
+
+func (q *Queries) DeleteExpiredSessions(ctx context.Context, expiredBefore pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredSessions, expiredBefore)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteSession = `-- name: DeleteSession :exec
 DELETE FROM session
 WHERE id = $1
@@ -58,13 +71,28 @@ func (q *Queries) DeleteSession(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
-const getSession = `-- name: GetSession :one
-SELECT id, subject, name, given_name, family_name, preferred_user_name, email, groups, access_token, refresh_token, expiry, created_at FROM session
-WHERE id = $1 LIMIT 1
+const getAndTouchSession = `-- name: GetAndTouchSession :one
+WITH delete_expired AS (
+DELETE FROM session AS expired
+WHERE expired.id = $2
+AND expired.last_accessed_at <= $3
+RETURNING expired.id
+)
+UPDATE session AS active
+SET last_accessed_at = $1
+WHERE active.id = $2
+AND NOT EXISTS (SELECT 1 FROM delete_expired)
+RETURNING active.id, active.subject, active.name, active.given_name, active.family_name, active.preferred_user_name, active.email, active.groups, active.access_token, active.refresh_token, active.expiry, active.created_at, active.last_accessed_at
 `
 
-func (q *Queries) GetSession(ctx context.Context, id pgtype.UUID) (Session, error) {
-	row := q.db.QueryRow(ctx, getSession, id)
+type GetAndTouchSessionParams struct {
+	AccessedAt    pgtype.Timestamptz
+	ID            pgtype.UUID
+	SessionExpiry pgtype.Timestamptz
+}
+
+func (q *Queries) GetAndTouchSession(ctx context.Context, arg GetAndTouchSessionParams) (Session, error) {
+	row := q.db.QueryRow(ctx, getAndTouchSession, arg.AccessedAt, arg.ID, arg.SessionExpiry)
 	var i Session
 	err := row.Scan(
 		&i.ID,
@@ -79,6 +107,7 @@ func (q *Queries) GetSession(ctx context.Context, id pgtype.UUID) (Session, erro
 		&i.RefreshToken,
 		&i.Expiry,
 		&i.CreatedAt,
+		&i.LastAccessedAt,
 	)
 	return i, err
 }
