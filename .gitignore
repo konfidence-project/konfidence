@@ -75,4 +75,7 @@ api/api
 node_modules/
 .svelte-kit/
 build/
+!internal/api/ui/build/
+internal/api/ui/build/*
+!internal/api/ui/build/.gitkeep
 *.tsbuildinfo

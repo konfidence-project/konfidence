@@ -1,4 +1,4 @@
-import adapter from "@sveltejs/adapter-node";
+import adapter from "@sveltejs/adapter-static";
 
 const config = {
   compilerOptions: {
@@ -15,11 +15,7 @@ const config = {
     },
   },
   kit: {
-    adapter: adapter(),
-    experimental: {
-      explicitEnvironmentVariables: true,
-      remoteFunctions: true,
-    },
+    adapter: adapter({ fallback: "index.html" }),
   },
 };
 

@@ -12,5 +12,6 @@ apps/konfidence-ui-prototype/.svelte-kit
 apps/konfidence-ui-prototype/build
 apps/konfidence-ui-prototype/node_modules
 apps/konfidence-ui-prototype/test-results
+internal/api/ui/build
 *.out
 *.tgz

@@ -1,12 +1,7 @@
-import type { AuthSession, AuthUser } from "$lib/auth/types";
-
 declare global {
   namespace App {
     // Interface Error {}
-    interface Locals {
-      session?: AuthSession;
-      user?: AuthUser;
-    }
+    // Interface Locals {}
     // Interface PageData {}
     // Interface PageState {}
     // Interface Platform {}

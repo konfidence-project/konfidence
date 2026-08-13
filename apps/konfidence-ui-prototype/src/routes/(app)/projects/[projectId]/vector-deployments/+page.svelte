@@ -5,19 +5,20 @@
     import LoadingView from "$lib/components/LoadingView.svelte";
     import VectorView from "$lib/components/vector/VectorView.svelte";
     import { toVectorDeployments } from "$lib/deployments";
-    import { getVectorDeployments } from "$lib/konfidence-api/queries.remote";
+    import { getVectorDeployments } from "$lib/konfidence-api/queries.svelte";
     import type { PageProps } from "./$types";
 
     const { params }: PageProps = $props();
     const vectorDeploymentsQuery = $derived(getVectorDeployments(params.projectId));
     const vectorDeployments = $derived.by(() => {
-        if (!vectorDeploymentsQuery.ready) {
+        const current = vectorDeploymentsQuery.current;
+        if (!current) {
             return undefined;
         }
         return toVectorDeployments(
-            vectorDeploymentsQuery.current.landscapes,
-            vectorDeploymentsQuery.current.stages,
-            vectorDeploymentsQuery.current.vectorDeployments,
+            current.landscapes,
+            current.stages,
+            current.vectorDeployments,
         );
     });
 </script>

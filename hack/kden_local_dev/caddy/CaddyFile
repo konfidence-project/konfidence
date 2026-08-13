@@ -2,10 +2,6 @@ auth.localhost {
 	reverse_proxy authelia:9091
 }
 
-api.localhost {
+konfidence.localhost {
 	reverse_proxy host.docker.internal:8090
-}
-
-frontend.localhost {
-   reverse_proxy host.docker.internal:5173
 }

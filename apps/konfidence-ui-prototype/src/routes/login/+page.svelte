@@ -1,7 +1,7 @@
 <script lang="ts">
     import { page } from "$app/state";
 
-    const returnTo = $derived(page.url.searchParams.get("returnTo") ?? "/landscape");
+    const returnTo = $derived(page.url.searchParams.get("returnTo") ?? "/");
     const loginUrl = $derived(`/api/v1/login?return_url=${encodeURIComponent(returnTo)}`);
 </script>
 

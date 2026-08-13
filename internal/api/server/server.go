@@ -12,6 +12,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
+	"github.com/konfidence-project/konfidence/internal/api/ui"
 )
 
 // Server wraps an http.Server with graceful shutdown support.
@@ -79,6 +80,7 @@ func (s *Server) router() http.Handler {
 	r.Use(middleware.Logging(s.logger))
 	r.Method(http.MethodGet, "/healthz", middleware.Handle(s.logger, handler.Healthz))
 	r.Method(http.MethodGet, "/readyz", middleware.Handle(s.logger, handler.Readyz))
-	r.Mount("/", s.handler)
+	r.Mount("/api", s.handler)
+	r.Handle("/*", ui.Handler())
 	return r
 }

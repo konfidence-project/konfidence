@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
@@ -41,11 +40,8 @@ func (s *apiHandler) handler() http.Handler {
 		apierror.WriteInternal(w)
 	}
 
-	apiRouter := chi.NewRouter()
-	apiRouter.Mount("/api",
-		openapi.Handler(openapi.NewStrictHandlerWithOptions(s, nil, openapi.StrictHTTPServerOptions{
-			RequestErrorHandlerFunc:  errHandler,
-			ResponseErrorHandlerFunc: errHandler,
-		})))
-	return apiRouter
+	return openapi.Handler(openapi.NewStrictHandlerWithOptions(s, nil, openapi.StrictHTTPServerOptions{
+		RequestErrorHandlerFunc:  errHandler,
+		ResponseErrorHandlerFunc: errHandler,
+	}))
 }

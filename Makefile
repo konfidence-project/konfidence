@@ -71,7 +71,7 @@ API_OIDC_ISSUER_URL ?= https://auth.localhost
 API_OIDC_CLIENT_ID ?= konfidence
 API_OIDC_CLIENT_SECRET ?= OPgn03UQhIG~qKndwZ5qT_zrDaHgLrbk9ZFUua5I0Un~JMwAZV05j6h098xcjqCq20fCT0Eh
 API_OIDC_SCOPES ?= openid,profile,email,groups,offline_access
-API_OIDC_REDIRECT_URL ?= https://api.localhost/api/v1/auth/callback
+API_OIDC_REDIRECT_URL ?= https://konfidence.localhost/api/v1/auth/callback
 API_OIDC_TOKEN_URL ?=
 API_OIDC_AUTHORIZATION_URL ?=
 API_OIDC_DEVICE_AUTH_URL ?=
@@ -84,7 +84,6 @@ API_SESSION_COOKIE_HTTP_ONLY ?= true
 API_SESSION_COOKIE_SECURE ?= false
 API_SESSION_COOKIE_SAME_SITE ?= SameSiteStrictMode
 API_SESSION_EXPIRY ?= 12h
-DB_CONNECTION ?= postgres://test_user:test_password@localhost:5432/kden?sslmode=disable
 .PHONY: all
 all: api build
 
@@ -95,6 +94,10 @@ help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Development
+
+.PHONY: ui-build
+ui-build: hermit ## Build the Konfidence UI for the API server.
+	pnpm ui:build
 
 .PHONY: manifests
 manifests: hermit manifests-crds ## Generate CRDs, RBAC, and webhook manifests for the konfidence operator chart.
@@ -260,7 +263,7 @@ run: manifests generate fmt vet ## Run the konfidence operator from your host.
 	go run ./cmd/konfidence/main.go
 
 .PHONY: run-kden-api
-run-kden-api: fmt vet ## Run the kden API server locally.
+run-kden-api: ui-build fmt vet ## Run the kden API server locally.
 	go run ./cmd/api/main.go \
 		--addr=$(API_ADDR) \
 		--log-level=$(API_LOG_LEVEL) \
@@ -284,7 +287,6 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--session-cookie-secure=$(API_SESSION_COOKIE_SECURE) \
 		--session-cookie-same-site=$(API_SESSION_COOKIE_SAME_SITE) \
 		--session-expiry=$(API_SESSION_EXPIRY) \
-		--db-connection=$(DB_CONNECTION)
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build

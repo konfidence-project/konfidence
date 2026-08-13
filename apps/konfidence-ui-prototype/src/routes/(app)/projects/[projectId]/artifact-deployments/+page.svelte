@@ -5,19 +5,20 @@
     import ErrorView from "$lib/components/ErrorView.svelte";
     import LoadingView from "$lib/components/LoadingView.svelte";
     import { toArtifactDeployments } from "$lib/deployments";
-    import { getArtifactDeployments } from "$lib/konfidence-api/queries.remote";
+    import { getArtifactDeployments } from "$lib/konfidence-api/queries.svelte";
     import type { PageProps } from "./$types";
 
     const { params }: PageProps = $props();
     const deploymentsQuery = $derived(getArtifactDeployments(params.projectId));
     const deployments = $derived.by(() => {
-        if (!deploymentsQuery.ready) {
+        const current = deploymentsQuery.current;
+        if (!current) {
             return undefined;
         }
         return toArtifactDeployments(
-            deploymentsQuery.current.landscapes,
-            deploymentsQuery.current.stages,
-            deploymentsQuery.current.artifactDeployments,
+            current.landscapes,
+            current.stages,
+            current.artifactDeployments,
         );
     });
 </script>

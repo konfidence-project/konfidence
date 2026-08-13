@@ -4,19 +4,20 @@
     import ErrorView from "$lib/components/ErrorView.svelte";
     import LandscapeView from "$lib/components/LandscapeView.svelte";
     import LoadingView from "$lib/components/LoadingView.svelte";
-    import { getProjectLandscape } from "$lib/konfidence-api/queries.remote";
+    import { getProjectLandscape } from "$lib/konfidence-api/queries.svelte";
     import { toLandscapeView } from "$lib/stages";
     import type { PageProps } from "./$types";
 
     const { params }: PageProps = $props();
     const landscapeQuery = $derived(getProjectLandscape(params.projectId));
     const landscape = $derived.by(() => {
-        if (!landscapeQuery.ready) {
+        const current = landscapeQuery.current;
+        if (!current) {
             return undefined;
         }
         return toLandscapeView(
-            landscapeQuery.current.landscapes,
-            landscapeQuery.current.stages,
+            current.landscapes,
+            current.stages,
         );
     });
 </script>
