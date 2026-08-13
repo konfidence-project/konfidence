@@ -1,4 +1,4 @@
-package ocm
+package vectorpromotion
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestOcm(t *testing.T) {
+func TestVectorPromotion(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "OCM Adapter Suite")
+	RunSpecs(t, "VectorPromotion Domain Suite")
 }

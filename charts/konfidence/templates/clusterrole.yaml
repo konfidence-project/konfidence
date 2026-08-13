@@ -73,7 +73,6 @@ rules:
   - vectorassignments
   - vectordeployments
   - vectormigrations
-  - vectorpromotions
   verbs:
   - create
   - delete
@@ -117,6 +116,7 @@ rules:
   - konfidence.cloud
   resources:
   - vectordata
+  - vectorpromotions
   verbs:
   - create
   - delete
