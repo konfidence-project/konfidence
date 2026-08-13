@@ -47,7 +47,6 @@ spec:
             {{- if .Values.api.oidc.enabled }}
             - --oidc-issuer-url={{ required "api.oidc.issuerURL is required" .Values.api.oidc.issuerURL }}
             - --oidc-client-id={{ required "api.oidc.clientId is required" .Values.api.oidc.clientId }}
-            - --oidc-client-secret={{ required "api.oidc.clientSecret is required" .Values.api.oidc.clientSecret }}
             - --oidc-scopes={{ .Values.api.oidc.scopes }}
             - --oidc-redirect-url={{ required "api.oidc.redirectURL is required" .Values.api.oidc.redirectURL }}
             {{- with .Values.api.oidc.allowReturnUrls }}
@@ -74,9 +73,18 @@ spec:
             {{- with .Values.api.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- with .Values.api.env }}
+          {{- if or .Values.api.oidc.enabled .Values.api.env }}
           env:
+            {{- if .Values.api.oidc.enabled }}
+            - name: API_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "api.oidc.clientSecretRef.name is required" .Values.api.oidc.clientSecretRef.name }}
+                  key: {{ required "api.oidc.clientSecretRef.key is required" .Values.api.oidc.clientSecretRef.key }}
+            {{- end }}
+            {{- with .Values.api.env }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
           {{- with .Values.api.volumeMounts }}
           volumeMounts:

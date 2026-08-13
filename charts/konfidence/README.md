@@ -45,7 +45,8 @@ Kubernetes: `>=1.27.0-0`
 | api.oidc.allowReturnUrls | list | `[]` |  |
 | api.oidc.authorizationURL | string | `""` |  |
 | api.oidc.clientId | string | `""` |  |
-| api.oidc.clientSecret | string | `""` |  |
+| api.oidc.clientSecretRef.key | string | `"client-secret"` |  |
+| api.oidc.clientSecretRef.name | string | `""` |  |
 | api.oidc.deviceAuthURL | string | `""` |  |
 | api.oidc.enabled | bool | `true` |  |
 | api.oidc.issuerURL | string | `""` |  |
@@ -75,7 +76,7 @@ Kubernetes: `>=1.27.0-0`
 | api.session.cookie.httpOnly | bool | `true` |  |
 | api.session.cookie.name | string | `"kden-session"` |  |
 | api.session.cookie.sameSite | string | `"SameSiteStrictMode"` |  |
-| api.session.cookie.secure | bool | `false` |  |
+| api.session.cookie.secure | bool | `true` |  |
 | api.session.expiry | string | `"12h"` |  |
 | api.session.storageType | string | `"in-memory"` |  |
 | api.volumeMounts | list | `[]` |  |
