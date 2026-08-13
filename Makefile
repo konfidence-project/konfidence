@@ -35,10 +35,17 @@ CRD_STAGING_DIR ?= $(REPO_ROOT)/.tmp/crds
 # Merged API package (single group konfidence.cloud).
 API_PATHS = paths="./api/v1alpha1/..."
 
-# Internal controller packages of the konfidence operator.
-# Auto-discover by finding all internal/ subdirs containing setup.go, then append /internal/controller
+# Internal controller packages of the konfidence operator, input to manifest
+# (RBAC) generation. Auto-discover by finding all internal/ subdirs containing
+# setup.go, then append /internal/controller.
 OPERATOR_INTERNAL_DIRS = $(shell find internal -maxdepth 2 -name setup.go -exec dirname {} \; | sed 's|^|./|; s|$$|/internal/controller|' | sort)
 OPERATOR_INTERNAL_PATHS = $(foreach d,$(OPERATOR_INTERNAL_DIRS),paths="$(d)")
+
+# Ginkgo suites of the operator domains, input to test-operators. Discovered
+# separately from the controller packages above: manifests must scan every
+# controller dir, tests must run every suite dir (which may sit outside
+# internal/controller, e.g. domain roots or internal/promotion).
+OPERATOR_SUITE_DIRS = $(shell find internal -maxdepth 2 -name setup.go -exec dirname {} \; | xargs -I{} find {} -name "*suite_test.go" | xargs -n1 dirname | sort -u | sed 's|^|./|')
 
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
@@ -186,7 +193,7 @@ test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli te
 .PHONY: test-operators
 test-operators: hermit manifests setup-envtest ginkgo ## Run unit tests for the konfidence operator.
 	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) --coverprofile=cover-operators.out -v $(OPERATOR_INTERNAL_DIRS) ./cmd/konfidence/...
+		$(GINKGO) --coverprofile=cover-operators.out -v $(OPERATOR_SUITE_DIRS) ./cmd/konfidence/...
 
 .PHONY: test-pkg
 test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.

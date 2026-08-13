@@ -1,0 +1,74 @@
+package controller
+
+import (
+	"context"
+	"fmt"
+
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
+)
+
+// createPromotionForDrift creates the next sequence-stamped promotion for the
+// drifted source vector, unless a live promotion already pins it.
+func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
+	ctx context.Context, config *konfidence.VectorPromotionConfig, sourceVector string, promotions []konfidence.VectorPromotion,
+) error {
+	log := logf.FromContext(ctx)
+
+	for i := range promotions {
+		// A live promotion only satisfies the drift if it pins the same vector
+		// AND aims at the config's current target: after a target repoint, a
+		// promotion snapshotted for the old target must not suppress the new one.
+		if !promotion.IsTerminal(&promotions[i]) &&
+			promotions[i].Spec.Vector == sourceVector &&
+			promotions[i].Spec.Target == config.Spec.Target {
+			return nil
+		}
+	}
+
+	// The sequence is committed before the create: a crash in between leaves a
+	// gap in the sequence, never a duplicate.
+	//
+	// We use a sequence here in order to get a true order and not just a pseudo-order based on a timestamp, that might not be monotonic
+	if err := r.patchConfigStatus(ctx, config, func() { config.Status.Sequence++ }); err != nil {
+		return err
+	}
+
+	vectorPromotion := &konfidence.VectorPromotion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      promotionName(config.Name, config.Status.Sequence),
+			Namespace: config.Namespace,
+		},
+		Spec: konfidence.VectorPromotionSpec{
+			VectorPromotionConfigName: config.Name,
+			Source:                    config.Spec.Source,
+			Target:                    config.Spec.Target,
+			Vector:                    sourceVector,
+			RequireApproval:           config.Spec.Source.Kind == konfidence.StageKind,
+			TTLAfterFinished:          config.Spec.TTLAfterFinished,
+			Sequence:                  config.Status.Sequence,
+		},
+	}
+	if err := controllerutil.SetControllerReference(config, vectorPromotion, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set owner reference on promotion %q: %w", vectorPromotion.Name, err)
+	}
+	if err := r.Create(ctx, vectorPromotion); err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create promotion %q: %w", vectorPromotion.Name, err)
+	}
+
+	log.Info("created promotion for drifted source",
+		"promotion", vectorPromotion.Name,
+		"vector", sourceVector,
+		"sequence", vectorPromotion.Spec.Sequence,
+		"requireApproval", vectorPromotion.Spec.RequireApproval)
+	r.Recorder.Eventf(config, vectorPromotion, corev1.EventTypeNormal, "VectorPromotionCreated",
+		EventActionDriftDetection,
+		fmt.Sprintf("created promotion %q for vector %q", vectorPromotion.Name, sourceVector))
+	return nil
+}

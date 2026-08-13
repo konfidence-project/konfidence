@@ -4,5 +4,15 @@ metadata:
   namespace: default
   name: sample-vector-promotion
 spec:
-  vectorPromotionConfigRef: sample-promotion-config
+  vectorPromotionConfigName: sample-promotion-config
+  source:
+    kind: VectorTemplate
+    name: sample-vector-template
+  target:
+    kind: Stage
+    name: sample-stage
+    landscape: sample-landscape
+  vector: registry.kdenv.lab/sample-project//konfidence-project.com/constructed-vector:2026.8.5-090000000Z
+  requireApproval: false
+  sequence: 1
   ttlAfterFinished: 1h

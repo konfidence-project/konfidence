@@ -20,16 +20,25 @@ spec:
   versions:
   - additionalPrinterColumns:
     - description: The referenced VectorPromotionConfig
-      jsonPath: .spec.vectorPromotionConfigRef
+      jsonPath: .spec.vectorPromotionConfigName
       name: Config
       type: string
-    - description: Promotion was successful
-      jsonPath: .status.conditions[0].status
-      name: Promotion Succeeded
+    - description: The promotion source
+      jsonPath: .spec.source.name
+      name: Source
       type: string
-    - description: Promotion condition reason
-      jsonPath: .status.conditions[0].reason
-      name: Reason
+    - description: The target Stage
+      jsonPath: .spec.target.name
+      name: Target
+      type: string
+    - description: Promotion state
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: The promoted vector version
+      jsonPath: .spec.vector
+      name: Vector
+      priority: 1
       type: string
     - description: Age
       jsonPath: .metadata.creationTimestamp
@@ -61,23 +70,154 @@ spec:
           spec:
             description: VectorPromotionSpec defines the desired state of VectorPromotion.
             properties:
+              requireApproval:
+                default: false
+                description: |-
+                  RequireApproval is true when the promotion must be approved before
+                  execution; false means the promotion is approved automatically. It is
+                  independent of the source kind: the config controller defaults it to
+                  true for `Stage` sources, but any combination is valid.
+                type: boolean
+                x-kubernetes-validations:
+                - message: requireApproval is immutable after it has been set
+                  rule: self == oldSelf
+              sequence:
+                description: |-
+                  Sequence is a monotonic ordinal assigned by the creator (the config
+                  reconciler, from the config's `status.sequence`). It is the sole
+                  ordering between promotions of the same config; creation timestamps
+                  only have second resolution and are never consulted.
+                format: int64
+                minimum: 0
+                type: integer
+                x-kubernetes-validations:
+                - message: sequence is immutable after it has been set
+                  rule: self == oldSelf
+              source:
+                description: |-
+                  Source is a snapshot of the config's source reference at creation time,
+                  recorded so a promotion is self-describing.
+                properties:
+                  kind:
+                    description: |-
+                      Kind is the kind of the source resource. A `VectorTemplate` source
+                      promotes its latest assembled vector; a `Stage` source promotes the
+                      vector currently configured on that stage (`spec.vector`). Whether the resulting promotion
+                      requires approval is recorded on the promotion itself
+                      (`VectorPromotionSpec.RequireApproval`); the controller defaults it
+                      from the source kind.
+                    enum:
+                    - VectorTemplate
+                    - Stage
+                    type: string
+                  landscape:
+                    description: |-
+                      Landscape is the `metadata.name` of the `Landscape` in the config's
+                      namespace (not its managed namespace) whose namespace hosts the
+                      referenced `Stage`. Required for `Stage` references; must be omitted
+                      for `VectorTemplate` references, which are resolved in the config's
+                      namespace.
+                    maxLength: 63
+                    minLength: 1
+                    type: string
+                  name:
+                    description: Name is the name of the source resource.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+                x-kubernetes-validations:
+                - message: source is immutable after it has been set
+                  rule: self == oldSelf
+                - message: landscape is required for Stage references and must be
+                    omitted for VectorTemplate references
+                  rule: (self.kind == 'Stage') == has(self.landscape)
+              target:
+                description: |-
+                  Target is a snapshot of the config's target reference at creation time.
+                  Execution resolves and writes this target: approving a promotion approves
+                  exactly this destination, regardless of later config edits.
+                properties:
+                  kind:
+                    description: Kind is the kind of the target resource. Only `Stage`
+                      is supported.
+                    enum:
+                    - Stage
+                    type: string
+                  landscape:
+                    description: |-
+                      Landscape is the `metadata.name` of the `Landscape` in the config's
+                      namespace (not its managed namespace) whose namespace hosts the target
+                      `Stage`.
+                    maxLength: 63
+                    minLength: 1
+                    type: string
+                  name:
+                    description: Name is the name of the target `Stage`.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                required:
+                - kind
+                - landscape
+                - name
+                type: object
+                x-kubernetes-validations:
+                - message: target is immutable after it has been set
+                  rule: self == oldSelf
               ttlAfterFinished:
                 description: |-
                   TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
                   Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
                   the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
                 type: string
-              vectorPromotionConfigRef:
-                description: VectorPromotionConfigRef is the name of the VectorPromotionConfig
+              vector:
+                description: |-
+                  Vector is the concrete OCM component version reference
+                  (`<registry>//<component>:<version>`) pinned when the promotion was created.
+                minLength: 1
+                type: string
+                x-kubernetes-validations:
+                - message: vector is immutable after it has been set
+                  rule: self == oldSelf
+              vectorPromotionConfigName:
+                description: VectorPromotionConfigName is the name of the VectorPromotionConfig
                   that defines the promotion flow to execute.
                 minLength: 1
                 type: string
             required:
-            - vectorPromotionConfigRef
+            - sequence
+            - source
+            - target
+            - vector
+            - vectorPromotionConfigName
             type: object
           status:
             description: VectorPromotionStatus defines the observed state of VectorPromotion.
             properties:
+              approval:
+                description: |-
+                  Approval records the granted approval. A promotion is approved at most
+                  once; re-approval attempts are rejected.
+                properties:
+                  approvedAt:
+                    description: ApprovedAt is the time the approval was granted.
+                    format: date-time
+                    type: string
+                  approvedBy:
+                    description: |-
+                      ApprovedBy is the identity that granted the approval, as reported by the
+                      konfidence API. The value is an opaque, arbitrary string (username,
+                      email, subject, ...); it is recorded verbatim and never interpreted.
+                    minLength: 1
+                    type: string
+                required:
+                - approvedAt
+                - approvedBy
+                type: object
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -134,8 +274,54 @@ spec:
                   - type
                   type: object
                 type: array
+              promotedStageRef:
+                description: |-
+                  PromotedStageRef records the Stage this promotion actually wrote its
+                  vector to, so the promotion is self-describing even after the config
+                  changed or was deleted.
+                properties:
+                  apiGroup:
+                    description: |-
+                      APIGroup is the group for the resource being referenced.
+                      If APIGroup is not specified, the specified Kind must be in the core API group.
+                      For any other third-party types, APIGroup is required.
+                    type: string
+                  kind:
+                    description: Kind is the type of resource being referenced
+                    type: string
+                  name:
+                    description: Name is the name of resource being referenced
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace is the namespace of resource being referenced
+                      Note that when a namespace is specified, a gateway.networking.k8s.io/ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details.
+                      (Alpha) This field requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              state:
+                description: |-
+                  State summarizes Conditions for display. Conditions are the source of
+                  truth; State is recomputed whenever conditions are written. `Superseded`
+                  is a locked terminal state: a superseded promotion can never be
+                  approved or executed afterwards, only its successor can.
+                enum:
+                - Waiting
+                - Ready
+                - InProgress
+                - Blocked
+                - Succeeded
+                - Failed
+                - Superseded
+                type: string
             type: object
         type: object
+    selectableFields:
+    - jsonPath: .spec.vectorPromotionConfigName
+    - jsonPath: .status.state
     served: true
     storage: true
     subresources:
