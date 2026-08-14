@@ -1,9 +1,12 @@
 name: Release
 
+# Stable releases ([0-9]+.[0-9]+.[0-9]+) are built by the Release PR pipeline,
+# chained directly behind release-please so the draft release exists before
+# goreleaser runs. This tag-triggered pipeline only serves pre-release tags,
+# which have no release-please draft to race against.
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
       - '[0-9]+.[0-9]+.[0-9]+-*'
 
 jobs:
@@ -36,3 +39,18 @@ jobs:
     with:
       version: ${{ needs.version.outputs.version }}
       charts: charts/konfidence
+
+  publish-release:
+    name: Publish Release
+    needs: [lint-test-build, publish-helm-charts]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: konfidence-project/.github/.github/actions/github-repo-access@v4
+        with:
+          client-id: ${{ vars.GH_APP_ID }}
+          private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+
+      - name: Undraft release
+        run: gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft=false

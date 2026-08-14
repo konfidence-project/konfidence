@@ -125,4 +125,12 @@ changelog:
   use: github-native
 
 release:
+  # goreleaser must not publish the release itself — the pipeline undrafts it
+  # after the Helm charts are published, so a failed run never leaves a
+  # half-published release
+  draft: true
   use_existing_draft: true
+  replace_existing_artifacts: true
+  # release-please owns the release body (CHANGELOG); goreleaser only attaches artifacts
+  mode: keep-existing
+  prerelease: auto
