@@ -6,27 +6,6 @@ version=${KONFIDENCE_VERSION:-0.0.1-alpha.1}
 namespace=konfidence-system
 image_pull_secret_args=
 
-# TODO(blocker): remove this private GHCR auth block once quickstart artifacts are public.
-# BEGIN private GHCR auth block
-if [ -n "${GHCR_TOKEN:-}" ]; then
-  if [ -z "${GHCR_USERNAME:-}" ]; then
-    echo "GHCR_USERNAME must be set when GHCR_TOKEN is set" >&2
-    exit 1
-  fi
-  printf '%s' "$GHCR_TOKEN" | helm registry login ghcr.io \
-    --username "$GHCR_USERNAME" \
-    --password-stdin
-  kubectl create namespace "$namespace" --dry-run=client -o yaml | kubectl apply -f -
-  kubectl create secret docker-registry ghcr-auth \
-    --namespace "$namespace" \
-    --docker-server=ghcr.io \
-    --docker-username="$GHCR_USERNAME" \
-    --docker-password="$GHCR_TOKEN" \
-    --dry-run=client \
-    -o yaml | kubectl apply -f -
-  image_pull_secret_args="--set imagePullSecrets[0].name=ghcr-auth"
-fi
-# END private GHCR auth block
 
 set -x
 
