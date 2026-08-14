@@ -443,7 +443,7 @@ components:
 
     Identity:
       type: object
-      required: [name, givenName, familyName, email, roles]
+      required: [name, givenName, familyName, email, projectRoles]
       properties:
         name:
           type: string
@@ -453,10 +453,12 @@ components:
           type: string
         email:
           type: string
-        roles:
-          type: array
-          items:
-            type: string
+        projectRoles:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
 
     Session:
       type: object

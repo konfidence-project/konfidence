@@ -11,10 +11,12 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	authdomain "github.com/konfidence-project/konfidence/internal/auth"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 )
 
-func SessionAuthentication(logger *slog.Logger, store session.Reader, cfg config.Parsed, next http.Handler) (http.Handler, error) {
+func SessionAuthentication(logger *slog.Logger, store session.Reader, authRepo authdomain.Repository,
+	cfg config.Parsed, next http.Handler) (http.Handler, error) {
 	spec, err := openapi.GetSpec()
 	if err != nil {
 		return nil, fmt.Errorf("loading OpenAPI spec: %w", err)
@@ -25,7 +27,9 @@ func SessionAuthentication(logger *slog.Logger, store session.Reader, cfg config
 	}
 	securityScheme.Value.Name = cfg.Session.Cookie.Name
 
-	authenticator := sessionAuthenticator{logger: logger, store: store, cookieName: cfg.Session.Cookie.Name}
+	authenticator := sessionAuthenticator{
+		logger: logger, store: store, authRepo: authRepo, cookieName: cfg.Session.Cookie.Name,
+	}
 	validate := nethttpmiddleware.OapiRequestValidatorWithOptions(spec, &nethttpmiddleware.Options{
 		DoNotValidateServers: true,
 		Prefix:               "/api",
@@ -42,6 +46,7 @@ func SessionAuthentication(logger *slog.Logger, store session.Reader, cfg config
 type sessionAuthenticator struct {
 	logger     *slog.Logger
 	store      session.Reader
+	authRepo   authdomain.Repository
 	cookieName string
 }
 
@@ -65,9 +70,11 @@ func (a *sessionAuthenticator) authenticate(ctx context.Context, input *openapi3
 		return fmt.Errorf("no matching session found")
 	}
 
-	// TODO determine roles, for now use some default ones
-	roles := []string{"admin", "dev"}
-	storedSession.Roles = roles
+	projectRoles, err := a.authRepo.GetProjectRoles(ctx, storedSession.Groups)
+	if err != nil {
+		return err
+	}
+	storedSession.ProjectRoles = projectRoles
 
 	*r = *r.WithContext(session.NewContext(r.Context(), storedSession))
 	return nil

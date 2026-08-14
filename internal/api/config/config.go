@@ -202,6 +202,9 @@ func (c OIDCConfig) validate() (ParsedOIDCConfig, error) {
 		if c.RedirectURL == "" {
 			return ParsedOIDCConfig{}, fmt.Errorf("oidc-redirect-url must not be empty")
 		}
+		if len(c.AllowReturnURLs) == 0 {
+			return ParsedOIDCConfig{}, fmt.Errorf("oidc-allow-return-url must not be empty")
+		}
 	}
 
 	allowReturnURLs := make([]string, 0, len(c.AllowReturnURLs))

@@ -79,6 +79,7 @@ func (s *DBStore) Get(ctx context.Context, id string) (*Session, error) {
 
 	return &Session{
 		Subject: dbSession.Subject,
+		Groups:  dbSession.Groups,
 		Context: Context{
 			ID:                id,
 			Name:              dbSession.Name,
@@ -86,7 +87,6 @@ func (s *DBStore) Get(ctx context.Context, id string) (*Session, error) {
 			GivenName:         dbSession.GivenName,
 			FamilyName:        dbSession.FamilyName,
 			PreferredUsername: dbSession.PreferredUserName,
-			Groups:            dbSession.Groups,
 		},
 		AccessToken:  dbSession.AccessToken,
 		RefreshToken: dbSession.RefreshToken,

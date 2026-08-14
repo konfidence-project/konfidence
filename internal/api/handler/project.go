@@ -1,24 +1,52 @@
-package handler // nolint
+package handler
 
 import (
 	"context"
 
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/konfidence-project/konfidence/internal/api/session"
+	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 )
 
-type projectHandler struct{ k8s client.Client }
-
-func newProjectHandler(k8s client.Client) *projectHandler {
-	return &projectHandler{k8s: k8s}
+type projectHandler struct {
+	projectRepo projectdomain.Repository
 }
 
-func (h *projectHandler) ListProjectsV1(_ context.Context, _ openapi.ListProjectsV1RequestObject) (openapi.ListProjectsV1ResponseObject, error) {
-	return openapi.ListProjectsV1200JSONResponse{
-		Data: []openapi.Project{
-			{Id: "sample-project", Name: "Sample Project"},
-		},
-	}, nil
+func newProjectHandler(projectRepo projectdomain.Repository) *projectHandler {
+	return &projectHandler{
+		projectRepo,
+	}
+}
+
+func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProjectsV1RequestObject) (openapi.ListProjectsV1ResponseObject, error) {
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return openapi.ListProjectsV1401JSONResponse{
+			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
+		}, nil
+	}
+	projects, err := h.projectRepo.List(ctx, identity.ProjectRoles)
+	if err != nil {
+		return openapi.ListProjectsV1500JSONResponse{
+			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+		}, nil
+	}
+
+	data := make([]openapi.Project, 0, len(projects))
+	for _, p := range projects {
+		data = append(data, toProjectResponse(p))
+	}
+
+	return openapi.ListProjectsV1200JSONResponse{Data: data}, nil
+}
+
+func toProjectResponse(p konfidence.Project) openapi.Project {
+	return openapi.Project{
+		Id:   p.Name,
+		Name: p.Spec.DisplayName,
+	}
 }
 
 func (h *projectHandler) ListLandscapesV1(_ context.Context, _ openapi.ListLandscapesV1RequestObject) (openapi.ListLandscapesV1ResponseObject, error) {

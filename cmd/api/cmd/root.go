@@ -18,7 +18,6 @@ import (
 	"github.com/konfidence-project/konfidence/internal/kden/log"
 	"github.com/spf13/cobra"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/config"
@@ -158,11 +157,17 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to get k8s config (set KUBECONFIG for local dev): %w", err)
 	}
 
-	k8sClient, err := client.New(k8sConfig, client.Options{Scheme: scheme})
+	k8sClient, err := newInformerBackedClient(ctx, k8sConfig, scheme,
+		&konfidence.Project{},
+	)
 	if err != nil {
-		return fmt.Errorf("failed to build k8s client: %w", err)
+		return err
 	}
-
+	defer func() {
+		if err := k8sClient.Close(); err != nil {
+			logger.Error("informer-backed Kubernetes client stopped with an error", "error", err)
+		}
+	}()
 	oidcClient := oidc.NewOIDCClient(oidc.Config{})
 	if parsed.OIDC.Enabled {
 		oidcClient = oidc.NewOIDCClient(oidc.Config{
