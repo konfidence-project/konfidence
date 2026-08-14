@@ -20,8 +20,6 @@ Package v1alpha1 contains API Schema definitions for the konfidence v1alpha1 API
 - [Project](#project)
 - [ProjectList](#projectlist)
 - [Stage](#stage)
-- [StageConfiguration](#stageconfiguration)
-- [StageConfigurationList](#stageconfigurationlist)
 - [StageList](#stagelist)
 - [StageVersion](#stageversion)
 - [StageVersionList](#stageversionlist)
@@ -343,7 +341,6 @@ repository access and signing/verification key material.
 
 
 _Appears in:_
-- [StageConfigurationSpec](#stageconfigurationspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |
@@ -832,84 +829,6 @@ _Appears in:_
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[StageSpec](#stagespec)_ |  |  |  |
 | `status` _[StageStatus](#stagestatus)_ |  |  |  |
-
-
-#### StageConfiguration
-
-
-
-StageConfiguration is the Schema for the stageConfigurations API.
-
-
-
-_Appears in:_
-- [StageConfigurationList](#stageconfigurationlist)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
-| `kind` _string_ | `StageConfiguration` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[StageConfigurationSpec](#stageconfigurationspec)_ |  |  |  |
-| `status` _[StageConfigurationStatus](#stageconfigurationstatus)_ |  |  |  |
-
-
-#### StageConfigurationList
-
-
-
-StageConfigurationList contains a list of StageConfiguration.
-
-
-
-
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
-| `kind` _string_ | `StageConfigurationList` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[StageConfiguration](#stageconfiguration) array_ |  |  |  |
-
-
-#### StageConfigurationSpec
-
-
-
-StageConfigurationSpec defines the desired state of StageConfiguration.
-
-
-
-_Appears in:_
-- [StageConfiguration](#stageconfiguration)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `name` _string_ | Name is the stage name. |  |  |
-| `vector` _string_ | Vector points to the OCM component that contains the deployment vector for this stage. |  |  |
-| `targetNamespace` _string_ | TargetNamespace is the target namespace where the associated stage is created or updated |  |  |
-| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repository access<br />and vector verification key material. |  | Optional: \{\} <br /> |
-| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against the<br />fetched vector descriptor. Absence disables vector verification. |  | Optional: \{\} <br /> |
-
-
-#### StageConfigurationStatus
-
-
-
-StageConfigurationStatus defines the observed state of StageConfiguration.
-
-
-
-_Appears in:_
-- [StageConfiguration](#stageconfiguration)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
 
 
 #### StageList
@@ -1545,7 +1464,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `features` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Features carries the optional "features" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
 | `authored` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Authored carries the optional "authored" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
-| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults aggregated from underlying ArtifactDeployments, keyed<br />`<componentName>/<resultName>`. |  | Optional: \{\} <br /> |
+| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults aggregated from underlying ArtifactDeployments, keyed by artifact<br />component name; the value lists every result emitted by that component. |  | Optional: \{\} <br /> |
 
 
 #### VectorDataStatus
@@ -1659,7 +1578,7 @@ _Appears in:_
 | `resultingVectorData` _[LocalObjectReference](#localobjectreference)_ | ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData<br />CR is the contract between the vector deployment controller (which resolves the OCM payload) and the runtime-specific implementor<br />(which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the<br />CR. Names are stable across reconciliations. |  |  |
 | `resultingArtifactDeployments` _object (keys:string, values:[LocalArtifactDeploymentReference](#localartifactdeploymentreference))_ | ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The<br />map key is the component name of the artifact as defined inside the vector. Keys remain stable across<br />reconciliations and re-creations. |  |  |
 | `resultingVectorAssignments` _object (keys:string, values:[LocalVectorAssignmentReference](#localvectorassignmentreference))_ | ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are<br />not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of<br />assignments.<br />The map key is the component name of the artifact. Keys are stable across reconcilations. |  |  |
-| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults exposes an aggregated view of the deployment results produced<br />by all underlying ArtifactDeployments. The map key is composed of the component<br />name and the individual result name, ensuring uniqueness. |  |  |
+| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults exposes an aggregated view of the deployment results produced<br />by all underlying ArtifactDeployments. The map key is the artifact component name;<br />the value lists every result emitted by that ArtifactDeployment. |  |  |
 
 
 #### VectorMigration
@@ -2037,7 +1956,6 @@ descriptor. Absence on a spec disables verification.
 
 
 _Appears in:_
-- [StageConfigurationSpec](#stageconfigurationspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |

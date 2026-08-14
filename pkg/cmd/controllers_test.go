@@ -8,7 +8,7 @@ import (
 )
 
 var _ = Describe("Filter", func() {
-	registered := []string{"StageConfiguration", "VectorAssembly", "VectorPromotion"}
+	registered := []string{"Landscape", "VectorAssembly", "VectorPromotion"}
 
 	all := func() map[string]bool {
 		out := map[string]bool{}
@@ -63,8 +63,8 @@ var _ = Describe("Filter", func() {
 			got, err := cmd.FilterEnabledControllers("!VectorAssembly,*", registered)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(got).To(Equal(map[string]bool{
-				"StageConfiguration": true,
-				"VectorPromotion":    true,
+				"Landscape":       true,
+				"VectorPromotion": true,
 			}))
 		})
 
@@ -72,8 +72,8 @@ var _ = Describe("Filter", func() {
 			got, err := cmd.FilterEnabledControllers("*,!VectorAssembly", registered)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(got).To(Equal(map[string]bool{
-				"StageConfiguration": true,
-				"VectorPromotion":    true,
+				"Landscape":       true,
+				"VectorPromotion": true,
 			}))
 		})
 
@@ -81,21 +81,21 @@ var _ = Describe("Filter", func() {
 			got, err := cmd.FilterEnabledControllers("!VectorAssembly", registered)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(got).To(Equal(map[string]bool{
-				"StageConfiguration": true,
-				"VectorPromotion":    true,
+				"Landscape":       true,
+				"VectorPromotion": true,
 			}))
 		})
 
 		It("implies the full set for multiple pure negations", func() {
 			got, err := cmd.FilterEnabledControllers("!VectorAssembly,!VectorPromotion", registered)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(got).To(Equal(map[string]bool{"StageConfiguration": true}))
+			Expect(got).To(Equal(map[string]bool{"Landscape": true}))
 		})
 
 		It("implies the full set for a negated glob", func() {
 			got, err := cmd.FilterEnabledControllers("!Vector*", registered)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(got).To(Equal(map[string]bool{"StageConfiguration": true}))
+			Expect(got).To(Equal(map[string]bool{"Landscape": true}))
 		})
 
 		It("does not imply the full set once a positive token is present", func() {

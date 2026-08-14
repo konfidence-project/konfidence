@@ -25,7 +25,7 @@
 //
 // # Examples
 //
-// Given an operator that registers StageConfiguration, VectorPromotion, and
+// Given an operator that registers Landscape, VectorPromotion, and
 // VectorAssembly:
 //
 //	# Run everything (also the default if --controllers is omitted)
@@ -66,9 +66,9 @@
 // caller checks membership directly without any intermediate conversion:
 //
 //	controllerSetups := map[string]func() error{
-//		"StageConfiguration": func() error { ... },
-//		"VectorAssembly":     func() error { ... },
-//		"VectorPromotion":    func() error { ... },
+//		"Landscape":      func() error { ... },
+//		"VectorAssembly": func() error { ... },
+//		"VectorPromotion":func() error { ... },
 //	}
 //
 //	enabled, err := cmd.FilterEnabledControllers(controllersSpec, controllerSetups)

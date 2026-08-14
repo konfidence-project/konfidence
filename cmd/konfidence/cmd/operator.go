@@ -7,7 +7,6 @@ import (
 	"github.com/konfidence-project/konfidence/internal/landscape"
 	"github.com/konfidence-project/konfidence/internal/project"
 	"github.com/konfidence-project/konfidence/internal/stage"
-	"github.com/konfidence-project/konfidence/internal/stageconfiguration"
 	"github.com/konfidence-project/konfidence/internal/taskorchestration"
 	"github.com/konfidence-project/konfidence/internal/vectoractivation"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly"
@@ -30,7 +29,6 @@ func controllerDomains() []operator.Domain {
 		landscape.Domain(),
 		project.Domain(),
 		stage.Domain(),
-		stageconfiguration.Domain(),
 		taskorchestration.Domain(),
 		vectoractivation.Domain(),
 		vectorassembly.Domain(),
@@ -110,11 +108,6 @@ func startOperator(_ *cobra.Command, _ []string) error {
 			setupLog.Error(err, "unable to set up VectorPromotionConfig webhook")
 			return err
 		}
-		if err := konfidence.SetupStageConfigurationWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to set up StageConfiguration webhook")
-			return err
-		}
-
 		// Landscape namespace resources
 		if err := konfidence.SetupStageWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to set up Stage webhook")
