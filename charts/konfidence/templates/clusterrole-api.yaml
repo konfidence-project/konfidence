@@ -11,7 +11,11 @@ rules:
   resources: [namespaces, secrets, configmaps]
   verbs: [get, list, watch]
 - apiGroups: [konfidence.cloud]
-  resources: [projects]
+  resources:
+  - projects
+  - projects/status
+  - landscapes
+  - landscapes/status
   verbs: [get, list, watch]
 - apiGroups: [konfidence.cloud]
   resources:
