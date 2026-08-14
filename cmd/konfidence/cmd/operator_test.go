@@ -7,7 +7,6 @@ import (
 
 	"github.com/konfidence-project/konfidence/internal/project"
 	"github.com/konfidence-project/konfidence/internal/stage"
-	"github.com/konfidence-project/konfidence/internal/stageconfiguration"
 	"github.com/konfidence-project/konfidence/internal/taskorchestration"
 	"github.com/konfidence-project/konfidence/internal/vectoractivation"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly"
@@ -25,7 +24,6 @@ var _ = Describe("controllerDomains", func() {
 		vectordeployment.OperatorFlagName,
 		project.OperatorFlagName,
 		landscape.OperatorFlagName,
-		stageconfiguration.OperatorFlagName,
 		vectorassembly.OperatorFlagName,
 		vectorpromotion.OperatorFlagName,
 	}
@@ -44,9 +42,9 @@ var _ = Describe("controllerDomains", func() {
 	})
 
 	It("accepts any controller group in the --controllers filter", func() {
-		enabled, err := pkgcmd.FilterEnabledControllers(stageconfiguration.OperatorFlagName,
+		enabled, err := pkgcmd.FilterEnabledControllers(vectorassembly.OperatorFlagName,
 			operator.Names(controllerDomains()))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(enabled).To(Equal(map[string]bool{stageconfiguration.OperatorFlagName: true}))
+		Expect(enabled).To(Equal(map[string]bool{vectorassembly.OperatorFlagName: true}))
 	})
 })

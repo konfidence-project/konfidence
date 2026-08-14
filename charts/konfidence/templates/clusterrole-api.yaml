@@ -12,8 +12,6 @@ rules:
   verbs: [get, list, watch]
 - apiGroups: [konfidence.cloud]
   resources:
-  - stageconfigurations
-  - stageconfigurations/status
   - vectorpromotionconfigs
   - vectorpromotionconfigs/status
   - vectorpromotions
