@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+
+	"github.com/konfidence-project/konfidence/internal/api/openapi"
 )
 
 // Error carries an HTTP status and a message safe to send to the client.
@@ -42,8 +44,9 @@ func NewBadRequest(message string, cause error) *Error {
 
 func NewUnauthorized() *Error {
 	return &Error{
-		Status: http.StatusUnauthorized,
-		Code:   "unauthorized",
+		Status:  http.StatusUnauthorized,
+		Code:    "unauthorized",
+		Message: "authentication required or session expired",
 	}
 }
 
@@ -53,6 +56,32 @@ func NewInternal(cause error) *Error {
 		Code:    "internal_server_error",
 		Message: "an unexpected error occurred",
 		Err:     cause,
+	}
+}
+
+// NewInternalErrorResponse returns a safe OpenAPI response without exposing the cause.
+func NewInternalErrorResponse() openapi.InternalErrorJSONResponse {
+	return openapi.InternalErrorJSONResponse{
+		Error: struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		}{
+			Code:    "internal_server_error",
+			Message: "an unexpected error occurred",
+		},
+	}
+}
+
+// NewUnauthorizedResponse returns the OpenAPI response used for missing or expired sessions.
+func NewUnauthorizedResponse() openapi.UnauthorizedJSONResponse {
+	return openapi.UnauthorizedJSONResponse{
+		Error: struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		}{
+			Code:    "unauthorized",
+			Message: "authentication required or session expired",
+		},
 	}
 }
 

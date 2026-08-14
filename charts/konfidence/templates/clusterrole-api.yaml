@@ -11,6 +11,9 @@ rules:
   resources: [namespaces, secrets, configmaps]
   verbs: [get, list, watch]
 - apiGroups: [konfidence.cloud]
+  resources: [projects]
+  verbs: [get, list, watch]
+- apiGroups: [konfidence.cloud]
   resources:
   - vectorpromotionconfigs
   - vectorpromotionconfigs/status

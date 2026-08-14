@@ -169,6 +169,7 @@ var _ = Describe("Config.Validate", func() {
 		Entry("oidc-client-id", "oidc-client-id", func(c *config.Config) { c.OIDC.ClientID = "" }),
 		Entry("oidc-client-secret", "oidc-client-secret", func(c *config.Config) { c.OIDC.ClientSecret = "" }),
 		Entry("oidc-redirect-url", "oidc-redirect-url", func(c *config.Config) { c.OIDC.RedirectURL = "" }),
+		Entry("oidc-allow-return-url", "oidc-allow-return-url", func(c *config.Config) { c.OIDC.AllowReturnURLs = nil }),
 		Entry("session-cookie-name", "session-cookie-name", func(c *config.Config) { c.Session.Cookie.Name = "" }),
 	)
 
@@ -181,7 +182,7 @@ var _ = Describe("Config.Validate", func() {
 				AuthorizationURL: "https://idp.example.com/auth", DeviceAuthURL: "https://idp.example.com/device",
 				UserInfoURL: "https://idp.example.com/userinfo", JWKSURL: "https://idp.example.com/jwks",
 				ClientID: "konfidence", ClientSecret: "secret", RedirectURL: "https://konfidence.example.com/auth/callback",
-				StateExpiration: "5m",
+				AllowReturnURLs: []string{"https://dashboard.example.com/auth/callback"}, StateExpiration: "5m",
 			},
 			Session: config.SessionConfig{
 				StorageType:     "in-memory",
@@ -201,6 +202,7 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.OIDC.DeviceAuthURL).To(Equal("https://idp.example.com/device"))
 		Expect(parsed.OIDC.UserInfoURL).To(Equal("https://idp.example.com/userinfo"))
 		Expect(parsed.OIDC.JWKSURL).To(Equal("https://idp.example.com/jwks"))
+		Expect(parsed.OIDC.AllowReturnURLs).To(Equal([]string{"https://dashboard.example.com/auth/callback"}))
 		Expect(parsed.OIDC.StateExpiration.Minutes()).To(Equal(5.0))
 		Expect(parsed.Session.Cookie.Name).To(Equal("custom-session"))
 		Expect(parsed.Session.Cookie.HTTPOnly).To(BeFalse())

@@ -11,6 +11,8 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	authdomain "github.com/konfidence-project/konfidence/internal/auth"
+	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -21,15 +23,19 @@ type apiHandler struct {
 
 var _ openapi.StrictServerInterface = (*apiHandler)(nil)
 
-func NewAPIHandler(logger *slog.Logger, k8s client.Client, oidcClient oidc.Client,
+func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc.Client,
 	sessionStore session.Store, cfg config.Parsed) (http.Handler, error) {
 	auth := newAuthHandler(logger, oidcClient, oidc.NewStateCacheStore(cfg), sessionStore, cfg)
-	project := newProjectHandler(k8s)
+
+	authRepo := authdomain.NewRepository(k8sClient)
+	projectRepo := projectdomain.NewRepository(k8sClient)
+
+	project := newProjectHandler(projectRepo)
 	api := &apiHandler{
 		authHandler:    *auth,
 		projectHandler: *project,
 	}
-	return middleware.SessionAuthentication(logger, sessionStore, cfg, api.handler())
+	return middleware.SessionAuthentication(logger, sessionStore, authRepo, cfg, api.handler())
 }
 
 func (s *apiHandler) handler() http.Handler {

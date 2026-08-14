@@ -2,6 +2,7 @@ package middleware_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,22 +12,38 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	"github.com/konfidence-project/konfidence/internal/auth"
 )
 
 type testSessionStore struct {
 	sessions map[string]*session.Session
 	getCalls int
+	err      error
+}
+
+type testAuthRepository struct {
+	projectRoles auth.ProjectRoles
+	groups       []string
+	calls        int
+	err          error
+}
+
+func (r *testAuthRepository) GetProjectRoles(_ context.Context, groups []string) (auth.ProjectRoles, error) {
+	r.calls++
+	r.groups = append([]string(nil), groups...)
+	return r.projectRoles, r.err
 }
 
 func (s *testSessionStore) Get(_ context.Context, id string) (*session.Session, error) {
 	s.getCalls++
-	return s.sessions[id], nil
+	return s.sessions[id], s.err
 }
 
 func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 	store := &testSessionStore{sessions: map[string]*session.Session{
 		"valid-session": {Context: session.Context{ID: "valid-session"}},
 	}}
+	authRepo := &testAuthRepository{}
 
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/identity" {
@@ -40,6 +57,7 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 	h, err := middleware.SessionAuthentication(
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		store,
+		authRepo,
 		config.Parsed{Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
 		next,
 	)
@@ -57,6 +75,9 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		}
 		if store.getCalls != before {
 			t.Fatalf("expected no session lookup, got %d", store.getCalls-before)
+		}
+		if authRepo.calls != 0 {
+			t.Fatalf("expected no role lookup, got %d", authRepo.calls)
 		}
 	})
 
@@ -78,26 +99,122 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		}
 	})
 
-	/*
-		t.Run("protected operation rejects a differently named cookie", func(t *testing.T) {
-			response := httptest.NewRecorder()
+	t.Run("protected operation rejects a differently named cookie", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+		request.AddCookie(&http.Cookie{Name: "unknown-session-name", Value: "valid-session"})
+		h.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
+		}
+	})
+
+	t.Run("protected operation rejects unknown session", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+		request.AddCookie(&http.Cookie{Name: "session", Value: "unknown"})
+		h.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
+		}
+	})
+}
+
+func TestSessionAuthenticationMapsProjectRoles(t *testing.T) {
+	store := &testSessionStore{sessions: map[string]*session.Session{
+		"valid-session": {Groups: []string{"all-users", "platform-engineers"}},
+	}}
+	authRepo := &testAuthRepository{projectRoles: auth.ProjectRoles{
+		"accessible": {"admin", "viewer"},
+	}}
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		storedSession, err := session.FromContext(r.Context())
+		if err != nil {
+			t.Errorf("expected mapped session context: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if roles := storedSession.ProjectRoles["accessible"]; len(roles) != 2 || roles[0] != "admin" || roles[1] != "viewer" {
+			t.Errorf("unexpected roles: %v", roles)
+		}
+		if _, ok := storedSession.ProjectRoles["hidden"]; ok {
+			t.Error("unexpected access to hidden project")
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	h, err := middleware.SessionAuthentication(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		store,
+		authRepo,
+		config.Parsed{Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
+		next,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
+	request.AddCookie(&http.Cookie{Name: "session", Value: "valid-session"})
+	response := httptest.NewRecorder()
+
+	h.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, response.Code)
+	}
+	if authRepo.calls != 1 {
+		t.Fatalf("expected one role lookup, got %d", authRepo.calls)
+	}
+	if len(authRepo.groups) != 2 || authRepo.groups[0] != "all-users" || authRepo.groups[1] != "platform-engineers" {
+		t.Fatalf("unexpected groups passed to auth repository: %v", authRepo.groups)
+	}
+	roles := store.sessions["valid-session"].ProjectRoles["accessible"]
+	if len(roles) != 2 || roles[0] != "admin" || roles[1] != "viewer" {
+		t.Fatalf("expected stored session to be mapped, got %v", roles)
+	}
+}
+
+func TestSessionAuthenticationRejectsSessionMappingFailures(t *testing.T) {
+	tests := map[string]struct {
+		store    *testSessionStore
+		authRepo *testAuthRepository
+	}{
+		"session lookup failure": {
+			store:    &testSessionStore{err: errors.New("session store unavailable")},
+			authRepo: &testAuthRepository{},
+		},
+		"role lookup failure": {
+			store: &testSessionStore{sessions: map[string]*session.Session{
+				"valid-session": {},
+			}},
+			authRepo: &testAuthRepository{err: errors.New("project cache unavailable")},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			nextCalled := false
+			h, err := middleware.SessionAuthentication(
+				slog.New(slog.NewTextHandler(io.Discard, nil)),
+				test.store,
+				test.authRepo,
+				config.Parsed{Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
+				http.HandlerFunc(func(http.ResponseWriter, *http.Request) { nextCalled = true }),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
 			request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
-			request.AddCookie(&http.Cookie{Name: "unknown-session-name", Value: "valid-session"})
+			request.AddCookie(&http.Cookie{Name: "session", Value: "valid-session"})
+			response := httptest.NewRecorder()
+
 			h.ServeHTTP(response, request)
+
 			if response.Code != http.StatusUnauthorized {
 				t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
 			}
-		})
-
-		t.Run("protected operation rejects unknown session", func(t *testing.T) {
-			response := httptest.NewRecorder()
-			request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
-			request.AddCookie(&http.Cookie{Name: "session", Value: "unknown"})
-			h.ServeHTTP(response, request)
-			if response.Code != http.StatusUnauthorized {
-				t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
+			if nextCalled {
+				t.Fatal("expected request not to reach next handler")
 			}
 		})
-
-	*/
+	}
 }

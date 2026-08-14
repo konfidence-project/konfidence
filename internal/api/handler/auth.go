@@ -125,13 +125,13 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 	// create and save session
 	sess := session.Session{
 		Subject: idToken.Subject,
+		Groups:  claims.Groups,
 		Context: session.Context{
 			Name:              claims.Name,
 			GivenName:         claims.GivenName,
 			FamilyName:        claims.FamilyName,
 			PreferredUsername: claims.PreferredUsername,
 			Email:             claims.Email,
-			Groups:            claims.Groups,
 		},
 		AccessToken:  tokenResponse.AccessToken,
 		RefreshToken: &tokenResponse.RefreshToken,
@@ -202,11 +202,11 @@ func (a *authHandler) GetIdentityV1(ctx context.Context, _ openapi.GetIdentityV1
 	}
 
 	return openapi.GetIdentityV1200JSONResponse{
-		Email:      lo.FromPtr(storedSession.Email),
-		Name:       lo.FromPtr(storedSession.Name),
-		GivenName:  lo.FromPtr(storedSession.GivenName),
-		FamilyName: lo.FromPtr(storedSession.FamilyName),
-		Roles:      storedSession.Roles,
+		Email:        lo.FromPtr(storedSession.Email),
+		Name:         lo.FromPtr(storedSession.Name),
+		GivenName:    lo.FromPtr(storedSession.GivenName),
+		FamilyName:   lo.FromPtr(storedSession.FamilyName),
+		ProjectRoles: storedSession.ProjectRoles,
 	}, nil
 }
 
