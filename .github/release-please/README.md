@@ -12,8 +12,10 @@ Versions follow [Semantic Versioning](https://semver.org/) and are computed auto
 ## Regular Release
 
 1. Release-please automatically opens a release PR on every push to `main`
-2. Review and merge the PR — release-please pushes the version tag, triggering the release pipeline
-3. The release changelog is sourced from `CHANGELOG.md` in this directory
+2. Review and merge the PR — release-please pushes the version tag and creates a draft GitHub release
+3. The release pipeline runs as a chained job in the same workflow (not on the tag push), so the draft is guaranteed to exist before goreleaser attaches artifacts to it
+4. Once binaries and Helm charts are published, the final job removes the draft flag — a failed pipeline leaves the release in draft, never half-published
+5. The release changelog is sourced from `CHANGELOG.md` in the repository root; goreleaser runs with `mode: keep-existing` and does not touch the body
 
 ## Pre-release
 

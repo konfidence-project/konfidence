@@ -17,3 +17,50 @@ jobs:
       pull-requests: write
     uses: konfidence-project/.github/.github/workflows/release-please.yaml@v4
     secrets: inherit
+
+  # The jobs below only run on the push that merges a release PR. Chaining them
+  # behind release-please (instead of triggering on the tag push) guarantees the
+  # draft release exists before goreleaser looks for it.
+  release:
+    name: Release
+    needs: [release-please]
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/lint-test-build.yaml
+    secrets: inherit
+    with:
+      mode: release
+      # pins GORELEASER_CURRENT_TAG to the tag release-please just created
+      snapshot-tag: ${{ needs.release-please.outputs.tag_name }}
+
+  publish-helm-charts:
+    name: Publish Helm Charts
+    needs: [release-please, release]
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      packages: write
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
+    secrets: inherit
+    with:
+      version: ${{ needs.release-please.outputs.tag_name }}
+      charts: charts/konfidence
+
+  publish-release:
+    name: Publish Release
+    needs: [release-please, release, publish-helm-charts]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: konfidence-project/.github/.github/actions/github-repo-access@v4
+        with:
+          client-id: ${{ vars.GH_APP_ID }}
+          private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+
+      - name: Undraft release
+        run: gh release edit '${{ needs.release-please.outputs.tag_name }}' --repo "${GITHUB_REPOSITORY}" --draft=false
