@@ -61,7 +61,7 @@ func DefaultSignatureSpec(name string, issuer *string) SignatureSpec {
 }
 
 // SpecsFromVerify converts a *konfidence.Verify into a []SignatureSpec, one per signature entry.
-// Returns an empty slice if v is nil — the builder will produce a NoopVerifier.
+// Returns an empty slice if v is nil — a Verifier called with empty specs is a no-op.
 func SpecsFromVerify(v *konfidence.Verify) []SignatureSpec {
 	if v == nil {
 		return []SignatureSpec{}
@@ -74,7 +74,7 @@ func SpecsFromVerify(v *konfidence.Verify) []SignatureSpec {
 }
 
 // SpecsFromSign converts a *konfidence.Sign into a []SignatureSpec, one per signature entry.
-// Returns an empty slice if s is nil — the builder will produce a NoopSigner.
+// Returns an empty slice if s is nil — a Signer built with empty specs is a no-op.
 func SpecsFromSign(s *konfidence.Sign) []SignatureSpec {
 	if s == nil {
 		return []SignatureSpec{}

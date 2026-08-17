@@ -17,8 +17,22 @@ type Deps struct {
 	Mgr    manager.Manager
 	Logger logr.Logger
 
-	// Limiter bounds process-wide CPU-bound crypto work across all domains.
+	// Limiter is the process-wide budget for all CPU-bound crypto work —
+	// the verification matrix AND signing. For the global bound to hold, the
+	// SAME instance must flow into both the shared Verifier's parallelism
+	// (WithParallelism) and any signing domain's signer
+	// (SignerBuilder.WithLimiter). Non-signing domains (e.g. vectordeployment)
+	// do not need it — the Verifier they receive is already bounded. See
+	// cmd/konfidence/cmd/operator.go for the construction site that
+	// establishes this invariant.
 	Limiter crypto.Limiter
+
+	// Verifier is the process-wide, cache-backed OCM signature verifier
+	// shared by every reconciler. It is stateless with respect to specs and
+	// credentials; callers pass those per Verify call. Different CRs
+	// verifying the same signature under the same spec share a single
+	// verify + a single cache entry.
+	Verifier crypto.Verifier
 
 	// Shutdown stops the operator; long-running domain routines call it when
 	// they fail terminally.

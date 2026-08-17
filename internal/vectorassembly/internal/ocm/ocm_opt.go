@@ -1,6 +1,8 @@
 package ocm
 
 import (
+	ocmcredentials "ocm.software/open-component-model/bindings/go/credentials"
+
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 )
@@ -22,16 +24,34 @@ func WithVectorSigner(signer crypto.Signer) AdapterOption {
 	}
 }
 
-// WithArtifactVerifier sets a Verifier to verify artifacts. If no verifier is provided artifact verification is disabled.
-func WithArtifactVerifier(verifier crypto.Verifier) AdapterOption {
+// WithVerifier sets the shared Verifier used to verify vectors and artifacts.
+// The verifier is stateless with respect to specs and credentials; per-CR
+// specs and resolver are supplied to Verify calls via the fields configured
+// through WithResolver, WithVectorVerifySpecs, and WithArtifactVerifySpecs.
+func WithVerifier(v crypto.Verifier) AdapterOption {
 	return func(a *Adapter) {
-		a.artifactVerifier = verifier
+		a.verifier = v
 	}
 }
 
-// WithVectorVerifier sets a Verifier to verify vectors. If no verifier is provided vector verification is disabled.
-func WithVectorVerifier(verifier crypto.Verifier) AdapterOption {
+func WithResolver(r ocmcredentials.Resolver) AdapterOption {
 	return func(a *Adapter) {
-		a.vectorVerifier = verifier
+		a.resolver = r
+	}
+}
+
+// WithVectorVerifySpecs sets the SignatureSpecs used when verifying vector descriptors.
+// Empty slice disables vector verification.
+func WithVectorVerifySpecs(specs []crypto.SignatureSpec) AdapterOption {
+	return func(a *Adapter) {
+		a.vectorSpecs = specs
+	}
+}
+
+// WithArtifactVerifySpecs sets the SignatureSpecs used when verifying artifact descriptors.
+// Empty slice disables artifact verification.
+func WithArtifactVerifySpecs(specs []crypto.SignatureSpec) AdapterOption {
+	return func(a *Adapter) {
+		a.artifactSpecs = specs
 	}
 }
