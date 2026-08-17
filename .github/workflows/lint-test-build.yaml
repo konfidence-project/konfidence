@@ -55,7 +55,7 @@ jobs:
     name: Build / Konfidence
     needs: [lint, reuse-lint, test-operators, test-pkg, test-kden-cli, test-api]
     permissions:
-      contents: read
+      contents: write
       packages: write
       attestations: write
       id-token: write
