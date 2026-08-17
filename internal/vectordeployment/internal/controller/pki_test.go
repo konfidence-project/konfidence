@@ -135,9 +135,15 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 			gomega.Expect(os.Unsetenv(vectordeployment.CredentialsSecretNsEnv)).To(gomega.Succeed())
 		})
 
+		pkiVerifier, pkiVerifierErr := cryptopkg.NewVerifierBuilder().
+			WithParallelism(cryptopkg.NewLimiter(0)).
+			WithCache(1024, 30*time.Minute).
+			Build()
+		gomega.Expect(pkiVerifierErr).NotTo(gomega.HaveOccurred())
+
 		gomega.Expect(vectordeployment.SetupControllers(pkiCtx, pkiManager, ctrl.Log, vectordeployment.Options{
 			OCISecret: ociSecret,
-			Limiter:   cryptopkg.NewLimiter(0),
+			Verifier:  pkiVerifier,
 		})).To(gomega.Succeed())
 	})
 
@@ -255,10 +261,16 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 		noVerifyOCMClient, err = pkgocm.NewOciClientBuilder().WithLogger(ctrl.Log.WithName("no-verify-ocm-client")).WithResolver(resolver).Build(noVerifyCtx)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		// No signature env vars set — SetupControllers will use NoopVerifiers.
+		// No signature env vars set — verification is disabled via empty specs.
+		noVerifyVerifier, noVerifyVerifierErr := cryptopkg.NewVerifierBuilder().
+			WithParallelism(cryptopkg.NewLimiter(0)).
+			WithCache(1024, 30*time.Minute).
+			Build()
+		gomega.Expect(noVerifyVerifierErr).NotTo(gomega.HaveOccurred())
+
 		gomega.Expect(vectordeployment.SetupControllers(noVerifyCtx, noVerifyManager, ctrl.Log, vectordeployment.Options{
 			OCISecret: ociSecret,
-			Limiter:   cryptopkg.NewLimiter(0),
+			Verifier:  noVerifyVerifier,
 		})).To(gomega.Succeed())
 	})
 

@@ -14,7 +14,6 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
-	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -54,7 +53,7 @@ var (
 
 	// ocmClient is the test-side OCI client used for seeding Zot with test data
 	// and asserting post-reconcile descriptor state. The controller builds its own
-	// client from the credential Secret via NewCacheFactory.
+	// client per reconcile from the credential Secret via buildAdapter.
 	ocmClient pkgocm.Client
 
 	// testVersionGenerator returns a unique, monotonically increasing concrete version on
@@ -167,17 +166,19 @@ func startManager() {
 	limiter := cryptopkg.NewLimiter(0)
 	log := ctrl.Log.WithName("vectorassembly")
 
-	cache, err := clientcache.New(
-		clientcache.DefaultClientCacheSize,
-		clientcache.DefaultExtract[*konfidence.VectorTemplate],
-		NewCacheFactory(log, limiter),
-	)
+	// Build the shared verifier the same way cmd/konfidence/cmd/operator.go does
+	// so envtest exercises the production wiring.
+	sharedVerifier, err := cryptopkg.NewVerifierBuilder().
+		WithParallelism(limiter).
+		WithCache(1024, 30*time.Minute).
+		WithLogger(log).
+		Build()
 	Expect(err).NotTo(HaveOccurred())
 
 	vectorCache, err := lru.New[string, vector.Vector](VectorCacheSize)
 	Expect(err).NotTo(HaveOccurred())
 
-	reconciler := NewVectorTemplateReconciler(mgr, cache, vectorCache, testVersionGenerator)
+	reconciler := NewVectorTemplateReconciler(mgr, sharedVerifier, limiter, log, vectorCache, testVersionGenerator)
 	reconciler.assemblyPollInterval = 100 * time.Millisecond
 	Expect(reconciler.SetupWithManager(mgr)).To(Succeed())
 

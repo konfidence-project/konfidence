@@ -42,11 +42,10 @@ var _ = Describe("Adapter", func() {
 			mockVerifier = mocks2.NewMockVerifier(ctrl)
 
 			adapter = Adapter{
-				ocmClient:        mockClient,
-				vectorSigner:     mockSigner,
-				digester:         mockDigester,
-				vectorVerifier:   mockVerifier,
-				artifactVerifier: mockVerifier,
+				ocmClient:    mockClient,
+				vectorSigner: mockSigner,
+				digester:     mockDigester,
+				verifier:     mockVerifier,
 			}
 
 			ctx = context.Background()

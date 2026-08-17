@@ -13,7 +13,9 @@ import (
 	context "context"
 	reflect "reflect"
 
+	crypto "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	gomock "go.uber.org/mock/gomock"
+	credentials "ocm.software/open-component-model/bindings/go/credentials"
 	runtime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 )
 
@@ -42,20 +44,15 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 }
 
 // Verify mocks base method.
-func (m *MockVerifier) Verify(ctx context.Context, descs ...*runtime.Descriptor) error {
+func (m *MockVerifier) Verify(ctx context.Context, resolver credentials.Resolver, specs []crypto.SignatureSpec, descs []*runtime.Descriptor) error {
 	m.ctrl.T.Helper()
-	varargs := []any{ctx}
-	for _, a := range descs {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "Verify", varargs...)
+	ret := m.ctrl.Call(m, "Verify", ctx, resolver, specs, descs)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockVerifierMockRecorder) Verify(ctx any, descs ...any) *gomock.Call {
+func (mr *MockVerifierMockRecorder) Verify(ctx, resolver, specs, descs any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{ctx}, descs...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), ctx, resolver, specs, descs)
 }

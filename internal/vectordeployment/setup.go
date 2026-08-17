@@ -42,7 +42,7 @@ func Domain() operator.Domain {
 			}
 			return SetupControllers(ctx, deps.Mgr, deps.Logger, Options{
 				OCISecret: registrySecret,
-				Limiter:   deps.Limiter,
+				Verifier:  deps.Verifier,
 			})
 		},
 	}
@@ -71,15 +71,14 @@ type Options struct {
 	// Flat-merged with the credentials Secret from env vars into one resolver.
 	OCISecret *corev1.Secret
 
-	// Limiter bounds process-wide CPU-bound crypto work across both verifiers.
-	// Required; use crypto.NewLimiter(0) for GOMAXPROCS.
-	Limiter crypto.Limiter
+	// Verifier is the shared process-wide OCM verifier. Required; usually from operator.Deps.Verifier.
+	Verifier crypto.Verifier
 }
 
 // SetupControllers registers all vector deployment controllers with the given manager.
 func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logger, opts Options) error {
-	if opts.Limiter == nil {
-		return fmt.Errorf("setup: Limiter is required; use crypto.NewLimiter(0) for GOMAXPROCS")
+	if opts.Verifier == nil {
+		return fmt.Errorf("setup: Verifier is required; usually from operator.Deps.Verifier")
 	}
 
 	log := logf.FromContext(ctx)
@@ -89,12 +88,10 @@ func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logg
 		return fmt.Errorf("building credential resolver: %w", err)
 	}
 
-	vectorVerifier, artifactVerifier, err := buildVerifiers(log, resolver, opts.Limiter)
-	if err != nil {
-		return fmt.Errorf("building crypto verifiers: %w", err)
-	}
+	vectorSpecs := loadSpecs(log, VectorSignaturesEnv, "vector")
+	artifactSpecs := loadSpecs(log, ArtifactSignaturesEnv, "artifact")
 
-	ocmAdapter, err := ocm.NewAdapter(ctx, resolver, vectorVerifier, artifactVerifier)
+	ocmAdapter, err := ocm.NewAdapter(ctx, resolver, opts.Verifier, vectorSpecs, artifactSpecs)
 	if err != nil {
 		return fmt.Errorf("unable to create OCM adapter: %w", err)
 	}
@@ -140,44 +137,17 @@ func buildResolver(ctx context.Context, mgr manager.Manager, ociSecret *corev1.S
 	return pkgcredentials.ResolverFromRefs(ctx, mgr.GetAPIReader(), namespace, refs)
 }
 
-// buildVerifiers constructs process-wide verifiers from environment variables.
-// Absent signature env vars produce a NoopVerifier for that slot.
-// The provided resolver is shared by both verifiers; nil means system trust roots.
-func buildVerifiers(log logr.Logger, resolver ocmcredentials.Resolver, limiter crypto.Limiter) (vectorVerifier, artifactVerifier crypto.Verifier, err error) {
-	vectorNames := parseSignatureNames(VectorSignaturesEnv)
-	artifactNames := parseSignatureNames(ArtifactSignaturesEnv)
-
-	vectorVerifier, err = buildVerifier(log, resolver, limiter, vectorNames, "vector")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	artifactVerifier, err = buildVerifier(log, resolver, limiter, artifactNames, "artifact")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return vectorVerifier, artifactVerifier, nil
-}
-
-func buildVerifier(log logr.Logger, resolver ocmcredentials.Resolver, limiter crypto.Limiter, names []string, kind string) (crypto.Verifier, error) {
+// loadSpecs reads a comma-separated list of signature names from envVar and
+// converts them to SignatureSpecs. An empty env var produces an empty slice,
+// which the shared Verifier no-ops on — the "verification disabled" state.
+func loadSpecs(log logr.Logger, envVar, kind string) []crypto.SignatureSpec {
+	names := parseSignatureNames(envVar)
 	if len(names) == 0 {
 		log.Info(kind + " verification disabled")
-		return crypto.NoopVerifier{}, nil
+		return nil
 	}
-
-	v, err := crypto.NewVerifierBuilder().
-		WithSpecs(makeSpecs(names)).
-		WithResolver(resolver).
-		WithLimiter(limiter).
-		WithLogger(log).
-		Build()
-	if err != nil {
-		return nil, fmt.Errorf("build %s verifier: %w", kind, err)
-	}
-
 	log.Info(kind+" verification enabled", "signatures", names)
-	return v, nil
+	return makeSpecs(names)
 }
 
 func makeSpecs(names []string) []crypto.SignatureSpec {

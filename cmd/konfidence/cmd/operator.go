@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/landscape"
@@ -71,10 +72,34 @@ func startOperator(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	// Build the one process-wide Verifier: ParallelVerifier (limiter) →
+	// CachingVerifier (LRU) → OCMVerifier (crypto). Every domain receives
+	// this exact instance via deps.Verifier — different reconcilers verifying
+	// the same (descriptor, signature) pair share a single cache entry.
+	//
+	// INVARIANT: this single `limiter` instance is the process-wide budget for
+	// ALL CPU-bound crypto. It flows into the verifier here via WithParallelism
+	// AND into deps.Limiter below, from where signing domains hand it to their
+	// signers (SignerBuilder.WithLimiter). Both draw from the same token pool,
+	// so a signing burst cannot oversubscribe the cores verification is using.
+	// Do NOT construct a second limiter for the verifier — that would silently
+	// split the budget in two.
+	limiter := crypto.NewLimiter(0)
+	sharedVerifier, err := crypto.NewVerifierBuilder().
+		WithParallelism(limiter).
+		WithCache(1024, 30*time.Minute).
+		WithLogger(setupLog).
+		Build()
+	if err != nil {
+		setupLog.Error(err, "unable to build shared verifier")
+		return err
+	}
+
 	deps := operator.Deps{
 		Mgr:      mgr,
 		Logger:   setupLog,
-		Limiter:  crypto.NewLimiter(0),
+		Limiter:  limiter,
+		Verifier: sharedVerifier,
 		Shutdown: cancel,
 	}
 

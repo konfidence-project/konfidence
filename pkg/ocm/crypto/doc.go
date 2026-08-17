@@ -14,15 +14,18 @@
 //	    "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 //	)
 //
-//	func verify(ctx context.Context, resolver credentials.Resolver, descriptors ...*descruntime.Descriptor) error {
+//	func verify(ctx context.Context, resolver credentials.Resolver, descriptors []*descruntime.Descriptor) error {
+//	    // The verifier is stateless and safe to build once and share process-wide.
+//	    // Specs and the resolver are passed per Verify call, not captured at build time.
 //	    verifier, err := crypto.NewVerifierBuilder().
-//	        WithSpecs([]crypto.SignatureSpec{crypto.DefaultSignatureSpec("my-sig", nil)}).
-//	        WithResolver(resolver).
+//	        WithParallelism(crypto.NewLimiter(0)). // optional: bound concurrent crypto
+//	        WithCache(1024, 30*time.Minute).       // optional: memoize successful verdicts
 //	        Build()
 //	    if err != nil {
 //	        return err
 //	    }
-//	    return verifier.Verify(ctx, descriptors...)
+//	    specs := []crypto.SignatureSpec{crypto.DefaultSignatureSpec("my-sig", nil)}
+//	    return verifier.Verify(ctx, resolver, specs, descriptors)
 //	}
 //
 // # Quick Start: Signing
@@ -38,9 +41,9 @@
 //	    return signer.Sign(ctx, descriptor)
 //	}
 //
-// # OCMVerifier
+// # Verification
 //
-// OCMVerifier verifies OCM descriptor signatures using:
+// The Verifier verifies OCM descriptor signatures using:
 //   - System certificate trust store (always loaded into the underlying RSA handler)
 //   - An optional credentials.Resolver supplying additional anchors / public keys
 //
@@ -50,7 +53,7 @@
 // signature": the handler still falls back to system roots for PEM. Any other
 // resolver error is propagated and fails the whole verification.
 //
-// # OCMSigner
+// # Signing
 //
 // A non-nil credentials.Resolver is required. Any error from the resolver —
 // including ErrNotFound — aborts the signing operation.
@@ -68,12 +71,14 @@
 //
 // # Disabling Signing/Verification
 //
-// Use the noop implementations to disable an operation entirely:
+// Disabling is expressed by supplying no SignatureSpecs — there are no separate
+// noop types. A Verifier called with an empty []SignatureSpec is a no-op
+// (Verify returns nil); a Signer built with no specs is a no-op (Sign returns
+// nil). In both cases construction still yields a real, safe-to-call instance,
+// so call sites never need a nil check or a special type.
 //
-//	signer := crypto.NoopSigner{}    // Sign returns nil, no-op
-//	verifier := crypto.NoopVerifier{} // Verify returns nil, no-op
-//
-// Both builders return the appropriate noop when WithSpecs receives an empty slice.
+//	signer, _ := crypto.NewSignerBuilder().Build()   // no specs → Sign is a no-op
+//	verifier, _ := crypto.NewVerifierBuilder().Build() // Verify with empty specs is a no-op
 //
 // # Error Handling
 //

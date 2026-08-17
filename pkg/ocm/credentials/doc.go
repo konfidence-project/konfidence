@@ -11,8 +11,8 @@
 //
 // When creds is nil or creds.OCM is nil the function returns (nil, nil).
 // A nil resolver propagates to the builder layer where each builder decides
-// the correct behaviour: [VerifierBuilder] passes nil through to [NewOCMVerifier]
-// which substitutes the system trust store; [SignerBuilder] rejects nil when
+// the correct behaviour: [VerifierBuilder] passes nil through to the internal
+// OCM verifier which substitutes the system trust store; [SignerBuilder] rejects nil when
 // specs are present, surfacing the misconfiguration at construction time rather
 // than at the first Sign call.
 //

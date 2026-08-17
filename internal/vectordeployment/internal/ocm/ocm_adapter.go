@@ -21,13 +21,23 @@ import (
 
 // Adapter implements the VectorOcmPort interface.
 type Adapter struct {
-	client                           pkgocm.Client
-	vectorVerifier, artifactVerifier crypto.Verifier
+	client                     pkgocm.Client
+	verifier                   crypto.Verifier
+	resolver                   credentials.Resolver
+	vectorSpecs, artifactSpecs []crypto.SignatureSpec
 }
 
 var _ controller.VectorOcmPort = (*Adapter)(nil)
 
-func NewAdapter(ctx context.Context, resolver credentials.Resolver, vectorVerifier, artifactVerifier crypto.Verifier) (Adapter, error) {
+// NewAdapter builds an Adapter from a shared Verifier, a resolver, and two
+// spec slices. An empty spec slice disables verification for that code path
+// (the shared Verifier no-ops on empty specs).
+func NewAdapter(
+	ctx context.Context,
+	resolver credentials.Resolver,
+	verifier crypto.Verifier,
+	vectorSpecs, artifactSpecs []crypto.SignatureSpec,
+) (Adapter, error) {
 	ocmClient, err := pkgocm.NewOciClientBuilder().
 		WithLogger(ctrl.Log).
 		WithResolver(resolver).
@@ -37,12 +47,21 @@ func NewAdapter(ctx context.Context, resolver credentials.Resolver, vectorVerifi
 		return Adapter{}, fmt.Errorf("unable to build ocm client: %w", err)
 	}
 
-	return Adapter{client: ocmClient, vectorVerifier: vectorVerifier, artifactVerifier: artifactVerifier}, nil
+	return Adapter{
+		client:        ocmClient,
+		verifier:      verifier,
+		resolver:      resolver,
+		vectorSpecs:   vectorSpecs,
+		artifactSpecs: artifactSpecs,
+	}, nil
 }
 
 // NewAdapterWithClient creates an Adapter using the provided client. Intended for testing.
+// Verification is disabled: the verifier is built with no specs, and the empty
+// vector/artifact spec slices make every Verify call a no-op.
 func NewAdapterWithClient(client pkgocm.Client) Adapter {
-	return Adapter{client: client, vectorVerifier: crypto.NoopVerifier{}, artifactVerifier: crypto.NoopVerifier{}}
+	verifier, _ := crypto.NewVerifierBuilder().Build()
+	return Adapter{client: client, verifier: verifier}
 }
 
 const (
@@ -65,7 +84,7 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 			fmt.Errorf("unable to get descriptor for component %q version %q: %w", ref.Component, ref.Version, err)
 	}
 
-	if err := a.vectorVerifier.Verify(ctx, &descriptor); err != nil {
+	if err := a.verifier.Verify(ctx, a.resolver, a.vectorSpecs, []*descruntime.Descriptor{&descriptor}); err != nil {
 		return controller.VectorDescriptor{}, fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w",
 			ref.String(), err)
 	}
@@ -162,7 +181,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 		return controller.ArtifactManifest{}, fmt.Errorf("failed to fetch artifact descriptor for %s: %w", ref.String(), err)
 	}
 
-	if err := a.artifactVerifier.Verify(ctx, &descriptor); err != nil {
+	if err := a.verifier.Verify(ctx, a.resolver, a.artifactSpecs, []*descruntime.Descriptor{&descriptor}); err != nil {
 		return controller.ArtifactManifest{}, fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w",
 			ref.String(), err)
 	}

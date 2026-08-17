@@ -23,6 +23,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"ocm.software/open-component-model/bindings/go/blob"
 	"ocm.software/open-component-model/bindings/go/blob/inmemory"
+	ocmcredentials "ocm.software/open-component-model/bindings/go/credentials"
 	ocmdescriptor "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	v2 "ocm.software/open-component-model/bindings/go/descriptor/v2"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -42,10 +43,12 @@ var (
 // Adapter is an implementation of the VectorOcmPort interface that interacts
 // with OCM repositories to manage vectors and their associated artifacts.
 type Adapter struct {
-	vectorVerifier, artifactVerifier crypto.Verifier
-	vectorSigner                     crypto.Signer
-	digester                         crypto.Digester
-	ocmClient                        pkgocm.Client
+	verifier                   crypto.Verifier
+	resolver                   ocmcredentials.Resolver
+	vectorSpecs, artifactSpecs []crypto.SignatureSpec
+	vectorSigner               crypto.Signer
+	digester                   crypto.Digester
+	ocmClient                  pkgocm.Client
 }
 
 func (a Adapter) GetArtifacts(ctx context.Context, references []compref.Ref) ([]vector.Artifact, error) {
@@ -56,7 +59,7 @@ func (a Adapter) GetArtifacts(ctx context.Context, references []compref.Ref) ([]
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch descriptors for artifact references: %w", err)
 	}
-	if err := a.artifactVerifier.Verify(ctx, slices.Collect(maps.Values(unverifiedResults))...); err != nil {
+	if err := a.verifier.Verify(ctx, a.resolver, a.artifactSpecs, slices.Collect(maps.Values(unverifiedResults))); err != nil {
 		return nil, fmt.Errorf("ocm artifact verification failed for one or more artifacts: %w", err)
 	}
 	artifacts, err := a.digestAndCollectArtifacts(ctx, unverifiedResults)
@@ -122,7 +125,7 @@ func (a Adapter) GetVector(ctx context.Context, vectorRef compref.Ref) (vector.V
 	if err != nil {
 		return vector.Vector{}, fmt.Errorf("unable to get latest ocm descriptor for vector (%s): %w", vectorRef, err)
 	}
-	if err := a.vectorVerifier.Verify(ctx, &descriptor); err != nil {
+	if err := a.verifier.Verify(ctx, a.resolver, a.vectorSpecs, []*ocmdescriptor.Descriptor{&descriptor}); err != nil {
 		return vector.Vector{}, fmt.Errorf("unable to verify ocm descriptor for vector (%s) version (%s): %w",
 			vectorRef, descriptor.Component.Version, err)
 	}
@@ -318,18 +321,21 @@ func NewAdapter(options ...AdapterOption) Adapter {
 
 func applyDefaults(a *Adapter) {
 	if a.vectorSigner == nil {
-		ctrl.Log.Info("vector signer not configured - using noop signer")
-		a.vectorSigner = crypto.NoopSigner{}
+		// No signer wired → build one with no specs, which is a no-op signer
+		// (Sign returns nil). Signing is "disabled" via empty specs, same as
+		// verification.
+		ctrl.Log.Info("vector signer not configured - signing disabled")
+		signer, _ := crypto.NewSignerBuilder().Build()
+		a.vectorSigner = signer
 	}
 	if a.digester == nil {
 		a.digester = crypto.NewDefaultDigester(ctrl.Log)
 	}
-	if a.vectorVerifier == nil {
-		ctrl.Log.Info("vector verifier not configured - using noop verifier")
-		a.vectorVerifier = crypto.NoopVerifier{}
-	}
-	if a.artifactVerifier == nil {
-		ctrl.Log.Info("artifact verifier not configured - using noop verifier")
-		a.artifactVerifier = crypto.NoopVerifier{}
+	if a.verifier == nil {
+		// No verifier wired → build a bare one. With empty vector/artifact spec
+		// slices it no-ops; verification is "disabled" via empty specs.
+		ctrl.Log.Info("verifier not configured - verification disabled")
+		verifier, _ := crypto.NewVerifierBuilder().Build()
+		a.verifier = verifier
 	}
 }

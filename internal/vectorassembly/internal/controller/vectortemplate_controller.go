@@ -11,10 +11,13 @@ import (
 	"github.com/go-logr/logr"
 	lru "github.com/hashicorp/golang-lru/v2"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	vectorocm "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
-	"github.com/konfidence-project/konfidence/pkg/ocm/clientcache"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
+	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
+	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,11 +53,13 @@ var (
 	errDriftDetectionFailed = errors.New("drift detection failed")
 )
 
-// VectorTemplateReconciler reconciles a VectorTemplate object
+// VectorTemplateReconciler reconciles a VectorTemplate object.
 type VectorTemplateReconciler struct {
 	client.Client
 	Recorder             events.EventRecorder
-	Cache                *clientcache.Cache[*konfidence.VectorTemplate, vector.OcmPort]
+	Verifier             crypto.Verifier
+	Limiter              crypto.Limiter
+	Log                  logr.Logger
 	VectorCache          *lru.Cache[string, vector.Vector]
 	VersionGenerator     vector.VersionGenerator
 	jobs                 *jobRegistry
@@ -118,7 +123,7 @@ func (r *VectorTemplateReconciler) reconcileAsync(
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	ocmAdapter, err := r.Cache.Lookup(ctx, r.Client, vt)
+	ocmAdapter, err := r.buildAdapter(ctx, vt)
 	if err != nil {
 		return ctrl.Result{}, r.setDriftDetectionFailed(vt, fmt.Errorf("building OCM clients: %w", err))
 	}
@@ -468,19 +473,54 @@ func getVectorConfiguration(vectorTemplate konfidence.VectorTemplate) (*vector.V
 // NewVectorTemplateReconciler wires a VectorTemplateReconciler for the given manager.
 func NewVectorTemplateReconciler(
 	mgr ctrl.Manager,
-	cache *clientcache.Cache[*konfidence.VectorTemplate, vector.OcmPort],
+	verifier crypto.Verifier,
+	limiter crypto.Limiter,
+	log logr.Logger,
 	vectorCache *lru.Cache[string, vector.Vector],
 	versionGenerator vector.VersionGenerator,
 ) *VectorTemplateReconciler {
 	return &VectorTemplateReconciler{
 		Client:               mgr.GetClient(),
 		Recorder:             mgr.GetEventRecorder(VectorAssemblyControllerName),
-		Cache:                cache,
+		Verifier:             verifier,
+		Limiter:              limiter,
+		Log:                  log,
 		VectorCache:          vectorCache,
 		VersionGenerator:     versionGenerator,
 		jobs:                 newJobRegistry(),
 		assemblyPollInterval: defaultAssemblyPollInterval,
 	}
+}
+
+// buildAdapter constructs the per-reconcile OCM adapter: resolver + OCI client +
+// signer are rebuilt on every call so credential rotations propagate on the
+// next reconcile; the Verifier is shared process-wide via r.Verifier.
+func (r *VectorTemplateReconciler) buildAdapter(ctx context.Context, vt *konfidence.VectorTemplate) (vector.OcmPort, error) {
+	resolver, err := credentials.ResolverFromCredentials(ctx, r.Client, vt.Namespace, vt.Spec.Credentials)
+	if err != nil {
+		return nil, fmt.Errorf("resolving credentials: %w", err)
+	}
+	ociClient, err := repository.NewOciClientBuilder().WithResolver(resolver).WithLogger(r.Log).Build(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("building OCI client: %w", err)
+	}
+	signer, err := crypto.NewSignerBuilder().
+		WithSpecs(crypto.SpecsFromSign(vt.Spec.SignVector)).
+		WithResolver(resolver).
+		WithLimiter(r.Limiter).
+		WithLogger(r.Log).
+		Build()
+	if err != nil {
+		return nil, fmt.Errorf("building signer: %w", err)
+	}
+	return vectorocm.NewAdapter(
+		vectorocm.WithOCMClient(ociClient),
+		vectorocm.WithVerifier(r.Verifier),
+		vectorocm.WithResolver(resolver),
+		vectorocm.WithVectorVerifySpecs(crypto.SpecsFromVerify(vt.Spec.VerifyVector)),
+		vectorocm.WithArtifactVerifySpecs(crypto.SpecsFromVerify(vt.Spec.VerifyArtifacts)),
+		vectorocm.WithVectorSigner(signer),
+	), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

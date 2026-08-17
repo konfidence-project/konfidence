@@ -17,8 +17,7 @@ import (
 )
 
 var (
-	_ Signer = (*OCMSigner)(nil)
-	_ Signer = (*NoopSigner)(nil)
+	_ Signer = (*ocmSigner)(nil)
 )
 
 // Signer is an interface for signing OCM descriptors.
@@ -30,11 +29,11 @@ type Signer interface {
 	Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error
 }
 
-// OCMSigner signs OCM descriptors against a configurable set of SignatureSpecs.
+// ocmSigner signs OCM descriptors against a configurable set of SignatureSpecs.
 // Each spec carries its own algorithm, media type, hash, and normalisation algorithm.
 // Credentials are resolved per signature through the required credentials.Resolver.
 // A missing key for any target signature aborts the entire signing operation.
-type OCMSigner struct {
+type ocmSigner struct {
 	log       logr.Logger
 	resolver  credentials.Resolver
 	rsaSigner signing.Signer
@@ -42,45 +41,40 @@ type OCMSigner struct {
 	limiter   Limiter
 }
 
-// OCMSignerOption configures an OCMSigner.
-type OCMSignerOption func(*OCMSigner)
+// ocmSignerOption configures an ocmSigner.
+type ocmSignerOption func(*ocmSigner)
 
-// WithSignerLogger sets the logger for the signer.
-func WithSignerLogger(log logr.Logger) OCMSignerOption {
-	return func(s *OCMSigner) {
+// withSignerLogger sets the logger for the signer.
+func withSignerLogger(log logr.Logger) ocmSignerOption {
+	return func(s *ocmSigner) {
 		s.log = log
 	}
 }
 
-// WithNamedSignerLogger decorates the logger with the standard signer name "ocm-signer".
-func WithNamedSignerLogger(log logr.Logger) OCMSignerOption {
-	return func(s *OCMSigner) {
-		s.log = log.WithName("ocm-signer")
-	}
-}
-
-// WithSignerLimiter installs a Limiter that bounds the number of concurrent
+// withSignerLimiter installs a Limiter that bounds the number of concurrent
 // signing operations. Pass the same Limiter to every Signer and Verifier in the
 // process to share the budget. Without this option a NoopLimiter is used —
 // signings run unbounded.
-func WithSignerLimiter(l Limiter) OCMSignerOption {
-	return func(s *OCMSigner) {
+func withSignerLimiter(l Limiter) ocmSignerOption {
+	return func(s *ocmSigner) {
 		if l != nil {
 			s.limiter = l
 		}
 	}
 }
 
-func defaultOCMSignerOptions() *OCMSigner {
-	return &OCMSigner{
+func defaultOCMSignerOptions() *ocmSigner {
+	return &ocmSigner{
 		log:     logr.Discard(),
 		limiter: NoopLimiter{},
 	}
 }
 
-// NewOCMSigner creates a new OCMSigner instance.
-// A non-nil credentials.Resolver and at least one SignatureSpec must be provided.
-func NewOCMSigner(resolver credentials.Resolver, specs []SignatureSpec, opts ...OCMSignerOption) (*OCMSigner, error) {
+// newOCMSigner creates a new ocmSigner instance.
+// A non-nil credentials.Resolver is required. Empty specs are permitted — the
+// resulting signer is a no-op (Sign returns nil), mirroring how a Verifier
+// treats empty specs. This is the "signing disabled" state.
+func newOCMSigner(resolver credentials.Resolver, specs []SignatureSpec, opts ...ocmSignerOption) (*ocmSigner, error) {
 	if resolver == nil {
 		return nil, fmt.Errorf("create signer: credentials resolver is required")
 	}
@@ -106,7 +100,12 @@ func NewOCMSigner(resolver credentials.Resolver, specs []SignatureSpec, opts ...
 	return s, nil
 }
 
-func (s *OCMSigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error {
+func (s *ocmSigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error {
+	// Empty specs is the "signing disabled" state — a no-op, symmetric with the
+	// Verifier's empty-specs no-op.
+	if len(s.specs) == 0 {
+		return nil
+	}
 	for _, spec := range s.specs {
 		if containsSignature(desc.Signatures, spec.Name) {
 			return fmt.Errorf("signature with name %q already exists", spec.Name)
@@ -121,7 +120,7 @@ func (s *OCMSigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) er
 		// errgroup solves error aggregation and fail-fast: any spec failure cancels
 		// gctx, so siblings short-circuit at the next ctx-aware operation. Per-call
 		// SetLimit is intentionally absent — concurrency is bounded process-wide by
-		// the Limiter installed via WithSignerLimiter.
+		// the Limiter installed via withSignerLimiter.
 		signerPool, gctx := errgroup.WithContext(ctx)
 		for idx, spec := range s.specs {
 			signerPool.Go(func() error { return s.sign(gctx, results, idx, desc, spec) })
@@ -134,7 +133,7 @@ func (s *OCMSigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) er
 	return nil
 }
 
-func (s *OCMSigner) sign(
+func (s *ocmSigner) sign(
 	ctx context.Context,
 	results []ocmdescriptor.Signature,
 	idx int,
@@ -206,12 +205,4 @@ func containsSignature(sigs []ocmdescriptor.Signature, name string) bool {
 		}
 	}
 	return false
-}
-
-// NoopSigner is a Signer implementation that does not perform any signing and returns nil for all operations.
-// It's the goto way to disable signing.
-type NoopSigner struct{}
-
-func (n NoopSigner) Sign(ctx context.Context, desc *ocmdescriptor.Descriptor) error {
-	return nil
 }

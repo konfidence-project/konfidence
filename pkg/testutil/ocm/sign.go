@@ -35,7 +35,7 @@ func SignDescriptor(ctx context.Context, desc *ocmdescriptor.Descriptor, binding
 		specs[i] = crypto.DefaultSignatureSpec(b.SignatureName, nil)
 	}
 
-	signer, err := crypto.NewOCMSigner(resolver, specs)
+	signer, err := crypto.NewSignerBuilder().WithSpecs(specs).WithResolver(resolver).Build()
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "create signer for SignDescriptor")
 	ExpectWithOffset(1, signer.Sign(ctx, desc)).NotTo(HaveOccurred(), "sign descriptor")
 }

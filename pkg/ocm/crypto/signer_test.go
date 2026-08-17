@@ -21,7 +21,7 @@ import (
 	"ocm.software/open-component-model/bindings/go/signing"
 )
 
-var _ = Describe("OCMSigner", func() {
+var _ = Describe("ocmSigner", func() {
 	var (
 		log = logr.Discard()
 
@@ -67,8 +67,8 @@ var _ = Describe("OCMSigner", func() {
 		isSafelyDigestible = signing.IsSafelyDigestible
 	})
 
-	makeOCMSigner := func(resolver credentials.Resolver, specs []SignatureSpec) *OCMSigner {
-		return &OCMSigner{
+	makeOCMSigner := func(resolver credentials.Resolver, specs []SignatureSpec) *ocmSigner {
+		return &ocmSigner{
 			log:       log,
 			rsaSigner: signerMock,
 			resolver:  resolver,
@@ -270,29 +270,34 @@ var _ = Describe("OCMSigner", func() {
 		Expect(desc.Signatures[1].Name).To(Equal("new-sig"))
 	})
 
-	It("NewOCMSigner errors with nil resolver", func() {
-		s, err := NewOCMSigner(nil, []SignatureSpec{DefaultSignatureSpec("sig1", nil)})
+	It("newOCMSigner errors with nil resolver", func() {
+		s, err := newOCMSigner(nil, []SignatureSpec{DefaultSignatureSpec("sig1", nil)})
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("credentials resolver is required"))
 		Expect(s).To(BeNil())
 	})
 
-	It("NewOCMSigner errors with empty specs slice", func() {
-		s, err := NewOCMSigner(resolverMock, []SignatureSpec{})
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("at least one signature spec must be provided"))
-		Expect(s).To(BeNil())
+	It("newOCMSigner with empty specs slice builds a no-op signer", func() {
+		s, err := newOCMSigner(resolverMock, []SignatureSpec{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(s).NotTo(BeNil())
+		// No specs → Sign is a no-op: no error, descriptor untouched, resolver unused.
+		desc := &runtime.Descriptor{}
+		Expect(s.Sign(context.Background(), desc)).To(Succeed())
+		Expect(desc.Signatures).To(BeEmpty())
 	})
 
-	It("NewOCMSigner errors with nil specs slice", func() {
-		s, err := NewOCMSigner(resolverMock, nil)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("at least one signature spec must be provided"))
-		Expect(s).To(BeNil())
+	It("newOCMSigner with nil specs slice builds a no-op signer", func() {
+		s, err := newOCMSigner(resolverMock, nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(s).NotTo(BeNil())
+		desc := &runtime.Descriptor{}
+		Expect(s.Sign(context.Background(), desc)).To(Succeed())
+		Expect(desc.Signatures).To(BeEmpty())
 	})
 
-	It("NewOCMSigner errors with duplicate spec names", func() {
-		s, err := NewOCMSigner(resolverMock, []SignatureSpec{
+	It("newOCMSigner errors with duplicate spec names", func() {
+		s, err := newOCMSigner(resolverMock, []SignatureSpec{
 			DefaultSignatureSpec("sig1", nil),
 			DefaultSignatureSpec("sig1", nil),
 		})
@@ -301,21 +306,15 @@ var _ = Describe("OCMSigner", func() {
 		Expect(s).To(BeNil())
 	})
 
-	It("NewOCMSigner errors with empty spec name", func() {
-		s, err := NewOCMSigner(resolverMock, []SignatureSpec{DefaultSignatureSpec("  ", nil)})
+	It("newOCMSigner errors with empty spec name", func() {
+		s, err := newOCMSigner(resolverMock, []SignatureSpec{DefaultSignatureSpec("  ", nil)})
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("signature names cannot be empty or whitespace"))
 		Expect(s).To(BeNil())
 	})
 
-	It("NewOCMSigner applies WithSignerLogger option", func() {
-		s, err := NewOCMSigner(resolverMock, []SignatureSpec{DefaultSignatureSpec("sig1", nil)}, WithSignerLogger(logr.Discard().WithName("custom")))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(s).ToNot(BeNil())
-	})
-
-	It("NewOCMSigner applies WithNamedSignerLogger option", func() {
-		s, err := NewOCMSigner(resolverMock, []SignatureSpec{DefaultSignatureSpec("sig1", nil)}, WithNamedSignerLogger(logr.Discard()))
+	It("newOCMSigner applies withSignerLogger option", func() {
+		s, err := newOCMSigner(resolverMock, []SignatureSpec{DefaultSignatureSpec("sig1", nil)}, withSignerLogger(logr.Discard().WithName("custom")))
 		Expect(err).ToNot(HaveOccurred())
 		Expect(s).ToNot(BeNil())
 	})
