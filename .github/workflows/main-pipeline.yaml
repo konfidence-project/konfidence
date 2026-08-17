@@ -13,7 +13,7 @@ jobs:
     # that is pushed in the same release.sh invocation.
     if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     permissions:
-      contents: read
+      contents: write
       packages: write
       attestations: write
       id-token: write

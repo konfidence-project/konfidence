@@ -8,7 +8,7 @@ jobs:
   lint-test-build:
     name: PR
     permissions:
-      contents: read
+      contents: write
       packages: write
       attestations: write
       id-token: write
