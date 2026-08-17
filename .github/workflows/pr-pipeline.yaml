@@ -13,7 +13,6 @@ jobs:
       attestations: write
       id-token: write
     uses: ./.github/workflows/lint-test-build.yaml
-    secrets: inherit
     with:
       mode: pr
       snapshot-tag: ${{ github.sha }}

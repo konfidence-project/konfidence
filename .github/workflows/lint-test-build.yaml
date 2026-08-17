@@ -17,7 +17,6 @@ jobs:
   lint:
     name: Lint
     uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v4
-    secrets: inherit
 
   reuse-lint:
     name: REUSE
@@ -26,28 +25,24 @@ jobs:
   test-operators:
     name: Test / Operators
     uses: konfidence-project/.github/.github/workflows/test.yaml@v4
-    secrets: inherit
     with:
       test-cmd: test-operators
 
   test-pkg:
     name: Test / Pkg
     uses: konfidence-project/.github/.github/workflows/test.yaml@v4
-    secrets: inherit
     with:
       test-cmd: test-pkg
 
   test-kden-cli:
     name: Test / kden CLI
     uses: konfidence-project/.github/.github/workflows/test.yaml@v4
-    secrets: inherit
     with:
       test-cmd: test-kden-cli
 
   test-api:
     name: Test / API
     uses: konfidence-project/.github/.github/workflows/test.yaml@v4
-    secrets: inherit
     with:
       test-cmd: test-api
 
@@ -60,7 +55,6 @@ jobs:
       attestations: write
       id-token: write
     uses: konfidence-project/.github/.github/workflows/goreleaser.yaml@v4
-    secrets: inherit
     with:
       runner: konfidence-large
       registry: ghcr.io
