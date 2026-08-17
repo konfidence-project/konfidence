@@ -95,18 +95,23 @@ type ArtifactDeploymentStatus struct {
 	// Results should be treated as immutable for a given generation and may be consumed by later stages of a vector
 	// rollout (e.g., routing configuration).
 	//
-	// Each result must have a unique Name.
+	// Results are unique by (name, type).
 	// +optional
+	// +listType=map
+	// +listMapKey=name
+	// +listMapKey=type
 	DeploymentResults []DeploymentResult `json:"deploymentResult,omitempty"`
 }
 
 // DeploymentResult contains a single output produced by a deployer. These results are used to transport information
 // from the deployer to later phases of the vector lifecycle.
 type DeploymentResult struct {
-	// Name is a unique identifier for the result within an ArtifactDeploymentStatus.
+	// Name identifies the result.
+	// +kubebuilder:validation:MaxLength=253
 	Name string `json:"name"`
 
 	// Type describes the structure contained in Spec. Each deployer may define multiple result types.
+	// +kubebuilder:validation:MaxLength=63
 	Type string `json:"type"`
 
 	// Spec contains deployer-specific structured data. Its format is determined by the Type field.

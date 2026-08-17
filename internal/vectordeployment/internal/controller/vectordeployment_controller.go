@@ -222,7 +222,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	// DeepEqual compares nil (server value after omitempty round-trip) vs. empty map.
 	var (
 		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifactReferences))
-		deploymentResults            = make(map[string][]konfidence.DeploymentResult)
+		deploymentResults            = make(map[string]konfidence.ComponentDeploymentResults)
 	)
 	allReady := true
 
