@@ -30,10 +30,17 @@ type VectorDataSpec struct {
 	Authored *runtime.RawExtension `json:"authored,omitempty"`
 
 	// DeploymentResults aggregated from underlying ArtifactDeployments, keyed by artifact
-	// component name; the value lists every result emitted by that component.
+	// component name; the value lists every result emitted by that component. Within a
+	// component's list, results are unique by (name, type).
 	// +optional
-	DeploymentResults map[string][]DeploymentResult `json:"deploymentResults,omitempty"`
+	// +kubebuilder:validation:MaxProperties=64
+	// +kubebuilder:validation:XValidation:rule="self.all(k,self[k].all(a,self[k].exists_one(b,b.name==a.name&&b.type==a.type)))"
+	DeploymentResults map[string]ComponentDeploymentResults `json:"deploymentResults,omitempty"`
 }
+
+// ComponentDeploymentResults lists the deployment results emitted by a single component.
+// +kubebuilder:validation:MaxItems=16
+type ComponentDeploymentResults []DeploymentResult
 
 type VectorDataStatus struct {
 	// +optional

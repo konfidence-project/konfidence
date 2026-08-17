@@ -83,8 +83,11 @@ type VectorDeploymentStatus struct {
 
 	// DeploymentResults exposes an aggregated view of the deployment results produced
 	// by all underlying ArtifactDeployments. The map key is the artifact component name;
-	// the value lists every result emitted by that ArtifactDeployment.
-	DeploymentResults map[string][]DeploymentResult `json:"deploymentResults,omitempty"`
+	// the value lists every result emitted by that ArtifactDeployment. Within a component's
+	// list, results are unique by (name, type).
+	// +kubebuilder:validation:MaxProperties=64
+	// +kubebuilder:validation:XValidation:rule="self.all(k,self[k].all(a,self[k].exists_one(b,b.name==a.name&&b.type==a.type)))"
+	DeploymentResults map[string]ComponentDeploymentResults `json:"deploymentResults,omitempty"`
 }
 
 // LocalObjectReference references an object by name within the same namespace as the parent.

@@ -153,14 +153,16 @@ spec:
                 type: array
               deploymentResults:
                 additionalProperties:
+                  description: ComponentDeploymentResults lists the deployment results
+                    emitted by a single component.
                   items:
                     description: |-
                       DeploymentResult contains a single output produced by a deployer. These results are used to transport information
                       from the deployer to later phases of the vector lifecycle.
                     properties:
                       name:
-                        description: Name is a unique identifier for the result within
-                          an ArtifactDeploymentStatus.
+                        description: Name identifies the result.
+                        maxLength: 253
                         type: string
                       spec:
                         description: Spec contains deployer-specific structured data.
@@ -170,18 +172,24 @@ spec:
                       type:
                         description: Type describes the structure contained in Spec.
                           Each deployer may define multiple result types.
+                        maxLength: 63
                         type: string
                     required:
                     - name
                     - spec
                     - type
                     type: object
+                  maxItems: 16
                   type: array
                 description: |-
                   DeploymentResults exposes an aggregated view of the deployment results produced
                   by all underlying ArtifactDeployments. The map key is the artifact component name;
-                  the value lists every result emitted by that ArtifactDeployment.
+                  the value lists every result emitted by that ArtifactDeployment. Within a component's
+                  list, results are unique by (name, type).
+                maxProperties: 64
                 type: object
+                x-kubernetes-validations:
+                - rule: self.all(k,self[k].all(a,self[k].exists_one(b,b.name==a.name&&b.type==a.type)))
               resolvedVectorOcm:
                 description: |-
                   ResolvedVectorOcm contains the fully materialized content of the OCM ComponentVersion after it has been
