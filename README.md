@@ -71,7 +71,7 @@ pnpm ui:start
 
 ## Support, Feedback, Contributing
 
-This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://github.com/konfidence-project/konfidence/issues). 
+This project is open to feature requests and suggestions, bug reports etc. via [GitHub issues](https://github.com/konfidence-project/konfidence/issues).
 Contribution and feedback are encouraged and always welcome.
 For more information about how to contribute see our [Contribution Guidelines](https://github.com/konfidence-project/.github/blob/main/CONTRIBUTING.md).
 
