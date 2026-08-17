@@ -2,17 +2,18 @@ package oidc
 
 import (
 	"fmt"
+	"sync"
+	"time"
 
-	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/maypok86/otter/v2"
 )
 
 type StateStore interface {
 	Save(state *StateData) error
-	Get(id string) (*StateData, error)
-	Delete(state *StateData) error
+	Consume(id string) (*StateData, error)
 }
 type StateCacheStore struct {
+	mu    sync.Mutex
 	cache otter.Cache[string, StateData]
 }
 
@@ -25,25 +26,22 @@ func (s *StateCacheStore) Save(state *StateData) error {
 	return nil
 }
 
-func (s *StateCacheStore) Delete(state *StateData) error {
-	if state == nil {
-		return fmt.Errorf("failed to delete state: state is empty")
+func (s *StateCacheStore) Consume(id string) (*StateData, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state, ok := s.cache.GetIfPresent(id)
+	if !ok {
+		return nil, nil
 	}
 
-	s.cache.Invalidate(state.State)
-	return nil
+	s.cache.Invalidate(id)
+	return &state, nil
 }
 
-func (s *StateCacheStore) Get(id string) (*StateData, error) {
-	if data, ok := s.cache.GetIfPresent(id); ok {
-		return &data, nil
-	}
-	return nil, nil
-}
-
-func NewStateCacheStore(cfg config.Parsed) *StateCacheStore {
+func NewStateCacheStore(expiration time.Duration) *StateCacheStore {
 	cache := otter.Must(&otter.Options[string, StateData]{
-		ExpiryCalculator: otter.ExpiryCreating[string, StateData](cfg.OIDC.StateExpiration),
+		ExpiryCalculator: otter.ExpiryCreating[string, StateData](expiration),
 	})
 
 	return &StateCacheStore{cache: *cache}

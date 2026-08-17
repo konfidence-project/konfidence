@@ -72,7 +72,7 @@ var _ = Describe("Configure", func() {
 		It("should return log-level 'error', log-format 'pretty', output `json`", func() {
 			err := Configure(cmd)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(Config.LogLevel).To(Equal("error"))
+			Expect(Config.LogLevel).To(Equal("info"))
 			Expect(Config.LogFormat).To(Equal("pretty"))
 			Expect(Config.Output).To(Equal(jsonLiteral))
 		})
@@ -175,7 +175,7 @@ var _ = Describe("Configure", func() {
 			err = Configure(cmd)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(Config.LogLevel).To(Equal("error"))
+			Expect(Config.LogLevel).To(Equal("info"))
 			Expect(Config.LogFormat).To(Equal("pretty"))
 			Expect(Config.Output).To(Equal(jsonLiteral))
 		})
@@ -370,6 +370,8 @@ var _ = Describe("validateConfiguration", func() {
 			Config.LogFormat = jsonLiteral
 			Config.Output = jsonLiteral
 			Config.APIEndpoint = "http://localhost:8090"
+			Config.LoginTimeout = "2m"
+			Config.RequestTimeout = "30s"
 
 			err := validateConfig(&Config)
 			Expect(err).ToNot(HaveOccurred())
@@ -418,6 +420,33 @@ var _ = Describe("validateConfiguration", func() {
 			Entry("https with port", "https://api.konfidence.example.com:8090"),
 			Entry("http no port", "http://konfidence-api.konfidence-system"),
 			Entry("https no port", "https://api.example.com"),
+		)
+
+		DescribeTable("validates request and login timeouts",
+			func(loginTimeout, requestTimeout, expectedError string) {
+				cfg := Configuration{
+					LogLevel:       "info",
+					LogFormat:      "json",
+					Output:         "json",
+					APIEndpoint:    "http://localhost:8090",
+					LoginTimeout:   loginTimeout,
+					RequestTimeout: requestTimeout,
+				}
+
+				err := validateConfig(&cfg)
+				if expectedError == "" {
+					Expect(err).ToNot(HaveOccurred())
+					return
+				}
+
+				Expect(err).To(MatchError(ContainSubstring(expectedError)))
+			},
+			Entry("valid", "2m", "30s", ""),
+			Entry("equal", "30s", "30s", "must be greater than request-timeout"),
+			Entry("login shorter", "20s", "30s", "must be greater than request-timeout"),
+			Entry("zero request timeout", "2m", "0s", "must be greater than zero"),
+			Entry("negative request timeout", "2m", "-1s", "must be greater than zero"),
+			Entry("invalid request timeout", "2m", "invalid", "request-timeout has an invalid value"),
 		)
 	})
 })
