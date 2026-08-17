@@ -2,8 +2,12 @@ package handler
 
 import (
 	"context"
+	"crypto/subtle"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"slices"
 
 	"github.com/konfidence-project/konfidence/internal/api/config"
@@ -11,29 +15,43 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
 	"github.com/samber/lo"
+	"golang.org/x/oauth2"
 )
 
 type authHandler struct {
-	logger     *slog.Logger
-	oidcClient oidc.Client
-	stateCache oidc.StateStore
-	sessions   session.Writer
-	config     config.Parsed
+	logger        *slog.Logger
+	oidcClient    oidc.Client
+	stateCache    oidc.StateStore
+	exchangeCache oidc.ExchangeStore
+	sessions      session.Writer
+	config        config.Parsed
 }
 
-func newAuthHandler(logger *slog.Logger, oidcClient oidc.Client, stateStore oidc.StateStore, sessions session.Writer, cfg config.Parsed) *authHandler {
+func newAuthHandler(logger *slog.Logger, oidcClient oidc.Client, stateStore oidc.StateStore, exchangeStore oidc.ExchangeStore,
+	sessions session.Writer, cfg config.Parsed) *authHandler {
 	return &authHandler{
-		logger:     logger,
-		oidcClient: oidcClient,
-		stateCache: stateStore,
-		sessions:   sessions,
-		config:     cfg,
+		logger:        logger,
+		oidcClient:    oidcClient,
+		stateCache:    stateStore,
+		exchangeCache: exchangeStore,
+		sessions:      sessions,
+		config:        cfg,
 	}
 }
 
 func (a *authHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error) {
-	if !allowedReturnURL(request.Params.ReturnUrl, a.config.OIDC.AllowReturnURLs) {
-		a.logger.Warn("return URL is not allowed", "return_url", request.Params.ReturnUrl)
+	codeChallenge := ""
+	if request.Params.CodeChallenge != nil {
+		codeChallenge = *request.Params.CodeChallenge
+	}
+
+	if codeChallenge == "" {
+		if !allowedReturnURL(request.Params.ReturnUrl, a.config.OIDC.AllowReturnURLs) {
+			a.logger.Warn("return URL is not allowed", "return_url", request.Params.ReturnUrl)
+			return openapi.LoginV1400JSONResponse{}, nil
+		}
+	} else if !allowedCLIReturnURL(request.Params.ReturnUrl) {
+		a.logger.Warn("CLI return URL is not a loopback URL", "return_url", request.Params.ReturnUrl)
 		return openapi.LoginV1400JSONResponse{}, nil
 	}
 
@@ -42,20 +60,44 @@ func (a *authHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestO
 		return nil, err
 	}
 
-	err = a.stateCache.Save(state)
-	if err != nil {
+	state.ClientCodeChallenge = codeChallenge
+
+	if err := a.stateCache.Save(state); err != nil {
 		return nil, err
 	}
 
-	// generate redirect url
-	authCodeUrl := a.oidcClient.AuthCodeURL(state)
+	authCodeURL := a.oidcClient.AuthCodeURL(state)
 	return openapi.LoginV1302Response{
-		Headers: openapi.LoginV1302ResponseHeaders{Location: &authCodeUrl},
+		Headers: openapi.LoginV1302ResponseHeaders{
+			Location: &authCodeURL,
+		},
 	}, nil
 }
 
 func allowedReturnURL(returnURL string, allowReturnURLs []string) bool {
 	return slices.Contains(allowReturnURLs, returnURL)
+}
+
+func allowedCLIReturnURL(rawURL string) bool {
+	callbackURL, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	if callbackURL.Scheme != "http" || callbackURL.Path != "/callback" {
+		return false
+	}
+
+	host := callbackURL.Hostname()
+	if host != "127.0.0.1" && host != "::1" {
+		return false
+	}
+
+	port := callbackURL.Port()
+	if port == "" {
+		return false
+	}
+
+	return net.ParseIP(host) != nil
 }
 
 func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error) {
@@ -65,32 +107,46 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 		return openapi.AuthCallbackV1400JSONResponse{}, nil
 	}
 
+	storedState, err := a.stateCache.Consume(state)
+	if err != nil {
+		return openapi.AuthCallbackV1500JSONResponse{}, nil
+	}
+	if storedState == nil {
+		return openapi.AuthCallbackV1400JSONResponse{}, nil
+	}
+
+	// forward auth error to CLI callback
+	if storedState.ClientCodeChallenge != "" && request.Params.Error != nil && *request.Params.Error != "" {
+		callbackURL, err := url.Parse(storedState.ReturnURL)
+		if err != nil {
+			return nil, fmt.Errorf("parsing login return URL: %w", err)
+		}
+
+		query := callbackURL.Query()
+		query.Set("error", *request.Params.Error)
+
+		if request.Params.ErrorDescription != nil {
+			query.Set("error_description", *request.Params.ErrorDescription)
+		}
+
+		callbackURL.RawQuery = query.Encode()
+		location := callbackURL.String()
+
+		return openapi.AuthCallbackV1302Response{
+			Headers: openapi.AuthCallbackV1302ResponseHeaders{
+				Location: &location,
+			},
+		}, nil
+	}
+
 	code := request.Params.Code
-	if code == "" {
+	if code == nil || *code == "" {
 		a.logger.Error("missing authorization code parameter")
 		return openapi.AuthCallbackV1400JSONResponse{}, nil
 	}
 
-	storedState, err := a.stateCache.Get(state)
-	if err != nil {
-		a.logger.Error("failed to get stored oidc state", "error", err)
-		return openapi.AuthCallbackV1500JSONResponse{}, nil
-	}
-
-	// entry does not exist or has been invalidated
-	if storedState == nil {
-		a.logger.Error("oidc state does not exist or has expired")
-		return openapi.AuthCallbackV1400JSONResponse{}, nil
-	}
-
-	err = a.stateCache.Delete(storedState)
-	if err != nil {
-		a.logger.Error("failed to get delete stored oidc state", "error", err)
-		// no error thrown here since stateStore should remove entry after TTL
-	}
-
 	// use auth code to get tokens
-	tokenResponse, err := a.oidcClient.Exchange(ctx, code, storedState)
+	tokenResponse, err := a.oidcClient.Exchange(ctx, *code, storedState)
 	if err != nil {
 		a.logger.Error("token exchange failed", "error", err)
 		return openapi.AuthCallbackV1400JSONResponse{}, nil
@@ -113,6 +169,11 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 	if err != nil {
 		a.logger.Error("failed to get user information")
 		return openapi.AuthCallbackV1401JSONResponse{}, err
+	}
+
+	if userInformation.Subject != idToken.Subject {
+		a.logger.Error("user information subject and token subject do not match. invalid idp configuration")
+		return openapi.AuthCallbackV1400JSONResponse{}, err
 	}
 
 	// extract additional claims
@@ -145,20 +206,39 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 	}
 
 	sess.ID = sessionId
-	sessionCookie := &http.Cookie{
-		Name:     a.config.Session.Cookie.Name,
-		Value:    sessionId,
-		HttpOnly: a.config.Session.Cookie.HTTPOnly,
-		Secure:   a.config.Session.Cookie.Secure,
-		SameSite: sameSiteMode(a.config.Session.Cookie.SameSite),
-		Path:     "/",
+
+	if storedState.ClientCodeChallenge != "" {
+		exchangeCode := oauth2.GenerateVerifier()
+		if err := a.exchangeCache.Save(exchangeCode, oidc.Exchange{
+			SessionID:     sessionId,
+			CodeChallenge: storedState.ClientCodeChallenge,
+		}); err != nil {
+			return nil, err
+		}
+
+		callbackURL, err := url.Parse(storedState.ReturnURL)
+		if err != nil {
+			return nil, fmt.Errorf("parsing CLI callback URL failed: %w", err)
+		}
+
+		query := callbackURL.Query()
+		query.Set("code", exchangeCode)
+		callbackURL.RawQuery = query.Encode()
+		location := callbackURL.String()
+
+		return openapi.AuthCallbackV1302Response{
+			Headers: openapi.AuthCallbackV1302ResponseHeaders{
+				Location: &location,
+			},
+		}, nil
 	}
 
-	sCookieStr := sessionCookie.String()
+	cookie := a.sessionCookie(sessionId)
+	cookieValue := cookie.String()
 	return openapi.AuthCallbackV1302Response{
 		Headers: openapi.AuthCallbackV1302ResponseHeaders{
 			Location:  &storedState.ReturnURL,
-			SetCookie: &sCookieStr,
+			SetCookie: &cookieValue,
 		},
 	}, nil
 }
@@ -210,8 +290,33 @@ func (a *authHandler) GetIdentityV1(ctx context.Context, _ openapi.GetIdentityV1
 	}, nil
 }
 
-func (a *authHandler) PostExchangeCodeV1(_ context.Context, _ openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
-	return nil, nil
+func (a *authHandler) PostExchangeCodeV1(_ context.Context, request openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
+	if request.Body == nil || request.Body.Code == "" || request.Body.Verifier == "" {
+		return openapi.PostExchangeCodeV1401JSONResponse{}, nil
+	}
+
+	exchange, err := a.exchangeCache.Consume(request.Body.Code)
+	if err != nil {
+		return openapi.PostExchangeCodeV1500JSONResponse{}, err
+	}
+	if exchange == nil {
+		return openapi.PostExchangeCodeV1401JSONResponse{}, nil
+	}
+
+	actualChallenge := oauth2.S256ChallengeFromVerifier(request.Body.Verifier)
+	if subtle.ConstantTimeCompare(
+		[]byte(actualChallenge),
+		[]byte(exchange.CodeChallenge),
+	) != 1 {
+		return openapi.PostExchangeCodeV1401JSONResponse{}, nil
+	}
+
+	cookieValue := a.sessionCookie(exchange.SessionID).String()
+	return openapi.PostExchangeCodeV1200Response{
+		Headers: openapi.PostExchangeCodeV1200ResponseHeaders{
+			SetCookie: &cookieValue,
+		},
+	}, nil
 }
 
 func sameSiteMode(mode string) http.SameSite {
@@ -226,4 +331,15 @@ func sameSiteMode(mode string) http.SameSite {
 		return http.SameSiteStrictMode
 	}
 	return http.SameSiteDefaultMode
+}
+
+func (a *authHandler) sessionCookie(sessionID string) *http.Cookie {
+	return &http.Cookie{
+		Name:     a.config.Session.Cookie.Name,
+		Value:    sessionID,
+		HttpOnly: a.config.Session.Cookie.HTTPOnly,
+		Secure:   a.config.Session.Cookie.Secure,
+		SameSite: sameSiteMode(a.config.Session.Cookie.SameSite),
+		Path:     "/",
+	}
 }

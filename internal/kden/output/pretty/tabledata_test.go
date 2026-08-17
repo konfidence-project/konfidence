@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"charm.land/bubbles/v2/table"
+	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
 	"github.com/konfidence-project/konfidence/internal/kden/output/pretty"
 	"github.com/konfidence-project/konfidence/internal/kden/validation/output"
 	. "github.com/onsi/ginkgo/v2"
@@ -59,6 +60,32 @@ var _ = Describe("GetModelFuncMap", func() {
 				Expect(result.Err.Error()).To(ContainSubstring("error while creating table for command validate"))
 				fmt.Println(result.Err.Error())
 			})
+		})
+	})
+
+	Describe("project list model function", func() {
+		It("returns project ID and name rows", func() {
+			fn := pretty.GetModelFuncMap()["project-list"]
+			result := fn(&apiclient.ProjectList{Data: []apiclient.Project{
+				{Id: "project-a", Name: "Project A"},
+				{Id: "project-b", Name: "Project B"},
+			}})
+
+			Expect(result.Err).NotTo(HaveOccurred())
+			Expect(result.Columns).To(Equal([]table.Column{
+				{Title: "ID", Width: 40},
+				{Title: "Name", Width: 40},
+			}))
+			Expect(result.Rows).To(Equal([]table.Row{
+				{"project-a", "Project A"},
+				{"project-b", "Project B"},
+			}))
+		})
+
+		It("rejects an unexpected response type", func() {
+			result := pretty.GetModelFuncMap()["project-list"]("not a project list")
+
+			Expect(result.Err).To(MatchError(ContainSubstring("expected *ProjectList")))
 		})
 	})
 })
