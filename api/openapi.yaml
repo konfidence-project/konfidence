@@ -32,6 +32,14 @@ paths:
           schema:
             type: string
             format: uri
+        - name: code_challenge
+          in: query
+          description: PKCE S256 challenge used for CLI login.
+          required: false
+          schema:
+            type: string
+            minLength: 43
+            maxLength: 128
       responses:
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -55,14 +63,24 @@ paths:
       tags: [auth]
       security: []
       parameters:
-        - name: code
+        - name: state
           in: query
           required: true
           schema:
             type: string
-        - name: state
+        - name: code
           in: query
-          required: true
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          required: false
           schema:
             type: string
       responses:
@@ -132,6 +150,7 @@ paths:
           application/json:
             schema:
               type: object
+              required: [ code, verifier ]
               properties:
                 code:
                   type: string
@@ -140,11 +159,12 @@ paths:
 
       responses:
         "200":
-          description: OK
-          content:
-            application/json:
+          description: Session established.
+          headers:
+            Set-Cookie:
+              description: Contains the session id.
               schema:
-                $ref: "#/components/schemas/Session"
+                type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -461,13 +481,6 @@ components:
             type: array
             items:
               type: string
-
-    Session:
-      type: object
-      required: [id]
-      properties:
-        id:
-          type: string
 
     ArtifactReference:
       allOf:

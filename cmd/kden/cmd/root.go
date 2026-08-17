@@ -2,14 +2,21 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/artifact"
+	"github.com/konfidence-project/konfidence/cmd/kden/cmd/auth"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/completion"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/config"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/man"
+	"github.com/konfidence-project/konfidence/cmd/kden/cmd/project"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vector"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/version"
+	kdenauth "github.com/konfidence-project/konfidence/internal/kden/auth"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/log"
 	"github.com/spf13/cobra"
@@ -25,6 +32,7 @@ framework built on Kubernetes.
 Example usage:
   kden version
   kden help`
+var appConfig = &cfg.AppConfig{}
 
 var rootCmd = &cobra.Command{
 	Use:   cfg.RootCommandName,
@@ -44,6 +52,25 @@ var rootCmd = &cobra.Command{
 		}
 
 		log.InitLogger(handler)
+
+		appConfig.APIProvider = cfg.NewAPIClientProvider(func() (*kdenauth.Client, error) {
+			loginTimeout, err := time.ParseDuration(cfg.Config.LoginTimeout)
+			if err != nil {
+				return nil, fmt.Errorf("parsing login timeout failed: %w", err)
+			}
+
+			requestTimeout, err := time.ParseDuration(cfg.Config.RequestTimeout)
+			if err != nil {
+				return nil, fmt.Errorf("parsing request timeout failed: %w", err)
+			}
+
+			return kdenauth.NewClient(
+				normalizeAPIEndpoint(cfg.Config.APIEndpoint),
+				kdenauth.KeyringCookieStore{},
+				loginTimeout,
+				requestTimeout,
+			)
+		})
 
 		setup.Syscalls(cmd)
 	},
@@ -75,6 +102,16 @@ func initCmd() {
 		"api-endpoint",
 		"",
 		"Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)")
+	rootCmd.PersistentFlags().String(
+		"login-timeout",
+		"",
+		"Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)",
+	)
+	rootCmd.PersistentFlags().String(
+		"request-timeout",
+		"",
+		"Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)",
+	)
 
 	rootCmd.AddCommand(completion.NewCompletionCmd())
 	rootCmd.AddCommand(config.NewConfigCmd())
@@ -82,4 +119,31 @@ func initCmd() {
 	rootCmd.AddCommand(artifact.NewArtifactCmd())
 	rootCmd.AddCommand(version.NewVersionCmd())
 	rootCmd.AddCommand(vector.NewVectorCmd())
+	rootCmd.AddCommand(project.NewProjectCmd(appConfig))
+
+	loginCmd, err := auth.NewLoginCmd(appConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	logoutCmd, err := auth.NewLogoutCmd(appConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	rootCmd.AddCommand(loginCmd)
+	rootCmd.AddCommand(logoutCmd)
+}
+
+func normalizeAPIEndpoint(endpoint string) string {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return endpoint
+	}
+
+	if parsed.Path == "" || parsed.Path == "/" {
+		parsed.Path = "/api"
+	}
+
+	return strings.TrimRight(parsed.String(), "/")
 }

@@ -177,6 +177,8 @@ func startServer(cmd *cobra.Command, _ []string) error {
 			AuthorizationURL:    parsed.OIDC.AuthorizationURL,
 			DeviceAuthURL:       parsed.OIDC.DeviceAuthURL,
 			RedirectURI:         parsed.OIDC.RedirectURL,
+			UserInfoURL:         parsed.OIDC.UserInfoURL,
+			JWKSURL:             parsed.OIDC.JWKSURL,
 			ClientID:            parsed.OIDC.ClientID,
 			ClientSecret:        parsed.OIDC.ClientSecret,
 			Scopes:              parsed.OIDC.Scopes,

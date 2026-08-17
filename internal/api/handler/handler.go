@@ -26,7 +26,8 @@ var _ openapi.StrictServerInterface = (*apiHandler)(nil)
 
 func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc.Client,
 	sessionStore session.Store, cfg config.Parsed) (http.Handler, error) {
-	auth := newAuthHandler(logger, oidcClient, oidc.NewStateCacheStore(cfg), sessionStore, cfg)
+	exp := cfg.OIDC.StateExpiration
+	auth := newAuthHandler(logger, oidcClient, oidc.NewStateCacheStore(exp), oidc.NewExchangeCacheStore(exp), sessionStore, cfg)
 
 	authRepo := authdomain.NewRepository(k8sClient)
 	projectRepo := projectdomain.NewRepository(k8sClient)
