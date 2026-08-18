@@ -47,7 +47,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: konfidence-project/.github/.github/actions/github-repo-access@v4
+      - uses: konfidence-project/.github/.github/actions/github-app-auth@v4
         with:
           client-id: ${{ vars.GH_APP_ID }}
           private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
