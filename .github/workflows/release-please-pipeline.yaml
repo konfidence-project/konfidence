@@ -42,6 +42,7 @@ jobs:
     needs: [release-please, release]
     if: needs.release-please.outputs.release_created == 'true'
     permissions:
+      contents: read
       packages: write
     uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
     secrets: inherit

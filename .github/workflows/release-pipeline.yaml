@@ -35,6 +35,7 @@ jobs:
     name: Publish Helm Charts
     needs: [version, lint-test-build]
     permissions:
+      contents: read
       packages: write
     uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
     secrets: inherit
