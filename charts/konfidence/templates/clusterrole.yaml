@@ -106,6 +106,7 @@ rules:
   - konfidence.cloud
   resources:
   - deploymentclasses
+  - deploymenttargets
   - vectorpromotionconfigs
   - vectortemplates
   verbs:

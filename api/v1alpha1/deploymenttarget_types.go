@@ -18,6 +18,7 @@ type DeploymentTargetSpec struct {
 	// Type references a DeploymentClass by its spec.type field.
 	// The referenced DeploymentClass must exist in the cluster.
 	// This determines which controller will handle deployments to this target.
+	// The value must be unique across DeploymentTargets in the same namespace.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
@@ -90,9 +91,8 @@ type DeploymentTargetStatus struct {
 // DeploymentTarget is the Schema for the deploymenttargets API. A DeploymentTarget
 // configures a concrete deployment destination within a landscape for a specific
 // deployment class. It is namespace-scoped and created in landscape namespaces.
-// Multiple DeploymentTargets of different types can exist in the same landscape,
-// and multiple targets of the same type can share underlying infrastructure
-// (e.g., two Kubernetes deployment classes targeting the same cluster).
+// Multiple DeploymentTargets can exist in the same landscape, but their types must
+// be unique within the namespace.
 type DeploymentTarget struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

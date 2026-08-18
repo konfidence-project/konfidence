@@ -462,9 +462,8 @@ _Appears in:_
 DeploymentTarget is the Schema for the deploymenttargets API. A DeploymentTarget
 configures a concrete deployment destination within a landscape for a specific
 deployment class. It is namespace-scoped and created in landscape namespaces.
-Multiple DeploymentTargets of different types can exist in the same landscape,
-and multiple targets of the same type can share underlying infrastructure
-(e.g., two Kubernetes deployment classes targeting the same cluster).
+Multiple DeploymentTargets can exist in the same landscape, but their types must
+be unique within the namespace.
 
 
 
@@ -532,7 +531,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _string_ | Type references a DeploymentClass by its spec.type field.<br />The referenced DeploymentClass must exist in the cluster.<br />This determines which controller will handle deployments to this target. |  | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*\/[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Required: \{\} <br /> |
+| `type` _string_ | Type references a DeploymentClass by its spec.type field.<br />The referenced DeploymentClass must exist in the cluster.<br />This determines which controller will handle deployments to this target.<br />The value must be unique across DeploymentTargets in the same namespace. |  | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*\/[a-z0-9]([-a-z0-9]*[a-z0-9])?$` <br />Required: \{\} <br /> |
 | `connection` _[DeploymentTargetConnection](#deploymenttargetconnection)_ | Connection defines how to connect to this deployment target.<br />The structure and interpretation of connection details is specific to the<br />deployment class and its implementing controller. |  | Required: \{\} <br /> |
 
 
@@ -554,6 +553,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  | Optional: \{\} <br /> |
+
+
 
 
 #### GlobMatch
