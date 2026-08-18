@@ -205,17 +205,6 @@ var _ = Describe("OCMVerifier", func() {
 		Expect(v.Verify(context.Background(), resolverMock, []SignatureSpec{defaultSpec("sig1")}, nil)).To(Succeed())
 	})
 
-	It("fails when descriptor is not safely digestible", func() {
-		spec := defaultSpec("sig1")
-		desc := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}
-		v := makeVerifier()
-
-		isSafelyDigestible = func(_ *runtime.Component) error { return fmt.Errorf("not safely digestible") }
-
-		Expect(v.Verify(context.Background(), resolverMock, []SignatureSpec{spec}, []*runtime.Descriptor{desc})).To(MatchError(
-			ContainSubstring("descriptor is not safely digestible: not safely digestible")))
-	})
-
 	It("one failed verification in multi-descriptor batch fails entire operation", func() {
 		spec := defaultSpec("sig1")
 		desc1 := &runtime.Descriptor{Signatures: []runtime.Signature{matchingSig("sig1", spec)}}

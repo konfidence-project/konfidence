@@ -14,11 +14,15 @@ var _ Verifier = (*parallelVerifier)(nil)
 // parallelVerifier is a Verifier decorator that fans out the spec × desc
 // matrix concurrently, bounded by a process-wide Limiter.
 //
-// Each goroutine acquires the limiter before delegating to the inner Verifier.
-// Sibling failures do not cancel each other — every cell that passes completes
-// regardless of what others do (best-effort semantics). The caller's context
-// still propagates, so external cancellation (reconcile timeout, controller
-// shutdown) is respected.
+// Best-effort by design: a failing cell does NOT cancel its siblings. Verify
+// waits for every cell to finish, so each cell that passes reaches the inner
+// cache and is memoized regardless of what others do; the FIRST error is
+// returned only after the full fan-in. This is why it uses a zero-value
+// errgroup.Group (which never cancels) and NOT errgroup.WithContext — do not
+// "optimize" it to the latter, which would abort in-flight verifications on the
+// first failure and lose their cache fills. External cancellation still
+// propagates: the caller's ctx is passed straight to each cell's Limiter.Acquire
+// and inner Verify, so a reconcile timeout or controller shutdown is respected.
 type parallelVerifier struct {
 	inner   Verifier
 	limiter Limiter

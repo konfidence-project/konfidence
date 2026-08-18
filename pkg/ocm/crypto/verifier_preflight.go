@@ -11,9 +11,14 @@ import (
 
 var _ Verifier = (*preFlightVerifier)(nil)
 
-// preFlightVerifier is a Verifier decorator that validates SignatureSpecs
-// (non-empty names, no duplicates, valid issuer pins) before delegating
-// to the inner Verifier.
+// preFlightVerifier is a Verifier decorator that validates the inputs once, at
+// the top of the chain, before any fan-out, caching, or crypto:
+//   - the SignatureSpecs (non-empty names, no duplicates, valid issuer pins)
+//   - that every descriptor is safely digestible
+//
+// Both are structural preconditions of the whole descriptor batch, independent
+// of any single (spec, desc) cell — so they run here exactly once, not
+// per-cell in the inner layers.
 type preFlightVerifier struct {
 	inner Verifier
 }
@@ -27,7 +32,12 @@ func (v *preFlightVerifier) Verify(ctx context.Context, resolver credentials.Res
 		return nil
 	}
 	if err := specPreFlightSanityCheck(specs); err != nil {
-		return fmt.Errorf("ocm descriptor verification failed: %w", err)
+		return fmt.Errorf("ocm descriptor verification failed for the cr specs provided: %w", err)
+	}
+	for _, desc := range descs {
+		if err := isSafelyDigestible(&desc.Component); err != nil {
+			return fmt.Errorf("ocm descriptor verification failed: descriptor is not safely digestible: %w", err)
+		}
 	}
 	return v.inner.Verify(ctx, resolver, specs, descs)
 }

@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -23,10 +24,12 @@ var _ = Describe("preFlightVerifier", func() {
 		verifyDigestMatchesDescriptor = func(_ context.Context, _ *ocm.Descriptor, _ ocm.Signature, _ *slog.Logger) error {
 			return nil
 		}
+		isSafelyDigestible = func(_ *ocm.Component) error { return nil }
 		desc = descWith(sig("sig1", "abc"))
 	})
 	AfterEach(func() {
 		verifyDigestMatchesDescriptor = signing.VerifyDigestMatchesDescriptor
+		isSafelyDigestible = signing.IsSafelyDigestible
 	})
 
 	It("delegates to inner when specs are valid", func() {
@@ -80,5 +83,35 @@ var _ = Describe("preFlightVerifier", func() {
 
 		Expect(v.Verify(context.Background(), nil, []SignatureSpec{specFor("sig1")}, nil)).To(Succeed())
 		Expect(stub.calls.Load()).To(Equal(int64(0)))
+	})
+
+	It("rejects a not-safely-digestible descriptor without delegating to inner", func() {
+		// The safe-digestibility gate lives here, at the top of the chain — run
+		// once per batch, before any fan-out, caching, or crypto.
+		stub := newStub(nil)
+		v := newPreFlightVerifier(stub)
+		isSafelyDigestible = func(_ *ocm.Component) error { return fmt.Errorf("not safely digestible") }
+
+		err := v.Verify(context.Background(), nil, []SignatureSpec{specFor("sig1")}, []*ocm.Descriptor{desc})
+		Expect(err).To(MatchError(ContainSubstring("descriptor is not safely digestible: not safely digestible")))
+		Expect(stub.calls.Load()).To(Equal(int64(0)), "must short-circuit before any inner layer")
+	})
+
+	It("rejects the whole batch if any descriptor is not safely digestible", func() {
+		// The gate covers every descriptor in the batch, not just the first.
+		stub := newStub(nil)
+		v := newPreFlightVerifier(stub)
+		good := descWith(sig("sig1", "good"))
+		bad := descWith(sig("sig1", "bad"))
+		isSafelyDigestible = func(c *ocm.Component) error {
+			if c == &bad.Component {
+				return fmt.Errorf("not safely digestible")
+			}
+			return nil
+		}
+
+		err := v.Verify(context.Background(), nil, []SignatureSpec{specFor("sig1")}, []*ocm.Descriptor{good, bad})
+		Expect(err).To(MatchError(ContainSubstring("not safely digestible")))
+		Expect(stub.calls.Load()).To(Equal(int64(0)), "a single bad descriptor rejects the batch before delegation")
 	})
 })
