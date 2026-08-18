@@ -63,5 +63,11 @@ jobs:
           client-id: ${{ vars.GH_APP_ID }}
           private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
 
-      - name: Undraft release
-        run: gh release edit '${{ needs.release-please.outputs.tag_name }}' --repo "${GITHUB_REPOSITORY}" --draft=false
+      - name: Publish release
+        # --prerelease=false: the alpha suffix is a versioning scheme, not a
+        # stability marker — releases from this pipeline are the real releases
+        # and should be "Latest". The release-please config cannot express this
+        # (its prerelease flag also drives the -alpha.N version computation).
+        # Manually dispatched rc tags go through release-pipeline.yaml instead,
+        # which leaves goreleaser's prerelease marking in place.
+        run: gh release edit '${{ needs.release-please.outputs.tag_name }}' --repo "${GITHUB_REPOSITORY}" --draft=false --prerelease=false --latest
