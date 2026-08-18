@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,14 +58,20 @@ func (c *cachingVerifier) Verify(ctx context.Context, resolver credentials.Resol
 	if len(specs) == 0 || len(descs) == 0 {
 		return nil
 	}
+	// Best-effort: verify every cell so the cache is filled for every success,
+	// even when a sibling fails. Return the FIRST error after the full pass —
+	// never short-circuit, so a single bad cell can't deny caching the good
+	// ones. (When wrapped by parallelVerifier this loop sees one cell at a time,
+	// but the same guarantee must hold if the cache is used without it.)
+	var firstErr error
 	for _, desc := range descs {
 		for _, spec := range specs {
-			if err := c.verify(ctx, resolver, spec, desc); err != nil {
-				return err
+			if err := c.verify(ctx, resolver, spec, desc); err != nil && firstErr == nil {
+				firstErr = err
 			}
 		}
 	}
-	return nil
+	return firstErr
 }
 
 func (c *cachingVerifier) verify(ctx context.Context, resolver credentials.Resolver, spec SignatureSpec, desc *ocm.Descriptor) error {
@@ -106,23 +113,29 @@ func (c *cachingVerifier) Flush() {
 }
 
 // cacheKey serializes signature wire bytes plus the spec fingerprint into a
-// null-byte-separated string. Two calls collide on the map iff their key
-// strings are byte-equal — a structural, not statistical, property. No hash
-// of our own; Go's internal map hash operates on well-defined string equality.
+// length-prefixed string. Two calls collide on the map iff their key strings
+// are byte-equal — a structural, not statistical, property. No hash of our
+// own; Go's internal map hash operates on well-defined string equality.
 //
-// The null byte separates fields to prevent injection: without it, ("foo",
-// "bar") and ("foob", "ar") would concatenate to the same string. All fields
-// here are ASCII/UTF-8 (algorithm names, hex digests, issuer DNs, base64/hex
-// signature values) and never contain \x00 in practice.
+// Each field is written as its byte length in decimal, a ':' terminator, then
+// the raw field bytes: "<len>:<bytes>". This framing is unconditionally
+// injective — the length tells the reader exactly how many bytes follow, so
+// the field content may contain ANY byte (including ':' or '\x00') without
+// ambiguity. A plain delimiter would instead have to assume its separator
+// never appears in a field; length-prefixing removes that assumption. This is
+// the standard domain-separation framing used by TLS/Noise/SSH for exactly
+// this reason, and it matters here because non-collision is a security
+// property: a lax-spec verdict must never be served to an issuer-pinned
+// caller sharing the same signature bytes.
 //
 // The "pin"/"nopin" tag on the issuer field disambiguates "no pin configured"
-// (spec.Issuer == nil, nothing written) from a pin whose value equals the
-// literal "" or "nopin".
+// (spec.Issuer == nil, "nopin" written) from a configured pin (the pin value
+// is length-prefixed and thus cannot alias the "nopin" sentinel).
 //
 // Two invariants keep this design safe; both must hold on every touch:
 //  1. verifyDigestMatchesDescriptor (SHA-256/SHA-512) runs before cache lookup
-//     in verifyOne, binding signature bytes to descriptor content. An
-//     attacker cannot craft a colliding cache entry without also producing a
+//     in verify, binding signature bytes to descriptor content. An attacker
+//     cannot craft a colliding cache entry without also producing a
 //     legitimately-signed descriptor.
 //  2. The cache value is struct{}{} — a boolean verdict, no attacker-useful
 //     payload. A hypothetical key equality between two legitimately-verified
@@ -130,12 +143,12 @@ func (c *cachingVerifier) Flush() {
 //
 // If either invariant is ever violated, this key design must be reconsidered.
 //
-// Per signature (null-byte separated):
+// Per signature (each field length-prefixed):
 //   - sig.Name
 //   - sig.Digest.{HashAlgorithm, NormalisationAlgorithm, Value}
 //   - sig.Signature.{Algorithm, MediaType, Issuer, Value}
 //
-// Per spec (null-byte separated):
+// Per spec (each field length-prefixed):
 //   - spec.Name
 //   - spec.MediaType
 //   - spec.HashAlgorithm
@@ -144,7 +157,14 @@ func (c *cachingVerifier) Flush() {
 func cacheKey(sig ocm.Signature, spec SignatureSpec) string {
 	var b strings.Builder
 	b.Grow(512)
-	write := func(s string) { b.WriteString(s); b.WriteByte(0) }
+	// write frames each field as "<len>:<bytes>". The decimal length prefix,
+	// terminated by ':', makes the encoding injective regardless of field
+	// content — no byte is forbidden inside a field.
+	write := func(s string) {
+		b.WriteString(strconv.Itoa(len(s)))
+		b.WriteByte(':')
+		b.WriteString(s)
+	}
 
 	// signature wire bytes (bound to descriptor content via SHA-256/512 pre-check)
 	write(sig.Name)

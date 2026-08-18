@@ -137,7 +137,7 @@ var _ = Describe("CachingVerifier", func() {
 		Expect(stub.calls.Load()).To(Equal(callsBefore))
 	})
 
-	It("returns the first error and stops", func() {
+	It("returns the first error but still attempts every cell (best-effort)", func() {
 		desc1 := descWith(sig("s1", "d1"))
 		desc2 := descWith(sig("s1", "d2"))
 		desc3 := descWith(sig("s1", "d3"))
@@ -146,8 +146,8 @@ var _ = Describe("CachingVerifier", func() {
 		cache = newCachingVerifier(stub, testCacheSize, testCacheTTL)
 
 		err := cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{desc1, desc2, desc3})
-		Expect(err).To(MatchError(boom))
-		Expect(stub.calls.Load()).To(Equal(int64(2)))
+		Expect(err).To(MatchError(boom), "first error is returned")
+		Expect(stub.calls.Load()).To(Equal(int64(3)), "no short-circuit — every cell is attempted so successes still cache")
 	})
 
 	It("evicts entries after TTL", func() {
@@ -250,6 +250,42 @@ var _ = Describe("CachingVerifier", func() {
 		Expect(stub.calls.Load()).To(Equal(int64(2)))
 	})
 
+	It("cacheKey is injective across a field boundary — adjacent fields cannot alias", func() {
+		// Length-prefix framing must keep ("ab", "c") distinct from ("a", "bc"):
+		// a naive delimiter-free or same-delimiter scheme would concatenate both
+		// to the same bytes and collide. Here we move one character across the
+		// (HashAlgorithm, NormalisationAlgorithm) boundary — same total bytes,
+		// different fields — and require two independent verifies. A collision
+		// here would let a verdict computed under one algorithm pair be served to
+		// a caller expecting a different pair.
+		mk := func(hash, norm string) *ocm.Descriptor {
+			return descWith(ocm.Signature{
+				Name:      "s1",
+				Digest:    ocm.Digest{HashAlgorithm: hash, NormalisationAlgorithm: norm, Value: "v"},
+				Signature: ocm.SignatureInfo{Algorithm: "RSASSA-PSS", MediaType: "application/x-pem-file", Value: "v-sig"},
+			})
+		}
+		left := mk("ab", "c")
+		right := mk("a", "bc")
+
+		Expect(cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{left})).To(Succeed())
+		Expect(cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{right})).To(Succeed())
+		Expect(stub.calls.Load()).To(Equal(int64(2)), "distinct field partitions must not share a cache entry")
+	})
+
+	It("cacheKey tolerates the ':' length-prefix terminator appearing inside a field", func() {
+		// The ':' that terminates the decimal length prefix may also occur in
+		// field content (issuer DNs, media types). Length-prefixing means the
+		// terminator inside a field is just data — it cannot be mistaken for a
+		// field boundary. "1:x" as a value must stay distinct from a value "x"
+		// with a shifted neighbour; verify two colon-bearing values don't alias.
+		a := descWith(sig("s1", "1:2"))
+		b := descWith(sig("s1", "12"))
+		Expect(cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{a})).To(Succeed())
+		Expect(cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{b})).To(Succeed())
+		Expect(stub.calls.Load()).To(Equal(int64(2)))
+	})
+
 	It("hit is served regardless of resolver identity — resolver is not part of the key", func() {
 		// Resolver identity is not part of the cache key: the cached crypto
 		// verdict is a statement about descriptor bytes ↔ signature bytes; the
@@ -262,6 +298,25 @@ var _ = Describe("CachingVerifier", func() {
 		Expect(cache.Verify(context.Background(), r1, specs, []*ocm.Descriptor{desc})).To(Succeed())
 		Expect(cache.Verify(context.Background(), r2, specs, []*ocm.Descriptor{desc})).To(Succeed())
 		Expect(stub.calls.Load()).To(Equal(int64(1)))
+	})
+
+	It("best-effort: a failing cell does not stop the others from being cached", func() {
+		good1 := descWith(sig("s1", "g1"))
+		bad := descWith(sig("s1", "bad"))
+		good2 := descWith(sig("s1", "g2"))
+		boom := fmt.Errorf("bad cell")
+		stub = newStub(map[*ocm.Descriptor]error{bad: boom})
+		cache = newCachingVerifier(stub, testCacheSize, testCacheTTL)
+
+		// One multi-desc call: the bad cell fails, the two good cells succeed.
+		err := cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{good1, bad, good2})
+		Expect(err).To(MatchError(boom), "the first error is returned")
+		Expect(stub.calls.Load()).To(Equal(int64(3)), "every cell is attempted — no short-circuit")
+
+		// Both good descriptors were cached despite the sibling failure.
+		callsBefore := stub.calls.Load()
+		Expect(cache.Verify(context.Background(), nil, specs, []*ocm.Descriptor{good1, good2})).To(Succeed())
+		Expect(stub.calls.Load()).To(Equal(callsBefore), "good cells served from cache — not re-verified")
 	})
 })
 

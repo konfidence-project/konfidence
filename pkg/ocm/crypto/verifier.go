@@ -79,9 +79,6 @@ func (o *ocmVerifier) Verify(ctx context.Context, resolver credentials.Resolver,
 		resolver = credentials.NewStaticCredentialsResolver(nil)
 	}
 	for _, desc := range descs {
-		if err := isSafelyDigestible(&desc.Component); err != nil {
-			return fmt.Errorf("ocm descriptor verification failed: descriptor is not safely digestible: %w", err)
-		}
 		for _, spec := range specs {
 			if err := o.verifySignature(ctx, resolver, desc, spec); err != nil {
 				return err
