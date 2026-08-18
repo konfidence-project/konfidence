@@ -31,7 +31,8 @@ Use a [`Release-As` footer](https://github.com/googleapis/release-please?tab=rea
 > release-please will update it in place rather than open a fresh one — this is known to produce inconsistent
 > results where the version, changelog, and manifest may not align correctly.
 
+Direct pushes to `main` are blocked, so the footer has to land through a normal PR: put it in the message of a regular commit on the PR branch and merge as usual. Avoid `--allow-empty` commits — the repository only allows rebase merges, which drop empty commits.
+
 ```bash
-git commit --allow-empty -m "chore: release 0.1.0" -m "Release-As: 0.1.0"
-git push origin main
+git commit -m "chore: prepare 0.1.0-alpha.1" -m "Release-As: 0.1.0-alpha.1"
 ```
