@@ -1,13 +1,15 @@
 name: Release
 
-# Stable releases ([0-9]+.[0-9]+.[0-9]+) are built by the Release PR pipeline,
-# chained directly behind release-please so the draft release exists before
-# goreleaser runs. This tag-triggered pipeline only serves pre-release tags,
-# which have no release-please draft to race against.
+# Release-please tags (X.Y.Z-alpha.N and, later, stable X.Y.Z) are built by the
+# Release PR pipeline, chained directly behind release-please so the draft
+# release exists before goreleaser runs. This tag-triggered pipeline only
+# serves manually dispatched rc tags, which have no release-please draft to
+# race against. The pattern must never overlap with release-please tags or the
+# release builds twice.
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+-*'
+      - '[0-9]+.[0-9]+.[0-9]+-rc.*'
 
 jobs:
   version:

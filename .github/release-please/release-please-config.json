@@ -5,6 +5,10 @@
   "include-v-in-release-name": false,
   "draft": true,
   "force-tag-creation": true,
+  "versioning": "prerelease",
+  "prerelease": true,
+  "prerelease-type": "alpha",
+  "initial-version": "0.0.1-alpha.1",
   "pull-request-title-pattern": "chore(release): ${version}",
   "changelog-sections": [
     {
