@@ -4,10 +4,9 @@
 
 Versions follow [Semantic Versioning](https://semver.org/) and are computed automatically from [Conventional Commits](https://www.conventionalcommits.org/). The project is in its alpha phase: every release carries an `-alpha.N` suffix (starting at `0.0.1-alpha.1`) and is marked as a GitHub pre-release, using release-please's `prerelease` versioning strategy:
 
-- `fix:`, `perf:` (and any other releasable change) → increments the pre-release counter (`0.0.1-alpha.1` → `0.0.1-alpha.2`)
-- `feat:` → minor bump of the base version, counter resets (`0.1.0-alpha.1`)
-- `BREAKING CHANGE` footer → major bump of the base version, counter resets
-- `chore:`, `ci:`, `docs:`, etc. with no releasable change alongside → no release
+- `fix:`, `perf:`, `chore:` → increments the pre-release counter (`0.0.1-alpha.1` → `0.0.1-alpha.2`). `chore` counts as releasable because it has a visible changelog section — dependency bumps should appear in the changelog of an operator.
+- `feat:` and `BREAKING CHANGE` → minor bump of the base version (`0.0.1-alpha.2` → `0.1.0-alpha.2`). The counter carries over — it does not reset. Breaking changes stay pre-1.0 (`bump-minor-pre-major`); the jump to 1.x only happens via an explicit `Release-As`.
+- `docs:`, `ci:`, `refactor:`, `style:`, `build:` with no releasable change alongside → no release
 
 Graduating out of alpha later is a config change (`versioning`, `prerelease`, `prerelease-type` in `release-please-config.json`) plus a `Release-As` commit for the first stable version.
 
