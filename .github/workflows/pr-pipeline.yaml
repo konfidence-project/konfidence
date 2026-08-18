@@ -17,9 +17,16 @@ jobs:
       mode: pr
       snapshot-tag: ${{ github.sha }}
 
+  secret-scanning-review:
+    name: Secret Scanning Review
+    permissions:
+      contents: read
+    uses: konfidence-project/.github/.github/workflows/secret-scanning-review.yaml@v4
+    secrets: inherit
+
   ci-gate:
     name: CI Gate
-    needs: [lint-test-build]
+    needs: [lint-test-build, secret-scanning-review]
     if: always()
     uses: konfidence-project/.github/.github/workflows/ci-gate.yaml@v4
     with:
