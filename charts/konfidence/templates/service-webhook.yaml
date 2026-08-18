@@ -1,0 +1,18 @@
+{{- if and .Values.controller.install .Values.webhook.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "konfidence.fullname" . }}-webhook-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "konfidence.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: webhook
+      protocol: TCP
+      name: webhook
+  selector:
+    {{- include "konfidence.selectorLabels" . | nindent 4 }}
+{{- end }}

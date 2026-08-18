@@ -1,0 +1,59 @@
+name: Release
+
+# Release-please tags (X.Y.Z-alpha.N and, later, stable X.Y.Z) are built by the
+# Release PR pipeline, chained directly behind release-please so the draft
+# release exists before goreleaser runs. This tag-triggered pipeline only
+# serves manually dispatched rc tags, which have no release-please draft to
+# race against. The pattern must never overlap with release-please tags or the
+# release builds twice.
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+-rc.*'
+
+jobs:
+  version:
+    name: Validate Release Tag
+    uses: konfidence-project/.github/.github/workflows/validate-release-tag.yaml@v4
+    secrets: inherit
+
+  lint-test-build:
+    name: Release
+    needs: [version]
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    uses: konfidence-project/konfidence/.github/workflows/lint-test-build.yaml@main
+    secrets: inherit
+    with:
+      mode: release
+      # snapshot-tag is intentionally omitted — goreleaser uses the actual git tag in release mode
+
+  publish-helm-charts:
+    name: Publish Helm Charts
+    needs: [version, lint-test-build]
+    permissions:
+      contents: read
+      packages: write
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
+    secrets: inherit
+    with:
+      version: ${{ needs.version.outputs.version }}
+      charts: charts/konfidence
+
+  publish-release:
+    name: Publish Release
+    needs: [lint-test-build, publish-helm-charts]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: konfidence-project/.github/.github/actions/github-app-auth@v4
+        with:
+          client-id: ${{ vars.GH_APP_ID }}
+          private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+
+      - name: Undraft release
+        run: gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft=false

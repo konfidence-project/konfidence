@@ -1,0 +1,8 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: VectorDeployment
+metadata:
+  labels:
+    app.kubernetes.io/name: crds
+  name: common.konfidence.cloud.example.vector-0.0.1
+spec:
+  vector: https://registry.konfidence.cloud/ocm/vector//common.konfidence.cloud/example/vector:0.0.1

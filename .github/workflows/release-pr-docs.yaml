@@ -1,0 +1,53 @@
+name: Release PR Docs
+
+# release-please bumps charts/konfidence/Chart.yaml but cannot run make, so the
+# helm-docs-generated chart README drifts and the lint drift check blocks the
+# release PR. This regenerates the manifests on the release PR branch and
+# amends the drift into the release commit — keeping the branch single-commit
+# so the rebase merge lands `chore(release): X` as the head commit (the
+# main-pipeline skip condition depends on that).
+#
+# Loop safety: the amended push triggers one more synchronize run, which finds
+# no drift and exits without pushing.
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    name: Regenerate Chart Docs
+    if: github.head_ref == 'release-please--branches--main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: konfidence-project/.github/.github/actions/github-app-auth@v4
+        with:
+          client-id: ${{ vars.GH_APP_ID }}
+          private-key: ${{ secrets.KONFIDENCE_PROJECT_REPO_ACCESS_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ env.GH_TOKEN }}
+
+      - uses: cashapp/activate-hermit@v1
+
+      - name: Regenerate manifests
+        run: make manifests
+
+      - name: Amend drift into the release commit
+        run: |
+          if git diff --quiet; then
+            echo "no drift"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -a --amend --no-edit
+          git push --force-with-lease origin "HEAD:${{ github.head_ref }}"

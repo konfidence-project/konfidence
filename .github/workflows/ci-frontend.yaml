@@ -1,0 +1,146 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ci-frontend.yaml
+      - Dockerfile.ui
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - tsconfig.json
+      - apps/konfidence-ui/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ci-frontend.yaml
+      - Dockerfile.ui
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - tsconfig.json
+      - apps/konfidence-ui/**
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - &checkout-code
+        name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - &install-pnpm
+        name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.9.0
+
+      - &setup-node
+        name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - &install-dependencies
+        name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run checks
+        run: pnpm ui:verify
+
+  test-unit:
+    name: Test Unit
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout-code
+      - *install-pnpm
+      - *setup-node
+      - *install-dependencies
+
+      - name: Run unit tests
+        run: pnpm ui:test:unit -- --reporter=default --reporter=github-actions
+
+  test-browser:
+    name: Test Browser
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout-code
+      - *install-pnpm
+      - *setup-node
+      - *install-dependencies
+
+      - &cache-playwright-browsers
+        name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml', 'apps/konfidence-ui/package.json') }}
+
+      - name: Install Chromium
+        run: pnpm --filter konfidence-ui exec playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: pnpm ui:test:browser -- --reporter=default --reporter=github-actions
+
+      - name: Upload Vitest attachments
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: vitest-attachments
+          path: apps/konfidence-ui/.vitest-attachments/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  test-e2e:
+    name: Test E2E
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout-code
+      - *install-pnpm
+      - *setup-node
+      - *install-dependencies
+      - *cache-playwright-browsers
+
+      - name: Install Chromium
+        run: pnpm --filter konfidence-ui exec playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: pnpm ui:test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: apps/konfidence-ui/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build dashboard image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.ui
+          tags: konfidence-ui:${{ github.sha }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>konfidence-project/.github//renovate-config/presets/base.json5"
+  ]
+}

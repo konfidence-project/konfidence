@@ -1,0 +1,8 @@
+FROM gcr.io/distroless/static:nonroot
+ARG OPERATOR_NAME
+ARG TARGETPLATFORM
+WORKDIR /
+COPY ${TARGETPLATFORM}/${OPERATOR_NAME} /operator
+USER 65532:65532
+
+ENTRYPOINT ["/operator"]

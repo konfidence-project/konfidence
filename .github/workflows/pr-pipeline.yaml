@@ -1,0 +1,26 @@
+name: PR
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-test-build:
+    name: PR
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/lint-test-build.yaml
+    with:
+      mode: pr
+      snapshot-tag: ${{ github.sha }}
+
+  ci-gate:
+    name: CI Gate
+    needs: [lint-test-build]
+    if: always()
+    uses: konfidence-project/.github/.github/workflows/ci-gate.yaml@v4
+    with:
+      needs-json: ${{ toJson(needs) }}

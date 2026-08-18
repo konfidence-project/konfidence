@@ -1,0 +1,34 @@
+{{- if .Values.controller.install -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "konfidence.fullname" . }}-manager
+  labels:
+    {{- include "konfidence.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "konfidence.fullname" . }}-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "konfidence.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.api.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "konfidence.fullname" . }}-api
+  labels:
+    {{- include "konfidence.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "konfidence.fullname" . }}-api
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "konfidence.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

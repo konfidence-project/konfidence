@@ -1,0 +1,42 @@
+{{- if .Values.controller.install }}
+Konfidence operator {{ .Chart.AppVersion }} installed in namespace {{ .Release.Namespace }}.
+
+Verify the controller is running:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Tail logs:
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/instance={{ .Release.Name }} -f
+{{- else if .Values.crd.install }}
+Konfidence CRDs {{ .Chart.AppVersion }} installed (controller.install=false).
+The controller workload was NOT deployed. Bring it up later with:
+  helm upgrade {{ .Release.Name }} <chart> --set controller.install=true
+{{- else }}
+Nothing was installed: controller.install and crd.install are both false.
+{{- end }}
+
+{{- if .Values.api.enabled }}
+
+Konfidence API server installed in namespace {{ .Release.Namespace }}.
+
+Port-forward for local access:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "konfidence.fullname" . }}-api {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
+  curl http://localhost:{{ .Values.api.service.port }}/healthz
+
+{{- if .Values.api.ingress.enabled }}
+The API is exposed via Ingress at: http{{ if .Values.api.ingress.tls }}s{{ end }}://{{ (index .Values.api.ingress.hosts 0).host }}
+{{- else }}
+For production access configure an Ingress by setting api.ingress.enabled=true in your values.
+{{- end }}
+{{- end }}
+
+{{- if and .Values.crd.install .Values.crd.keep }}
+
+With crd.keep=true (default), CRDs are retained on `helm uninstall` to
+protect existing custom resources.
+{{- end }}
+{{- if and .Values.controller.install (not .Values.crd.install) }}
+
+CRD installation was disabled (crd.install=false). Make sure the konfidence
+CRDs are present in the cluster, otherwise reconciliation will fail:
+  kubectl get crd | grep konfidence.cloud
+{{- end }}

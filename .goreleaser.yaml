@@ -1,0 +1,136 @@
+version: 2
+
+project_name: konfidence
+
+retry:
+  # Set max retry count.
+  # Setting to 1 disables retries (single attempt).
+  #
+  # Default: 10
+  attempts: 5
+
+  # Set delay between retry
+  #
+  # Default: 10s
+  delay: 10s
+
+  # Default: 5m
+  max_delay: 3m
+
+snapshot:
+  version_template: '{{ .Env.GORELEASER_CURRENT_TAG }}'
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: konfidence
+    binary: konfidence
+    main: ./cmd/konfidence
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: amd64
+    ldflags:
+      - -s -w -X github.com/konfidence-project/konfidence/pkg/build.Version={{.Version}} -X github.com/konfidence-project/konfidence/pkg/build.GitCommit={{.Commit}}
+
+  - id: kden
+    binary: kden
+    main: ./cmd/kden
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: amd64
+    ldflags:
+      - -s -w -X github.com/konfidence-project/konfidence/cmd/version.version={{.Version}}
+
+  - id: api
+    binary: api
+    main: ./cmd/api
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/konfidence-project/konfidence/pkg/build.Version={{.Version}} -X github.com/konfidence-project/konfidence/pkg/build.GitCommit={{.Commit}}
+
+archives:
+  - id: konfidence
+    ids: [konfidence]
+    formats: [none]
+
+  - id: api
+    ids: [api]
+    formats: [none]
+
+  - id: kden
+    ids: [kden]
+    formats: [tar.gz]
+    name_template: >-
+      kden-cli-
+      {{- .Os }}-
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+
+checksum:
+  name_template: checksums.txt
+
+dockers_v2:
+  - id: konfidence-operator
+    ids: [konfidence]
+    dockerfile: Dockerfile
+    images:
+      - ghcr.io/konfidence-project/konfidence-operator
+    tags:
+      - "{{ .Version }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    build_args:
+      OPERATOR_NAME: konfidence
+
+  - id: api
+    ids: [api]
+    dockerfile: Dockerfile
+    images:
+      - ghcr.io/konfidence-project/api
+    tags:
+      - "{{ .Version }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    build_args:
+      OPERATOR_NAME: api
+
+changelog:
+  use: github-native
+
+release:
+  # goreleaser must not publish the release itself — the pipeline undrafts it
+  # after the Helm charts are published, so a failed run never leaves a
+  # half-published release
+  draft: true
+  use_existing_draft: true
+  replace_existing_artifacts: true
+  # release-please owns the release body (CHANGELOG); goreleaser only attaches artifacts
+  mode: keep-existing
+  prerelease: auto

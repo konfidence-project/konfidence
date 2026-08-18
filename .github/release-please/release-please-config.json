@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-v-in-tag": false,
+  "include-v-in-release-name": false,
+  "draft": true,
+  "force-tag-creation": true,
+  "versioning": "prerelease",
+  "prerelease": true,
+  "prerelease-type": "alpha",
+  "initial-version": "0.0.1-alpha.1",
+  "bump-minor-pre-major": true,
+  "commit-search-depth": 1000,
+  "pull-request-title-pattern": "chore(release): ${version}",
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance Improvements"
+    },
+    {
+      "type": "chore",
+      "section": "Maintenance"
+    },
+    {
+      "type": "docs",
+      "section": "Documentation",
+      "hidden": true
+    },
+    {
+      "type": "style",
+      "section": "Code Style",
+      "hidden": true
+    },
+    {
+      "type": "refactor",
+      "section": "Code Refactoring",
+      "hidden": true
+    },
+    {
+      "type": "build",
+      "section": "Build System",
+      "hidden": true
+    },
+    {
+      "type": "ci",
+      "section": "CI/CD",
+      "hidden": true
+    }
+  ],
+  "packages": {
+    ".": {
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "yaml",
+          "path": "charts/konfidence/Chart.yaml",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "yaml",
+          "path": "charts/konfidence/Chart.yaml",
+          "jsonpath": "$.appVersion"
+        }
+      ]
+    }
+  }
+}

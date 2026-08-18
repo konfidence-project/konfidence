@@ -1,0 +1,8 @@
+packages:
+  - apps/konfidence-ui
+  - apps/konfidence-ui-prototype
+allowBuilds:
+  cpu-features: false
+  esbuild: true
+  protobufjs: false
+  ssh2: false

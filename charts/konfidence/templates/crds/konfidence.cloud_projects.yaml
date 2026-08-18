@@ -1,0 +1,255 @@
+{{- if .Values.crd.install -}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+{{- include "konfidence.crdAnnotations" . | nindent 4 }}
+    controller-gen.kubebuilder.io/version: v0.20.0
+  labels:
+{{- include "konfidence.crdLabels" . | nindent 4 }}
+  name: projects.konfidence.cloud
+spec:
+  group: konfidence.cloud
+  names:
+    categories:
+    - konfidence
+    - kden
+    kind: Project
+    listKind: ProjectList
+    plural: projects
+    singular: project
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.displayName
+      name: Display Name
+      type: string
+    - description: The project namespace
+      jsonPath: .status.namespace
+      name: Namespace
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          Project is the Schema for the projects API. A Project owns a dedicated
+          namespace that stores the project's resources. The project name is
+          capped at 56 characters so the derived namespace name and label values
+          stay within the 63-character Kubernetes limits.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              ProjectSpec defines the desired state of Project.
+
+              The transition rule catches namespace being set or unset after creation;
+              changing a set namespace is caught by the field-level rule. The two rules
+              are split to stay within the CEL cost budget of the schema.
+            properties:
+              displayName:
+                description: |-
+                  DisplayName is the human-readable name of the project, shown in user
+                  interfaces. It does not affect the namespace name or any label, and it
+                  may be changed at any time.
+                maxLength: 253
+                minLength: 1
+                type: string
+              namespace:
+                description: |-
+                  Namespace overrides the name of the namespace created for this project.
+                  When unset it defaults to `kden-p-<project-name>`. It is immutable
+                  once the Project exists, because the namespace and everything it holds
+                  are bound to this name.
+                maxLength: 63
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                type: string
+                x-kubernetes-validations:
+                - message: namespace is immutable
+                  rule: self == oldSelf
+              roleBindings:
+                additionalProperties:
+                  description: |-
+                    Subjects is the list of subjects that hold a role. A caller holds the role
+                    if any subject matches (OR).
+                  items:
+                    description: |-
+                      Subject identifies who is granted a role. Exactly one identity source
+                      (session or jwks) must be set.
+                    properties:
+                      jwks:
+                        description: |-
+                          JWKS matches a workload identity presenting a token signed by a trusted
+                          OIDC provider, for example a CI pipeline's OIDC token.
+                        properties:
+                          audience:
+                            description: |-
+                              Audience is the value the token's "aud" claim must carry. It is required
+                              so that a token minted for a different service cannot be replayed against
+                              Konfidence: the token is accepted only if it was issued for this audience.
+                            maxLength: 512
+                            minLength: 1
+                            type: string
+                          claims:
+                            additionalProperties:
+                              description: |-
+                                GlobMatch is a claim-value match pattern using glob semantics, where "*"
+                                matches any run of characters (for example "repo:konfidence-project/*").
+                              maxLength: 512
+                              type: string
+                            description: |-
+                              Claims narrows the match to tokens whose claims match the given patterns.
+                              It maps a claim name (for example "sub", "repository" or "ref") to a
+                              glob pattern the claim value must match; all listed claims must match
+                              (AND). At least one claim is required so a subject cannot inadvertently
+                              match every token a provider issues.
+                            maxProperties: 32
+                            minProperties: 1
+                            type: object
+                          endpoint:
+                            description: |-
+                              Endpoint is the OIDC discovery endpoint (the provider's
+                              ".well-known/openid-configuration" URL) used to resolve the signing keys
+                              that the presented token is verified against.
+                            maxLength: 2048
+                            pattern: ^https://.*$
+                            type: string
+                        required:
+                        - audience
+                        - claims
+                        - endpoint
+                        type: object
+                      session:
+                        description: |-
+                          Session matches an interactively authenticated user by group membership,
+                          for example a person signed in through the identity provider.
+                        properties:
+                          memberOf:
+                            description: |-
+                              MemberOf lists the groups that grant the role. Membership in any one of
+                              the listed groups is sufficient to match (OR).
+                            items:
+                              maxLength: 253
+                              type: string
+                            maxItems: 64
+                            minItems: 1
+                            type: array
+                        required:
+                        - memberOf
+                        type: object
+                    type: object
+                    x-kubernetes-validations:
+                    - message: exactly one of session or jwks must be set
+                      rule: has(self.session) != has(self.jwks)
+                  maxItems: 32
+                  minItems: 1
+                  type: array
+                description: |-
+                  RoleBindings grants project roles to callers. It maps a role name to the
+                  list of subjects that hold that role; a caller holds the role if any
+                  subject in the list matches (OR). The role names are a fixed, well-known
+                  set for now (for example "admin", "pm", "dev"), but the field is a map so
+                  the set can be extended without a schema change. See the Project
+                  multi-tenancy ADR for the meaning of each role and the authorization flow.
+                  RoleBindings is currently schema-only: no authorization is enforced yet.
+                maxProperties: 32
+                type: object
+            type: object
+            x-kubernetes-validations:
+            - message: namespace is immutable
+              rule: has(self.namespace) == has(oldSelf.namespace)
+          status:
+            description: ProjectStatus defines the observed state of Project.
+            properties:
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              namespace:
+                description: Namespace is the name of the namespace managed for this
+                  project.
+                type: string
+            type: object
+        type: object
+        x-kubernetes-validations:
+        - message: project name must be at most 56 characters
+          rule: size(self.metadata.name) <= 56
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- end }}

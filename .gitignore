@@ -1,0 +1,78 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+Dockerfile.cross
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Kubernetes Generated files - skip generated files, except for vendored files
+!vendor/**/zz_generated.*
+
+# editor and IDE paraphernalia
+.idea
+.vscode
+*.swp
+*.swo
+*~
+.backup
+
+.hermit/*
+
+# Do ignore things like bin/k8s/
+bin/*/
+bin/konfidence
+bin/ginkgo
+bin/kden
+
+# Do not ignore hermit binary and pkg files in bin/
+!bin/hermit
+!bin/.hermit/
+!bin/*.pkg
+!bin/.*pkg
+
+# Ignore Helm chart packages
+*.tgz
+
+# Ignore local helm values
+charts/konfidence/values.local.yaml
+
+# Generated plain CRDs used by envtest suites and sample validation
+test/data/crds/
+
+# Generated validation schemas
+.tmp/
+
+# Generated ClusterRole manifests fed to charts/patch-clusterrole.sh
+config/rbac/
+
+# Generated webhook manifests fed to charts/patch-webhook.sh
+config/webhook/
+
+### Local development ###
+local/
+
+.DS_Store
+
+# GoReleaser temporary files
+dist/
+
+# oapi-codegen binary (built by go install into api/ dir)
+api/api
+
+# Node / SvelteKit
+node_modules/
+.svelte-kit/
+build/
+*.tsbuildinfo
+/AGENTS.md

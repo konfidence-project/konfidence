@@ -1,0 +1,238 @@
+# CRD lifecycle configuration.
+# install:        apply CRDs alongside the controller. Disable for GitOps
+#                 setups that manage CRDs out-of-band.
+# keep:           on `helm uninstall`, retain CRDs to protect existing CRs.
+#                 Strongly recommended.
+# annotations,
+# labels:         extra metadata merged onto every CRD. Useful for tools
+#                 that inspect CRD metadata (e.g. Argo CD:
+#                 `argocd.argoproj.io/sync-options: ServerSideApply=true`
+#                 to avoid the client-side apply size limit).
+crd:
+  install: true
+  keep: true
+  annotations: {}
+  labels: {}
+
+# Forwarded as flags to the operator binary (cmd/konfidence).
+controller:
+  # When false, the chart renders only the CRDs (gated by crd.install)
+  # and skips Deployment, ServiceAccount, RBAC, Service, ServiceMonitor,
+  # and PodDisruptionBudget. Useful for installing CRDs into a local
+  # development cluster without running the controller.
+  install: true
+  # Comma-separated list of sub-controllers, or "*" for all.
+  controllers: "*"
+  leaderElection: true
+  leaseId: "konfidence-operator.konfidence.cloud"
+  healthProbeBindAddress: ":8081"
+  # Bind address for the Prometheus /metrics endpoint. Set to "0" to
+  # disable the metrics server entirely (also suppresses the metrics
+  # container port, Service, and ServiceMonitor).
+  metricsBindAddress: ":8080"
+
+# Admission webhooks for resource validation (e.g. Project/Landscape namespace checks).
+# Webhooks require TLS certificates. By default, the chart expects you to create a
+# Secret named by webhook.certificateSecret with keys tls.crt and tls.key.
+webhook:
+  enabled: true
+  # Port the webhook server listens on inside the container.
+  port: 9443
+  # Directory inside the container where TLS certificates are mounted.
+  # The Secret specified by certificateSecret will be mounted here.
+  certDir: "/tmp/k8s-webhook-server/serving-certs"
+  # Name of the Secret containing tls.crt and tls.key in the release namespace.
+  # You must create this Secret before installing the chart, or set enabled: false.
+  certificateSecret: "konfidence-webhook-server-cert"
+  # failurePolicy: Fail means requests are blocked if the webhook is unavailable.
+  # Set to "Ignore" for less strict validation (allow requests if webhook is down).
+  failurePolicy: Fail
+  # caBundle: Base64-encoded CA certificate for the webhook's TLS certificate.
+  # Leave empty when using a CA injection mechanism (e.g. cert-manager).
+  # REQUIRED for self-signed certificates without an injection mechanism.
+  # WARNING: If empty and no injection occurs, API server will skip TLS verification (not recommended).
+  caBundle: ""
+  # annotations: Extra annotations for the ValidatingWebhookConfiguration resource.
+  annotations: {}
+  # labels: Extra labels for the ValidatingWebhookConfiguration resource.
+  labels: {}
+
+
+# Konfidence API server - HTTP gateway between CLI/UI clients and the Konfidence CRDs.
+# Deployed in the same namespace as the Konfidence operator.
+api:
+  # When false, all API server resources (Deployment, Service, RBAC) are skipped.
+  enabled: true
+
+  image:
+    repository: ghcr.io/konfidence-project/api
+    # Defaults to .Chart.AppVersion when empty.
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  server:
+    # TCP address the API server listens on inside the container.
+    addr: ":8090"
+    logLevel: info
+    readTimeout: "10s"
+    writeTimeout: "10s"
+    shutdownTimeout: "15s"
+
+  oidc:
+    enabled: true
+    issuerURL: ""
+    tokenURL: ""
+    authorizationURL: ""
+    deviceAuthURL: ""
+    userInfoURL: ""
+    jwksURL: ""
+    clientId: ""
+    clientSecretRef:
+      name: ""
+      key: client-secret
+    scopes: "openid,profile,email"
+    redirectURL: ""
+    allowReturnUrls: []
+    pkceEnabled: true
+    stateExpiration: 15m
+
+  session:
+    storageType: in-memory
+    cookie:
+      name: "kden-session"
+      httpOnly: true
+      secure: true
+      sameSite: SameSiteStrictMode
+    expiry: 12h
+    cleanupInterval: 15m
+
+  database:
+    maxConns: 10
+    minConns: 5
+    maxConnLifetime: 30m
+    maxConnIdleTime: 5m
+
+  # Extra CLI arguments appended to the container args list.
+  extraArgs: []
+
+  env: []
+  volumes: []
+  volumeMounts: []
+
+  replicas: 1
+
+  resources: {}
+
+  podAnnotations: {}
+  podLabels: {}
+
+  # Kubernetes Service exposing the API server.
+  # ClusterIP is the default - reachable inside the cluster only.
+  # For production external access, enable the Ingress below.
+  service:
+    type: ClusterIP
+    port: 8090
+    nodePort: ""
+    annotations: {}
+
+  # Ingress for external access to the API server.
+  # Disabled by default — enable and configure for production deployments.
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: ""
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: ~
+    maxUnavailable: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Prometheus Operator ServiceMonitor for the controller's /metrics
+# endpoint. Requires the monitoring.coreos.com CRDs to be installed in
+# the cluster; off by default.
+serviceMonitor:
+  enabled: false
+  # Namespace to create the ServiceMonitor in. Defaults to the release
+  # namespace. Override when your Prometheus instance only watches a
+  # specific namespace.
+  namespace: ""
+  # Extra labels merged onto the ServiceMonitor — typically the label
+  # selector your Prometheus instance uses (e.g. release: kube-prometheus).
+  labels: {}
+  interval: 30s
+  scrapeTimeout: 10s
+  relabelings: []
+  metricRelabelings: []
+
+image:
+  repository: ghcr.io/konfidence-project/konfidence-operator
+  # tag defaults to .Chart.AppVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicas: 1
+
+# PodDisruptionBudget for the controller. Only meaningful when running
+# replicas >= 2 (with leader election a single active replica handles
+# reconciliation; the others stand by). Disabled by default to match the
+# default replicas: 1.
+podDisruptionBudget:
+  enabled: false
+  # Set exactly one of minAvailable or maxUnavailable. Both accept an
+  # integer or a percentage string (e.g. "50%").
+  minAvailable: ~
+  maxUnavailable: 1
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+env: []
+extraArgs: []
+
+# Extra volumes mounted onto the manager Pod, and the corresponding
+# mounts on the manager container. Use these for additional secrets,
+# CA bundles, or other files the controller needs at runtime. An
+# emptyDir is always mounted at /tmp (the OCM transfer writes there,
+# and the root filesystem is read-only).
+volumes: []
+volumeMounts: []
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

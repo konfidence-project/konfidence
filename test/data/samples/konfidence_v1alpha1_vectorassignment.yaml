@@ -1,0 +1,14 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: VectorAssignment
+metadata:
+  labels:
+    app.kubernetes.io/name: crds
+  name: vectorassignment-sample
+spec:
+  manifest:
+    type: cloud.konfidence.flux.helm
+    allowReuse: true
+  artifactDeploymentRef:
+    name: artifactdeployment-1
+  vectorDeploymentRef:
+    name: vectordeployment-1

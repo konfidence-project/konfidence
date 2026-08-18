@@ -1,0 +1,12 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: ActivationTaskExecution
+metadata:
+  labels:
+    app.kubernetes.io/name: crds
+  name: activationtaskexecution-sample
+spec:
+  type: k8s-job
+  spec: {
+    "template": "refine-me"
+  }
+  vectorActivation: "activation-1"

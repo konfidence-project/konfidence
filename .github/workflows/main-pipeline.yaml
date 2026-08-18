@@ -1,0 +1,24 @@
+name: Main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-test-build:
+    name: Main
+    # Skip when the release PR with a chart version bump is merged into main — the release
+    # pipeline handles building and publishing for those commits via the semver tag
+    # that the release-please action pushes when the release PR is merged.
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    uses: konfidence-project/konfidence/.github/workflows/lint-test-build.yaml@main
+    secrets: inherit
+    with:
+      mode: main
+      snapshot-tag: ${{ github.sha }}

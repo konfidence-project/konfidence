@@ -1,0 +1,108 @@
+{{- if and .Values.controller.install .Values.webhook.enabled -}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "konfidence.fullname" . }}-validating-webhook-configuration
+  labels:
+    {{- include "konfidence.labels" . | nindent 4 }}
+    {{- with .Values.webhook.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.webhook.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "konfidence.fullname" . }}-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-konfidence-cloud-v1alpha1-landscape
+    {{- if .Values.webhook.caBundle }}
+    caBundle: {{ .Values.webhook.caBundle | quote }}
+    {{- end }}
+  failurePolicy: {{ .Values.webhook.failurePolicy }}
+  name: vlandscape.konfidence.cloud
+  rules:
+  - apiGroups:
+    - konfidence.cloud
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - landscapes
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "konfidence.fullname" . }}-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-konfidence-cloud-v1alpha1-stage
+    {{- if .Values.webhook.caBundle }}
+    caBundle: {{ .Values.webhook.caBundle | quote }}
+    {{- end }}
+  failurePolicy: {{ .Values.webhook.failurePolicy }}
+  name: vstage.konfidence.cloud
+  rules:
+  - apiGroups:
+    - konfidence.cloud
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - stages
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "konfidence.fullname" . }}-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-konfidence-cloud-v1alpha1-vectorpromotionconfig
+    {{- if .Values.webhook.caBundle }}
+    caBundle: {{ .Values.webhook.caBundle | quote }}
+    {{- end }}
+  failurePolicy: {{ .Values.webhook.failurePolicy }}
+  name: vvectorpromotionconfig.konfidence.cloud
+  rules:
+  - apiGroups:
+    - konfidence.cloud
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - vectorpromotionconfigs
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "konfidence.fullname" . }}-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-konfidence-cloud-v1alpha1-vectortemplate
+    {{- if .Values.webhook.caBundle }}
+    caBundle: {{ .Values.webhook.caBundle | quote }}
+    {{- end }}
+  failurePolicy: {{ .Values.webhook.failurePolicy }}
+  name: vvectortemplate.konfidence.cloud
+  rules:
+  - apiGroups:
+    - konfidence.cloud
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - vectortemplates
+  sideEffects: None
+{{- end }}

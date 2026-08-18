@@ -1,0 +1,10 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: StageVersionUsage
+metadata:
+  labels:
+    app.kubernetes.io/name: crds
+  name: stageversionusage-sample
+spec:
+  reason: Target usage for stage 'stage-dev'
+  stageVersionRef:
+    name: stageversion-dev-475124
