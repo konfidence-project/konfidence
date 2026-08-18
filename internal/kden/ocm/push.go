@@ -13,7 +13,7 @@ import (
 
 func GetOcmConstructorProvider(ocmConfiguration *ocmgenericspecv1.Config, ctx context.Context,
 	registry string) (*ConstructorProvider, error) {
-	pluginManager, err := ocmGetPluginManager(ctx)
+	pluginManager, err := ocmGetPluginManager(ctx, registry)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load plugin manager: %w", err)
 	}
@@ -55,6 +55,7 @@ func PushComponentConstructor(ctx context.Context, constructorOptionProvider *Co
 		SourceInputMethodProvider:           constructorOptionProvider,
 		ResourceInputMethodProvider:         constructorOptionProvider,
 		ExternalComponentRepositoryProvider: constructorOptionProvider,
+		ResourceDigestProcessorProvider:     constructorOptionProvider,
 		Resolver:                            constructorOptionProvider.Graph,
 		ConcurrencyLimit:                    1,
 		ComponentVersionConflictPolicy:      ocmaddcvcli.ComponentVersionConflictPolicy("abort-and-fail").ToConstructorConflictPolicy(),

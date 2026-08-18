@@ -3,6 +3,7 @@ package ocm
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"ocm.software/open-component-model/bindings/go/input/dir"
 	"ocm.software/open-component-model/bindings/go/input/file"
@@ -13,6 +14,7 @@ import (
 	"ocm.software/open-component-model/bindings/go/plugin/manager"
 	"ocm.software/open-component-model/bindings/go/plugin/manager/registries/componentversionrepository"
 	"ocm.software/open-component-model/bindings/go/plugin/manager/registries/credentialrepository"
+	"ocm.software/open-component-model/bindings/go/plugin/manager/registries/digestprocessor"
 	"ocm.software/open-component-model/bindings/go/plugin/manager/registries/input"
 	"ocm.software/open-component-model/bindings/go/plugin/manager/registries/signinghandler"
 	"ocm.software/open-component-model/bindings/go/rsa/signing/handler"
@@ -26,6 +28,7 @@ type pluginManagerRegistrar interface {
 	registerSourceInputPlugin(p input.BuiltinSourceInputMethod) error
 	registerCredentialRepositoryPlugin(p credentialrepository.BuiltinCredentialRepositoryPlugin, consumerTypes []ocmruntime.Type) error
 	registerSigningHandler(p signinghandler.BuiltinSigningHandler) error
+	registerDigestProcessorPlugin(p digestprocessor.BuiltinDigestProcessorPlugin) error
 }
 
 type pluginsRegistrar struct{ pm *manager.PluginManager }
@@ -51,12 +54,17 @@ func (r *pluginsRegistrar) registerSigningHandler(p signinghandler.BuiltinSignin
 	return r.pm.SigningRegistry.RegisterInternalComponentSignatureHandler(p)
 }
 
-func GetPluginManager(ctx context.Context) (*manager.PluginManager, error) {
-	pm := manager.NewPluginManager(ctx)
-	return setupPluginManager(ctx, pm, &pluginsRegistrar{pm})
+func (r *pluginsRegistrar) registerDigestProcessorPlugin(p digestprocessor.BuiltinDigestProcessorPlugin) error {
+	return r.pm.DigestProcessorRegistry.RegisterInternalDigestProcessorPlugin(p)
 }
 
-func setupPluginManager(_ context.Context, pm *manager.PluginManager, r pluginManagerRegistrar) (*manager.PluginManager, error) {
+func GetPluginManager(ctx context.Context, registry string) (*manager.PluginManager, error) {
+	pm := manager.NewPluginManager(ctx)
+	return setupPluginManager(ctx, pm, &pluginsRegistrar{pm}, registry)
+}
+
+func setupPluginManager(_ context.Context, pm *manager.PluginManager, r pluginManagerRegistrar,
+	registry string) (*manager.PluginManager, error) {
 	if err := r.registerComponentVersionRepositoryPlugin(
 		provider.NewComponentVersionRepositoryProvider(provider.WithScheme(ocirepository.Scheme)),
 	); err != nil {
@@ -92,6 +100,11 @@ func setupPluginManager(_ context.Context, pm *manager.PluginManager, r pluginMa
 
 	if err := r.registerSigningHandler(signingHandler); err != nil {
 		return nil, fmt.Errorf("failed to register internal signing plugin: %w", err)
+	}
+
+	isHTTP := strings.HasPrefix(registry, "http://")
+	if err := r.registerDigestProcessorPlugin(newPlainHTTPResourceRepository(isHTTP)); err != nil {
+		return nil, fmt.Errorf("failed to register digest processor plugin: %w", err)
 	}
 
 	return pm, nil
