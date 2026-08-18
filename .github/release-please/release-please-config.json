@@ -9,6 +9,8 @@
   "prerelease": true,
   "prerelease-type": "alpha",
   "initial-version": "0.0.1-alpha.1",
+  "bump-minor-pre-major": true,
+  "commit-search-depth": 1000,
   "pull-request-title-pattern": "chore(release): ${version}",
   "changelog-sections": [
     {
