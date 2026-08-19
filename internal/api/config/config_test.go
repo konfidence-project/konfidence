@@ -38,6 +38,7 @@ var _ = Describe("Config.Validate", func() {
 		parsed, err := valid().Validate()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(parsed.Server.Addr).To(Equal(":8090"))
+		Expect(parsed.Server.UIAssetPath).To(BeEmpty())
 		Expect(parsed.OIDC.IssuerURL).To(Equal("http://localhost:5556/oauth"))
 		Expect(parsed.OIDC.Enabled).To(BeTrue())
 		Expect(parsed.OIDC.ClientID).To(Equal("konfidence"))

@@ -1,24 +1,14 @@
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
-import adapter from "@sveltejs/adapter-node";
 import { sveltekit } from "@sveltejs/kit/vite";
 
 export default defineConfig({
-  plugins: [
-    sveltekit({
-      adapter: adapter(),
-      compilerOptions: {
-        // Force runes mode for application code until Svelte 6 makes it the default.
-        runes: ({ filename }) => {
-          if (filename.split(/[/\\]/).includes("node_modules")) {
-            return undefined;
-          }
-
-          return true;
-        },
-      },
-    }),
-  ],
+  plugins: [sveltekit()],
+  server: {
+    proxy: {
+      "/api/v1": "http://127.0.0.1:8090",
+    },
+  },
   test: {
     expect: { requireAssertions: true },
     projects: [

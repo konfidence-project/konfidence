@@ -67,6 +67,8 @@ func init() {
 		"TCP address the API server listens on. Env: API_ADDR")
 	rootCmd.Flags().StringVar(&cfg.Server.LogLevel, "log-level", envOr("API_LOG_LEVEL", "info"),
 		"Log level (debug, info, warn, error). Env: API_LOG_LEVEL")
+	rootCmd.Flags().StringVar(&cfg.Server.UIAssetPath, "ui-asset-path", envOr("API_UI_ASSET_PATH", ""),
+		"Path to the directory containing dashboard UI assets. Env: API_UI_ASSET_PATH")
 	rootCmd.Flags().StringVar(&cfg.Server.ReadTimeout, "read-timeout", envOr("API_READ_TIMEOUT", "10s"),
 		"Maximum duration for reading an entire request. Env: API_READ_TIMEOUT")
 	rootCmd.Flags().StringVar(&cfg.Server.WriteTimeout, "write-timeout", envOr("API_WRITE_TIMEOUT", "10s"),

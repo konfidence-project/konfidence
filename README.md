@@ -42,6 +42,8 @@ pnpm install
 pnpm ui:dev
 ```
 
+The development server proxies `/api/v1` requests to the API at `http://127.0.0.1:8090`. Run the API separately with `make run-kden-api` when developing API-backed features.
+
 Install Chromium once before running browser-based tests:
 
 ```sh
@@ -62,12 +64,16 @@ pnpm ui:test:e2e
 
 `pnpm ui:verify` runs all static checks, while `pnpm ui:test` runs every test layer. `pnpm ui:all` runs both groups.
 
-Build and start the production Node.js server with:
+Build and preview the static SPA with:
 
 ```sh
 pnpm ui:build
 pnpm ui:start
 ```
+
+The preview server is intended for checking the root page. To exercise production SPA fallback behavior, serve the build through the API with `go run ./cmd/api --ui-asset-path=apps/konfidence-ui/build`.
+
+Production releases include the static SPA in the API image. The API serves the dashboard and `/api/v1` from the same origin; set `API_UI_ASSET_PATH` when running an API binary with an external dashboard build directory.
 
 ## Support, Feedback, Contributing
 

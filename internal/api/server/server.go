@@ -7,11 +7,13 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
+	"github.com/konfidence-project/konfidence/internal/api/ui"
 )
 
 // Server wraps an http.Server with graceful shutdown support.
@@ -31,6 +33,11 @@ func New(cfg config.Parsed, logger *slog.Logger, apiHandler http.Handler) *Serve
 // a graceful shutdown. The optional onAddr callback is called with the actual
 // bound address once the server is listening — useful in tests with ":0".
 func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) error {
+	rootHandler, err := s.router()
+	if err != nil {
+		return err
+	}
+
 	ln, err := net.Listen("tcp", s.cfg.Server.Addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", s.cfg.Server.Addr, err)
@@ -41,7 +48,7 @@ func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) err
 	}
 
 	srv := &http.Server{
-		Handler:      s.router(),
+		Handler:      rootHandler,
 		ReadTimeout:  s.cfg.Server.ReadTimeout,
 		WriteTimeout: s.cfg.Server.WriteTimeout,
 	}
@@ -73,12 +80,22 @@ func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) err
 	return nil
 }
 
-func (s *Server) router() http.Handler {
+func (s *Server) router() (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(middleware.Recovery(s.logger))
 	r.Use(middleware.Logging(s.logger))
 	r.Method(http.MethodGet, "/healthz", middleware.Handle(s.logger, handler.Healthz))
 	r.Method(http.MethodGet, "/readyz", middleware.Handle(s.logger, handler.Readyz))
-	r.Mount("/", s.handler)
-	return r
+	r.Handle("/api", s.handler)
+	r.Handle("/api/*", s.handler)
+
+	if s.cfg.Server.UIAssetPath != "" {
+		uiHandler, err := ui.New(os.DirFS(s.cfg.Server.UIAssetPath))
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize dashboard: %w", err)
+		}
+		r.NotFound(uiHandler.ServeHTTP)
+	}
+
+	return r, nil
 }

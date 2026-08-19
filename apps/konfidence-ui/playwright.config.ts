@@ -7,7 +7,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "pnpm build && HOST=127.0.0.1 PORT=4173 pnpm start",
+    command:
+      "pnpm build && KUBECONFIG=../../internal/api/server/testdata/kubeconfig.yaml go run ../../cmd/api --addr=127.0.0.1:4173 --ui-asset-path=build --log-level=error --oidc-enabled=false",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     url: "http://127.0.0.1:4173",
