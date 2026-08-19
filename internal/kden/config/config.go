@@ -1,12 +1,15 @@
 package config
 
 import (
+	"context"
 	encodingjson "encoding/json"
 	"fmt"
 	"net/url"
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/providers/confmap"
@@ -14,14 +17,55 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/koanf/v2"
+	kdenapi "github.com/konfidence-project/konfidence/internal/kden/apiclient"
+	"github.com/konfidence-project/konfidence/internal/kden/auth"
 	"github.com/spf13/cobra"
 )
 
 type Configuration struct {
-	LogLevel    string `json:"log-level" koanf:"log-level"`
-	LogFormat   string `json:"log-format" koanf:"log-format"`
-	Output      string `json:"output" koanf:"output"`
-	APIEndpoint string `json:"api-endpoint" koanf:"api-endpoint"`
+	LogLevel       string `json:"log-level" koanf:"log-level"`
+	LogFormat      string `json:"log-format" koanf:"log-format"`
+	Output         string `json:"output" koanf:"output"`
+	APIEndpoint    string `json:"api-endpoint" koanf:"api-endpoint"`
+	LoginTimeout   string `json:"login-timeout" koanf:"login-timeout"`
+	RequestTimeout string `json:"request-timeout" koanf:"request-timeout"`
+}
+
+type AppConfig struct {
+	APIProvider *APIClientProvider
+}
+
+type APIClientProvider struct {
+	once       sync.Once
+	authClient *auth.Client
+	err        error
+	factory    func() (*auth.Client, error)
+}
+
+func NewAPIClientProvider(
+	factory func() (*auth.Client, error),
+) *APIClientProvider {
+	return &APIClientProvider{factory: factory}
+}
+
+func (p *APIClientProvider) AuthClient() (*auth.Client, error) {
+	p.once.Do(func() {
+		p.authClient, p.err = p.factory()
+	})
+
+	return p.authClient, p.err
+}
+
+type ProjectAPI interface {
+	ListProjectsV1WithResponse(
+		ctx context.Context,
+		reqEditors ...kdenapi.RequestEditorFn,
+	) (*kdenapi.ListProjectsV1Response, error)
+}
+
+type Authenticator interface {
+	Login(context.Context) error
+	Invalidate() error
 }
 
 type envVarConfigs struct {
@@ -53,10 +97,12 @@ var (
 )
 
 var SupportedConfigurations = map[string][]string{
-	"log-level":    {"info", "debug", "error"},
-	"log-format":   {"json", "text", "pretty"},
-	"output":       {"json", "yaml", "pretty"},
-	"api-endpoint": {},
+	"log-level":       {"info", "debug", "error"},
+	"log-format":      {"json", "text", "pretty"},
+	"output":          {"json", "yaml", "pretty"},
+	"api-endpoint":    {},
+	"login-timeout":   {},
+	"request-timeout": {},
 }
 
 var configFileFuncs = configFileFunctions{
@@ -74,10 +120,12 @@ var envConfigs = envVarConfigs{
 
 func Configure(cmd *cobra.Command) error {
 	err := k.Load(confmap.Provider(map[string]interface{}{
-		"log-level":    "error",
-		"log-format":   "pretty",
-		"output":       "json",
-		"api-endpoint": "http://localhost:8090",
+		"log-level":       "info",
+		"log-format":      "pretty",
+		"output":          "json",
+		"api-endpoint":    "http://localhost:8090/api",
+		"login-timeout":   "2m",
+		"request-timeout": "30s",
 	}, "."), nil)
 	if err != nil {
 		return fmt.Errorf("failed to load default configuration: %w", err)
@@ -217,6 +265,30 @@ func validateConfig(cfg *Configuration) error {
 		return err
 	}
 
+	loginTimeout, err := parsePositiveDuration(
+		"login-timeout",
+		cfg.LoginTimeout,
+	)
+	if err != nil {
+		return err
+	}
+
+	requestTimeout, err := parsePositiveDuration(
+		"request-timeout",
+		cfg.RequestTimeout,
+	)
+	if err != nil {
+		return err
+	}
+
+	if loginTimeout <= requestTimeout {
+		return fmt.Errorf(
+			"invalid timeouts: login-timeout %q must be greater than request-timeout %q",
+			cfg.LoginTimeout,
+			cfg.RequestTimeout,
+		)
+	}
+
 	return nil
 }
 
@@ -247,4 +319,16 @@ func validateAPIEndpoint(addr string) error {
 		)
 	}
 	return nil
+}
+
+func parsePositiveDuration(name, value string) (time.Duration, error) {
+	duration, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("%s has an invalid value %q: %w", name, value, err)
+	}
+	if duration <= 0 {
+		return 0, fmt.Errorf("%s must be greater than zero", name)
+	}
+
+	return duration, nil
 }

@@ -20,6 +20,8 @@ var _ = Describe("Config.Validate", func() {
 				IssuerURL: "http://localhost:5556/oauth", ClientID: "konfidence", ClientSecret: "secret",
 				Scopes: "openid,customScope", RedirectURL: "http://localhost:8090/api/v1/auth/callback",
 				AllowReturnURLs: []string{"https://dashboard.example.com/callback", "http://localhost:3000/auth"},
+				UserInfoURL:     "http://localhost:5556/userinfo",
+				JWKSURL:         "http://localhost:5556/jwks",
 				PKCEEnabled:     true, StateExpiration: "15m",
 			},
 			Session: config.SessionConfig{
@@ -46,6 +48,8 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.OIDC.Scopes).To(ConsistOf([]string{"openid", "profile", "customScope"}))
 		Expect(parsed.OIDC.RedirectURL).To(Equal("http://localhost:8090/api/v1/auth/callback"))
 		Expect(parsed.OIDC.AllowReturnURLs).To(Equal([]string{"https://dashboard.example.com/callback", "http://localhost:3000/auth"}))
+		Expect(parsed.OIDC.UserInfoURL).To(Equal("http://localhost:5556/userinfo"))
+		Expect(parsed.OIDC.JWKSURL).To(Equal("http://localhost:5556/jwks"))
 		Expect(parsed.OIDC.PKCEEnabled).To(BeTrue())
 		Expect(parsed.OIDC.StateExpiration.Minutes()).To(Equal(15.0))
 		Expect(parsed.Session.Cookie.Name).To(Equal("kden-session"))

@@ -16,6 +16,8 @@ type Config struct {
 	TokenURL            string
 	AuthorizationURL    string
 	DeviceAuthURL       string
+	UserInfoURL         string
+	JWKSURL             string
 	ClientID            string
 	ClientSecret        string
 	Scopes              []string
@@ -41,6 +43,7 @@ type StateData struct {
 	CodeVerifier        string
 	CodeChallengeMethod string
 	CodeChallenge       string
+	ClientCodeChallenge string
 	CreatedAt           time.Time
 }
 
@@ -69,6 +72,7 @@ type IDTokenAdditionalClaims struct {
 }
 
 func (c *Client) Setup(ctx context.Context) error {
+	// TODO setup a custom provider if no base idp url has been provided
 	oidcProvider, err := oidc.NewProvider(ctx, c.config.IdentityProviderURI)
 	if err != nil {
 		return fmt.Errorf("failed to create oidc provider: %w", err)
@@ -132,26 +136,25 @@ func (c *Client) GenerateState(returnURL string) (*StateData, error) {
 }
 
 func (c *Client) AuthCodeURL(state *StateData) string {
-	var challengeOption oauth2.AuthCodeOption
-	if c.config.PKCEEnabled {
-		challengeOption = oauth2.S256ChallengeOption(state.CodeVerifier)
-	}
-
-	return c.oauth2Config.AuthCodeURL(
-		state.State,
+	options := []oauth2.AuthCodeOption{
 		oidc.Nonce(state.Nonce),
 		oauth2.SetAuthURLParam("response_mode", "query"),
-		challengeOption,
-	)
+	}
+
+	if c.config.PKCEEnabled {
+		options = append(options, oauth2.S256ChallengeOption(state.CodeVerifier))
+	}
+
+	return c.oauth2Config.AuthCodeURL(state.State, options...)
 }
 
 func (c *Client) Exchange(ctx context.Context, code string, state *StateData) (*oauth2.Token, error) {
-	var verifierOption oauth2.AuthCodeOption
+	var options []oauth2.AuthCodeOption
 	if c.config.PKCEEnabled {
-		verifierOption = oauth2.VerifierOption(state.CodeVerifier)
+		options = append(options, oauth2.VerifierOption(state.CodeVerifier))
 	}
 
-	token, err := c.oauth2Config.Exchange(ctx, code, verifierOption)
+	token, err := c.oauth2Config.Exchange(ctx, code, options...)
 	if err != nil {
 		return nil, fmt.Errorf("token exchange failed: %w", err)
 	}
