@@ -1,0 +1,12 @@
+FROM gcr.io/distroless/static:nonroot
+
+ARG TARGETPLATFORM
+
+WORKDIR /
+COPY ${TARGETPLATFORM}/api /api
+COPY apps/konfidence-ui/build /ui
+
+ENV API_UI_ASSET_PATH=/ui
+
+USER 65532:65532
+ENTRYPOINT ["/api"]

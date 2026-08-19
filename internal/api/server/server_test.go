@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -87,6 +88,37 @@ var _ = Describe("Server", func() {
 			Expect(err).NotTo(HaveOccurred())
 			defer func() { _ = resp.Body.Close() }()
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+		})
+
+		It("serves the dashboard and preserves API 404 responses", func() {
+			uiDir := GinkgoT().TempDir()
+			Expect(os.WriteFile(filepath.Join(uiDir, "index.html"), []byte("Konfidence SPA"), 0o600)).To(Succeed())
+			cfg := validParsed("127.0.0.1:19091")
+			cfg.Server.UIAssetPath = uiDir
+			srv := server.New(cfg, getLogger(), http.NotFoundHandler())
+			ctx, cancel := context.WithCancel(context.Background())
+			DeferCleanup(cancel)
+
+			go func() { _ = srv.ListenAndServe(ctx) }()
+			Eventually(func() error {
+				resp, err := http.Get("http://127.0.0.1:19091/projects/example/landscape") //nolint:noctx
+				if err != nil {
+					return err
+				}
+				_ = resp.Body.Close()
+				return nil
+			}, "3s", "50ms").Should(Succeed())
+
+			resp, err := http.Get("http://127.0.0.1:19091/projects/example/landscape") //nolint:noctx
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			_ = resp.Body.Close()
+
+			resp, err = http.Get("http://127.0.0.1:19091/api/v1/unknown") //nolint:noctx
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusNotFound))
+			Expect(resp.Header.Get("Content-Type")).NotTo(ContainSubstring("text/html"))
+			_ = resp.Body.Close()
 		})
 	})
 })

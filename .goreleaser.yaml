@@ -23,6 +23,8 @@ snapshot:
 before:
   hooks:
     - go mod tidy
+    - ./bin/pnpm install --frozen-lockfile
+    - ./bin/pnpm ui:build
 
 builds:
   - id: konfidence
@@ -110,7 +112,7 @@ dockers_v2:
 
   - id: api
     ids: [api]
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.api
     images:
       - ghcr.io/konfidence-project/api
     tags:
@@ -118,8 +120,8 @@ dockers_v2:
     platforms:
       - linux/amd64
       - linux/arm64
-    build_args:
-      OPERATOR_NAME: api
+    extra_files:
+      - apps/konfidence-ui/build
 
 changelog:
   use: github

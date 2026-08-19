@@ -28,6 +28,7 @@ type ServerConfig struct {
 	WriteTimeout    string
 	ShutdownTimeout string
 	LogLevel        string
+	UIAssetPath     string
 }
 
 type OIDCConfig struct {
@@ -85,6 +86,7 @@ type Parsed struct {
 type ParsedServerConfig struct {
 	Addr            string
 	LogLevel        string
+	UIAssetPath     string
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
@@ -172,7 +174,14 @@ func (c ServerConfig) validate() (ParsedServerConfig, error) {
 	default:
 		return ParsedServerConfig{}, fmt.Errorf("invalid log-level %q: must be one of debug, info, warn, error", c.LogLevel)
 	}
-	return ParsedServerConfig{c.Addr, c.LogLevel, read, write, shutdown}, nil
+	return ParsedServerConfig{
+		Addr:            c.Addr,
+		LogLevel:        c.LogLevel,
+		UIAssetPath:     c.UIAssetPath,
+		ReadTimeout:     read,
+		WriteTimeout:    write,
+		ShutdownTimeout: shutdown,
+	}, nil
 }
 
 func (c OIDCConfig) validate() (ParsedOIDCConfig, error) {

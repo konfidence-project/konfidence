@@ -13,9 +13,9 @@ importers:
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.61.1
-      '@sveltejs/adapter-node':
-        specifier: ^5.5.4
-        version: 5.5.7(@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.4(@typescript-eslint/types@8.62.1))(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))(svelte@5.56.4(@typescript-eslint/types@8.62.1))(typescript@6.0.3)(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))
+      '@sveltejs/adapter-static':
+        specifier: ^3.0.10
+        version: 3.0.10(@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.4(@typescript-eslint/types@8.62.1))(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))(svelte@5.56.4(@typescript-eslint/types@8.62.1))(typescript@6.0.3)(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))
       '@sveltejs/kit':
         specifier: ^2.69.1
         version: 2.70.2(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.4(@typescript-eslint/types@8.62.1))(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))(svelte@5.56.4(@typescript-eslint/types@8.62.1))(typescript@6.0.3)(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0))
@@ -1004,6 +1004,11 @@ packages:
     resolution: {integrity: sha512-uOfc9eVlI3A37RRSaKcgrheBYPrfJwC9VMqDp8x/O6tlKdcLLvHThSWD0KNIbjQ/d+7bwLGx3vx6aowAcRfd2g==}
     peerDependencies:
       '@sveltejs/kit': ^2.4.0
+
+  '@sveltejs/adapter-static@3.0.10':
+    resolution: {integrity: sha512-7D9lYFWJmB7zxZyTE/qxjksvMqzMuYrrsyh1f4AlZqeZeACPRySjbC3aFiY55wb1tWUaKOQG9PVbm74JcN2Iew==}
+    peerDependencies:
+      '@sveltejs/kit': ^2.0.0
 
   '@sveltejs/kit@2.70.2':
     resolution: {integrity: sha512-RzRoRpuR2KXqc5yMO0akQHDZeT4AslOlznGITURsqHaVbtyYP4Wn3eE3gxj9JcDyNYO0crkxhdwFHc+2vkVm6w==}
@@ -2882,6 +2887,10 @@ snapshots:
       '@rollup/plugin-replace': 6.0.3(rollup@4.62.2)
       '@sveltejs/kit': 2.70.2(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.4(@typescript-eslint/types@8.62.1))(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))(svelte@5.56.4(@typescript-eslint/types@8.62.1))(typescript@6.0.3)(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0))
       rollup: 4.62.2
+
+  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.4(@typescript-eslint/types@8.62.1))(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))(svelte@5.56.4(@typescript-eslint/types@8.62.1))(typescript@6.0.3)(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))':
+    dependencies:
+      '@sveltejs/kit': 2.70.2(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.4(@typescript-eslint/types@8.62.1))(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))(svelte@5.56.4(@typescript-eslint/types@8.62.1))(typescript@6.0.3)(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0))
 
   '@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.4(@typescript-eslint/types@8.62.1))(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0)))(svelte@5.56.4(@typescript-eslint/types@8.62.1))(typescript@6.0.3)(vite@8.1.0(@types/node@26.1.1)(esbuild@0.28.1)(less@4.6.7)(tsx@4.23.1)(yaml@2.9.0))':
     dependencies:
