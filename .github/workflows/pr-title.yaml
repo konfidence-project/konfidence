@@ -1,0 +1,13 @@
+name: PR Title
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: konfidence-project/.github/.github/workflows/pr-title.yaml@v4
