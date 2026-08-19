@@ -83,7 +83,7 @@ func (m *failingTargetRepository) RemoveComponentVersionAlias(_ context.Context,
 }
 
 var _ = BeforeEach(func() {
-	ocmGetPluginManager = func(_ context.Context) (*manager.PluginManager, error) {
+	ocmGetPluginManager = func(_ context.Context, registry string) (*manager.PluginManager, error) {
 		return &manager.PluginManager{}, nil
 	}
 	ocmGetRepositorySpec = func(_ string) (runtime.Typed, error) {
@@ -128,7 +128,7 @@ var _ = Describe("GetOcmConstructorProvider", func() {
 
 	Context("with failing OCM Library methods", func() {
 		It("returns an error when getting the plugin manager throws an error", func() {
-			ocmGetPluginManager = func(_ context.Context) (*manager.PluginManager, error) {
+			ocmGetPluginManager = func(_ context.Context, registry string) (*manager.PluginManager, error) {
 				return nil, fmt.Errorf("ocm library fails")
 			}
 			_, err := GetOcmConstructorProvider(&ocmConfig, ctx, registry)

@@ -20,7 +20,7 @@ type AliasProperties struct {
 
 // Alias creates or updates a mutable alias tag pointing to the given component version.
 func Alias(ctx context.Context, props AliasProperties, ocmConfiguration *ocmgenericspecv1.Config) error {
-	pluginManager, err := ocmGetPluginManager(ctx)
+	pluginManager, err := ocmGetPluginManager(ctx, "")
 	if err != nil {
 		return fmt.Errorf("failed to get plugin manager: %w", err)
 	}

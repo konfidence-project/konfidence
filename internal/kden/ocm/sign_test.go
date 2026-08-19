@@ -148,7 +148,7 @@ var _ = Describe("Sign", func() {
 			DryRun:                 false,
 		}
 
-		ocmGetPluginManager = func(_ context.Context) (*manager.PluginManager, error) {
+		ocmGetPluginManager = func(_ context.Context, registry string) (*manager.PluginManager, error) {
 			return &manager.PluginManager{}, nil
 		}
 		ocmGetCredentialGraph = func(_ context.Context, _ *manager.PluginManager, _ *ocmgenericspecv1.Config) (credentials.Resolver, error) {
@@ -238,7 +238,7 @@ var _ = Describe("Sign", func() {
 
 	Context("with failing OCM library methods", func() {
 		It("returns an error when getting the plugin manager fails", func() {
-			ocmGetPluginManager = func(_ context.Context) (*manager.PluginManager, error) {
+			ocmGetPluginManager = func(_ context.Context, registry string) (*manager.PluginManager, error) {
 				return nil, fmt.Errorf("plugin manager unavailable")
 			}
 			_, err := Sign(ctx, signingProps, &ocmConfig)
