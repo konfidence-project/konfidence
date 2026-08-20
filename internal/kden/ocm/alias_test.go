@@ -45,7 +45,7 @@ var _ = Describe("Alias", func() {
 			Alias:            "edge",
 		}
 
-		ocmGetPluginManager = func(_ context.Context) (*manager.PluginManager, error) {
+		ocmGetPluginManager = func(_ context.Context, _ *ocmgenericspecv1.Config) (*manager.PluginManager, error) {
 			return &manager.PluginManager{}, nil
 		}
 		ocmGetCredentialGraph = func(_ context.Context, _ *manager.PluginManager, _ *ocmgenericspecv1.Config) (credentials.Resolver, error) {
@@ -75,7 +75,7 @@ var _ = Describe("Alias", func() {
 
 	Context("with failing OCM library methods", func() {
 		It("returns an error when getting the plugin manager fails", func() {
-			ocmGetPluginManager = func(_ context.Context) (*manager.PluginManager, error) {
+			ocmGetPluginManager = func(_ context.Context, _ *ocmgenericspecv1.Config) (*manager.PluginManager, error) {
 				return nil, fmt.Errorf("plugin manager unavailable")
 			}
 			Expect(Alias(ctx, props, &ocmConfig)).To(MatchError(ContainSubstring("failed to get plugin manager")))
