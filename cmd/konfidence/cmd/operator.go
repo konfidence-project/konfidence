@@ -138,6 +138,14 @@ func startOperator(_ *cobra.Command, _ []string) error {
 			setupLog.Error(err, "unable to set up Stage webhook")
 			return err
 		}
+		if err := konfidence.SetupDeploymentTargetWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to set up DeploymentTarget webhook")
+			return err
+		}
+		if err := konfidence.SetupDeploymentClassWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to set up DeploymentClass webhook")
+			return err
+		}
 	} else {
 		setupLog.Info("webhooks disabled")
 	}

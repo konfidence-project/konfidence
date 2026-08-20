@@ -1,0 +1,12 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: production-helm
+  namespace: kden-l-production-abc123
+spec:
+  type: konfidence.cloud/helm
+  connection:
+    type: kubeconfig
+    ref:
+      kind: Secret
+      name: prod-cluster-kubeconfig

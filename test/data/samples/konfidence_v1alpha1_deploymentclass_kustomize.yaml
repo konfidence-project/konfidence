@@ -1,0 +1,7 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentClass
+metadata:
+  name: kubernetes-kustomize-deployer
+spec:
+  type: konfidence.cloud/kustomize
+  controller: kubernetes-landscape-orchestrator

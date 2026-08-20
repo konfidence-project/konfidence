@@ -105,6 +105,17 @@ rules:
 - apiGroups:
   - konfidence.cloud
   resources:
+  - deploymentclasses
+  - deploymenttargets
+  - vectorpromotionconfigs
+  - vectortemplates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - konfidence.cloud
+  resources:
   - landscapes/finalizers
   - projects/finalizers
   - vectordeployments/finalizers
@@ -118,15 +129,6 @@ rules:
   verbs:
   - create
   - delete
-  - get
-  - list
-  - watch
-- apiGroups:
-  - konfidence.cloud
-  resources:
-  - vectorpromotionconfigs
-  - vectortemplates
-  verbs:
   - get
   - list
   - watch
