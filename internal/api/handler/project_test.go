@@ -1,4 +1,4 @@
-package handler
+epackage handler
 
 import (
 	"context"
@@ -18,7 +18,7 @@ type projectRepository struct {
 	err      error
 }
 
-func (r *projectRepository) Get(_ context.Context, _ string) (*konfidence.Project, error) {
+func (r *projectRepository) Get(_ context.Context, _ string, _ auth.ProjectRoles) (*konfidence.Project, error) {
 	return nil, project.ErrNotFound
 }
 
@@ -26,13 +26,13 @@ func (r *projectRepository) List(_ context.Context, projectRoles auth.ProjectRol
 	if r.err != nil {
 		return nil, r.err
 	}
-	projects := make([]konfidence.Project, 0, len(projectRoles))
+	result := make([]konfidence.Project, 0, len(projectRoles))
 	for _, item := range r.projects {
 		if len(projectRoles[item.Name]) > 0 {
-			projects = append(projects, item)
+			result = append(result, item)
 		}
 	}
-	return projects, nil
+	return result, nil
 }
 
 func projectFixture(name, displayName string, groups ...string) konfidence.Project {
@@ -104,8 +104,8 @@ func TestListProjectsV1(t *testing.T) {
 		}
 	})
 
-	t.Run("returns repository errors", func(t *testing.T) {
-		repositoryErr := errors.New("Kubernetes unavailable")
+	t.Run("returns 500 on repository error", func(t *testing.T) {
+		repositoryErr := errors.New("kubernetes unavailable")
 		h := &projectHandler{projectRepo: &projectRepository{err: repositoryErr}}
 
 		response, err := h.ListProjectsV1(authorizedContext(auth.ProjectRoles{

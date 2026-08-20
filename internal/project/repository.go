@@ -11,24 +11,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ErrNotFound is returned when a Project CR does not exist.
 var ErrNotFound = fmt.Errorf("project not found")
+var ErrForbidden = fmt.Errorf("access to project not allowed")
 
-// Repository provides read access to Project CRs.
 type Repository interface {
-	Get(ctx context.Context, name string) (*konfidence.Project, error)
+	Get(ctx context.Context, name string, projectRoles auth.ProjectRoles) (*konfidence.Project, error)
 	List(ctx context.Context, projectRoles auth.ProjectRoles) ([]konfidence.Project, error)
 }
 
 type k8sRepository struct{ reader client.Reader }
 
-// NewRepository creates a Repository backed by the given reader. When reader is
-// an informer cache, all Get and List calls are served from its local store.
 func NewRepository(reader client.Reader) Repository {
 	return &k8sRepository{reader: reader}
 }
 
-func (r *k8sRepository) Get(ctx context.Context, name string) (*konfidence.Project, error) {
+func (r *k8sRepository) Get(ctx context.Context, name string, projectRoles auth.ProjectRoles) (*konfidence.Project, error) {
 	var project konfidence.Project
 	if err := r.reader.Get(ctx, types.NamespacedName{Name: name}, &project); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -36,6 +33,11 @@ func (r *k8sRepository) Get(ctx context.Context, name string) (*konfidence.Proje
 		}
 		return nil, fmt.Errorf("getting project %q: %w", name, err)
 	}
+
+	if len(projectRoles[name]) == 0 {
+		return nil, ErrForbidden
+	}
+
 	return &project, nil
 }
 

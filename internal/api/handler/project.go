@@ -9,6 +9,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	"github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 )
@@ -47,36 +48,23 @@ func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProje
 	return openapi.ListProjectsV1200JSONResponse{Data: data}, nil
 }
 
-func toProjectResponse(p konfidence.Project) openapi.Project {
-	return openapi.Project{
-		Id:   p.Name,
-		Name: p.Spec.DisplayName,
-	}
-}
-
 func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListLandscapesV1RequestObject) (openapi.ListLandscapesV1ResponseObject, error) {
-	identity, err := session.FromContext(ctx)
-	if err != nil {
-		return openapi.ListLandscapesV1401JSONResponse{
-			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
-		}, nil
-	}
+	projectRoles := projectRolesFromContext(ctx)
 
-	project, err := h.projectRepo.Get(ctx, req.ProjectId)
+	project, err := h.projectRepo.Get(ctx, req.ProjectId, projectRoles)
 	if err != nil {
 		if errors.Is(err, projectdomain.ErrNotFound) {
+			return openapi.ListLandscapesV1404JSONResponse{
+				NotFoundJSONResponse: apierror.NewNotFoundResponse(fmt.Sprintf("project %q not found", req.ProjectId)),
+			}, nil
+		}
+		if errors.Is(err, projectdomain.ErrForbidden) {
 			return openapi.ListLandscapesV1403JSONResponse{
 				ForbiddenJSONResponse: apierror.NewForbiddenResponse(fmt.Sprintf("access to project %q is not allowed", req.ProjectId)),
 			}, nil
 		}
 		return openapi.ListLandscapesV1500JSONResponse{
 			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
-	}
-
-	if !callerHasProjectAccess(identity, project) {
-		return openapi.ListLandscapesV1403JSONResponse{
-			ForbiddenJSONResponse: apierror.NewForbiddenResponse(fmt.Sprintf("access to project %q is not allowed", req.ProjectId)),
 		}, nil
 	}
 
@@ -101,12 +89,19 @@ func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListL
 	return openapi.ListLandscapesV1200JSONResponse{Data: data}, nil
 }
 
-func callerHasProjectAccess(identity *session.Context, project *konfidence.Project) bool {
-	if len(project.Spec.RoleBindings) == 0 {
-		return true
+func projectRolesFromContext(ctx context.Context) auth.ProjectRoles {
+	sess, err := session.FromContext(ctx)
+	if err != nil {
+		return auth.ProjectRoles{}
 	}
-	_, hasAccess := identity.ProjectRoles[project.Name]
-	return hasAccess
+	return sess.ProjectRoles
+}
+
+func toProjectResponse(p konfidence.Project) openapi.Project {
+	return openapi.Project{
+		Id:   p.Name,
+		Name: p.Spec.DisplayName,
+	}
 }
 
 func toLandscapeResponse(l konfidence.Landscape) openapi.Landscape {
