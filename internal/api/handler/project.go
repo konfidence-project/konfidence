@@ -9,7 +9,6 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
-	"github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 )
@@ -49,9 +48,14 @@ func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProje
 }
 
 func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListLandscapesV1RequestObject) (openapi.ListLandscapesV1ResponseObject, error) {
-	projectRoles := projectRolesFromContext(ctx)
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return openapi.ListLandscapesV1401JSONResponse{
+			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
+		}, nil
+	}
 
-	project, err := h.projectRepo.Get(ctx, req.ProjectId, projectRoles)
+	project, err := h.projectRepo.Get(ctx, req.ProjectId, identity.ProjectRoles)
 	if err != nil {
 		if errors.Is(err, projectdomain.ErrNotFound) {
 			return openapi.ListLandscapesV1404JSONResponse{
@@ -87,14 +91,6 @@ func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListL
 	}
 
 	return openapi.ListLandscapesV1200JSONResponse{Data: data}, nil
-}
-
-func projectRolesFromContext(ctx context.Context) auth.ProjectRoles {
-	sess, err := session.FromContext(ctx)
-	if err != nil {
-		return auth.ProjectRoles{}
-	}
-	return sess.ProjectRoles
 }
 
 func toProjectResponse(p konfidence.Project) openapi.Project {
