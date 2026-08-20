@@ -106,15 +106,15 @@ var _ = Describe("ListLandscapesV1", func() {
 		Expect(item.Name).To(Equal("Development"))
 	})
 
-	It("returns 403 when project does not exist", func() {
+	It("returns 404 when project does not exist", func() {
 		h := apiHandlerWith()
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"nonexistent": {"admin"}})
 		resp, err := h.ListLandscapesV1(ctx, openapi.ListLandscapesV1RequestObject{ProjectId: "nonexistent"})
 		Expect(err).NotTo(HaveOccurred())
 
-		_, is403 := resp.(openapi.ListLandscapesV1403JSONResponse)
-		Expect(is403).To(BeTrue())
+		_, is404 := resp.(openapi.ListLandscapesV1404JSONResponse)
+		Expect(is404).To(BeTrue())
 	})
 
 	It("returns 401 when no session is present", func() {
