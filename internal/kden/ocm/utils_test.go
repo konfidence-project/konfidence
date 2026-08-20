@@ -1,6 +1,7 @@
 package ocm_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -8,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/konfidence-project/konfidence/internal/kden/ocm"
+	ocmgenericspecv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
 )
 
 var _ = Describe("ReadConstructorFromFile", func() {
@@ -46,6 +48,28 @@ var _ = Describe("ReadConstructorFromFile", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(result).To(BeNil())
 			Expect(err.Error()).To(ContainSubstring("failed to unmarshall constructor"))
+		})
+	})
+})
+
+var _ = Describe("GetCredentialGraph", func() {
+	// Regression: when a config carries no credentials section,
+	// LookupCredentialConfig returns a nil credential config, which ToGraph
+	// nil-derefs on. GetCredentialGraph must tolerate that and yield an
+	// (anonymous) resolver instead of panicking.
+	//
+	// GetOcmConfiguration always materializes a non-nil &Config{} for the
+	// no-.ocmconfig case, so the reachable input here is an empty (or
+	// credentials-free) generic config — not a nil one.
+	Context("when the config has no credentials section", func() {
+		It("returns an anonymous resolver without panicking", func() {
+			pm, err := ocm.GetPluginManager(context.Background(), &ocmgenericspecv1.Config{})
+			Expect(err).ToNot(HaveOccurred())
+
+			resolver, err := ocm.GetCredentialGraph(context.Background(), pm, &ocmgenericspecv1.Config{})
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resolver).ToNot(BeNil())
 		})
 	})
 })

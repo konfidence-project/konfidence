@@ -116,6 +116,15 @@ func GetCredentialGraph(ctx context.Context, pluginManager *manager.PluginManage
 	if err != nil {
 		return nil, err
 	}
+	if credCfg == nil {
+		// No usable credentials — either no .ocmconfig at all, or one without a
+		// credentials section. Registries are then accessed unauthenticated;
+		// auth failures surface later as a 401/403. Tell the user so
+		// unauthenticated access is visible, not silent. Also, ToGraph nil-derefs
+		// on nil, so hand it an empty config.
+		log.Info("no OCM credentials configured; registries will be accessed without credentials (unauthenticated)")
+		credCfg = &credentialsruntime.Config{}
+	}
 	return credentials.ToGraph(ctx, credCfg, opts)
 }
 
@@ -140,9 +149,15 @@ func ReadConstructorFromFile(filePath string) (*ocmconstructorspecv1.ComponentCo
 func GetOcmConfiguration(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
 	cfg, err := configuration.GetFlattenedOCMConfigForCommand(cmd)
 	if err != nil {
-		if flag := cmd.Flag(configuration.OCMConfigCommandArgument); flag != nil && flag.Changed {
-			return nil, fmt.Errorf("failed to load configuration: %w", err)
-		}
+		// GetFlattenedOCMConfigForCommand only returns a nil config together
+		// with an error (a missing .ocmconfig is the common case); on success it
+		// is always non-nil. So this is the single place cfg can be nil.
+		// A missing config is legitimate — kden then runs with defaults /
+		// unauthenticated (the credential-specific notice is emitted in
+		// GetCredentialGraph). Materialize an empty config so nil never reaches
+		// downstream consumers (plugin manager, repository resolver, credential graph).
+		log.Info("no OCM configuration loaded; proceeding with defaults", "error", err)
+		cfg = &ocmgenericspecv1.Config{}
 	}
 	return cfg, nil
 }
