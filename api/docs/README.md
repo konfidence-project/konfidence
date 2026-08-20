@@ -280,7 +280,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `observedGeneration` _integer_ | ObservedGeneration is the last observed generation. |  | Optional: \{\} <br /> |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions describes the state of the deployment lifecycle. The following conditions are expected:<br />  - ArtifactFetched: the artifact was successfully retrieved<br />  - ArtifactDeployed: the artifact was successfully deployed<br />  - AppHealthy: the deployer reports the workload as healthy<br />Conditions progress in a linear order:<br />ArtifactFetched -> ArtifactDeployed -> AppHealthy |  | Optional: \{\} <br /> |
-| `deploymentResult` _[DeploymentResult](#deploymentresult) array_ | DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as<br />computed DNS names, service endpoints, generated configuration, or other workload-specific details.<br />Results should be treated as immutable for a given generation and may be consumed by later stages of a vector<br />rollout (e.g., routing configuration).<br />Each result must have a unique Name. |  | Optional: \{\} <br /> |
+| `deploymentResult` _[DeploymentResult](#deploymentresult) array_ | DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as<br />computed DNS names, service endpoints, generated configuration, or other workload-specific details.<br />Results should be treated as immutable for a given generation and may be consumed by later stages of a vector<br />rollout (e.g., routing configuration).<br />Results are unique by (name, type). |  | Optional: \{\} <br /> |
 
 
 #### ArtifactManifest
@@ -317,6 +317,26 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `name` _string_ |  |  |  |
+
+
+#### ComponentDeploymentResults
+
+_Underlying type:_ _[DeploymentResult](#deploymentresult)_
+
+ComponentDeploymentResults lists the deployment results emitted by a single component.
+
+_Validation:_
+- MaxItems: 16
+
+_Appears in:_
+- [VectorDataSpec](#vectordataspec)
+- [VectorDeploymentStatus](#vectordeploymentstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name identifies the result. |  | MaxLength: 253 <br /> |
+| `type` _string_ | Type describes the structure contained in Spec. Each deployer may define multiple result types. |  | MaxLength: 63 <br /> |
+| `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains deployer-specific structured data. Its format is determined by the Type field. |  |  |
 
 
 #### ConnectionRef
@@ -445,13 +465,12 @@ from the deployer to later phases of the vector lifecycle.
 
 _Appears in:_
 - [ArtifactDeploymentStatus](#artifactdeploymentstatus)
-- [VectorDataSpec](#vectordataspec)
-- [VectorDeploymentStatus](#vectordeploymentstatus)
+- [ComponentDeploymentResults](#componentdeploymentresults)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is a unique identifier for the result within an ArtifactDeploymentStatus. |  |  |
-| `type` _string_ | Type describes the structure contained in Spec. Each deployer may define multiple result types. |  |  |
+| `name` _string_ | Name identifies the result. |  | MaxLength: 253 <br /> |
+| `type` _string_ | Type describes the structure contained in Spec. Each deployer may define multiple result types. |  | MaxLength: 63 <br /> |
 | `spec` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Spec contains deployer-specific structured data. Its format is determined by the Type field. |  |  |
 
 
@@ -1652,7 +1671,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `features` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Features carries the optional "features" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
 | `authored` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Authored carries the optional "authored" subset of the OCM envelope, verbatim JSON. |  | Optional: \{\} <br /> |
-| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults aggregated from underlying ArtifactDeployments, keyed by artifact<br />component name; the value lists every result emitted by that component. |  | Optional: \{\} <br /> |
+| `deploymentResults` _object (keys:string, values:[ComponentDeploymentResults](#componentdeploymentresults))_ | DeploymentResults aggregated from underlying ArtifactDeployments, keyed by artifact<br />component name; the value lists every result emitted by that component. Within a<br />component's list, results are unique by (name, type). |  | MaxProperties: 64 <br />Optional: \{\} <br /> |
 
 
 #### VectorDataStatus
@@ -1766,7 +1785,7 @@ _Appears in:_
 | `resultingVectorData` _[LocalObjectReference](#localobjectreference)_ | ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData<br />CR is the contract between the vector deployment controller (which resolves the OCM payload) and the runtime-specific implementor<br />(which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the<br />CR. Names are stable across reconciliations. |  |  |
 | `resultingArtifactDeployments` _object (keys:string, values:[LocalArtifactDeploymentReference](#localartifactdeploymentreference))_ | ResultingArtifactDeployments lists the ArtifactDeployment resources created (or re-used) for this vector. The<br />map key is the component name of the artifact as defined inside the vector. Keys remain stable across<br />reconciliations and re-creations. |  |  |
 | `resultingVectorAssignments` _object (keys:string, values:[LocalVectorAssignmentReference](#localvectorassignmentreference))_ | ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are<br />not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of<br />assignments.<br />The map key is the component name of the artifact. Keys are stable across reconcilations. |  |  |
-| `deploymentResults` _object (keys:string, values:[DeploymentResult](#deploymentresult))_ | DeploymentResults exposes an aggregated view of the deployment results produced<br />by all underlying ArtifactDeployments. The map key is the artifact component name;<br />the value lists every result emitted by that ArtifactDeployment. |  |  |
+| `deploymentResults` _object (keys:string, values:[ComponentDeploymentResults](#componentdeploymentresults))_ | DeploymentResults exposes an aggregated view of the deployment results produced<br />by all underlying ArtifactDeployments. The map key is the artifact component name;<br />the value lists every result emitted by that ArtifactDeployment. Within a component's<br />list, results are unique by (name, type). |  | MaxProperties: 64 <br /> |
 
 
 #### VectorMigration
