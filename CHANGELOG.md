@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.1.0-alpha.1](https://github.com/konfidence-project/konfidence/compare/0.0.1-alpha.1...0.1.0-alpha.1) (2026-08-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** enforce unique (name,type) on deployment results
+
+### Features
+
+* **api:** enforce unique (name,type) on deployment results ([5e60e11](https://github.com/konfidence-project/konfidence/commit/5e60e11a6eecd3584c0b8efbe67ee3d915835755))
+* introduce projects endpoint at konfidence API ([38d563e](https://github.com/konfidence-project/konfidence/commit/38d563e762c2f87e1089878caaa6cd20885065d3))
+* **ui:** serve dashboard SPA from API ([640d091](https://github.com/konfidence-project/konfidence/commit/640d0914957524006c84fb4bce120ccfad267e6d))
+
+
+### Bug Fixes
+
+* **kden:** digest external ociArtifact resources via upstream resource repository ([#155](https://github.com/konfidence-project/konfidence/issues/155)) ([a1516d3](https://github.com/konfidence-project/konfidence/commit/a1516d3e411231e3f0a7643416e300044283334d))
+* **kden:** inject OCM command context so config loading doesn't panic ([7497780](https://github.com/konfidence-project/konfidence/commit/74977807fed6babbc176e2febf9e8d1e717b081b))
+* **kden:** treat a missing .ocmconfig as anonymous, not a panic ([0c37657](https://github.com/konfidence-project/konfidence/commit/0c37657e075f7351d04011f7c1ae6e3bc0bbb5ac))
+* **ocm/crypto:** enforce safe-digestibility at preFlight; best-effort cache fill; length-prefix cache key ([1dff7f6](https://github.com/konfidence-project/konfidence/commit/1dff7f62eff0c72b24faa21ac9cc8d954995a323))
+
+
+### Maintenance
+
+* **deps:** bump actions/setup-go from 6 to 7 ([8ceac31](https://github.com/konfidence-project/konfidence/commit/8ceac313a56a082a34686c23544e01da78d86f62))
+* **deps:** bump github.com/moby/go-archive from 0.2.0 to 0.3.0 ([e6c1eb0](https://github.com/konfidence-project/konfidence/commit/e6c1eb0bf52fbc9aba54457f7dbf2ccf73fc5f8c))
+* **deps:** bump the gomod-minor-patch group with 7 updates ([af3ab4b](https://github.com/konfidence-project/konfidence/commit/af3ab4bc1d3dada7e3d6974609a18acd40e1de4e))
+
 ## 0.0.1-alpha.1 (2026-08-18)
 
 
