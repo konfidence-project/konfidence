@@ -34,7 +34,7 @@ type SigningProperties struct {
 }
 
 func Sign(ctx context.Context, signingProperties SigningProperties, ocmConfiguration *ocmgenericspecv1.Config) (*ocmdescriptorruntime.Signature, error) {
-	pluginManager, err := ocmGetPluginManager(ctx)
+	pluginManager, err := ocmGetPluginManager(ctx, ocmConfiguration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get plugin manager: %w", err)
 	}
