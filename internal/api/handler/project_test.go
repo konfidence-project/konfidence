@@ -1,4 +1,4 @@
-epackage handler
+package handler
 
 import (
 	"context"
