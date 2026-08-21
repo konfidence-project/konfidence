@@ -12,11 +12,7 @@ const stage: Stage = {
   landscapeName: "Production",
   name: "Production API",
   status: "Active",
-  vector: {
-    componentName: "api",
-    componentVersion: "2.14.0-a3f2c9",
-    repository: "ghcr.io/konfidence/mock",
-  },
+  vector: "ghcr.io/konfidence/mock//api:2.14.0-a3f2c9",
 };
 
 describe("StageCard", () => {
