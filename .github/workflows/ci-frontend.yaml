@@ -1,27 +1,7 @@
 name: Frontend CI
 
 on:
-  pull_request:
-    paths:
-      - .goreleaser.yaml
-      - api/openapi.yaml
-      - package.json
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - tsconfig.json
-      - apps/konfidence-mock-api/**
-      - apps/konfidence-ui/**
-  push:
-    branches: [main]
-    paths:
-      - .goreleaser.yaml
-      - api/openapi.yaml
-      - package.json
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - tsconfig.json
-      - apps/konfidence-mock-api/**
-      - apps/konfidence-ui/**
+  workflow_call:
 
 permissions:
   contents: read
@@ -133,7 +113,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
-          path: apps/konfidence-ui/playwright-report/
+          path: |
+            apps/konfidence-ui/playwright-report/
+            apps/konfidence-ui/test-results/
           if-no-files-found: ignore
           retention-days: 7
 
