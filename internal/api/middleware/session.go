@@ -36,7 +36,11 @@ func SessionAuthentication(logger *slog.Logger, store session.Reader, authRepo a
 		Options: openapi3filter.Options{
 			AuthenticationFunc: authenticator.authenticate,
 		},
-		ErrorHandler: func(w http.ResponseWriter, _ string, _ int) {
+		ErrorHandlerWithOpts: func(_ context.Context, _ error, w http.ResponseWriter, r *http.Request, opts nethttpmiddleware.ErrorHandlerOpts) {
+			if opts.StatusCode == http.StatusNotFound {
+				apierror.Write(w, apierror.NewNotFound("route", r.URL.Path))
+				return
+			}
 			apierror.Write(w, apierror.NewUnauthorized())
 		},
 	})
