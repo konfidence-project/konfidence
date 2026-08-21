@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "scripts": {
-    "all": "pnpm --filter konfidence-ui all",
+    "all": "pnpm mock-api:all && pnpm ui:all",
     "mock-api:all": "pnpm --filter konfidence-mock-api all",
     "mock-api:dev": "pnpm --filter konfidence-mock-api dev",
     "mock-api:test": "pnpm --filter konfidence-mock-api test",
