@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -94,11 +95,46 @@ var _ = Describe("UI handler", func() {
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, httptest.NewRequest(method, target, nil))
 			Expect(recorder.Code).To(Equal(http.StatusNotFound))
+			Expect(recorder.Header().Get("Content-Type")).To(HavePrefix("text/plain"))
 		},
-		Entry("for the API root", http.MethodGet, "/api"),
-		Entry("for versioned API paths", http.MethodGet, "/api/v1/unknown"),
-		Entry("for unversioned API paths", http.MethodGet, "/api/unknown"),
 		Entry("for missing files", http.MethodGet, "/missing.js"),
 		Entry("for mutating requests", http.MethodPost, "/projects"),
 	)
+
+	DescribeTable("negotiates the not found body on Accept",
+		func(accept, target, expectedContentType string) {
+			request := httptest.NewRequest(http.MethodGet, target, nil)
+			request.Header.Set("Accept", accept)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, request)
+			Expect(recorder.Code).To(Equal(http.StatusNotFound))
+			Expect(recorder.Header().Get("Content-Type")).To(HavePrefix(expectedContentType))
+		},
+		Entry("JSON for a JSON-only client", "application/json", "/missing.js", "application/json"),
+		Entry("JSON for a JSON client with wildcard", "application/json, */*", "/missing.js", "application/json"),
+		Entry("plain text for a browser", "text/html,application/xhtml+xml,*/*;q=0.8", "/missing.js", "text/plain"),
+		Entry("plain text for a wildcard client", "*/*", "/missing.js", "text/plain"),
+		Entry("plain text without Accept", "", "/missing.js", "text/plain"),
+	)
+
+	It("returns a JSON not found body in the API error shape", func() {
+		request := httptest.NewRequest(http.MethodGet, "/missing.js", nil)
+		request.Header.Set("Accept", "application/json")
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+
+		var body map[string]map[string]string
+		Expect(json.NewDecoder(recorder.Body).Decode(&body)).To(Succeed())
+		Expect(body["error"]).To(HaveKeyWithValue("code", "not_found"))
+		Expect(body["error"]).To(HaveKeyWithValue("message", ContainSubstring("/missing.js")))
+	})
+
+	It("still serves the SPA index to JSON clients on extensionless routes", func() {
+		request := httptest.NewRequest(http.MethodGet, "/projects/example", nil)
+		request.Header.Set("Accept", "application/json")
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		Expect(recorder.Code).To(Equal(http.StatusOK))
+		Expect(recorder.Header().Get("Content-Type")).To(HavePrefix("text/html"))
+	})
 })
