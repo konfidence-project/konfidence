@@ -1,4 +1,7 @@
 {
   "files": [],
-  "references": [{ "path": "./apps/konfidence-ui" }]
+  "references": [
+    { "path": "./apps/konfidence-mock-api" },
+    { "path": "./apps/konfidence-ui" }
+  ]
 }

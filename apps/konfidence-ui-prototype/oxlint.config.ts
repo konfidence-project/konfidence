@@ -61,7 +61,7 @@ export default defineConfig({
       env: {
         node: true,
       },
-      files: ["tests/auth/**/*.ts", "tests/mock-api/**/*.ts"],
+      files: ["tests/auth/**/*.ts"],
       rules: {
         // Integration setup is intentionally procedural and uses Node process/container APIs.
         "eslint/max-params": "off",

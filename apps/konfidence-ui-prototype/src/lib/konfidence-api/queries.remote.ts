@@ -19,7 +19,7 @@ const responseData = <Data>(
 const getProjects = query(async () => {
   const event = getRequestEvent();
   const api = createRequestClient(event);
-  const result = await api.GET("/projects");
+  const result = await api.GET("/v1/projects");
   return responseData(event, result, "Failed to load projects").data;
 });
 
@@ -28,8 +28,8 @@ const getProjectLandscape = query(projectIdSchema, async (projectId) => {
   const api = createRequestClient(event);
   const params = { params: { path: { projectId } } } as const;
   const [landscapes, stages] = await Promise.all([
-    api.GET("/projects/{projectId}/landscapes", params),
-    api.GET("/projects/{projectId}/stages", params),
+    api.GET("/v1/projects/{projectId}/landscapes", params),
+    api.GET("/v1/projects/{projectId}/stages", params),
   ]);
   return {
     landscapes: responseData(event, landscapes, "Failed to load landscapes").data,
@@ -42,9 +42,9 @@ const getVectorDeployments = query(projectIdSchema, async (projectId) => {
   const api = createRequestClient(event);
   const params = { params: { path: { projectId } } } as const;
   const [landscapes, stages, vectorDeployments] = await Promise.all([
-    api.GET("/projects/{projectId}/landscapes", params),
-    api.GET("/projects/{projectId}/stages", params),
-    api.GET("/projects/{projectId}/vectorDeployments", params),
+    api.GET("/v1/projects/{projectId}/landscapes", params),
+    api.GET("/v1/projects/{projectId}/stages", params),
+    api.GET("/v1/projects/{projectId}/vectorDeployments", params),
   ]);
   return {
     landscapes: responseData(event, landscapes, "Failed to load landscapes").data,
@@ -59,9 +59,9 @@ const getArtifactDeployments = query(projectIdSchema, async (projectId) => {
   const api = createRequestClient(event);
   const params = { params: { path: { projectId } } } as const;
   const [artifactDeployments, landscapes, stages] = await Promise.all([
-    api.GET("/projects/{projectId}/artifactDeployments", params),
-    api.GET("/projects/{projectId}/landscapes", params),
-    api.GET("/projects/{projectId}/stages", params),
+    api.GET("/v1/projects/{projectId}/artifactDeployments", params),
+    api.GET("/v1/projects/{projectId}/landscapes", params),
+    api.GET("/v1/projects/{projectId}/stages", params),
   ]);
   return {
     artifactDeployments: responseData(

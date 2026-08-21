@@ -1,4 +1,4 @@
-type AuthRole = "ADMIN" | "DEV" | "PM";
+type AuthRole = string;
 
 interface AuthUser {
   email: string;
@@ -6,6 +6,7 @@ interface AuthUser {
   givenName: string;
   middleName?: string;
   name: string;
+  projectRoles: Record<string, string[]>;
   roles: AuthRole[];
 }
 
