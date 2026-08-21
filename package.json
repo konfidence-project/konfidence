@@ -9,6 +9,7 @@
     "mock-api:test": "pnpm --filter konfidence-mock-api test",
     "mock-api:verify": "pnpm --filter konfidence-mock-api verify",
     "ui:dev": "pnpm --filter konfidence-ui dev",
+    "ui:dev:mock": "pnpm --parallel --filter konfidence-ui --filter konfidence-mock-api dev:mock",
     "ui:all": "pnpm --filter konfidence-ui all",
     "ui:build": "pnpm --filter konfidence-ui build",
     "ui:start": "pnpm --filter konfidence-ui start",
