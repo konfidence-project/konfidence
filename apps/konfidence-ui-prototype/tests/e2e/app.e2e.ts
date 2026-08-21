@@ -14,13 +14,17 @@ test("authenticates through the mock API and renders a project landscape", async
 
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
   await expect(page.getByLabel("Open account menu for Alex Example")).toBeVisible();
-  await expect(page.getByLabel("Stage dev-us30")).toBeVisible();
-  await expect(page.getByLabel("Stage prod-eu30")).toBeVisible();
+  await expect(page.getByLabel("Stage Development US")).toBeVisible();
+  await expect(page.getByLabel("Stage Production EU")).toBeVisible();
   await expect(
-    page.getByLabel("Stage dev-us30").getByText("Deploying", { exact: true }),
+    page.getByLabel("Stage Development US").getByText("Deploying", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Stage dev-us30").getByText("Tasks", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Stage prod-eu30").getByText("Live", { exact: true })).toBeVisible();
+  await expect(
+    page.getByLabel("Stage Development US").getByText("Tasks", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("Stage Production EU").getByText("Deploying", { exact: true }),
+  ).toBeVisible();
 });
 
 test("shows a chooser when multiple projects are available", async ({ page }) => {
@@ -48,7 +52,7 @@ test("redirects directly to the only project", async ({ context, page }) => {
   await page.goto("/");
 
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
-  await expect(page.getByLabel("Stage prod-eu30")).toBeVisible();
+  await expect(page.getByLabel("Stage Production EU")).toBeVisible();
 });
 
 test("returns not found for a project outside the project list", async ({ page }) => {
@@ -57,32 +61,35 @@ test("returns not found for a project outside the project list", async ({ page }
   await expect(page.getByText("Error 404", { exact: true })).toBeVisible();
 });
 
-test("renders access denied for a user without project permissions", async ({ context, page }) => {
+test("renders a resource error for a user without project permissions", async ({
+  context,
+  page,
+}) => {
   await useScenario(context, "forbidden");
-  await page.goto("/projects");
+  await page.goto("/projects/payments-platform/landscape");
 
-  await expect(page.getByText("Access denied", { exact: true })).toBeVisible();
-  await expect(page.getByText("Error 403", { exact: true })).toBeVisible();
+  await expect(page.getByText("Failed to load landscape", { exact: true })).toBeVisible();
+  await expect(page.getByText("The project landscape is currently unavailable.")).toBeVisible();
 });
 
 test("renders an upstream failure without hiding the error status", async ({ context, page }) => {
-  await useScenario(context, "api-error");
+  await useScenario(context, "internal-error");
   await page.goto("/projects");
 
   await expect(page.getByText("Application unavailable", { exact: true })).toBeVisible();
-  await expect(page.getByText("Error 503", { exact: true })).toBeVisible();
+  await expect(page.getByText("Error 500", { exact: true })).toBeVisible();
 });
 
 test("renders vector and artifact deployments from the OpenAPI contract", async ({ page }) => {
   await page.goto("/projects/payments-platform/vector-deployments");
   await expect(page.getByText("Vector Deployments", { exact: true })).toBeVisible();
   await expect(page.getByText("vector-dev-us30-1", { exact: true })).toBeVisible();
-  await expect(page.getByText("dev-us30", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Development US", { exact: true }).first()).toBeVisible();
 
   await page.goto("/projects/payments-platform/artifact-deployments");
   await expect(page.getByText("Artifact Deployments", { exact: true })).toBeVisible();
-  await expect(page.getByText("artifact-dev-us30-1-1", { exact: true })).toBeVisible();
-  await expect(page.getByRole("row").filter({ hasText: "artifact-dev-us30-1-1" })).toContainText(
+  await expect(page.getByText("artifact-dev-us30-1", { exact: true })).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "artifact-dev-us30-1" })).toContainText(
     "ArtifactDeployed",
   );
 });
@@ -93,7 +100,7 @@ test("switches projects and resets to the landscape", async ({ page }) => {
   await page.getByLabel("Project").click();
   await page.getByRole("option", { name: "Identity Service" }).click();
   await expect(page).toHaveURL("/projects/identity-service/landscape");
-  await expect(page.getByLabel("Stage dev-us30")).toBeVisible();
+  await expect(page.getByLabel("Stage Development US")).toBeVisible();
 
   await page.getByLabel("Open account menu for Alex Example").click();
   await page.locator('ui5-user-menu-item[data-id="settings"]').click();
@@ -111,7 +118,7 @@ test("clears the API session when signing out", async ({ page }) => {
   await page.goto("/projects/payments-platform/landscape");
   const accountMenu = page.getByLabel("Open account menu for Alex Example");
   await expect(accountMenu).toBeVisible();
-  await page.route("**/api/login?**", (route) => route.abort());
+  await page.route("**/api/v1/login?**", (route) => route.abort());
 
   await accountMenu.click();
   await page.getByRole("button", { name: "Sign Out" }).click();
@@ -119,7 +126,7 @@ test("clears the API session when signing out", async ({ page }) => {
   await expect
     .poll(async () => {
       const cookies = await page.context().cookies();
-      return cookies.some((cookie) => cookie.name === "kden_session");
+      return cookies.some((cookie) => cookie.name === "kden-session");
     })
     .toBe(false);
 });

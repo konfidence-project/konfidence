@@ -200,7 +200,7 @@
 
     const handleSignOutClick = async (): Promise<void> => {
         userMenuOpen = false;
-        const response = await globalThis.fetch("/api/logout", { method: "POST" });
+        const response = await globalThis.fetch("/api/v1/logout", { method: "POST" });
         if (response.ok) {
             globalThis.location.assign("/");
         }

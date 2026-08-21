@@ -1,9 +1,9 @@
 import type { components } from "$lib/konfidence-api/schema";
 
-type ApiLandscape = components["schemas"]["LandscapeResponse"];
-type ApiStage = components["schemas"]["StageResponse"];
-type ApiVectorDeployment = components["schemas"]["VectorDeploymentResponse"];
-type ApiArtifactDeployment = components["schemas"]["ArtifactDeploymentResponse"];
+type ApiLandscape = components["schemas"]["Landscape"];
+type ApiStage = components["schemas"]["Stage"];
+type ApiVectorDeployment = components["schemas"]["VectorDeployment"];
+type ApiArtifactDeployment = components["schemas"]["ArtifactDeployment"];
 
 interface VectorDeployment {
   component: string;

@@ -17,7 +17,7 @@ const createRequestClient = ({ fetch, request }: ClientEvent) => {
   };
 
   return createOpenApiClient<paths>({
-    baseUrl: KONFIDENCE_API_URL,
+    baseUrl: new URL("/api", KONFIDENCE_API_URL).href,
     fetch: authenticatedFetch,
   });
 };
