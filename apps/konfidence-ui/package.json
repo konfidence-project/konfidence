@@ -6,6 +6,7 @@
   "scripts": {
     "all": "pnpm verify && pnpm test",
     "dev": "vite dev",
+    "dev:mock": "KONFIDENCE_API_URL=http://127.0.0.1:8091 vite dev",
     "build": "vite build",
     "start": "vite preview",
     "preview": "vite preview",
