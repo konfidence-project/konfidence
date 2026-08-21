@@ -113,8 +113,24 @@ manifests-crds: hermit ## Generate the full CRD set (single konfidence.cloud gro
 	$(CONTROLLER_GEN) crd $(API_PATHS) output:crd:artifacts:config=$(CRD_STAGING_DIR)
 
 .PHONY: generate
-generate: hermit ## Generate DeepCopy implementations for the merged API package.
+generate: hermit docs-reference ## Generate DeepCopy implementations and the CRD reference doc.
 	$(CONTROLLER_GEN) object $(API_PATHS)
+
+.PHONY: check-generate
+check-generate: generate ## Verify generated artifacts are up to date (fails if `make generate` was not run).
+	@# Drift in tracked generated files (deepcopy, manifests, api/docs/crd.md, ...).
+	@if ! git diff --quiet; then \
+		echo "::error::Generated files are out of date. Run 'make generate' and commit the result."; \
+		git --no-pager diff --stat; \
+		exit 1; \
+	fi
+	@# A brand-new generated doc that was never `git add`ed (e.g. a new CRD group).
+	@untracked="$$(git ls-files --others --exclude-standard -- api/docs)"; \
+	if [ -n "$$untracked" ]; then \
+		echo "::error::Untracked generated docs. Run 'make generate' and commit the result:"; \
+		echo "$$untracked"; \
+		exit 1; \
+	fi
 
 .PHONY: generate-mocks
 generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
@@ -152,26 +168,25 @@ webhook-certs: ## Generate self-signed certificates for local webhook developmen
 ##@ API
 
 .PHONY: api
-api: hermit manifests generate generate-api docs schemas helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, docs, schemas, helm lint).
+api: hermit manifests generate generate-api schemas helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, CRD reference doc, schemas, helm lint).
 
 .PHONY: generate-api
 generate-api: hermit ## Generate the OpenAPI server and kden API client from api/openapi.yaml.
 	$(OAPI_CODEGEN) -config api/codegen-server.yaml api/openapi.yaml
 	$(OAPI_CODEGEN) -config api/codegen-client.yaml api/openapi.yaml
 
-.PHONY: docs
-docs: hermit ## Generate CRD reference documentation for the konfidence.cloud API.
-	@echo "Generating CRD documentation..."
+.PHONY: docs-reference
+docs-reference: hermit ## Generate + transform the CRD reference into api/docs/crd.md.
+	@echo "Generating CRD reference (api/docs/crd.md)..."
 	@mkdir -p api/docs
-	@crd-ref-docs \
+	@tmp=$$(mktemp -d); \
+	crd-ref-docs \
 		--source-path="api/v1alpha1" \
 		--config="$(REPO_ROOT)/api/.crd-ref-docs.config.yaml" \
-		--output-path="api/docs" \
-		--output-mode=group \
-		--renderer=markdown
-	@if [ -f "api/docs/konfidence.cloud.md" ]; then \
-		mv "api/docs/konfidence.cloud.md" "api/docs/README.md"; \
-	fi
+		--renderer=markdown \
+		--output-path="$$tmp"; \
+	hack/transform-crd-docs.sh < "$$tmp/out.md" > api/docs/crd.md; \
+	rm -rf "$$tmp"
 
 .PHONY: schemas
 schemas: hermit manifests ## Extract JSON schemas for each CRD version.

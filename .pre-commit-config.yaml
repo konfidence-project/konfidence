@@ -11,3 +11,17 @@ repos:
       rev: v4.3.0
       hooks:
         - id: conventional-pre-commit
+  -   repo: local
+      hooks:
+        - id: generate
+          name: make generate
+          entry: make generate
+          language: system
+          pass_filenames: false
+          files: ^(api/v1alpha1/.*\.go|test/data/samples/.*\.yaml|hack/transform-crd-docs\.sh)$
+        - id: validate
+          name: make validate
+          entry: make validate
+          language: system
+          pass_filenames: false
+          files: ^(test/data/samples/.*\.yaml|api/v1alpha1/.*\.go)$
