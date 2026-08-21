@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  "/api/login": {
+  "/v1/login": {
     parameters: {
       query?: never;
       header?: never;
@@ -13,9 +13,9 @@ export interface paths {
     };
     /**
      * Initiate OIDC login
-     * @description Redirects the browser to the IDP authorization endpoint, beginning the PKCE auth flow. On successful authentication the IDP redirects back to /api/auth/callback.
+     * @description Redirects the browser to the IDP authorization endpoint, beginning the PKCE auth flow. On successful authentication the IDP redirects back to /api/v1/auth/callback.
      */
-    get: operations["loginStart"];
+    get: operations["loginV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -24,7 +24,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/auth/callback": {
+  "/v1/auth/callback": {
     parameters: {
       query?: never;
       header?: never;
@@ -35,7 +35,7 @@ export interface paths {
      * OIDC callback
      * @description Receives the authorization code from the IDP after successful login. Exchanges the code for tokens and establishes a session cookie.
      */
-    get: operations["authCallback"];
+    get: operations["authCallbackV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -44,7 +44,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/logout": {
+  "/v1/logout": {
     parameters: {
       query?: never;
       header?: never;
@@ -57,14 +57,14 @@ export interface paths {
      * Terminate the current session
      * @description Clears the session cookie. Requires an active session.
      */
-    post: operations["logout"];
+    post: operations["logoutV1"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/identity": {
+  "/v1/identity": {
     parameters: {
       query?: never;
       header?: never;
@@ -75,7 +75,7 @@ export interface paths {
      * Get the current user identity
      * @description Returns identity claims for the authenticated session.
      */
-    get: operations["getIdentity"];
+    get: operations["getIdentityV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -84,7 +84,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/projects": {
+  "/v1/exchange": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Send temp exchange code and PKCE verifier to get session
+     * @description Validates code and verifier and returns session if valid.
+     */
+    post: operations["postExchangeCodeV1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects": {
     parameters: {
       query?: never;
       header?: never;
@@ -95,7 +115,7 @@ export interface paths {
      * List all projects
      * @description Returns all Project resources visible to the authenticated user.
      */
-    get: operations["listProjects"];
+    get: operations["listProjectsV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -104,7 +124,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/projects/{projectId}/landscapes": {
+  "/v1/projects/{projectId}/landscapes": {
     parameters: {
       query?: never;
       header?: never;
@@ -115,7 +135,7 @@ export interface paths {
      * List all landscapes for a specific project
      * @description Returns all landscape resources for a project.
      */
-    get: operations["listLandscapes"];
+    get: operations["listLandscapesV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -124,7 +144,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/projects/{projectId}/stages": {
+  "/v1/projects/{projectId}/stages": {
     parameters: {
       query?: never;
       header?: never;
@@ -135,7 +155,7 @@ export interface paths {
      * List all stages for a project
      * @description Returns all stage resources for a project. Can be filtered by landscape.
      */
-    get: operations["listStages"];
+    get: operations["listStagesV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -144,7 +164,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/projects/{projectId}/vectorDeployments": {
+  "/v1/projects/{projectId}/vectorDeployments": {
     parameters: {
       query?: never;
       header?: never;
@@ -155,7 +175,7 @@ export interface paths {
      * List all vectorDeployments for a project
      * @description Returns all vectorDeployments resources for a project. Can be filtered by landscape.
      */
-    get: operations["listVectorDeployments"];
+    get: operations["listVectorDeploymentsV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -164,7 +184,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/projects/{projectId}/artifactDeployments": {
+  "/v1/projects/{projectId}/artifactDeployments": {
     parameters: {
       query?: never;
       header?: never;
@@ -175,7 +195,7 @@ export interface paths {
      * List all artifactDeployments for a project.
      * @description Returns all artifactDeployments resources for a project. Can be filtered by landscape or vectorDeployment.
      */
-    get: operations["listArtifactDeployments"];
+    get: operations["listArtifactDeploymentsV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -188,26 +208,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
-    ProjectListResponse: {
-      data: components["schemas"]["ProjectResponse"][];
+    ProjectList: {
+      data: components["schemas"]["Project"][];
     };
-    ProjectResponse: {
+    Project: {
       id: components["schemas"]["ProjectId"];
       /** @description The name of the project */
       name: string;
     };
-    LandscapeListResponse: {
-      data: components["schemas"]["LandscapeResponse"][];
+    LandscapeList: {
+      data: components["schemas"]["Landscape"][];
     };
-    LandscapeResponse: {
+    Landscape: {
       id: components["schemas"]["LandscapeId"];
       /** @description The name of the landscape */
       name: string;
     };
-    VectorDeploymentListResponse: {
-      data: components["schemas"]["VectorDeploymentResponse"][];
+    VectorDeploymentList: {
+      data: components["schemas"]["VectorDeployment"][];
     };
-    VectorDeploymentResponse: {
+    VectorDeployment: {
       id: components["schemas"]["VectorDeploymentId"];
       landscapeId: components["schemas"]["LandscapeId"];
       stageId: components["schemas"]["StageId"];
@@ -218,10 +238,10 @@ export interface components {
        */
       status: "VectorDownloaded" | "ArtifactDeploymentCreated";
     };
-    ArtifactDeploymentListResponse: {
-      data: components["schemas"]["ArtifactDeploymentResponse"][];
+    ArtifactDeploymentList: {
+      data: components["schemas"]["ArtifactDeployment"][];
     };
-    ArtifactDeploymentResponse: {
+    ArtifactDeployment: {
       id: components["schemas"]["ArtifactDeploymentId"];
       landscapeId: components["schemas"]["LandscapeId"];
       vectorDeploymentIds: components["schemas"]["VectorDeploymentId"][];
@@ -233,34 +253,38 @@ export interface components {
        */
       status: "ArtifactFetched" | "ArtifactDeployed";
     };
-    StageResponse: {
+    StageVersion: {
+      id: components["schemas"]["StageVersionId"];
+      /** @description StageVersion vector */
+      vector: string;
+      /** @description Generation of the parent stage */
+      stageGeneration: number;
+      /** @description Indicates if this is the latest active stageVersion */
+      active: boolean;
+      /** @enum {string} */
+      status: "DeploymentCreated";
+    };
+    StageList: {
+      data: components["schemas"]["Stage"][];
+    };
+    Stage: {
       id: components["schemas"]["StageId"];
       /** @description The stage name */
       name: string;
       landscapeId: components["schemas"]["LandscapeId"];
       targetStageVersion: components["schemas"]["StageVersion"];
     };
-    StageVersion: {
-      id: components["schemas"]["StageVersionId"];
-      /** @description StageVersion vector */
-      vector: components["schemas"]["VectorReference"];
-      /** @description Generation of the parent stage */
-      stageGeneration: number;
-      /** @description Indicates if this is the latest active stageVersion */
-      active: boolean;
-      /** @enum {string} */
-      status: "DeploymentCreated" | "MigrationTasks" | "Active";
-    };
-    StageListResponse: {
-      data: components["schemas"]["StageResponse"][];
-    };
-    IdentityResponse: {
+    Identity: {
       name: string;
       givenName: string;
       familyName: string;
-      middleName?: string;
       email: string;
-      roles: string[];
+      projectRoles: {
+        [key: string]: string[];
+      };
+    };
+    Session: {
+      id: string;
     };
     ArtifactReference: components["schemas"]["ComponentReference"];
     VectorReference: components["schemas"]["ComponentReference"];
@@ -269,15 +293,17 @@ export interface components {
       componentName: string;
       componentVersion: string;
     };
+    /** @description The project id */
     ProjectId: string;
-    /** @description The id of a landscape */
+    /** @description The landscape id */
     LandscapeId: string;
-    /** @description The id of a vectorDeployment */
+    /** @description The vectorDeployment id */
     VectorDeploymentId: string;
-    /** @description The id of an artifactDeployment */
+    /** @description The artifactDeployment id */
     ArtifactDeploymentId: string;
-    /** @description The id of a stage */
+    /** @description The stage id */
     StageId: string;
+    /** @description The stageVersion id */
     StageVersionId: string;
     ErrorResponse: {
       error: {
@@ -287,8 +313,8 @@ export interface components {
     };
   };
   responses: {
-    /** @description The requested resource was not found. */
-    NotFound: {
+    /** @description Authentication required or session expired. */
+    Unauthorized: {
       headers: {
         [name: string]: unknown;
       };
@@ -296,8 +322,8 @@ export interface components {
         "application/json": components["schemas"]["ErrorResponse"];
       };
     };
-    /** @description Authentication required or session expired. */
-    Unauthorized: {
+    /** @description Access not allowed. */
+    Forbidden: {
       headers: {
         [name: string]: unknown;
       };
@@ -340,9 +366,12 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  loginStart: {
+  loginV1: {
     parameters: {
-      query?: never;
+      query: {
+        /** @description Fully qualified URL to redirect to after login. The URL must be present in the API server allowlist. */
+        return_url: string;
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -352,13 +381,17 @@ export interface operations {
       /** @description Redirect to IDP authorization endpoint. */
       302: {
         headers: {
+          /** @description Redirect url */
+          Location?: string;
           [name: string]: unknown;
         };
         content?: never;
       };
+      400: components["responses"]["BadRequest"];
+      500: components["responses"]["InternalError"];
     };
   };
-  authCallback: {
+  authCallbackV1: {
     parameters: {
       query: {
         code: string;
@@ -373,15 +406,20 @@ export interface operations {
       /** @description Redirect to the application after successful authentication. */
       302: {
         headers: {
+          /** @description Contains the session ID. */
+          "Set-Cookie"?: string;
+          /** @description Redirect url */
+          Location?: string;
           [name: string]: unknown;
         };
         content?: never;
       };
       400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
       500: components["responses"]["InternalError"];
     };
   };
-  logout: {
+  logoutV1: {
     parameters: {
       query?: never;
       header?: never;
@@ -393,6 +431,8 @@ export interface operations {
       /** @description Session terminated successfully. */
       200: {
         headers: {
+          /** @description Removes the session cookie. */
+          "Set-Cookie"?: string;
           [name: string]: unknown;
         };
         content?: never;
@@ -400,7 +440,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
     };
   };
-  getIdentity: {
+  getIdentityV1: {
     parameters: {
       query?: never;
       header?: never;
@@ -415,14 +455,43 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["IdentityResponse"];
+          "application/json": components["schemas"]["Identity"];
         };
       };
       401: components["responses"]["Unauthorized"];
       500: components["responses"]["InternalError"];
     };
   };
-  listProjects: {
+  postExchangeCodeV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          code?: string;
+          verifier?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Session"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  listProjectsV1: {
     parameters: {
       query?: never;
       header?: never;
@@ -437,14 +506,14 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ProjectListResponse"];
+          "application/json": components["schemas"]["ProjectList"];
         };
       };
       401: components["responses"]["Unauthorized"];
       500: components["responses"]["InternalError"];
     };
   };
-  listLandscapes: {
+  listLandscapesV1: {
     parameters: {
       query?: never;
       header?: never;
@@ -462,14 +531,15 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["LandscapeListResponse"];
+          "application/json": components["schemas"]["LandscapeList"];
         };
       };
       401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
       500: components["responses"]["InternalError"];
     };
   };
-  listStages: {
+  listStagesV1: {
     parameters: {
       query?: {
         /** @description Filter by landscapeId */
@@ -490,14 +560,15 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["StageListResponse"];
+          "application/json": components["schemas"]["StageList"];
         };
       };
       401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
       500: components["responses"]["InternalError"];
     };
   };
-  listVectorDeployments: {
+  listVectorDeploymentsV1: {
     parameters: {
       query?: {
         /** @description Filter by landscapeId */
@@ -518,14 +589,15 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["VectorDeploymentListResponse"];
+          "application/json": components["schemas"]["VectorDeploymentList"];
         };
       };
       401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
       500: components["responses"]["InternalError"];
     };
   };
-  listArtifactDeployments: {
+  listArtifactDeploymentsV1: {
     parameters: {
       query?: {
         /** @description Filter by landscapeId */
@@ -548,10 +620,11 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ArtifactDeploymentListResponse"];
+          "application/json": components["schemas"]["ArtifactDeploymentList"];
         };
       };
       401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
       500: components["responses"]["InternalError"];
     };
   };

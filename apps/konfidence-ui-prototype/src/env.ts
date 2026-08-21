@@ -1,5 +1,5 @@
 import * as valibot from "valibot";
-import { defineEnvVars } from "@sveltejs/kit/hooks";
+import { defineEnvVars } from "@sveltejs/kit/env";
 
 const apiUrlSchema = valibot.pipe(
   valibot.optional(valibot.string(), "http://localhost:8090"),
