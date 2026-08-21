@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
+  reporter: [["list"], ["html", { open: "never" }]],
   testMatch: ["src/**/*.test-e2e.{ts,js}", "e2e/**/*.test.{ts,js}"],
   use: {
     baseURL: "http://127.0.0.1:4173",
