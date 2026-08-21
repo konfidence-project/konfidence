@@ -18,7 +18,7 @@ type projectRepository struct {
 	err      error
 }
 
-func (r *projectRepository) Get(context.Context, string) (*konfidence.Project, error) {
+func (r *projectRepository) Get(_ context.Context, _ string, _ auth.ProjectRoles) (*konfidence.Project, error) {
 	return nil, project.ErrNotFound
 }
 
@@ -26,13 +26,13 @@ func (r *projectRepository) List(_ context.Context, projectRoles auth.ProjectRol
 	if r.err != nil {
 		return nil, r.err
 	}
-	projects := make([]konfidence.Project, 0, len(projectRoles))
+	result := make([]konfidence.Project, 0, len(projectRoles))
 	for _, item := range r.projects {
 		if len(projectRoles[item.Name]) > 0 {
-			projects = append(projects, item)
+			result = append(result, item)
 		}
 	}
-	return projects, nil
+	return result, nil
 }
 
 func projectFixture(name, displayName string, groups ...string) konfidence.Project {
@@ -53,10 +53,12 @@ func authorizedContext(projectRoles auth.ProjectRoles) context.Context {
 
 func TestListProjectsV1(t *testing.T) {
 	t.Run("returns only matching projects", func(t *testing.T) {
-		h := &projectHandler{projectRepo: &projectRepository{projects: []konfidence.Project{
-			projectFixture("visible", "Visible Project", "platform-engineers"),
-			projectFixture("hidden", "Hidden Project", "platform-managers"),
-		}}}
+		h := &projectHandler{
+			projectRepo: &projectRepository{projects: []konfidence.Project{
+				projectFixture("visible", "Visible Project", "platform-engineers"),
+				projectFixture("hidden", "Hidden Project", "platform-managers"),
+			}},
+		}
 
 		response, err := h.ListProjectsV1(authorizedContext(auth.ProjectRoles{
 			"visible": {"admin"},
@@ -71,9 +73,11 @@ func TestListProjectsV1(t *testing.T) {
 	})
 
 	t.Run("returns an empty list when no project matches", func(t *testing.T) {
-		h := &projectHandler{projectRepo: &projectRepository{projects: []konfidence.Project{
-			projectFixture("hidden", "Hidden Project", "platform-engineers"),
-		}}}
+		h := &projectHandler{
+			projectRepo: &projectRepository{projects: []konfidence.Project{
+				projectFixture("hidden", "Hidden Project", "platform-engineers"),
+			}},
+		}
 
 		response, err := h.ListProjectsV1(authorizedContext(auth.ProjectRoles{}), openapi.ListProjectsV1RequestObject{})
 		if err != nil {
@@ -100,8 +104,8 @@ func TestListProjectsV1(t *testing.T) {
 		}
 	})
 
-	t.Run("returns repository errors", func(t *testing.T) {
-		repositoryErr := errors.New("Kubernetes unavailable")
+	t.Run("returns 500 on repository error", func(t *testing.T) {
+		repositoryErr := errors.New("kubernetes unavailable")
 		h := &projectHandler{projectRepo: &projectRepository{err: repositoryErr}}
 
 		response, err := h.ListProjectsV1(authorizedContext(auth.ProjectRoles{

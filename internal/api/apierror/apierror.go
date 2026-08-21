@@ -72,6 +72,31 @@ func NewInternalErrorResponse() openapi.InternalErrorJSONResponse {
 	}
 }
 
+func NewNotFoundResponse(msg string) openapi.NotFoundJSONResponse {
+	return openapi.NotFoundJSONResponse{
+		Error: struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		}{
+			Code:    "not_found",
+			Message: msg,
+		},
+	}
+}
+
+// NewForbiddenResponse returns the OpenAPI response used when the caller lacks access.
+func NewForbiddenResponse(msg string) openapi.ForbiddenJSONResponse {
+	return openapi.ForbiddenJSONResponse{
+		Error: struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		}{
+			Code:    "forbidden",
+			Message: msg,
+		},
+	}
+}
+
 // NewUnauthorizedResponse returns the OpenAPI response used for missing or expired sessions.
 func NewUnauthorizedResponse() openapi.UnauthorizedJSONResponse {
 	return openapi.UnauthorizedJSONResponse{
