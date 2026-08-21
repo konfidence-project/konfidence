@@ -1,0 +1,20 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: VectorData
+metadata:
+  name: vectordata-sample
+spec:
+  features:
+    checkout-v2:
+      enabled: true
+  authored:
+    replicas: 3
+  deploymentResults:
+    https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector/service1:
+      - name: candidates
+        type: http-k8s-service
+        spec:
+          namespace: dev
+          k8sName: candidates
+          servicePorts:
+            - name: http
+              port: 80

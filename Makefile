@@ -113,8 +113,12 @@ manifests-crds: hermit ## Generate the full CRD set (single konfidence.cloud gro
 	$(CONTROLLER_GEN) crd $(API_PATHS) output:crd:artifacts:config=$(CRD_STAGING_DIR)
 
 .PHONY: generate
-generate: hermit ## Generate DeepCopy implementations for the merged API package.
+generate: hermit ## Generate DeepCopy implementations.
 	$(CONTROLLER_GEN) object $(API_PATHS)
+
+.PHONY: check-generate
+check-generate: docs-reference ## Verify the CRD reference doc is committed and up to date (fails if `make docs-reference` was not run).
+	@hack/check-generate.sh
 
 .PHONY: generate-mocks
 generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
@@ -152,26 +156,31 @@ webhook-certs: ## Generate self-signed certificates for local webhook developmen
 ##@ API
 
 .PHONY: api
-api: hermit manifests generate generate-api docs schemas helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, docs, schemas, helm lint).
+api: hermit manifests generate generate-api schemas docs-reference helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, schemas, CRD reference doc, helm lint).
 
 .PHONY: generate-api
 generate-api: hermit ## Generate the OpenAPI server and kden API client from api/openapi.yaml.
 	$(OAPI_CODEGEN) -config api/codegen-server.yaml api/openapi.yaml
 	$(OAPI_CODEGEN) -config api/codegen-client.yaml api/openapi.yaml
 
-.PHONY: docs
-docs: hermit ## Generate CRD reference documentation for the konfidence.cloud API.
-	@echo "Generating CRD documentation..."
+.PHONY: docs-reference
+docs-reference: hermit ## Generate + transform the CRD reference into api/docs/crd.md.
+	@echo "Generating CRD reference (api/docs/crd.md)..."
 	@mkdir -p api/docs
-	@crd-ref-docs \
+	@set -e; \
+	tmp=$$(mktemp -d); \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	crd-ref-docs \
 		--source-path="api/v1alpha1" \
 		--config="$(REPO_ROOT)/api/.crd-ref-docs.config.yaml" \
-		--output-path="api/docs" \
-		--output-mode=group \
-		--renderer=markdown
-	@if [ -f "api/docs/konfidence.cloud.md" ]; then \
-		mv "api/docs/konfidence.cloud.md" "api/docs/README.md"; \
-	fi
+		--renderer=markdown \
+		--output-path="$$tmp"; \
+	hack/transform-crd-docs.sh < "$$tmp/out.md" > "$$tmp/crd.md"; \
+	if ! grep -q '^### Resource Types' "$$tmp/crd.md"; then \
+		echo "::error::transform produced a degenerate crd.md (no 'Resource Types' section) — refusing to overwrite."; \
+		exit 1; \
+	fi; \
+	mv "$$tmp/crd.md" api/docs/crd.md
 
 .PHONY: schemas
 schemas: hermit manifests ## Extract JSON schemas for each CRD version.
@@ -187,11 +196,15 @@ schemas: hermit manifests ## Extract JSON schemas for each CRD version.
 	done
 
 .PHONY: validate
-validate: schemas ## Validate all sample resources against their JSON schemas.
+validate: schemas check-samples ## Validate all sample resources against their JSON schemas.
 	@kubeconform -summary \
 		-schema-location default \
 		-schema-location "$(SCHEMA_DIR)/{{.Group}}_{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
 		$(SAMPLE_DIR)
+
+.PHONY: check-samples
+check-samples: hermit manifests ## Verify every top-level CRD Kind has a sample in $(SAMPLE_DIR).
+	@SAMPLE_DIR=$(SAMPLE_DIR) CRD_DIR=$(CRD_DIR) hack/check-samples.sh
 
 .PHONY: helm-lint
 helm-lint: hermit ## Run helm lint against the konfidence chart.
