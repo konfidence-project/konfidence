@@ -1,0 +1,6 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: Stage
+metadata:
+  name: stage-dev
+spec:
+  vector: https://registry.kdenv.lab/ocm/vector//common.konfidence.cloud/example/vector:0.0.1

@@ -4,7 +4,9 @@ metadata:
   namespace: dev
   name: shopping-app-latest
 spec:
-  base: https://registry.kdenv.lab/sample-project//konfidence-project/sample-vector
+  base:
+    kind: VectorTemplate
+    name: shopping-app-base
   uploadTarget: https://registry.kdenv.lab/sample-project//konfidence-project/constructed-vector
   components:
     - name: https://registry.kdenv.lab/sample-project//konfidence-project/sample-vector/service1
