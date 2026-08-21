@@ -113,8 +113,16 @@ manifests-crds: hermit ## Generate the full CRD set (single konfidence.cloud gro
 	$(CONTROLLER_GEN) crd $(API_PATHS) output:crd:artifacts:config=$(CRD_STAGING_DIR)
 
 .PHONY: generate
-generate: hermit ## Generate DeepCopy implementations for the merged API package.
+generate: hermit generate-mock-api generate-prototype-api ## Generate source code from the API and CRD definitions.
 	$(CONTROLLER_GEN) object $(API_PATHS)
+
+.PHONY: generate-mock-api
+generate-mock-api: hermit ## Generate mock API types from the OpenAPI specification.
+	pnpm --filter konfidence-mock-api api:generate
+
+.PHONY: generate-prototype-api
+generate-prototype-api: hermit ## Generate prototype API types from the OpenAPI specification.
+	pnpm --filter konfidence-ui-prototype api:generate
 
 .PHONY: generate-mocks
 generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
@@ -203,7 +211,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api ## Run all unit tests.
+test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api test-ui test-mock-api ## Run all maintained unit and frontend tests.
 
 .PHONY: test-operators
 test-operators: hermit manifests setup-envtest ginkgo ## Run unit tests for the konfidence operator.
@@ -222,6 +230,14 @@ test-kden-cli: hermit
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
 	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
 
+.PHONY: test-ui
+test-ui: hermit ## Run all UI tests.
+	pnpm ui:test
+
+.PHONY: test-mock-api
+test-mock-api: hermit ## Run mock API contract tests.
+	pnpm mock-api:test
+
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
 	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
@@ -237,7 +253,7 @@ ginkgo: ## Install ginkgo CLI to LOCALBIN.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet build-operator build-kden-cli ## Build all binaries.
+build: manifests generate fmt vet build-operator build-kden-cli build-ui ## Build all binaries and the UI frontend.
 
 .PHONY: build-operator
 build-operator: hermit ## Build the konfidence operator binary.
@@ -246,6 +262,10 @@ build-operator: hermit ## Build the konfidence operator binary.
 .PHONY: build-kden-cli
 build-kden-cli: hermit ## Build the kden cli binary.
 	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --id kden -o bin/kden
+
+.PHONY: build-ui
+build-ui: hermit ## Build the UI frontend.
+	pnpm ui:build
 
 .PHONY: run
 run: manifests generate fmt vet ## Run the konfidence operator from your host.
@@ -261,6 +281,14 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
+
+.PHONY: run-ui
+run-ui: hermit ## Run the UI development server locally.
+	pnpm ui:dev
+
+.PHONY: run-ui-mock
+run-ui-mock: hermit ## Run the UI development server with the mock API.
+	pnpm ui:dev:mock
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
