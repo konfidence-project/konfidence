@@ -78,7 +78,7 @@ Kubernetes: `>=1.27.0-0`
 | api.session.cookie.name | string | `"kden-session"` |  |
 | api.session.cookie.sameSite | string | `"SameSiteStrictMode"` |  |
 | api.session.cookie.secure | bool | `true` |  |
-| api.session.expiry | string | `"12h"` |  |
+| api.session.expiration | string | `"12h"` |  |
 | api.session.storageType | string | `"in-memory"` |  |
 | api.volumeMounts | list | `[]` |  |
 | api.volumes | list | `[]` |  |

@@ -103,7 +103,7 @@ api:
       httpOnly: true
       secure: true
       sameSite: SameSiteStrictMode
-    expiry: 12h
+    expiration: 12h
     cleanupInterval: 15m
 
   database:

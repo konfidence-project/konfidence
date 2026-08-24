@@ -78,7 +78,7 @@ var _ = Describe("LoginV1", func() {
 		stateStore := &recordingStateStore{}
 		parsed := config.Parsed{
 			Session: config.ParsedSessionConfig{
-				Expiry: 2 * time.Minute,
+				Expiration: 2 * time.Minute,
 			},
 		}
 
@@ -306,6 +306,44 @@ var _ = Describe("LoginV1", func() {
 			Expect(response).To(BeAssignableToTypeOf(
 				openapi.PostExchangeCodeV1401JSONResponse{},
 			))
+
+		})
+
+		It("returns a session cookie with the configured expiration", func() {
+			verifier := oauth2.GenerateVerifier()
+			challenge := oauth2.S256ChallengeFromVerifier(verifier)
+
+			Expect(exchangeStore.Save("exchange-code", oidc.Exchange{
+				SessionID:     "session-id",
+				CodeChallenge: challenge,
+			})).To(Succeed())
+
+			before := time.Now()
+			response, err := handler.PostExchangeCodeV1(
+				context.Background(),
+				openapi.PostExchangeCodeV1RequestObject{
+					Body: &openapi.PostExchangeCodeV1JSONRequestBody{
+						Code:     "exchange-code",
+						Verifier: verifier,
+					},
+				},
+			)
+
+			Expect(err).NotTo(HaveOccurred())
+
+			success := response.(openapi.PostExchangeCodeV1200Response)
+			Expect(success.Headers.SetCookie).NotTo(BeNil())
+
+			cookie, err := http.ParseSetCookie(*success.Headers.SetCookie)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cookie.Name).To(Equal("kden-session"))
+			Expect(cookie.Value).To(Equal("session-id"))
+			Expect(cookie.HttpOnly).To(BeTrue())
+			Expect(cookie.Path).To(Equal("/"))
+			Expect(cookie.MaxAge).To(Equal(int(time.Hour / time.Second)))
+			Expect(cookie.Expires).To(
+				BeTemporally("~", before.Add(time.Hour), 2*time.Second),
+			)
 		})
 
 		DescribeTable("rejects incomplete requests",
@@ -341,7 +379,7 @@ func newTestAuthHandler(
 ) *authHandler {
 	parsed := config.Parsed{
 		Session: config.ParsedSessionConfig{
-			Expiry: time.Hour,
+			Expiration: time.Hour,
 			Cookie: config.SessionCookieConfig{
 				Name:     "kden-session",
 				HTTPOnly: true,

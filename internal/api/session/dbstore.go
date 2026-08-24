@@ -12,8 +12,12 @@ import (
 )
 
 type DBStore struct {
-	queries       db.Querier
-	sessionExpiry time.Duration
+	queries           db.Querier
+	sessionExpiration time.Duration
+}
+
+func NewDBStore(queries db.Querier, sessionTimeout time.Duration) *DBStore {
+	return &DBStore{queries: queries, sessionExpiration: sessionTimeout}
 }
 
 func (s *DBStore) Save(ctx context.Context, session *Session) (string, error) {
@@ -30,7 +34,7 @@ func (s *DBStore) Save(ctx context.Context, session *Session) (string, error) {
 		Groups:            session.Groups,
 		AccessToken:       session.AccessToken,
 		RefreshToken:      session.RefreshToken,
-		Expiry:            session.Expiry,
+		TokenExpiry:       session.TokenExpiry,
 	}
 	dbID, err := s.queries.CreateSession(ctx, params)
 	if err != nil {
@@ -59,14 +63,10 @@ func (s *DBStore) Get(ctx context.Context, id string) (*Session, error) {
 	}
 
 	now := time.Now()
-	dbSession, err := s.queries.GetAndTouchSession(ctx, db.GetAndTouchSessionParams{
+	dbSession, err := s.queries.GetSession(ctx, db.GetSessionParams{
 		ID: dbID,
-		AccessedAt: pgtype.Timestamptz{
-			Time:  now,
-			Valid: true,
-		},
-		SessionExpiry: pgtype.Timestamptz{
-			Time:  now.Add(-s.sessionExpiry),
+		SessionExpiration: pgtype.Timestamptz{
+			Time:  now.Add(-s.sessionExpiration),
 			Valid: true,
 		},
 	})
@@ -90,8 +90,41 @@ func (s *DBStore) Get(ctx context.Context, id string) (*Session, error) {
 		},
 		AccessToken:  dbSession.AccessToken,
 		RefreshToken: dbSession.RefreshToken,
-		Expiry:       dbSession.Expiry,
+		TokenExpiry:  dbSession.TokenExpiry,
 	}, nil
+}
+
+func (s *DBStore) Update(ctx context.Context, session *Session) error {
+	if session == nil {
+		return fmt.Errorf("failed to update session: session is empty")
+	}
+
+	dbID, err := getDBID(session.ID)
+	if err != nil {
+		return err
+	}
+
+	updated, err := s.queries.UpdateSession(ctx, db.UpdateSessionParams{
+		Name:              session.Name,
+		GivenName:         session.GivenName,
+		FamilyName:        session.FamilyName,
+		PreferredUserName: session.PreferredUsername,
+		Email:             session.Email,
+		Groups:            session.Groups,
+		AccessToken:       session.AccessToken,
+		RefreshToken:      session.RefreshToken,
+		TokenExpiry:       session.TokenExpiry,
+		ID:                dbID,
+		Subject:           session.Subject,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update session in database: %w", err)
+	}
+	if updated != 1 {
+		return fmt.Errorf("failed to update session: session %q not found", session.ID)
+	}
+
+	return nil
 }
 
 func getDBID(id string) (pgtype.UUID, error) {
@@ -100,8 +133,4 @@ func getDBID(id string) (pgtype.UUID, error) {
 		return pgtype.UUID{}, fmt.Errorf("failed to parse session ID: %w", err)
 	}
 	return dbID, nil
-}
-
-func NewDBStore(queries db.Querier, sessionTimeout time.Duration) *DBStore {
-	return &DBStore{queries: queries, sessionExpiry: sessionTimeout}
 }

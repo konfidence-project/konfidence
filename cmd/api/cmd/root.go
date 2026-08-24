@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/go-logr/logr"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/konfidence-project/konfidence/cmd/api/db/sqlc"
 	"github.com/konfidence-project/konfidence/internal/api/handler"
@@ -110,8 +111,8 @@ func init() {
 		"Set Secure on the session cookie. Env: API_SESSION_COOKIE_SECURE")
 	rootCmd.Flags().StringVar(&cfg.Session.Cookie.SameSite, "session-cookie-same-site", envOr("API_SESSION_COOKIE_SAME_SITE", "SameSiteStrictMode"),
 		"Session cookie SameSite mode. Env: API_SESSION_COOKIE_SAME_SITE")
-	rootCmd.Flags().StringVar(&cfg.Session.Expiry, "session-expiry", envOr("API_SESSION_EXPIRY", "12h"),
-		"Server-side session expiry duration. Env: API_SESSION_EXPIRY")
+	rootCmd.Flags().StringVar(&cfg.Session.Expiration, "session-expiration", envOr("API_SESSION_EXPIRATION", "12h"),
+		"Server-side session expiration duration. Env: API_SESSION_EXPIRATION")
 	rootCmd.Flags().StringVar(&cfg.Session.StorageType, "session-storage-type", envOr("API_SESSION_STORAGE_TYPE", "in-memory"),
 		"Session storage backend (in-memory, db-pg). Env: API_SESSION_STORAGE_TYPE")
 	rootCmd.Flags().StringVar(&cfg.Session.CleanupInterval, "session-cleanup-interval", envOr("API_SESSION_CLEANUP_INTERVAL", "15m"),
@@ -151,7 +152,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	}
 
 	logger := slog.New(logHandler)
-
+	ctrl.SetLogger(logr.FromSlogHandler(logHandler))
 	k8sConfig, err := ctrl.GetConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get k8s config (set KUBECONFIG for local dev): %w", err)
@@ -214,7 +215,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		}
 
 		queries := db.New(dbPool)
-		dbStore := session.NewDBStore(queries, parsed.Session.Expiry)
+		dbStore := session.NewDBStore(queries, parsed.Session.Expiration)
 		sessionStore = dbStore
 		cleanupCtx, cancelCleanup := context.WithCancel(ctx)
 		cleanupDone := make(chan struct{})

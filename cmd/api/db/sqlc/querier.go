@@ -14,7 +14,8 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (pgtype.UUID, error)
 	DeleteExpiredSessions(ctx context.Context, expiredBefore pgtype.Timestamptz) (int64, error)
 	DeleteSession(ctx context.Context, id pgtype.UUID) error
-	GetAndTouchSession(ctx context.Context, arg GetAndTouchSessionParams) (Session, error)
+	GetSession(ctx context.Context, arg GetSessionParams) (Session, error)
+	UpdateSession(ctx context.Context, arg UpdateSessionParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

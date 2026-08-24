@@ -20,7 +20,7 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 		ctx = context.Background()
 		store = NewInMemoryStore(config.Parsed{
 			Session: config.ParsedSessionConfig{
-				Expiry: time.Minute,
+				Expiration: time.Minute,
 			},
 		})
 	})
@@ -40,7 +40,7 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 			Groups:       []string{"developers", "admins"},
 			AccessToken:  "access-token",
 			RefreshToken: new("refresh-token"),
-			Expiry:       time.Now().Add(time.Hour).Unix(),
+			TokenExpiry:  time.Now().Add(time.Hour).Unix(),
 			Context: Context{
 				Name:              new("Test User"),
 				Email:             new("test@example.com"),
@@ -109,12 +109,12 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 		Expect(store.Delete(ctx, "unknown-session")).To(Succeed())
 	})
 
-	ginkgo.It("expires inactive sessions", func() {
-		const expiry = 20 * time.Millisecond
+	ginkgo.It("expires sessions after creation despite repeated access", func() {
+		const expiration = 40 * time.Millisecond
 
 		store = NewInMemoryStore(config.Parsed{
 			Session: config.ParsedSessionConfig{
-				Expiry: expiry,
+				Expiration: expiration,
 			},
 		})
 
@@ -123,13 +123,42 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		// Do not access the session during this period because every Get
-		// refreshes an ExpiryAccessing cache entry.
-		time.Sleep(3 * expiry)
+		Eventually(func() bool {
+			stored, err := store.Get(ctx, id)
+			Expect(err).NotTo(HaveOccurred())
+			return stored == nil
+		}, 3*expiration, expiration/10).Should(BeTrue())
+	})
+
+	ginkgo.It("updates a session without renewing its expiration", func() {
+		store = NewInMemoryStore(config.Parsed{
+			Session: config.ParsedSessionConfig{
+				Expiration: time.Minute,
+			},
+		})
+
+		input := &Session{
+			Subject:     "subject-id",
+			AccessToken: "old-access-token",
+		}
+
+		id, err := store.Save(ctx, input)
+		Expect(err).NotTo(HaveOccurred())
+
+		entryBefore, found := store.cache.GetEntryQuietly(id)
+		Expect(found).To(BeTrue())
+
+		updated := *input
+		updated.AccessToken = "new-access-token"
+
+		Expect(store.Update(ctx, &updated)).To(Succeed())
 
 		stored, err := store.Get(ctx, id)
-
 		Expect(err).NotTo(HaveOccurred())
-		Expect(stored).To(BeNil())
+		Expect(stored.AccessToken).To(Equal("new-access-token"))
+
+		entryAfter, found := store.cache.GetEntryQuietly(id)
+		Expect(found).To(BeTrue())
+		Expect(entryAfter.ExpiresAt()).To(Equal(entryBefore.ExpiresAt()))
 	})
 })
