@@ -11,7 +11,12 @@ type Writer interface {
 	Delete(ctx context.Context, id string) error
 }
 
+type Updater interface {
+	Update(ctx context.Context, session *Session) error
+}
+
 type Store interface {
 	Reader
 	Writer
+	Updater
 }

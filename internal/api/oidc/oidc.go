@@ -32,6 +32,16 @@ type Client struct {
 	idTokenVerifier oidc.IDTokenVerifier
 }
 
+type RefreshResult struct {
+	Token   *oauth2.Token
+	Subject string
+	Claims  IDTokenAdditionalClaims
+}
+
+type Refresher interface {
+	Refresh(ctx context.Context, token *oauth2.Token) (*RefreshResult, error)
+}
+
 func NewOIDCClient(config Config) *Client {
 	return &Client{config: config}
 }
@@ -192,6 +202,45 @@ func (c *Client) GetUserInformation(ctx context.Context, accessToken string) (*o
 	}
 	tokenSource := oauth2.StaticTokenSource(token)
 	return c.oidcProvider.UserInfo(ctx, tokenSource)
+}
+
+func (c *Client) Refresh(ctx context.Context, token *oauth2.Token) (*RefreshResult, error) {
+	if token == nil {
+		return nil, fmt.Errorf("token refresh failed: token is empty")
+	}
+
+	// do token refresh
+	refreshedToken, err := c.oauth2Config.TokenSource(ctx, token).Token()
+	if err != nil {
+		return nil, fmt.Errorf("token refresh failed: %w", err)
+	}
+
+	// some providers only return a refresh token when it is rotated.
+	if refreshedToken.RefreshToken == "" {
+		refreshedToken.RefreshToken = token.RefreshToken
+	}
+
+	userInformation, err := c.GetUserInformation(ctx, refreshedToken.AccessToken)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"getting user information after token refresh: %w",
+			err,
+		)
+	}
+
+	claims, err := c.GetClaims(userInformation)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"getting claims after token refresh: %w",
+			err,
+		)
+	}
+
+	return &RefreshResult{
+		Token:   refreshedToken,
+		Subject: userInformation.Subject,
+		Claims:  *claims,
+	}, nil
 }
 
 func generateRandomString(length int) (string, error) {

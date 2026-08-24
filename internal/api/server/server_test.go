@@ -29,7 +29,7 @@ func validParsed(addr string) config.Parsed {
 		Session: config.SessionConfig{
 			StorageType:     "in-memory",
 			Cookie:          config.SessionCookieConfig{Name: "kden-session", HTTPOnly: true, SameSite: "SameSiteStrictMode"},
-			Expiry:          "12h",
+			Expiration:      "12h",
 			CleanupInterval: "15m",
 		},
 	}
@@ -50,7 +50,7 @@ var _ = Describe("Server", func() {
 			parsed := validParsed("127.0.0.1:0")
 			Expect(parsed.Server.ShutdownTimeout).To(Equal(2 * time.Second))
 			Expect(parsed.OIDC.StateExpiration).To(Equal(15 * time.Minute))
-			Expect(parsed.Session.Expiry).To(Equal(12 * time.Hour))
+			Expect(parsed.Session.Expiration).To(Equal(12 * time.Hour))
 		})
 
 		It("starts and stops cleanly when context is cancelled", func() {

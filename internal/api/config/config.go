@@ -51,7 +51,7 @@ type OIDCConfig struct {
 type SessionConfig struct {
 	StorageType     string
 	Cookie          SessionCookieConfig
-	Expiry          string
+	Expiration      string
 	CleanupInterval string
 }
 
@@ -112,7 +112,7 @@ type ParsedOIDCConfig struct {
 type ParsedSessionConfig struct {
 	StorageType     string
 	Cookie          SessionCookieConfig
-	Expiry          time.Duration
+	Expiration      time.Duration
 	CleanupInterval time.Duration
 }
 
@@ -230,9 +230,9 @@ func (c OIDCConfig) validate() (ParsedOIDCConfig, error) {
 }
 
 func (c SessionConfig) validate() (ParsedSessionConfig, error) {
-	expiry, err := time.ParseDuration(c.Expiry)
+	expiration, err := time.ParseDuration(c.Expiration)
 	if err != nil {
-		return ParsedSessionConfig{}, fmt.Errorf("invalid session-expiry %q: %w", c.Expiry, err)
+		return ParsedSessionConfig{}, fmt.Errorf("invalid session-expiration %q: %w", c.Expiration, err)
 	}
 
 	cleanupInterval, err := time.ParseDuration(c.CleanupInterval)
@@ -257,7 +257,7 @@ func (c SessionConfig) validate() (ParsedSessionConfig, error) {
 	default:
 		return ParsedSessionConfig{}, fmt.Errorf("invalid session-storage-type %q: must be one of in-memory, db-pg", c.StorageType)
 	}
-	return ParsedSessionConfig{StorageType: c.StorageType, Cookie: c.Cookie, Expiry: expiry, CleanupInterval: cleanupInterval}, nil
+	return ParsedSessionConfig{StorageType: c.StorageType, Cookie: c.Cookie, Expiration: expiration, CleanupInterval: cleanupInterval}, nil
 }
 
 func (c SessionCookieConfig) validate() error {

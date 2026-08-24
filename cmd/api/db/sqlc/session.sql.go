@@ -12,7 +12,7 @@ import (
 )
 
 const createSession = `-- name: CreateSession :one
-INSERT INTO session (subject, name, given_name, family_name, preferred_user_name, email, groups, access_token, refresh_token, expiry)
+INSERT INTO session (subject, name, given_name, family_name, preferred_user_name, email, groups, access_token, refresh_token, token_expiry)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING id
 `
@@ -27,7 +27,7 @@ type CreateSessionParams struct {
 	Groups            []string
 	AccessToken       string
 	RefreshToken      *string
-	Expiry            int64
+	TokenExpiry       int64
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (pgtype.UUID, error) {
@@ -41,7 +41,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (p
 		arg.Groups,
 		arg.AccessToken,
 		arg.RefreshToken,
-		arg.Expiry,
+		arg.TokenExpiry,
 	)
 	var id pgtype.UUID
 	err := row.Scan(&id)
@@ -50,7 +50,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (p
 
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
 DELETE FROM session
-WHERE last_accessed_at <= $1
+WHERE created_at <= $1
 `
 
 func (q *Queries) DeleteExpiredSessions(ctx context.Context, expiredBefore pgtype.Timestamptz) (int64, error) {
@@ -71,28 +71,19 @@ func (q *Queries) DeleteSession(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
-const getAndTouchSession = `-- name: GetAndTouchSession :one
-WITH delete_expired AS (
-DELETE FROM session AS expired
-WHERE expired.id = $2
-AND expired.last_accessed_at <= $3
-RETURNING expired.id
-)
-UPDATE session AS active
-SET last_accessed_at = $1
-WHERE active.id = $2
-AND NOT EXISTS (SELECT 1 FROM delete_expired)
-RETURNING active.id, active.subject, active.name, active.given_name, active.family_name, active.preferred_user_name, active.email, active.groups, active.access_token, active.refresh_token, active.expiry, active.created_at, active.last_accessed_at
+const getSession = `-- name: GetSession :one
+SELECT id, subject, name, given_name, family_name, preferred_user_name, email, groups, access_token, refresh_token, token_expiry, created_at FROM session
+WHERE id = $1
+AND created_at > $2
 `
 
-type GetAndTouchSessionParams struct {
-	AccessedAt    pgtype.Timestamptz
-	ID            pgtype.UUID
-	SessionExpiry pgtype.Timestamptz
+type GetSessionParams struct {
+	ID                pgtype.UUID
+	SessionExpiration pgtype.Timestamptz
 }
 
-func (q *Queries) GetAndTouchSession(ctx context.Context, arg GetAndTouchSessionParams) (Session, error) {
-	row := q.db.QueryRow(ctx, getAndTouchSession, arg.AccessedAt, arg.ID, arg.SessionExpiry)
+func (q *Queries) GetSession(ctx context.Context, arg GetSessionParams) (Session, error) {
+	row := q.db.QueryRow(ctx, getSession, arg.ID, arg.SessionExpiration)
 	var i Session
 	err := row.Scan(
 		&i.ID,
@@ -105,9 +96,57 @@ func (q *Queries) GetAndTouchSession(ctx context.Context, arg GetAndTouchSession
 		&i.Groups,
 		&i.AccessToken,
 		&i.RefreshToken,
-		&i.Expiry,
+		&i.TokenExpiry,
 		&i.CreatedAt,
-		&i.LastAccessedAt,
 	)
 	return i, err
+}
+
+const updateSession = `-- name: UpdateSession :execrows
+UPDATE session
+SET name = $1,
+    given_name = $2,
+    family_name = $3,
+    preferred_user_name = $4,
+    email = $5,
+    groups = $6,
+    access_token = $7,
+    refresh_token = $8,
+    token_expiry = $9
+WHERE id = $10
+AND subject = $11
+`
+
+type UpdateSessionParams struct {
+	Name              *string
+	GivenName         *string
+	FamilyName        *string
+	PreferredUserName *string
+	Email             *string
+	Groups            []string
+	AccessToken       string
+	RefreshToken      *string
+	TokenExpiry       int64
+	ID                pgtype.UUID
+	Subject           string
+}
+
+func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateSession,
+		arg.Name,
+		arg.GivenName,
+		arg.FamilyName,
+		arg.PreferredUserName,
+		arg.Email,
+		arg.Groups,
+		arg.AccessToken,
+		arg.RefreshToken,
+		arg.TokenExpiry,
+		arg.ID,
+		arg.Subject,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

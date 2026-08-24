@@ -3,7 +3,9 @@ package session
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/auth"
 )
 
@@ -18,7 +20,7 @@ type Session struct {
 	Groups       []string `json:"groups,omitempty"`
 	AccessToken  string   `json:"access_token"`
 	RefreshToken *string  `json:"refresh_token"`
-	Expiry       int64    `json:"expiry"`
+	TokenExpiry  int64    `json:"token_expiry"`
 }
 
 // Context represents the session subset stored in the context.
@@ -43,4 +45,29 @@ func FromContext(ctx context.Context) (*Context, error) {
 	}
 
 	return &sess, nil
+}
+
+func UnixExpiry(expiry time.Time) int64 {
+	if expiry.IsZero() {
+		return 0
+	}
+	return expiry.Unix()
+}
+
+func (s *Session) IsTokenExpiryZero() bool {
+	return s.TokenExpiry == 0
+}
+
+func (s *Session) ApplyOIDCValues(subject string, claims oidc.IDTokenAdditionalClaims,
+	accessToken string, refreshToken *string, tokenExpiry time.Time) {
+	s.Subject = subject
+	s.Groups = append([]string(nil), claims.Groups...)
+	s.Name = claims.Name
+	s.Email = claims.Email
+	s.GivenName = claims.GivenName
+	s.FamilyName = claims.FamilyName
+	s.PreferredUsername = claims.PreferredUsername
+	s.AccessToken = accessToken
+	s.RefreshToken = refreshToken
+	s.TokenExpiry = UnixExpiry(tokenExpiry)
 }

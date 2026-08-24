@@ -13,6 +13,14 @@ type InMemoryStore struct {
 	cache otter.Cache[string, Session]
 }
 
+func NewInMemoryStore(cfg config.Parsed) *InMemoryStore {
+	cache := otter.Must(&otter.Options[string, Session]{
+		ExpiryCalculator: otter.ExpiryCreating[string, Session](cfg.Session.Expiration),
+	})
+
+	return &InMemoryStore{cache: *cache}
+}
+
 func (s *InMemoryStore) Save(_ context.Context, session *Session) (string, error) {
 	if session == nil {
 		return "", fmt.Errorf("failed to store session: session is empty")
@@ -41,10 +49,15 @@ func (s *InMemoryStore) Get(_ context.Context, id string) (*Session, error) {
 	return nil, nil
 }
 
-func NewInMemoryStore(cfg config.Parsed) *InMemoryStore {
-	cache := otter.Must(&otter.Options[string, Session]{
-		ExpiryCalculator: otter.ExpiryAccessing[string, Session](cfg.Session.Expiry),
-	})
+func (s *InMemoryStore) Update(_ context.Context, session *Session) error {
+	if session == nil || session.ID == "" {
+		return fmt.Errorf("failed to update session: session is empty")
+	}
 
-	return &InMemoryStore{cache: *cache}
+	if _, ok := s.cache.GetIfPresent(session.ID); !ok {
+		return fmt.Errorf("failed to update session: session %q not found", session.ID)
+	}
+
+	s.cache.Set(session.ID, *session)
+	return nil
 }

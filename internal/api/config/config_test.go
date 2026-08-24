@@ -27,7 +27,7 @@ var _ = Describe("Config.Validate", func() {
 			Session: config.SessionConfig{
 				StorageType:     "db-pg",
 				Cookie:          config.SessionCookieConfig{Name: "kden-session", HTTPOnly: true, SameSite: "SameSiteStrictMode"},
-				Expiry:          "12h",
+				Expiration:      "12h",
 				CleanupInterval: "15m",
 			},
 			Database: config.DatabaseConfig{
@@ -59,7 +59,7 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.Server.ReadTimeout.Seconds()).To(Equal(10.0))
 		Expect(parsed.Server.WriteTimeout.Seconds()).To(Equal(10.0))
 		Expect(parsed.Server.ShutdownTimeout.Seconds()).To(Equal(15.0))
-		Expect(parsed.Session.Expiry.Hours()).To(Equal(12.0))
+		Expect(parsed.Session.Expiration.Hours()).To(Equal(12.0))
 		Expect(parsed.Session.CleanupInterval.Minutes()).To(Equal(15.0))
 		Expect(parsed.Session.StorageType).To(Equal("db-pg"))
 		Expect(parsed.Database.Connection).To(Equal("dbConn"))
@@ -87,7 +87,7 @@ var _ = Describe("Config.Validate", func() {
 		Entry("write-timeout", "write-timeout", func(c *config.Config) { c.Server.WriteTimeout = invalidDuration }),
 		Entry("shutdown-timeout", "shutdown-timeout", func(c *config.Config) { c.Server.ShutdownTimeout = invalidDuration }),
 		Entry("oidc-state-expiration", "oidc-state-expiration", func(c *config.Config) { c.OIDC.StateExpiration = invalidDuration }),
-		Entry("session-expiry", "session-expiry", func(c *config.Config) { c.Session.Expiry = invalidDuration }),
+		Entry("session-expiration", "session-expiration", func(c *config.Config) { c.Session.Expiration = invalidDuration }),
 		Entry("session-cleanup-interval", "session-cleanup-interval", func(c *config.Config) { c.Session.CleanupInterval = invalidDuration }),
 		Entry("db-max-conn-lifetime", "db-max-conn-lifetime", func(c *config.Config) { c.Database.MaxConnLifetime = invalidDuration }),
 		Entry("db-max-conn-idle-time", "db-max-conn-idle-time", func(c *config.Config) { c.Database.MaxConnIdleTime = invalidDuration }),
@@ -191,7 +191,7 @@ var _ = Describe("Config.Validate", func() {
 			Session: config.SessionConfig{
 				StorageType:     "in-memory",
 				Cookie:          config.SessionCookieConfig{Name: "custom-session", Secure: true, SameSite: "SameSiteNoneMode"},
-				Expiry:          "1h",
+				Expiration:      "1h",
 				CleanupInterval: "15m",
 			},
 		}
@@ -212,7 +212,7 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.Session.Cookie.HTTPOnly).To(BeFalse())
 		Expect(parsed.Session.Cookie.Secure).To(BeTrue())
 		Expect(parsed.Session.Cookie.SameSite).To(Equal("SameSiteNoneMode"))
-		Expect(parsed.Session.Expiry.Hours()).To(Equal(1.0))
+		Expect(parsed.Session.Expiration.Hours()).To(Equal(1.0))
 		Expect(parsed.Session.CleanupInterval.Minutes()).To(Equal(15.0))
 	})
 })

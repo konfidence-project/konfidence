@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"time"
 
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
@@ -183,21 +184,20 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 		return openapi.AuthCallbackV1500JSONResponse{}, err
 	}
 
-	// create and save session
-	sess := session.Session{
-		Subject: idToken.Subject,
-		Groups:  claims.Groups,
-		Context: session.Context{
-			Name:              claims.Name,
-			GivenName:         claims.GivenName,
-			FamilyName:        claims.FamilyName,
-			PreferredUsername: claims.PreferredUsername,
-			Email:             claims.Email,
-		},
-		AccessToken:  tokenResponse.AccessToken,
-		RefreshToken: &tokenResponse.RefreshToken,
-		Expiry:       tokenResponse.Expiry.Unix(),
+	var refreshToken *string
+	if tokenResponse.RefreshToken != "" {
+		refreshToken = &tokenResponse.RefreshToken
 	}
+
+	// create and save session
+	sess := session.Session{}
+	sess.ApplyOIDCValues(
+		idToken.Subject,
+		*claims,
+		tokenResponse.AccessToken,
+		refreshToken,
+		tokenResponse.Expiry,
+	)
 
 	sessionId, err := a.sessions.Save(ctx, &sess)
 	if err != nil {
@@ -337,6 +337,8 @@ func (a *authHandler) sessionCookie(sessionID string) *http.Cookie {
 	return &http.Cookie{
 		Name:     a.config.Session.Cookie.Name,
 		Value:    sessionID,
+		MaxAge:   int(a.config.Session.Expiration / time.Second),
+		Expires:  time.Now().Add(a.config.Session.Expiration),
 		HttpOnly: a.config.Session.Cookie.HTTPOnly,
 		Secure:   a.config.Session.Cookie.Secure,
 		SameSite: sameSiteMode(a.config.Session.Cookie.SameSite),

@@ -15,28 +15,15 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+var _ db.Querier = (*recordingQuerier)(nil)
+
 type recordingQuerier struct {
-	mu sync.Mutex
-
-	createSessionFunc func(
-		context.Context,
-		db.CreateSessionParams,
-	) (pgtype.UUID, error)
-
-	deleteSessionFunc func(
-		context.Context,
-		pgtype.UUID,
-	) error
-
-	getAndTouchSessionFunc func(
-		context.Context,
-		db.GetAndTouchSessionParams,
-	) (db.Session, error)
-
-	deleteExpiredSessionsFunc func(
-		context.Context,
-		pgtype.Timestamptz,
-	) (int64, error)
+	mu                        sync.Mutex
+	createSessionFunc         func(context.Context, db.CreateSessionParams) (pgtype.UUID, error)
+	deleteSessionFunc         func(context.Context, pgtype.UUID) error
+	getSessionFunc            func(context.Context, db.GetSessionParams) (db.Session, error)
+	deleteExpiredSessionsFunc func(context.Context, pgtype.Timestamptz) (int64, error)
+	updateSessionFunc         func(context.Context, db.UpdateSessionParams) (int64, error)
 }
 
 func (q *recordingQuerier) CreateSession(
@@ -67,18 +54,32 @@ func (q *recordingQuerier) DeleteSession(
 	return q.deleteSessionFunc(ctx, id)
 }
 
-func (q *recordingQuerier) GetAndTouchSession(
+func (q *recordingQuerier) UpdateSession(
 	ctx context.Context,
-	params db.GetAndTouchSessionParams,
+	params db.UpdateSessionParams,
+) (int64, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if q.updateSessionFunc == nil {
+		return 0, nil
+	}
+
+	return q.updateSessionFunc(ctx, params)
+}
+
+func (q *recordingQuerier) GetSession(
+	ctx context.Context,
+	params db.GetSessionParams,
 ) (db.Session, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if q.getAndTouchSessionFunc == nil {
+	if q.getSessionFunc == nil {
 		return db.Session{}, nil
 	}
 
-	return q.getAndTouchSessionFunc(ctx, params)
+	return q.getSessionFunc(ctx, params)
 }
 
 func (q *recordingQuerier) DeleteExpiredSessions(
@@ -134,7 +135,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 				Groups:       []string{"developers", "admins"},
 				AccessToken:  "access-token",
 				RefreshToken: &refreshToken,
-				Expiry:       123456789,
+				TokenExpiry:  123456789,
 				Context: Context{
 					Name:              new("Test User"),
 					GivenName:         new("Test"),
@@ -167,7 +168,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 				Groups:            session.Groups,
 				AccessToken:       session.AccessToken,
 				RefreshToken:      session.RefreshToken,
-				Expiry:            session.Expiry,
+				TokenExpiry:       session.TokenExpiry,
 			}))
 		})
 
@@ -195,7 +196,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 	})
 
 	ginkgo.Describe("Get", func() {
-		ginkgo.It("gets and touches an active session", func() {
+		ginkgo.It("gets a session created after the expiration cutoff", func() {
 			refreshToken := "refresh-token"
 			databaseSession := db.Session{
 				ID:                databaseSessionUUID(),
@@ -208,13 +209,13 @@ var _ = ginkgo.Describe("DBStore", func() {
 				Groups:            []string{"developers", "admins"},
 				AccessToken:       "access-token",
 				RefreshToken:      &refreshToken,
-				Expiry:            123456789,
+				TokenExpiry:       123456789,
 			}
 
-			var captured db.GetAndTouchSessionParams
-			queries.getAndTouchSessionFunc = func(
+			var captured db.GetSessionParams
+			queries.getSessionFunc = func(
 				_ context.Context,
-				params db.GetAndTouchSessionParams,
+				params db.GetSessionParams,
 			) (db.Session, error) {
 				captured = params
 				return databaseSession, nil
@@ -238,25 +239,23 @@ var _ = ginkgo.Describe("DBStore", func() {
 				},
 				AccessToken:  databaseSession.AccessToken,
 				RefreshToken: databaseSession.RefreshToken,
-				Expiry:       databaseSession.Expiry,
+				TokenExpiry:  databaseSession.TokenExpiry,
 			}))
 
 			Expect(captured.ID).To(Equal(databaseSessionUUID()))
-			Expect(captured.AccessedAt.Valid).To(BeTrue())
-			Expect(captured.AccessedAt.Time).
-				To(BeTemporally(">=", before))
-			Expect(captured.AccessedAt.Time).
-				To(BeTemporally("<=", after))
-			Expect(captured.SessionExpiry.Valid).To(BeTrue())
-			Expect(captured.SessionExpiry.Time).To(Equal(
-				captured.AccessedAt.Time.Add(-30 * time.Minute),
-			))
+			Expect(captured.SessionExpiration.Valid).To(BeTrue())
+			Expect(captured.SessionExpiration.Time).To(
+				BeTemporally(">=", before.Add(-30*time.Minute)),
+			)
+			Expect(captured.SessionExpiration.Time).To(
+				BeTemporally("<=", after.Add(-30*time.Minute)),
+			)
 		})
 
 		ginkgo.It("returns nil when the session does not exist", func() {
-			queries.getAndTouchSessionFunc = func(
+			queries.getSessionFunc = func(
 				context.Context,
-				db.GetAndTouchSessionParams,
+				db.GetSessionParams,
 			) (db.Session, error) {
 				return db.Session{}, sql.ErrNoRows
 			}
@@ -269,10 +268,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 
 		ginkgo.It("rejects an invalid session ID", func() {
 			queried := false
-			queries.getAndTouchSessionFunc = func(
-				context.Context,
-				db.GetAndTouchSessionParams,
-			) (db.Session, error) {
+			queries.getSessionFunc = func(context.Context, db.GetSessionParams) (db.Session, error) {
 				queried = true
 				return db.Session{}, nil
 			}
@@ -288,10 +284,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 
 		ginkgo.It("wraps database errors", func() {
 			databaseErr := errors.New("database unavailable")
-			queries.getAndTouchSessionFunc = func(
-				context.Context,
-				db.GetAndTouchSessionParams,
-			) (db.Session, error) {
+			queries.getSessionFunc = func(context.Context, db.GetSessionParams) (db.Session, error) {
 				return db.Session{}, databaseErr
 			}
 
@@ -304,6 +297,52 @@ var _ = ginkgo.Describe("DBStore", func() {
 				),
 			))
 			Expect(errors.Is(err, databaseErr)).To(BeTrue())
+		})
+	})
+
+	ginkgo.Describe("Update", func() {
+		ginkgo.It("updates refreshed session values without changing creation time", func() {
+			refreshToken := "new-refresh-token"
+			updatedSession := &Session{
+				Subject:      "subject-id",
+				Groups:       []string{"developers"},
+				AccessToken:  "new-access-token",
+				RefreshToken: &refreshToken,
+				TokenExpiry:  123456789,
+				Context: Context{
+					ID:                databaseSessionID,
+					Name:              new("Test User"),
+					GivenName:         new("Test"),
+					FamilyName:        new("User"),
+					PreferredUsername: new("test.user"),
+					Email:             new("test@example.com"),
+				},
+			}
+
+			var captured db.UpdateSessionParams
+			queries.updateSessionFunc = func(
+				_ context.Context,
+				params db.UpdateSessionParams,
+			) (int64, error) {
+				captured = params
+				return 1, nil
+			}
+
+			Expect(store.Update(ctx, updatedSession)).To(Succeed())
+
+			Expect(captured).To(Equal(db.UpdateSessionParams{
+				Name:              updatedSession.Name,
+				GivenName:         updatedSession.GivenName,
+				FamilyName:        updatedSession.FamilyName,
+				PreferredUserName: updatedSession.PreferredUsername,
+				Email:             updatedSession.Email,
+				Groups:            updatedSession.Groups,
+				AccessToken:       updatedSession.AccessToken,
+				RefreshToken:      updatedSession.RefreshToken,
+				TokenExpiry:       updatedSession.TokenExpiry,
+				ID:                databaseSessionUUID(),
+				Subject:           updatedSession.Subject,
+			}))
 		})
 	})
 

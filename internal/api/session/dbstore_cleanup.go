@@ -11,7 +11,7 @@ import (
 
 func (s *DBStore) deleteExpired(ctx context.Context, now time.Time) (int64, error) {
 	deleted, err := s.queries.DeleteExpiredSessions(ctx, pgtype.Timestamptz{
-		Time:  now.Add(-s.sessionExpiry),
+		Time:  now.Add(-s.sessionExpiration),
 		Valid: true,
 	})
 	if err != nil {

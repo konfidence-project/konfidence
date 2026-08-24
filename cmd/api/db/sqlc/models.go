@@ -19,7 +19,6 @@ type Session struct {
 	Groups            []string
 	AccessToken       string
 	RefreshToken      *string
-	Expiry            int64
+	TokenExpiry       int64
 	CreatedAt         pgtype.Timestamptz
-	LastAccessedAt    pgtype.Timestamptz
 }
