@@ -288,6 +288,22 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
 
+##@ Local Development
+
+DEV_COMPOSE_FILE ?= hack/kden_local_dev/docker-compose.yml
+
+.PHONY: dev-up
+dev-up: ## Start local dev dependencies (IDP, reverse proxy, Postgres) used by run-kden-api.
+	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) up -d
+
+.PHONY: dev-down
+dev-down: ## Stop local dev dependencies started by dev-up.
+	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) down
+
+.PHONY: dev-logs
+dev-logs: ## Tail logs from local dev dependencies.
+	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) logs -f
+
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
 docker-build: hermit ## Build the konfidence operator container image (local use only).
