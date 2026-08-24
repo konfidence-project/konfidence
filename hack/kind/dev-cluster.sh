@@ -14,6 +14,12 @@ REGISTRY_NAME="kind-registry"
 REGISTRY_PORT="5001"
 KIND_CONFIG="$(dirname "$0")/kind-config.yaml"
 
+# Cluster-level prerequisites the kubernetes-landscape-orchestrator needs to
+# deploy workloads. Versions mirror hack/quickstart/install.sh. Set
+# SKIP_CLUSTER_DEPS=1 to skip them when working only on the API or CLI.
+SKIP_CLUSTER_DEPS="${SKIP_CLUSTER_DEPS:-}"
+GATEWAY_API_VERSION="${GATEWAY_API_VERSION:-v1.4.1}"
+
 up() {
   if [ "$("${CONTAINER_TOOL}" inspect -f '{{.State.Running}}' "${REGISTRY_NAME}" 2>/dev/null || true)" != 'true' ]; then
     echo "Starting local registry container '${REGISTRY_NAME}' on localhost:${REGISTRY_PORT}..."
@@ -59,7 +65,27 @@ data:
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 
+  if [ -z "${SKIP_CLUSTER_DEPS}" ]; then
+    install_cluster_deps
+  fi
+
   echo "Done. Push images to localhost:${REGISTRY_PORT}/<name>:<tag> and reference them from the cluster as such."
+}
+
+# Gateway API and Flux are prerequisites of the landscape orchestrator, not of
+# the konfidence operator itself; without them nothing turns a VectorDeployment
+# into running workloads.
+install_cluster_deps() {
+  echo "Installing Gateway API ${GATEWAY_API_VERSION}..."
+  kubectl apply --server-side -f \
+    "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
+
+  echo "Installing Flux..."
+  kubectl apply -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml
+  kubectl wait deployment/source-controller \
+    --namespace flux-system \
+    --for=condition=Available \
+    --timeout=180s
 }
 
 down() {
