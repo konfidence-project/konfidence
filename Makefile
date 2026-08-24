@@ -69,6 +69,10 @@ OAPI_CODEGEN   ?= go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codege
 
 ## Image names
 OPERATOR_IMAGE = $(REGISTRY)/konfidence-operator:$(TAG)
+API_IMAGE      = $(REGISTRY)/api:$(TAG)
+
+## GOARCH for locally-built container images; defaults to the host's.
+DOCKER_GOARCH ?= $(shell go env GOARCH)
 
 ## Local API server configuration
 API_OIDC_ENABLED ?= true
@@ -314,14 +318,27 @@ dev-cluster: hermit ## Create a local kind cluster with a local OCI registry at 
 dev-cluster-down: hermit ## Delete the local kind cluster and its registry container.
 	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh down
 
-# These targets are only used for local environments (not in pipeline)
+# These targets are only used for local environments (not in pipeline); they
+# cross-compile for Linux themselves regardless of host OS.
 .PHONY: docker-build
 docker-build: hermit ## Build the konfidence operator container image (local use only).
-	$(CONTAINER_TOOL) build -f Dockerfile --build-arg TARGETPLATFORM=bin --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
+	@mkdir -p bin/linux-build
+	GOOS=linux GOARCH=$(DOCKER_GOARCH) GORELEASER_CURRENT_TAG=$(TAG) goreleaser build --clean --snapshot --single-target --id konfidence -o bin/linux-build/konfidence
+	$(CONTAINER_TOOL) build -f Dockerfile --build-arg TARGETPLATFORM=bin/linux-build --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
 
 .PHONY: docker-push
 docker-push: ## Push the konfidence operator container image.
 	$(CONTAINER_TOOL) push $(OPERATOR_IMAGE)
+
+.PHONY: docker-build-api
+docker-build-api: hermit ## Build the kden API server container image (local use only).
+	@mkdir -p bin/linux-build
+	GOOS=linux GOARCH=$(DOCKER_GOARCH) GORELEASER_CURRENT_TAG=$(TAG) goreleaser build --clean --snapshot --single-target --id api -o bin/linux-build/api
+	$(CONTAINER_TOOL) build -f Dockerfile.api --build-arg TARGETPLATFORM=bin/linux-build -t $(API_IMAGE) .
+
+.PHONY: docker-push-api
+docker-push-api: ## Push the kden API server container image.
+	$(CONTAINER_TOOL) push $(API_IMAGE)
 
 ##@ Deployment
 
