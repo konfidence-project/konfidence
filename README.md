@@ -58,16 +58,31 @@ push images against it with `make docker-build docker-push` for the operator and
 docker-build-api docker-push-api` for the API server, both pointed at the registry with
 `REGISTRY=localhost:5001`. These targets cross-compile a Linux binary regardless of your host
 OS, since the images are Linux-based, so they work the same way on macOS and Linux. With images
-pushed, deploying the operator on its own works cleanly:
+pushed, deploy the operator on its own with:
 
 ```sh
 REGISTRY=localhost:5001 make docker-build docker-push
 make deploy
 ```
 
-Deploying the full stack including the API server currently fails with `api.oidc.issuerURL is
-required`. There's no local OIDC issuer wired up yet for an API pod running inside the cluster,
-so stick to `run-kden-api` on the host (below) for API development until that's resolved.
+Deploying the full stack, including the API server, additionally needs the local Authelia
+instance (started by `dev-up`) wired in as its OIDC provider, and its local CA trusted by the
+pod so it can reach Authelia over HTTPS:
+
+```sh
+REGISTRY=localhost:5001 TAG=dev \
+DEPLOY_OIDC_ISSUER_URL=https://host.docker.internal \
+DEPLOY_OIDC_CLIENT_ID=konfidence \
+DEPLOY_OIDC_REDIRECT_URL=https://api.localhost/api/v1/auth/callback \
+DEPLOY_OIDC_CLIENT_SECRET=konfidence-local-secret \
+DEPLOY_OIDC_ALLOW_RETURN_URLS=https://api.localhost \
+DEPLOY_OIDC_TRUST_CADDY_CA=1 \
+make deploy
+```
+
+`host.docker.internal` is how pods inside the cluster reach the Authelia instance running on the
+host; `DEPLOY_OIDC_TRUST_CADDY_CA` pulls Caddy's local CA certificate out of its container and
+mounts it into the API pod so that connection is trusted.
 
 With the dependencies and cluster running, generate webhook certificates once with `make
 webhook-certs`, then run the operator with `make run` and the API server with `make
