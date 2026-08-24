@@ -47,7 +47,7 @@ func landscapeFixture(name, namespace, displayName string) *konfidence.Landscape
 	}
 }
 
-func projectHandlerWith(objs ...client.Object) *projectHandler {
+func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
 	k8s := fakeK8s(objs...)
 	return newProjectHandler(
 		projectdomain.NewRepository(k8s),
@@ -66,7 +66,7 @@ var _ = Describe("ListLandscapesV1", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		l1 := landscapeFixture("dev", "kden-p-my-project", "Dev")
 		l2 := landscapeFixture("staging", "kden-p-my-project", "Staging")
-		h := projectHandlerWith(project, l1, l2)
+		h := newProjectHandlerForTest(project, l1, l2)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
 		resp, err := h.ListLandscapesV1(ctx, openapi.ListLandscapesV1RequestObject{ProjectId: "my-project"})
@@ -80,7 +80,7 @@ var _ = Describe("ListLandscapesV1", func() {
 
 	It("returns an empty list when project has no landscapes", func() {
 		project := landscapeProjectFixture("empty-project", "kden-p-empty-project")
-		h := projectHandlerWith(project)
+		h := newProjectHandlerForTest(project)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"empty-project": {"admin"}})
 		resp, err := h.ListLandscapesV1(ctx, openapi.ListLandscapesV1RequestObject{ProjectId: "empty-project"})
@@ -93,7 +93,7 @@ var _ = Describe("ListLandscapesV1", func() {
 	It("maps landscape fields correctly", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		l := landscapeFixture("dev", "kden-p-my-project", "Development")
-		h := projectHandlerWith(project, l)
+		h := newProjectHandlerForTest(project, l)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
 		resp, err := h.ListLandscapesV1(ctx, openapi.ListLandscapesV1RequestObject{ProjectId: "my-project"})
@@ -105,7 +105,7 @@ var _ = Describe("ListLandscapesV1", func() {
 	})
 
 	It("returns 404 when project does not exist", func() {
-		h := projectHandlerWith()
+		h := newProjectHandlerForTest()
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"nonexistent": {"admin"}})
 		resp, err := h.ListLandscapesV1(ctx, openapi.ListLandscapesV1RequestObject{ProjectId: "nonexistent"})
@@ -117,7 +117,7 @@ var _ = Describe("ListLandscapesV1", func() {
 
 	It("returns 401 when no session is present", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		h := projectHandlerWith(project)
+		h := newProjectHandlerForTest(project)
 
 		resp, err := h.ListLandscapesV1(context.Background(), openapi.ListLandscapesV1RequestObject{ProjectId: "my-project"})
 		Expect(err).NotTo(HaveOccurred())
@@ -130,7 +130,7 @@ var _ = Describe("ListLandscapesV1", func() {
 		project := landscapeProjectFixture("project-a", "kden-p-project-a")
 		lA := landscapeFixture("dev", "kden-p-project-a", "Dev A")
 		lB := landscapeFixture("dev", "kden-p-project-b", "Dev B")
-		h := projectHandlerWith(project, lA, lB)
+		h := newProjectHandlerForTest(project, lA, lB)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"project-a": {"admin"}})
 		resp, err := h.ListLandscapesV1(ctx, openapi.ListLandscapesV1RequestObject{ProjectId: "project-a"})
