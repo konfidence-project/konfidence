@@ -331,6 +331,15 @@ export interface components {
         "application/json": components["schemas"]["ErrorResponse"];
       };
     };
+    /** @description The requested resource was not found. */
+    NotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
     /** @description Invalid request parameters. */
     BadRequest: {
       headers: {
@@ -536,6 +545,7 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };
   };
