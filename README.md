@@ -100,6 +100,13 @@ OCM client defaults to HTTPS and fails against the registry container's plain HT
 kden vector push --file vector.yaml --registry=http://localhost:5001/<subpath>
 ```
 
+To see a full multi-service app deployed through Konfidence, check out the
+[example-app repo](https://github.com/konfidence-project/example-app). Its
+`hack/01-setup-kind-cluster.sh` manages its own kind cluster (`konfidence-example`, separate
+from `dev-cluster` above) and installs a released version of Konfidence via the official
+quickstart installer, not your local build, so it's better suited to trying Konfidence out than
+to testing local changes. See its README for the full flow.
+
 ## Dashboard Development
 
 The production dashboard lives in `apps/konfidence-ui`. Activate Hermit and install the workspace dependencies before starting it:
