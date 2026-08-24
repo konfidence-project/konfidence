@@ -2,6 +2,12 @@ auth.localhost {
 	reverse_proxy authelia:9091
 }
 
+# Lets pods inside a kind cluster reach Authelia via the same hostname Docker
+# Desktop already exposes to containers.
+host.docker.internal {
+	reverse_proxy authelia:9091
+}
+
 api.localhost {
 	@callback path */auth/callback*
     redir @callback http://localhost:8090{uri} permanent

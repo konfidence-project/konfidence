@@ -21,6 +21,8 @@ session:
   cookies:
     - domain: 'auth.localhost'
       authelia_url: 'https://auth.localhost'
+    - domain: 'host.docker.internal'
+      authelia_url: 'https://host.docker.internal'
 
 notifier:
   filesystem:

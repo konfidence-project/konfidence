@@ -7,6 +7,18 @@ TAG      ?= dev
 # Namespace for deploying to Kubernetes cluster
 NAMESPACE ?= konfidence-system
 
+# API OIDC values for `make deploy` (in-cluster API server). Unset by default so
+# the chart's own required-value checks still apply to real deployments.
+DEPLOY_OIDC_ISSUER_URL ?=
+DEPLOY_OIDC_CLIENT_ID ?=
+DEPLOY_OIDC_REDIRECT_URL ?=
+DEPLOY_OIDC_CLIENT_SECRET ?=
+DEPLOY_OIDC_ALLOW_RETURN_URLS ?=
+# Set to any non-empty value to trust Caddy's local CA in the API pod, needed
+# when DEPLOY_OIDC_ISSUER_URL points at Caddy's own HTTPS (e.g. dev-cluster's
+# host.docker.internal). Extracts the cert from the running `caddy` container.
+DEPLOY_OIDC_TRUST_CADDY_CA ?=
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -392,12 +404,37 @@ deploy: hermit manifests ## Deploy the konfidence operator to the cluster specif
 			exit 1; \
 		fi; \
 	fi; \
+	if [ -n "$(DEPLOY_OIDC_CLIENT_SECRET)" ]; then \
+		echo "Creating API OIDC client secret in namespace '$(NAMESPACE)'..."; \
+		kubectl create secret generic konfidence-api-oidc \
+			--from-literal=client-secret=$(DEPLOY_OIDC_CLIENT_SECRET) \
+			--namespace=$(NAMESPACE) \
+			--dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
+		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS --set api.oidc.clientSecretRef.name=konfidence-api-oidc --set api.oidc.clientSecretRef.key=client-secret"; \
+	fi; \
+	if [ -n "$(DEPLOY_OIDC_TRUST_CADDY_CA)" ]; then \
+		echo "Trusting Caddy's local CA in namespace '$(NAMESPACE)'..."; \
+		docker exec caddy cat /data/caddy/pki/authorities/local/root.crt /data/caddy/pki/authorities/local/intermediate.crt | \
+			kubectl create configmap konfidence-dev-ca --from-file=ca-certificates.crt=/dev/stdin \
+				--namespace=$(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
+		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS \
+			--set api.volumes[0].name=dev-ca \
+			--set api.volumes[0].configMap.name=konfidence-dev-ca \
+			--set api.volumeMounts[0].name=dev-ca \
+			--set api.volumeMounts[0].mountPath=/etc/konfidence/ca \
+			--set api.env[0].name=SSL_CERT_FILE \
+			--set api.env[0].value=/etc/konfidence/ca/ca-certificates.crt"; \
+	fi; \
 	$(HELM) upgrade --install konfidence charts/konfidence \
 		--namespace=$(NAMESPACE) \
 		--set image.repository=$(REGISTRY)/konfidence-operator \
 		--set image.tag=$(TAG) \
 		--set api.image.repository=$(REGISTRY)/api \
 		--set api.image.tag=$(TAG) \
+		--set api.oidc.issuerURL=$(DEPLOY_OIDC_ISSUER_URL) \
+		--set api.oidc.clientId=$(DEPLOY_OIDC_CLIENT_ID) \
+		--set api.oidc.redirectURL=$(DEPLOY_OIDC_REDIRECT_URL) \
+		--set "api.oidc.allowReturnUrls={$(DEPLOY_OIDC_ALLOW_RETURN_URLS)}" \
 		--set crd.keep=false \
 		$$HELM_EXTRA_ARGS
 
