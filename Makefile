@@ -86,13 +86,16 @@ API_IMAGE      = $(REGISTRY)/api:$(TAG)
 ## GOARCH for locally-built container images; defaults to the host's.
 DOCKER_GOARCH ?= $(shell go env GOARCH)
 
-## Local API server configuration
-API_OIDC_ENABLED ?= true
-API_OIDC_ISSUER_URL ?= http://localhost:5556/oidc
+## Local API server configuration. OIDC is off by default: enabling it requires
+## trusting Caddy's local CA in your OS trust store first (the auth flow itself
+## is #103's scope, not this one) - set API_OIDC_ENABLED=true to opt in.
+API_OIDC_ENABLED ?= false
+API_OIDC_ISSUER_URL ?= https://auth.localhost
+API_OIDC_CLIENT_ID ?= konfidence
 API_OIDC_CLIENT_SECRET ?= konfidence-local-secret
 API_OIDC_SCOPES ?= openid,profile,email,groups
-API_OIDC_REDIRECT_URL ?= http://localhost:8090/api/v1/auth/callback
-API_OIDC_ALLOW_RETURN_URLS ?=
+API_OIDC_REDIRECT_URL ?= https://api.localhost/api/v1/auth/callback
+API_OIDC_ALLOW_RETURN_URLS ?= http://localhost:8090
 API_SESSION_STORAGE_TYPE ?= in-memory
 
 .PHONY: all
@@ -300,6 +303,7 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 	go run ./cmd/api/main.go \
 		--oidc-enabled=$(API_OIDC_ENABLED) \
 		--oidc-issuer-url=$(API_OIDC_ISSUER_URL) \
+		--oidc-client-id=$(API_OIDC_CLIENT_ID) \
 		--oidc-client-secret=$(API_OIDC_CLIENT_SECRET) \
 		--oidc-scopes=$(API_OIDC_SCOPES) \
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
