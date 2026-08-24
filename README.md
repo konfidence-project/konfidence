@@ -32,6 +32,57 @@ For a step-by-step guide including cluster setup, component installation, and yo
 
 For detailed installation instructions and production deployment considerations, see the [Installation Guide](https://konfidence.cloud/docs/deploy-operate/installation.html).
 
+## Local Development
+
+Beyond the kind and Helm setup described in Installation, the repository has make targets for
+running the operator and API server directly on your host against local dependencies. Activate
+Hermit and start the local dependencies (an IDP via Authelia, a reverse proxy via Caddy, and
+Postgres) before running anything else:
+
+```sh
+source ./bin/activate-hermit
+make dev-up
+```
+
+Use `make dev-down` to stop these dependencies and `make dev-logs` to tail their logs.
+
+A local kind cluster with a local OCI registry is available for installing the operator and
+pushing vectors and artifacts without a real registry:
+
+```sh
+make dev-cluster
+```
+
+This creates a kind cluster named `konfidence-dev` and a registry at `localhost:5001`. Build and
+push images against it with `make docker-build docker-push` for the operator and `make
+docker-build-api docker-push-api` for the API server, both pointed at the registry with
+`REGISTRY=localhost:5001`. These targets cross-compile a Linux binary regardless of your host
+OS, since the images are Linux-based, so they work the same way on macOS and Linux. With images
+pushed, deploying the operator on its own works cleanly:
+
+```sh
+REGISTRY=localhost:5001 make docker-build docker-push
+make deploy
+```
+
+Deploying the full stack including the API server currently fails with `api.oidc.issuerURL is
+required`. There's no local OIDC issuer wired up yet for an API pod running inside the cluster,
+so stick to `run-kden-api` on the host (below) for API development until that's resolved.
+
+With the dependencies and cluster running, generate webhook certificates once with `make
+webhook-certs`, then run the operator with `make run` and the API server with `make
+run-kden-api`. The API server's OIDC flags already point at the Authelia instance started by
+`dev-up`, so no further configuration is needed there.
+
+The `kden` CLI's `api-endpoint` also defaults to `http://localhost:8090`, matching
+`run-kden-api`, so no configuration is needed to talk to a locally running API server. Pushing
+vectors and artifacts to the local registry needs an explicit scheme in `--registry`, since the
+OCM client defaults to HTTPS and fails against the registry container's plain HTTP:
+
+```sh
+kden vector push --file vector.yaml --registry=http://localhost:5001/<subpath>
+```
+
 ## Dashboard Development
 
 The production dashboard lives in `apps/konfidence-ui`. Activate Hermit and install the workspace dependencies before starting it:
