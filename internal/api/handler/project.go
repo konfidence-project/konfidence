@@ -1,4 +1,4 @@
-package handler // nolint
+package handler
 
 import (
 	"context"

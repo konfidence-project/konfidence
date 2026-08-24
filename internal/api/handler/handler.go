@@ -17,9 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// APIHandler is the public handle used in tests.
-type APIHandler = apiHandler
-
 type apiHandler struct {
 	authHandler
 	projectHandler
@@ -41,13 +38,6 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 		projectHandler: *project,
 	}
 	return middleware.SessionAuthentication(logger, sessionStore, authRepo, cfg, api.handler())
-}
-
-// NewAPIHandlerWithRepos constructs an APIHandler with injected repositories, used in tests.
-func NewAPIHandlerWithRepos(projectRepo projectdomain.Repository, landscapeRepo landscapedomain.Repository) *APIHandler {
-	return &apiHandler{
-		projectHandler: *newProjectHandler(projectRepo, landscapeRepo),
-	}
 }
 
 func (s *apiHandler) handler() http.Handler {
