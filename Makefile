@@ -184,7 +184,7 @@ lint-config: hermit ## Verify the golangci-lint configuration.
 	$(GOLANGCI_LINT) config verify
 
 .PHONY: webhook-certs
-webhook-certs: ## Generate self-signed certificates for local webhook development.
+webhook-certs: hermit ## Generate self-signed certificates for local webhook development.
 	@./hack/generate-webhook-certs.sh
 
 ##@ API
@@ -262,7 +262,7 @@ test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.
 	$(GINKGO) --coverprofile=cover-pkg.out -v ./pkg/...
 
 .PHONY: test-kden-cli
-test-kden-cli: hermit
+test-kden-cli: hermit ## Run unit tests for the kden CLI.
 	go test ./cmd/kden/... ./internal/kden/...
 
 .PHONY: test-api
@@ -278,7 +278,7 @@ setup-envtest: hermit ## Download the envtest binaries for the configured Kubern
 	}
 
 .PHONY: ginkgo
-ginkgo: ## Install ginkgo CLI to LOCALBIN.
+ginkgo: hermit ## Install ginkgo CLI to LOCALBIN.
 	go build -o $(LOCALBIN)/ginkgo github.com/onsi/ginkgo/v2/ginkgo
 
 ##@ Build
