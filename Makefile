@@ -77,6 +77,7 @@ ENVTEST        ?= setup-envtest
 GOLANGCI_LINT   = golangci-lint
 HELM           ?= helm
 HELM_DOCS      ?= helm-docs
+SQLC           ?= sqlc
 OAPI_CODEGEN   ?= go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
 
 ## Image names
@@ -190,12 +191,16 @@ webhook-certs: hermit ## Generate self-signed certificates for local webhook dev
 ##@ API
 
 .PHONY: api
-api: hermit manifests generate generate-api schemas docs-reference helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, schemas, CRD reference doc, helm lint).
+api: hermit manifests generate generate-api generate-sqlc schemas docs-reference helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, sqlc, schemas, CRD reference doc, helm lint).
 
 .PHONY: generate-api
 generate-api: hermit ## Generate the OpenAPI server and kden API client from api/openapi.yaml.
 	$(OAPI_CODEGEN) -config api/codegen-server.yaml api/openapi.yaml
 	$(OAPI_CODEGEN) -config api/codegen-client.yaml api/openapi.yaml
+
+.PHONY: generate-sqlc
+generate-sqlc: hermit ## Generate the API server's database access code from cmd/api/sqlc.yaml.
+	cd cmd/api && $(SQLC) generate
 
 .PHONY: docs-reference
 docs-reference: hermit ## Generate + transform the CRD reference into api/docs/crd.md.
