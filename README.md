@@ -86,8 +86,10 @@ mounts it into the API pod so that connection is trusted.
 
 With the dependencies and cluster running, generate webhook certificates once with `make
 webhook-certs`, then run the operator with `make run` and the API server with `make
-run-kden-api`. The API server's OIDC flags already point at the Authelia instance started by
-`dev-up`, so no further configuration is needed there.
+run-kden-api`. OIDC is off by default here (all requests run as an admin user), so this needs no
+configuration to work. To test the real auth flow, set `API_OIDC_ENABLED=true`; this also
+requires trusting Caddy's local CA in your OS trust store first, since the API server validates
+Authelia's certificate on macOS through the system keychain rather than `SSL_CERT_FILE`.
 
 The `kden` CLI's `api-endpoint` also defaults to `http://localhost:8090`, matching
 `run-kden-api`, so no configuration is needed to talk to a locally running API server. Pushing
