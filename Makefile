@@ -1,4 +1,6 @@
-# Image registry and tag used by all build/push targets
+# Image registry and tag used by all build/push targets.
+# For dev-cluster (see ##@ Local Development), override with:
+#   REGISTRY=localhost:5001
 REGISTRY ?= ghcr.io/konfidence-project
 TAG      ?= dev
 
@@ -303,6 +305,14 @@ dev-down: ## Stop local dev dependencies started by dev-up.
 .PHONY: dev-logs
 dev-logs: ## Tail logs from local dev dependencies.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) logs -f
+
+.PHONY: dev-cluster
+dev-cluster: hermit ## Create a local kind cluster with a local OCI registry at localhost:5001.
+	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh up
+
+.PHONY: dev-cluster-down
+dev-cluster-down: hermit ## Delete the local kind cluster and its registry container.
+	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh down
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build

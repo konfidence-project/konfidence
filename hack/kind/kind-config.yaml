@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 SAP SE or an SAP affiliate company and Konfidence contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# kind cluster used for local development. Paired with the local registry set
+# up by hack/kind/dev-cluster.sh — see that script and
+# https://kind.sigs.k8s.io/docs/user/local-registry/ for the registry mirror
+# config this depends on.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: konfidence-dev
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = "/etc/containerd/certs.d"
+nodes:
+  - role: control-plane
