@@ -53,9 +53,15 @@ pushing vectors and artifacts without a real registry:
 make dev-cluster
 ```
 
-This creates a kind cluster named `konfidence-dev` and a registry at `localhost:5001`. Build and
-push images against it with `make docker-build docker-push` for the operator and `make
-docker-build-api docker-push-api` for the API server, both pointed at the registry with
+This creates a kind cluster named `konfidence-dev` and a registry at `localhost:5001`, and
+installs Gateway API and Flux into it. Those two are prerequisites of the landscape
+orchestrator rather than of the operator itself, so set `SKIP_CLUSTER_DEPS=1` to leave them out
+when you are only working on the API server or the CLI. This cluster is separate from the
+`konfidence-quickstart` one created by `hack/quickstart/kind.sh`, which installs released charts
+for trying Konfidence out rather than a local build.
+
+Build and push images against the registry with `make docker-build docker-push` for the operator
+and `make docker-build-api docker-push-api` for the API server, both pointed at the registry with
 `REGISTRY=localhost:5001`. These targets cross-compile a Linux binary regardless of your host
 OS, since the images are Linux-based, so they work the same way on macOS and Linux. With images
 pushed, deploy the operator on its own with:
@@ -83,6 +89,15 @@ make deploy
 `host.docker.internal` is how pods inside the cluster reach the Authelia instance running on the
 host; `DEPLOY_OIDC_TRUST_CADDY_CA` pulls Caddy's local CA certificate out of its container and
 mounts it into the API pod so that connection is trusted.
+
+The operator records what should be delivered, but turning that into running workloads is the
+job of the
+[kubernetes-landscape-orchestrator](https://github.com/konfidence-project/kubernetes-landscape-orchestrator),
+which lives in its own repository and has its own build and Helm targets. To get a complete
+delivery path, install the Konfidence CRDs first with `make install` or `make deploy` above, then
+build the orchestrator's image into the same `localhost:5001` registry from its repository and
+install its chart with `image.repository` and `image.tag` pointed at that image. Its published
+charts on ghcr.io are not public yet, so a local build is currently the only option.
 
 With the dependencies and cluster running, generate webhook certificates once with `make
 webhook-certs`, then run the operator with `make run` and the API server with `make
