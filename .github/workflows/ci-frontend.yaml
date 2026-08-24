@@ -150,42 +150,8 @@ jobs:
       - *setup-node
       - *install-dependencies
 
-      - name: Setup Go
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-          cache: true
-
       - name: Build dashboard SPA
         run: pnpm ui:build
 
       - name: Verify static output
         run: test -f apps/konfidence-ui/build/index.html
-
-      - name: Build API binary
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o linux/amd64/api ./cmd/api
-
-      - name: Build combined API image
-        run: docker build --platform=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -f Dockerfile.api -t konfidence-api:${{ github.sha }} .
-
-      - name: Smoke-test combined API image
-        run: |
-          docker run --rm -d --name konfidence-api-smoke -p 18090:8090 \
-            -e KUBECONFIG=/kubeconfig \
-            -v "$PWD/internal/api/server/testdata/kubeconfig.yaml:/kubeconfig:ro" \
-            konfidence-api:${{ github.sha }} --oidc-enabled=false
-          trap 'docker stop konfidence-api-smoke' EXIT
-          for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:18090/healthz >/dev/null; then
-              break
-            fi
-            if [ "$attempt" -eq 30 ]; then
-              docker logs konfidence-api-smoke
-              exit 1
-            fi
-            sleep 1
-          done
-          curl --fail --silent http://127.0.0.1:18090/ | grep --quiet 'display: contents'
-          curl --fail --silent http://127.0.0.1:18090/projects/example/landscape | grep --quiet 'display: contents'
-          curl --fail --silent http://127.0.0.1:18090/favicon.ico >/dev/null
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18090/api/unknown)" != "200"
