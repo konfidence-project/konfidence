@@ -159,6 +159,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 
 	k8sClient, err := newInformerBackedClient(ctx, k8sConfig, scheme,
 		&konfidence.Project{},
+		&konfidence.Landscape{},
 	)
 	if err != nil {
 		return err
