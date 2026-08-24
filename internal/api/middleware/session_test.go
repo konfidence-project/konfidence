@@ -36,6 +36,10 @@ func (r *testAuthRepository) GetProjectRoles(_ context.Context, groups []string)
 	return r.projectRoles, r.err
 }
 
+func (r *testAuthRepository) GetAdminProjectRoles(_ context.Context) (auth.ProjectRoles, error) {
+	return r.projectRoles, r.err
+}
+
 func (s *testSessionStore) Get(_ context.Context, id string) (*session.Session, error) {
 	s.getCalls++
 
@@ -84,7 +88,7 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		store,
 		authRepo,
-		config.Parsed{Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
+		config.Parsed{OIDC: config.ParsedOIDCConfig{Enabled: true}, Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
 		next,
 	)
 	if err != nil {
@@ -206,7 +210,7 @@ func TestSessionAuthenticationMapsProjectRoles(t *testing.T) {
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		store,
 		authRepo,
-		config.Parsed{Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
+		config.Parsed{OIDC: config.ParsedOIDCConfig{Enabled: true}, Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
 		next,
 	)
 	if err != nil {
@@ -257,7 +261,7 @@ func TestSessionAuthenticationRejectsSessionMappingFailures(t *testing.T) {
 				slog.New(slog.NewTextHandler(io.Discard, nil)),
 				test.store,
 				test.authRepo,
-				config.Parsed{Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
+				config.Parsed{OIDC: config.ParsedOIDCConfig{Enabled: true}, Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
 				http.HandlerFunc(func(http.ResponseWriter, *http.Request) { nextCalled = true }),
 			)
 			if err != nil {
@@ -330,6 +334,7 @@ func TestSessionAuthenticationTokenExpiry(t *testing.T) {
 				authRepo,
 				config.Parsed{
 					OIDC: config.ParsedOIDCConfig{
+						Enabled: true,
 						Scopes: test.scopes,
 					},
 					Session: config.ParsedSessionConfig{
