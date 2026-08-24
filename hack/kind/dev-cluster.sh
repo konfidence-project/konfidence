@@ -2,10 +2,7 @@
 # SPDX-FileCopyrightText: 2026 SAP SE or an SAP affiliate company and Konfidence contributors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Create (or tear down) a kind cluster plus a local OCI registry for
-# konfidence local development, following the pattern documented at
-# https://kind.sigs.k8s.io/docs/user/local-registry/
-#
+# Create or tear down a kind cluster with a local OCI registry.
 # Usage: dev-cluster.sh up|down
 
 set -euo pipefail
@@ -36,9 +33,7 @@ up() {
     echo "kind cluster '${CLUSTER_NAME}' already exists."
   fi
 
-  # containerd's config_path (set via containerdConfigPatches in
-  # kind-config.yaml) reads per-registry mirror config from a hosts.toml
-  # file on each node - it is not itself part of the containerd config patch.
+  # Per-node registry mirror config, read via containerd's config_path.
   REGISTRY_DIR="/etc/containerd/certs.d/localhost:${REGISTRY_PORT}"
   for node in $("${KIND}" get nodes --name "${CLUSTER_NAME}"); do
     "${CONTAINER_TOOL}" exec "${node}" mkdir -p "${REGISTRY_DIR}"
