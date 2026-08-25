@@ -101,8 +101,10 @@ charts on ghcr.io are not public yet, so a local build is currently the only opt
 
 With the dependencies and cluster running, generate webhook certificates once with `make
 webhook-certs`, then run the operator with `make run` and the API server with `make
-run-kden-api`. OIDC is off by default here (all requests run as an admin user), so this needs no
-configuration to work. To test the real auth flow, set `API_OIDC_ENABLED=true`; this also
+run-kden-api`. Both need a current kube context whose cluster already has the Konfidence CRDs
+installed, so run `make install` or `make deploy` first; without them the API server exits with
+`no matches for konfidence.cloud/v1alpha1`. OIDC is off by default here (all requests run as an
+admin user), so this needs no further configuration to work. To test the real auth flow, set `API_OIDC_ENABLED=true`; this also
 requires trusting Caddy's local CA in your OS trust store first, since the API server validates
 Authelia's certificate on macOS through the system keychain rather than `SSL_CERT_FILE`.
 
