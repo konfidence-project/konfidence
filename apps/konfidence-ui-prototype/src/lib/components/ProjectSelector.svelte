@@ -5,7 +5,7 @@
 
     import type { components } from "$lib/konfidence-api/schema";
 
-    type Project = components["schemas"]["ProjectResponse"];
+    type Project = components["schemas"]["Project"];
     type SelectChangeEventDetail =
         import("@ui5/webcomponents/dist/Select.js").SelectChangeEventDetail;
 

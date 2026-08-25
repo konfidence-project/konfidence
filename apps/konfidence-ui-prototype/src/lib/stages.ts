@@ -1,9 +1,8 @@
 import type { components } from "$lib/konfidence-api/schema";
 
-type ApiLandscape = components["schemas"]["LandscapeResponse"];
-type ApiStage = components["schemas"]["StageResponse"];
-type VectorReference = components["schemas"]["VectorReference"];
-type StageStatus = ApiStage["targetStageVersion"]["status"];
+type ApiLandscape = components["schemas"]["Landscape"];
+type ApiStage = components["schemas"]["Stage"];
+type StageStatus = "Active" | "DeploymentCreated" | "MigrationTasks";
 
 interface Landscape {
   id: string;
@@ -17,7 +16,7 @@ interface Stage {
   landscapeName: string;
   name: string;
   status: StageStatus;
-  vector: VectorReference;
+  vector: string;
 }
 
 const toLandscapeView = (

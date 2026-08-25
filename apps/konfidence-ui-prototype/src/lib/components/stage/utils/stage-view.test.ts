@@ -15,11 +15,7 @@ const createStage = (status: StageStatus): Stage => ({
   landscapeName: "Production",
   name: "Production API",
   status,
-  vector: {
-    componentName: "api",
-    componentVersion: "2.14.0-a3f2c9",
-    repository: "ghcr.io/konfidence/mock",
-  },
+  vector: "ghcr.io/konfidence/mock//api:2.14.0-a3f2c9",
 });
 
 describe("stage presentation", () => {
@@ -50,32 +46,18 @@ describe("stage presentation", () => {
 
 describe("splitVector", () => {
   it("returns a placeholder for empty input", () => {
-    expect(splitVector({ componentName: "api", componentVersion: "", repository: "repo" })).toEqual(
-      { version: "—" },
-    );
+    expect(splitVector("")).toEqual({ version: "—" });
   });
 
   it("splits a digest from a component version", () => {
-    expect(
-      splitVector({
-        componentName: "vector",
-        componentVersion: "1.2.3@abcdef1234",
-        repository: "registry.example.com",
-      }),
-    ).toEqual({
+    expect(splitVector("registry.example.com/vector:1.2.3@abcdef1234")).toEqual({
       hash: "abcdef1234",
       version: "v1.2.3",
     });
   });
 
   it("extracts a trailing revision", () => {
-    expect(
-      splitVector({
-        componentName: "vector",
-        componentVersion: "1.2.3-deadbeef",
-        repository: "registry.example.com",
-      }),
-    ).toEqual({
+    expect(splitVector("registry.example.com/vector:1.2.3-deadbeef")).toEqual({
       hash: "deadbeef",
       version: "v1.2.3",
     });
