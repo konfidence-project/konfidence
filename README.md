@@ -90,6 +90,12 @@ make deploy
 host; `DEPLOY_OIDC_TRUST_CADDY_CA` pulls Caddy's local CA certificate out of its container and
 mounts it into the API pod so that connection is trusted.
 
+Note that this full-stack path has only been verified on Docker Desktop, which resolves
+`host.docker.internal` inside containers automatically. Plain Docker Engine on Linux does not,
+so the API pod cannot reach Authelia there and the deployment will not become ready. Everything
+else above, including the operator-only deploy, is platform independent. Running the API on the
+host with `make run-kden-api` is the portable way to work on it in the meantime.
+
 The operator records what should be delivered, but turning that into running workloads is the
 job of the
 [kubernetes-landscape-orchestrator](https://github.com/konfidence-project/kubernetes-landscape-orchestrator),

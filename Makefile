@@ -1,22 +1,17 @@
-# Image registry and tag used by all build/push targets.
-# For dev-cluster (see ##@ Local Development), override with:
-#   REGISTRY=localhost:5001
+# Image registry and tag for build/push targets; use localhost:5001 for dev-cluster.
 REGISTRY ?= ghcr.io/konfidence-project
 TAG      ?= dev
 
 # Namespace for deploying to Kubernetes cluster
 NAMESPACE ?= konfidence-system
 
-# API OIDC values for `make deploy` (in-cluster API server). Unset by default so
-# the chart's own required-value checks still apply to real deployments.
+# API OIDC values for `make deploy`; unset deploys the operator only.
 DEPLOY_OIDC_ISSUER_URL ?=
 DEPLOY_OIDC_CLIENT_ID ?=
 DEPLOY_OIDC_REDIRECT_URL ?=
 DEPLOY_OIDC_CLIENT_SECRET ?=
 DEPLOY_OIDC_ALLOW_RETURN_URLS ?=
-# Set to any non-empty value to trust Caddy's local CA in the API pod, needed
-# when DEPLOY_OIDC_ISSUER_URL points at Caddy's own HTTPS (e.g. dev-cluster's
-# host.docker.internal). Extracts the cert from the running `caddy` container.
+# Non-empty mounts Caddy's local CA into the API pod, for HTTPS issuer URLs.
 DEPLOY_OIDC_TRUST_CADDY_CA ?=
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -87,9 +82,7 @@ API_IMAGE      = $(REGISTRY)/api:$(TAG)
 ## GOARCH for locally-built container images; defaults to the host's.
 DOCKER_GOARCH ?= $(shell go env GOARCH)
 
-## Local API server configuration. OIDC is off by default: enabling it requires
-## trusting Caddy's local CA in your OS trust store first (the auth flow itself
-## is #103's scope, not this one) - set API_OIDC_ENABLED=true to opt in.
+## Local API server config; OIDC on requires trusting Caddy's CA in your OS store.
 API_OIDC_ENABLED ?= false
 API_OIDC_ISSUER_URL ?= https://auth.localhost
 API_OIDC_CLIENT_ID ?= konfidence
@@ -339,8 +332,7 @@ dev-cluster: hermit ## Create a local kind cluster with a local OCI registry at 
 dev-cluster-down: hermit ## Delete the local kind cluster and its registry container.
 	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh down
 
-# These targets are only used for local environments (not in pipeline); they
-# cross-compile for Linux themselves regardless of host OS.
+# Local-only targets (not in pipeline); they cross-compile for Linux themselves.
 .PHONY: docker-build
 docker-build: hermit ## Build the konfidence operator container image (local use only).
 	@mkdir -p bin/linux-build
@@ -434,16 +426,22 @@ deploy: hermit manifests ## Deploy the konfidence operator to the cluster specif
 			--set api.env[0].name=SSL_CERT_FILE \
 			--set api.env[0].value=/etc/konfidence/ca/ca-certificates.crt"; \
 	fi; \
+	if [ -z "$(DEPLOY_OIDC_ISSUER_URL)" ]; then \
+		echo "No DEPLOY_OIDC_* values set; deploying the operator only (api.enabled=false)."; \
+		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS --set api.enabled=false"; \
+	else \
+		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS \
+			--set api.oidc.issuerURL=$(DEPLOY_OIDC_ISSUER_URL) \
+			--set api.oidc.clientId=$(DEPLOY_OIDC_CLIENT_ID) \
+			--set api.oidc.redirectURL=$(DEPLOY_OIDC_REDIRECT_URL) \
+			--set api.oidc.allowReturnUrls={$(DEPLOY_OIDC_ALLOW_RETURN_URLS)}"; \
+	fi; \
 	$(HELM) upgrade --install konfidence charts/konfidence \
 		--namespace=$(NAMESPACE) \
 		--set image.repository=$(REGISTRY)/konfidence-operator \
 		--set image.tag=$(TAG) \
 		--set api.image.repository=$(REGISTRY)/api \
 		--set api.image.tag=$(TAG) \
-		--set api.oidc.issuerURL=$(DEPLOY_OIDC_ISSUER_URL) \
-		--set api.oidc.clientId=$(DEPLOY_OIDC_CLIENT_ID) \
-		--set api.oidc.redirectURL=$(DEPLOY_OIDC_REDIRECT_URL) \
-		--set "api.oidc.allowReturnUrls={$(DEPLOY_OIDC_ALLOW_RETURN_URLS)}" \
 		--set crd.keep=false \
 		$$HELM_EXTRA_ARGS
 
