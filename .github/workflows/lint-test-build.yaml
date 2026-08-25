@@ -14,6 +14,12 @@ on:
         default: ''
 
 jobs:
+  frontend:
+    name: Frontend
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci-frontend.yaml
+
   lint:
     name: Lint
     uses: konfidence-project/.github/.github/workflows/golang-lint.yaml@v4
@@ -48,7 +54,7 @@ jobs:
 
   build:
     name: Build / Konfidence
-    needs: [lint, reuse-lint, test-operators, test-pkg, test-kden-cli, test-api]
+    needs: [frontend, lint, reuse-lint, test-operators, test-pkg, test-kden-cli, test-api]
     permissions:
       contents: write
       packages: write
