@@ -283,9 +283,6 @@ export interface components {
         [key: string]: string[];
       };
     };
-    Session: {
-      id: string;
-    };
     ArtifactReference: components["schemas"]["ComponentReference"];
     VectorReference: components["schemas"]["ComponentReference"];
     ComponentReference: {
@@ -380,6 +377,8 @@ export interface operations {
       query: {
         /** @description Fully qualified URL to redirect to after login. The URL must be present in the API server allowlist. */
         return_url: string;
+        /** @description PKCE S256 challenge used for CLI login. */
+        code_challenge?: string;
       };
       header?: never;
       path?: never;
@@ -403,8 +402,10 @@ export interface operations {
   authCallbackV1: {
     parameters: {
       query: {
-        code: string;
         state: string;
+        code?: string;
+        error?: string;
+        error_description?: string;
       };
       header?: never;
       path?: never;
@@ -481,20 +482,20 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": {
-          code?: string;
-          verifier?: string;
+          code: string;
+          verifier: string;
         };
       };
     };
     responses: {
-      /** @description OK */
+      /** @description Session established. */
       200: {
         headers: {
+          /** @description Contains the session id. */
+          "Set-Cookie"?: string;
           [name: string]: unknown;
         };
-        content: {
-          "application/json": components["schemas"]["Session"];
-        };
+        content?: never;
       };
       401: components["responses"]["Unauthorized"];
       500: components["responses"]["InternalError"];

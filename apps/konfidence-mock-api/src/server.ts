@@ -230,7 +230,12 @@ const createOperationHandlers = (defaultScenario: Scenario) => {
       if (requestBody.code !== MOCK_CODE || requestBody.verifier !== MOCK_VERIFIER) {
         return errorResponse(401, "Invalid exchange code or verifier");
       }
-      return jsonResponse(200, { id: MOCK_SESSION });
+      return {
+        headers: {
+          "Set-Cookie": `${SESSION_COOKIE}=${MOCK_SESSION}; Path=/; HttpOnly; SameSite=Lax`,
+        },
+        status: 200,
+      };
     },
   } satisfies Record<OperationId, MockHandler>;
 
