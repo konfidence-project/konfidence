@@ -103,7 +103,8 @@ describe("Konfidence mock API", () => {
       method: "POST",
     });
     expect(exchange.status).toBe(200);
-    await expect(exchange.json()).resolves.toEqual({ id: "mock-session" });
+    expect(exchange.headers.get("set-cookie")).toContain(SESSION_COOKIE);
+    await expect(exchange.text()).resolves.toBe("");
 
     const logout = await request("/api/v1/logout", {
       headers: { cookie: SESSION_COOKIE },
