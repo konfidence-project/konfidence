@@ -10,9 +10,6 @@ importers:
 
   apps/konfidence-mock-api:
     dependencies:
-      ajv-formats:
-        specifier: 2.1.1
-        version: 2.1.1(ajv@8.20.0)
       openapi-backend:
         specifier: ^5.20.0
         version: 5.20.0

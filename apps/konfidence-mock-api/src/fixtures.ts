@@ -1,22 +1,33 @@
 import type { components } from "./generated/schema.js";
 
 type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
+type Identity = components["schemas"]["Identity"];
 type Landscape = components["schemas"]["Landscape"];
 type Project = components["schemas"]["Project"];
 type Stage = components["schemas"]["Stage"];
 type VectorDeployment = components["schemas"]["VectorDeployment"];
 
-const projects = [
-  { id: "payments-platform", name: "Payments Platform" },
-  { id: "identity-service", name: "Identity Service" },
-  { id: "analytics-pipeline", name: "Analytics Pipeline" },
-  { id: "legacy-migration", name: "Legacy Migration" },
-] satisfies Project[];
+interface ProjectFixture {
+  artifactDeployments: ArtifactDeployment[];
+  landscapes: Landscape[];
+  project: Project;
+  roles: string[];
+  stages: Stage[];
+  vectorDeployments: VectorDeployment[];
+}
+
+interface ScenarioFixture {
+  projects: ProjectFixture[];
+  resourcesUnavailable?: boolean;
+  user: Omit<Identity, "projectRoles">;
+}
+
+const paymentsProject = { id: "payments-platform", name: "Payments Platform" } satisfies Project;
+const identityProject = { id: "identity-service", name: "Identity Service" } satisfies Project;
 
 const landscapes = [
   { id: "development", name: "Development" },
   { id: "test", name: "Test" },
-  { id: "performance", name: "Performance" },
   { id: "production", name: "Production" },
 ] satisfies Landscape[];
 
@@ -134,15 +145,64 @@ const artifactDeployments = [
   },
 ] satisfies ArtifactDeployment[];
 
-const forEachProject = <Item>(items: Item[]): Record<string, Item[]> =>
-  Object.fromEntries(projects.map((project) => [project.id, items]));
+const populatedProject = {
+  artifactDeployments,
+  landscapes,
+  project: paymentsProject,
+  roles: ["admin", "dev"],
+  stages,
+  vectorDeployments,
+} satisfies ProjectFixture;
 
-const fixtures = {
-  artifactDeploymentsByProject: forEachProject(artifactDeployments),
-  landscapesByProject: forEachProject(landscapes),
-  projects,
-  stagesByProject: forEachProject(stages),
-  vectorDeploymentsByProject: forEachProject(vectorDeployments),
-};
+const scenarios = {
+  admin: {
+    projects: [
+      populatedProject,
+      {
+        artifactDeployments: [],
+        landscapes: [],
+        project: identityProject,
+        roles: ["admin"],
+        stages: [],
+        vectorDeployments: [],
+      },
+    ],
+    user: {
+      email: "alex.admin@example.com",
+      familyName: "Admin",
+      givenName: "Alex",
+      name: "Alex Admin",
+    },
+  },
+  degraded: {
+    projects: [populatedProject],
+    resourcesUnavailable: true,
+    user: {
+      email: "riley.operator@example.com",
+      familyName: "Operator",
+      givenName: "Riley",
+      name: "Riley Operator",
+    },
+  },
+  developer: {
+    projects: [
+      {
+        artifactDeployments: [],
+        landscapes: landscapes.filter(({ id }) => id !== "production"),
+        project: paymentsProject,
+        roles: ["dev"],
+        stages: stages.slice(0, 1),
+        vectorDeployments: vectorDeployments.slice(0, 1),
+      },
+    ],
+    user: {
+      email: "dana.developer@example.com",
+      familyName: "Developer",
+      givenName: "Dana",
+      name: "Dana Developer",
+    },
+  },
+} satisfies Record<string, ScenarioFixture>;
 
-export { fixtures };
+export { scenarios };
+export type { ProjectFixture, ScenarioFixture };
