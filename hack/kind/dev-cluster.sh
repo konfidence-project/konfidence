@@ -14,23 +14,31 @@ REGISTRY_NAME="kind-registry"
 REGISTRY_PORT="5001"
 KIND_CONFIG="$(dirname "$0")/kind-config.yaml"
 
-# Cluster-level prerequisites the kubernetes-landscape-orchestrator needs to
-# deploy workloads. Versions mirror hack/quickstart/install.sh. Set
-# SKIP_CLUSTER_DEPS=1 to skip them when working only on the API or CLI.
+# Orchestrator prerequisites; versions mirror hack/quickstart/install.sh.
 SKIP_CLUSTER_DEPS="${SKIP_CLUSTER_DEPS:-}"
 GATEWAY_API_VERSION="${GATEWAY_API_VERSION:-v1.4.1}"
 
+# Never inherit the current context; a rerun could otherwise target production.
+KUBE_CONTEXT="kind-${CLUSTER_NAME}"
+
 up() {
-  if [ "$("${CONTAINER_TOOL}" inspect -f '{{.State.Running}}' "${REGISTRY_NAME}" 2>/dev/null || true)" != 'true' ]; then
-    echo "Starting local registry container '${REGISTRY_NAME}' on localhost:${REGISTRY_PORT}..."
-    "${CONTAINER_TOOL}" run -d --restart=always \
-      -p "127.0.0.1:${REGISTRY_PORT}:5000" \
-      --network bridge \
-      --name "${REGISTRY_NAME}" \
-      registry:2
-  else
-    echo "Registry container '${REGISTRY_NAME}' already running."
-  fi
+  case "$("${CONTAINER_TOOL}" inspect -f '{{.State.Running}}' "${REGISTRY_NAME}" 2>/dev/null || echo missing)" in
+    true)
+      echo "Registry container '${REGISTRY_NAME}' already running."
+      ;;
+    false)
+      echo "Starting existing registry container '${REGISTRY_NAME}'..."
+      "${CONTAINER_TOOL}" start "${REGISTRY_NAME}" >/dev/null
+      ;;
+    *)
+      echo "Creating local registry container '${REGISTRY_NAME}' on localhost:${REGISTRY_PORT}..."
+      "${CONTAINER_TOOL}" run -d --restart=always \
+        -p "127.0.0.1:${REGISTRY_PORT}:5000" \
+        --network bridge \
+        --name "${REGISTRY_NAME}" \
+        registry:2
+      ;;
+  esac
 
   if ! "${KIND}" get clusters | grep -qx "${CLUSTER_NAME}"; then
     echo "Creating kind cluster '${CLUSTER_NAME}'..."
@@ -53,7 +61,7 @@ EOF
     "${CONTAINER_TOOL}" network connect kind "${REGISTRY_NAME}"
   fi
 
-  cat <<EOF | kubectl apply -f -
+  cat <<EOF | kubectl --context "${KUBE_CONTEXT}" apply -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -72,17 +80,15 @@ EOF
   echo "Done. Push images to localhost:${REGISTRY_PORT}/<name>:<tag> and reference them from the cluster as such."
 }
 
-# Gateway API and Flux are prerequisites of the landscape orchestrator, not of
-# the konfidence operator itself; without them nothing turns a VectorDeployment
-# into running workloads.
+# Needed by the orchestrator, not the operator; without them nothing deploys.
 install_cluster_deps() {
   echo "Installing Gateway API ${GATEWAY_API_VERSION}..."
-  kubectl apply --server-side -f \
+  kubectl --context "${KUBE_CONTEXT}" apply --server-side -f \
     "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
 
   echo "Installing Flux..."
-  kubectl apply -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml
-  kubectl wait deployment/source-controller \
+  kubectl --context "${KUBE_CONTEXT}" apply -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml
+  kubectl --context "${KUBE_CONTEXT}" wait deployment/source-controller \
     --namespace flux-system \
     --for=condition=Available \
     --timeout=180s
