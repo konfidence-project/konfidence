@@ -32,6 +32,7 @@ Kubernetes: `>=1.27.0-0`
 | api.enabled | bool | `true` |  |
 | api.env | list | `[]` |  |
 | api.extraArgs | list | `[]` |  |
+| api.hostAliases | list | `[]` |  |
 | api.image.pullPolicy | string | `"IfNotPresent"` |  |
 | api.image.repository | string | `"ghcr.io/konfidence-project/api"` |  |
 | api.image.tag | string | `""` |  |
