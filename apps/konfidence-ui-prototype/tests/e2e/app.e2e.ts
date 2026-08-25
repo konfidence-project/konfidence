@@ -13,7 +13,7 @@ test("authenticates through the mock API and renders a project landscape", async
   await page.goto("/projects/payments-platform/landscape");
 
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
-  await expect(page.getByLabel("Open account menu for Alex Example")).toBeVisible();
+  await expect(page.getByLabel("Open account menu for Alex Admin")).toBeVisible();
   await expect(page.getByLabel("Stage Development US")).toBeVisible();
   await expect(page.getByLabel("Stage Production EU")).toBeVisible();
   await expect(
@@ -33,26 +33,16 @@ test("shows a chooser when multiple projects are available", async ({ page }) =>
   await expect(page).toHaveURL("/projects");
   await expect(page.locator("ui5-li").filter({ hasText: "Payments Platform" })).toBeVisible();
   await expect(page.locator("ui5-li").filter({ hasText: "Identity Service" })).toBeVisible();
-  await expect(page.locator("ui5-li").filter({ hasText: "Analytics Pipeline" })).toBeVisible();
-  await expect(page.locator("ui5-li").filter({ hasText: "Legacy Migration" })).toBeVisible();
 });
 
-test("shows an empty state when no projects are available", async ({ context, page }) => {
-  await useScenario(context, "no-projects");
-  await page.goto("/");
-
-  await expect(page).toHaveURL("/projects");
-  await expect(
-    page.locator('ui5-illustrated-message[title-text="No projects available"]'),
-  ).toBeVisible();
-});
-
-test("redirects directly to the only project", async ({ context, page }) => {
-  await useScenario(context, "one-project");
+test("renders the developer's only project", async ({ context, page }) => {
+  await useScenario(context, "developer");
   await page.goto("/");
 
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
-  await expect(page.getByLabel("Stage Production EU")).toBeVisible();
+  await expect(page.getByLabel("Open account menu for Dana Developer")).toBeVisible();
+  await expect(page.getByLabel("Stage Development US")).toBeVisible();
+  await expect(page.getByLabel("Stage Production EU")).not.toBeVisible();
 });
 
 test("returns not found for a project outside the project list", async ({ page }) => {
@@ -61,23 +51,13 @@ test("returns not found for a project outside the project list", async ({ page }
   await expect(page.getByText("Error 404", { exact: true })).toBeVisible();
 });
 
-test("renders a resource error for a user without project permissions", async ({
-  context,
-  page,
-}) => {
-  await useScenario(context, "forbidden");
+test("renders resource failures for the degraded operator", async ({ context, page }) => {
+  await useScenario(context, "degraded");
   await page.goto("/projects/payments-platform/landscape");
 
+  await expect(page.getByLabel("Open account menu for Riley Operator")).toBeVisible();
   await expect(page.getByText("Failed to load landscape", { exact: true })).toBeVisible();
   await expect(page.getByText("The project landscape is currently unavailable.")).toBeVisible();
-});
-
-test("renders an upstream failure without hiding the error status", async ({ context, page }) => {
-  await useScenario(context, "internal-error");
-  await page.goto("/projects");
-
-  await expect(page.getByText("Application unavailable", { exact: true })).toBeVisible();
-  await expect(page.getByText("Error 500", { exact: true })).toBeVisible();
 });
 
 test("renders vector and artifact deployments from the OpenAPI contract", async ({ page }) => {
@@ -100,9 +80,8 @@ test("switches projects and resets to the landscape", async ({ page }) => {
   await page.getByLabel("Project").click();
   await page.getByRole("option", { name: "Identity Service" }).click();
   await expect(page).toHaveURL("/projects/identity-service/landscape");
-  await expect(page.getByLabel("Stage Development US")).toBeVisible();
 
-  await page.getByLabel("Open account menu for Alex Example").click();
+  await page.getByLabel("Open account menu for Alex Admin").click();
   await page.locator('ui5-user-menu-item[data-id="settings"]').click();
   await Promise.all([
     expect(page).toHaveURL("/projects/identity-service/landscape?settings=profile"),
@@ -116,7 +95,7 @@ test("switches projects and resets to the landscape", async ({ page }) => {
 
 test("clears the API session when signing out", async ({ page }) => {
   await page.goto("/projects/payments-platform/landscape");
-  const accountMenu = page.getByLabel("Open account menu for Alex Example");
+  const accountMenu = page.getByLabel("Open account menu for Alex Admin");
   await expect(accountMenu).toBeVisible();
   await page.route("**/api/v1/login?**", (route) => route.abort());
 

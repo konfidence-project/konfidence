@@ -12,7 +12,7 @@ export default defineConfig({
       gracefulShutdown: { signal: "SIGTERM", timeout: 1000 },
       name: "Mock API",
       reuseExistingServer: !process.env.CI,
-      url: "http://127.0.0.1:8091/health",
+      url: "http://127.0.0.1:8091/api/v1/projects",
     },
     {
       command: "pnpm build && pnpm preview --host 127.0.0.1 --port 4173",
