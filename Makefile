@@ -14,6 +14,9 @@ DEPLOY_OIDC_ALLOW_RETURN_URLS ?=
 # Non-empty mounts Caddy's local CA into the API pod, for HTTPS issuer URLs.
 DEPLOY_OIDC_TRUST_CADDY_CA ?=
 
+# kind cluster name; must match hack/kind/dev-cluster.sh's CLUSTER_NAME.
+KIND_CLUSTER_NAME ?= konfidence-dev
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -407,15 +410,15 @@ deploy: hermit manifests ## Deploy the konfidence operator to the cluster specif
 	fi; \
 	if [ -n "$(DEPLOY_OIDC_CLIENT_SECRET)" ]; then \
 		echo "Creating API OIDC client secret in namespace '$(NAMESPACE)'..."; \
-		kubectl create secret generic konfidence-api-oidc \
-			--from-literal=client-secret=$(DEPLOY_OIDC_CLIENT_SECRET) \
+		printf '%s' "$(DEPLOY_OIDC_CLIENT_SECRET)" | kubectl create secret generic konfidence-api-oidc \
+			--from-file=client-secret=/dev/stdin \
 			--namespace=$(NAMESPACE) \
 			--dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
 		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS --set api.oidc.clientSecretRef.name=konfidence-api-oidc --set api.oidc.clientSecretRef.key=client-secret"; \
 	fi; \
 	if [ -n "$(DEPLOY_OIDC_TRUST_CADDY_CA)" ]; then \
 		echo "Trusting Caddy's local CA in namespace '$(NAMESPACE)'..."; \
-		docker exec caddy cat /data/caddy/pki/authorities/local/root.crt /data/caddy/pki/authorities/local/intermediate.crt | \
+		$(CONTAINER_TOOL) exec caddy cat /data/caddy/pki/authorities/local/root.crt /data/caddy/pki/authorities/local/intermediate.crt | \
 			kubectl create configmap konfidence-dev-ca --from-file=ca-certificates.crt=/dev/stdin \
 				--namespace=$(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
 		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS \
@@ -435,6 +438,18 @@ deploy: hermit manifests ## Deploy the konfidence operator to the cluster specif
 			--set api.oidc.clientId=$(DEPLOY_OIDC_CLIENT_ID) \
 			--set api.oidc.redirectURL=$(DEPLOY_OIDC_REDIRECT_URL) \
 			--set api.oidc.allowReturnUrls={$(DEPLOY_OIDC_ALLOW_RETURN_URLS)}"; \
+		case "$(DEPLOY_OIDC_ISSUER_URL)" in \
+			*host.docker.internal*) \
+				echo "Resolving host.docker.internal for the API pod (kind node has no such DNS entry outside Docker Desktop)..."; \
+				NODE=$$($(KIND) get nodes --name $(KIND_CLUSTER_NAME) | head -n1); \
+				GATEWAY_IP=$$($(CONTAINER_TOOL) exec $$NODE ip route show default | awk '{print $$3}'); \
+				echo "  aliasing host.docker.internal -> $$GATEWAY_IP (gateway seen from node '$$NODE')"; \
+				echo "  browser login redirects go to https://auth.localhost instead (host.docker.internal doesn't resolve on the host itself)"; \
+				HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS \
+					--set api.hostAliases[0].ip=$$GATEWAY_IP --set api.hostAliases[0].hostnames[0]=host.docker.internal \
+					--set api.oidc.authorizationURL=https://auth.localhost/api/oidc/authorization"; \
+				;; \
+		esac; \
 	fi; \
 	$(HELM) upgrade --install konfidence charts/konfidence \
 		--namespace=$(NAMESPACE) \

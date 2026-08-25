@@ -118,6 +118,7 @@ api:
   env: []
   volumes: []
   volumeMounts: []
+  hostAliases: []
 
   replicas: 1
 
