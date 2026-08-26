@@ -7,6 +7,24 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+var _ = Describe("ParseComponentVersionReference", func() {
+	It("returns a normalized repository, component, and version", func() {
+		ref, err := ParseComponentVersionReference("https://registry.example.com/ocm//acme.example/checkout:1.2.3")
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ref.Repository).To(Equal("https://registry.example.com/ocm"))
+		Expect(ref.Component).To(Equal("acme.example/checkout"))
+		Expect(ref.Version).To(Equal("1.2.3"))
+	})
+
+	It("returns parsing errors", func() {
+		_, err := ParseComponentVersionReference("not a component reference")
+
+		Expect(err).To(HaveOccurred())
+		Expect(errors.Is(err, ErrInvalidComponentReference)).To(BeTrue())
+	})
+})
+
 var _ = Describe("Parse", func() {
 	Context("semver versions", func() {
 		It("parses standard semver references", func() {

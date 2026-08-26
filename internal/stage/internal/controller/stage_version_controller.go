@@ -245,6 +245,9 @@ func (r *StageVersionReconciler) getOrCreateVectorActivation(
 }
 
 func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *konfidence.StageVersion) (*konfidence.VectorDeployment, error) {
+	if stageVersion.Spec.StageRef == nil || stageVersion.Spec.StageRef.Name == "" {
+		return nil, fmt.Errorf("stageVersion %q has no stage reference", stageVersion.Name)
+	}
 	vectorDeployment := &konfidence.VectorDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      stageVersion.Name,
@@ -255,7 +258,6 @@ func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *konfide
 			Vector: stageVersion.Spec.Vector,
 		},
 	}
-
 	// set stageVersion as owner
 	if err := controllerutil.SetOwnerReference(stageVersion, vectorDeployment, r.Scheme); err != nil {
 		return nil, fmt.Errorf("unable to set owner reference for vector deployment: %w", err)
