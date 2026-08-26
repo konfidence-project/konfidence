@@ -27,6 +27,10 @@ type sessionAuthenticator struct {
 
 func SessionAuthentication(logger *slog.Logger, store session.Store, authRepo authdomain.Repository,
 	cfg config.Parsed, next http.Handler) (http.Handler, error) {
+	if !cfg.OIDC.Enabled {
+		return staticAdminMiddleware(logger, authRepo, next), nil
+	}
+
 	spec, err := openapi.GetSpec()
 	if err != nil {
 		return nil, fmt.Errorf("loading OpenAPI spec: %w", err)
@@ -64,6 +68,28 @@ func SessionAuthentication(logger *slog.Logger, store session.Store, authRepo au
 		},
 	})
 	return validate(next), nil
+}
+
+func staticAdminMiddleware(logger *slog.Logger, authRepo authdomain.Repository, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		projectRoles, err := authRepo.GetAdminProjectRoles(r.Context())
+		if err != nil {
+			logger.Error("failed to build static admin project roles", "error", err)
+			apierror.WriteInternal(w)
+			return
+		}
+
+		name := staticAdminName
+		email := staticAdminEmail
+		sess := &session.Session{
+			Context: session.Context{
+				Name:         &name,
+				Email:        &email,
+				ProjectRoles: projectRoles,
+			},
+		}
+		next.ServeHTTP(w, r.WithContext(session.NewContext(r.Context(), sess)))
+	})
 }
 
 func (a *sessionAuthenticator) authenticate(ctx context.Context, input *openapi3filter.AuthenticationInput) error {

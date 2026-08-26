@@ -60,6 +60,13 @@ func (a *authHandler) LoginV1(ctx context.Context, request openapi.LoginV1Reques
 		}, nil
 	}
 
+	if !a.config.OIDC.Enabled {
+		returnURL := request.Params.ReturnUrl
+		return openapi.LoginV1302Response{
+			Headers: openapi.LoginV1302ResponseHeaders{Location: &returnURL},
+		}, nil
+	}
+
 	state, err := a.oidcClient.GenerateState(request.Params.ReturnUrl)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to generate oidc state", "error", err)

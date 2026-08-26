@@ -12,6 +12,7 @@ import (
 // Repository that handle auth related functions
 type Repository interface {
 	GetProjectRoles(ctx context.Context, idpGroups []string) (ProjectRoles, error)
+	GetAdminProjectRoles(ctx context.Context) (ProjectRoles, error)
 }
 
 type ProjectRoles map[string][]string
@@ -32,6 +33,18 @@ func (r *k8sRepository) GetProjectRoles(ctx context.Context, idpGroups []string)
 	}
 
 	return mapProjectRoles(idpGroups, projects.Items), nil
+}
+
+func (r *k8sRepository) GetAdminProjectRoles(ctx context.Context) (ProjectRoles, error) {
+	var projects konfidence.ProjectList
+	if err := r.reader.List(ctx, &projects); err != nil {
+		return nil, fmt.Errorf("failed to list projects: %w", err)
+	}
+	roles := make(ProjectRoles, len(projects.Items))
+	for _, p := range projects.Items {
+		roles[p.Name] = []string{"admin"}
+	}
+	return roles, nil
 }
 
 func mapProjectRoles(groups []string, projects []konfidence.Project) ProjectRoles {
