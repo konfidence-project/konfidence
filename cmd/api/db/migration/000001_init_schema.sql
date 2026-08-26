@@ -11,7 +11,8 @@ CREATE TABLE session (
     access_token TEXT NOT NULL,
     refresh_token TEXT,
     token_expiry BIGINT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE oidc_state (
@@ -33,7 +34,7 @@ CREATE TABLE oidc_exchange (
    expires_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX session_created_at_idx ON session (created_at);
+CREATE INDEX session_expires_at_idx ON session (expires_at);
 CREATE INDEX oidc_state_expires_at_idx ON oidc_state (expires_at);
 CREATE INDEX oidc_exchange_expires_at_idx ON oidc_exchange (expires_at);
 

@@ -18,13 +18,13 @@ var _ cleanupTransactionHandler = postgresCleanupTransactionHandler{}
 
 type sessionQueries interface {
 	CreateSession(context.Context, db.CreateSessionParams) (pgtype.UUID, error)
-	GetSession(context.Context, db.GetSessionParams) (db.Session, error)
+	GetSession(context.Context, pgtype.UUID) (db.Session, error)
 	DeleteSession(context.Context, pgtype.UUID) error
 }
 
 type cleanupQueries interface {
 	TryAcquireCleanupLock(context.Context) (bool, error)
-	DeleteExpiredSessions(context.Context, pgtype.Timestamptz) (int64, error)
+	DeleteExpiredSessions(context.Context) (int64, error)
 	DeleteExpiredOIDCStates(context.Context) (int64, error)
 	DeleteExpiredOIDCExchanges(context.Context) (int64, error)
 }
@@ -95,6 +95,10 @@ func (s *DBStore) Save(ctx context.Context, session *Session) (string, error) {
 		AccessToken:       session.AccessToken,
 		RefreshToken:      session.RefreshToken,
 		TokenExpiry:       session.TokenExpiry,
+		Expiration: pgtype.Interval{
+			Microseconds: s.sessionExpiration.Microseconds(),
+			Valid:        true,
+		},
 	}
 	dbID, err := s.queries.CreateSession(ctx, params)
 	if err != nil {
@@ -122,14 +126,7 @@ func (s *DBStore) Get(ctx context.Context, id string) (*Session, error) {
 		return nil, err
 	}
 
-	now := time.Now()
-	dbSession, err := s.queries.GetSession(ctx, db.GetSessionParams{
-		ID: dbID,
-		SessionExpiration: pgtype.Timestamptz{
-			Time:  now.Add(-s.sessionExpiration),
-			Valid: true,
-		},
-	})
+	dbSession, err := s.queries.GetSession(ctx, dbID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil

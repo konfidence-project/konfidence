@@ -24,8 +24,8 @@ type recordingQuerier struct {
 
 	createSessionFunc              func(context.Context, db.CreateSessionParams) (pgtype.UUID, error)
 	deleteSessionFunc              func(context.Context, pgtype.UUID) error
-	getSessionFunc                 func(context.Context, db.GetSessionParams) (db.Session, error)
-	deleteExpiredSessionsFunc      func(context.Context, pgtype.Timestamptz) (int64, error)
+	getSessionFunc                 func(context.Context, pgtype.UUID) (db.Session, error)
+	deleteExpiredSessionsFunc      func(context.Context) (int64, error)
 	deleteExpiredOIDCStatesFunc    func(context.Context) (int64, error)
 	deleteExpiredOIDCExchangesFunc func(context.Context) (int64, error)
 }
@@ -43,27 +43,22 @@ func (tx *recordingCleanupTransaction) TryAcquireCleanupLock(ctx context.Context
 	if tx.tryAcquireCleanupLockFunc == nil {
 		return true, nil
 	}
-
 	return tx.tryAcquireCleanupLockFunc(ctx)
 }
 
 func (tx *recordingCleanupTransaction) Commit(ctx context.Context) error {
 	tx.commitCalls++
-
 	if tx.commitFunc == nil {
 		return nil
 	}
-
 	return tx.commitFunc(ctx)
 }
 
 func (tx *recordingCleanupTransaction) Rollback(ctx context.Context) error {
 	tx.rollbackCalls++
-
 	if tx.rollbackFunc == nil {
 		return nil
 	}
-
 	return tx.rollbackFunc(ctx)
 }
 
@@ -77,11 +72,9 @@ func (b *recordingCleanupTransactionBeginner) BeginTransaction(
 	ctx context.Context,
 ) (cleanupTransaction, error) {
 	b.beginCalls++
-
 	if b.beginFunc != nil {
 		return b.beginFunc(ctx)
 	}
-
 	return b.transaction, nil
 }
 
@@ -95,28 +88,20 @@ func (q *recordingQuerier) CreateSession(
 	if q.createSessionFunc == nil {
 		return pgtype.UUID{}, nil
 	}
-
 	return q.createSessionFunc(ctx, params)
 }
 
-func (q *recordingQuerier) DeleteSession(
-	ctx context.Context,
-	id pgtype.UUID,
-) error {
+func (q *recordingQuerier) DeleteSession(ctx context.Context, id pgtype.UUID) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	if q.deleteSessionFunc == nil {
 		return nil
 	}
-
 	return q.deleteSessionFunc(ctx, id)
 }
 
-func (q *recordingQuerier) GetSession(
-	ctx context.Context,
-	params db.GetSessionParams,
-) (db.Session, error) {
+func (q *recordingQuerier) GetSession(ctx context.Context, id pgtype.UUID) (db.Session, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -124,13 +109,10 @@ func (q *recordingQuerier) GetSession(
 		return db.Session{}, nil
 	}
 
-	return q.getSessionFunc(ctx, params)
+	return q.getSessionFunc(ctx, id)
 }
 
-func (q *recordingQuerier) DeleteExpiredSessions(
-	ctx context.Context,
-	expiredBefore pgtype.Timestamptz,
-) (int64, error) {
+func (q *recordingQuerier) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -138,12 +120,10 @@ func (q *recordingQuerier) DeleteExpiredSessions(
 		return 0, nil
 	}
 
-	return q.deleteExpiredSessionsFunc(ctx, expiredBefore)
+	return q.deleteExpiredSessionsFunc(ctx)
 }
 
-func (q *recordingQuerier) DeleteExpiredOIDCStates(
-	ctx context.Context,
-) (int64, error) {
+func (q *recordingQuerier) DeleteExpiredOIDCStates(ctx context.Context) (int64, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -154,16 +134,13 @@ func (q *recordingQuerier) DeleteExpiredOIDCStates(
 	return q.deleteExpiredOIDCStatesFunc(ctx)
 }
 
-func (q *recordingQuerier) DeleteExpiredOIDCExchanges(
-	ctx context.Context,
-) (int64, error) {
+func (q *recordingQuerier) DeleteExpiredOIDCExchanges(ctx context.Context) (int64, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	if q.deleteExpiredOIDCExchangesFunc == nil {
 		return 0, nil
 	}
-
 	return q.deleteExpiredOIDCExchangesFunc(ctx)
 }
 
@@ -255,6 +232,10 @@ var _ = ginkgo.Describe("DBStore", func() {
 				AccessToken:       session.AccessToken,
 				RefreshToken:      session.RefreshToken,
 				TokenExpiry:       session.TokenExpiry,
+				Expiration: pgtype.Interval{
+					Microseconds: (30 * time.Minute).Microseconds(),
+					Valid:        true,
+				},
 			}))
 		})
 
@@ -282,7 +263,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 	})
 
 	ginkgo.Describe("Get", func() {
-		ginkgo.It("gets a session created after the expiration cutoff", func() {
+		ginkgo.It("gets an unexpired session by ID", func() {
 			refreshToken := "refresh-token"
 			databaseSession := db.Session{
 				ID:                databaseSessionUUID(),
@@ -298,18 +279,13 @@ var _ = ginkgo.Describe("DBStore", func() {
 				TokenExpiry:       123456789,
 			}
 
-			var captured db.GetSessionParams
-			queries.getSessionFunc = func(
-				_ context.Context,
-				params db.GetSessionParams,
-			) (db.Session, error) {
-				captured = params
+			var captured pgtype.UUID
+			queries.getSessionFunc = func(_ context.Context, id pgtype.UUID) (db.Session, error) {
+				captured = id
 				return databaseSession, nil
 			}
 
-			before := time.Now()
 			stored, err := store.Get(ctx, databaseSessionID)
-			after := time.Now()
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stored).To(Equal(&Session{
@@ -328,33 +304,22 @@ var _ = ginkgo.Describe("DBStore", func() {
 				TokenExpiry:  databaseSession.TokenExpiry,
 			}))
 
-			Expect(captured.ID).To(Equal(databaseSessionUUID()))
-			Expect(captured.SessionExpiration.Valid).To(BeTrue())
-			Expect(captured.SessionExpiration.Time).To(
-				BeTemporally(">=", before.Add(-30*time.Minute)),
-			)
-			Expect(captured.SessionExpiration.Time).To(
-				BeTemporally("<=", after.Add(-30*time.Minute)),
-			)
+			Expect(captured).To(Equal(databaseSessionUUID()))
 		})
 
 		ginkgo.It("returns nil when the session does not exist", func() {
-			queries.getSessionFunc = func(
-				context.Context,
-				db.GetSessionParams,
-			) (db.Session, error) {
+			queries.getSessionFunc = func(context.Context, pgtype.UUID) (db.Session, error) {
 				return db.Session{}, sql.ErrNoRows
 			}
 
 			stored, err := store.Get(ctx, databaseSessionID)
-
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stored).To(BeNil())
 		})
 
 		ginkgo.It("rejects an invalid session ID", func() {
 			queried := false
-			queries.getSessionFunc = func(context.Context, db.GetSessionParams) (db.Session, error) {
+			queries.getSessionFunc = func(context.Context, pgtype.UUID) (db.Session, error) {
 				queried = true
 				return db.Session{}, nil
 			}
@@ -370,7 +335,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 
 		ginkgo.It("wraps database errors", func() {
 			databaseErr := errors.New("database unavailable")
-			queries.getSessionFunc = func(context.Context, db.GetSessionParams) (db.Session, error) {
+			queries.getSessionFunc = func(context.Context, pgtype.UUID) (db.Session, error) {
 				return db.Session{}, databaseErr
 			}
 
@@ -431,24 +396,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 
 	ginkgo.Describe("Cleanup", func() {
 		ginkgo.It("deletes expired sessions and OIDC data under the cleanup lock", func() {
-			now := time.Date(
-				2026,
-				time.August,
-				19,
-				12,
-				0,
-				0,
-				0,
-				time.UTC,
-			)
-
-			var capturedSessionCutoff pgtype.Timestamptz
-
-			queries.deleteExpiredSessionsFunc = func(
-				_ context.Context,
-				expiredBefore pgtype.Timestamptz,
-			) (int64, error) {
-				capturedSessionCutoff = expiredBefore
+			queries.deleteExpiredSessionsFunc = func(context.Context) (int64, error) {
 				return 3, nil
 			}
 
@@ -464,7 +412,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 				return 1, nil
 			}
 
-			deleted, acquired, err := store.deleteExpired(ctx, now)
+			deleted, acquired, err := store.deleteExpired(ctx)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(acquired).To(BeTrue())
@@ -473,10 +421,6 @@ var _ = ginkgo.Describe("DBStore", func() {
 				states:    2,
 				exchanges: 1,
 			}))
-			Expect(capturedSessionCutoff.Valid).To(BeTrue())
-			Expect(capturedSessionCutoff.Time).To(Equal(
-				now.Add(-30 * time.Minute),
-			))
 			Expect(cleanupTransactions.beginCalls).To(Equal(1))
 			Expect(cleanupTx.commitCalls).To(Equal(1))
 			Expect(cleanupTx.rollbackCalls).To(Equal(0))
@@ -493,29 +437,22 @@ var _ = ginkgo.Describe("DBStore", func() {
 			stateCalls := 0
 			exchangeCalls := 0
 
-			queries.deleteExpiredSessionsFunc = func(
-				context.Context,
-				pgtype.Timestamptz,
-			) (int64, error) {
+			queries.deleteExpiredSessionsFunc = func(context.Context) (int64, error) {
 				sessionCalls++
 				return 0, nil
 			}
 
-			queries.deleteExpiredOIDCStatesFunc = func(
-				context.Context,
-			) (int64, error) {
+			queries.deleteExpiredOIDCStatesFunc = func(context.Context) (int64, error) {
 				stateCalls++
 				return 0, nil
 			}
 
-			queries.deleteExpiredOIDCExchangesFunc = func(
-				context.Context,
-			) (int64, error) {
+			queries.deleteExpiredOIDCExchangesFunc = func(context.Context) (int64, error) {
 				exchangeCalls++
 				return 0, nil
 			}
 
-			deleted, acquired, err := store.deleteExpired(ctx, time.Now())
+			deleted, acquired, err := store.deleteExpired(ctx)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(acquired).To(BeFalse())
@@ -535,7 +472,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 				return nil, databaseErr
 			}
 
-			deleted, acquired, err := store.deleteExpired(ctx, time.Now())
+			deleted, acquired, err := store.deleteExpired(ctx)
 
 			Expect(deleted).To(BeZero())
 			Expect(acquired).To(BeFalse())
@@ -553,7 +490,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 				return false, databaseErr
 			}
 
-			deleted, acquired, err := store.deleteExpired(ctx, time.Now())
+			deleted, acquired, err := store.deleteExpired(ctx)
 			Expect(deleted).To(BeZero())
 			Expect(acquired).To(BeFalse())
 			Expect(err).To(MatchError(
@@ -566,14 +503,10 @@ var _ = ginkgo.Describe("DBStore", func() {
 
 		ginkgo.It("wraps session cleanup database errors", func() {
 			databaseErr := errors.New("database unavailable")
-			queries.deleteExpiredSessionsFunc = func(
-				context.Context,
-				pgtype.Timestamptz,
-			) (int64, error) {
+			queries.deleteExpiredSessionsFunc = func(context.Context) (int64, error) {
 				return 0, databaseErr
 			}
-
-			deleted, acquired, err := store.deleteExpired(ctx, time.Now())
+			deleted, acquired, err := store.deleteExpired(ctx)
 			Expect(deleted).To(BeZero())
 			Expect(acquired).To(BeTrue())
 			Expect(cleanupTx.commitCalls).To(BeZero())
@@ -590,7 +523,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 				return 0, databaseErr
 			}
 
-			deleted, acquired, err := store.deleteExpired(ctx, time.Now())
+			deleted, acquired, err := store.deleteExpired(ctx)
 
 			Expect(deleted).To(BeZero())
 			Expect(acquired).To(BeTrue())
@@ -606,7 +539,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 				return 0, databaseErr
 			}
 
-			deleted, acquired, err := store.deleteExpired(ctx, time.Now())
+			deleted, acquired, err := store.deleteExpired(ctx)
 
 			Expect(deleted).To(BeZero())
 			Expect(acquired).To(BeTrue())
@@ -619,7 +552,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 		ginkgo.It("wraps transaction commit errors", func() {
 			databaseErr := errors.New("commit failed")
 			cleanupTx.commitFunc = func(context.Context) error { return databaseErr }
-			deleted, acquired, err := store.deleteExpired(ctx, time.Now())
+			deleted, acquired, err := store.deleteExpired(ctx)
 
 			Expect(deleted).To(BeZero())
 			Expect(acquired).To(BeTrue())
@@ -635,7 +568,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 			stateCalls := 0
 			exchangeCalls := 0
 
-			queries.deleteExpiredSessionsFunc = func(context.Context, pgtype.Timestamptz) (int64, error) {
+			queries.deleteExpiredSessionsFunc = func(context.Context) (int64, error) {
 				sessionCalls++
 				return 0, nil
 			}

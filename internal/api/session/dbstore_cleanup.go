@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type cleanupResult struct {
@@ -15,10 +13,7 @@ type cleanupResult struct {
 	exchanges int64
 }
 
-func (s *DBStore) deleteExpired(
-	ctx context.Context,
-	now time.Time,
-) (cleanupResult, bool, error) {
+func (s *DBStore) deleteExpired(ctx context.Context) (cleanupResult, bool, error) {
 	result := cleanupResult{}
 
 	tx, err := s.cleanupTransactionHandler.BeginTransaction(ctx)
@@ -46,13 +41,8 @@ func (s *DBStore) deleteExpired(
 		return result, false, nil
 	}
 
-	deletedSessions, err := tx.DeleteExpiredSessions(
-		ctx,
-		pgtype.Timestamptz{
-			Time:  now.Add(-s.sessionExpiration),
-			Valid: true,
-		},
-	)
+	deletedSessions, err := tx.DeleteExpiredSessions(ctx)
+
 	if err != nil {
 		return result, true, fmt.Errorf("deleting expired sessions failed: %w", err)
 	}
@@ -85,7 +75,7 @@ func (s *DBStore) RunCleanup(
 ) {
 	logger.Info("Initialize db state cleanup...")
 	cleanup := func() {
-		result, acquired, err := s.deleteExpired(ctx, time.Now())
+		result, acquired, err := s.deleteExpired(ctx)
 		if err != nil {
 			if ctx.Err() == nil {
 				logger.Error("failed to clean up expired authentication data", "error", err)

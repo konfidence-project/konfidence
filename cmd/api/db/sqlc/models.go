@@ -40,4 +40,5 @@ type Session struct {
 	RefreshToken      *string
 	TokenExpiry       int64
 	CreatedAt         pgtype.Timestamptz
+	ExpiresAt         pgtype.Timestamptz
 }
