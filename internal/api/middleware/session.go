@@ -81,10 +81,14 @@ func staticAdminMiddleware(logger *slog.Logger, authRepo authdomain.Repository, 
 
 		name := staticAdminName
 		email := staticAdminEmail
+		givenName := staticAdminGivenName
+		familyName := staticAdminFamilyName
 		sess := &session.Session{
 			Context: session.Context{
 				Name:         &name,
 				Email:        &email,
+				GivenName:    &givenName,
+				FamilyName:   &familyName,
 				ProjectRoles: projectRoles,
 			},
 		}
