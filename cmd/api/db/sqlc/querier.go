@@ -16,9 +16,9 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (pgtype.UUID, error)
 	DeleteExpiredOIDCExchanges(ctx context.Context) (int64, error)
 	DeleteExpiredOIDCStates(ctx context.Context) (int64, error)
-	DeleteExpiredSessions(ctx context.Context, expiredBefore pgtype.Timestamptz) (int64, error)
+	DeleteExpiredSessions(ctx context.Context) (int64, error)
 	DeleteSession(ctx context.Context, id pgtype.UUID) error
-	GetSession(ctx context.Context, arg GetSessionParams) (Session, error)
+	GetSession(ctx context.Context, id pgtype.UUID) (Session, error)
 	SaveOIDCExchange(ctx context.Context, arg SaveOIDCExchangeParams) error
 	SaveOIDCState(ctx context.Context, arg SaveOIDCStateParams) error
 	// The first key identifies Konfidence; the second identifies auth cleanup.

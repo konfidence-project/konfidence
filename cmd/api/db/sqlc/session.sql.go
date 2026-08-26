@@ -12,8 +12,32 @@ import (
 )
 
 const createSession = `-- name: CreateSession :one
-INSERT INTO session (subject, name, given_name, family_name, preferred_user_name, email, groups, access_token, refresh_token, token_expiry)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+INSERT INTO session (
+    subject,
+    name,
+    given_name,
+    family_name,
+    preferred_user_name,
+    email,
+    groups,
+    access_token,
+    refresh_token,
+    token_expiry,
+    expires_at
+)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8,
+    $9,
+    $10,
+    NOW() + $11::interval
+)
 RETURNING id
 `
 
@@ -28,6 +52,7 @@ type CreateSessionParams struct {
 	AccessToken       string
 	RefreshToken      *string
 	TokenExpiry       int64
+	Expiration        pgtype.Interval
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (pgtype.UUID, error) {
@@ -42,6 +67,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (p
 		arg.AccessToken,
 		arg.RefreshToken,
 		arg.TokenExpiry,
+		arg.Expiration,
 	)
 	var id pgtype.UUID
 	err := row.Scan(&id)
@@ -50,11 +76,11 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (p
 
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
 DELETE FROM session
-WHERE created_at <= $1
+WHERE expires_at <= NOW()
 `
 
-func (q *Queries) DeleteExpiredSessions(ctx context.Context, expiredBefore pgtype.Timestamptz) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteExpiredSessions, expiredBefore)
+func (q *Queries) DeleteExpiredSessions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredSessions)
 	if err != nil {
 		return 0, err
 	}
@@ -72,18 +98,13 @@ func (q *Queries) DeleteSession(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getSession = `-- name: GetSession :one
-SELECT id, subject, name, given_name, family_name, preferred_user_name, email, groups, access_token, refresh_token, token_expiry, created_at FROM session
+SELECT id, subject, name, given_name, family_name, preferred_user_name, email, groups, access_token, refresh_token, token_expiry, created_at, expires_at FROM session
 WHERE id = $1
-AND created_at > $2
+AND expires_at > NOW()
 `
 
-type GetSessionParams struct {
-	ID                pgtype.UUID
-	SessionExpiration pgtype.Timestamptz
-}
-
-func (q *Queries) GetSession(ctx context.Context, arg GetSessionParams) (Session, error) {
-	row := q.db.QueryRow(ctx, getSession, arg.ID, arg.SessionExpiration)
+func (q *Queries) GetSession(ctx context.Context, id pgtype.UUID) (Session, error) {
+	row := q.db.QueryRow(ctx, getSession, id)
 	var i Session
 	err := row.Scan(
 		&i.ID,
@@ -98,6 +119,7 @@ func (q *Queries) GetSession(ctx context.Context, arg GetSessionParams) (Session
 		&i.RefreshToken,
 		&i.TokenExpiry,
 		&i.CreatedAt,
+		&i.ExpiresAt,
 	)
 	return i, err
 }
