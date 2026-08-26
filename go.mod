@@ -1,16 +1,16 @@
 module github.com/konfidence-project/konfidence
 
-go 1.26.4
+go 1.26.5
 
 require (
-	charm.land/bubbles/v2 v2.1.1
-	charm.land/bubbletea/v2 v2.0.8
+	charm.land/bubbles/v2 v2.2.0
+	charm.land/bubbletea/v2 v2.0.9
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/adrg/xdg v0.5.3
 	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/fatih/color v1.19.0
-	github.com/getkin/kin-openapi v0.146.0
-	github.com/go-chi/chi/v5 v5.3.1
+	github.com/getkin/kin-openapi v0.147.0
+	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/go-logr/logr v1.4.4
 	github.com/google/uuid v1.6.0
@@ -42,31 +42,31 @@ require (
 	golang.org/x/term v0.45.0
 	golang.org/x/text v0.41.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.36.3
-	k8s.io/apiextensions-apiserver v0.36.3
-	k8s.io/apimachinery v0.36.3
-	k8s.io/client-go v0.36.3
-	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
+	k8s.io/api v0.36.4
+	k8s.io/apiextensions-apiserver v0.36.4
+	k8s.io/apimachinery v0.36.4
+	k8s.io/client-go v0.36.4
+	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 	ocm.software/open-component-model/bindings/go/blob v0.0.13
 	ocm.software/open-component-model/bindings/go/configuration v0.0.16
 	ocm.software/open-component-model/bindings/go/constructor v0.0.13
 	ocm.software/open-component-model/bindings/go/credentials v0.0.14
 	ocm.software/open-component-model/bindings/go/dag v0.0.6
-	ocm.software/open-component-model/bindings/go/descriptor/normalisation v0.0.0-20260729151447-3653a7d88979
-	ocm.software/open-component-model/bindings/go/descriptor/runtime v0.0.0-20260803105756-854228e942e9
+	ocm.software/open-component-model/bindings/go/descriptor/normalisation v0.0.0-20260811153859-d0a9bf98c735
+	ocm.software/open-component-model/bindings/go/descriptor/runtime v0.0.0-20260811140339-29bc20eb921b
 	ocm.software/open-component-model/bindings/go/descriptor/v2 v2.0.3-alpha3
 	ocm.software/open-component-model/bindings/go/input/dir v0.0.4
 	ocm.software/open-component-model/bindings/go/input/file v0.0.5
 	ocm.software/open-component-model/bindings/go/oci v0.0.49
 	ocm.software/open-component-model/bindings/go/plugin v0.0.17
 	ocm.software/open-component-model/bindings/go/repository v0.0.10
-	ocm.software/open-component-model/bindings/go/rsa v0.0.0-20260728010257-ba2ab4bca27b
+	ocm.software/open-component-model/bindings/go/rsa v0.0.0-20260811140339-29bc20eb921b
 	ocm.software/open-component-model/bindings/go/runtime v0.0.8
-	ocm.software/open-component-model/bindings/go/signing v0.0.0-20260728010257-ba2ab4bca27b
-	ocm.software/open-component-model/bindings/go/transfer v0.0.0-20260728010257-ba2ab4bca27b
-	ocm.software/open-component-model/bindings/go/transform v0.0.0-20260728010257-ba2ab4bca27b
-	ocm.software/open-component-model/cli v0.13.0
-	ocm.software/open-component-model/kubernetes/controller v0.13.0
+	ocm.software/open-component-model/bindings/go/signing v0.0.0-20260811140339-29bc20eb921b
+	ocm.software/open-component-model/bindings/go/transfer v0.0.0-20260811140339-29bc20eb921b
+	ocm.software/open-component-model/bindings/go/transform v0.0.0-20260811140339-29bc20eb921b
+	ocm.software/open-component-model/cli v0.14.0
+	ocm.software/open-component-model/kubernetes/controller v0.14.0
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -142,9 +142,11 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/google/btree v1.1.3 // indirect
-	github.com/google/cel-go v0.29.0 // indirect
+	github.com/google/cel-go v0.29.2 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/go-github/v89 v89.0.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20260604005048-7023385849c0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20260505044615-1ff4bf46051f // indirect
@@ -152,9 +154,9 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
-	github.com/jedib0t/go-pretty/v6 v6.8.1 // indirect
+	github.com/jedib0t/go-pretty/v6 v6.8.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.7 // indirect
+	github.com/klauspost/compress v1.19.0 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
@@ -162,7 +164,7 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.24 // indirect
+	github.com/mattn/go-runewidth v0.0.27 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -189,8 +191,8 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.69.0 // indirect
-	github.com/prometheus/procfs v0.21.0 // indirect
+	github.com/prometheus/common v0.70.0 // indirect
+	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.6 // indirect
@@ -230,22 +232,23 @@ require (
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	helm.sh/helm/v4 v4.2.2 // indirect
+	helm.sh/helm/v4 v4.2.3 // indirect
 	k8s.io/cli-runtime v0.36.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260603220949-865597e52e25 // indirect
-	ocm.software/open-component-model/bindings/go/cel v0.0.0-20260728064351-657389b11d79 // indirect
+	ocm.software/open-component-model/bindings/go/cel v0.0.0-20260811140339-29bc20eb921b // indirect
 	ocm.software/open-component-model/bindings/go/ctf v0.4.1 // indirect
-	ocm.software/open-component-model/bindings/go/gpg v0.0.0-20260728064351-657389b11d79 // indirect
-	ocm.software/open-component-model/bindings/go/helm v0.0.0-20260728010257-ba2ab4bca27b // indirect
-	ocm.software/open-component-model/bindings/go/http v0.0.0-20260803105756-854228e942e9 // indirect
-	ocm.software/open-component-model/bindings/go/input/utf8 v0.0.0-20260728010257-ba2ab4bca27b // indirect
-	ocm.software/open-component-model/bindings/go/sigstore v0.0.0-20260728010257-ba2ab4bca27b // indirect
-	ocm.software/open-component-model/bindings/go/wget v0.0.0-20260728064351-657389b11d79 // indirect
+	ocm.software/open-component-model/bindings/go/github v0.0.0-20260811140339-29bc20eb921b // indirect
+	ocm.software/open-component-model/bindings/go/gpg v0.0.0-20260811140339-29bc20eb921b // indirect
+	ocm.software/open-component-model/bindings/go/helm v0.0.0-20260811140339-29bc20eb921b // indirect
+	ocm.software/open-component-model/bindings/go/http v0.0.0-20260811140339-29bc20eb921b // indirect
+	ocm.software/open-component-model/bindings/go/input/utf8 v0.0.0-20260811140339-29bc20eb921b // indirect
+	ocm.software/open-component-model/bindings/go/sigstore v0.0.0-20260811140339-29bc20eb921b // indirect
+	ocm.software/open-component-model/bindings/go/wget v0.0.0-20260811140339-29bc20eb921b // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/kustomize/api v0.21.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.21.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.4.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
