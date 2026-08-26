@@ -11,11 +11,18 @@ import (
 )
 
 type Querier interface {
+	ConsumeOIDCExchange(ctx context.Context, code string) (ConsumeOIDCExchangeRow, error)
+	ConsumeOIDCState(ctx context.Context, state string) (ConsumeOIDCStateRow, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (pgtype.UUID, error)
+	DeleteExpiredOIDCExchanges(ctx context.Context) (int64, error)
+	DeleteExpiredOIDCStates(ctx context.Context) (int64, error)
 	DeleteExpiredSessions(ctx context.Context, expiredBefore pgtype.Timestamptz) (int64, error)
 	DeleteSession(ctx context.Context, id pgtype.UUID) error
 	GetSession(ctx context.Context, arg GetSessionParams) (Session, error)
-	UpdateSession(ctx context.Context, arg UpdateSessionParams) (int64, error)
+	SaveOIDCExchange(ctx context.Context, arg SaveOIDCExchangeParams) error
+	SaveOIDCState(ctx context.Context, arg SaveOIDCStateParams) error
+	// The first key identifies Konfidence; the second identifies auth cleanup.
+	TryAcquireCleanupLock(ctx context.Context) (bool, error)
 }
 
 var _ Querier = (*Queries)(nil)

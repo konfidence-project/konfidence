@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,14 +11,18 @@ import (
 )
 
 var _ = Describe("StateCacheStore", func() {
-	var store *StateCacheStore
+	var (
+		ctx   context.Context
+		store *StateCacheStore
+	)
 
 	BeforeEach(func() {
+		ctx = context.Background()
 		store = NewStateCacheStore(time.Minute)
 	})
 
 	It("rejects nil state", func() {
-		Expect(store.Save(nil)).To(
+		Expect(store.Save(ctx, nil)).To(
 			MatchError("failed to store state: state is empty"),
 		)
 	})
@@ -30,19 +35,21 @@ var _ = Describe("StateCacheStore", func() {
 			ClientCodeChallenge: "challenge",
 		}
 
-		Expect(store.Save(expected)).To(Succeed())
-
-		actual, err := store.Consume("state-id")
+		Expect(store.Save(ctx, nil)).To(
+			MatchError("failed to store state: state is empty"),
+		)
+		Expect(store.Save(ctx, expected)).To(Succeed())
+		actual, err := store.Consume(ctx, "state-id")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(actual).To(Equal(expected))
 
-		actual, err = store.Consume("state-id")
+		actual, err = store.Consume(ctx, "state-id")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(actual).To(BeNil())
 	})
 
 	It("allows only one concurrent consumer", func() {
-		Expect(store.Save(&StateData{State: "state-id"})).To(Succeed())
+		Expect(store.Save(ctx, &StateData{State: "state-id"})).To(Succeed())
 
 		var successfulConsumers atomic.Int32
 		var waitGroup sync.WaitGroup
@@ -53,7 +60,7 @@ var _ = Describe("StateCacheStore", func() {
 				defer GinkgoRecover()
 				defer waitGroup.Done()
 
-				state, err := store.Consume("state-id")
+				state, err := store.Consume(ctx, "state-id")
 				Expect(err).NotTo(HaveOccurred())
 				if state != nil {
 					successfulConsumers.Add(1)

@@ -102,51 +102,14 @@ func (q *Queries) GetSession(ctx context.Context, arg GetSessionParams) (Session
 	return i, err
 }
 
-const updateSession = `-- name: UpdateSession :execrows
-UPDATE session
-SET name = $1,
-    given_name = $2,
-    family_name = $3,
-    preferred_user_name = $4,
-    email = $5,
-    groups = $6,
-    access_token = $7,
-    refresh_token = $8,
-    token_expiry = $9
-WHERE id = $10
-AND subject = $11
+const tryAcquireCleanupLock = `-- name: TryAcquireCleanupLock :one
+SELECT pg_try_advisory_xact_lock(1263423054, 1)
 `
 
-type UpdateSessionParams struct {
-	Name              *string
-	GivenName         *string
-	FamilyName        *string
-	PreferredUserName *string
-	Email             *string
-	Groups            []string
-	AccessToken       string
-	RefreshToken      *string
-	TokenExpiry       int64
-	ID                pgtype.UUID
-	Subject           string
-}
-
-func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateSession,
-		arg.Name,
-		arg.GivenName,
-		arg.FamilyName,
-		arg.PreferredUserName,
-		arg.Email,
-		arg.Groups,
-		arg.AccessToken,
-		arg.RefreshToken,
-		arg.TokenExpiry,
-		arg.ID,
-		arg.Subject,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+// The first key identifies Konfidence; the second identifies auth cleanup.
+func (q *Queries) TryAcquireCleanupLock(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, tryAcquireCleanupLock)
+	var pg_try_advisory_xact_lock bool
+	err := row.Scan(&pg_try_advisory_xact_lock)
+	return pg_try_advisory_xact_lock, err
 }

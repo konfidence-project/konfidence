@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -14,8 +15,8 @@ type Exchange struct {
 }
 
 type ExchangeStore interface {
-	Save(code string, exchange Exchange) error
-	Consume(code string) (*Exchange, error)
+	Save(ctx context.Context, code string, exchange Exchange) error
+	Consume(ctx context.Context, code string) (*Exchange, error)
 }
 
 type ExchangeCacheStore struct {
@@ -31,7 +32,7 @@ func NewExchangeCacheStore(expiration time.Duration) *ExchangeCacheStore {
 	return &ExchangeCacheStore{cache: *cache}
 }
 
-func (s *ExchangeCacheStore) Save(code string, exchange Exchange) error {
+func (s *ExchangeCacheStore) Save(_ context.Context, code string, exchange Exchange) error {
 	if code == "" {
 		return fmt.Errorf("exchange code must not be empty")
 	}
@@ -46,7 +47,7 @@ func (s *ExchangeCacheStore) Save(code string, exchange Exchange) error {
 	return nil
 }
 
-func (s *ExchangeCacheStore) Consume(code string) (*Exchange, error) {
+func (s *ExchangeCacheStore) Consume(_ context.Context, code string) (*Exchange, error) {
 	if code == "" {
 		return nil, nil
 	}

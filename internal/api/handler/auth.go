@@ -40,7 +40,7 @@ func newAuthHandler(logger *slog.Logger, oidcClient oidc.Client, stateStore oidc
 	}
 }
 
-func (a *authHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error) {
+func (a *authHandler) LoginV1(ctx context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error) {
 	codeChallenge := ""
 	if request.Params.CodeChallenge != nil {
 		codeChallenge = *request.Params.CodeChallenge
@@ -63,7 +63,7 @@ func (a *authHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestO
 
 	state.ClientCodeChallenge = codeChallenge
 
-	if err := a.stateCache.Save(state); err != nil {
+	if err := a.stateCache.Save(ctx, state); err != nil {
 		return nil, err
 	}
 
@@ -108,7 +108,7 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 		return openapi.AuthCallbackV1400JSONResponse{}, nil
 	}
 
-	storedState, err := a.stateCache.Consume(state)
+	storedState, err := a.stateCache.Consume(ctx, state)
 	if err != nil {
 		return openapi.AuthCallbackV1500JSONResponse{}, nil
 	}
@@ -209,7 +209,7 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 
 	if storedState.ClientCodeChallenge != "" {
 		exchangeCode := oauth2.GenerateVerifier()
-		if err := a.exchangeCache.Save(exchangeCode, oidc.Exchange{
+		if err := a.exchangeCache.Save(ctx, exchangeCode, oidc.Exchange{
 			SessionID:     sessionId,
 			CodeChallenge: storedState.ClientCodeChallenge,
 		}); err != nil {
@@ -290,12 +290,13 @@ func (a *authHandler) GetIdentityV1(ctx context.Context, _ openapi.GetIdentityV1
 	}, nil
 }
 
-func (a *authHandler) PostExchangeCodeV1(_ context.Context, request openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
+func (a *authHandler) PostExchangeCodeV1(ctx context.Context,
+	request openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
 	if request.Body == nil || request.Body.Code == "" || request.Body.Verifier == "" {
 		return openapi.PostExchangeCodeV1401JSONResponse{}, nil
 	}
 
-	exchange, err := a.exchangeCache.Consume(request.Body.Code)
+	exchange, err := a.exchangeCache.Consume(ctx, request.Body.Code)
 	if err != nil {
 		return openapi.PostExchangeCodeV1500JSONResponse{}, err
 	}
