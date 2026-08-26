@@ -88,13 +88,6 @@ func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListL
 	return openapi.ListLandscapesV1200JSONResponse{Data: data}, nil
 }
 
-func toProjectResponse(p konfidence.Project) openapi.Project {
-	return openapi.Project{
-		Id:   p.Name,
-		Name: p.Spec.DisplayName,
-	}
-}
-
 func toLandscapeResponse(l konfidence.Landscape) openapi.Landscape {
 	return openapi.Landscape{
 		Id:   l.Name,
