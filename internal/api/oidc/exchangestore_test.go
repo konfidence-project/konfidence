@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,15 +11,19 @@ import (
 )
 
 var _ = Describe("ExchangeCacheStore", func() {
-	var store *ExchangeCacheStore
+	var (
+		ctx   context.Context
+		store *ExchangeCacheStore
+	)
 
 	BeforeEach(func() {
+		ctx = context.Background()
 		store = NewExchangeCacheStore(time.Minute)
 	})
 
 	Describe("Save", func() {
 		It("rejects an empty exchange code", func() {
-			err := store.Save("", Exchange{
+			err := store.Save(ctx, "", Exchange{
 				SessionID:     "session-id",
 				CodeChallenge: "challenge",
 			})
@@ -27,7 +32,7 @@ var _ = Describe("ExchangeCacheStore", func() {
 		})
 
 		It("rejects an empty session ID", func() {
-			err := store.Save("exchange-code", Exchange{
+			err := store.Save(ctx, "exchange-code", Exchange{
 				CodeChallenge: "challenge",
 			})
 
@@ -35,7 +40,7 @@ var _ = Describe("ExchangeCacheStore", func() {
 		})
 
 		It("rejects an empty code challenge", func() {
-			err := store.Save("exchange-code", Exchange{
+			err := store.Save(ctx, "exchange-code", Exchange{
 				SessionID: "session-id",
 			})
 
@@ -50,29 +55,29 @@ var _ = Describe("ExchangeCacheStore", func() {
 				CodeChallenge: "challenge",
 			}
 
-			Expect(store.Save("exchange-code", expected)).To(Succeed())
+			Expect(store.Save(ctx, "exchange-code", expected)).To(Succeed())
 
-			exchange, err := store.Consume("exchange-code")
+			exchange, err := store.Consume(ctx, "exchange-code")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(exchange).To(Equal(&expected))
 
-			exchange, err = store.Consume("exchange-code")
+			exchange, err = store.Consume(ctx, "exchange-code")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(exchange).To(BeNil())
 		})
 
 		It("returns nil for an unknown or empty code", func() {
-			exchange, err := store.Consume("")
+			exchange, err := store.Consume(ctx, "")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(exchange).To(BeNil())
 
-			exchange, err = store.Consume("unknown")
+			exchange, err = store.Consume(ctx, "unknown")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(exchange).To(BeNil())
 		})
 
 		It("allows only one concurrent consumer", func() {
-			Expect(store.Save("exchange-code", Exchange{
+			Expect(store.Save(ctx, "exchange-code", Exchange{
 				SessionID:     "session-id",
 				CodeChallenge: "challenge",
 			})).To(Succeed())
@@ -86,7 +91,7 @@ var _ = Describe("ExchangeCacheStore", func() {
 					defer GinkgoRecover()
 					defer waitGroup.Done()
 
-					exchange, err := store.Consume("exchange-code")
+					exchange, err := store.Consume(ctx, "exchange-code")
 					Expect(err).NotTo(HaveOccurred())
 					if exchange != nil {
 						successfulConsumers.Add(1)
@@ -100,13 +105,13 @@ var _ = Describe("ExchangeCacheStore", func() {
 
 		It("expires exchanges", func() {
 			store = NewExchangeCacheStore(20 * time.Millisecond)
-			Expect(store.Save("exchange-code", Exchange{
+			Expect(store.Save(ctx, "exchange-code", Exchange{
 				SessionID:     "session-id",
 				CodeChallenge: "challenge",
 			})).To(Succeed())
 
 			Eventually(func() *Exchange {
-				exchange, err := store.Consume("exchange-code")
+				exchange, err := store.Consume(ctx, "exchange-code")
 				Expect(err).NotTo(HaveOccurred())
 				return exchange
 			}).Should(BeNil())

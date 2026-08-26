@@ -8,6 +8,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type OidcExchange struct {
+	Code          string
+	SessionID     pgtype.UUID
+	CodeChallenge string
+	ExpiresAt     pgtype.Timestamptz
+}
+
+type OidcState struct {
+	State               string
+	Nonce               string
+	ReturnUrl           string
+	CodeVerifier        string
+	CodeChallengeMethod string
+	CodeChallenge       string
+	ClientCodeChallenge string
+	CreatedAt           pgtype.Timestamptz
+	ExpiresAt           pgtype.Timestamptz
+}
+
 type Session struct {
 	ID                pgtype.UUID
 	Subject           string

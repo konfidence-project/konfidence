@@ -34,6 +34,12 @@ var cfg = config.Config{}
 
 var dbPool *pgxpool.Pool
 
+var (
+	sessionStore  session.Store
+	stateStore    oidc.StateStore
+	exchangeStore oidc.ExchangeStore
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "api",
 	Short: "Run the Konfidence API server",
@@ -116,8 +122,7 @@ func init() {
 	rootCmd.Flags().StringVar(&cfg.Session.StorageType, "session-storage-type", envOr("API_SESSION_STORAGE_TYPE", "in-memory"),
 		"Session storage backend (in-memory, db-pg). Env: API_SESSION_STORAGE_TYPE")
 	rootCmd.Flags().StringVar(&cfg.Session.CleanupInterval, "session-cleanup-interval", envOr("API_SESSION_CLEANUP_INTERVAL", "15m"),
-		"Expired database session cleanup interval. Env: API_SESSION_CLEANUP_INTERVAL",
-	)
+		"Expired database session cleanup interval. Env: API_SESSION_CLEANUP_INTERVAL")
 	rootCmd.Flags().StringVar(&cfg.Database.Connection, "db-connection", envOr("API_DB_CONNECTION", ""),
 		"API DB connection string. Env: API_DB_CONNECTION")
 	rootCmd.Flags().Int32Var(&cfg.Database.MaxConns, "db-max-conns", envInt32Or("API_DB_MAX_CONNS", 10),
@@ -190,7 +195,6 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	var sessionStore session.Store
 	switch parsed.Session.StorageType {
 	case "db-pg":
 		// init database config
@@ -215,8 +219,11 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		}
 
 		queries := db.New(dbPool)
-		dbStore := session.NewDBStore(queries, parsed.Session.Expiration)
+		dbStore := session.NewDBStore(queries, dbPool, parsed.Session.Expiration)
 		sessionStore = dbStore
+		stateStore = oidc.NewDBStateStore(queries, parsed.OIDC.StateExpiration)
+		exchangeStore = oidc.NewDBExchangeStore(queries, parsed.OIDC.StateExpiration)
+
 		cleanupCtx, cancelCleanup := context.WithCancel(ctx)
 		cleanupDone := make(chan struct{})
 		go func() {
@@ -234,9 +241,19 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		}()
 	case "in-memory":
 		sessionStore = session.NewInMemoryStore(parsed)
+		stateStore = oidc.NewStateCacheStore(parsed.OIDC.StateExpiration)
+		exchangeStore = oidc.NewExchangeCacheStore(parsed.OIDC.StateExpiration)
 	}
 
-	api, err := handler.NewAPIHandler(logger, k8sClient, *oidcClient, sessionStore, parsed)
+	api, err := handler.NewAPIHandler(
+		logger,
+		k8sClient,
+		*oidcClient,
+		stateStore,
+		exchangeStore,
+		sessionStore,
+		parsed,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create API handler: %w", err)
 	}

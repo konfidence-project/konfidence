@@ -7,17 +7,77 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/konfidence-project/konfidence/cmd/api/db/sqlc"
 )
 
-type DBStore struct {
-	queries           db.Querier
-	sessionExpiration time.Duration
+var _ cleanupTransaction = (*postgresCleanupTransaction)(nil)
+var _ cleanupTransactionHandler = postgresCleanupTransactionHandler{}
+
+type sessionQueries interface {
+	CreateSession(context.Context, db.CreateSessionParams) (pgtype.UUID, error)
+	GetSession(context.Context, db.GetSessionParams) (db.Session, error)
+	DeleteSession(context.Context, pgtype.UUID) error
 }
 
-func NewDBStore(queries db.Querier, sessionTimeout time.Duration) *DBStore {
-	return &DBStore{queries: queries, sessionExpiration: sessionTimeout}
+type cleanupQueries interface {
+	TryAcquireCleanupLock(context.Context) (bool, error)
+	DeleteExpiredSessions(context.Context, pgtype.Timestamptz) (int64, error)
+	DeleteExpiredOIDCStates(context.Context) (int64, error)
+	DeleteExpiredOIDCExchanges(context.Context) (int64, error)
+}
+
+type cleanupTransaction interface {
+	cleanupQueries
+	Commit(context.Context) error
+	Rollback(context.Context) error
+}
+
+type cleanupTransactionHandler interface {
+	BeginTransaction(context.Context) (cleanupTransaction, error)
+}
+
+type postgresCleanupTransaction struct {
+	pgx.Tx
+	*db.Queries
+}
+
+type postgresCleanupTransactionHandler struct {
+	pool *pgxpool.Pool
+}
+
+func (b postgresCleanupTransactionHandler) BeginTransaction(ctx context.Context) (cleanupTransaction, error) {
+	tx, err := b.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &postgresCleanupTransaction{Tx: tx, Queries: db.New(tx)}, nil
+}
+
+type DBStore struct {
+	queries                   sessionQueries
+	cleanupTransactionHandler cleanupTransactionHandler
+	sessionExpiration         time.Duration
+}
+
+func NewDBStore(queries sessionQueries, pool *pgxpool.Pool, sessionExpiration time.Duration) *DBStore {
+	return &DBStore{
+		queries:                   queries,
+		cleanupTransactionHandler: postgresCleanupTransactionHandler{pool: pool},
+		sessionExpiration:         sessionExpiration,
+	}
+}
+
+func newDBStore(queries sessionQueries, cleanupTransactionHandler cleanupTransactionHandler,
+	sessionExpiration time.Duration) *DBStore {
+	return &DBStore{
+		queries:                   queries,
+		cleanupTransactionHandler: cleanupTransactionHandler,
+		sessionExpiration:         sessionExpiration,
+	}
 }
 
 func (s *DBStore) Save(ctx context.Context, session *Session) (string, error) {
@@ -77,54 +137,7 @@ func (s *DBStore) Get(ctx context.Context, id string) (*Session, error) {
 		return nil, fmt.Errorf("failed to get session from database: %w", err)
 	}
 
-	return &Session{
-		Subject: dbSession.Subject,
-		Groups:  dbSession.Groups,
-		Context: Context{
-			ID:                id,
-			Name:              dbSession.Name,
-			Email:             dbSession.Email,
-			GivenName:         dbSession.GivenName,
-			FamilyName:        dbSession.FamilyName,
-			PreferredUsername: dbSession.PreferredUserName,
-		},
-		AccessToken:  dbSession.AccessToken,
-		RefreshToken: dbSession.RefreshToken,
-		TokenExpiry:  dbSession.TokenExpiry,
-	}, nil
-}
-
-func (s *DBStore) Update(ctx context.Context, session *Session) error {
-	if session == nil {
-		return fmt.Errorf("failed to update session: session is empty")
-	}
-
-	dbID, err := getDBID(session.ID)
-	if err != nil {
-		return err
-	}
-
-	updated, err := s.queries.UpdateSession(ctx, db.UpdateSessionParams{
-		Name:              session.Name,
-		GivenName:         session.GivenName,
-		FamilyName:        session.FamilyName,
-		PreferredUserName: session.PreferredUsername,
-		Email:             session.Email,
-		Groups:            session.Groups,
-		AccessToken:       session.AccessToken,
-		RefreshToken:      session.RefreshToken,
-		TokenExpiry:       session.TokenExpiry,
-		ID:                dbID,
-		Subject:           session.Subject,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update session in database: %w", err)
-	}
-	if updated != 1 {
-		return fmt.Errorf("failed to update session: session %q not found", session.ID)
-	}
-
-	return nil
+	return mapDBSession(dbSession), nil
 }
 
 func getDBID(id string) (pgtype.UUID, error) {
@@ -133,4 +146,22 @@ func getDBID(id string) (pgtype.UUID, error) {
 		return pgtype.UUID{}, fmt.Errorf("failed to parse session ID: %w", err)
 	}
 	return dbID, nil
+}
+
+func mapDBSession(stored db.Session) *Session {
+	return &Session{
+		Subject: stored.Subject,
+		Groups:  append([]string(nil), stored.Groups...),
+		Context: Context{
+			ID:                stored.ID.String(),
+			Name:              stored.Name,
+			Email:             stored.Email,
+			GivenName:         stored.GivenName,
+			FamilyName:        stored.FamilyName,
+			PreferredUsername: stored.PreferredUserName,
+		},
+		AccessToken:  stored.AccessToken,
+		RefreshToken: stored.RefreshToken,
+		TokenExpiry:  stored.TokenExpiry,
+	}
 }

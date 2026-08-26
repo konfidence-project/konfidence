@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -9,15 +10,15 @@ import (
 )
 
 type StateStore interface {
-	Save(state *StateData) error
-	Consume(id string) (*StateData, error)
+	Save(ctx context.Context, state *StateData) error
+	Consume(ctx context.Context, id string) (*StateData, error)
 }
 type StateCacheStore struct {
 	mu    sync.Mutex
 	cache otter.Cache[string, StateData]
 }
 
-func (s *StateCacheStore) Save(state *StateData) error {
+func (s *StateCacheStore) Save(_ context.Context, state *StateData) error {
 	if state == nil {
 		return fmt.Errorf("failed to store state: state is empty")
 	}
@@ -26,7 +27,7 @@ func (s *StateCacheStore) Save(state *StateData) error {
 	return nil
 }
 
-func (s *StateCacheStore) Consume(id string) (*StateData, error) {
+func (s *StateCacheStore) Consume(_ context.Context, id string) (*StateData, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

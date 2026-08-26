@@ -129,36 +129,4 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 			return stored == nil
 		}, 3*expiration, expiration/10).Should(BeTrue())
 	})
-
-	ginkgo.It("updates a session without renewing its expiration", func() {
-		store = NewInMemoryStore(config.Parsed{
-			Session: config.ParsedSessionConfig{
-				Expiration: time.Minute,
-			},
-		})
-
-		input := &Session{
-			Subject:     "subject-id",
-			AccessToken: "old-access-token",
-		}
-
-		id, err := store.Save(ctx, input)
-		Expect(err).NotTo(HaveOccurred())
-
-		entryBefore, found := store.cache.GetEntryQuietly(id)
-		Expect(found).To(BeTrue())
-
-		updated := *input
-		updated.AccessToken = "new-access-token"
-
-		Expect(store.Update(ctx, &updated)).To(Succeed())
-
-		stored, err := store.Get(ctx, id)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(stored.AccessToken).To(Equal("new-access-token"))
-
-		entryAfter, found := store.cache.GetEntryQuietly(id)
-		Expect(found).To(BeTrue())
-		Expect(entryAfter.ExpiresAt()).To(Equal(entryBefore.ExpiresAt()))
-	})
 })

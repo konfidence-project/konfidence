@@ -16,16 +16,6 @@ WHERE id = $1;
 DELETE FROM session
 WHERE created_at <= sqlc.arg(expired_before);
 
--- name: UpdateSession :execrows
-UPDATE session
-SET name = sqlc.arg(name),
-    given_name = sqlc.arg(given_name),
-    family_name = sqlc.arg(family_name),
-    preferred_user_name = sqlc.arg(preferred_user_name),
-    email = sqlc.arg(email),
-    groups = sqlc.arg(groups),
-    access_token = sqlc.arg(access_token),
-    refresh_token = sqlc.arg(refresh_token),
-    token_expiry = sqlc.arg(token_expiry)
-WHERE id = sqlc.arg(id)
-AND subject = sqlc.arg(subject);
+-- name: TryAcquireCleanupLock :one
+-- The first key identifies Konfidence; the second identifies auth cleanup.
+SELECT pg_try_advisory_xact_lock(1263423054, 1);

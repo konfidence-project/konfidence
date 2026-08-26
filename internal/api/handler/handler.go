@@ -25,10 +25,10 @@ type apiHandler struct {
 var _ openapi.StrictServerInterface = (*apiHandler)(nil)
 
 func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc.Client,
-	sessionStore session.Store, cfg config.Parsed) (http.Handler, error) {
-	exp := cfg.OIDC.StateExpiration
-	auth := newAuthHandler(logger, oidcClient, oidc.NewStateCacheStore(exp), oidc.NewExchangeCacheStore(exp), sessionStore, cfg)
-
+	stateStore oidc.StateStore, exchangeStore oidc.ExchangeStore, sessionStore session.Store,
+	cfg config.Parsed,
+) (http.Handler, error) {
+	auth := newAuthHandler(logger, oidcClient, stateStore, exchangeStore, sessionStore, cfg)
 	authRepo := authdomain.NewRepository(k8sClient)
 	projectRepo := projectdomain.NewRepository(k8sClient)
 	landscapeRepo := landscapedomain.NewRepository(k8sClient)
@@ -38,7 +38,7 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 		authHandler:    *auth,
 		projectHandler: *project,
 	}
-	return middleware.SessionAuthentication(logger, sessionStore, &oidcClient, authRepo, cfg, api.handler())
+	return middleware.SessionAuthentication(logger, sessionStore, authRepo, cfg, api.handler())
 }
 
 func (s *apiHandler) handler() http.Handler {

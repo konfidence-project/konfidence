@@ -23,12 +23,12 @@ type recordingStateStore struct {
 	consumeErr error
 }
 
-func (s *recordingStateStore) Save(state *oidc.StateData) error {
+func (s *recordingStateStore) Save(_ context.Context, state *oidc.StateData) error {
 	s.saved = state
 	return nil
 }
 
-func (s *recordingStateStore) Consume(string) (*oidc.StateData, error) {
+func (s *recordingStateStore) Consume(_ context.Context, _ string) (*oidc.StateData, error) {
 	return s.consumed, s.consumeErr
 }
 
@@ -211,10 +211,11 @@ var _ = Describe("LoginV1", func() {
 			verifier := oauth2.GenerateVerifier()
 			challenge := oauth2.S256ChallengeFromVerifier(verifier)
 
-			Expect(exchangeStore.Save("exchange-code", oidc.Exchange{
-				SessionID:     "session-id",
-				CodeChallenge: challenge,
-			})).To(Succeed())
+			Expect(exchangeStore.Save(
+				context.Background(),
+				"exchange-code",
+				oidc.Exchange{SessionID: "session-id", CodeChallenge: challenge},
+			)).To(Succeed())
 
 			response, err := handler.PostExchangeCodeV1(
 				context.Background(),
@@ -241,10 +242,13 @@ var _ = Describe("LoginV1", func() {
 
 		It("rejects replay of a redeemed code", func() {
 			verifier := oauth2.GenerateVerifier()
-			Expect(exchangeStore.Save("exchange-code", oidc.Exchange{
-				SessionID:     "session-id",
-				CodeChallenge: oauth2.S256ChallengeFromVerifier(verifier),
-			})).To(Succeed())
+			challenge := oauth2.S256ChallengeFromVerifier(verifier)
+
+			Expect(exchangeStore.Save(
+				context.Background(),
+				"exchange-code",
+				oidc.Exchange{SessionID: "session-id", CodeChallenge: challenge},
+			)).To(Succeed())
 
 			request := openapi.PostExchangeCodeV1RequestObject{
 				Body: &openapi.PostExchangeCodeV1JSONRequestBody{
@@ -273,11 +277,14 @@ var _ = Describe("LoginV1", func() {
 		})
 
 		It("consumes the code after an invalid verifier attempt", func() {
-			validVerifier := oauth2.GenerateVerifier()
-			Expect(exchangeStore.Save("exchange-code", oidc.Exchange{
-				SessionID:     "session-id",
-				CodeChallenge: oauth2.S256ChallengeFromVerifier(validVerifier),
-			})).To(Succeed())
+			verifier := oauth2.GenerateVerifier()
+			challenge := oauth2.S256ChallengeFromVerifier(verifier)
+
+			Expect(exchangeStore.Save(
+				context.Background(),
+				"exchange-code",
+				oidc.Exchange{SessionID: "session-id", CodeChallenge: challenge},
+			)).To(Succeed())
 
 			response, err := handler.PostExchangeCodeV1(
 				context.Background(),
@@ -298,7 +305,7 @@ var _ = Describe("LoginV1", func() {
 				openapi.PostExchangeCodeV1RequestObject{
 					Body: &openapi.PostExchangeCodeV1JSONRequestBody{
 						Code:     "exchange-code",
-						Verifier: validVerifier,
+						Verifier: verifier,
 					},
 				},
 			)
@@ -313,10 +320,11 @@ var _ = Describe("LoginV1", func() {
 			verifier := oauth2.GenerateVerifier()
 			challenge := oauth2.S256ChallengeFromVerifier(verifier)
 
-			Expect(exchangeStore.Save("exchange-code", oidc.Exchange{
-				SessionID:     "session-id",
-				CodeChallenge: challenge,
-			})).To(Succeed())
+			Expect(exchangeStore.Save(
+				context.Background(),
+				"exchange-code",
+				oidc.Exchange{SessionID: "session-id", CodeChallenge: challenge},
+			)).To(Succeed())
 
 			before := time.Now()
 			response, err := handler.PostExchangeCodeV1(

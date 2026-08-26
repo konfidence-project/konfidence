@@ -9,16 +9,73 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func (s *DBStore) deleteExpired(ctx context.Context, now time.Time) (int64, error) {
-	deleted, err := s.queries.DeleteExpiredSessions(ctx, pgtype.Timestamptz{
-		Time:  now.Add(-s.sessionExpiration),
-		Valid: true,
-	})
+type cleanupResult struct {
+	sessions  int64
+	states    int64
+	exchanges int64
+}
+
+func (s *DBStore) deleteExpired(
+	ctx context.Context,
+	now time.Time,
+) (cleanupResult, bool, error) {
+	result := cleanupResult{}
+
+	tx, err := s.cleanupTransactionHandler.BeginTransaction(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("failed to delete expired sessions: %w", err)
+		return result, false, fmt.Errorf("starting cleanup transaction failed: %w", err)
 	}
 
-	return deleted, nil
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+
+		rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+
+		_ = tx.Rollback(rollbackCtx)
+	}()
+
+	acquired, err := tx.TryAcquireCleanupLock(ctx)
+	if err != nil {
+		return result, false, fmt.Errorf("acquiring cleanup advisory lock failed: %w", err)
+	}
+	if !acquired {
+		return result, false, nil
+	}
+
+	deletedSessions, err := tx.DeleteExpiredSessions(
+		ctx,
+		pgtype.Timestamptz{
+			Time:  now.Add(-s.sessionExpiration),
+			Valid: true,
+		},
+	)
+	if err != nil {
+		return result, true, fmt.Errorf("deleting expired sessions failed: %w", err)
+	}
+	result.sessions = deletedSessions
+
+	deletedStates, err := tx.DeleteExpiredOIDCStates(ctx)
+	if err != nil {
+		return result, true, fmt.Errorf("deleting expired OIDC states failed: %w", err)
+	}
+	result.states = deletedStates
+
+	deletedExchanges, err := tx.DeleteExpiredOIDCExchanges(ctx)
+	if err != nil {
+		return result, true, fmt.Errorf("deleting expired OIDC exchanges failed: %w", err)
+	}
+	result.exchanges = deletedExchanges
+
+	if err := tx.Commit(ctx); err != nil {
+		return cleanupResult{}, true, fmt.Errorf("committing cleanup transaction failed: %w", err)
+	}
+
+	committed = true
+	return result, true, nil
 }
 
 func (s *DBStore) RunCleanup(
@@ -26,18 +83,25 @@ func (s *DBStore) RunCleanup(
 	logger *slog.Logger,
 	interval time.Duration,
 ) {
-	logger.Info("Initialize db session cleanup...")
+	logger.Info("Initialize db state cleanup...")
 	cleanup := func() {
-		deleted, err := s.deleteExpired(ctx, time.Now())
+		result, acquired, err := s.deleteExpired(ctx, time.Now())
 		if err != nil {
 			if ctx.Err() == nil {
-				logger.Error("failed to clean up expired sessions", "error", err)
+				logger.Error("failed to clean up expired authentication data", "error", err)
 			}
 			return
 		}
 
-		if deleted > 0 {
-			logger.Info("deleted expired sessions", "count", deleted)
+		if !acquired {
+			logger.Debug("skipped db state cleanup because another API instance holds the lock")
+			return
+		}
+
+		if result.sessions != 0 || result.states != 0 || result.exchanges != 0 {
+			logger.Info("deleted expired authentication data", "sessions", result.sessions,
+				"oidc_states", result.states, "oidc_exchanges", result.exchanges,
+			)
 		}
 	}
 
