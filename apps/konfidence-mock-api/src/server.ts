@@ -2,6 +2,7 @@ import { type IncomingMessage, type Server, createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { OpenAPIBackend, type Request as OpenAPIRequest } from "openapi-backend";
 import { errorResponse, handlers, securityHandlers, writeResponse } from "./handlers.js";
+import { serveSwagger } from "./swagger.js";
 
 const OPENAPI_PATH = fileURLToPath(new URL("../../../api/openapi.yaml", import.meta.url));
 
@@ -28,6 +29,9 @@ const createMockServer = async (): Promise<Server> => {
 
   return createServer(async (request, response) => {
     try {
+      if (await serveSwagger(request, response, OPENAPI_PATH)) {
+        return;
+      }
       const body = await readBody(request);
       const headers = Object.fromEntries(
         Object.entries(request.headers).filter(

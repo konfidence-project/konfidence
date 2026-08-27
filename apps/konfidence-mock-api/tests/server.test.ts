@@ -30,6 +30,22 @@ beforeEach(() => startServer());
 afterEach(() => stopServer());
 
 describe("Konfidence mock API", () => {
+  test("serves Swagger UI with a mock session login", async () => {
+    const docs = await request("/docs/");
+    expect(docs.status).toBe(200);
+    await expect(docs.text()).resolves.toContain("SwaggerUIBundle");
+
+    const specification = await request("/docs/openapi.yaml");
+    expect(specification.headers.get("content-type")).toBe("application/yaml");
+    await expect(specification.text()).resolves.toContain('openapi: "3.0.3"');
+
+    const login = await request("/docs/login");
+    expect(login.status).toBe(302);
+    expect(login.headers.get("location")).toBe(
+      `/api/v1/login?return_url=${encodeURIComponent(`${baseUrl}/docs/`)}`,
+    );
+  });
+
   test("serves the OpenAPI operations", async () => {
     const returnUrl = "http://127.0.0.1:4173/projects";
     const login = await request(`/api/v1/login?return_url=${encodeURIComponent(returnUrl)}`);

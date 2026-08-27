@@ -3,6 +3,7 @@ packages:
   - apps/konfidence-ui
   - apps/konfidence-ui-prototype
 allowBuilds:
+  "@scarf/scarf": false
   cpu-features: false
   esbuild: true
   protobufjs: false

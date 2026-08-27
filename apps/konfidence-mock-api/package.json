@@ -17,7 +17,8 @@
     "verify": "pnpm api:check && pnpm check && pnpm lint && pnpm fmt:check"
   },
   "dependencies": {
-    "openapi-backend": "^5.20.0"
+    "openapi-backend": "^5.20.0",
+    "swagger-ui-dist": "^5.29.0"
   },
   "devDependencies": {
     "@types/node": "26.1.1",
