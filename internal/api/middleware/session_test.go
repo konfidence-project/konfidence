@@ -335,7 +335,7 @@ func TestSessionAuthenticationTokenExpiry(t *testing.T) {
 				config.Parsed{
 					OIDC: config.ParsedOIDCConfig{
 						Enabled: true,
-						Scopes: test.scopes,
+						Scopes:  test.scopes,
 					},
 					Session: config.ParsedSessionConfig{
 						Cookie: config.SessionCookieConfig{
