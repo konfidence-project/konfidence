@@ -1,55 +1,68 @@
-import { type IncomingMessage, type Server, createServer } from "node:http";
+import cookie from "@fastify/cookie";
+import swagger from "@fastify/swagger";
+import swaggerUI from "@fastify/swagger-ui";
+import fastify, { type FastifyError, type FastifyInstance } from "fastify";
+import openapiGlue from "fastify-openapi-glue";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { OpenAPIBackend, type Request as OpenAPIRequest } from "openapi-backend";
-import { errorResponse, handlers, securityHandlers, writeResponse } from "./handlers.js";
+import { operationHandlers, securityHandlers } from "./handlers.js";
 
 const OPENAPI_PATH = fileURLToPath(new URL("../../../api/openapi.yaml", import.meta.url));
 
-const readBody = async (request: IncomingMessage): Promise<string | undefined> => {
-  const chunks: Buffer[] = [];
-  for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  return chunks.length === 0 ? undefined : Buffer.concat(chunks).toString("utf8");
-};
+// Swagger UI cannot start a session on its own, so point it at the mock login redirect.
+const DOCS_BANNER = `document.addEventListener("DOMContentLoaded", () => {
+  document.body.insertAdjacentHTML(
+    "afterbegin",
+    '<p style="font-family:sans-serif;padding:1rem"><a href="/docs/login">Start a mock session</a> before running authenticated requests.</p>',
+  );
+});
+`;
 
-const createMockServer = async (): Promise<Server> => {
-  const api = new OpenAPIBackend({
-    ajvOpts: { validateFormats: false },
-    apiRoot: "/api",
-    definition: OPENAPI_PATH,
-    handlers,
+const createMockServer = async (): Promise<FastifyInstance> => {
+  const server = fastify({
+    ajv: { customOptions: { coerceTypes: false, validateFormats: false } },
+  });
+
+  server.setErrorHandler((error: FastifyError, _request, reply) => {
+    const status = error.statusCode ?? 500;
+    // fastify-openapi-glue describes a failed security handler in its own words. Keep it short.
+    const message = error.name === "Unauthorized" ? "Authentication required" : error.message;
+    return reply.code(status).send({ error: { code: String(status), message } });
+  });
+
+  server.setNotFoundHandler((_request, reply) =>
+    reply.code(404).send({ error: { code: "404", message: "Not found" } }),
+  );
+
+  await server.register(cookie);
+  await server.register(swagger, {
+    mode: "static",
+    specification: { baseDir: dirname(OPENAPI_PATH), path: OPENAPI_PATH },
+  });
+
+  server.get("/docs/login", (request, reply) => {
+    const returnUrl = `http://${request.headers.host ?? "127.0.0.1"}/docs/`;
+    return reply.redirect(`/api/v1/login?return_url=${encodeURIComponent(returnUrl)}`);
+  });
+
+  await server.register(swaggerUI, {
+    routePrefix: "/docs",
+    theme: {
+      js: [{ content: DOCS_BANNER, filename: "mock-api.js" }],
+      title: "Konfidence Mock API",
+    },
+    uiConfig: { withCredentials: true },
+  });
+
+  await server.register(openapiGlue, {
+    prefix: "/api",
     securityHandlers,
-    strict: true,
-    validate: true,
+    serviceHandlers: operationHandlers,
+    specification: OPENAPI_PATH,
   });
+  await server.ready();
 
-  await api.init();
-
-  return createServer(async (request, response) => {
-    try {
-      const body = await readBody(request);
-      const headers = Object.fromEntries(
-        Object.entries(request.headers).filter(
-          (entry): entry is [string, string | string[]] => entry[1] !== undefined,
-        ),
-      );
-      const openAPIRequest: OpenAPIRequest = {
-        body,
-        headers,
-        method: request.method ?? "GET",
-        path: request.url ?? "/",
-      };
-      await api.handleRequest(openAPIRequest, request, response);
-    } catch (error) {
-      globalThis.console.error("Mock API request failed", error);
-      if (!response.headersSent) {
-        writeResponse(response, errorResponse(500, "Mock API request failed"));
-      } else {
-        response.end();
-      }
-    }
-  });
+  return server;
 };
 
 export { createMockServer };

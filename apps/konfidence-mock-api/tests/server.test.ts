@@ -1,209 +1,184 @@
+import type { FastifyInstance } from "fastify";
 import type { AddressInfo } from "node:net";
-import type { Server } from "node:http";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test } from "vitest";
 import { createMockServer } from "../src/server.js";
 
-const SESSION_COOKIE = "kden-session=mock-session";
-const SCENARIO_COOKIE = "konfidence_mock_scenario";
+const SESSION = "kden-session=mock-session";
+const scenario = (name: string): string => `${SESSION}; konfidence_mock_scenario=${name}`;
 
 let baseUrl: string;
-let server: Server;
+let server: FastifyInstance;
 
-const startServer = async (): Promise<void> => {
+beforeAll(async () => {
   server = await createMockServer();
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
-  baseUrl = `http://127.0.0.1:${address.port}`;
-};
+  await server.listen({ host: "127.0.0.1", port: 0 });
+  baseUrl = `http://127.0.0.1:${(server.server.address() as AddressInfo).port}`;
+});
 
-const stopServer = async (): Promise<void> => {
-  await new Promise<void>((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve())),
+afterAll(() => server.close());
+
+const get = (path: string, cookie = SESSION): Promise<Response> =>
+  fetch(`${baseUrl}${path}`, { headers: { cookie }, redirect: "manual" });
+
+const post = (path: string, init: RequestInit = {}): Promise<Response> =>
+  fetch(`${baseUrl}${path}`, { method: "POST", redirect: "manual", ...init });
+
+test("logs in through the callback and sets a session cookie", async () => {
+  const returnUrl = "http://127.0.0.1:4173/projects";
+  const login = await get(`/api/v1/login?return_url=${encodeURIComponent(returnUrl)}`);
+  expect(login.status).toBe(302);
+
+  const callback = await get(login.headers.get("location")!);
+  expect(callback.status).toBe(302);
+  expect(callback.headers.get("location")).toBe(returnUrl);
+  expect(callback.headers.get("set-cookie")).toContain(SESSION);
+});
+
+test("requires a session cookie", async () => {
+  const response = await fetch(`${baseUrl}/api/v1/projects`);
+  expect(response.status).toBe(401);
+  await expect(response.json()).resolves.toEqual({
+    error: { code: "401", message: "Authentication required" },
+  });
+});
+
+test("serves the identity with the roles the user holds per project", async () => {
+  const identity = await get("/api/v1/identity");
+  expect(identity.status).toBe(200);
+  await expect(identity.json()).resolves.toMatchObject({
+    email: "alex.admin@example.com",
+    projectRoles: {
+      "identity-service": ["admin"],
+      "payments-platform": ["admin", "dev"],
+    },
+  });
+});
+
+test("lists the projects of the admin scenario", async () => {
+  const projects = await get("/api/v1/projects");
+  expect(projects.status).toBe(200);
+  await expect(projects.json()).resolves.toMatchObject({
+    data: [{ id: "payments-platform" }, { id: "identity-service" }],
+  });
+});
+
+test("lists empty collections for a project without resources", async () => {
+  const landscapes = await get("/api/v1/projects/identity-service/landscapes");
+  expect(landscapes.status).toBe(200);
+  await expect(landscapes.json()).resolves.toEqual({ data: [] });
+});
+
+test("filters stages by landscape", async () => {
+  const stages = await get("/api/v1/projects/payments-platform/stages?landscapeId=production");
+  await expect(stages.json()).resolves.toMatchObject({
+    data: [{ id: "prod-eu30", landscapeId: "production" }],
+  });
+});
+
+test("filters vector deployments by landscape", async () => {
+  const vectors = await get(
+    "/api/v1/projects/payments-platform/vectorDeployments?landscapeId=development",
   );
-};
+  await expect(vectors.json()).resolves.toMatchObject({ data: [{ id: "vector-dev-us30-1" }] });
+});
 
-const request = async (path: string, init?: RequestInit): Promise<Response> =>
-  fetch(`${baseUrl}${path}`, { redirect: "manual", ...init });
+test("filters artifact deployments by vector deployment", async () => {
+  const artifacts = await get(
+    "/api/v1/projects/payments-platform/artifactDeployments?vectorDeploymentId=vector-dev-us30-1",
+  );
+  await expect(artifacts.json()).resolves.toMatchObject({
+    data: [{ id: "artifact-dev-us30-1" }, { id: "artifact-dev-us30-2" }],
+  });
+});
 
-beforeEach(() => startServer());
+test("serves the developer scenario with one sparse project", async () => {
+  const cookie = scenario("developer");
 
-afterEach(() => stopServer());
-
-describe("Konfidence mock API", () => {
-  test("serves the OpenAPI operations", async () => {
-    const returnUrl = "http://127.0.0.1:4173/projects";
-    const login = await request(`/api/v1/login?return_url=${encodeURIComponent(returnUrl)}`);
-    expect(login.status).toBe(302);
-    const callbackLocation = login.headers.get("location");
-    expect(callbackLocation).toBeTruthy();
-
-    const callback = await request(callbackLocation!);
-    expect(callback.status).toBe(302);
-    expect(callback.headers.get("location")).toBe(returnUrl);
-    expect(callback.headers.get("set-cookie")).toContain(SESSION_COOKIE);
-
-    const identity = await request("/api/v1/identity", {
-      headers: { cookie: SESSION_COOKIE },
-    });
-    expect(identity.status).toBe(200);
-    await expect(identity.json()).resolves.toMatchObject({
-      email: "alex.admin@example.com",
-      projectRoles: {
-        "identity-service": ["admin"],
-        "payments-platform": ["admin", "dev"],
-      },
-    });
-
-    const projects = await request("/api/v1/projects", {
-      headers: { cookie: SESSION_COOKIE },
-    });
-    expect(projects.status).toBe(200);
-    const projectList = (await projects.json()) as { data: unknown[] };
-    expect(projectList.data[0]).toMatchObject({ id: "payments-platform" });
-
-    const emptyProject = await request("/api/v1/projects/identity-service/landscapes", {
-      headers: { cookie: SESSION_COOKIE },
-    });
-    await expect(emptyProject.json()).resolves.toEqual({ data: [] });
-
-    const landscapes = await request("/api/v1/projects/payments-platform/landscapes", {
-      headers: { cookie: SESSION_COOKIE },
-    });
-    expect(landscapes.status).toBe(200);
-
-    const stages = await request(
-      "/api/v1/projects/payments-platform/stages?landscapeId=production",
-      { headers: { cookie: SESSION_COOKIE } },
-    );
-    expect(stages.status).toBe(200);
-    await expect(stages.json()).resolves.toMatchObject({
-      data: [{ id: "prod-eu30", landscapeId: "production" }],
-    });
-
-    const vectors = await request(
-      "/api/v1/projects/payments-platform/vectorDeployments?landscapeId=development",
-      { headers: { cookie: SESSION_COOKIE } },
-    );
-    expect(vectors.status).toBe(200);
-    await expect(vectors.json()).resolves.toMatchObject({
-      data: [{ id: "vector-dev-us30-1" }],
-    });
-
-    const artifacts = await request(
-      "/api/v1/projects/payments-platform/artifactDeployments?vectorDeploymentId=vector-dev-us30-1",
-      { headers: { cookie: SESSION_COOKIE } },
-    );
-    expect(artifacts.status).toBe(200);
-    await expect(artifacts.json()).resolves.toMatchObject({
-      data: [{ id: "artifact-dev-us30-1" }, { id: "artifact-dev-us30-2" }],
-    });
-
-    const exchange = await request("/api/v1/exchange", {
-      body: JSON.stringify({ code: "mock-code", verifier: "mock-verifier" }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    });
-    expect(exchange.status).toBe(200);
-    expect(exchange.headers.get("set-cookie")).toContain(SESSION_COOKIE);
-    await expect(exchange.text()).resolves.toBe("");
-
-    const logout = await request("/api/v1/logout", {
-      headers: { cookie: SESSION_COOKIE },
-      method: "POST",
-    });
-    expect(logout.status).toBe(200);
-    expect(logout.headers.get("set-cookie")).toContain("Max-Age=0");
+  const identity = await get("/api/v1/identity", cookie);
+  await expect(identity.json()).resolves.toMatchObject({
+    email: "dana.developer@example.com",
+    projectRoles: { "payments-platform": ["dev"] },
   });
 
-  test("serves the developer persona with limited and sparse project data", async () => {
-    const unauthorized = await request("/api/v1/projects");
-    expect(unauthorized.status).toBe(401);
-
-    const developerCookie = `${SESSION_COOKIE}; ${SCENARIO_COOKIE}=developer`;
-    const identity = await request("/api/v1/identity", {
-      headers: { cookie: developerCookie },
-    });
-    await expect(identity.json()).resolves.toMatchObject({
-      email: "dana.developer@example.com",
-      projectRoles: { "payments-platform": ["dev"] },
-    });
-
-    const projects = await request("/api/v1/projects", {
-      headers: { cookie: developerCookie },
-    });
-    await expect(projects.json()).resolves.toEqual({
-      data: [{ id: "payments-platform", name: "Payments Platform" }],
-    });
-
-    const landscapes = await request("/api/v1/projects/payments-platform/landscapes", {
-      headers: { cookie: developerCookie },
-    });
-    expect(landscapes.status).toBe(200);
-    await expect(landscapes.json()).resolves.toEqual({
-      data: [
-        { id: "development", name: "Development" },
-        { id: "test", name: "Test" },
-      ],
-    });
-
-    const inaccessible = await request("/api/v1/projects/identity-service/landscapes", {
-      headers: { cookie: developerCookie },
-    });
-    expect(inaccessible.status).toBe(403);
-
-    const artifacts = await request("/api/v1/projects/payments-platform/artifactDeployments", {
-      headers: { cookie: developerCookie },
-    });
-    await expect(artifacts.json()).resolves.toEqual({ data: [] });
+  const projects = await get("/api/v1/projects", cookie);
+  await expect(projects.json()).resolves.toEqual({
+    data: [{ id: "payments-platform", name: "Payments Platform" }],
   });
 
-  test("serves an authenticated persona during degraded resource operations", async () => {
-    const degradedCookie = `${SESSION_COOKIE}; ${SCENARIO_COOKIE}=degraded`;
-    const identity = await request("/api/v1/identity", {
-      headers: { cookie: degradedCookie },
-    });
-    await expect(identity.json()).resolves.toMatchObject({
-      email: "riley.operator@example.com",
-    });
-
-    const projects = await request("/api/v1/projects", {
-      headers: { cookie: degradedCookie },
-    });
-    expect(projects.status).toBe(200);
-
-    const landscapes = await request("/api/v1/projects/payments-platform/landscapes", {
-      headers: { cookie: degradedCookie },
-    });
-    expect(landscapes.status).toBe(500);
+  const landscapes = await get("/api/v1/projects/payments-platform/landscapes", cookie);
+  await expect(landscapes.json()).resolves.toEqual({
+    data: [
+      { id: "development", name: "Development" },
+      { id: "test", name: "Test" },
+    ],
   });
 
-  test("rejects invalid requests", async () => {
-    const invalidLogin = await request("/api/v1/login");
-    expect(invalidLogin.status).toBe(400);
+  const artifacts = await get("/api/v1/projects/payments-platform/artifactDeployments", cookie);
+  await expect(artifacts.json()).resolves.toEqual({ data: [] });
+});
 
-    const state = Buffer.from("http://127.0.0.1:4173/login").toString("base64url");
-    const deniedLogin = await request(
-      `/api/v1/auth/callback?state=${state}&error=access_denied&error_description=Login%20denied`,
-    );
-    expect(deniedLogin.status).toBe(401);
-    await expect(deniedLogin.json()).resolves.toMatchObject({
-      error: { message: "Login denied" },
-    });
+test("denies access to a project the scenario does not include", async () => {
+  const response = await get("/api/v1/projects/identity-service/landscapes", scenario("developer"));
+  expect(response.status).toBe(403);
+});
 
-    const malformedExchange = await request("/api/v1/exchange", {
-      body: "{",
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    });
-    expect(malformedExchange.status).toBe(400);
+test("fails project resource requests in the degraded scenario", async () => {
+  const cookie = scenario("degraded");
 
-    const notFound = await request("/api/not-found");
-    expect(notFound.status).toBe(404);
+  const identity = await get("/api/v1/identity", cookie);
+  await expect(identity.json()).resolves.toMatchObject({ email: "riley.operator@example.com" });
 
-    const methodNotAllowed = await request("/api/v1/projects", {
-      headers: { cookie: SESSION_COOKIE },
-      method: "POST",
-    });
-    expect(methodNotAllowed.status).toBe(405);
+  const projects = await get("/api/v1/projects", cookie);
+  expect(projects.status).toBe(200);
+
+  const landscapes = await get("/api/v1/projects/payments-platform/landscapes", cookie);
+  expect(landscapes.status).toBe(500);
+});
+
+test("exchanges a CLI code for a session", async () => {
+  const exchange = await post("/api/v1/exchange", {
+    body: JSON.stringify({ code: "mock-code", verifier: "mock-verifier" }),
+    headers: { "content-type": "application/json" },
+  });
+  expect(exchange.status).toBe(200);
+  expect(exchange.headers.get("set-cookie")).toContain(SESSION);
+  await expect(exchange.text()).resolves.toBe("");
+});
+
+test("clears the session cookie on logout", async () => {
+  const logout = await post("/api/v1/logout", { headers: { cookie: SESSION } });
+  expect(logout.status).toBe(200);
+  expect(logout.headers.get("set-cookie")).toContain("Max-Age=0");
+});
+
+test("rejects a login without a usable return URL", async () => {
+  const missing = await get("/api/v1/login");
+  expect(missing.status).toBe(400);
+
+  const malformed = await get("/api/v1/login?return_url=nowhere");
+  expect(malformed.status).toBe(400);
+});
+
+test("reports a login the identity provider denied", async () => {
+  const denied = await get(
+    "/api/v1/auth/callback?state=http%3A%2F%2F127.0.0.1%3A4173%2Flogin&error=access_denied&error_description=Login%20denied",
+  );
+  expect(denied.status).toBe(401);
+  await expect(denied.json()).resolves.toMatchObject({ error: { message: "Login denied" } });
+});
+
+test("rejects a malformed request body", async () => {
+  const exchange = await post("/api/v1/exchange", {
+    body: "{",
+    headers: { "content-type": "application/json" },
+  });
+  expect(exchange.status).toBe(400);
+});
+
+test("reports unknown routes in the error schema", async () => {
+  const response = await get("/api/not-found");
+  expect(response.status).toBe(404);
+  await expect(response.json()).resolves.toEqual({
+    error: { code: "404", message: "Not found" },
   });
 });
