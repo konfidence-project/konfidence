@@ -71,3 +71,7 @@ func (s *Session) ApplyOIDCValues(subject string, claims oidc.IDTokenAdditionalC
 	s.RefreshToken = refreshToken
 	s.TokenExpiry = UnixExpiry(tokenExpiry)
 }
+
+func (c *Context) IsAuthenticatedForProject(projectId string) bool {
+	return len(c.ProjectRoles[projectId]) > 0
+}

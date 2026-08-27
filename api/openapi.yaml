@@ -258,6 +258,99 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/projects/{projectId}/vectorPromotionConfigs:
+    get:
+      operationId: listVectorPromotionConfigsV1
+      summary: List all vectorPromotionConfigs for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+      description: Returns all vectorPromotionConfigs resources for a project.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VectorPromotionConfigList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/projects/{projectId}/vectorPromotionConfigs/{vectorPromotionConfigId}:
+    get:
+      operationId: getVectorPromotionConfigV1
+      summary: Get a single vectorPromotionConfig for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/VectorPromotionConfigPathId"
+      description: Returns a  vectorPromotionConfig resources for a project.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VectorPromotionConfig"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve:
+    post:
+      operationId: approveVectorPromotionV1
+      summary: Approves the given vectorPromotion for the specified project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/VectorPromotionPathId"
+      tags: [projects]
+      responses:
+        "204":
+          description: VectorPromotion successfully approved.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}:
+    get:
+      operationId: getVectorPromotionV1
+      summary: Get a single vectorPromotion for a project.
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/VectorPromotionPathId"
+      description: Returns a single vectorPromotion resource for a project.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VectorPromotion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+
   /v1/projects/{projectId}/artifactDeployments:
     get:
       operationId: listArtifactDeploymentsV1
@@ -304,6 +397,20 @@ components:
       description: Landscape Id
       schema:
         type: string
+    VectorPromotionPathId:
+      name: vectorPromotionId
+      in: path
+      required: true
+      description: VectorPromotion Id
+      schema:
+        type: string
+    VectorPromotionConfigPathId:
+      name: vectorPromotionConfigId
+      in: path
+      required: true
+      description: VectorPromotionConfig Id
+      schema:
+        type: string
     LandscapeQueryId:
       name: landscapeId
       in: query
@@ -318,6 +425,7 @@ components:
       description: Filter by vectorDeploymentId
       schema:
         type: string
+
 
   schemas:
     ProjectList:
@@ -420,6 +528,87 @@ components:
           enum: [ArtifactFetched, ArtifactDeployed]
           description: The artifactDeployment status
 
+    VectorPromotionConfigList:
+      type: object
+      required: [ data ]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/VectorPromotionConfig"
+
+    VectorPromotionConfig:
+      type: object
+      required: [ id, source, target, promotions ]
+      properties:
+        id:
+          $ref: "#/components/schemas/VectorPromotionConfigId"
+        source:
+          $ref: "#/components/schemas/PromotionSourceReference"
+        target:
+          $ref: "#/components/schemas/PromotionTargetReference"
+        ttlAfterFinished:
+          type: string
+        keepLastPromotions:
+          type: integer
+        promotions:
+          type: array
+          items:
+            $ref: "#/components/schemas/VectorPromotion"
+
+    VectorPromotion:
+      type: object
+      required: [ id, source, target, vector ]
+      properties:
+        id:
+          $ref: "#/components/schemas/VectorPromotionId"
+        source:
+          $ref: "#/components/schemas/PromotionSourceReference"
+        target:
+          $ref: "#/components/schemas/PromotionTargetReference"
+        vector:
+          type: string
+        status:
+          type: string
+          enum: [Waiting, Ready, InProgress, Blocked, Succeeded, Failed, Superseded]
+        requireApproval:
+          type: boolean
+        ttlAfterFinished:
+          type: string
+        sequence:
+          type: integer
+          format: int64
+
+    PromotionSourceReference:
+      type: object
+      required: [ kind, name ]
+      properties:
+        kind:
+          type: string
+          enum: [ Stage, VectorTemplate ]
+          description: Promotion source kind
+        name:
+          type: string
+          description: Promotion source name
+        landscape:
+          type: string
+          description: Promotion source landscape
+
+    PromotionTargetReference:
+      type: object
+      required: [ kind, name, landscape ]
+      properties:
+        kind:
+          type: string
+          enum: [Stage]
+          description: Promotion target kind
+        name:
+          type: string
+          description: Promotion target name
+        landscape:
+          type: string
+          description: Promotion target landscape
+
     StageVersion:
       type: object
       required: [id, vector, stageGeneration, active, status]
@@ -516,6 +705,14 @@ components:
     ArtifactDeploymentId:
       type: string
       description: The artifactDeployment id
+
+    VectorPromotionConfigId:
+      type: string
+      description: The vectorPromotionConfig id
+
+    VectorPromotionId:
+      type: string
+      description: The vectorPromotion id
 
     StageId:
       type: string
