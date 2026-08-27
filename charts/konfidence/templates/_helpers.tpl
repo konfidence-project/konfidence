@@ -19,20 +19,38 @@
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "konfidence.labels" -}}
+{{- define "konfidence.baseLabels" -}}
 helm.sh/chart: {{ include "konfidence.chart" . }}
 app.kubernetes.io/name: {{ include "konfidence.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/part-of: konfidence
-app.kubernetes.io/component: controller
 {{- end -}}
 
-{{- define "konfidence.selectorLabels" -}}
+{{- define "konfidence.baseSelectorLabels" -}}
 app.kubernetes.io/name: {{ include "konfidence.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: controller
+{{- end -}}
+
+{{- define "konfidence.operatorLabels" -}}
+{{ include "konfidence.baseLabels" . }}
+app.kubernetes.io/component: operator
+{{- end -}}
+
+{{- define "konfidence.operatorSelectorLabels" -}}
+{{ include "konfidence.baseSelectorLabels" . }}
+app.kubernetes.io/component: operator
+{{- end -}}
+
+{{- define "konfidence.apiLabels" -}}
+{{ include "konfidence.baseLabels" . }}
+app.kubernetes.io/component: api
+{{- end -}}
+
+{{- define "konfidence.apiSelectorLabels" -}}
+{{ include "konfidence.baseSelectorLabels" . }}
+app.kubernetes.io/component: api
 {{- end -}}
 
 {{- define "konfidence.serviceAccountName" -}}

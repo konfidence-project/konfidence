@@ -52,7 +52,7 @@ while IFS= read -r line; do
     echo "  name: {{ include \"$CHART.fullname\" . }}-validating-webhook-configuration" >> "$DST"
     # Add labels after name
     echo "  labels:" >> "$DST"
-    echo "    {{- include \"$CHART.labels\" . | nindent 4 }}" >> "$DST"
+    echo "    {{- include \"$CHART.operatorLabels\" . | nindent 4 }}" >> "$DST"
     echo "    {{- with .Values.webhook.labels }}" >> "$DST"
     echo "    {{- toYaml . | nindent 4 }}" >> "$DST"
     echo "    {{- end }}" >> "$DST"

@@ -5,7 +5,7 @@ metadata:
   name: {{ include "konfidence.fullname" . }}-metrics
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
+    {{- include "konfidence.operatorLabels" . | nindent 4 }}
     konfidence.cloud/service: metrics
 spec:
   type: ClusterIP
@@ -15,5 +15,5 @@ spec:
       targetPort: metrics
       protocol: TCP
   selector:
-    {{- include "konfidence.selectorLabels" . | nindent 4 }}
+    {{- include "konfidence.operatorSelectorLabels" . | nindent 4 }}
 {{- end }}

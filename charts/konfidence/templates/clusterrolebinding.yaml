@@ -4,7 +4,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ include "konfidence.fullname" . }}-manager
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
+    {{- include "konfidence.operatorLabels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -21,8 +21,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ include "konfidence.fullname" . }}-api
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
-    app.kubernetes.io/component: api
+    {{- include "konfidence.apiLabels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

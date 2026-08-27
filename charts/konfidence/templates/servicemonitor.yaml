@@ -5,7 +5,7 @@ metadata:
   name: {{ include "konfidence.fullname" . }}
   namespace: {{ default .Release.Namespace .Values.serviceMonitor.namespace }}
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
+    {{- include "konfidence.operatorLabels" . | nindent 4 }}
     {{- with .Values.serviceMonitor.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

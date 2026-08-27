@@ -5,19 +5,16 @@ metadata:
   name: {{ include "konfidence.fullname" . }}-api
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
-    app.kubernetes.io/component: api
+    {{- include "konfidence.apiLabels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.api.replicas }}
   selector:
     matchLabels:
-      {{- include "konfidence.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: api
+      {{- include "konfidence.apiSelectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "konfidence.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: api
+        {{- include "konfidence.apiSelectorLabels" . | nindent 8 }}
         {{- with .Values.api.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
