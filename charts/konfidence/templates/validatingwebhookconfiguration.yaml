@@ -4,7 +4,7 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: {{ include "konfidence.fullname" . }}-validating-webhook-configuration
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
+    {{- include "konfidence.operatorLabels" . | nindent 4 }}
     {{- with .Values.webhook.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

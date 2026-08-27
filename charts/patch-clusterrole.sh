@@ -31,7 +31,7 @@ fi
 mkdir -p "$(dirname "$DST")"
 
 NAME_TEMPLATE="{{ include \"${CHART}.fullname\" . }}-manager"
-LABEL_INCLUDE="{{- include \"${CHART}.labels\" . | nindent 4 }}"
+LABEL_INCLUDE="{{- include \"${CHART}.operatorLabels\" . | nindent 4 }}"
 
 # controller-gen emits a single ClusterRole document with `metadata:` ->
 # `name: <chart>-manager`. Replace the literal name with the fullname

@@ -4,8 +4,7 @@ kind: ClusterRole
 metadata:
   name: {{ include "konfidence.fullname" . }}-api
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
-    app.kubernetes.io/component: api
+    {{- include "konfidence.apiLabels" . | nindent 4 }}
 rules:
 - apiGroups: [""]
   resources: [namespaces, secrets, configmaps]

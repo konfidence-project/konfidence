@@ -5,16 +5,16 @@ metadata:
   name: {{ include "konfidence.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
+    {{- include "konfidence.operatorLabels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
-      {{- include "konfidence.selectorLabels" . | nindent 6 }}
+      {{- include "konfidence.operatorSelectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "konfidence.selectorLabels" . | nindent 8 }}
+        {{- include "konfidence.operatorSelectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

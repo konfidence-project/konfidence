@@ -5,7 +5,7 @@ metadata:
   name: {{ include "konfidence.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
+    {{- include "konfidence.operatorLabels" . | nindent 4 }}
 spec:
   {{- if ne .Values.podDisruptionBudget.minAvailable nil }}
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
@@ -16,5 +16,5 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "konfidence.selectorLabels" . | nindent 6 }}
+      {{- include "konfidence.operatorSelectorLabels" . | nindent 6 }}
 {{- end }}

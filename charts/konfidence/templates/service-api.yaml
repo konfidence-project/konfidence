@@ -5,8 +5,7 @@ metadata:
   name: {{ include "konfidence.fullname" . }}-api
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "konfidence.labels" . | nindent 4 }}
-    app.kubernetes.io/component: api
+    {{- include "konfidence.apiLabels" . | nindent 4 }}
     konfidence.cloud/service: api
   {{- with .Values.api.service.annotations }}
   annotations:
@@ -23,6 +22,5 @@ spec:
       nodePort: {{ .Values.api.service.nodePort }}
       {{- end }}
   selector:
-    {{- include "konfidence.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: api
+    {{- include "konfidence.apiSelectorLabels" . | nindent 4 }}
 {{- end }}
