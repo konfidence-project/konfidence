@@ -17,7 +17,11 @@
     "verify": "pnpm api:check && pnpm check && pnpm lint && pnpm fmt:check"
   },
   "dependencies": {
-    "openapi-backend": "^5.20.0"
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
+    "fastify": "^5.12.1",
+    "fastify-openapi-glue": "^4.11.4"
   },
   "devDependencies": {
     "@types/node": "26.1.1",

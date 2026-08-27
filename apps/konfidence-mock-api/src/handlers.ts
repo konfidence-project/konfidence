@@ -1,5 +1,4 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Context } from "openapi-backend";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { scenarios, type ProjectFixture, type ScenarioFixture } from "./fixtures.js";
 import type { operations } from "./generated/schema.js";
 
@@ -7,163 +6,100 @@ const SESSION_COOKIE = "kden-session";
 const SCENARIO_COOKIE = "konfidence_mock_scenario";
 const MOCK_SESSION = "mock-session";
 const MOCK_CODE = "mock-code";
+const COOKIE_OPTIONS = { httpOnly: true, path: "/", sameSite: "lax" } as const;
 
-interface MockResponse {
-  body?: unknown;
-  headers?: Record<string, string>;
-  status: number;
-}
+type Query<Name extends keyof operations> = NonNullable<operations[Name]["parameters"]["query"]>;
+type MockHandler = (request: FastifyRequest, reply: FastifyReply) => FastifyReply;
 
-type MockHandler = (context: Context) => MockResponse;
+// Thrown errors carry the status the error handler in server.ts reports.
+const httpError = (status: number, message: string): Error =>
+  Object.assign(new Error(message), { statusCode: status });
 
-const jsonResponse = (status: number, body: unknown): MockResponse => ({ body, status });
-const errorResponse = (status: number, message: string): MockResponse =>
-  jsonResponse(status, { error: { code: String(status), message } });
-
-const writeResponse = (response: ServerResponse, mockResponse: MockResponse): void => {
-  const headers = { ...mockResponse.headers };
-  if (mockResponse.body !== undefined) {
-    headers["Content-Type"] = "application/json";
-  }
-  response.writeHead(mockResponse.status, headers);
-  response.end(mockResponse.body === undefined ? undefined : JSON.stringify(mockResponse.body));
-};
-
-const parseUrl = (value: string): URL | undefined => {
+const absoluteUrl = (value: string | undefined, whenInvalid: string): string => {
   try {
-    return new URL(value);
+    return new URL(String(value)).href;
   } catch {
-    return undefined;
+    throw httpError(400, whenInvalid);
   }
 };
 
-const scenarioFrom = (context: Context): ScenarioFixture => {
-  switch (context.request.cookies[SCENARIO_COOKIE]) {
-    case "degraded": {
-      return scenarios.degraded;
-    }
-    case "developer": {
-      return scenarios.developer;
-    }
-    default: {
-      return scenarios.admin;
-    }
-  }
-};
+const inLandscape = <Item extends { landscapeId?: string }>(
+  items: Item[],
+  landscapeId?: string,
+): Item[] => items.filter((item) => !landscapeId || item.landscapeId === landscapeId);
 
-const withProject = (
-  context: Context,
-  handle: (project: ProjectFixture) => MockResponse,
-): MockResponse => {
-  const scenario = scenarioFrom(context);
+const scenarioFor = (request: FastifyRequest): ScenarioFixture =>
+  scenarios[request.cookies[SCENARIO_COOKIE] as keyof typeof scenarios] ?? scenarios.admin;
+
+const projectFor = (request: FastifyRequest): ProjectFixture => {
+  const scenario = scenarioFor(request);
   if (scenario.resourcesUnavailable) {
-    return errorResponse(500, "Mock API unavailable");
+    throw httpError(500, "Mock API unavailable");
   }
-  const projectId = String(context.request.params.projectId);
-  const project = scenario.projects.find((item) => item.project.id === projectId);
-  return project ? handle(project) : errorResponse(403, "Access denied");
+  const { projectId } = request.params as { projectId: string };
+  const found = scenario.projects.find(({ project }) => project.id === projectId);
+  if (!found) {
+    throw httpError(403, "Access denied");
+  }
+  return found;
 };
 
 const operationHandlers = {
-  authCallbackV1: (context) => {
-    const { error, error_description: errorDescription } = context.request.query;
+  authCallbackV1: (request, reply) => {
+    const {
+      error,
+      error_description: description,
+      state,
+    } = request.query as Query<"authCallbackV1">;
     if (error) {
-      return errorResponse(401, String(errorDescription ?? error));
+      throw httpError(401, description ?? error);
     }
-    const returnUrl = parseUrl(
-      Buffer.from(String(context.request.query.state), "base64url").toString("utf8"),
-    );
-    if (!returnUrl) {
-      return errorResponse(400, "Invalid authentication state");
-    }
-    return {
-      headers: {
-        Location: returnUrl.href,
-        "Set-Cookie": `${SESSION_COOKIE}=${MOCK_SESSION}; Path=/; HttpOnly; SameSite=Lax`,
-      },
-      status: 302,
-    };
+    return reply
+      .setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS)
+      .redirect(absoluteUrl(state, "Invalid authentication state"));
   },
-  getIdentityV1: (context) => {
-    const scenario = scenarioFrom(context);
+  getIdentityV1: (request, reply) => {
+    const { projects, user } = scenarioFor(request);
     const projectRoles = Object.fromEntries(
-      scenario.projects.map(({ project, roles }) => [project.id, roles]),
+      projects.map(({ project, roles }) => [project.id, roles]),
     );
-    return jsonResponse(200, { ...scenario.user, projectRoles });
+    return reply.send({ ...user, projectRoles });
   },
-  listArtifactDeploymentsV1: (context) =>
-    withProject(context, (project) => {
-      const { landscapeId, vectorDeploymentId } = context.request.query;
-      const data = project.artifactDeployments.filter(
-        (deployment) =>
-          (!landscapeId || deployment.landscapeId === landscapeId) &&
-          (!vectorDeploymentId ||
-            deployment.vectorDeploymentIds.includes(String(vectorDeploymentId))),
-      );
-      return jsonResponse(200, { data });
-    }),
-  listLandscapesV1: (context) =>
-    withProject(context, (project) => jsonResponse(200, { data: project.landscapes })),
-  listProjectsV1: (context) => {
-    const projects = scenarioFrom(context).projects.map(({ project }) => project);
-    return jsonResponse(200, { data: projects });
+  listArtifactDeploymentsV1: (request, reply) => {
+    const { landscapeId, vectorDeploymentId } = request.query as Query<"listArtifactDeploymentsV1">;
+    const data = inLandscape(projectFor(request).artifactDeployments, landscapeId).filter(
+      (deployment) =>
+        !vectorDeploymentId || deployment.vectorDeploymentIds.includes(vectorDeploymentId),
+    );
+    return reply.send({ data });
   },
-  listStagesV1: (context) =>
-    withProject(context, (project) => {
-      const { landscapeId } = context.request.query;
-      const data = project.stages.filter(
-        (stage) => !landscapeId || stage.landscapeId === landscapeId,
-      );
-      return jsonResponse(200, { data });
-    }),
-  listVectorDeploymentsV1: (context) =>
-    withProject(context, (project) => {
-      const { landscapeId } = context.request.query;
-      const data = project.vectorDeployments.filter(
-        (deployment) => !landscapeId || deployment.landscapeId === landscapeId,
-      );
-      return jsonResponse(200, { data });
-    }),
-  loginV1: (context) => {
-    const returnUrl = parseUrl(String(context.request.query.return_url));
-    if (!returnUrl) {
-      return errorResponse(400, "Invalid return URL");
-    }
-    const state = Buffer.from(returnUrl.href).toString("base64url");
-    return {
-      headers: {
-        Location: `/api/v1/auth/callback?code=${MOCK_CODE}&state=${encodeURIComponent(state)}`,
-      },
-      status: 302,
-    };
+  listLandscapesV1: (request, reply) => reply.send({ data: projectFor(request).landscapes }),
+  listProjectsV1: (request, reply) =>
+    reply.send({ data: scenarioFor(request).projects.map(({ project }) => project) }),
+  listStagesV1: (request, reply) => {
+    const { landscapeId } = request.query as Query<"listStagesV1">;
+    return reply.send({ data: inLandscape(projectFor(request).stages, landscapeId) });
   },
-  logoutV1: () => ({
-    headers: {
-      "Set-Cookie": `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
-    },
-    status: 200,
-  }),
-  postExchangeCodeV1: () => ({
-    headers: {
-      "Set-Cookie": `${SESSION_COOKIE}=${MOCK_SESSION}; Path=/; HttpOnly; SameSite=Lax`,
-    },
-    status: 200,
-  }),
+  listVectorDeploymentsV1: (request, reply) => {
+    const { landscapeId } = request.query as Query<"listVectorDeploymentsV1">;
+    return reply.send({ data: inLandscape(projectFor(request).vectorDeployments, landscapeId) });
+  },
+  loginV1: (request, reply) => {
+    const { return_url: returnUrl } = request.query as Query<"loginV1">;
+    const state = encodeURIComponent(absoluteUrl(returnUrl, "Invalid return URL"));
+    return reply.redirect(`/api/v1/auth/callback?code=${MOCK_CODE}&state=${state}`);
+  },
+  logoutV1: (_request, reply) => reply.clearCookie(SESSION_COOKIE, COOKIE_OPTIONS).send(),
+  postExchangeCodeV1: (_request, reply) =>
+    reply.setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS).send(),
 } satisfies Record<keyof operations, MockHandler>;
 
-const isAuthenticated = (context: Context): boolean =>
-  context.request.cookies[SESSION_COOKIE] === MOCK_SESSION;
-
-const handlers = {
-  ...operationHandlers,
-  methodNotAllowed: () => errorResponse(405, "Method not allowed"),
-  notFound: () => errorResponse(404, "Not found"),
-  postResponseHandler: (context: Context, _request: IncomingMessage, response: ServerResponse) =>
-    writeResponse(response, context.response as MockResponse),
-  unauthorizedHandler: () => errorResponse(401, "Authentication required"),
-  validationFail: () => errorResponse(400, "Invalid request"),
+const securityHandlers = {
+  sessionCookie: (request: FastifyRequest): void => {
+    if (request.cookies[SESSION_COOKIE] !== MOCK_SESSION) {
+      throw httpError(401, "Authentication required");
+    }
+  },
 };
 
-const securityHandlers = { sessionCookie: isAuthenticated };
-
-export { errorResponse, handlers, securityHandlers, writeResponse };
+export { operationHandlers, securityHandlers };

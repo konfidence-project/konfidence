@@ -22,97 +22,78 @@ interface ScenarioFixture {
   user: Omit<Identity, "projectRoles">;
 }
 
+const REPOSITORY = "ghcr.io/konfidence/mock";
+
 const paymentsProject = { id: "payments-platform", name: "Payments Platform" } satisfies Project;
 const identityProject = { id: "identity-service", name: "Identity Service" } satisfies Project;
 
-const landscapes = [
-  { id: "development", name: "Development" },
-  { id: "test", name: "Test" },
-  { id: "production", name: "Production" },
-] satisfies Landscape[];
+// One row per landscape, each with the single stage it holds and the vector deployed there.
+const rows = [
+  {
+    generation: 5,
+    landscape: "development",
+    landscapeName: "Development",
+    stage: "dev-us30",
+    stageName: "Development US",
+    vectorStatus: "ArtifactDeploymentCreated",
+    version: "2026.8.5",
+  },
+  {
+    generation: 4,
+    landscape: "test",
+    landscapeName: "Test",
+    stage: "test-eu20",
+    stageName: "Test EU",
+    vectorStatus: "ArtifactDeploymentCreated",
+    version: "2026.8.4",
+  },
+  {
+    generation: 3,
+    landscape: "production",
+    landscapeName: "Production",
+    stage: "prod-eu30",
+    stageName: "Production EU",
+    vectorStatus: "VectorDownloaded",
+    version: "2026.8.3",
+  },
+] as const;
 
-const stages = [
-  {
-    id: "dev-us30",
-    landscapeId: "development",
-    name: "Development US",
-    targetStageVersion: {
-      active: true,
-      id: "dev-us30-v5",
-      stageGeneration: 5,
-      status: "DeploymentCreated",
-      vector: "ghcr.io/konfidence/mock//delivery-vector:2026.8.5",
-    },
-  },
-  {
-    id: "test-eu20",
-    landscapeId: "test",
-    name: "Test EU",
-    targetStageVersion: {
-      active: true,
-      id: "test-eu20-v4",
-      stageGeneration: 4,
-      status: "DeploymentCreated",
-      vector: "ghcr.io/konfidence/mock//delivery-vector:2026.8.4",
-    },
-  },
-  {
-    id: "prod-eu30",
-    landscapeId: "production",
-    name: "Production EU",
-    targetStageVersion: {
-      active: true,
-      id: "prod-eu30-v3",
-      stageGeneration: 3,
-      status: "DeploymentCreated",
-      vector: "ghcr.io/konfidence/mock//delivery-vector:2026.8.3",
-    },
-  },
-] satisfies Stage[];
+const landscapes: Landscape[] = rows.map((row) => ({ id: row.landscape, name: row.landscapeName }));
 
-const vectorDeployments = [
-  {
-    id: "vector-dev-us30-1",
-    landscapeId: "development",
-    stageId: "dev-us30",
-    status: "ArtifactDeploymentCreated",
-    vector: {
-      componentName: "delivery-vector",
-      componentVersion: "2026.8.5",
-      repository: "ghcr.io/konfidence/mock",
-    },
+const stages: Stage[] = rows.map((row) => ({
+  id: row.stage,
+  landscapeId: row.landscape,
+  name: row.stageName,
+  targetStageVersion: {
+    active: true,
+    id: `${row.stage}-v${row.generation}`,
+    stageGeneration: row.generation,
+    status: "DeploymentCreated",
+    vector: `${REPOSITORY}//delivery-vector:${row.version}`,
   },
-  {
-    id: "vector-test-eu20-1",
-    landscapeId: "test",
-    stageId: "test-eu20",
-    status: "ArtifactDeploymentCreated",
-    vector: {
-      componentName: "delivery-vector",
-      componentVersion: "2026.8.4",
-      repository: "ghcr.io/konfidence/mock",
-    },
-  },
-  {
-    id: "vector-prod-eu30-1",
-    landscapeId: "production",
-    stageId: "prod-eu30",
-    status: "VectorDownloaded",
-    vector: {
-      componentName: "delivery-vector",
-      componentVersion: "2026.8.3",
-      repository: "ghcr.io/konfidence/mock",
-    },
-  },
-] satisfies VectorDeployment[];
+}));
 
-const artifactDeployments = [
+const vectorDeployments: VectorDeployment[] = rows.map((row) => ({
+  id: `vector-${row.stage}-1`,
+  landscapeId: row.landscape,
+  stageId: row.stage,
+  status: row.vectorStatus,
+  vector: {
+    componentName: "delivery-vector",
+    componentVersion: row.version,
+    repository: REPOSITORY,
+  },
+}));
+
+const component = (componentName: string, componentVersion: string) => ({
+  componentName,
+  componentVersion,
+  repository: REPOSITORY,
+});
+
+const artifactDeployments: ArtifactDeployment[] = [
   {
-    artifact: {
-      componentName: "payments-api",
-      componentVersion: "3.4.1",
-      repository: "ghcr.io/konfidence/mock",
-    },
+    artifact: component("payments-api", "3.4.1"),
     id: "artifact-dev-us30-1",
     landscapeId: "development",
     stageIds: ["dev-us30"],
@@ -120,11 +101,7 @@ const artifactDeployments = [
     vectorDeploymentIds: ["vector-dev-us30-1"],
   },
   {
-    artifact: {
-      componentName: "payments-ui",
-      componentVersion: "2.7.0",
-      repository: "ghcr.io/konfidence/mock",
-    },
+    artifact: component("payments-ui", "2.7.0"),
     id: "artifact-dev-us30-2",
     landscapeId: "development",
     stageIds: ["dev-us30"],
@@ -132,41 +109,37 @@ const artifactDeployments = [
     vectorDeploymentIds: ["vector-dev-us30-1"],
   },
   {
-    artifact: {
-      componentName: "payments-api",
-      componentVersion: "3.4.0",
-      repository: "ghcr.io/konfidence/mock",
-    },
+    artifact: component("payments-api", "3.4.0"),
     id: "artifact-test-eu20-1",
     landscapeId: "test",
     stageIds: ["test-eu20"],
     status: "ArtifactDeployed",
     vectorDeploymentIds: ["vector-test-eu20-1"],
   },
-] satisfies ArtifactDeployment[];
+];
 
-const populatedProject = {
+const populatedProject: ProjectFixture = {
   artifactDeployments,
   landscapes,
   project: paymentsProject,
   roles: ["admin", "dev"],
   stages,
   vectorDeployments,
-} satisfies ProjectFixture;
+};
+
+const emptyProject = (project: Project, roles: string[]): ProjectFixture => ({
+  artifactDeployments: [],
+  landscapes: [],
+  project,
+  roles,
+  stages: [],
+  vectorDeployments: [],
+});
 
 const scenarios = {
+  // A multi-project administrator: one populated project plus one that has nothing yet.
   admin: {
-    projects: [
-      populatedProject,
-      {
-        artifactDeployments: [],
-        landscapes: [],
-        project: identityProject,
-        roles: ["admin"],
-        stages: [],
-        vectorDeployments: [],
-      },
-    ],
+    projects: [populatedProject, emptyProject(identityProject, ["admin"])],
     user: {
       email: "alex.admin@example.com",
       familyName: "Admin",
@@ -174,6 +147,7 @@ const scenarios = {
       name: "Alex Admin",
     },
   },
+  // An authenticated operator for whom every project resource request fails.
   degraded: {
     projects: [populatedProject],
     resourcesUnavailable: true,
@@ -184,13 +158,12 @@ const scenarios = {
       name: "Riley Operator",
     },
   },
+  // A developer with a single sparse project and no access to production.
   developer: {
     projects: [
       {
-        artifactDeployments: [],
+        ...emptyProject(paymentsProject, ["dev"]),
         landscapes: landscapes.filter(({ id }) => id !== "production"),
-        project: paymentsProject,
-        roles: ["dev"],
         stages: stages.slice(0, 1),
         vectorDeployments: vectorDeployments.slice(0, 1),
       },
