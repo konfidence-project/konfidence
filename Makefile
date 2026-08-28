@@ -129,7 +129,11 @@ docs-cli: hermit ## Generate kden CLI reference into api/docs/cli.md.
 check-generate: docs ## Verify all API references in api/docs/ are committed and up to date.
 	@hack/check-generate.sh
 
-.PHONY: generate-mocks
+.PHONY: check-manifests
+check-manifests: manifests ## Verify committed manifests (CRDs, RBAC, webhook) are in sync with Go types.
+	@hack/check-manifests.sh
+
+
 generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
 	go generate ./...
 

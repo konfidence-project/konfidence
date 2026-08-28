@@ -13,6 +13,12 @@ repos:
         - id: conventional-pre-commit
   -   repo: local
       hooks:
+        - id: check-manifests
+          name: make check-manifests
+          entry: make check-manifests
+          language: system
+          pass_filenames: false
+          files: ^api/v1alpha1/.*\.go$
         - id: check-generate
           name: make check-generate
           entry: make check-generate
