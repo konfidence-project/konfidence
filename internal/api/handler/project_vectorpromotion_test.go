@@ -20,14 +20,14 @@ func expectAPIError(resp any, err error, status int) {
 	GinkgoHelper()
 	Expect(resp).To(BeNil())
 	apiErr := apierror.As(err)
-	Expect(apiErr).NotTo(BeNil(), "expected an *apierror.Error")
+	Expect(apiErr).To(HaveOccurred(), "expected an *apierror.Error")
 	Expect(apiErr.Status).To(Equal(status))
 }
 
 var _ = Describe("GetVectorPromotionV1", func() {
 	It("returns the promotion with its mapped fields", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		promo := vectorPromotionFixture("promo-1", "kden-p-my-project", "cfg", 7)
+		promo := vectorPromotionFixture("promo-1", "cfg", 7)
 		h := newProjectHandlerForTest(project, promo)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
@@ -51,7 +51,7 @@ var _ = Describe("GetVectorPromotionV1", func() {
 
 	It("includes approval metadata when the promotion has been approved", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		promo := vectorPromotionFixture("promo-1", "kden-p-my-project", "cfg", 1)
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		// Use a fixed time with zero nanoseconds: the fake k8s client round-trips
 		// objects through JSON, which truncates metav1.Time to second precision.
 		approvalTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
@@ -146,7 +146,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 	// path is covered by the repository-layer tests in internal/vectorpromotion/repository_test.go.
 	It("returns 204 when the promotion is already approved (idempotent success)", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		promo := vectorPromotionFixture("promo-1", "kden-p-my-project", "cfg", 1)
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.RequireApproval = true
 		promo.Status.Conditions = []metav1.Condition{{
 			Type:   konfidence.ConditionTypeApproved,
@@ -193,7 +193,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 
 	It("returns 409 when the promotion is superseded", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		promo := vectorPromotionFixture("promo-1", "kden-p-my-project", "cfg", 1)
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.RequireApproval = true
 		promo.Status.Conditions = []metav1.Condition{{
 			Type:   konfidence.ConditionTypeSucceeded,
@@ -212,7 +212,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 
 	It("returns 409 when the promotion has already finished", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		promo := vectorPromotionFixture("promo-1", "kden-p-my-project", "cfg", 1)
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.RequireApproval = true
 		promo.Status.Conditions = []metav1.Condition{{
 			Type:   konfidence.ConditionTypeSucceeded,
@@ -231,7 +231,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 
 	It("returns 409 when the promotion has no approval gate", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		promo := vectorPromotionFixture("promo-1", "kden-p-my-project", "cfg", 1)
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		// RequireApproval is false by default in the fixture; make it explicit.
 		promo.Spec.RequireApproval = false
 		h := newProjectHandlerForTest(project, promo)
@@ -272,7 +272,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 
 	It("returns 500 when the session carries no subject to record as approver", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		promo := vectorPromotionFixture("promo-1", "kden-p-my-project", "cfg", 1)
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.RequireApproval = true
 		h := newProjectHandlerForTest(project, promo)
 

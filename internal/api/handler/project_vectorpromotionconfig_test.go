@@ -26,9 +26,9 @@ func vectorPromotionConfigFixture(name, namespace string) *konfidence.VectorProm
 	}
 }
 
-func vectorPromotionFixture(name, namespace, configName string, sequence int64) *konfidence.VectorPromotion {
+func vectorPromotionFixture(name, configName string, sequence int64) *konfidence.VectorPromotion {
 	return &konfidence.VectorPromotion{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "kden-p-my-project"},
 		Spec: konfidence.VectorPromotionSpec{
 			VectorPromotionConfigName: configName,
 			Source:                    konfidence.PromotionSourceReference{Kind: "Stage", Name: "src", Landscape: "dev"},
@@ -43,9 +43,9 @@ var _ = Describe("GetVectorPromotionConfigV1", func() {
 	It("returns the config with its mapped fields and aggregated promotions", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		config := vectorPromotionConfigFixture("cfg", "kden-p-my-project")
-		p1 := vectorPromotionFixture("cfg-2", "kden-p-my-project", "cfg", 2)
-		p2 := vectorPromotionFixture("cfg-1", "kden-p-my-project", "cfg", 1)
-		other := vectorPromotionFixture("elsewhere-1", "kden-p-my-project", "other-cfg", 1)
+		p1 := vectorPromotionFixture("cfg-2", "cfg", 2)
+		p2 := vectorPromotionFixture("cfg-1", "cfg", 1)
+		other := vectorPromotionFixture("elsewhere-1", "other-cfg", 1)
 		h := newProjectHandlerForTest(project, config, p1, p2, other)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
@@ -157,9 +157,9 @@ var _ = Describe("ListVectorPromotionConfigsV1", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		cfg1 := vectorPromotionConfigFixture("cfg-a", "kden-p-my-project")
 		cfg2 := vectorPromotionConfigFixture("cfg-b", "kden-p-my-project")
-		p1 := vectorPromotionFixture("cfg-a-1", "kden-p-my-project", "cfg-a", 1)
-		p2 := vectorPromotionFixture("cfg-a-2", "kden-p-my-project", "cfg-a", 2)
-		p3 := vectorPromotionFixture("cfg-b-1", "kden-p-my-project", "cfg-b", 1)
+		p1 := vectorPromotionFixture("cfg-a-1", "cfg-a", 1)
+		p2 := vectorPromotionFixture("cfg-a-2", "cfg-a", 2)
+		p3 := vectorPromotionFixture("cfg-b-1", "cfg-b", 1)
 		h := newProjectHandlerForTest(project, cfg1, cfg2, p1, p2, p3)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
