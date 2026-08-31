@@ -36,12 +36,12 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 
 	ginkgo.It("saves and retrieves a session", func() {
 		input := &Session{
-			Subject:      "subject-id",
 			Groups:       []string{"developers", "admins"},
 			AccessToken:  "access-token",
 			RefreshToken: new("refresh-token"),
 			TokenExpiry:  time.Now().Add(time.Hour).Unix(),
 			Context: Context{
+				Subject:           "subject-id",
 				Name:              new("Test User"),
 				Email:             new("test@example.com"),
 				GivenName:         new("Test"),
@@ -68,8 +68,8 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 
 	ginkgo.It("stores a value copy rather than the session pointer", func() {
 		input := &Session{
-			Subject:     "original-subject",
 			AccessToken: "original-token",
+			Context:     Context{Subject: "original-subject"},
 		}
 
 		id, err := store.Save(ctx, input)
@@ -94,7 +94,7 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 
 	ginkgo.It("deletes a session", func() {
 		id, err := store.Save(ctx, &Session{
-			Subject: "subject-id",
+			Context: Context{Subject: "subject-id"},
 		})
 		Expect(err).NotTo(HaveOccurred())
 
@@ -119,7 +119,7 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 		})
 
 		id, err := store.Save(ctx, &Session{
-			Subject: "subject-id",
+			Context: Context{Subject: "subject-id"},
 		})
 		Expect(err).NotTo(HaveOccurred())
 

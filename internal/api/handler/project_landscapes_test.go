@@ -31,6 +31,8 @@ func fakeK8s(objs ...client.Object) client.Client {
 		WithScheme(newTestScheme()).
 		WithObjects(objs...).
 		WithStatusSubresource(&konfidence.Project{}).
+		WithIndex(&konfidence.VectorPromotion{}, vectorpromotiondomain.PromotionConfigNameField,
+			vectorpromotiondomain.PromotionConfigNameIndexFunc).
 		Build()
 }
 
@@ -61,6 +63,18 @@ func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
 func ctxWithProjectRoles(roles auth.ProjectRoles) context.Context {
 	return session.NewContext(context.Background(), &session.Session{
 		Context: session.Context{ProjectRoles: roles},
+	})
+}
+
+// ctxWithSubjectAndProjectRoles returns a context with both an authenticated
+// subject and project roles. This is needed for Approve, which passes the
+// subject to the repository.
+func ctxWithSubjectAndProjectRoles(subject string, roles auth.ProjectRoles) context.Context {
+	return session.NewContext(context.Background(), &session.Session{
+		Context: session.Context{
+			Subject:      subject,
+			ProjectRoles: roles,
+		},
 	})
 }
 
