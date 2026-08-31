@@ -97,7 +97,7 @@ var (
 )
 
 var SupportedConfigurations = map[string][]string{
-	"log-level":       {"info", "debug", "error"},
+	"log-level":       {"debug", "info", "error"},
 	"log-format":      {"json", "text", "pretty"},
 	"output":          {"json", "yaml", "pretty"},
 	"api-endpoint":    {},

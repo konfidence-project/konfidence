@@ -117,11 +117,23 @@ manifests-crds: hermit ## Generate the full CRD set (single konfidence.cloud gro
 generate: hermit ## Generate DeepCopy implementations.
 	$(CONTROLLER_GEN) object $(API_PATHS)
 
+.PHONY: docs
+docs: docs-reference docs-cli ## Regenerate all API references (CRD + CLI).
+
+.PHONY: docs-cli
+docs-cli: hermit ## Generate kden CLI reference into api/docs/cli.md.
+	@mkdir -p api/docs
+	go run ./cmd/kden docs --type markdown --dir api/docs
+
 .PHONY: check-generate
-check-generate: docs-reference ## Verify the CRD reference doc is committed and up to date (fails if `make docs-reference` was not run).
+check-generate: docs ## Verify all API references in api/docs/ are committed and up to date.
 	@hack/check-generate.sh
 
-.PHONY: generate-mocks
+.PHONY: check-manifests
+check-manifests: manifests ## Verify committed manifests (CRDs, RBAC, webhook) are in sync with Go types.
+	@hack/check-manifests.sh
+
+
 generate-mocks: hermit ## Regenerate all gomock mocks via go generate.
 	go generate ./...
 

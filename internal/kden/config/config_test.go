@@ -260,7 +260,7 @@ var _ = Describe("SetKey", func() {
 			err := SetKey("log-level", "value")
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("value 'value' is not valid for configuration key 'log-level'"))
-			Expect(err.Error()).To(ContainSubstring("Supported values are: info, debug, error"))
+			Expect(err.Error()).To(ContainSubstring("Supported values are: debug, info, error"))
 		})
 
 		It("should return an error", func() {

@@ -15,9 +15,7 @@ func NewAliasCmd() *cobra.Command {
 		Short: "Create or update a mutable alias tag for a component version",
 		Long: `Create or update a mutable alias tag pointing to an existing component version.
 
-  kden artifact alias \
-    registry.example.com//konfidence.io/payment-hub:1.0.0 \
-    edge`,
+    kden artifact alias registry.example.com//konfidence.io/payment-hub:1.0.0 edge`,
 		Args: cobra.ExactArgs(2),
 		RunE: runAlias,
 	}
