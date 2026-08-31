@@ -12,7 +12,7 @@ var (
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Show the version of the CLI tool",
+	Short: "Print the kden CLI version",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("kden CLI version: %s\n", version)
 	},

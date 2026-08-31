@@ -18,7 +18,7 @@ repos:
           entry: make check-generate
           language: system
           pass_filenames: false
-          files: ^(api/v1alpha1/.*\.go|test/data/samples/.*\.yaml|hack/transform-crd-docs\.sh)$
+          files: ^(api/v1alpha1/.*\.go|test/data/samples/.*\.yaml|hack/transform-crd-docs\.sh|cmd/kden/.*\.go|internal/kden/.*\.go)$
         - id: validate
           name: make validate
           entry: make validate

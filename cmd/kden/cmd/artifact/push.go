@@ -24,7 +24,8 @@ var (
 
 func NewPushCmd() (*cobra.Command, error) {
 	var push = &cobra.Command{
-		Use: "push",
+		Use:   "push",
+		Short: "Push a component version to a registry",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filePath, err := cmd.Flags().GetString(FileFlag)
 			if err != nil {
