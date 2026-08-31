@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"sort"
 
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/output"
@@ -32,8 +33,9 @@ var setConfigCmd = &cobra.Command{
 	Long: fmt.Sprintf(
 		`This command sets a value for a configuration property inside the CLI's configuration file.
 The accepted values are:
+
 %s
-Additional information: 
+Additional information:
 %s`, getAcceptedConfigurationKeyValuePairs(), commonDescription),
 	Args: cobra.ExactArgs(2),
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -97,11 +99,30 @@ func NewConfigCmd() *cobra.Command {
 	return configCmd
 }
 
-func getAcceptedConfigurationKeyValuePairs() string {
-	var result string
+var configValueHints = map[string]string{
+	"api-endpoint":    "URL (e.g. https://api.example.com)",
+	"login-timeout":   "duration (e.g. 2m, 30s)",
+	"request-timeout": "duration (e.g. 30s, 1m)",
+}
 
-	for key, value := range cfg.SupportedConfigurations {
-		result = result + fmt.Sprintf("'%s' - %s\n", key, value)
+func getAcceptedConfigurationKeyValuePairs() string {
+	keys := make([]string, 0, len(cfg.SupportedConfigurations))
+	for key := range cfg.SupportedConfigurations {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var result string
+	for _, key := range keys {
+		values := cfg.SupportedConfigurations[key]
+		var display string
+		if len(values) > 0 {
+			display = fmt.Sprintf("%v", values)
+		} else if hint, ok := configValueHints[key]; ok {
+			display = hint
+		} else {
+			display = "any value"
+		}
+		result = result + fmt.Sprintf("    '%s' - %s\n", key, display)
 	}
 	return result
 }
@@ -111,5 +132,6 @@ func getAcceptedConfigurationKeysAsArray() []string {
 	for key := range cfg.SupportedConfigurations {
 		result = append(result, key)
 	}
+	sort.Strings(result)
 	return result
 }

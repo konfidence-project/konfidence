@@ -22,36 +22,39 @@ var completionCmd = &cobra.Command{
 To load completions:
 
 Bash:
-  $ source <(kden completion bash)
 
-  # To load completions for each session, execute once:
-  # Linux:
-  $ kden completion bash > /etc/bash_completion.d/kden
-  # macOS:
-  $ kden completion bash > $(brew --prefix)/etc/bash_completion.d/kden
+    source <(kden completion bash)
+
+    # To load completions for each session, execute once:
+    # Linux:
+    kden completion bash > /etc/bash_completion.d/kden
+    # macOS:
+    kden completion bash > $(brew --prefix)/etc/bash_completion.d/kden
 
 Zsh:
-  # If shell completion is not already enabled in your environment,
-  # you will need to enable it. Execute the following once:
-  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
 
-  # To load completions for each session, execute once:
-  $ kden completion zsh > "${fpath[1]}/_kden"
+    # If shell completion is not already enabled, enable it once:
+    echo "autoload -U compinit; compinit" >> ~/.zshrc
 
-  # You will need to start a new shell for this setup to take effect.
+    # To load completions for each session, execute once:
+    kden completion zsh > "${fpath[1]}/_kden"
+
+    # Start a new shell for this setup to take effect.
 
 Fish:
-  $ kden completion fish | source
 
-  # To load completions for each session, execute once:
-  $ kden completion fish > ~/.config/fish/completions/kden.fish
+    kden completion fish | source
+
+    # To load completions for each session, execute once:
+    kden completion fish > ~/.config/fish/completions/kden.fish
 
 PowerShell:
-  PS> kden completion powershell | Out-String | Invoke-Expression
 
-  # To load completions for every new session, run:
-  PS> kden completion powershell > kden.ps1
-  # and source this file from your PowerShell profile.
+    kden completion powershell | Out-String | Invoke-Expression
+
+    # To load completions for every new session, run:
+    kden completion powershell > kden.ps1
+    # and source this file from your PowerShell profile.
 `,
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{bashCompletionArg, zshCompletionArg, fishCompletionArg, powershellCompletionArg},

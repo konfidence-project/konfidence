@@ -12,7 +12,7 @@ import (
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/auth"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/completion"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/config"
-	"github.com/konfidence-project/konfidence/cmd/kden/cmd/man"
+	"github.com/konfidence-project/konfidence/cmd/kden/cmd/docs"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/project"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vector"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/version"
@@ -115,7 +115,7 @@ func initCmd() {
 
 	rootCmd.AddCommand(completion.NewCompletionCmd())
 	rootCmd.AddCommand(config.NewConfigCmd())
-	rootCmd.AddCommand(man.NewManCmd())
+	rootCmd.AddCommand(docs.NewDocsCmd())
 	rootCmd.AddCommand(artifact.NewArtifactCmd())
 	rootCmd.AddCommand(version.NewVersionCmd())
 	rootCmd.AddCommand(vector.NewVectorCmd())
