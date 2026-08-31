@@ -107,6 +107,15 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		}
 	})
 
+	t.Run("operations return original validation status", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/not-found", nil))
+
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("expected status %d, got %d", http.StatusNotFound, response.Code)
+		}
+	})
+
 	t.Run("protected operation rejects missing session", func(t *testing.T) {
 		response := httptest.NewRecorder()
 		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil))

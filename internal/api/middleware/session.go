@@ -53,8 +53,14 @@ func SessionAuthentication(logger *slog.Logger, store session.Store, authRepo au
 		Options: openapi3filter.Options{
 			AuthenticationFunc: authenticator.authenticate,
 		},
-		ErrorHandler: func(w http.ResponseWriter, _ string, _ int) {
-			apierror.Write(w, apierror.NewUnauthorized())
+		ErrorHandlerWithOpts: func(ctx context.Context, err error, w http.ResponseWriter, r *http.Request, opts nethttpmiddleware.ErrorHandlerOpts) {
+			logger.InfoContext(ctx, fmt.Sprintf("openapi request validation failed: %s", err))
+
+			apierror.Write(w, &apierror.Error{
+				Status:  opts.StatusCode,
+				Code:    fmt.Sprintf("%d", opts.StatusCode),
+				Message: http.StatusText(opts.StatusCode),
+			})
 		},
 	})
 	return validate(next), nil
