@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
@@ -127,99 +128,126 @@ func (h *projectHandler) ListArtifactDeploymentsV1(_ context.Context,
 	return nil, nil
 }
 
-func (h *projectHandler) GetVectorPromotionConfigV1(ctx context.Context,
-	request openapi.GetVectorPromotionConfigV1RequestObject) (openapi.GetVectorPromotionConfigV1ResponseObject, error) {
+// resolveProjectContext handles the preamble common to handlers that operate on
+// a project-scoped k8s namespace: it validates the session, checks authorization,
+// fetches the project, and confirms the namespace is set. On failure it returns an
+// *apierror.Error carrying the HTTP status and a client-safe message; the strict
+// server's ResponseErrorHandler renders it, so callers can simply `return nil, err`.
+func (h *projectHandler) resolveProjectContext(ctx context.Context, projectId string) (*session.Context, string, error) {
 	identity, err := session.FromContext(ctx)
 	if err != nil {
-		return openapi.GetVectorPromotionConfigV1401JSONResponse{
-			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
-		}, nil
+		return nil, "", apierror.NewUnauthorized()
 	}
-
-	if !identity.IsAuthenticatedForProject(request.ProjectId) {
-		return openapi.GetVectorPromotionConfigV1403JSONResponse{
-			ForbiddenJSONResponse: apierror.NewForbiddenResponse(""),
-		}, nil
+	if !identity.IsAuthenticatedForProject(projectId) {
+		return nil, "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
 	}
-
-	config, err := h.vectorPromotionConfigRepo.Get(ctx, request.ProjectId, request.VectorPromotionConfigId)
+	project, err := h.projectRepo.Get(ctx, projectId, identity.ProjectRoles)
 	if err != nil {
-		return openapi.GetVectorPromotionConfigV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
+		if errors.Is(err, projectdomain.ErrNotFound) {
+			return nil, "", apierror.NewNotFound("project", projectId)
+		}
+		if errors.Is(err, projectdomain.ErrForbidden) {
+			return nil, "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
+		}
+		return nil, "", apierror.NewInternal(err)
+	}
+	if project.Status.Namespace == "" {
+		return nil, "", apierror.NewInternal(fmt.Errorf("project %q has no namespace configured", projectId))
+	}
+	return identity, project.Status.Namespace, nil
+}
+
+func (h *projectHandler) GetVectorPromotionConfigV1(ctx context.Context,
+	request openapi.GetVectorPromotionConfigV1RequestObject) (openapi.GetVectorPromotionConfigV1ResponseObject, error) {
+	_, namespace, err := h.resolveProjectContext(ctx, request.ProjectId)
+	if err != nil {
+		return nil, err
 	}
 
-	if config == nil {
-		return openapi.GetVectorPromotionConfigV1404JSONResponse{
-			NotFoundJSONResponse: apierror.NewNotFoundResponse(""),
-		}, nil
+	config, err := h.vectorPromotionConfigRepo.Get(ctx, namespace, request.VectorPromotionConfigId)
+	if err != nil {
+		if errors.Is(err, vectorpromotiondomain.ErrVectorPromotionConfigNotFound) {
+			return nil, apierror.NewNotFound("vectorPromotionConfig", request.VectorPromotionConfigId)
+		}
+		return nil, apierror.NewInternal(err)
 	}
 
-	response := toVectorPromotionConfigResponse(*config)
+	promotions, err := h.vectorPromotionRepo.ListForConfig(ctx, namespace, config.Name)
+	if err != nil {
+		return nil, apierror.NewInternal(err)
+	}
+
+	response := toVectorPromotionConfigResponse(*config, promotions)
 	return openapi.GetVectorPromotionConfigV1200JSONResponse(response), nil
 }
 
 func (h *projectHandler) ListVectorPromotionConfigsV1(ctx context.Context,
 	request openapi.ListVectorPromotionConfigsV1RequestObject) (openapi.ListVectorPromotionConfigsV1ResponseObject, error) {
-	identity, err := session.FromContext(ctx)
+	_, namespace, err := h.resolveProjectContext(ctx, request.ProjectId)
 	if err != nil {
-		return openapi.ListVectorPromotionConfigsV1401JSONResponse{
-			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
-		}, nil
+		return nil, err
 	}
 
-	if !identity.IsAuthenticatedForProject(request.ProjectId) {
-		return openapi.ListVectorPromotionConfigsV1403JSONResponse{
-			ForbiddenJSONResponse: apierror.NewForbiddenResponse(""),
-		}, nil
+	configs, err := h.vectorPromotionConfigRepo.List(ctx, namespace)
+	if err != nil {
+		return nil, apierror.NewInternal(err)
 	}
 
-	configs, err := h.vectorPromotionConfigRepo.List(ctx)
-	if err != nil {
-		return openapi.ListVectorPromotionConfigsV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
-	}
+	sort.Slice(configs, func(i, j int) bool {
+		return configs[i].Name < configs[j].Name
+	})
 
 	data := make([]openapi.VectorPromotionConfig, 0, len(configs))
 	for _, c := range configs {
-		data = append(data, toVectorPromotionConfigResponse(c))
+		promotions, err := h.vectorPromotionRepo.ListForConfig(ctx, namespace, c.Name)
+		if err != nil {
+			return nil, apierror.NewInternal(err)
+		}
+		data = append(data, toVectorPromotionConfigResponse(c, promotions))
 	}
 
 	return openapi.ListVectorPromotionConfigsV1200JSONResponse{Data: data}, nil
 }
 
-func toVectorPromotionConfigResponse(_ konfidence.VectorPromotionConfig) openapi.VectorPromotionConfig {
-	// TODO implement mapping
-	return openapi.VectorPromotionConfig{}
+func toVectorPromotionConfigResponse(c konfidence.VectorPromotionConfig,
+	promotions []konfidence.VectorPromotion) openapi.VectorPromotionConfig {
+	config := openapi.VectorPromotionConfig{
+		Id:     c.Name,
+		Source: toPromotionSourceReferenceResponse(c.Spec.Source),
+		Target: toPromotionTargetReferenceResponse(c.Spec.Target),
+	}
+
+	if c.Spec.TTLAfterFinished != nil {
+		ttl := c.Spec.TTLAfterFinished.Duration.String()
+		config.TtlAfterFinished = &ttl
+	}
+
+	if c.Spec.KeepLastPromotions != nil {
+		keepLast := int(*c.Spec.KeepLastPromotions)
+		config.KeepLastPromotions = &keepLast
+	}
+
+	config.Promotions = make([]openapi.VectorPromotion, len(promotions))
+	for i, promotion := range promotions {
+		config.Promotions[i] = toVectorPromotionResponse(promotion)
+	}
+
+	return config
 }
 
 func (h *projectHandler) GetVectorPromotionV1(ctx context.Context,
 	request openapi.GetVectorPromotionV1RequestObject) (openapi.GetVectorPromotionV1ResponseObject, error) {
-	identity, err := session.FromContext(ctx)
+	_, namespace, err := h.resolveProjectContext(ctx, request.ProjectId)
 	if err != nil {
-		return openapi.GetVectorPromotionV1401JSONResponse{
-			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
-		}, nil
+		return nil, err
 	}
 
-	if !identity.IsAuthenticatedForProject(request.ProjectId) {
-		return openapi.GetVectorPromotionV1403JSONResponse{
-			ForbiddenJSONResponse: apierror.NewForbiddenResponse(""),
-		}, nil
-	}
-
-	promotion, err := h.vectorPromotionRepo.Get(ctx, request.ProjectId, request.VectorPromotionId)
+	promotion, err := h.vectorPromotionRepo.Get(ctx, namespace, request.VectorPromotionId)
 	if err != nil {
-		return openapi.GetVectorPromotionV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
-	}
-
-	if promotion == nil {
-		return openapi.GetVectorPromotionV1404JSONResponse{
-			NotFoundJSONResponse: apierror.NewNotFoundResponse(""),
-		}, nil
+		if errors.Is(err, vectorpromotiondomain.ErrVectorPromotionNotFound) {
+			return nil, apierror.NewNotFound("vectorPromotion", request.VectorPromotionId)
+		}
+		return nil, apierror.NewInternal(err)
 	}
 
 	response := toVectorPromotionResponse(*promotion)
@@ -228,30 +256,80 @@ func (h *projectHandler) GetVectorPromotionV1(ctx context.Context,
 
 func (h *projectHandler) ApproveVectorPromotionV1(ctx context.Context,
 	request openapi.ApproveVectorPromotionV1RequestObject) (openapi.ApproveVectorPromotionV1ResponseObject, error) {
-	identity, err := session.FromContext(ctx)
+	identity, namespace, err := h.resolveProjectContext(ctx, request.ProjectId)
 	if err != nil {
-		return openapi.ApproveVectorPromotionV1401JSONResponse{
-			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
-		}, nil
+		return nil, err
 	}
 
-	if !identity.IsAuthenticatedForProject(request.ProjectId) {
-		return openapi.ApproveVectorPromotionV1403JSONResponse{
-			ForbiddenJSONResponse: apierror.NewForbiddenResponse(""),
-		}, nil
+	err = h.vectorPromotionRepo.Approve(ctx, namespace, request.VectorPromotionId, identity.Subject)
+	switch {
+	case err == nil, errors.Is(err, vectorpromotiondomain.ErrAlreadyApproved):
+		// Approving twice is idempotent: the promotion is already approved,
+		// so report success rather than a conflict.
+		return openapi.ApproveVectorPromotionV1204Response{}, nil
+	case errors.Is(err, vectorpromotiondomain.ErrVectorPromotionNotFound):
+		return nil, apierror.NewNotFound("vectorPromotion", request.VectorPromotionId)
+	case errors.Is(err, vectorpromotiondomain.ErrPromotionSuperseded),
+		errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
+		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired):
+		// These domain error strings are the canonical client-facing conflict message.
+		return nil, apierror.NewConflict(err.Error())
+	default:
+		// ErrApproverMissing intentionally maps to 500: an empty subject indicates
+		// server misconfiguration, not a client error.
+		return nil, apierror.NewInternal(err)
 	}
-
-	err = h.vectorPromotionRepo.Approve(ctx, request.ProjectId, request.VectorPromotionId)
-	if err != nil {
-		return openapi.ApproveVectorPromotionV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
-	}
-
-	return openapi.ApproveVectorPromotionV1204Response{}, nil
 }
 
-func toVectorPromotionResponse(_ konfidence.VectorPromotion) openapi.VectorPromotion {
-	// TODO implement mapping
-	return openapi.VectorPromotion{}
+func toVectorPromotionResponse(p konfidence.VectorPromotion) openapi.VectorPromotion {
+	requireApproval := p.Spec.RequireApproval
+	sequence := p.Spec.Sequence
+
+	promotion := openapi.VectorPromotion{
+		Id:              p.Name,
+		RequireApproval: &requireApproval,
+		Sequence:        &sequence,
+		Source:          toPromotionSourceReferenceResponse(p.Spec.Source),
+		Target:          toPromotionTargetReferenceResponse(p.Spec.Target),
+		Vector:          p.Spec.Vector,
+	}
+
+	if p.Status.State != "" {
+		status := openapi.VectorPromotionStatus(p.Status.State)
+		promotion.Status = &status
+	}
+
+	if p.Spec.TTLAfterFinished != nil {
+		ttl := p.Spec.TTLAfterFinished.Duration.String()
+		promotion.TtlAfterFinished = &ttl
+	}
+
+	if p.Status.Approval != nil {
+		promotion.Approval = &openapi.PromotionApproval{
+			ApprovedBy: p.Status.Approval.ApprovedBy,
+			ApprovedAt: p.Status.Approval.ApprovedAt.Time,
+		}
+	}
+
+	return promotion
+}
+
+func toPromotionSourceReferenceResponse(s konfidence.PromotionSourceReference) openapi.PromotionSourceReference {
+	source := openapi.PromotionSourceReference{
+		Kind: openapi.PromotionSourceReferenceKind(s.Kind),
+		Name: s.Name,
+	}
+	if s.Landscape != "" {
+		landscape := s.Landscape
+		source.Landscape = &landscape
+	}
+	return source
+}
+
+func toPromotionTargetReferenceResponse(t konfidence.PromotionTargetReference) openapi.PromotionTargetReference {
+	return openapi.PromotionTargetReference{
+		Kind:      openapi.PromotionTargetReferenceKind(t.Kind),
+		Name:      t.Name,
+		Landscape: t.Landscape,
+	}
 }

@@ -14,8 +14,8 @@ import (
 var ErrVectorPromotionConfigNotFound = errors.New("vectorPromotionConfig not found")
 
 type ConfigRepository interface {
-	Get(ctx context.Context, projectId string, vectorPromotionConfigId string) (*konfidence.VectorPromotionConfig, error)
-	List(ctx context.Context) ([]konfidence.VectorPromotionConfig, error)
+	Get(ctx context.Context, namespace string, vectorPromotionConfigId string) (*konfidence.VectorPromotionConfig, error)
+	List(ctx context.Context, namespace string) ([]konfidence.VectorPromotionConfig, error)
 }
 
 type k8sConfigRepository struct{ reader client.Reader }
@@ -24,10 +24,9 @@ func NewConfigRepository(reader client.Reader) ConfigRepository {
 	return &k8sConfigRepository{reader: reader}
 }
 
-func (r *k8sConfigRepository) Get(ctx context.Context, projectId string, configId string) (*konfidence.VectorPromotionConfig, error) {
-	// TODO get vector promotion config
+func (r *k8sConfigRepository) Get(ctx context.Context, namespace string, configId string) (*konfidence.VectorPromotionConfig, error) {
 	var vectorPromotionConfig konfidence.VectorPromotionConfig
-	if err := r.reader.Get(ctx, types.NamespacedName{Name: configId}, &vectorPromotionConfig); err != nil {
+	if err := r.reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configId}, &vectorPromotionConfig); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, ErrVectorPromotionConfigNotFound
 		}
@@ -37,12 +36,10 @@ func (r *k8sConfigRepository) Get(ctx context.Context, projectId string, configI
 	return &vectorPromotionConfig, nil
 }
 
-func (r *k8sConfigRepository) List(ctx context.Context) ([]konfidence.VectorPromotionConfig, error) {
-	// TODO get vector promotion configs
-
+func (r *k8sConfigRepository) List(ctx context.Context, namespace string) ([]konfidence.VectorPromotionConfig, error) {
 	var configs konfidence.VectorPromotionConfigList
-	if err := r.reader.List(ctx, &configs); err != nil {
-		return nil, fmt.Errorf("listing vectorPromotionConfigs failed: %w", err)
+	if err := r.reader.List(ctx, &configs, client.InNamespace(namespace)); err != nil {
+		return nil, fmt.Errorf("listing vectorPromotionConfigs in namespace %q failed: %w", namespace, err)
 	}
 
 	return configs.Items, nil

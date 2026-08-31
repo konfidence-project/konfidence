@@ -16,7 +16,6 @@ const contextSession contextKey = "session"
 // Session represents a client session for an authenticated user.
 type Session struct {
 	Context
-	Subject      string   `json:"subject"`
 	Groups       []string `json:"groups,omitempty"`
 	AccessToken  string   `json:"access_token"`
 	RefreshToken *string  `json:"refresh_token"`
@@ -26,6 +25,7 @@ type Session struct {
 // Context represents the session subset stored in the context.
 type Context struct {
 	ID                string            `json:"-"`
+	Subject           string            `json:"subject"`
 	Name              *string           `json:"name,omitempty"`
 	Email             *string           `json:"email,omitempty"`
 	GivenName         *string           `json:"given_name,omitempty"`

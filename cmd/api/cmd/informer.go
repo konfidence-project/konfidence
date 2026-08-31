@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	vectorpromotion "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
@@ -62,6 +64,16 @@ func newInformerBackedCache(ctx context.Context, config *rest.Config, scheme *ru
 			cancel()
 			return nil, fmt.Errorf("failed to create informer for %T: %w", resource, err)
 		}
+	}
+
+	// Register field indexes the API cache's query methods rely on. The
+	// PromotionConfigNameField index backs ListForConfig so it avoids a
+	// full-namespace scan and in-memory filter on every request.
+	if err := k8sCache.IndexField(cacheCtx, &konfidence.VectorPromotion{},
+		vectorpromotion.PromotionConfigNameField,
+		vectorpromotion.PromotionConfigNameIndexFunc); err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to register field index for VectorPromotion: %w", err)
 	}
 
 	done := make(chan error, 1)

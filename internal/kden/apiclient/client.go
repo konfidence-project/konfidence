@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
@@ -221,6 +222,15 @@ type ProjectList struct {
 	Data []Project `json:"data"`
 }
 
+// PromotionApproval defines model for PromotionApproval.
+type PromotionApproval struct {
+	// ApprovedAt Time the approval was granted
+	ApprovedAt time.Time `json:"approvedAt"`
+
+	// ApprovedBy Identity that granted the approval
+	ApprovedBy string `json:"approvedBy"`
+}
+
 // PromotionSourceReference defines model for PromotionSourceReference.
 type PromotionSourceReference struct {
 	// Kind Promotion source kind
@@ -323,6 +333,8 @@ type VectorDeploymentList struct {
 
 // VectorPromotion defines model for VectorPromotion.
 type VectorPromotion struct {
+	Approval *PromotionApproval `json:"approval,omitempty"`
+
 	// Id The vectorPromotion id
 	Id               VectorPromotionId        `json:"id"`
 	RequireApproval  *bool                    `json:"requireApproval,omitempty"`
@@ -379,6 +391,9 @@ type VectorPromotionPathId = string
 
 // BadRequest defines model for BadRequest.
 type BadRequest = ErrorResponse
+
+// Conflict defines model for Conflict.
+type Conflict = ErrorResponse
 
 // Forbidden defines model for Forbidden.
 type Forbidden = ErrorResponse
@@ -603,7 +618,7 @@ type ClientInterface interface {
 
 	// GetVectorPromotionConfigV1 Get a single vectorPromotionConfig for a project
 	//
-	// Returns a  vectorPromotionConfig resources for a project.
+	// Returns a vectorPromotionConfig resource for a project.
 	//
 	// Corresponds with GET /v1/projects/{projectId}/vectorPromotionConfigs/{vectorPromotionConfigId} (the `GetVectorPromotionConfigV1` operationId).
 	GetVectorPromotionConfigV1(ctx context.Context, projectId ProjectPathId, vectorPromotionConfigId VectorPromotionConfigPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -616,6 +631,8 @@ type ClientInterface interface {
 	GetVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
+	//
+	// Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
 	//
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 	ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -831,7 +848,7 @@ func (c *Client) ListVectorPromotionConfigsV1(ctx context.Context, projectId Pro
 
 // GetVectorPromotionConfigV1 Get a single vectorPromotionConfig for a project
 //
-// Returns a  vectorPromotionConfig resources for a project.
+// Returns a vectorPromotionConfig resource for a project.
 //
 // Corresponds with GET /v1/projects/{projectId}/vectorPromotionConfigs/{vectorPromotionConfigId} (the `GetVectorPromotionConfigV1` operationId).
 func (c *Client) GetVectorPromotionConfigV1(ctx context.Context, projectId ProjectPathId, vectorPromotionConfigId VectorPromotionConfigPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -864,6 +881,8 @@ func (c *Client) GetVectorPromotionV1(ctx context.Context, projectId ProjectPath
 }
 
 // ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
+//
+// Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
 //
 // Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 func (c *Client) ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -1687,7 +1706,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetVectorPromotionConfigV1WithResponse Get a single vectorPromotionConfig for a project
 	//
-	// Returns a  vectorPromotionConfig resources for a project.
+	// Returns a vectorPromotionConfig resource for a project.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -1704,6 +1723,8 @@ type ClientWithResponsesInterface interface {
 	GetVectorPromotionV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*GetVectorPromotionV1Response, error)
 
 	// ApproveVectorPromotionV1WithResponse Approves the given vectorPromotion for the specified project
+	//
+	// Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -2306,6 +2327,8 @@ type ListVectorPromotionConfigsV1Response struct {
 	JSON401 *Unauthorized
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalError
 }
@@ -2323,6 +2346,11 @@ func (r ListVectorPromotionConfigsV1Response) GetJSON401() *Unauthorized {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r ListVectorPromotionConfigsV1Response) GetJSON403() *Forbidden {
 	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListVectorPromotionConfigsV1Response) GetJSON404() *NotFound {
+	return r.JSON404
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -2506,6 +2534,8 @@ type ApproveVectorPromotionV1Response struct {
 	JSON403 *Forbidden
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalError
 }
@@ -2523,6 +2553,11 @@ func (r ApproveVectorPromotionV1Response) GetJSON403() *Forbidden {
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
 func (r ApproveVectorPromotionV1Response) GetJSON404() *NotFound {
 	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r ApproveVectorPromotionV1Response) GetJSON409() *Conflict {
+	return r.JSON409
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -2741,7 +2776,7 @@ func (c *ClientWithResponses) ListVectorPromotionConfigsV1WithResponse(ctx conte
 
 // GetVectorPromotionConfigV1WithResponse Get a single vectorPromotionConfig for a project
 //
-// Returns a  vectorPromotionConfig resources for a project.
+// Returns a vectorPromotionConfig resource for a project.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -2770,6 +2805,8 @@ func (c *ClientWithResponses) GetVectorPromotionV1WithResponse(ctx context.Conte
 }
 
 // ApproveVectorPromotionV1WithResponse Approves the given vectorPromotion for the specified project
+//
+// Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -3295,6 +3332,13 @@ func ParseListVectorPromotionConfigsV1Response(rsp *http.Response) (*ListVectorP
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -3452,6 +3496,13 @@ func ParseApproveVectorPromotionV1Response(rsp *http.Response) (*ApproveVectorPr
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError

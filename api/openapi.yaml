@@ -277,6 +277,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -287,7 +289,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
         - $ref: "#/components/parameters/VectorPromotionConfigPathId"
-      description: Returns a  vectorPromotionConfig resources for a project.
+      description: Returns a vectorPromotionConfig resource for a project.
       tags: [ projects ]
       responses:
         "200":
@@ -309,6 +311,10 @@ paths:
     post:
       operationId: approveVectorPromotionV1
       summary: Approves the given vectorPromotion for the specified project
+      description: >
+        Grants approval for a vectorPromotion that has an approval gate. Approving
+        an already-approved promotion is idempotent and returns 204. Returns 409
+        when the promotion is superseded, finished, or requires no approval.
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
         - $ref: "#/components/parameters/VectorPromotionPathId"
@@ -322,6 +328,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -578,6 +586,20 @@ components:
         sequence:
           type: integer
           format: int64
+        approval:
+          $ref: "#/components/schemas/PromotionApproval"
+
+    PromotionApproval:
+      type: object
+      required: [ approvedBy, approvedAt ]
+      properties:
+        approvedBy:
+          type: string
+          description: Identity that granted the approval
+        approvedAt:
+          type: string
+          format: date-time
+          description: Time the approval was granted
 
     PromotionSourceReference:
       type: object
@@ -750,6 +772,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: The request conflicts with the current state of the resource.
       content:
         application/json:
           schema:
