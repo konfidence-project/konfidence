@@ -129,12 +129,15 @@ func envTarget(name, namespace, class string) *konfidence.DeploymentTarget {
 }
 
 func setReady(ctx context.Context, c client.Client, target *konfidence.DeploymentTarget) {
-	Expect(c.Get(ctx, client.ObjectKeyFromObject(target), target)).To(Succeed())
-	target.Status.Conditions = []metav1.Condition{{
-		Type:               konfidence.DeploymentTargetReadyCondition,
-		Status:             metav1.ConditionTrue,
-		Reason:             "Provisioned",
-		LastTransitionTime: metav1.Now(),
-	}}
-	Expect(c.Status().Update(ctx, target)).To(Succeed())
+	// Retry: the cache-backed client's reads lag writes, so Get may miss a fresh Create.
+	Eventually(func(g Gomega) {
+		g.Expect(c.Get(ctx, client.ObjectKeyFromObject(target), target)).To(Succeed())
+		target.Status.Conditions = []metav1.Condition{{
+			Type:               konfidence.DeploymentTargetReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             "Provisioned",
+			LastTransitionTime: metav1.Now(),
+		}}
+		g.Expect(c.Status().Update(ctx, target)).To(Succeed())
+	}).Should(Succeed())
 }
