@@ -140,4 +140,10 @@ func setReady(ctx context.Context, c client.Client, target *konfidence.Deploymen
 		}}
 		g.Expect(c.Status().Update(ctx, target)).To(Succeed())
 	}).Should(Succeed())
+
+	// wait for the cache to discover the condition
+	Eventually(func(g Gomega) {
+		g.Expect(c.Get(ctx, client.ObjectKeyFromObject(target), target)).To(Succeed())
+		g.Expect(meta.IsStatusConditionTrue(target.Status.Conditions, konfidence.DeploymentTargetReadyCondition)).To(BeTrue())
+	}).Should(Succeed())
 }
