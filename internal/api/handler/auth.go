@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"crypto/subtle"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
@@ -48,23 +48,33 @@ func (a *authHandler) LoginV1(ctx context.Context, request openapi.LoginV1Reques
 
 	if codeChallenge == "" {
 		if !allowedReturnURL(request.Params.ReturnUrl, a.config.OIDC.AllowReturnURLs) {
-			a.logger.Warn("return URL is not allowed", "return_url", request.Params.ReturnUrl)
-			return openapi.LoginV1400JSONResponse{}, nil
+			a.logger.WarnContext(ctx, "return URL is not allowed", "return_url", request.Params.ReturnUrl)
+			return openapi.LoginV1400JSONResponse{
+				BadRequestJSONResponse: apierror.NewBadRequestResponse("return URL is not allowed"),
+			}, nil
 		}
 	} else if !allowedCLIReturnURL(request.Params.ReturnUrl) {
-		a.logger.Warn("CLI return URL is not a loopback URL", "return_url", request.Params.ReturnUrl)
-		return openapi.LoginV1400JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "CLI return URL is not a loopback URL", "return_url", request.Params.ReturnUrl)
+		return openapi.LoginV1400JSONResponse{
+			BadRequestJSONResponse: apierror.NewBadRequestResponse("return URL is not allowed"),
+		}, nil
 	}
 
 	state, err := a.oidcClient.GenerateState(request.Params.ReturnUrl)
 	if err != nil {
-		return nil, err
+		a.logger.ErrorContext(ctx, "failed to generate oidc state", "error", err)
+		return openapi.LoginV1500JSONResponse{
+			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+		}, nil
 	}
 
 	state.ClientCodeChallenge = codeChallenge
 
 	if err := a.stateCache.Save(ctx, state); err != nil {
-		return nil, err
+		a.logger.ErrorContext(ctx, "failed to save oidc state", "error", err)
+		return openapi.LoginV1500JSONResponse{
+			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+		}, nil
 	}
 
 	authCodeURL := a.oidcClient.AuthCodeURL(state)
@@ -104,23 +114,34 @@ func allowedCLIReturnURL(rawURL string) bool {
 func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error) {
 	state := request.Params.State
 	if state == "" {
-		a.logger.Error("missing state parameter")
-		return openapi.AuthCallbackV1400JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "missing state parameter")
+		return openapi.AuthCallbackV1400JSONResponse{
+			BadRequestJSONResponse: apierror.NewBadRequestResponse("state parameter is required"),
+		}, nil
 	}
 
 	storedState, err := a.stateCache.Consume(ctx, state)
 	if err != nil {
-		return openapi.AuthCallbackV1500JSONResponse{}, nil
+		a.logger.ErrorContext(ctx, "failed to consume oidc state", "error", err)
+		return openapi.AuthCallbackV1500JSONResponse{
+			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+		}, nil
 	}
 	if storedState == nil {
-		return openapi.AuthCallbackV1400JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "oidc state is invalid or expired")
+		return openapi.AuthCallbackV1400JSONResponse{
+			BadRequestJSONResponse: apierror.NewBadRequestResponse("state is invalid or expired"),
+		}, nil
 	}
 
 	// forward auth error to CLI callback
 	if storedState.ClientCodeChallenge != "" && request.Params.Error != nil && *request.Params.Error != "" {
 		callbackURL, err := url.Parse(storedState.ReturnURL)
 		if err != nil {
-			return nil, fmt.Errorf("parsing login return URL: %w", err)
+			a.logger.ErrorContext(ctx, "failed to parse CLI callback URL", "error", err)
+			return openapi.AuthCallbackV1500JSONResponse{
+				InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+			}, nil
 		}
 
 		query := callbackURL.Query()
@@ -142,46 +163,60 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 
 	code := request.Params.Code
 	if code == nil || *code == "" {
-		a.logger.Error("missing authorization code parameter")
-		return openapi.AuthCallbackV1400JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "missing authorization code parameter")
+		return openapi.AuthCallbackV1400JSONResponse{
+			BadRequestJSONResponse: apierror.NewBadRequestResponse("authorization code parameter is required"),
+		}, nil
 	}
 
 	// use auth code to get tokens
 	tokenResponse, err := a.oidcClient.Exchange(ctx, *code, storedState)
 	if err != nil {
-		a.logger.Error("token exchange failed", "error", err)
-		return openapi.AuthCallbackV1400JSONResponse{}, nil
+		a.logger.ErrorContext(ctx, "token exchange failed", "error", err)
+		return openapi.AuthCallbackV1400JSONResponse{
+			BadRequestJSONResponse: apierror.NewBadRequestResponse("authorization code is invalid or expired"),
+		}, nil
 	}
 
 	// verify and extract the id token
 	idToken, err := a.oidcClient.VerifyAndGetIdToken(ctx, tokenResponse)
 	if err != nil {
-		a.logger.Error("failed to verify or extract idToken")
-		return openapi.AuthCallbackV1500JSONResponse{}, err
+		a.logger.ErrorContext(ctx, "failed to verify or extract idToken", "error", err)
+		return openapi.AuthCallbackV1500JSONResponse{
+			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+		}, nil
 	}
 
 	// check that nonce values match
 	if storedState.Nonce != "" && storedState.Nonce != idToken.Nonce {
-		a.logger.Error("invalid nonce value in idToken")
-		return openapi.AuthCallbackV1400JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "idToken nonce does not match oidc state")
+		return openapi.AuthCallbackV1400JSONResponse{
+			BadRequestJSONResponse: apierror.NewBadRequestResponse("ID token nonce is invalid"),
+		}, nil
 	}
 
 	userInformation, err := a.oidcClient.GetUserInformation(ctx, tokenResponse.AccessToken)
 	if err != nil {
-		a.logger.Error("failed to get user information")
-		return openapi.AuthCallbackV1401JSONResponse{}, err
+		a.logger.ErrorContext(ctx, "failed to get user information", "error", err)
+		return openapi.AuthCallbackV1401JSONResponse{
+			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
+		}, nil
 	}
 
 	if userInformation.Subject != idToken.Subject {
-		a.logger.Error("user information subject and token subject do not match. invalid idp configuration")
-		return openapi.AuthCallbackV1400JSONResponse{}, err
+		a.logger.ErrorContext(ctx, "user information subject does not match ID token subject")
+		return openapi.AuthCallbackV1400JSONResponse{
+			BadRequestJSONResponse: apierror.NewBadRequestResponse("user information does not match ID token"),
+		}, nil
 	}
 
 	// extract additional claims
 	claims, err := a.oidcClient.GetClaims(userInformation)
 	if err != nil {
-		a.logger.Error("failed to parse idToken additional claims from user information")
-		return openapi.AuthCallbackV1500JSONResponse{}, err
+		a.logger.ErrorContext(ctx, "failed to parse additional claims from user information", "error", err)
+		return openapi.AuthCallbackV1500JSONResponse{
+			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+		}, nil
 	}
 
 	var refreshToken *string
@@ -201,8 +236,10 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 
 	sessionId, err := a.sessions.Save(ctx, &sess)
 	if err != nil {
-		a.logger.Error("failed to create session")
-		return openapi.AuthCallbackV1500JSONResponse{}, err
+		a.logger.ErrorContext(ctx, "failed to create session", "error", err)
+		return openapi.AuthCallbackV1500JSONResponse{
+			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+		}, nil
 	}
 
 	sess.ID = sessionId
@@ -213,12 +250,18 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 			SessionID:     sessionId,
 			CodeChallenge: storedState.ClientCodeChallenge,
 		}); err != nil {
-			return nil, err
+			a.logger.ErrorContext(ctx, "failed to save CLI exchange code", "error", err)
+			return openapi.AuthCallbackV1500JSONResponse{
+				InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+			}, nil
 		}
 
 		callbackURL, err := url.Parse(storedState.ReturnURL)
 		if err != nil {
-			return nil, fmt.Errorf("parsing CLI callback URL failed: %w", err)
+			a.logger.ErrorContext(ctx, "failed to parse CLI callback URL", "error", err)
+			return openapi.AuthCallbackV1500JSONResponse{
+				InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+			}, nil
 		}
 
 		query := callbackURL.Query()
@@ -247,12 +290,14 @@ func (a *authHandler) LogoutV1(ctx context.Context, _ openapi.LogoutV1RequestObj
 	// delete session
 	storedSession, err := session.FromContext(ctx)
 	if err != nil {
-		a.logger.Error("failed to get session from context", "error", err)
-		return openapi.LogoutV1401JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "session does not exist in context", "error", err)
+		return openapi.LogoutV1401JSONResponse{
+			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
+		}, nil
 	}
 
 	if err := a.sessions.Delete(ctx, storedSession.ID); err != nil {
-		a.logger.Error("failed to delete session", "error", err)
+		a.logger.ErrorContext(ctx, "failed to delete session", "error", err)
 	}
 
 	// clear session cookie
@@ -277,8 +322,10 @@ func (a *authHandler) LogoutV1(ctx context.Context, _ openapi.LogoutV1RequestObj
 func (a *authHandler) GetIdentityV1(ctx context.Context, _ openapi.GetIdentityV1RequestObject) (openapi.GetIdentityV1ResponseObject, error) {
 	storedSession, err := session.FromContext(ctx)
 	if err != nil {
-		a.logger.Error("session does not exist in context")
-		return openapi.GetIdentityV1401JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "session does not exist in context", "error", err)
+		return openapi.GetIdentityV1401JSONResponse{
+			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
+		}, nil
 	}
 
 	return openapi.GetIdentityV1200JSONResponse{
@@ -293,15 +340,24 @@ func (a *authHandler) GetIdentityV1(ctx context.Context, _ openapi.GetIdentityV1
 func (a *authHandler) PostExchangeCodeV1(ctx context.Context,
 	request openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
 	if request.Body == nil || request.Body.Code == "" || request.Body.Verifier == "" {
-		return openapi.PostExchangeCodeV1401JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "CLI exchange request is incomplete")
+		return openapi.PostExchangeCodeV1401JSONResponse{
+			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
+		}, nil
 	}
 
 	exchange, err := a.exchangeCache.Consume(ctx, request.Body.Code)
 	if err != nil {
-		return openapi.PostExchangeCodeV1500JSONResponse{}, err
+		a.logger.ErrorContext(ctx, "failed to consume CLI exchange code", "error", err)
+		return openapi.PostExchangeCodeV1500JSONResponse{
+			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+		}, nil
 	}
 	if exchange == nil {
-		return openapi.PostExchangeCodeV1401JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "CLI exchange code is invalid or expired")
+		return openapi.PostExchangeCodeV1401JSONResponse{
+			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
+		}, nil
 	}
 
 	actualChallenge := oauth2.S256ChallengeFromVerifier(request.Body.Verifier)
@@ -309,7 +365,10 @@ func (a *authHandler) PostExchangeCodeV1(ctx context.Context,
 		[]byte(actualChallenge),
 		[]byte(exchange.CodeChallenge),
 	) != 1 {
-		return openapi.PostExchangeCodeV1401JSONResponse{}, nil
+		a.logger.WarnContext(ctx, "CLI exchange code verifier is invalid")
+		return openapi.PostExchangeCodeV1401JSONResponse{
+			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
+		}, nil
 	}
 
 	cookieValue := a.sessionCookie(exchange.SessionID).String()
