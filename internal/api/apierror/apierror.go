@@ -110,6 +110,18 @@ func NewUnauthorizedResponse() openapi.UnauthorizedJSONResponse {
 	}
 }
 
+func NewBadRequestResponse(msg string) openapi.BadRequestJSONResponse {
+	return openapi.BadRequestJSONResponse{
+		Error: struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		}{
+			Code:    "bad_request",
+			Message: msg,
+		},
+	}
+}
+
 func As(err error) *Error {
 	var apiErr *Error
 	if errors.As(err, &apiErr) {
