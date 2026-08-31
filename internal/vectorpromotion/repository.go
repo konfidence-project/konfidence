@@ -18,7 +18,7 @@ import (
 
 // PromotionConfigNameField is the field-index key that maps a VectorPromotion to its
 // VectorPromotionConfig. Register this index on any informer cache or fake client that
-// backs ListForConfig queries (see PromotionConfigNameIndexFunc).
+// backs ListForConfig queries
 const PromotionConfigNameField = "spec.vectorPromotionConfigName"
 
 // PromotionConfigNameIndexFunc extracts the VectorPromotionConfig name from a

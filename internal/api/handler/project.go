@@ -287,11 +287,8 @@ func (h *projectHandler) ApproveVectorPromotionV1(ctx context.Context,
 	case errors.Is(err, vectorpromotiondomain.ErrPromotionSuperseded),
 		errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
 		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired):
-		// These domain error strings are the canonical client-facing conflict message.
 		return nil, apierror.NewConflict(err.Error())
 	default:
-		// ErrApproverMissing intentionally maps to 500: an empty subject indicates
-		// server misconfiguration, not a client error.
 		return nil, apierror.NewInternal(err)
 	}
 }
