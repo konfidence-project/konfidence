@@ -25,7 +25,6 @@ const createMockServer = async (): Promise<FastifyInstance> => {
 
   server.setErrorHandler((error: FastifyError, _request, reply) => {
     const status = error.statusCode ?? 500;
-    // fastify-openapi-glue describes a failed security handler in its own words. Keep it short.
     const message = error.name === "Unauthorized" ? "Authentication required" : error.message;
     return reply.code(status).send({ error: { code: String(status), message } });
   });
