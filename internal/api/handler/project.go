@@ -128,38 +128,38 @@ func (h *projectHandler) ListArtifactDeploymentsV1(_ context.Context,
 	return nil, nil
 }
 
-// resolveProjectContext handles the preamble common to handlers that operate on
-// a project-scoped k8s namespace: it validates the session, checks authorization,
-// fetches the project, and confirms the namespace is set. On failure it returns an
-// *apierror.Error carrying the HTTP status and a client-safe message; the strict
-// server's ResponseErrorHandler renders it, so callers can simply `return nil, err`.
-func (h *projectHandler) resolveProjectContext(ctx context.Context, projectId string) (*session.Context, string, error) {
-	identity, err := session.FromContext(ctx)
-	if err != nil {
-		return nil, "", apierror.NewUnauthorized()
-	}
+// resolveProjectNamespace handles the preamble common to handlers that operate on
+// a project-scoped k8s namespace: it checks authorization, fetches the project, and
+// confirms the namespace is set. On failure it returns an *apierror.Error carrying
+// the HTTP status and a client-safe message.
+func (h *projectHandler) resolveProjectNamespace(ctx context.Context, identity *session.Context, projectId string) (string, error) {
 	if !identity.IsAuthenticatedForProject(projectId) {
-		return nil, "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
+		return "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
 	}
 	project, err := h.projectRepo.Get(ctx, projectId, identity.ProjectRoles)
 	if err != nil {
 		if errors.Is(err, projectdomain.ErrNotFound) {
-			return nil, "", apierror.NewNotFound("project", projectId)
+			return "", apierror.NewNotFound("project", projectId)
 		}
 		if errors.Is(err, projectdomain.ErrForbidden) {
-			return nil, "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
+			return "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
 		}
-		return nil, "", apierror.NewInternal(err)
+		return "", apierror.NewInternal(err)
 	}
 	if project.Status.Namespace == "" {
-		return nil, "", apierror.NewInternal(fmt.Errorf("project %q has no namespace configured", projectId))
+		return "", apierror.NewInternal(fmt.Errorf("project %q has no namespace configured", projectId))
 	}
-	return identity, project.Status.Namespace, nil
+	return project.Status.Namespace, nil
 }
 
 func (h *projectHandler) GetVectorPromotionConfigV1(ctx context.Context,
 	request openapi.GetVectorPromotionConfigV1RequestObject) (openapi.GetVectorPromotionConfigV1ResponseObject, error) {
-	_, namespace, err := h.resolveProjectContext(ctx, request.ProjectId)
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, apierror.NewUnauthorized()
+	}
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,12 @@ func (h *projectHandler) GetVectorPromotionConfigV1(ctx context.Context,
 
 func (h *projectHandler) ListVectorPromotionConfigsV1(ctx context.Context,
 	request openapi.ListVectorPromotionConfigsV1RequestObject) (openapi.ListVectorPromotionConfigsV1ResponseObject, error) {
-	_, namespace, err := h.resolveProjectContext(ctx, request.ProjectId)
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, apierror.NewUnauthorized()
+	}
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +242,12 @@ func toVectorPromotionConfigResponse(c konfidence.VectorPromotionConfig,
 
 func (h *projectHandler) GetVectorPromotionV1(ctx context.Context,
 	request openapi.GetVectorPromotionV1RequestObject) (openapi.GetVectorPromotionV1ResponseObject, error) {
-	_, namespace, err := h.resolveProjectContext(ctx, request.ProjectId)
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, apierror.NewUnauthorized()
+	}
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +266,12 @@ func (h *projectHandler) GetVectorPromotionV1(ctx context.Context,
 
 func (h *projectHandler) ApproveVectorPromotionV1(ctx context.Context,
 	request openapi.ApproveVectorPromotionV1RequestObject) (openapi.ApproveVectorPromotionV1ResponseObject, error) {
-	identity, namespace, err := h.resolveProjectContext(ctx, request.ProjectId)
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, apierror.NewUnauthorized()
+	}
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
 	if err != nil {
 		return nil, err
 	}

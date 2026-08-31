@@ -15,10 +15,7 @@ import (
 )
 
 // expectAPIError asserts that a handler returned no response object and instead
-// surfaced an *apierror.Error with the given HTTP status. The vector promotion
-// handlers return these for every error path (preamble failures via
-// resolveProjectContext, plus not-found/conflict/internal), and the strict server
-// renders them; only success responses (200/204) are returned as typed objects.
+// surfaced an *apierror.Error with the given HTTP status.
 func expectAPIError(resp any, err error, status int) {
 	GinkgoHelper()
 	Expect(resp).To(BeNil())
