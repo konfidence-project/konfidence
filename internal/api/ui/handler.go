@@ -11,9 +11,9 @@ import (
 	"path"
 	"strings"
 	"time"
-)
 
-const apiPath = "/api"
+	"github.com/konfidence-project/konfidence/internal/api/apierror"
+)
 
 const (
 	defaultCacheControl   = "public, max-age=3600"
@@ -46,11 +46,7 @@ func New(files fs.FS) (http.Handler, error) {
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		http.NotFound(w, r)
-		return
-	}
-	if r.URL.Path == apiPath || strings.HasPrefix(r.URL.Path, apiPath+"/") {
-		http.NotFound(w, r)
+		notFound(w, r)
 		return
 	}
 
@@ -65,7 +61,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if name != "." && path.Ext(name) != "" {
-		http.NotFound(w, r)
+		notFound(w, r)
 		return
 	}
 
@@ -73,4 +69,16 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", mime.TypeByExtension(".html"))
 	w.Header().Set("ETag", h.indexETag)
 	http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(h.indexHTML))
+}
+
+func notFound(w http.ResponseWriter, r *http.Request) {
+	if !wantsJSON(r.Header.Get("Accept")) {
+		http.NotFound(w, r)
+		return
+	}
+	apierror.Write(w, apierror.NewNotFound("route", r.URL.Path))
+}
+
+func wantsJSON(accept string) bool {
+	return strings.Contains(accept, "application/json") && !strings.Contains(accept, "text/html")
 }
