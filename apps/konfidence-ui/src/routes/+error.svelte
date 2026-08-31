@@ -19,6 +19,7 @@
 </main>
 
 <style>
+    /* TODO(#892): migrate scoped CSS to Tailwind per ADR. */
     .error-page {
         min-height: calc(100vh - 4px);
         display: flex;

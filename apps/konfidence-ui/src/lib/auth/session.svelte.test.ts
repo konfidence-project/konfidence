@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resetSessionForTest, session } from "$lib/auth/session.svelte";
+import { HTTP_INTERNAL_SERVER_ERROR, HTTP_OK, HTTP_UNAUTHORIZED } from "$lib/http-status";
+import {
+  createTestSession,
+  identityBody,
+  jsonResponse,
+  mockFetchOnce,
+  mockFetchReject,
+} from "$lib/auth/session.test-helpers";
 
 const gotoMock = vi.fn(async (_target: string): Promise<void> => undefined);
 
@@ -7,49 +14,25 @@ vi.mock("$app/navigation", () => ({
   goto: (target: string) => gotoMock(target),
 }));
 
-const HTTP_OK = 200;
-const HTTP_UNAUTHORIZED = 401;
-const HTTP_INTERNAL_SERVER_ERROR = 500;
-
-const mockFetchOnce = (response: Response): void => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => response),
-  );
-};
-
-const jsonResponse = (status: number, body: unknown): Response =>
-  new Response(JSON.stringify(body), {
-    headers: { "Content-Type": "application/json" },
-    status,
-  });
-
-const identityBody = {
-  email: "alex.admin@example.com",
-  familyName: "Admin",
-  givenName: "Alex",
-  name: "Alex Admin",
-  projectRoles: { "payments-platform": ["admin", "dev"] },
-};
-
 beforeEach(() => {
-  resetSessionForTest();
   gotoMock.mockClear();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  resetSessionForTest();
 });
 
 describe("session store", () => {
   it("starts in the idle status with no user", () => {
+    const session = createTestSession();
+
     expect(session.status).toBe("idle");
     expect(session.user).toBeUndefined();
   });
 
   it("transitions to authenticated on a successful identity response", async () => {
     mockFetchOnce(jsonResponse(HTTP_OK, identityBody));
+    const session = createTestSession();
 
     await session.refresh();
 
@@ -60,6 +43,7 @@ describe("session store", () => {
 
   it("transitions to unauthenticated on a 401", async () => {
     mockFetchOnce(jsonResponse(HTTP_UNAUTHORIZED, { error: { code: "401", message: "no" } }));
+    const session = createTestSession();
 
     await session.refresh();
 
@@ -72,6 +56,7 @@ describe("session store", () => {
     mockFetchOnce(
       jsonResponse(HTTP_INTERNAL_SERVER_ERROR, { error: { code: "500", message: "oops" } }),
     );
+    const session = createTestSession();
 
     await session.refresh();
 
@@ -80,12 +65,8 @@ describe("session store", () => {
   });
 
   it("records an error when the request fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new Error("network down");
-      }),
-    );
+    mockFetchReject(new Error("network down"));
+    const session = createTestSession();
 
     await session.refresh();
 
@@ -94,6 +75,8 @@ describe("session store", () => {
   });
 
   it("builds the login URL from a returnTo path", () => {
+    const session = createTestSession();
+
     const url = session.buildLoginUrl("/projects/foo");
 
     expect(url).toContain("/api/v1/login?return_url=");
@@ -104,6 +87,7 @@ describe("session store", () => {
 
   it("navigates to /login after signing out", async () => {
     mockFetchOnce(new Response("", { status: HTTP_OK }));
+    const session = createTestSession();
 
     await session.signOut();
 

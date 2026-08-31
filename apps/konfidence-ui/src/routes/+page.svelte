@@ -2,7 +2,9 @@
     import { resolve } from "$app/paths";
     import Brandbar from "$lib/components/Brandbar.svelte";
     import { dashboardTitle } from "$lib/dashboard";
-    import { session } from "$lib/auth/session.svelte";
+    import { useSession } from "$lib/auth/session.svelte";
+
+    const session = useSession();
 </script>
 
 <svelte:head>
@@ -37,6 +39,7 @@
 </main>
 
 <style>
+    /* TODO(#892): migrate scoped CSS to Tailwind per ADR. */
     .dashboard {
         min-height: 100vh;
         display: flex;

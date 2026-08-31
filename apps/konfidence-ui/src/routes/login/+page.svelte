@@ -3,7 +3,9 @@
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
     import Brandbar from "$lib/components/Brandbar.svelte";
-    import { session } from "$lib/auth/session.svelte";
+    import { useSession } from "$lib/auth/session.svelte";
+
+    const session = useSession();
 
     const DEFAULT_RETURN_TO = "/";
 
@@ -73,6 +75,7 @@
 </div>
 
 <style>
+    /* TODO(#892): migrate scoped CSS to Tailwind per ADR. */
     .login-page {
         min-height: 100vh;
         display: flex;

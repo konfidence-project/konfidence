@@ -2,7 +2,8 @@ import { page } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 import LoginPage from "./+page.svelte";
-import { resetSessionForTest } from "$lib/auth/session.svelte";
+import SessionTestProvider from "$lib/auth/SessionTestProvider.svelte";
+import { createTestSession } from "$lib/auth/session.test-helpers";
 
 const pageState = {
   url: new URL("http://127.0.0.1/login"),
@@ -25,17 +26,20 @@ const setLoginUrl = (search: string): void => {
 };
 
 beforeEach(() => {
-  resetSessionForTest();
   setLoginUrl("");
+  vi.unstubAllGlobals();
 });
 
 afterEach(() => {
-  resetSessionForTest();
+  vi.unstubAllGlobals();
 });
 
 describe("login page", () => {
   it("renders a sign-in link that targets the default return URL", async () => {
-    render(LoginPage);
+    render(SessionTestProvider, {
+      component: LoginPage,
+      session: createTestSession(),
+    });
 
     const link = page.getByTestId("sign-in");
     await expect.element(link).toBeVisible();
@@ -47,7 +51,10 @@ describe("login page", () => {
   it("propagates a returnTo query parameter into the sign-in URL", async () => {
     setLoginUrl("?returnTo=/projects/foo/landscape");
 
-    render(LoginPage);
+    render(SessionTestProvider, {
+      component: LoginPage,
+      session: createTestSession(),
+    });
 
     const link = page.getByTestId("sign-in");
     const href = await link.element().getAttribute("href");
@@ -59,7 +66,10 @@ describe("login page", () => {
   it("renders the error description from the callback query", async () => {
     setLoginUrl("?error=access_denied&error_description=Login%20denied");
 
-    render(LoginPage);
+    render(SessionTestProvider, {
+      component: LoginPage,
+      session: createTestSession(),
+    });
 
     await expect.element(page.getByRole("alert")).toHaveTextContent("Login denied");
   });
@@ -67,7 +77,10 @@ describe("login page", () => {
   it("falls back to the error code when no description is provided", async () => {
     setLoginUrl("?error=access_denied");
 
-    render(LoginPage);
+    render(SessionTestProvider, {
+      component: LoginPage,
+      session: createTestSession(),
+    });
 
     await expect.element(page.getByRole("alert")).toHaveTextContent("access_denied");
   });

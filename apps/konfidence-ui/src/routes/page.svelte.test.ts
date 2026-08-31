@@ -3,23 +3,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import DashboardPage from "./+page.svelte";
-import { resetSessionForTest } from "$lib/auth/session.svelte";
+import SessionTestProvider from "$lib/auth/SessionTestProvider.svelte";
+import { createTestSession } from "$lib/auth/session.test-helpers";
 
 vi.mock("$app/navigation", () => ({
   goto: vi.fn(async () => undefined),
 }));
 
 beforeEach(() => {
-  resetSessionForTest();
+  vi.unstubAllGlobals();
 });
 
 afterEach(() => {
-  resetSessionForTest();
+  vi.unstubAllGlobals();
 });
 
 describe("dashboard page", () => {
   it("renders the dashboard heading", async () => {
-    render(DashboardPage);
+    render(SessionTestProvider, {
+      component: DashboardPage,
+      session: createTestSession(),
+    });
 
     await expect
       .element(page.getByRole("heading", { level: 1 }))
@@ -27,7 +31,10 @@ describe("dashboard page", () => {
   });
 
   it("renders a sign-out link", async () => {
-    render(DashboardPage);
+    render(SessionTestProvider, {
+      component: DashboardPage,
+      session: createTestSession(),
+    });
 
     await expect.element(page.getByTestId("sign-out")).toHaveAttribute("href", "/logout");
   });

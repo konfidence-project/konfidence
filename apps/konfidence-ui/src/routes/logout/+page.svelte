@@ -2,7 +2,9 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { resolve } from "$app/paths";
-    import { LOGIN_PATH, session } from "$lib/auth/session.svelte";
+    import { LOGIN_PATH, useSession } from "$lib/auth/session.svelte";
+
+    const session = useSession();
 
     onMount(() => {
         void (async () => {
@@ -25,6 +27,7 @@
 </main>
 
 <style>
+    /* TODO(#892): migrate scoped CSS to Tailwind per ADR. */
     .signing-out {
         display: flex;
         flex-direction: column;

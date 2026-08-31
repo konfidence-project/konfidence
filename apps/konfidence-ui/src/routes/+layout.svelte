@@ -4,13 +4,22 @@
     import { goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
-    import { LOGIN_PATH, LOGOUT_PATH, session } from "$lib/auth/session.svelte";
+    import {
+        LOGIN_PATH,
+        LOGOUT_PATH,
+        provideSession,
+        SessionStore,
+    } from "$lib/auth/session.svelte";
+    import { getApiClient, setOnUnauthorized } from "$lib/konfidence-api/client-instance";
 
     interface Props {
         children?: Snippet;
     }
 
     let { children }: Props = $props();
+
+    const session = provideSession(new SessionStore(getApiClient()));
+    setOnUnauthorized(() => session.handleUnauthorized());
 
     const PUBLIC_ROUTES = new Set<string>([LOGIN_PATH, LOGOUT_PATH]);
     const isPublicRoute = $derived(PUBLIC_ROUTES.has(page.url.pathname));
@@ -40,6 +49,7 @@
     </div>
 {/if}
 
+<!-- TODO(#892): migrate scoped CSS to Tailwind per ADR. -->
 <style>
     .loading {
         display: flex;
