@@ -44,6 +44,14 @@ pnpm ui:dev
 
 The development server proxies `/api/v1` requests to the API at `http://127.0.0.1:8090`. Run the API separately with `make run-kden-api` when developing API-backed features.
 
+To develop without Kubernetes, start the dashboard and the OpenAPI-validated mock API together:
+
+```sh
+pnpm ui:dev:mock
+```
+
+The mock API listens on `http://127.0.0.1:8091`. Its fixtures, scenarios, and test integration are documented in [`apps/konfidence-mock-api`](apps/konfidence-mock-api/README.md).
+
 Install Chromium once before running browser-based tests:
 
 ```sh
@@ -71,7 +79,7 @@ pnpm ui:build
 pnpm ui:start
 ```
 
-The preview server is intended for checking the root page. To exercise production SPA fallback behavior, serve the build through the API with `go run ./cmd/api --ui-asset-path=apps/konfidence-ui/build`.
+The preview server serves the SPA fallback for deep links and proxies `/api/v1` using the same target as the development server.
 
 Production releases include the static SPA in the API image. The API serves the dashboard and `/api/v1` from the same origin; set `API_UI_ASSET_PATH` when running an API binary with an external dashboard build directory.
 
