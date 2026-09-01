@@ -548,6 +548,8 @@ export interface operations {
       /** @description Redirect to IDP authorization endpoint. */
       302: {
         headers: {
+          /** @description Contains the session ID (only set when OIDC is disabled). */
+          "Set-Cookie"?: string;
           /** @description Redirect url */
           Location?: string;
           [name: string]: unknown;
