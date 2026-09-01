@@ -14,6 +14,7 @@ export default defineConfig({
   env: {
     builtin: true,
   },
+  ignorePatterns: ["src/lib/konfidence-api/schema.d.ts"],
   overrides: [
     {
       files: ["src/**/*.svelte", "src/**/*.svelte.ts"],
@@ -50,6 +51,7 @@ export default defineConfig({
     "import/no-named-export": "off",
     "import/no-namespace": "off",
     "import/prefer-default-export": "off",
+    "no-magic-numbers": ["warn", { ignore: [-1, 0, 1, 200, 302, 400, 401, 403, 404, 500] }],
     "sort-imports": ["warn", { ignoreDeclarationSort: true }],
   },
 });

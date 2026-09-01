@@ -25,12 +25,12 @@ export default defineConfig({
   ],
   preview: {
     proxy: {
-      "/api/v1": process.env.KONFIDENCE_API_URL ?? "http://127.0.0.1:8090",
+      "/api/v1": process.env.KONFIDENCE_API_URL ?? "http://127.0.0.1:8091",
     },
   },
   server: {
     proxy: {
-      "/api/v1": process.env.KONFIDENCE_API_URL ?? "http://127.0.0.1:8090",
+      "/api/v1": process.env.KONFIDENCE_API_URL ?? "http://127.0.0.1:8091",
     },
   },
   test: {
