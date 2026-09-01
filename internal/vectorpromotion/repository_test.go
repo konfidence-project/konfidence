@@ -181,7 +181,7 @@ var _ = Describe("Repository", func() {
 			}
 		}
 
-		It("returns promotions belonging to the given config, sorted by sequence", func() {
+		It("returns promotions belonging to the given config, sorted by sequence descending (newest first)", func() {
 			p1 := newPromotionForConfig("promo-2", "default", "config", 2)
 			p2 := newPromotionForConfig("promo-1", "default", "config", 1)
 			repo := newRepository(p1, p2)
@@ -189,8 +189,8 @@ var _ = Describe("Repository", func() {
 			got, err := repo.ListForConfig(ctx, "default", "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(got).To(HaveLen(2))
-			Expect(got[0].Name).To(Equal("promo-1"))
-			Expect(got[1].Name).To(Equal("promo-2"))
+			Expect(got[0].Name).To(Equal("promo-2"))
+			Expect(got[1].Name).To(Equal("promo-1"))
 		})
 
 		It("excludes promotions from a different config in the same namespace", func() {

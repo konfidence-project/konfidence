@@ -76,9 +76,9 @@ func (r *k8sRepository) Get(ctx context.Context, namespace string, vectorPromoti
 }
 
 // ListForConfig returns every VectorPromotion in the namespace that belongs to the given
-// config, ordered by their monotonic sequence. The lookup is backed by the
-// PromotionConfigNameField index; register it on any cache or fake client that backs this
-// repository (see PromotionConfigNameIndexFunc).
+// config, ordered by their monotonic sequence descending (newest first). The lookup is
+// backed by the PromotionConfigNameField index; register it on any cache or fake client
+// that backs this repository (see PromotionConfigNameIndexFunc).
 func (r *k8sRepository) ListForConfig(ctx context.Context, namespace string,
 	vectorPromotionConfigName string) ([]konfidence.VectorPromotion, error) {
 	var list konfidence.VectorPromotionList
@@ -89,7 +89,7 @@ func (r *k8sRepository) ListForConfig(ctx context.Context, namespace string,
 	}
 
 	sort.Slice(list.Items, func(i, j int) bool {
-		return list.Items[i].Spec.Sequence < list.Items[j].Spec.Sequence
+		return list.Items[i].Spec.Sequence > list.Items[j].Spec.Sequence
 	})
 
 	return list.Items, nil
