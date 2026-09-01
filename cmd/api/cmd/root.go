@@ -172,6 +172,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		&konfidence.Landscape{},
 		&konfidence.Stage{},
 		&konfidence.StageVersion{},
+		&konfidence.ArtifactDeployment{},
 		&konfidence.VectorPromotionConfig{},
 		&konfidence.VectorPromotion{},
 		&konfidence.VectorDeployment{},
