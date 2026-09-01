@@ -1,3 +1,11 @@
+---
+title: CLI
+description: Konfidence command-line interface reference and command documentation.
+outline: [2, 3]
+editLink: true
+lastUpdated: true
+---
+
 ## kden
 
 Kden CLI tool for working with Konfidence
