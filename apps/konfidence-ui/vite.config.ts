@@ -3,10 +3,34 @@ import { playwright } from "@vitest/browser-playwright";
 import { sveltekit } from "@sveltejs/kit/vite";
 
 export default defineConfig({
-  plugins: [sveltekit()],
+  plugins: [
+    {
+      configurePreviewServer: (server) => {
+        server.middlewares.use((request, _response, next) => {
+          const { pathname } = new URL(request.url ?? "/", "http://localhost");
+          const filename = pathname.split("/").pop() ?? "";
+          if (
+            request.method === "GET" &&
+            !pathname.startsWith("/api/") &&
+            !filename.includes(".")
+          ) {
+            request.url = "/";
+          }
+          next();
+        });
+      },
+      name: "spa-preview-fallback",
+    },
+    sveltekit(),
+  ],
+  preview: {
+    proxy: {
+      "/api/v1": process.env.KONFIDENCE_API_URL ?? "http://127.0.0.1:8090",
+    },
+  },
   server: {
     proxy: {
-      "/api/v1": "http://127.0.0.1:8090",
+      "/api/v1": process.env.KONFIDENCE_API_URL ?? "http://127.0.0.1:8090",
     },
   },
   test: {

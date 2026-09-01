@@ -8,11 +8,11 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "pnpm dev:mock-api",
+      command: "pnpm --filter konfidence-mock-api start",
       gracefulShutdown: { signal: "SIGTERM", timeout: 1000 },
       name: "Mock API",
       reuseExistingServer: !process.env.CI,
-      url: "http://127.0.0.1:8091/health",
+      url: "http://127.0.0.1:8091/api/v1/projects",
     },
     {
       command: "pnpm build && pnpm preview --host 127.0.0.1 --port 4173",
