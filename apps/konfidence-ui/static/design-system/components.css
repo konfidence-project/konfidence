@@ -1,0 +1,1097 @@
+/* ============================================================================
+   KONFIDENCE DESIGN SYSTEM — components.css
+   Nutzt ausschließlich Tokens aus tokens.css. Build-frei, theme- & density-fähig.
+   ============================================================================ */
+
+*{box-sizing:border-box;margin:0;padding:0;}
+
+body{
+  font-family:var(--font-sans); font-size:var(--text-body); line-height:var(--leading-normal);
+  color:var(--text-primary); background:var(--surface-canvas);
+  -webkit-font-smoothing:antialiased;
+  transition:background var(--motion-base) var(--ease), color var(--motion-base) var(--ease);
+}
+/* Signatur: Tabularziffern global (Auditierbarkeit) — Zahlen laufen sauber untereinander */
+body{font-feature-settings:var(--numeric-tabular);}
+.vec-id,.mono,.td-mono,.kpi__value,.hero-stat__val,table.tbl td{font-variant-numeric:tabular-nums;}
+
+/* --- Reduced motion ---------------------------------------------------- */
+@keyframes float   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+@keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes spin    { to{transform:rotate(360deg)} }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes slidein { from{transform:translateX(16px);opacity:0} to{transform:translateX(0);opacity:1} }
+@keyframes pop     { from{transform:scale(.96);opacity:0} to{transform:scale(1);opacity:1} }
+@media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none!important;transition:none!important} }
+
+/* --- Globaler Fokus-Ring — EINHEITLICH: Signatur-Amber-Glow („alles glüht") ---
+   Aktions-/neutrale Elemente = Amber-Glow (--focus-ring). Info/Daten-Elemente
+   (Links, Tabs, Sparkline-Kontext) = Teal-Glow (--focus-ring-teal). Ein System. */
+a,button,input,select,textarea,[tabindex],
+.kpi,.nav-item,.proj-switch,.tab,.seg__btn,.segmented__btn,.filter-tile,.filter-card,.row,.row-clickable,
+.icon-btn,.avatar,.notif,.switch,
+.log-table__row,.command__item,.context-switcher__option,.feed-item{ outline:none; }
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,
+[tabindex]:focus-visible,.kpi:focus-visible,.nav-item:focus-visible,.proj-switch:focus-visible,
+.seg__btn:focus-visible,.segmented__btn:focus-visible,.filter-tile:focus-visible,.filter-card:focus-visible,
+.row:focus-visible,.row-clickable:focus-visible,
+.icon-btn:focus-visible,.avatar:focus-visible,.notif:focus-visible,.switch:focus-visible,
+.log-table__row:focus-visible,.command__item:focus-visible,
+.context-switcher__option:focus-visible,.feed-item:focus-visible{
+  outline:none; box-shadow:var(--focus-ring); border-radius:var(--radius-sm);
+}
+/* Info-/Daten-Elemente: Teal-Glow (Links, Tabs) statt Amber */
+a:focus-visible,.tab:focus-visible{outline:none;box-shadow:var(--focus-ring-teal);border-radius:var(--radius-sm);}
+
+/* ============================================================================
+   ICON — <i class="ico" data-ico="NAME"></i>, site.js injiziert das SAP-SVG.
+   Größe/Farbe kommen von den komponenten-eigenen `… svg{}`-Regeln (currentColor).
+   Standalone-Default: 1em, fill currentColor.
+   ============================================================================ */
+.ico{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:0;}
+.ico svg{width:1em;height:1em;fill:currentColor;display:block;}
+/* In Komponenten setzt `… svg{width/height}` die Größe; das injizierte svg erbt sie. */
+[data-ico-missing]{outline:1px dashed var(--status-error-solid);min-width:1em;min-height:1em;}
+
+/* ============================================================================
+   BAUSTEINE / ATOMS — kleinste wiederverwendbare Teile (Micro-System)
+   Aus diesen Atomen werden die großen Kacheln (Stage-Card · KPI-Tile) ZUSAMMENGESETZT.
+   Jedes Atom ist einzeln nutzbar & dokumentiert.
+   Farben immer über Rollen-/Status-Tokens.
+   ============================================================================ */
+/* Status-Punkt — farbiger Punkt je Status-Rolle (Basis für Live/Badge/Legende) */
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--status-queued-solid);flex-shrink:0;}
+.status-dot--healthy{background:var(--status-healthy-solid);}
+.status-dot--warning{background:var(--status-warning-solid);}
+.status-dot--degraded{background:var(--status-degraded-solid);}
+.status-dot--error{background:var(--status-error-solid);}
+.status-dot--deploying{background:var(--status-deploying-solid);}
+.status-dot--promoting{background:var(--status-promoting-solid);}
+
+/* Live-Indikator — Status-Punkt (mit Orbit-Puls) + Label */
+.live{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-meta);font-weight:var(--weight-semibold);color:var(--status-healthy-fg);white-space:nowrap;}
+.live .orbit-dot,.live .status-dot{flex-shrink:0;}
+
+/* Versions-Zeile — Versionsnummer (mono, kräftig) + Commit-Hash (dezent) */
+.ver{display:inline-flex;align-items:baseline;gap:8px;font-family:var(--font-mono);}
+.ver__num{font-size:var(--text-h3);font-weight:var(--weight-bold);color:var(--text-primary);letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+.ver__hash{font-size:var(--text-meta);color:var(--text-tertiary);}
+
+/* Meta-Paar — Label über Wert (die „Vectors / Lead time"-Blöcke). In .meta-row reihen. */
+.meta-row{display:flex;flex-wrap:wrap;gap:var(--space-6);}
+.meta-pair{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.meta-pair__label{font-size:var(--text-meta);color:var(--text-tertiary);}
+.meta-pair__value{font-family:var(--font-mono);font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);font-variant-numeric:tabular-nums;}
+.meta-pair--lg .meta-pair__value{font-size:var(--text-h3);}
+
+/* Benannte Fortschritts-Zeile — Label links + Segment-Balken (Landscape-Kachel-Zeile).
+   Nutzt .stage-progress für die Segmente. */
+.stage-line{display:grid;grid-template-columns:88px 1fr;gap:var(--space-3);align-items:center;}
+.stage-line__label{font-size:var(--text-meta);color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* Titel-Zeile — Titel (+ optionaler Sub) als 1-/2-zeiliger Kopf-Baustein */
+.titleline{display:flex;flex-direction:column;gap:0;min-width:0;}
+.titleline__title{font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.titleline__sub{font-size:var(--text-meta);color:var(--text-tertiary);margin-top:1px;}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  font-family:inherit;font-size:var(--text-sm);font-weight:var(--weight-semibold);text-decoration:none;
+  padding:var(--btn-py) var(--btn-px);border-radius:var(--btn-radius);border:1px solid transparent;
+  cursor:pointer;line-height:1.2;overflow:hidden;white-space:nowrap;
+  transition:transform var(--motion-fast) var(--ease),box-shadow var(--motion-base) var(--ease),background var(--motion-fast) var(--ease),border-color var(--motion-fast) var(--ease);}
+.btn svg{width:var(--icon-md);height:var(--icon-md);position:relative;z-index:1;}
+.btn>span{position:relative;z-index:1;}
+.btn--primary{background:var(--btn-primary-bg);color:var(--btn-primary-fg);box-shadow:var(--btn-primary-shadow);}
+.btn--primary::before{content:"";position:absolute;top:0;left:0;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:translateX(-120%);}
+.btn--primary:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(255,149,12,.45),0 0 0 1px rgba(255,149,12,.2),0 0 24px rgba(255,181,48,.35);}
+.btn--primary:hover::before{animation:shine 900ms var(--ease-out);}
+@keyframes shine{0%{transform:translateX(-120%)}60%,100%{transform:translateX(220%)}}
+.btn--secondary{background:var(--btn-secondary-bg);color:var(--btn-secondary-fg);border-color:var(--btn-secondary-bd);box-shadow:var(--shadow-xs);}
+.btn--secondary:hover{background:var(--surface-subtle);border-color:var(--border-strong);}
+.btn--ghost{background:transparent;color:var(--text-secondary);}
+.btn--ghost:hover{background:var(--surface-sunken);color:var(--text-primary);}
+.btn--link{background:transparent;color:var(--text-link);padding:var(--btn-py) 4px;}
+.btn--link:hover{text-decoration:underline;}
+.btn--danger{background:var(--surface-default);color:var(--btn-danger-fg);border-color:var(--border-default);box-shadow:var(--shadow-xs);}
+.btn--danger:hover{background:var(--btn-danger-bg);}
+.btn--icon{padding:var(--btn-py);width:36px;height:36px;flex-shrink:0;}
+.btn--sm{padding:6px 12px;font-size:var(--text-meta);}
+.btn:disabled{opacity:var(--disabled-opacity);cursor:not-allowed;box-shadow:none;transform:none;}
+.btn.is-loading{color:transparent!important;pointer-events:none;}
+.btn.is-loading .spinner{position:absolute;top:50%;left:50%;margin:-8px 0 0 -8px;z-index:2;}
+
+/* Spinner */
+.spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
+.btn--primary .spinner{color:var(--text-on-accent);}
+
+/* ============================================================================
+   STATUS-BADGE (statisch, farbenblind-sicher: Farbe + Punkt + Text)
+   ============================================================================ */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-meta);font-weight:var(--weight-semibold);
+  padding:var(--badge-py) var(--badge-px) var(--badge-py) 8px;border-radius:var(--badge-radius);line-height:1.4;white-space:nowrap;border:1px solid transparent;}
+.badge .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.badge--healthy{color:var(--status-healthy-fg);background:var(--status-healthy-bg);}   .badge--healthy .dot{background:var(--status-healthy-solid);}
+.badge--warning{color:var(--status-warning-fg);background:var(--status-warning-bg);}   .badge--warning .dot{background:var(--status-warning-solid);}
+.badge--degraded{color:var(--status-degraded-fg);background:var(--status-degraded-bg);}.badge--degraded .dot{background:var(--status-degraded-solid);}
+.badge--error{color:var(--status-error-fg);background:var(--status-error-bg);}         .badge--error .dot{background:var(--status-error-solid);}
+.badge--promoting{color:var(--status-promoting-fg);background:var(--status-promoting-bg);}.badge--promoting .dot{background:var(--status-promoting-solid);}
+.badge--deploying{color:var(--status-deploying-fg);background:var(--status-deploying-bg);}.badge--deploying .dot{background:var(--status-deploying-solid);}
+.badge--queued{color:var(--status-queued-fg);background:var(--status-queued-bg);}       .badge--queued .dot{background:var(--status-queued-solid);}
+
+/* ============================================================================
+   TAGS — Farbe + eigenes Icon je Kategorie (Doppelkodierung)
+   ============================================================================ */
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:var(--text-meta);font-weight:var(--weight-medium);
+  padding:2px 8px;border-radius:var(--tag-radius);border:1px solid;line-height:1.5;white-space:nowrap;}
+.tag svg{width:var(--icon-xs);height:var(--icon-xs);flex-shrink:0;}
+.tag--mono{font-family:var(--font-mono);color:var(--text-secondary);background:var(--surface-sunken);border-color:var(--border-subtle);}
+.tag--red{color:var(--tag-red-fg);background:var(--tag-red-bg);border-color:var(--tag-red-bd);}
+.tag--orange{color:var(--tag-orange-fg);background:var(--tag-orange-bg);border-color:var(--tag-orange-bd);}
+.tag--amber{color:var(--tag-amber-fg);background:var(--tag-amber-bg);border-color:var(--tag-amber-bd);}
+.tag--lime{color:var(--tag-lime-fg);background:var(--tag-lime-bg);border-color:var(--tag-lime-bd);}
+.tag--green{color:var(--tag-green-fg);background:var(--tag-green-bg);border-color:var(--tag-green-bd);}
+.tag--teal{color:var(--tag-teal-fg);background:var(--tag-teal-bg);border-color:var(--tag-teal-bd);}
+.tag--cyan{color:var(--tag-cyan-fg);background:var(--tag-cyan-bg);border-color:var(--tag-cyan-bd);}
+.tag--blue{color:var(--tag-blue-fg);background:var(--tag-blue-bg);border-color:var(--tag-blue-bd);}
+.tag--indigo{color:var(--tag-indigo-fg);background:var(--tag-indigo-bg);border-color:var(--tag-indigo-bd);}
+.tag--violet{color:var(--tag-violet-fg);background:var(--tag-violet-bg);border-color:var(--tag-violet-bd);}
+.tag--pink{color:var(--tag-pink-fg);background:var(--tag-pink-bg);border-color:var(--tag-pink-bd);}
+.tag--slate{color:var(--tag-slate-fg);background:var(--tag-slate-bg);border-color:var(--tag-slate-bd);}
+
+/* ============================================================================
+   ICON-CHIP
+   ============================================================================ */
+.icon-chip{width:40px;height:40px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.icon-chip svg{width:var(--icon-xl);height:var(--icon-xl);}
+.icon-chip--amber{background:var(--amber-100);color:var(--amber-700);}
+.icon-chip--teal{background:var(--teal-50);color:var(--teal-700);}
+[data-theme="dark"] .icon-chip--amber{background:rgba(255,181,48,.16);color:var(--amber-300);}
+[data-theme="dark"] .icon-chip--teal{background:rgba(27,160,201,.16);color:var(--teal-300);}
+
+/* ============================================================================
+   CARD — flach + weicher Rand-Glow (zurückhaltend, wie Referenz)
+   ============================================================================ */
+.card{position:relative;background:var(--card-bg);border:1px solid var(--card-bd);border-radius:var(--card-radius);
+  box-shadow:var(--card-shadow),var(--card-rim-glow);
+  transition:transform var(--motion-base) var(--ease-out),box-shadow var(--motion-base) var(--ease),background var(--motion-base) var(--ease),border-color var(--motion-base) var(--ease);}
+.card--hover:hover{transform:translateY(-2px);box-shadow:var(--shadow-md),var(--card-rim-glow);}
+.card__header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--card-pad);border-bottom:1px solid var(--border-subtle);}
+.card__header h3,.card__header h4{font-size:var(--text-h3);font-weight:var(--weight-semibold);}
+.card__header a{font-size:var(--text-sm);color:var(--text-link);font-weight:var(--weight-semibold);text-decoration:none;}
+.card__body{padding:var(--card-pad);}
+
+/* ============================================================================
+   KPI-TILE
+   ============================================================================ */
+.kpi{position:relative;background:var(--card-bg);border:1px solid var(--card-bd);border-radius:var(--card-radius);
+  padding:var(--card-pad);cursor:pointer;box-shadow:var(--card-rim-glow);overflow:hidden;
+  transition:transform var(--motion-base) var(--ease-out),border-color var(--motion-fast) var(--ease),box-shadow var(--motion-base) var(--ease);}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-md),var(--card-rim-glow);border-color:var(--border-default);}
+/* Ausgewählt/aktiv: dezent über Grund-Tönung + kräftigeren Text, KEIN blauer Rahmen */
+.kpi--active{background:var(--surface-subtle);border-color:var(--border-default);}
+.kpi--active .kpi__label{color:var(--text-secondary);}
+/* Optionale Gradient-Kachel — warmer, sehr dezenter Verlauf (wie Website-Referenz) */
+.kpi--gradient{background:var(--gradient-tile);border-color:transparent;box-shadow:var(--shadow-sm);}
+.kpi--gradient::after{content:"";position:absolute;inset:0;background:var(--tile-glow);opacity:.7;pointer-events:none;}
+.kpi--gradient .kpi__top,.kpi--gradient .kpi__value,.kpi--gradient .kpi__delta{position:relative;z-index:1;}
+.kpi__top{display:flex;align-items:center;gap:var(--space-2);color:var(--text-tertiary);}
+.kpi__top svg{width:var(--icon-md);height:var(--icon-md);}
+.kpi__label{font-size:var(--text-meta);font-weight:var(--weight-semibold);letter-spacing:.03em;text-transform:uppercase;}
+.kpi__value{font-size:var(--text-display);font-weight:var(--weight-black);letter-spacing:-.02em;margin-top:var(--space-2);line-height:1.1;}
+.kpi__value.grad{background:var(--gradient-aurora);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.kpi__delta{font-size:var(--text-meta);font-weight:var(--weight-semibold);margin-top:2px;color:var(--text-tertiary);}
+.kpi__delta--up{color:var(--status-healthy-fg);}
+.kpi__delta--down{color:var(--status-error-fg);}
+/* --- Modularisierung: .kpi als Container, .stat als kleinster Baustein --------
+   Kopfzeile mit Icon/Label links + freiem Slot rechts (Button/Tag/Badge).
+   1..n .stat pro Tile; --multi legt mehrere Werte ins Grid. Größen --sm/--lg. */
+.kpi__top{justify-content:space-between;}
+.kpi__top-lead{display:flex;align-items:center;gap:var(--space-2);min-width:0;}
+.kpi__top-actions{display:flex;align-items:center;gap:var(--space-2);flex-shrink:0;}
+.kpi--sm{padding:var(--space-4);}
+.kpi--lg{padding:var(--space-6);}
+.kpi--multi .kpi__stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:var(--space-4);}
+.kpi__stats{margin-top:var(--space-3);}
+/* .stat — wiederverwendbarer Wert-Baustein (auch außerhalb .kpi nutzbar) */
+.stat{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.stat__label{font-size:var(--text-meta);font-weight:var(--weight-semibold);letter-spacing:.03em;text-transform:uppercase;color:var(--text-tertiary);}
+.stat__value{font-size:var(--text-h2);font-weight:var(--weight-bold);letter-spacing:-.01em;line-height:1.15;color:var(--text-primary);font-variant-numeric:tabular-nums;}
+.stat__value.grad{background:var(--gradient-aurora);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.stat__delta{font-size:var(--text-meta);font-weight:var(--weight-semibold);color:var(--text-tertiary);}
+.stat__delta--up{color:var(--status-healthy-fg);} .stat__delta--down{color:var(--status-error-fg);}
+.stat--sm .stat__value{font-size:var(--text-h3);}
+.stat--lg .stat__value{font-size:var(--text-display);font-weight:var(--weight-black);letter-spacing:-.02em;}
+
+/* ============================================================================
+   STAGE CARD — zentrale Board-Kachel (Composite)
+   Status-Stripe oben · Live-Badge · Phasen-Slot · Chip-Reihe · Inline-Fehler ·
+   Kebab · ausklappbarer Detail-Bereich. Stripe/Status ausschließlich über Rollen-Tokens.
+   ============================================================================ */
+.stage-card{position:relative;background:var(--card-bg);border:1px solid var(--card-bd);border-radius:var(--card-radius);
+  box-shadow:var(--card-shadow),var(--card-rim-glow);overflow:hidden;
+  transition:transform var(--motion-base) var(--ease-out),box-shadow var(--motion-base) var(--ease),border-color var(--motion-fast) var(--ease);}
+.stage-card--hover:hover{transform:translateY(-2px);box-shadow:var(--shadow-md),var(--card-rim-glow);}
+/* Ausgewählt (Board-Fokus): Amber-Ring + kräftigere Kante — Amber=Aktion/Fokus (DS-Regel) */
+/* Ausgewählt (Board-Fokus): Ring in der STATUSFARBE der Karte (--stage-accent) */
+.stage-card--selected{border-color:var(--stage-accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--stage-accent) 32%, transparent),var(--card-rim-glow);}
+/* Status-Stripe oben + Akzentfarbe der Karte (eine Quelle für Stripe & Selected-Ring) */
+.stage-card{--stage-accent:var(--border-strong);}
+.stage-card__stripe{position:absolute;top:0;left:0;right:0;height:3px;background:var(--stage-accent);z-index:1;}
+.stage-card--healthy{--stage-accent:var(--status-healthy-solid);}
+.stage-card--deploying{--stage-accent:var(--status-deploying-solid);}
+.stage-card--warning{--stage-accent:var(--status-warning-solid);}
+.stage-card--error{--stage-accent:var(--status-error-solid);}
+.stage-card__header{display:flex;align-items:flex-start;gap:var(--space-3);padding:var(--card-pad);padding-top:calc(var(--card-pad) + 3px);}
+.stage-card__heading{flex:1;min-width:0;}
+.stage-card__name{font-size:var(--text-h3);font-weight:var(--weight-semibold);line-height:1.2;}
+.stage-card__landscape{font-size:var(--text-meta);color:var(--text-tertiary);margin-top:2px;}
+.stage-card__hash{font-family:var(--font-mono);font-size:var(--text-meta);color:var(--text-secondary);font-weight:var(--weight-semibold);}
+/* Live-Anzeige + Kebab rechts oben, sauber auf einer Linie (vertikal an Namenszeile ausgerichtet) */
+.stage-card__actions{display:flex;align-items:center;gap:var(--space-2);flex-shrink:0;min-height:24px;}
+.stage-card__live{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-meta);font-weight:var(--weight-semibold);color:var(--status-healthy-fg);white-space:nowrap;}
+.stage-card__kebab{flex-shrink:0;width:28px;height:28px;}
+.stage-card__phases{padding:0 var(--card-pad) var(--space-3);}
+.stage-card__chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 var(--card-pad) var(--space-3);}
+.stage-card__detail{border-top:1px solid var(--border-subtle);padding:var(--space-4) var(--card-pad);display:none;}
+.stage-card.is-expanded .stage-card__detail{display:block;}
+.stage-card__footer{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--card-pad);border-top:1px solid var(--border-subtle);}
+/* Message am unteren Ende — beliebiger Typ (Fläche + Icon + Text), Farben über Status-Rollen */
+.stage-card__message{display:flex;align-items:flex-start;gap:var(--space-2);padding:var(--space-3) var(--card-pad);font-size:var(--text-sm);line-height:1.45;}
+.stage-card__message svg{width:var(--icon-md);height:var(--icon-md);flex-shrink:0;margin-top:1px;}
+.stage-card__message--info{background:var(--status-deploying-bg);color:var(--status-deploying-fg);}
+.stage-card__message--success{background:var(--status-healthy-bg);color:var(--status-healthy-fg);}
+.stage-card__message--warning{background:var(--status-warning-bg);color:var(--status-warning-fg);}
+.stage-card__message--error{background:var(--status-error-bg);color:var(--status-error-fg);}
+/* Alias: __error = Kurzform für eine Fehler-Message (Abwärtskompatibilität) */
+.stage-card__error{display:flex;align-items:flex-start;gap:var(--space-2);padding:var(--space-3) var(--card-pad);font-size:var(--text-sm);line-height:1.45;background:var(--status-error-bg);color:var(--status-error-fg);}
+.stage-card__error svg{width:var(--icon-md);height:var(--icon-md);flex-shrink:0;margin-top:1px;}
+/* Zusätzliche Slots (modular): Toggles-Chip + Meta-Block (Detailstufe) */
+.stage-card__toggles{padding:0 var(--card-pad) var(--space-3);}
+.stage-card__meta{padding:var(--space-3) var(--card-pad);border-top:1px solid var(--border-subtle);}
+
+/* Detailtiefe entsteht durch KOMPOSITION der Bausteine (Atome ein-/weglassen),
+   nicht durch feste Dichte-Modifier. Siehe „Bausteine" im Styleguide/Doku:
+   schlanke Karte = Kopf + .ver + Badge · Detail-Karte = zusätzlich .stage-line/.meta-pair + Message. */
+
+/* ============================================================================
+   PHASEN-FORTSCHRITT / PROGRESS
+   ============================================================================ */
+.phases{display:flex;gap:5px;}
+.phase{flex:1;}
+.phase__bar{height:7px;border-radius:var(--radius-pill);background:var(--track);overflow:hidden;}
+.phase__bar span{display:block;height:100%;border-radius:var(--radius-pill);}
+.phase--done .phase__bar span{width:100%;background:var(--progress-done);}
+.phase--active .phase__bar span{width:60%;background:var(--progress-active);}
+.phase--failed .phase__bar span{width:100%;background:var(--progress-failed);}
+.phase--pending .phase__bar span{width:0;}
+.phase__label{display:flex;align-items:center;gap:4px;font-size:var(--text-meta);color:var(--text-tertiary);margin-top:6px;}
+.phase--done .phase__label{color:var(--status-healthy-fg);font-weight:var(--weight-medium);}
+.phase--active .phase__label{color:var(--status-deploying-fg);font-weight:var(--weight-semibold);}
+.phase--failed .phase__label{color:var(--status-error-fg);font-weight:var(--weight-semibold);}
+
+/* ----------------------------------------------------------------------------
+   STAGE-PROGRESS — kanonischer, benannter Phasen-Fortschritt (Domänen-Muster)
+   Reichere Variante von .phases: 4 benannte Domänen-Phasen (Deploy·Tasks·Migrate·Active),
+   Zustände done/active/failed/pending, in kompakt + groß. Löst die alten Prototyp-
+   Namespaces (st-ph, act-phase, rp-phase, phs, ls-sp) ab. (.phases bleibt Basis-Primitive.)
+   ---------------------------------------------------------------------------- */
+.stage-progress{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:flex-start;gap:5px;}
+.stage-progress__seg{flex:1 1 0;min-width:0;}
+.stage-progress__bar{height:7px;border-radius:var(--radius-pill);background:var(--track);overflow:hidden;}
+.stage-progress__bar span{display:block;height:100%;width:0;border-radius:var(--radius-pill);transition:width var(--motion-slow) var(--ease-out);}
+.stage-progress__seg--done .stage-progress__bar span{width:100%;background:var(--progress-done);}
+.stage-progress__seg--active .stage-progress__bar span{width:60%;background:var(--progress-active);}
+.stage-progress__seg--failed .stage-progress__bar span{width:100%;background:var(--progress-failed);}
+.stage-progress__seg--pending .stage-progress__bar span{width:0;}
+.stage-progress__label{display:flex;align-items:center;gap:4px;font-size:var(--text-meta);color:var(--text-tertiary);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stage-progress__seg--done .stage-progress__label{color:var(--status-healthy-fg);font-weight:var(--weight-medium);}
+.stage-progress__seg--active .stage-progress__label{color:var(--status-deploying-fg);font-weight:var(--weight-semibold);}
+.stage-progress__seg--failed .stage-progress__label{color:var(--status-error-fg);font-weight:var(--weight-semibold);}
+/* Größen-Varianten */
+.stage-progress--compact{gap:4px;}
+.stage-progress--compact .stage-progress__bar{height:5px;}
+.stage-progress--compact .stage-progress__label{display:none;}
+.stage-progress--lg .stage-progress__bar{height:10px;}
+.stage-progress--lg .stage-progress__label{font-size:var(--text-sm);margin-top:8px;}
+
+/* ============================================================================
+   TABELLE
+   ============================================================================ */
+.table-wrap{border:1px solid var(--border-subtle);border-radius:var(--card-radius);overflow:hidden;box-shadow:var(--card-shadow);}
+table.tbl{width:100%;border-collapse:collapse;font-size:var(--text-sm);}
+.tbl thead th{text-align:left;font-size:var(--text-meta);font-weight:var(--weight-semibold);letter-spacing:.03em;text-transform:uppercase;
+  color:var(--text-tertiary);padding:var(--row-py) var(--space-4);background:var(--surface-subtle);border-bottom:1px solid var(--border-subtle);}
+.tbl tbody td{padding:var(--row-py) var(--space-4);border-bottom:1px solid var(--border-subtle);vertical-align:middle;color:var(--text-primary);}
+.tbl tbody tr:last-child td{border-bottom:none;}
+.tbl tbody tr.row-clickable{cursor:pointer;transition:background var(--motion-fast) var(--ease);}
+.tbl tbody tr.row-clickable:hover{background:var(--surface-subtle);}
+.mono{font-family:var(--font-mono);}
+.td-mono{font-family:var(--font-mono);font-size:var(--text-meta);color:var(--text-secondary);}
+.vec-id{font-family:var(--font-mono);font-weight:var(--weight-semibold);color:var(--text-primary);}
+
+/* ============================================================================
+   LOG TABLE + CODE BLOCK
+   Log-Tabelle (auf .tbl): Severity-linke-Kante, Severity-Pills (.badge), Event-Tags (.tag),
+   aufklappbare Detailzeile. Code/Console-Block (immer dunkel via surface-inverse).
+   ============================================================================ */
+.log-table td:first-child,.log-table th:first-child{padding-left:calc(var(--space-4) + 3px);}
+.log-table tbody tr{position:relative;}
+/* Severity-Kante links (Technik wie .nav-item--active::before) — Farbe über Status-Solids */
+.log-table__row td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--border-strong);}
+.log-table__row--info td:first-child::before{background:var(--status-deploying-solid);}
+.log-table__row--warning td:first-child::before{background:var(--status-warning-solid);}
+.log-table__row--error td:first-child::before{background:var(--status-error-solid);}
+.log-table__row--healthy td:first-child::before{background:var(--status-healthy-solid);}
+.log-table__row.row-clickable{cursor:pointer;}
+.log-table__detail{display:none;}
+.log-table__detail.is-open{display:table-row;}
+.log-table__detail td{background:var(--surface-subtle);padding:var(--space-4);}
+
+/* Code/Console-Block — bewusst dunkel (nutzt Inverse-Surface, invertiert im Dark mit) */
+.codeblock{border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-subtle);}
+.codeblock__bar{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:6px var(--space-3);
+  background:var(--surface-sunken);border-bottom:1px solid var(--border-subtle);font-size:var(--text-meta);color:var(--text-tertiary);}
+.codeblock__lang{font-family:var(--font-mono);font-weight:var(--weight-semibold);}
+.codeblock__body{margin:0;padding:var(--space-3) var(--space-4);background:var(--surface-inverse);color:var(--text-inverse);
+  font-family:var(--font-mono);font-size:var(--text-sm);line-height:1.6;overflow-x:auto;}
+.codeblock__body code{font-family:inherit;}
+
+/* ============================================================================
+   KEY-VALUE (konsolidiert)
+   ============================================================================ */
+/* ============================================================================
+   KEY-VALUE & LABELS — einheitliche Darstellung von Label → Wert
+   • .kv-label  : eigenständiges Feld-Label (über einem Wert)
+   • .kv        : Grid aus Label→Wert-Paaren (Metadaten-Blöcke, Detail-Panels)
+   • .kv-row    : einzelne horizontale Label→Wert-Zeile (mit Punktführung optional)
+   Regeln: Label = text-tertiary, uppercase-Meta ODER normal; Wert = text-primary.
+   Mono-Werte (IDs/Hashes/Zahlen) via .mono.
+   ============================================================================ */
+/* Eigenständiges Label (z. B. über Inputs/Werten) */
+.kv-label{display:block;font-size:var(--text-meta);font-weight:var(--weight-semibold);letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;}
+
+/* Label→Wert-Grid (Standard für Metadaten) */
+.kv{display:grid;grid-template-columns:auto 1fr;gap:var(--space-3) var(--space-5);align-items:baseline;}
+.kv dt{color:var(--text-tertiary);font-size:var(--text-sm);white-space:nowrap;}
+.kv dd{color:var(--text-primary);font-size:var(--text-sm);font-weight:var(--weight-medium);}
+.kv dd.mono{font-family:var(--font-mono);font-weight:var(--weight-regular);}
+/* feste Label-Spalte, wenn bündige Werte gewünscht */
+.kv--fixed{grid-template-columns:150px 1fr;}
+/* kompakt (dichte Panels) */
+.kv--tight{gap:var(--space-2) var(--space-4);}
+
+/* Einzelne horizontale Zeile Label … Wert (mit optionaler Punktführung) */
+.kv-row{display:flex;align-items:baseline;gap:var(--space-3);font-size:var(--text-sm);padding:6px 0;}
+.kv-row__label{color:var(--text-tertiary);flex-shrink:0;}
+.kv-row__fill{flex:1;border-bottom:1px dotted var(--border-default);transform:translateY(-3px);min-width:12px;}
+.kv-row__value{color:var(--text-primary);font-weight:var(--weight-medium);text-align:right;}
+.kv-row__value.mono{font-family:var(--font-mono);font-weight:var(--weight-regular);}
+
+/* ============================================================================
+   FORM-INPUTS
+   ============================================================================ */
+.field{display:flex;flex-direction:column;gap:6px;}
+.field__label{font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-secondary);}
+.input,.select{width:100%;font-family:inherit;font-size:var(--text-sm);color:var(--input-fg);
+  background:var(--input-bg);border:1px solid var(--input-bd);border-radius:var(--input-radius);
+  padding:var(--input-py) 12px;transition:border-color var(--motion-fast) var(--ease),box-shadow var(--motion-fast) var(--ease);}
+.input::placeholder{color:var(--input-placeholder);}
+.input:focus,.select:focus{border-color:var(--border-focus);box-shadow:var(--focus-ring);outline:none;}
+.input:disabled,.select:disabled{opacity:var(--disabled-opacity);cursor:not-allowed;}
+.input-group{display:flex;align-items:center;gap:8px;background:var(--input-bg);border:1px solid var(--input-bd);border-radius:var(--input-radius);padding:0 12px;}
+.input-group svg{width:var(--icon-md);height:var(--icon-md);color:var(--text-tertiary);flex-shrink:0;}
+.input-group input{border:none;background:none;padding:var(--input-py) 0;flex:1;font-family:inherit;font-size:var(--text-sm);color:var(--input-fg);outline:none;}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C776D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:16px;padding-right:34px;cursor:pointer;}
+
+/* Custom Checkbox — ins DS eingepasst (kein System-Default) */
+.check{display:inline-flex;align-items:center;gap:9px;font-size:var(--text-sm);cursor:pointer;user-select:none;color:var(--text-primary);}
+.check input{position:absolute;opacity:0;width:0;height:0;}
+.check__box{width:18px;height:18px;border-radius:var(--radius-sm);border:1.5px solid var(--border-strong);background:var(--input-bg);
+  display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all var(--motion-fast) var(--ease);}
+.check__box svg{width:var(--icon-xs);height:var(--icon-xs);color:#fff;opacity:0;transform:scale(.6);transition:all var(--motion-fast) var(--ease);}
+.check input:checked + .check__box{background:var(--gradient-amber);border-color:transparent;}
+.check input:checked + .check__box svg{opacity:1;transform:scale(1);color:var(--text-on-accent);}
+.check input:focus-visible + .check__box{box-shadow:var(--focus-ring);}
+.check:hover .check__box{border-color:var(--accent-primary);}
+/* Custom Radio */
+.radio__box{border-radius:50%;}
+.radio__box::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--text-on-accent);opacity:0;transform:scale(.4);transition:all var(--motion-fast) var(--ease);}
+.check input:checked + .radio__box{background:var(--gradient-amber);border-color:transparent;}
+.check input:checked + .radio__box::after{opacity:1;transform:scale(1);}
+
+/* SWITCH — Basis (Track mit Glow-Knob) */
+.switch{position:relative;display:inline-flex;align-items:center;width:42px;height:24px;flex-shrink:0;cursor:pointer;}
+.switch input{position:absolute;opacity:0;width:0;height:0;}
+.switch__track{position:absolute;inset:0;background:var(--border-strong);border-radius:var(--radius-pill);transition:background var(--motion-base) var(--ease);}
+.switch__track::before{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform var(--motion-base) var(--ease-out);box-shadow:var(--shadow-sm);}
+.switch input:checked + .switch__track{background:var(--gradient-teal);}
+.switch input:checked + .switch__track::before{transform:translateX(18px);}
+.switch input:focus-visible + .switch__track{box-shadow:var(--focus-ring);}
+/* Variante: Amber (Aktions-Kontext, z. B. Promote-Auto) */
+.switch--amber input:checked + .switch__track{background:var(--gradient-amber);}
+/* Variante: mit ON/OFF-Icons im Knob (Enterprise-klar, farbenblind-sicher) */
+.switch--labeled{width:52px;height:26px;}
+.switch--labeled .switch__track::before{width:22px;height:22px;}
+.switch--labeled .switch__track::after{content:"OFF";position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:8px;font-weight:var(--weight-bold);letter-spacing:.04em;color:var(--text-inverse);opacity:.85;transition:opacity var(--motion-fast) var(--ease);}
+.switch--labeled input:checked + .switch__track::before{transform:translateX(26px);}
+.switch--labeled input:checked + .switch__track::after{content:"ON";left:8px;right:auto;color:#fff;}
+/* Variante: Status-Switch (grün = an, klar wie ein Feature-Toggle) */
+.switch--status input:checked + .switch__track{background:var(--status-healthy-solid);}
+/* Variante: Segment-Switch (Pill mit zwei Beschriftungen — sehr eindeutig) */
+.switch-seg{display:inline-flex;background:var(--surface-sunken);border:1px solid var(--border-subtle);border-radius:var(--radius-pill);padding:2px;gap:2px;}
+.switch-seg button{padding:4px 14px;font-size:var(--text-meta);font-weight:var(--weight-semibold);border:none;background:none;border-radius:var(--radius-pill);cursor:pointer;color:var(--text-secondary);transition:all var(--motion-fast) var(--ease);}
+.switch-seg button.is-on{background:var(--status-healthy-solid);color:#fff;}
+.switch-seg button.is-off{background:var(--surface-default);color:var(--text-primary);box-shadow:var(--shadow-xs);}
+
+/* ============================================================================
+   TABS
+   ============================================================================ */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border-subtle);}
+.tab{padding:10px 14px;font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-secondary);
+  background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color var(--motion-fast) var(--ease),border-color var(--motion-fast) var(--ease);}
+.tab:hover{color:var(--text-primary);}
+.tab--active{color:var(--text-link);border-bottom-color:var(--accent-secondary);font-weight:var(--weight-semibold);}
+/* Icon-Tab (SVG-Slot) + Overflow-Menü für ausgelagerte Tabs */
+.tab svg{width:var(--icon-md);height:var(--icon-md);vertical-align:-2px;margin-right:5px;}
+.tabs--overflow{position:relative;}
+.tab--more{margin-left:auto;color:var(--text-tertiary);}
+.tab--more svg{margin-right:0;}
+/* Overflow-„…"-Tab ist nie ein selektierbarer Tab (kein Aktiv-Unterstrich) */
+.tab--more.tab--active,.tab--more:hover{color:var(--text-secondary);border-bottom-color:transparent;font-weight:var(--weight-medium);}
+
+/* ============================================================================
+   SEGMENTED / MULTI-BUTTON  (.segmented) — kanonischer Umschalter
+   Eine Basis für „Multi-Buttons" (View-, Level-of-Detail-, Ansicht-Wechsler).
+   Icon + Label, Größen --sm/--lg, Pill-Form --pill. Aktiv = Tönung, kein Blau.
+   .seg ist ein Alias (gleiche Optik). State-Konvention einheitlich: --active.
+   ============================================================================ */
+.segmented,.seg{display:inline-flex;background:var(--surface-sunken);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:3px;gap:2px;}
+.segmented--pill,.seg--pill{border-radius:var(--radius-pill);}
+.segmented__btn,.seg__btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:5px 12px;font-family:inherit;
+  font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-secondary);background:none;border:none;border-radius:var(--radius-sm);
+  cursor:pointer;white-space:nowrap;transition:all var(--motion-fast) var(--ease);}
+.segmented--pill .segmented__btn,.seg--pill .seg__btn{border-radius:var(--radius-pill);}
+.segmented__btn svg,.seg__btn svg{width:var(--icon-sm);height:var(--icon-sm);flex-shrink:0;}
+.segmented__btn:hover,.seg__btn:hover{color:var(--text-primary);}
+.segmented__btn--active,.seg__btn--active{background:var(--surface-default);color:var(--text-primary);font-weight:var(--weight-semibold);box-shadow:var(--shadow-xs);}
+/* Größen */
+.segmented--sm .segmented__btn{padding:3px 9px;font-size:var(--text-meta);}
+.segmented--sm .segmented__btn svg{width:var(--icon-xs);height:var(--icon-xs);}
+.segmented--lg .segmented__btn{padding:8px 16px;font-size:var(--text-sm);}
+.segmented--lg .segmented__btn svg{width:var(--icon-md);height:var(--icon-md);}
+
+/* ============================================================================
+   FILTERBAR
+   ============================================================================ */
+.filterbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3);}
+.filter-tiles{display:flex;gap:var(--space-2);flex-wrap:wrap;}
+.filter-tile{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:var(--radius-md);
+  border:1px solid var(--border-subtle);background:var(--surface-default);cursor:pointer;font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-secondary);
+  transition:all var(--motion-fast) var(--ease);}
+.filter-tile:hover{border-color:var(--border-default);}
+.filter-tile__count{font-weight:var(--weight-bold);color:var(--text-primary);}
+.filter-tile--active{border-color:var(--teal-400);background:var(--teal-50);color:var(--teal-700);}
+.filter-tile--active .filter-tile__count{color:var(--teal-700);}
+[data-theme="dark"] .filter-tile--active{background:rgba(27,160,201,.14);color:var(--teal-300);}
+[data-theme="dark"] .filter-tile--active .filter-tile__count{color:var(--teal-300);}
+
+/* ============================================================================
+   FILTER-CARDS — auffällige, klickbare Filter-Kacheln (Zähler-Filter)
+   Reihe großer Karten (Wert + Label + Icon). Aktive Karte in STATUSFARBE getönt
+   (Status-semantisch, nicht Amber-Aktion). Filtert eine Liste (site.js: data-filter).
+   ============================================================================ */
+.filter-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-3);}
+.filter-card{--fc-accent:var(--border-strong);position:relative;display:flex;align-items:center;gap:var(--space-3);
+  padding:var(--space-4);background:var(--card-bg);border:1px solid var(--card-bd);border-radius:var(--card-radius);
+  box-shadow:var(--card-rim-glow);cursor:pointer;text-align:left;
+  transition:transform var(--motion-fast) var(--ease-out),border-color var(--motion-fast) var(--ease),background var(--motion-fast) var(--ease),box-shadow var(--motion-base) var(--ease);}
+.filter-card:hover{transform:translateY(-1px);box-shadow:var(--shadow-md),var(--card-rim-glow);border-color:var(--border-default);}
+.filter-card__icon{width:36px;height:36px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  background:var(--surface-sunken);color:var(--text-tertiary);}
+.filter-card__icon svg{width:var(--icon-lg);height:var(--icon-lg);}
+.filter-card__body{display:flex;flex-direction:column;gap:1px;min-width:0;}
+.filter-card__value{font-size:var(--text-h1);font-weight:var(--weight-bold);line-height:1;color:var(--text-primary);font-variant-numeric:tabular-nums;}
+.filter-card__label{font-size:var(--text-meta);color:var(--text-tertiary);font-weight:var(--weight-medium);}
+/* Status-Akzent je Karte (setzt nur --fc-accent + Icon-Tönung) */
+.filter-card--healthy{--fc-accent:var(--status-healthy-solid);}
+.filter-card--deploying{--fc-accent:var(--status-deploying-solid);}
+.filter-card--warning{--fc-accent:var(--status-warning-solid);}
+.filter-card--error{--fc-accent:var(--status-error-solid);}
+.filter-card--queued{--fc-accent:var(--status-queued-solid);}
+/* Aktiv: getönte Fläche + kräftige Kante in Statusfarbe */
+.filter-card--active{border-color:var(--fc-accent);box-shadow:0 0 0 2px color-mix(in srgb, var(--fc-accent) 30%, transparent),var(--card-rim-glow);
+  background:color-mix(in srgb, var(--fc-accent) 8%, var(--card-bg));}
+.filter-card--active .filter-card__icon{background:color-mix(in srgb, var(--fc-accent) 16%, transparent);color:var(--fc-accent);}
+.filter-card--active .filter-card__value{color:var(--fc-accent);}
+
+/* ============================================================================
+   BREADCRUMBS
+   ============================================================================ */
+.crumbs{display:flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--text-tertiary);}
+.crumbs a{color:var(--text-tertiary);text-decoration:none;}
+.crumbs a:hover{color:var(--text-link);}
+.crumbs__sep{color:var(--border-strong);}
+.crumbs__current{color:var(--text-primary);font-weight:var(--weight-medium);}
+
+/* ============================================================================
+   SPARKLINE
+   ============================================================================ */
+.sparkline{display:inline-block;vertical-align:middle;}
+.sparkline path.line{fill:none;stroke:var(--accent-secondary);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.sparkline path.area{fill:var(--teal-100);opacity:.5;}
+[data-theme="dark"] .sparkline path.area{fill:rgba(27,160,201,.18);}
+
+/* ============================================================================
+   DIFF-ZEILE
+   ============================================================================ */
+.diff{font-family:var(--font-mono);font-size:var(--text-sm);border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-subtle);}
+.diff__row{display:flex;align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid var(--border-subtle);}
+.diff__row:last-child{border-bottom:none;}
+.diff__marker{width:14px;text-align:center;font-weight:var(--weight-bold);flex-shrink:0;}
+.diff__row--add{background:var(--status-healthy-bg);}   .diff__row--add .diff__marker{color:var(--status-healthy-fg);}
+.diff__row--change{background:var(--status-warning-bg);}.diff__row--change .diff__marker{color:var(--status-warning-fg);}
+.diff__row--remove{background:var(--status-error-bg);}  .diff__row--remove .diff__marker{color:var(--status-error-fg);}
+.diff__arrow{color:var(--text-tertiary);}
+/* Erweiterung: unveränderte Zeilen (ruhig, kein Highlight) + gruppierte Variante */
+.diff__row--unchanged{background:transparent;}
+.diff__row--unchanged .diff__marker{color:var(--text-tertiary);}
+.diff__row--unchanged{color:var(--text-secondary);}
+.diff--grouped{border:none;border-radius:0;overflow:visible;display:flex;flex-direction:column;gap:var(--space-3);}
+.diff__group{border:1px solid var(--border-subtle);border-radius:var(--radius-md);overflow:hidden;}
+.diff__group-head{font-family:var(--font-sans);font-size:var(--text-meta);font-weight:var(--weight-semibold);letter-spacing:.03em;text-transform:uppercase;
+  color:var(--text-tertiary);padding:6px 12px;background:var(--surface-subtle);border-bottom:1px solid var(--border-subtle);}
+
+/* ============================================================================
+   TIMELINE
+   ============================================================================ */
+/* ============================================================================
+   TIMELINE — Dot & Linie exakt vertikal zentriert
+   Farbe anpassbar über --tl-color (default: neutral). Zustände setzen sie um.
+   Zwei Größen: Standard (14px Dot) und --lg (28px Dot mit Icon-Slot).
+   ============================================================================ */
+.timeline{position:relative;padding-left:28px;--tl-color:var(--border-strong);}
+.timeline::before{content:"";position:absolute;left:6px;top:7px;bottom:7px;width:2px;background:var(--border-subtle);border-radius:var(--radius-pill);}
+.tl-item{position:relative;padding-bottom:var(--space-5);}
+.tl-item:last-child{padding-bottom:0;}
+.tl-item::before{content:"";position:absolute;left:-28px;top:1px;width:14px;height:14px;border-radius:50%;
+  background:var(--surface-default);border:2.5px solid var(--tl-color);box-sizing:border-box;z-index:1;}
+/* Zustände setzen nur --tl-color (leicht überschreibbar/erweiterbar) */
+.tl-item--done{--tl-color:var(--status-healthy-solid);}
+.tl-item--done::before{background:var(--tl-color);}
+.tl-item--active{--tl-color:var(--accent-secondary);}
+.tl-item--active::after{content:"";position:absolute;left:-24px;top:5px;width:6px;height:6px;border-radius:50%;background:var(--tl-color);z-index:2;}
+.tl-item--error{--tl-color:var(--status-error-solid);}
+.tl-item--error::before{background:var(--tl-color);}
+.tl-item--warning{--tl-color:var(--status-warning-solid);}
+.tl-item--warning::before{background:var(--tl-color);}
+/* eigene Farbe: <div class="tl-item" style="--tl-color:var(--teal-500)"> */
+.tl-item__title{font-size:var(--text-sm);font-weight:var(--weight-medium);}
+.tl-item__meta{font-size:var(--text-meta);color:var(--text-tertiary);margin-top:2px;}
+
+/* Variante mit größerem Kreis + Icon darin */
+.timeline--lg{padding-left:44px;}
+.timeline--lg::before{left:13px;top:12px;bottom:12px;}
+.timeline--lg .tl-item::before{left:-44px;top:-2px;width:28px;height:28px;border-width:2px;
+  background:color-mix(in srgb, var(--tl-color) 14%, var(--surface-default));border-color:transparent;}
+.timeline--lg .tl-item--done::before,.timeline--lg .tl-item--error::before,.timeline--lg .tl-item--warning::before{background:color-mix(in srgb, var(--tl-color) 14%, var(--surface-default));}
+.timeline--lg .tl-item--active::after{display:none;}
+.tl-item__icon{position:absolute;left:-38px;top:4px;width:16px;height:16px;color:var(--tl-color);z-index:2;pointer-events:none;}
+.tl-item__icon svg{width:var(--icon-md);height:var(--icon-md);}
+
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
+.empty{text-align:center;padding:var(--space-12) var(--space-6);}
+.empty__icon{width:56px;height:56px;border-radius:var(--radius-xl);background:var(--surface-sunken);color:var(--text-tertiary);display:inline-flex;align-items:center;justify-content:center;margin-bottom:var(--space-4);}
+.empty__icon svg{width:var(--icon-2xl);height:var(--icon-2xl);}
+.empty__title{font-size:var(--text-h3);font-weight:var(--weight-semibold);}
+.empty__msg{color:var(--text-tertiary);font-size:var(--text-sm);margin:6px auto var(--space-5);max-width:40ch;}
+
+/* ============================================================================
+   SKELETON / LOADING
+   ============================================================================ */
+.skeleton{background:linear-gradient(90deg,var(--surface-sunken) 25%,var(--surface-subtle) 37%,var(--surface-sunken) 63%);
+  background-size:200% 100%;animation:shimmer 1.4s ease-in-out infinite;border-radius:var(--radius-sm);}
+.skeleton--text{height:12px;margin:6px 0;}
+.skeleton--title{height:20px;width:40%;margin-bottom:12px;}
+.skeleton--line{height:12px;}
+
+/* ============================================================================
+   TOASTS
+   ============================================================================ */
+.toast{display:flex;align-items:flex-start;gap:var(--space-3);width:360px;padding:var(--space-3) var(--space-4);
+  border-radius:var(--radius-lg);background:var(--surface-default);border:1px solid var(--border-subtle);box-shadow:var(--shadow-lg);position:relative;overflow:hidden;}
+.toast::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;}
+.toast__icon{width:20px;height:20px;flex-shrink:0;margin-top:1px;}
+.toast__body{flex:1;min-width:0;}
+.toast__title{font-weight:var(--weight-semibold);font-size:var(--text-sm);}
+.toast__msg{font-size:var(--text-meta);color:var(--text-secondary);margin-top:2px;line-height:1.5;}
+.toast__close{flex-shrink:0;width:20px;height:20px;border:none;background:none;cursor:pointer;color:var(--text-tertiary);padding:0;}
+.toast__close svg{width:var(--icon-sm);height:var(--icon-sm);}
+.toast--success::before{background:var(--status-healthy-solid);} .toast--success .toast__icon{color:var(--status-healthy-fg);}
+.toast--info::before{background:var(--status-deploying-solid);}   .toast--info .toast__icon{color:var(--status-deploying-fg);}
+.toast--warning::before{background:var(--status-warning-solid);} .toast--warning .toast__icon{color:var(--status-warning-fg);}
+.toast--error::before{background:var(--status-error-solid);}     .toast--error .toast__icon{color:var(--status-error-fg);}
+
+/* ============================================================================
+   NOTIFICATIONS
+   ============================================================================ */
+.notif-panel{width:380px;background:var(--surface-default);border:1px solid var(--border-subtle);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);overflow:hidden;}
+.notif-panel__head{display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-subtle);}
+.notif-panel__head h4{font-size:var(--text-sm);font-weight:var(--weight-semibold);}
+.notif{display:flex;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-subtle);cursor:pointer;transition:background var(--motion-fast) var(--ease);}
+.notif:hover{background:var(--surface-subtle);}
+.notif--unread{background:var(--amber-50);}
+[data-theme="dark"] .notif--unread{background:rgba(255,181,48,.08);}
+.notif__dot{width:32px;height:32px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.notif__dot svg{width:var(--icon-md);height:var(--icon-md);}
+.notif__title{font-size:var(--text-sm);font-weight:var(--weight-medium);}
+.notif__meta{font-size:var(--text-meta);color:var(--text-tertiary);margin-top:2px;}
+
+/* ============================================================================
+   LISTENZEILE — .row: mächtige, flexible Listenzeile (aus Atomen zusammensetzbar)
+   Slots: __lead (Icon/Avatar/Status) · __main (frei: Tag-Reihe + .titleline + .meta-row)
+        · __progress (voll-breit, nimmt .stage-progress) · __trail (rechts: Badges/Tags/Buttons).
+   Zustände: :hover · --selected/is-selected. Varianten: --divided, --compact, --stacked.
+   Interaktiv über [data-select] (site.js).
+   ============================================================================ */
+.rows{display:flex;flex-direction:column;}
+.rows--divided .row{border-bottom:1px solid var(--border-subtle);}
+.rows--divided .row:last-child{border-bottom:none;}
+.row{position:relative;display:flex;align-items:center;gap:var(--space-3);padding:var(--row-py) var(--space-4);
+  transition:background var(--motion-fast) var(--ease);}
+.row--clickable,.rows--clickable .row{cursor:pointer;}
+.row--compact{padding:8px var(--space-4);gap:var(--space-2);}
+.row--clickable:hover,.rows--clickable .row:hover{background:var(--surface-sunken);}
+.row--selected,.row.is-selected{background:var(--surface-subtle);}
+.row--selected::before,.row.is-selected::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:var(--radius-pill);background:var(--gradient-amber);}
+.row__lead{flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.row__lead svg{width:var(--icon-lg);height:var(--icon-lg);color:var(--text-tertiary);}
+.row__main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.row__tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.row__progress{flex:1;min-width:0;}
+.row__trail{flex-shrink:0;display:flex;align-items:center;gap:var(--space-2);}
+/* --stacked: Progress als volle Breite unter der Hauptzeile (Promotions-Muster) */
+.row--stacked{flex-direction:column;align-items:stretch;gap:var(--space-2);}
+.row--stacked .row__head{display:flex;align-items:center;gap:var(--space-3);}
+.row--stacked .row__head .row__main{flex:1;}
+.row--stacked .row__progress{width:100%;}
+
+/* ============================================================================
+   ACTIVITY FEED / ALERT TILE — Content-Bereich (nicht Panel)
+   Feed-Item/-Card (chronologische Ereignisse) + Alert-/Problem-Kachel.
+   Baut auf .notif/.icon-chip/.strip/.card auf; Severity über Status-Rollen.
+   ============================================================================ */
+.feed-item{display:flex;gap:var(--space-3);padding:var(--space-3) 0;align-items:flex-start;}
+.feed-item + .feed-item{border-top:1px solid var(--border-subtle);}
+.feed-item__icon{width:32px;height:32px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--surface-sunken);color:var(--text-secondary);}
+.feed-item__icon svg{width:var(--icon-md);height:var(--icon-md);}
+.feed-item__body{flex:1;min-width:0;}
+.feed-item__title{font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);}
+.feed-item__meta{font-size:var(--text-meta);color:var(--text-tertiary);margin-top:2px;}
+.feed-item__time{font-family:var(--font-mono);font-size:var(--text-meta);color:var(--text-tertiary);flex-shrink:0;white-space:nowrap;}
+.feed-item--unread{background:var(--amber-50);border-radius:var(--radius-md);padding-left:var(--space-3);padding-right:var(--space-3);}
+[data-theme="dark"] .feed-item--unread{background:rgba(255,181,48,.08);}
+
+/* Reichere Feed-Karte */
+.activity-card{background:var(--card-bg);border:1px solid var(--card-bd);border-radius:var(--card-radius);box-shadow:var(--card-shadow),var(--card-rim-glow);padding:var(--card-pad);}
+.activity-card__head{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);}
+
+/* Problem/Alert-Kachel — linke Statuskante (wie .toast), Severity über Rollen */
+.alert-tile{position:relative;display:flex;gap:var(--space-3);align-items:flex-start;background:var(--card-bg);border:1px solid var(--card-bd);
+  border-radius:var(--radius-lg);box-shadow:var(--card-shadow),var(--card-rim-glow);padding:var(--space-4);overflow:hidden;}
+.alert-tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--border-strong);}
+.alert-tile__icon{width:32px;height:32px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--surface-sunken);color:var(--text-secondary);}
+.alert-tile__icon svg{width:var(--icon-lg);height:var(--icon-lg);}
+.alert-tile__body{flex:1;min-width:0;}
+.alert-tile__title{font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);}
+.alert-tile__msg{font-size:var(--text-meta);color:var(--text-secondary);margin-top:2px;line-height:1.5;}
+.alert-tile__actions{display:flex;gap:var(--space-2);margin-top:var(--space-3);}
+.alert-tile--warning::before{background:var(--status-warning-solid);} .alert-tile--warning .alert-tile__icon{background:var(--status-warning-bg);color:var(--status-warning-fg);}
+.alert-tile--degraded::before{background:var(--status-degraded-solid);} .alert-tile--degraded .alert-tile__icon{background:var(--status-degraded-bg);color:var(--status-degraded-fg);}
+.alert-tile--error::before{background:var(--status-error-solid);} .alert-tile--error .alert-tile__icon{background:var(--status-error-bg);color:var(--status-error-fg);}
+
+/* ============================================================================
+   HERO / OBJECT HEADER — großes Objekt-Kopf-Muster (Overview)
+   Status-Banner + Headline + Aktionen (genau EIN Primär-Button) + KPI-Stats-Reihe.
+   .hero-stat__val nutzt die bestehende Tabular-Nums-Regel (siehe Kopf der Datei).
+   ============================================================================ */
+.hero{position:relative;background:var(--card-bg);border:1px solid var(--card-bd);border-radius:var(--card-radius);
+  box-shadow:var(--card-shadow),var(--card-rim-glow);padding:var(--card-pad);overflow:hidden;}
+.hero--gradient{background:var(--gradient-tile);border-color:transparent;box-shadow:var(--shadow-sm);}
+.hero--gradient::after{content:"";position:absolute;inset:0;background:var(--tile-glow);opacity:.7;pointer-events:none;}
+.hero__banner{position:relative;z-index:1;display:flex;align-items:flex-start;gap:var(--space-4);}
+.hero__icon{flex-shrink:0;}
+.hero__heading{flex:1;min-width:0;}
+.hero__headline{font-size:var(--text-h1);font-weight:var(--weight-display);letter-spacing:var(--tracking-h1);line-height:1.15;}
+.hero__sub{font-size:var(--text-sm);color:var(--text-secondary);margin-top:var(--space-2);}
+.hero__actions{display:flex;gap:var(--space-3);flex-shrink:0;flex-wrap:wrap;}
+.hero__stats{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:var(--space-6);margin-top:var(--space-5);padding-top:var(--space-5);border-top:1px solid var(--border-subtle);}
+.hero-stat{display:flex;flex-direction:column;gap:2px;}
+.hero-stat__label{font-size:var(--text-meta);font-weight:var(--weight-semibold);letter-spacing:.03em;text-transform:uppercase;color:var(--text-tertiary);}
+.hero-stat__val{font-size:var(--text-display);font-weight:var(--weight-display);letter-spacing:-.02em;line-height:1.1;color:var(--text-primary);}
+.hero-stat__val.grad{background:var(--gradient-aurora);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+
+/* ============================================================================
+   MODAL / CONFIRM-DIALOG
+   Hinweis: .modal ist das KOMPAKTE Confirm-Preset (440px) mit derselben Anatomie
+   wie .dialog (__head/__icon/__body/__foot). Für reichere Dialoge (Close-Button,
+   --info-Icon, 460px) .dialog nutzen. Beide teilen scrim-blur/shadow/radius-Tokens.
+   ============================================================================ */
+.modal-scrim{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;z-index:1000;padding:var(--space-6);
+  backdrop-filter:blur(var(--scrim-blur));animation:pop var(--motion-base) var(--ease-out);}
+.modal{width:440px;max-width:100%;background:var(--surface-default);border:1px solid var(--border-subtle);border-radius:var(--radius-xl);box-shadow:var(--shadow-overlay);overflow:hidden;animation:pop var(--motion-base) var(--ease-out);}
+.modal__head{display:flex;align-items:flex-start;gap:var(--space-3);padding:var(--space-5) var(--space-5) 0;}
+.modal__icon{width:40px;height:40px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.modal__icon--danger{background:var(--status-error-bg);color:var(--status-error-fg);}
+.modal__icon--primary{background:var(--amber-100);color:var(--amber-700);}
+.modal__icon svg{width:var(--icon-xl);height:var(--icon-xl);}
+.modal__title{font-size:var(--text-h3);font-weight:var(--weight-bold);}
+.modal__body{padding:var(--space-3) var(--space-5) var(--space-5);color:var(--text-secondary);font-size:var(--text-sm);line-height:1.55;}
+.modal__foot{display:flex;justify-content:flex-end;gap:var(--space-3);padding:var(--space-4) var(--space-5);background:var(--surface-subtle);border-top:1px solid var(--border-subtle);}
+
+/* ============================================================================
+   DRAWER / SIDE-PANEL (einheitliches System)
+   ============================================================================ */
+.drawer{width:420px;max-width:100%;background:var(--surface-default);border:1px solid var(--border-subtle);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden;}
+.drawer__head{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--border-subtle);}
+.drawer__title{font-size:var(--text-h3);font-weight:var(--weight-semibold);flex:1;}
+.drawer__actions{display:flex;gap:6px;}
+.drawer__body{padding:var(--space-5);overflow-y:auto;}
+.drawer__section{margin-bottom:var(--space-5);}
+.drawer__section-title{font-size:var(--text-meta);font-weight:var(--weight-bold);letter-spacing:.06em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:var(--space-3);}
+
+/* ============================================================================
+   SHELL: TOPBAR + SIDEBAR
+   ============================================================================ */
+.topbar{display:flex;align-items:center;gap:var(--space-4);height:56px;padding:0 var(--space-4);background:var(--surface-default);border-bottom:1px solid var(--border-subtle);}
+.topbar__logo{height:22px;flex-shrink:0;}
+.proj-switch{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--radius-md);border:1px solid var(--border-subtle);background:var(--surface-subtle);cursor:pointer;font-weight:var(--weight-semibold);font-size:var(--text-sm);color:var(--text-primary);}
+.proj-switch svg{width:var(--icon-sm);height:var(--icon-sm);color:var(--text-tertiary);}
+.topbar__search{flex:1;max-width:420px;display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:var(--radius-md);border:1px solid var(--border-subtle);background:var(--surface-subtle);color:var(--text-tertiary);font-size:var(--text-sm);cursor:text;}
+.topbar__search svg{width:var(--icon-md);height:var(--icon-md);}
+.topbar__actions{display:flex;align-items:center;gap:var(--space-2);margin-left:auto;}
+.icon-btn{position:relative;width:36px;height:36px;border-radius:var(--radius-md);border:1px solid transparent;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);transition:background var(--motion-fast) var(--ease);}
+.icon-btn:hover{background:var(--surface-sunken);}
+.icon-btn svg{width:var(--icon-lg);height:var(--icon-lg);}
+.icon-btn__badge{position:absolute;top:3px;right:3px;min-width:16px;height:16px;padding:0 4px;border-radius:var(--radius-pill);background:var(--status-error-solid);color:#fff;font-size:10px;font-weight:var(--weight-bold);display:flex;align-items:center;justify-content:center;border:2px solid var(--surface-default);}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--gradient-teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:var(--text-meta);font-weight:var(--weight-bold);cursor:pointer;flex-shrink:0;}
+
+.sidebar{background:var(--surface-default);border-right:1px solid var(--border-subtle);padding:var(--space-4) var(--space-3);display:flex;flex-direction:column;}
+.nav-group{margin-bottom:var(--space-5);}
+.nav-group__label{font-size:10px;font-weight:var(--weight-bold);letter-spacing:.09em;text-transform:uppercase;color:var(--text-tertiary);padding:0 var(--space-3);margin-bottom:var(--space-2);}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px var(--space-3);border-radius:var(--radius-md);color:var(--text-secondary);font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;text-decoration:none;margin-bottom:1px;}
+.nav-item svg{width:var(--icon-lg);height:var(--icon-lg);flex-shrink:0;}
+.nav-item:hover{background:var(--surface-sunken);color:var(--text-primary);}
+.nav-item--active{background:var(--amber-50);color:var(--amber-800);font-weight:var(--weight-semibold);position:relative;}
+[data-theme="dark"] .nav-item--active{background:rgba(255,181,48,.12);color:var(--amber-300);}
+.nav-item--active::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:var(--radius-pill);background:var(--gradient-amber);}
+.nav-item__badge{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:var(--radius-pill);background:var(--status-error-bg);color:var(--status-error-fg);font-size:10px;font-weight:var(--weight-bold);display:flex;align-items:center;justify-content:center;}
+.sidebar__footer{margin-top:auto;padding:var(--space-3);border-top:1px solid var(--border-subtle);display:flex;align-items:center;gap:8px;font-size:var(--text-meta);color:var(--text-tertiary);}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--status-healthy-solid);position:relative;flex-shrink:0;}
+.live-dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;background:var(--status-healthy-solid);opacity:.3;animation:pulse 2s var(--ease) infinite;}
+
+/* Context/Project-Switcher — Picker-Option (Erstauswahl); aktiv = Tönung, kein Blau */
+.context-switcher__option{display:flex;flex-direction:column;gap:4px;padding:var(--space-4);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);
+  background:var(--surface-default);cursor:pointer;text-align:left;transition:border-color var(--motion-fast) var(--ease),background var(--motion-fast) var(--ease);}
+.context-switcher__option:hover{border-color:var(--border-default);background:var(--surface-subtle);}
+.context-switcher__option--active{background:var(--surface-subtle);border-color:var(--border-default);}
+.context-switcher__option-name{font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);}
+.context-switcher__option-meta{font-size:var(--text-meta);color:var(--text-tertiary);}
+
+/* ============================================================================
+   STATUS BAR — globale untere Statuszeile (Label→Wert-Liste)
+   ============================================================================ */
+.statusbar{display:flex;align-items:center;gap:var(--space-4);height:32px;padding:0 var(--space-4);
+  background:var(--surface-subtle);border-top:1px solid var(--border-subtle);font-size:var(--text-meta);}
+.statusbar__item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.statusbar__label{color:var(--text-tertiary);}
+.statusbar__value{font-family:var(--font-mono);color:var(--text-primary);font-weight:var(--weight-medium);}
+.statusbar__sep{width:1px;height:14px;background:var(--border-subtle);}
+.statusbar__spacer{margin-left:auto;}
+
+/* ============================================================================
+   MASTER-DETAIL LAYOUT — Liste links + einschiebendes Detail rechts
+   ============================================================================ */
+.master-detail{display:grid;grid-template-columns:1fr;gap:0;position:relative;}
+.master-detail__list{min-width:0;overflow:auto;}
+.master-detail__detail{min-width:0;border-left:1px solid var(--border-subtle);overflow:auto;position:relative;}
+.master-detail.is-detail-open{grid-template-columns:minmax(20%,1fr) minmax(25%,1.4fr);}
+/* Zieh-Trenner sitzt am linken Rand der Detail-Spalte (immer auf der Trennlinie) */
+.master-detail__resizer{position:absolute;top:0;bottom:0;left:-3px;width:6px;cursor:col-resize;z-index:3;touch-action:none;}
+.master-detail__resizer::before{content:"";position:absolute;left:2px;top:0;bottom:0;width:2px;background:transparent;transition:background var(--motion-fast) var(--ease);}
+.master-detail__resizer:hover::before,.master-detail__resizer:active::before{background:var(--accent-primary);}
+
+/* ============================================================================
+   MESSAGE-STRIP (Inline-Banner)
+   ============================================================================ */
+.strip{display:flex;align-items:flex-start;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);border:1px solid;font-size:var(--text-sm);}
+.strip__icon{width:18px;height:18px;flex-shrink:0;margin-top:1px;}
+.strip__body{flex:1;min-width:0;}
+.strip__title{font-weight:var(--weight-semibold);}
+.strip__msg{color:var(--text-secondary);margin-top:2px;line-height:1.5;}
+.strip__actions{display:flex;gap:var(--space-2);align-items:center;flex-shrink:0;}
+.strip__close{width:18px;height:18px;border:none;background:none;cursor:pointer;color:var(--text-tertiary);padding:0;flex-shrink:0;}
+.strip__close svg{width:var(--icon-sm);height:var(--icon-sm);}
+.strip--info{background:var(--status-deploying-bg);border-color:transparent;color:var(--status-deploying-fg);}
+.strip--info .strip__icon{color:var(--status-deploying-fg);}
+.strip--success{background:var(--status-healthy-bg);border-color:transparent;color:var(--status-healthy-fg);}
+.strip--success .strip__icon{color:var(--status-healthy-fg);}
+.strip--warning{background:var(--status-warning-bg);border-color:transparent;color:var(--status-warning-fg);}
+.strip--warning .strip__icon{color:var(--status-warning-fg);}
+.strip--error{background:var(--status-error-bg);border-color:transparent;color:var(--status-error-fg);}
+.strip--error .strip__icon{color:var(--status-error-fg);}
+.strip .strip__title{color:var(--text-primary);}
+
+/* ============================================================================
+   DIALOG (Modal mit Blur-Backdrop, Aktionen unten rechts)
+   ============================================================================ */
+.dialog-scrim{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;z-index:1000;padding:var(--space-6);
+  backdrop-filter:blur(var(--scrim-blur));-webkit-backdrop-filter:blur(var(--scrim-blur));animation:fadein var(--motion-base) var(--ease);}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.dialog{width:460px;max-width:100%;background:var(--surface-default);border:1px solid var(--border-subtle);border-radius:var(--radius-xl);box-shadow:var(--shadow-overlay);overflow:hidden;animation:pop var(--motion-base) var(--ease-out);}
+.dialog__head{display:flex;align-items:flex-start;gap:var(--space-3);padding:var(--space-5) var(--space-5) 0;}
+.dialog__icon{width:40px;height:40px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.dialog__icon--danger{background:var(--status-error-bg);color:var(--status-error-fg);}
+.dialog__icon--primary{background:var(--amber-100);color:var(--amber-700);}
+.dialog__icon--info{background:var(--status-deploying-bg);color:var(--status-deploying-fg);}
+[data-theme="dark"] .dialog__icon--primary{background:rgba(255,181,48,.16);color:var(--amber-300);}
+.dialog__icon svg{width:var(--icon-xl);height:var(--icon-xl);}
+.dialog__title{font-size:var(--text-h3);font-weight:var(--weight-bold);}
+.dialog__close{margin-left:auto;width:28px;height:28px;border:none;background:none;cursor:pointer;color:var(--text-tertiary);border-radius:var(--radius-sm);}
+.dialog__close:hover{background:var(--surface-sunken);}
+.dialog__close svg{width:var(--icon-md);height:var(--icon-md);}
+.dialog__body{padding:var(--space-3) var(--space-5) var(--space-5);color:var(--text-secondary);font-size:var(--text-sm);line-height:1.55;}
+.dialog__foot{display:flex;justify-content:flex-end;gap:var(--space-3);padding:var(--space-4) var(--space-5);background:var(--surface-subtle);border-top:1px solid var(--border-subtle);}
+
+/* ============================================================================
+   SIDEPANEL (rechts oder unten ein-/ausfahrbar)
+   ============================================================================ */
+.sidepanel-scrim{position:fixed;inset:0;background:var(--scrim);z-index:900;opacity:0;pointer-events:none;transition:opacity var(--motion-base) var(--ease);backdrop-filter:blur(var(--scrim-blur));-webkit-backdrop-filter:blur(var(--scrim-blur));}
+.sidepanel-scrim.is-open{opacity:1;pointer-events:auto;}
+.sidepanel{position:fixed;background:var(--surface-default);z-index:901;display:flex;flex-direction:column;box-shadow:var(--shadow-overlay);transition:transform var(--motion-slow) var(--ease-out);}
+/* rechts */
+.sidepanel--right{top:0;right:0;bottom:0;width:440px;max-width:92vw;border-left:1px solid var(--border-subtle);transform:translateX(100%);}
+.sidepanel--right.is-open{transform:translateX(0);}
+/* unten */
+.sidepanel--bottom{left:0;right:0;bottom:0;height:48vh;border-top:1px solid var(--border-subtle);border-radius:var(--radius-xl) var(--radius-xl) 0 0;transform:translateY(100%);}
+.sidepanel--bottom.is-open{transform:translateY(0);}
+.sidepanel__head{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--border-subtle);}
+.sidepanel__title{font-size:var(--text-h3);font-weight:var(--weight-semibold);flex:1;}
+.sidepanel__body{padding:var(--space-5);overflow-y:auto;flex:1;}
+/* Erweiterung: resize-/maximierbare rechte Variante + Bottom-Sheet-Action-Bar + Panel-Sektionen */
+.sidepanel__resizer{position:absolute;left:0;top:0;bottom:0;width:6px;cursor:col-resize;background:transparent;z-index:2;}
+.sidepanel__resizer:hover{background:var(--border-default);}
+.sidepanel--right.is-max{width:min(960px,96vw);}
+.sidepanel__footer{display:flex;justify-content:flex-end;align-items:center;gap:var(--space-3);padding:var(--space-4) var(--space-5);
+  background:var(--surface-subtle);border-top:1px solid var(--border-subtle);position:sticky;bottom:0;}
+.panel-section{padding:var(--space-5);border-bottom:1px solid var(--border-subtle);}
+.panel-section:last-child{border-bottom:none;}
+.panel-section__title{font-size:var(--text-meta);font-weight:var(--weight-bold);letter-spacing:.06em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:var(--space-3);}
+
+/* ============================================================================
+   CHARTS / DIAGRAMME (reines SVG/CSS, Token-Farben)
+   dataviz-Palette: kategorisch, farbenblind-tauglich
+   ============================================================================ */
+.chart{width:100%;}
+.chart-legend{display:flex;flex-wrap:wrap;gap:var(--space-3);margin-top:var(--space-3);font-size:var(--text-meta);color:var(--text-secondary);}
+.chart-legend span{display:inline-flex;align-items:center;gap:6px;}
+.chart-legend i{width:10px;height:10px;border-radius:3px;display:inline-block;}
+/* Balken (CSS) */
+.bars{display:flex;align-items:flex-end;gap:var(--space-3);height:160px;padding-top:var(--space-2);}
+.bars__col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+.bars__bar{width:100%;max-width:44px;border-radius:var(--radius-sm) var(--radius-sm) 0 0;background:var(--gradient-teal);transition:height var(--motion-slow) var(--ease-out);}
+.bars__bar--amber{background:var(--gradient-amber);}
+.bars__lbl{font-size:var(--text-meta);color:var(--text-tertiary);}
+/* Stacked Bar (linear) */
+.stackbar{display:flex;height:14px;border-radius:var(--radius-pill);overflow:hidden;background:var(--track);}
+.stackbar span{display:block;height:100%;}
+/* Progress-Bar (linear) */
+.progressbar{height:8px;border-radius:var(--radius-pill);background:var(--track);overflow:hidden;}
+.progressbar span{display:block;height:100%;border-radius:var(--radius-pill);background:var(--gradient-amber);}
+/* Donut */
+.donut{transform:rotate(-90deg);}
+.donut circle{fill:none;stroke-width:14;}
+.donut__track{stroke:var(--track);}
+/* Line/Area chart nutzt .sparkline-Styles, größer skaliert */
+.linechart .grid-line{stroke:var(--border-subtle);stroke-width:1;}
+.linechart path.area{fill:var(--teal-100);opacity:.4;}
+[data-theme="dark"] .linechart path.area{fill:rgba(27,160,201,.15);}
+.linechart path.line{fill:none;stroke:var(--accent-secondary);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.linechart circle.pt{fill:var(--surface-default);stroke:var(--accent-secondary);stroke-width:2;}
+/* Flow-Diagramm (Dev→Test→Prod) */
+.flow{display:flex;align-items:center;gap:var(--space-2);}
+.flow__node{flex:1;text-align:center;padding:var(--space-3);border-radius:var(--radius-md);border:1px solid var(--border-subtle);background:var(--surface-card);font-size:var(--text-sm);font-weight:var(--weight-semibold);}
+.flow__node small{display:block;font-weight:var(--weight-regular);color:var(--text-tertiary);font-size:var(--text-meta);margin-top:2px;}
+.flow__arrow{color:var(--accent-primary);flex-shrink:0;}
+.flow__arrow svg{width:var(--icon-xl);height:var(--icon-xl);}
+/* Erweiterung: Zahl am Pfeil (Funnel-Durchsatz) + Alert-Knoten + verjüngende Funnel-Variante */
+.flow__arrow{position:relative;display:inline-flex;flex-direction:column;align-items:center;gap:2px;}
+.flow__arrow-count{font-family:var(--font-mono);font-size:var(--text-meta);color:var(--text-tertiary);font-weight:var(--weight-semibold);}
+.flow__node--alert{background:var(--status-error-bg);border-color:transparent;color:var(--status-error-fg);}
+.flow__node--alert small{color:var(--status-error-fg);opacity:.8;}
+.flow__node--warning{background:var(--status-warning-bg);border-color:transparent;color:var(--status-warning-fg);}
+.flow__node--warning small{color:var(--status-warning-fg);opacity:.8;}
+.flow--funnel .flow__node{text-align:center;}
+
+/* ----------------------------------------------------------------------------
+   PROMOTION FROM→TO FLOW — zwei Endpunkte + gerichtete Verbindung
+   Richtung = Aktion (Promotion): Linie/Pfeil promoting(violett), konsistent mit board-edge--active.
+   ---------------------------------------------------------------------------- */
+.promo-flow{display:flex;align-items:center;gap:var(--space-3);}
+.promo-flow__endpoint{display:inline-flex;flex-direction:column;gap:2px;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);
+  border:1px solid var(--border-subtle);background:var(--surface-card);font-size:var(--text-sm);font-weight:var(--weight-semibold);white-space:nowrap;}
+.promo-flow__endpoint small{font-family:var(--font-mono);font-weight:var(--weight-regular);color:var(--text-tertiary);font-size:var(--text-meta);}
+.promo-flow__label{font-size:var(--text-meta);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em;}
+.promo-flow__line{flex:1;position:relative;height:2px;background:var(--status-promoting-solid);min-width:32px;}
+.promo-flow__line::after{content:"";position:absolute;right:0;top:50%;transform:translateY(-50%);border:5px solid transparent;border-left-color:var(--status-promoting-solid);}
+
+/* ============================================================================
+   ENVIRONMENT HEALTH METER — Umgebungs-Gesundheitszeile
+   Tag + segmentierter (animierter) Meter + Stats + Link.
+   Segmentfarben ausschließlich über Status-Solids.
+   ============================================================================ */
+.health-meter{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;}
+.health-meter__tag{flex-shrink:0;}
+.health-meter__track{flex:1;min-width:120px;display:flex;height:14px;border-radius:var(--radius-pill);overflow:hidden;background:var(--track);}
+.health-meter__seg{height:100%;transition:width var(--motion-slow) var(--ease-out);}
+.health-meter__seg--healthy{background:var(--status-healthy-solid);}
+.health-meter__seg--warning{background:var(--status-warning-solid);}
+.health-meter__seg--degraded{background:var(--status-degraded-solid);}
+.health-meter__seg--error{background:var(--status-error-solid);}
+.health-meter__seg--queued{background:var(--status-queued-solid);}
+.health-meter__stats{display:flex;gap:var(--space-3);font-family:var(--font-mono);font-size:var(--text-meta);color:var(--text-secondary);flex-shrink:0;}
+.health-meter__link{flex-shrink:0;}
+
+/* ============================================================================
+   TOOLTIP
+   ============================================================================ */
+.tip{position:relative;display:inline-flex;}
+.tip__bubble{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(4px);
+  background:var(--surface-inverse);color:var(--text-inverse);font-size:var(--text-meta);font-weight:var(--weight-medium);
+  padding:5px 9px;border-radius:var(--radius-sm);white-space:nowrap;opacity:0;pointer-events:none;transition:all var(--motion-fast) var(--ease);box-shadow:var(--shadow-md);z-index:50;}
+.tip__bubble::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--surface-inverse);}
+.tip:hover .tip__bubble,.tip:focus-within .tip__bubble{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ============================================================================
+   POPOVER / DROPDOWN-MENÜ
+   ============================================================================ */
+.menu{background:var(--surface-default);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:var(--space-2);min-width:200px;max-width:320px;}
+/* Breiten-Varianten */
+.menu--sm{min-width:160px;} .menu--lg{min-width:260px;}
+/* Popover-Wrapper: positioniert das Menü relativ zum Trigger */
+.popover{position:relative;display:inline-block;}
+.popover__panel{position:absolute;z-index:300;top:calc(100% + 6px);left:0;animation:pop var(--motion-fast) var(--ease-out);}
+.popover__panel--right{left:auto;right:0;}
+.popover__panel--up{top:auto;bottom:calc(100% + 6px);}
+.popover__panel[hidden]{display:none;}
+/* Section-Label im Menü */
+.menu__label{font-size:10px;font-weight:var(--weight-bold);letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);padding:6px 10px 4px;}
+.menu__item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--text-primary);background:none;border:none;cursor:pointer;text-align:left;text-decoration:none;}
+.menu__item svg{width:var(--icon-md);height:var(--icon-md);color:var(--text-tertiary);flex-shrink:0;}
+.menu__item:hover{background:var(--surface-sunken);}
+.menu__item:focus-visible{background:var(--surface-sunken);outline:2px solid var(--border-focus);outline-offset:-2px;}
+.menu__item--active{background:var(--amber-50);color:var(--amber-800);font-weight:var(--weight-semibold);}
+[data-theme="dark"] .menu__item--active{background:rgba(255,181,48,.12);color:var(--amber-300);}
+.menu__item--danger{color:var(--status-error-fg);}
+.menu__item--danger svg{color:var(--status-error-fg);}
+.menu__item:disabled,.menu__item[aria-disabled="true"]{opacity:var(--disabled-opacity);cursor:not-allowed;pointer-events:none;}
+/* flexible Item-Bestandteile: Label dehnt sich, Shortcut/Meta rechts, Check */
+.menu__text{flex:1;min-width:0;}
+.menu__desc{display:block;font-size:var(--text-meta);color:var(--text-tertiary);font-weight:var(--weight-regular);margin-top:1px;}
+.menu__shortcut{margin-left:auto;font-family:var(--font-mono);font-size:var(--text-meta);color:var(--text-tertiary);flex-shrink:0;}
+.menu__check{margin-left:auto;color:var(--accent-secondary);flex-shrink:0;}
+.menu__sep{height:1px;background:var(--border-subtle);margin:var(--space-2) 0;}
+/* Variante: Menü "mit Kopf" (User-Menü) — Avatar + Name + Info oben */
+.menu--header .menu__header{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-3) var(--space-2);}
+.menu__header-info{min-width:0;}
+.menu__header-name{font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.menu__header-mail{font-size:var(--text-meta);color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ============================================================================
+   COMMAND PALETTE / SEARCH — globale Suche mit gruppierten Vorschlägen
+   Baut auf .menu/.input-group auf. <mark>-Treffer = Marken-Amber (Fokus).
+   ============================================================================ */
+.command{background:var(--surface-default);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);overflow:hidden;width:min(560px,92vw);}
+.command__input{border:none;border-bottom:1px solid var(--border-subtle);border-radius:0;padding:var(--space-3) var(--space-4);}
+.command__input svg{width:var(--icon-md);height:var(--icon-md);}
+.command__list{max-height:360px;overflow-y:auto;padding:var(--space-2);}
+.command__group + .command__group{margin-top:var(--space-2);}
+.command__group-title{font-size:10px;font-weight:var(--weight-bold);letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);padding:6px 10px 4px;}
+.command__item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--text-primary);background:none;border:none;cursor:pointer;text-align:left;}
+.command__item svg{width:var(--icon-md);height:var(--icon-md);color:var(--text-tertiary);flex-shrink:0;}
+.command__item:hover,.command__item:focus-visible{background:var(--surface-sunken);}
+.command__item--active{background:var(--amber-50);color:var(--amber-800);font-weight:var(--weight-semibold);}
+[data-theme="dark"] .command__item--active{background:rgba(255,181,48,.12);color:var(--amber-300);}
+.command__text{flex:1;min-width:0;}
+.command__hint{margin-left:auto;font-family:var(--font-mono);font-size:var(--text-meta);color:var(--text-tertiary);flex-shrink:0;}
+.command mark{background:var(--amber-100);color:var(--amber-800);border-radius:2px;padding:0 1px;}
+[data-theme="dark"] .command mark{background:rgba(255,181,48,.16);color:var(--amber-300);}
+
+/* ============================================================================
+   PAGINATION
+   ============================================================================ */
+.pagination{display:inline-flex;align-items:center;gap:4px;}
+.page-btn{min-width:32px;height:32px;padding:0 8px;border-radius:var(--radius-sm);border:1px solid transparent;background:none;cursor:pointer;font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center;}
+.page-btn:hover{background:var(--surface-sunken);color:var(--text-primary);}
+.page-btn--active{background:var(--gradient-amber);color:var(--text-on-accent);font-weight:var(--weight-semibold);}
+.page-btn svg{width:var(--icon-md);height:var(--icon-md);}
+.page-btn:disabled{opacity:var(--disabled-opacity);cursor:not-allowed;}
+.page-ellipsis{padding:0 4px;color:var(--text-tertiary);}
+
+/* ============================================================================
+   ACCORDION
+   ============================================================================ */
+.accordion{border:1px solid var(--border-subtle);border-radius:var(--radius-lg);overflow:hidden;}
+.acc-item{border-bottom:1px solid var(--border-subtle);}
+.acc-item:last-child{border-bottom:none;}
+.acc-head{display:flex;align-items:center;gap:var(--space-2);width:100%;padding:var(--space-3) var(--space-4);background:none;border:none;cursor:pointer;font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);text-align:left;}
+.acc-head svg{width:var(--icon-md);height:var(--icon-md);color:var(--text-tertiary);transition:transform var(--motion-fast) var(--ease);margin-left:auto;}
+.acc-item.is-open .acc-head svg{transform:rotate(180deg);}
+.acc-body{padding:0 var(--space-4) var(--space-4);color:var(--text-secondary);font-size:var(--text-sm);line-height:1.55;display:none;}
+.acc-item.is-open .acc-body{display:block;}
+
+/* ============================================================================
+   AVATAR-GRUPPE
+   ============================================================================ */
+.avatar-group{display:inline-flex;}
+.avatar-group .avatar{width:30px;height:30px;font-size:11px;border:2px solid var(--surface-default);margin-left:-8px;}
+.avatar-group .avatar:first-child{margin-left:0;}
+.avatar-group__more{width:30px;height:30px;border-radius:50%;background:var(--surface-sunken);color:var(--text-secondary);border:2px solid var(--surface-default);margin-left:-8px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:var(--weight-semibold);}
+
+/* ============================================================================
+   SIGNATURE: ORBIT-RING-MOTIV  (der "glühende Planet" als grafisches Element)
+   ============================================================================ */
+/* Orbit um ein rundes Element (Avatar, Icon, Status-Punkt) */
+.orbit{position:relative;}
+.orbit::before{content:"";position:absolute;inset:-4px;border-radius:50%;
+  border:1.5px solid var(--orbit-ring);opacity:.35;pointer-events:none;}
+.orbit::after{content:"";position:absolute;width:5px;height:5px;border-radius:50%;
+  background:var(--orbit-ring);top:-1px;left:50%;margin-left:-2.5px;
+  box-shadow:0 0 6px 1px rgba(255,181,48,.6);pointer-events:none;}
+.orbit--spin::after{animation:orbit 4s linear infinite;transform-origin:2.5px calc(50% + 5px);}
+@keyframes orbit{to{transform:rotate(360deg)}}
+
+/* Orbit-Loading-Spinner (Marken-Variante des Spinners) */
+.orbit-loader{position:relative;width:36px;height:36px;flex-shrink:0;}
+.orbit-loader__planet{position:absolute;inset:9px;border-radius:50%;background:var(--gradient-planet);box-shadow:0 0 10px rgba(255,149,12,.5);}
+.orbit-loader__ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--border-subtle);}
+.orbit-loader__ring::after{content:"";position:absolute;width:6px;height:6px;border-radius:50%;background:var(--orbit-ring);top:-3.5px;left:50%;margin-left:-3px;box-shadow:0 0 8px 1px rgba(255,181,48,.7);}
+.orbit-loader__ring{animation:spin 1.4s linear infinite;}
+
+/* Aktiver/Live-Status mit Orbit-Puls */
+.orbit-dot{position:relative;width:8px;height:8px;border-radius:50%;background:var(--status-healthy-solid);flex-shrink:0;}
+.orbit-dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--status-healthy-solid);opacity:.4;animation:orbitpulse 2s var(--ease) infinite;}
+@keyframes orbitpulse{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(1.25);opacity:0}}
+
+/* Avatar mit Orbit-Ring-Signatur */
+.avatar--orbit{position:relative;}
+.avatar--orbit::before{content:"";position:absolute;inset:-3px;border-radius:50%;border:1.5px solid var(--orbit-ring);opacity:.4;}
+
+/* ============================================================================
+   THEME/DENSITY-UMSCHALTER (Utility)
+   ============================================================================ */
+.switcher{display:inline-flex;align-items:center;gap:var(--space-2);}

@@ -1,0 +1,302 @@
+/* ============================================================================
+   KONFIDENCE DESIGN SYSTEM — tokens.css
+   Single Source of Truth. Build-frei (reine CSS Custom Properties), offline.
+   3 Ebenen:  1) PRIMITIVE (Roh-Werte)  →  2) SEMANTIC (Rollen)  →  3) COMPONENT
+   Themes:   Light (default) · Dark ([data-theme="dark"])
+   Density:  Comfortable (default) · Compact ([data-density="compact"])
+   ============================================================================ */
+
+/* ============================================================================
+   EBENE 1 — PRIMITIVES  (die einzigen Roh-Hex-Werte im gesamten System)
+   ============================================================================ */
+:root {
+  /* Marke — Amber */
+  --amber-50:#FFF8EC; --amber-100:#FFEFD0; --amber-200:#FFDD9E; --amber-300:#FFCB6B;
+  --amber-400:#FFB530; --amber-500:#F59E0B; --amber-600:#D6820B; --amber-700:#A9640A;
+  --amber-800:#7C4A0C; --amber-900:#573410;
+  /* Marke — Teal */
+  --teal-50:#ECFAFE; --teal-100:#CFF1FA; --teal-200:#9FE0F3; --teal-300:#63C9E7;
+  --teal-400:#33B0D6; --teal-500:#1BA0C9; --teal-600:#1583A8; --teal-700:#146A87;
+  --teal-800:#16566E; --teal-900:#16485C;
+  /* Neutrals — warm */
+  --neutral-0:#FFFFFF; --neutral-25:#FDFCFA; --neutral-50:#F8F7F4; --neutral-100:#F1EFEB;
+  --neutral-200:#E5E2DC; --neutral-300:#D3CFC7; --neutral-400:#A8A399; --neutral-500:#7C776D;
+  --neutral-600:#5C584F; --neutral-700:#423F38; --neutral-800:#2A2823; --neutral-900:#1A1815;
+  --space-950:#12100E;
+  /* Dark neutrals — warm getönt ("Space" mit Amber-Stich), nicht kühl-blau */
+  --dark-900:#14110B; --dark-850:#1B1710; --dark-800:#221D15; --dark-750:#2B251B;
+  --dark-700:#362F23; --dark-600:#473F30; --dark-500:#6B6151; --dark-400:#9B917E;
+  --dark-300:#BDB4A2; --dark-200:#D6CFC0; --dark-100:#EDE8DE;
+
+  /* Funktions-Primitives (Status) */
+  --green-50:#F3FDF7; --green-100:#DCFAE6; --green-200:#ABEFC6; --green-500:#17B26A; --green-700:#067647; --green-300-d:#3ED598;
+  --amberstat-100:#FEF0C7; --amberstat-500:#F79009; --amberstat-700:#B54708;
+  --orange-100:#FFEAD5; --orange-500:#EF6820; --orange-700:#B93815;
+  --red-50:#FEF3F2; --red-100:#FEE4E2; --red-200:#FECDCA; --red-500:#F04438; --red-700:#B42318; --red-300-d:#FF7A6E;
+  --blue-100:#D1E9FF; --blue-500:#2E90FA; --blue-700:#175CD3; --blue-300-d:#6BB8FF;
+  --violet-100:#ECE9FE; --violet-500:#7A5AF8; --violet-700:#5925DC; --violet-300-d:#BCA6FF;
+  --cyan-100:#CFF9FE; --cyan-500:#06AED4; --cyan-700:#0E7090; --cyan-300-d:#67E8F9;
+  --pink-100:#FCE7F6; --pink-500:#EE46BC; --pink-700:#C11574; --pink-300-d:#F9A8D4;
+
+  /* Marken-Gradient-Stops (Roh, für Verläufe) */
+  --grad-planet-from:#FFCB49; --grad-planet-to:#FF960C;
+
+  /* --- 12 KATEGORIE-TAG-PALETTEN (max. gespreizte Farbtöne) --------------- */
+  /* Farbton-Abstände bewusst groß gewählt; jede fg auf bg ≥ 4.5:1 (AA). */
+  --tag-red-fg:#B42318;     --tag-red-bg:#FEF3F2;     --tag-red-bd:#FECDCA;
+  --tag-orange-fg:#B93815;  --tag-orange-bg:#FFF4ED;  --tag-orange-bd:#FFD6AE;
+  --tag-amber-fg:#93500B;   --tag-amber-bg:#FFF8EC;   --tag-amber-bd:#FFDD9E;
+  --tag-lime-fg:#3F6212;    --tag-lime-bg:#F5FBEE;    --tag-lime-bd:#D0E9AB;
+  --tag-green-fg:#067647;   --tag-green-bg:#ECFDF3;   --tag-green-bd:#ABEFC6;
+  --tag-teal-fg:#0E7668;    --tag-teal-bg:#EDFCF8;    --tag-teal-bd:#A7E8DA;
+  --tag-cyan-fg:#0E7090;    --tag-cyan-bg:#ECFDFF;    --tag-cyan-bd:#A5F0FC;
+  --tag-blue-fg:#175CD3;    --tag-blue-bg:#EFF8FF;    --tag-blue-bd:#B2DDFF;
+  --tag-indigo-fg:#3538CD;  --tag-indigo-bg:#EEF4FF;  --tag-indigo-bd:#C7D7FE;
+  --tag-violet-fg:#6321D6;  --tag-violet-bg:#F4F3FF;  --tag-violet-bd:#D9D6FE;
+  --tag-pink-fg:#C11574;    --tag-pink-bg:#FDF2FA;    --tag-pink-bd:#FCCEEE;
+  --tag-slate-fg:#334155;   --tag-slate-bg:#F1F5F9;   --tag-slate-bd:#E2E8F0;
+
+  /* --- TYPO (theme-unabhängig) ------------------------------------------- */
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+  --text-hero:4rem; --text-display:2.25rem; --text-h1:1.75rem; --text-h2:1.375rem;
+  --text-h3:1.125rem; --text-body:.875rem; --text-sm:.8125rem; --text-meta:.75rem;
+  --weight-regular:400; --weight-medium:500; --weight-semibold:600; --weight-bold:700; --weight-black:800;
+  /* Display-Disziplin: Decke bei 600, negatives Tracking (editorial, "quiet luxury") */
+  --weight-display:600;
+  --tracking-hero:-2.5px; --tracking-display:-1px; --tracking-h1:-0.6px; --tracking-h2:-0.3px;
+  --leading-tight:1.05; --leading-normal:1.5;
+  --numeric-tabular:"tnum" 1, "lnum" 1;   /* Tabularziffern für alle Zahlen (Auditierbarkeit) */
+
+  /* --- SPACING / RADIUS / MOTION (theme-unabhängig) ---------------------- */
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px;
+  --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px; --space-16:64px; --space-20:80px; --space-24:96px;
+  /* Signature-Radius: bewusst "unrund" (10/14/20 statt 8/16) — eigene Radius-Sprache */
+  --radius-xs:4px; --radius-sm:6px; --radius-md:10px; --radius-lg:14px; --radius-xl:20px; --radius-2xl:28px; --radius-pill:999px;
+  /* Icon-Größen-Skala (Kantenlänge) — vereinheitlicht Icon-Größen über alle Komponenten */
+  --icon-xs:12px; --icon-sm:14px; --icon-md:16px; --icon-lg:18px; --icon-xl:20px; --icon-2xl:28px;
+  /* Signature-Motion: kurze spring-artige Kurve, Glow baut beim Interagieren auf */
+  --motion-fast:140ms; --motion-base:240ms; --motion-slow:420ms;
+  --ease:cubic-bezier(.4,0,.2,1); --ease-out:cubic-bezier(.16,1,.3,1); --ease-spring:cubic-bezier(.2,.8,.2,1);
+
+  /* Density: vertikale Rhythmen (werden von compact überschrieben) */
+  --row-py:12px;          /* Tabellenzeilen / Listen */
+  --control-py:9px;       /* Buttons / Inputs */
+  --card-pad:20px;
+}
+
+/* ============================================================================
+   EBENE 2 — SEMANTIC  (Rollen)  ·  LIGHT (default)
+   ============================================================================ */
+:root {
+  --surface-canvas:var(--neutral-25);
+  --surface-default:var(--neutral-0);
+  --surface-subtle:var(--neutral-50);
+  --surface-sunken:var(--neutral-100);
+  --surface-inverse:var(--space-950);
+
+  --text-primary:var(--neutral-900);
+  --text-secondary:var(--neutral-600);
+  --text-tertiary:var(--neutral-600);   /* AA-sicher (≈6.4:1 auf weiß) */
+  --text-disabled:var(--neutral-400);
+  --text-inverse:var(--neutral-0);
+  --text-on-accent:#3B2600;
+  --text-link:var(--teal-700);
+
+  --border-subtle:var(--neutral-200);
+  --border-default:var(--neutral-300);
+  --border-strong:var(--neutral-400);
+  --border-focus:var(--teal-500);
+
+  --accent-primary:var(--amber-400);
+  --accent-primary-hover:var(--amber-500);
+  --accent-primary-active:var(--amber-600);
+  --accent-secondary:var(--teal-500);
+
+  /* Nicht-wertende Akzente (Diagramme, Pfeile, Kategorien OHNE Statusbedeutung) */
+  --chart-blue:var(--blue-500);     --chart-blue-soft:var(--blue-100);
+  --chart-green:var(--green-500);   --chart-green-soft:var(--green-100);
+  --chart-red:var(--red-500);       --chart-red-soft:var(--red-100);
+  --chart-orange:var(--orange-500); --chart-orange-soft:var(--orange-100);
+  --chart-purple:var(--violet-500); --chart-purple-soft:var(--violet-100);
+  --chart-cyan:var(--cyan-500);     --chart-cyan-soft:var(--cyan-100);
+  --chart-pink:var(--pink-500);     --chart-pink-soft:var(--pink-100);
+  --chart-grey:var(--neutral-500);  --chart-grey-soft:var(--neutral-200);
+
+  /* Status-Rollen */
+  --status-healthy-fg:var(--green-700);    --status-healthy-bg:var(--green-100);    --status-healthy-solid:var(--green-500);
+  --status-warning-fg:var(--amberstat-700);--status-warning-bg:var(--amberstat-100);--status-warning-solid:var(--amberstat-500);
+  --status-degraded-fg:var(--orange-700);  --status-degraded-bg:var(--orange-100);  --status-degraded-solid:var(--orange-500);
+  --status-error-fg:var(--red-700);        --status-error-bg:var(--red-100);        --status-error-solid:var(--red-500);
+  --status-promoting-fg:var(--violet-700); --status-promoting-bg:var(--violet-100); --status-promoting-solid:var(--violet-500);
+  --status-deploying-fg:var(--blue-700);   --status-deploying-bg:var(--blue-100);   --status-deploying-solid:var(--blue-500);
+  --status-queued-fg:var(--neutral-600);   --status-queued-bg:var(--neutral-100);   --status-queued-solid:var(--neutral-400);
+
+  /* Verläufe — Marken-Momente (Hero, Planet, Primär-Button, Text-Akzent) */
+  --gradient-planet: linear-gradient(155deg, var(--grad-planet-from) 0%, var(--grad-planet-to) 100%);
+  --gradient-amber:  linear-gradient(135deg, var(--amber-300) 0%, var(--amber-500) 100%);
+  --gradient-teal:   linear-gradient(135deg, var(--teal-300) 0%, var(--teal-600) 100%);
+  --gradient-aurora: linear-gradient(120deg, var(--grad-planet-from) 0%, var(--grad-planet-to) 42%, var(--teal-500) 100%);
+
+  /* Flächen — zurückhaltend: Cards nahezu flach, nur große Sections tragen Hauch-Verlauf */
+  --gradient-hero-bg:  linear-gradient(150deg, #FFFAF2 0%, #FBFAF6 45%, #F4F6F5 100%);
+  --gradient-section:  linear-gradient(160deg, var(--neutral-50) 0%, var(--neutral-25) 100%);
+  --surface-card:      var(--surface-default);   /* flach, kein Verlauf */
+  /* Optionale Gradient-Kachel — warm & dezent (wie Website-Referenz), + weiches diffuses Licht */
+  --gradient-tile:     linear-gradient(158deg, #FFFDF9 0%, #FBF6EE 55%, #F3F6F6 100%);
+  --tile-glow:         radial-gradient(120% 90% at 78% 18%, rgba(255,181,48,.10) 0%, rgba(27,160,201,.05) 45%, rgba(255,255,255,0) 72%);
+
+  /* Glow — Signatur: der "glühende Planet" zieht sich durch alles */
+  --glow-amber: radial-gradient(closest-side, rgba(255,181,48,0.30), rgba(255,181,48,0) 72%);
+  --glow-teal:  radial-gradient(closest-side, rgba(27,160,201,0.24), rgba(27,160,201,0) 72%);
+  --card-rim-glow: 0 0 0 1px rgba(255,255,255,0.6) inset;  /* zarter heller Innenrand */
+  /* Signature-Focus: Amber-Glow-Ring statt neutralem Ring (alles Wichtige "glüht") */
+  --focus-ring:0 0 0 3px rgba(255,181,48,.38);
+  --focus-ring-teal:0 0 0 3px rgba(27,160,201,.38);   /* für Info-/Daten-Kontext */
+  --orbit-ring: var(--amber-400);                      /* Orbit-Motiv-Farbe */
+
+  /* Schatten — Signatur: WARM getönt (Amber-Braun), nicht neutral-schwarz */
+  --shadow-xs:0 1px 2px rgba(60,40,10,.06);
+  --shadow-sm:0 1px 3px rgba(60,40,10,.09),0 1px 2px rgba(60,40,10,.05);
+  --shadow-md:0 4px 8px rgba(60,40,10,.06),0 10px 24px rgba(60,40,10,.09);
+  --shadow-lg:0 8px 16px rgba(60,40,10,.07),0 20px 44px rgba(60,40,10,.12);
+  --shadow-overlay:0 24px 64px rgba(45,30,8,.24);
+  --glow-amber-shadow:0 4px 14px rgba(255,149,12,.30),0 0 0 1px rgba(255,149,12,.10);
+  --scrim: rgba(45,30,8,.42);
+  --scrim-blur: 4px;            /* einheitlicher Backdrop-Blur für Scrims */
+  --disabled-opacity: .5;       /* einheitliche Opacity für disabled-Zustände */
+
+  /* Phasen-/Progress-Verläufe */
+  --progress-done: linear-gradient(90deg, var(--green-500), var(--green-300-d));
+  --progress-active: linear-gradient(90deg, var(--blue-500), var(--blue-300-d));
+  --progress-failed: linear-gradient(90deg, var(--red-500), var(--red-300-d));
+  --track: var(--neutral-200);
+}
+
+/* ============================================================================
+   EBENE 2 — SEMANTIC  ·  DARK  ([data-theme="dark"])
+   ============================================================================ */
+[data-theme="dark"] {
+  --surface-canvas:var(--dark-900);
+  --surface-default:var(--dark-850);
+  --surface-subtle:var(--dark-800);
+  --surface-sunken:var(--dark-750);
+  --surface-inverse:var(--neutral-50);
+
+  --text-primary:var(--dark-100);
+  --text-secondary:var(--dark-300);
+  --text-tertiary:var(--dark-400);
+  --text-disabled:var(--dark-500);
+  --text-inverse:var(--dark-900);
+  --text-on-accent:#3B2600;      /* Amber-Button bleibt hell → dunkler Text */
+  --text-link:var(--teal-300);
+
+  --border-subtle:var(--dark-700);
+  --border-default:var(--dark-600);
+  --border-strong:var(--dark-500);
+  --border-focus:var(--teal-400);
+
+  --accent-primary:var(--amber-400);
+  --accent-primary-hover:var(--amber-300);
+  --accent-primary-active:var(--amber-500);
+  --accent-secondary:var(--teal-400);
+
+  /* Akzente Dark — hellere Stufen */
+  --chart-blue:var(--blue-300-d);     --chart-green:var(--green-300-d);
+  --chart-red:var(--red-300-d);       --chart-orange:#FDA274;
+  --chart-purple:var(--violet-300-d); --chart-cyan:var(--cyan-300-d);
+  --chart-pink:var(--pink-300-d);     --chart-grey:var(--dark-400);
+
+  /* Status im Dark: gedämpfte Flächen (Alpha), hellere fg */
+  --status-healthy-fg:#6EE7B0;    --status-healthy-bg:rgba(23,178,106,.16);   --status-healthy-solid:var(--green-500);
+  --status-warning-fg:#FBBF5A;    --status-warning-bg:rgba(247,144,9,.16);    --status-warning-solid:var(--amberstat-500);
+  --status-degraded-fg:#FDA274;   --status-degraded-bg:rgba(239,104,32,.16);  --status-degraded-solid:var(--orange-500);
+  --status-error-fg:#FF9B92;      --status-error-bg:rgba(240,68,56,.16);      --status-error-solid:var(--red-500);
+  --status-promoting-fg:#BCA6FF;  --status-promoting-bg:rgba(122,90,248,.18); --status-promoting-solid:var(--violet-500);
+  --status-deploying-fg:#8FC5FF;  --status-deploying-bg:rgba(46,144,250,.16); --status-deploying-solid:var(--blue-500);
+  --status-queued-fg:var(--dark-300); --status-queued-bg:rgba(255,255,255,.06);--status-queued-solid:var(--dark-500);
+
+  /* Tags im Dark: transparente Flächen, hellere fg (auto über Alpha) */
+  --tag-red-fg:#FF9B92;     --tag-red-bg:rgba(240,68,56,.15);    --tag-red-bd:rgba(240,68,56,.3);
+  --tag-orange-fg:#FDA274;  --tag-orange-bg:rgba(239,104,32,.15);--tag-orange-bd:rgba(239,104,32,.3);
+  --tag-amber-fg:#FBBF5A;   --tag-amber-bg:rgba(247,144,9,.15);  --tag-amber-bd:rgba(247,144,9,.3);
+  --tag-lime-fg:#B5E06A;    --tag-lime-bg:rgba(132,204,22,.14);  --tag-lime-bd:rgba(132,204,22,.3);
+  --tag-green-fg:#6EE7B0;   --tag-green-bg:rgba(23,178,106,.15); --tag-green-bd:rgba(23,178,106,.3);
+  --tag-teal-fg:#5EEAD4;    --tag-teal-bg:rgba(20,184,166,.15);  --tag-teal-bd:rgba(20,184,166,.3);
+  --tag-cyan-fg:#67E8F9;    --tag-cyan-bg:rgba(6,182,212,.14);   --tag-cyan-bd:rgba(6,182,212,.3);
+  --tag-blue-fg:#8FC5FF;    --tag-blue-bg:rgba(46,144,250,.15);  --tag-blue-bd:rgba(46,144,250,.3);
+  --tag-indigo-fg:#A5B4FC;  --tag-indigo-bg:rgba(99,102,241,.15);--tag-indigo-bd:rgba(99,102,241,.3);
+  --tag-violet-fg:#C4B5FD;  --tag-violet-bg:rgba(139,92,246,.16);--tag-violet-bd:rgba(139,92,246,.3);
+  --tag-pink-fg:#F9A8D4;    --tag-pink-bg:rgba(236,72,153,.15);  --tag-pink-bd:rgba(236,72,153,.3);
+  --tag-slate-fg:#CBD5E1;   --tag-slate-bg:rgba(148,163,184,.14);--tag-slate-bd:rgba(148,163,184,.3);
+
+  --gradient-hero-bg:  radial-gradient(120% 130% at 82% -10%, #22283A 0%, var(--dark-900) 55%);
+  --gradient-section:  linear-gradient(160deg, var(--dark-800) 0%, var(--dark-850) 100%);
+  --surface-card:      var(--dark-850);
+  --gradient-tile:     linear-gradient(158deg, #1C2230 0%, #171B24 55%, #141A22 100%);
+  --tile-glow:         radial-gradient(120% 90% at 78% 18%, rgba(255,181,48,.14) 0%, rgba(27,160,201,.08) 45%, rgba(255,255,255,0) 72%);
+
+  --glow-amber: radial-gradient(closest-side, rgba(255,181,48,0.28), rgba(255,181,48,0) 72%);
+  --glow-teal:  radial-gradient(closest-side, rgba(27,160,201,0.24), rgba(27,160,201,0) 72%);
+  --card-rim-glow: 0 0 0 1px rgba(255,255,255,0.04) inset;
+  --focus-ring:0 0 0 3px rgba(255,181,48,.5);
+  --focus-ring-teal:0 0 0 3px rgba(51,176,214,.5);
+  --orbit-ring: var(--amber-400);
+
+  --shadow-xs:0 1px 2px rgba(0,0,0,.4);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 4px 8px rgba(0,0,0,.4),0 10px 24px rgba(0,0,0,.5);
+  --shadow-lg:0 8px 16px rgba(0,0,0,.5),0 20px 44px rgba(0,0,0,.6);
+  --shadow-overlay:0 24px 64px rgba(0,0,0,.7);
+  --glow-amber-shadow:0 4px 16px rgba(255,149,12,.42),0 0 0 1px rgba(255,149,12,.18);
+  --scrim: rgba(0,0,0,.62);
+
+  --track: var(--dark-700);
+}
+
+/* ============================================================================
+   DENSITY  ·  COMPACT  ([data-density="compact"])
+   ============================================================================ */
+[data-density="compact"] {
+  --row-py:7px;
+  --control-py:6px;
+  --card-pad:14px;
+  --text-body:.8125rem;
+  --space-5:16px;
+  --space-6:18px;
+}
+
+/* ============================================================================
+   EBENE 3 — COMPONENT TOKENS  (mappen auf semantic; theme-neutral referenziert)
+   ============================================================================ */
+:root {
+  /* Button */
+  --btn-primary-bg:var(--gradient-amber);
+  --btn-primary-fg:var(--text-on-accent);
+  --btn-primary-shadow:var(--glow-amber-shadow);
+  --btn-secondary-bg:var(--surface-default);
+  --btn-secondary-fg:var(--text-primary);
+  --btn-secondary-bd:var(--border-default);
+  --btn-danger-fg:var(--status-error-fg);
+  --btn-danger-bg:var(--status-error-bg);
+  --btn-radius:var(--radius-md);
+  --btn-py:var(--control-py);
+  --btn-px:16px;
+  /* Badge */
+  --badge-radius:var(--radius-pill);
+  --badge-py:4px; --badge-px:11px;
+  /* Card */
+  --card-bg:var(--surface-card);
+  --card-bd:var(--border-subtle);
+  --card-radius:var(--radius-xl);
+  --card-shadow:var(--shadow-sm);
+  /* Input */
+  --input-bg:var(--surface-default);
+  --input-bd:var(--border-default);
+  --input-fg:var(--text-primary);
+  --input-placeholder:var(--text-tertiary);
+  --input-radius:var(--radius-md);
+  --input-py:var(--control-py);
+  /* Tag */
+  --tag-radius:var(--radius-sm);
+}

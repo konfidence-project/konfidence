@@ -1,11 +1,21 @@
 import { expect, test } from "@playwright/test";
+import { signIn } from "../../e2e/helpers";
 
 const HTTP_OK = 200;
 
-test("renders the dashboard", async ({ page }) => {
+test("redirects unauthenticated visitors to the login page", async ({ page }) => {
   await page.goto("/");
 
+  await expect(page).toHaveURL(/\/login\?returnTo=%2F$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sign in to Konfidence");
+});
+
+test("renders the dashboard after signing in", async ({ page }) => {
+  await signIn(page);
+
+  await expect(page).toHaveURL("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Konfidence Dashboard");
+  await expect(page.getByTestId("signed-in-user")).toContainText("Alex Admin");
 });
 
 test("serves the SPA document for a deep link", async ({ request }) => {
