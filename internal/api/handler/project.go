@@ -10,12 +10,15 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	artifactdeploymentdomain "github.com/konfidence-project/konfidence/internal/artifactdeployment"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 	vectordeploymentdomain "github.com/konfidence-project/konfidence/internal/vectordeployment"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
+	utils "github.com/konfidence-project/konfidence/pkg/controller"
 	compref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type projectHandler struct {
@@ -23,13 +26,15 @@ type projectHandler struct {
 	landscapeRepo             landscapedomain.Repository
 	stageRepo                 stagedomain.Repository
 	vectorDeploymentRepo      vectordeploymentdomain.Repository
+	artifactDeploymentRepo    artifactdeploymentdomain.Repository
 	vectorPromotionRepo       vectorpromotiondomain.Repository
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository
 }
 
 func newProjectHandler(projectRepo projectdomain.Repository,
-	landscapeRepo landscapedomain.Repository,
-	stageRepo stagedomain.Repository, vectorDeploymentRepo vectordeploymentdomain.Repository, vectorPromotionRepo vectorpromotiondomain.Repository,
+	landscapeRepo landscapedomain.Repository, stageRepo stagedomain.Repository,
+	artifactDeploymentRepo artifactdeploymentdomain.Repository, vectorDeploymentRepo vectordeploymentdomain.Repository,
+	vectorPromotionRepo vectorpromotiondomain.Repository,
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository,
 ) *projectHandler {
 	return &projectHandler{
@@ -37,6 +42,7 @@ func newProjectHandler(projectRepo projectdomain.Repository,
 		landscapeRepo:             landscapeRepo,
 		stageRepo:                 stageRepo,
 		vectorDeploymentRepo:      vectorDeploymentRepo,
+		artifactDeploymentRepo:    artifactDeploymentRepo,
 		vectorPromotionRepo:       vectorPromotionRepo,
 		vectorPromotionConfigRepo: vectorPromotionConfigRepo,
 	}
@@ -56,12 +62,19 @@ func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProje
 		}, nil
 	}
 
-	data := make([]openapi.Project, 0, len(projects))
-	for _, p := range projects {
-		data = append(data, toProjectResponse(p))
+	data := make([]openapi.Project, len(projects))
+	for i, p := range projects {
+		data[i] = toProjectResponse(p)
 	}
 
 	return openapi.ListProjectsV1200JSONResponse{Data: data}, nil
+}
+
+func toProjectResponse(p konfidence.Project) openapi.Project {
+	return openapi.Project{
+		Id:   p.Name,
+		Name: p.Spec.DisplayName,
+	}
 }
 
 func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListLandscapesV1RequestObject) (openapi.ListLandscapesV1ResponseObject, error) {
@@ -155,9 +168,86 @@ func toVectorDeploymentResponse(resolvedVectorDeployment vectordeploymentdomain.
 	}, nil
 }
 
-func (h *projectHandler) ListArtifactDeploymentsV1(_ context.Context,
-	_ openapi.ListArtifactDeploymentsV1RequestObject) (openapi.ListArtifactDeploymentsV1ResponseObject, error) {
-	return nil, nil
+func (h *projectHandler) ListArtifactDeploymentsV1(ctx context.Context, request openapi.ListArtifactDeploymentsV1RequestObject) (openapi.ListArtifactDeploymentsV1ResponseObject, error) {
+	identity, err := session.FromContext(ctx)
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var opts []artifactdeploymentdomain.ListOption
+	if request.Params.LandscapeId != nil {
+		opts = append(opts, artifactdeploymentdomain.WithLandscapeId(*request.Params.LandscapeId))
+	}
+
+	if request.Params.VectorDeploymentId != nil {
+		opts = append(opts, artifactdeploymentdomain.WithVectorDeploymentId(*request.Params.VectorDeploymentId))
+	}
+
+	ads, err := h.artifactDeploymentRepo.List(ctx, namespace, opts...)
+	if err != nil {
+		return openapi.ListArtifactDeploymentsV1500JSONResponse{
+			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+		}, nil
+	}
+
+	data := make([]openapi.ArtifactDeployment, len(ads))
+	for i, ad := range ads {
+		data[i] = toArtifactDeploymentResponse(ad)
+	}
+
+	return openapi.ListArtifactDeploymentsV1200JSONResponse{Data: data}, nil
+}
+
+func toArtifactDeploymentResponse(ad konfidence.ArtifactDeployment) openapi.ArtifactDeployment {
+	var vectorDeploymentIds []string
+	if vdName, ok := ad.Labels[utils.VectorDeploymentNameLabel]; ok {
+		vectorDeploymentIds = append(vectorDeploymentIds, vdName)
+	}
+
+	// TODO: Do we reverse query these or do we filter them by some kind of label ?
+	// as far as i understand, artifact deployments are created after stages so we have to find the vector deployment
+	// (maybe by the id from the new label) and then get the StageVersion.spec.stageRef from which it was created ?
+	var stageIds []string
+
+	return openapi.ArtifactDeployment{
+		Id:                  ad.Name,
+		LandscapeId:         ad.Labels[utils.LandscapeNameLabel],
+		VectorDeploymentIds: vectorDeploymentIds,
+		StageIds:            stageIds,
+		Artifact: openapi.ArtifactReference{
+			ComponentName:    ad.Spec.Component.Name,
+			ComponentVersion: ad.Spec.Component.Version,
+		},
+		Status: openapi.ArtifactDeploymentStatus(calculateArtifactDeploymentStatus(ad.Status.Conditions)),
+	}
+}
+
+func calculateArtifactDeploymentStatus(conditions []metav1.Condition) string {
+	for _, cond := range conditions {
+		if cond.Type == "Ready" && cond.Status == metav1.ConditionTrue {
+			return "Ready"
+		}
+	}
+	for _, cond := range conditions {
+		if cond.Type == "AppHealthy" && cond.Status == metav1.ConditionTrue {
+			return "AppHealthy"
+		}
+	}
+	for _, cond := range conditions {
+		if cond.Type == "ArtifactDeployed" && cond.Status == metav1.ConditionTrue {
+			return "ArtifactDeployed"
+		}
+	}
+	for _, cond := range conditions {
+		if cond.Type == "ArtifactFetched" && cond.Status == metav1.ConditionTrue {
+			return "ArtifactFetched"
+		}
+	}
+
+	// TODO: No conditions set, should we handle differently
+	return "ArtifactFetched"
 }
 
 // resolveProjectNamespace handles the preamble common to handlers that operate on
