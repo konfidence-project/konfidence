@@ -65,10 +65,10 @@ var _ = Describe("GetVectorPromotionConfigV1", func() {
 		Expect(ok.KeepLastPromotions).NotTo(BeNil())
 		Expect(*ok.KeepLastPromotions).To(Equal(5))
 
-		// Only this config's promotions, ordered by sequence.
+		// Only this config's promotions, ordered by sequence descending (newest first).
 		Expect(ok.Promotions).To(HaveLen(2))
-		Expect(ok.Promotions[0].Id).To(Equal("cfg-1"))
-		Expect(ok.Promotions[1].Id).To(Equal("cfg-2"))
+		Expect(ok.Promotions[0].Id).To(Equal("cfg-2"))
+		Expect(ok.Promotions[1].Id).To(Equal("cfg-1"))
 	})
 
 	It("returns an empty promotions list when the config has none", func() {
@@ -180,8 +180,8 @@ var _ = Describe("ListVectorPromotionConfigsV1", func() {
 			switch cfg.Id {
 			case "cfg-a":
 				Expect(cfg.Promotions).To(HaveLen(2))
-				Expect(cfg.Promotions[0].Id).To(Equal("cfg-a-1"))
-				Expect(cfg.Promotions[1].Id).To(Equal("cfg-a-2"))
+				Expect(cfg.Promotions[0].Id).To(Equal("cfg-a-2"))
+				Expect(cfg.Promotions[1].Id).To(Equal("cfg-a-1"))
 			case "cfg-b":
 				Expect(cfg.Promotions).To(HaveLen(1))
 				Expect(cfg.Promotions[0].Id).To(Equal("cfg-b-1"))
