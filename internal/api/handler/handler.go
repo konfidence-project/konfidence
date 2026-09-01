@@ -14,6 +14,7 @@ import (
 	authdomain "github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
+	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,8 +33,10 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	authRepo := authdomain.NewRepository(k8sClient)
 	projectRepo := projectdomain.NewRepository(k8sClient)
 	landscapeRepo := landscapedomain.NewRepository(k8sClient)
+	vectorPromotionRepo := vectorpromotiondomain.NewRepository(k8sClient)
+	vectorPromotionConfigRepo := vectorpromotiondomain.NewConfigRepository(k8sClient)
 
-	project := newProjectHandler(projectRepo, landscapeRepo)
+	project := newProjectHandler(projectRepo, landscapeRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
 	api := &apiHandler{
 		authHandler:    *auth,
 		projectHandler: *project,

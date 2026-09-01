@@ -6,6 +6,7 @@ const SESSION_COOKIE = "kden-session";
 const SCENARIO_COOKIE = "konfidence_mock_scenario";
 const MOCK_SESSION = "mock-session";
 const MOCK_CODE = "mock-code";
+const HTTP_NO_CONTENT = 204;
 const COOKIE_OPTIONS = { httpOnly: true, path: "/", sameSite: "lax" } as const;
 
 type Query<Name extends keyof operations> = NonNullable<operations[Name]["parameters"]["query"]>;
@@ -44,7 +45,23 @@ const projectFor = (request: FastifyRequest): ProjectFixture => {
   return found;
 };
 
+// Looks up a single promotion across all of the project's configs, 404ing if absent.
+const promotionFor = (request: FastifyRequest) => {
+  const { vectorPromotionId } = request.params as { vectorPromotionId: string };
+  const promotion = projectFor(request)
+    .vectorPromotionConfigs.flatMap((config) => config.promotions)
+    .find(({ id }) => id === vectorPromotionId);
+  if (!promotion) {
+    throw httpError(404, "VectorPromotion not found");
+  }
+  return promotion;
+};
+
 const operationHandlers = {
+  approveVectorPromotionV1: (request, reply) => {
+    promotionFor(request);
+    return reply.code(HTTP_NO_CONTENT).send();
+  },
   authCallbackV1: (request, reply) => {
     const {
       error,
@@ -65,6 +82,17 @@ const operationHandlers = {
     );
     return reply.send({ ...user, projectRoles });
   },
+  getVectorPromotionConfigV1: (request, reply) => {
+    const { vectorPromotionConfigId } = request.params as { vectorPromotionConfigId: string };
+    const config = projectFor(request).vectorPromotionConfigs.find(
+      ({ id }) => id === vectorPromotionConfigId,
+    );
+    if (!config) {
+      throw httpError(404, "VectorPromotionConfig not found");
+    }
+    return reply.send(config);
+  },
+  getVectorPromotionV1: (request, reply) => reply.send(promotionFor(request)),
   listArtifactDeploymentsV1: (request, reply) => {
     const { landscapeId, vectorDeploymentId } = request.query as Query<"listArtifactDeploymentsV1">;
     const data = inLandscape(projectFor(request).artifactDeployments, landscapeId).filter(
@@ -84,6 +112,8 @@ const operationHandlers = {
     const { landscapeId } = request.query as Query<"listVectorDeploymentsV1">;
     return reply.send({ data: inLandscape(projectFor(request).vectorDeployments, landscapeId) });
   },
+  listVectorPromotionConfigsV1: (request, reply) =>
+    reply.send({ data: projectFor(request).vectorPromotionConfigs }),
   loginV1: (request, reply) => {
     const { return_url: returnUrl } = request.query as Query<"loginV1">;
     const state = encodeURIComponent(absoluteUrl(returnUrl, "Invalid return URL"));

@@ -18,6 +18,7 @@ var _ = ginkgo.Describe("Session context", func() {
 		session := &Session{
 			Context: Context{
 				ID:                "session-id",
+				Subject:           "subject-id",
 				Name:              new("Test User"),
 				Email:             new("test@example.com"),
 				GivenName:         new("Test"),
@@ -27,7 +28,6 @@ var _ = ginkgo.Describe("Session context", func() {
 					"project-a": {"admin", "viewer"},
 				},
 			},
-			Subject:     "subject-id",
 			Groups:      []string{"developers"},
 			AccessToken: "access-token",
 		}
@@ -43,10 +43,10 @@ var _ = ginkgo.Describe("Session context", func() {
 	ginkgo.It("stores only the context-safe session fields", func() {
 		session := &Session{
 			Context: Context{
-				ID:    "session-id",
-				Email: new("test@example.com"),
+				ID:      "session-id",
+				Subject: "subject-id",
+				Email:   new("test@example.com"),
 			},
-			Subject:      "subject-id",
 			Groups:       []string{"admins"},
 			AccessToken:  "secret-access-token",
 			RefreshToken: new("secret-refresh-token"),
@@ -155,6 +155,7 @@ var _ = ginkgo.Describe("OIDC session data", func() {
 		Expect(sess).To(Equal(Session{
 			Context: Context{
 				ID:                "session-id",
+				Subject:           "subject-id",
 				Name:              claims.Name,
 				Email:             claims.Email,
 				GivenName:         claims.GivenName,
@@ -162,7 +163,6 @@ var _ = ginkgo.Describe("OIDC session data", func() {
 				PreferredUsername: claims.PreferredUsername,
 				ProjectRoles:      projectRoles,
 			},
-			Subject:      "subject-id",
 			Groups:       []string{"developers", "admins"},
 			AccessToken:  "access-token",
 			RefreshToken: lo.ToPtr(refreshToken),

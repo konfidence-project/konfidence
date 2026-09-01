@@ -147,10 +147,10 @@ func getDBID(id string) (pgtype.UUID, error) {
 
 func mapDBSession(stored db.Session) *Session {
 	return &Session{
-		Subject: stored.Subject,
-		Groups:  append([]string(nil), stored.Groups...),
+		Groups: append([]string(nil), stored.Groups...),
 		Context: Context{
 			ID:                stored.ID.String(),
+			Subject:           stored.Subject,
 			Name:              stored.Name,
 			Email:             stored.Email,
 			GivenName:         stored.GivenName,

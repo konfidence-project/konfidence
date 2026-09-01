@@ -9,6 +9,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
+	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,6 +31,8 @@ func fakeK8s(objs ...client.Object) client.Client {
 		WithScheme(newTestScheme()).
 		WithObjects(objs...).
 		WithStatusSubresource(&konfidence.Project{}).
+		WithIndex(&konfidence.VectorPromotion{}, vectorpromotiondomain.PromotionConfigNameField,
+			vectorpromotiondomain.PromotionConfigNameIndexFunc).
 		Build()
 }
 
@@ -52,12 +55,23 @@ func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
 	return newProjectHandler(
 		projectdomain.NewRepository(k8s),
 		landscapedomain.NewRepository(k8s),
+		vectorpromotiondomain.NewRepository(k8s),
+		vectorpromotiondomain.NewConfigRepository(k8s),
 	)
 }
 
 func ctxWithProjectRoles(roles auth.ProjectRoles) context.Context {
 	return session.NewContext(context.Background(), &session.Session{
 		Context: session.Context{ProjectRoles: roles},
+	})
+}
+
+func ctxWithSubjectAndProjectRoles(subject string, roles auth.ProjectRoles) context.Context {
+	return session.NewContext(context.Background(), &session.Session{
+		Context: session.Context{
+			Subject:      subject,
+			ProjectRoles: roles,
+		},
 	})
 }
 
