@@ -123,7 +123,7 @@ docs: docs-reference docs-cli ## Regenerate all API references (CRD + CLI).
 .PHONY: docs-cli
 docs-cli: hermit ## Generate kden CLI reference into api/docs/cli.md.
 	@mkdir -p api/docs
-	go run ./cmd/kden docs --type markdown --dir api/docs
+	go run ./cmd/kden docs --type markdown --dir api/docs --frontmatter
 
 .PHONY: check-generate
 check-generate: docs ## Verify all API references in api/docs/ are committed and up to date.
