@@ -93,6 +93,11 @@ var _ = Describe("DeploymentClass deletion watch", Ordered, func() {
 		}
 		Expect(k8sClient.Create(ctx, class)).To(Succeed())
 		Expect(k8sClient.Create(ctx, otherClass)).To(Succeed())
+		// Wait until both classes are cache-visible so each target's create-triggered reconcile finds its class.
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(class), &konfidence.DeploymentClass{})).To(Succeed())
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(otherClass), &konfidence.DeploymentClass{})).To(Succeed())
+		}).Should(Succeed())
 		matching := envTarget("matching", ns, class.Name)
 		unrelated := envTarget("unrelated", ns, otherClass.Name)
 		Expect(k8sClient.Create(ctx, matching)).To(Succeed())
