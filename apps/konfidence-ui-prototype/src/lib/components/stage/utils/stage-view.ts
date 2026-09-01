@@ -1,7 +1,4 @@
 import type { Stage, StageStatus } from "$lib/stages";
-import type { components } from "$lib/konfidence-api/schema";
-
-type VectorReference = components["schemas"]["VectorReference"];
 
 type StageHealth = "deploying" | "healthy";
 type StagePhaseState = "cur" | "done" | "idle";
@@ -87,8 +84,8 @@ const toVectorParts = (version: string, hash?: string): VectorParts => {
   return { version };
 };
 
-const splitVector = (vector: VectorReference): VectorParts => {
-  const trimmed = vector.componentVersion.trim();
+const splitVector = (vector: string): VectorParts => {
+  const trimmed = vector.trim();
   if (!trimmed) {
     return { version: "—" };
   }

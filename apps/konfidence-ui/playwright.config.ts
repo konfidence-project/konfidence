@@ -6,11 +6,22 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:4173",
     trace: "retain-on-failure",
   },
-  webServer: {
-    command:
-      "pnpm build && KUBECONFIG=../../internal/api/server/testdata/kubeconfig.yaml go run ../../cmd/api --addr=127.0.0.1:4173 --ui-asset-path=build --log-level=error --oidc-enabled=false",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    url: "http://127.0.0.1:4173",
-  },
+  webServer: [
+    {
+      command: "pnpm --filter konfidence-mock-api start",
+      gracefulShutdown: { signal: "SIGTERM", timeout: 1000 },
+      name: "Mock API",
+      reuseExistingServer: !process.env.CI,
+      url: "http://127.0.0.1:8091/api/v1/projects",
+    },
+    {
+      command: "pnpm build && pnpm preview --host 127.0.0.1 --port 4173",
+      env: { KONFIDENCE_API_URL: "http://127.0.0.1:8091" },
+      gracefulShutdown: { signal: "SIGTERM", timeout: 1000 },
+      name: "Dashboard",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      url: "http://127.0.0.1:4173",
+    },
+  ],
 });

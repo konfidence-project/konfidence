@@ -1,0 +1,36 @@
+{
+  "name": "konfidence-mock-api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "all": "pnpm verify && pnpm test",
+    "api:check": "sh -c 'trap \"rm -f src/generated/schema.check.d.ts\" EXIT; openapi-typescript ../../api/openapi.yaml -o src/generated/schema.check.d.ts && oxfmt src/generated/schema.check.d.ts && cmp src/generated/schema.d.ts src/generated/schema.check.d.ts'",
+    "api:generate": "openapi-typescript ../../api/openapi.yaml -o src/generated/schema.d.ts && oxfmt src/generated/schema.d.ts",
+    "check": "tsgo -p ./tsconfig.json --noEmit",
+    "dev": "tsx watch src/main.ts",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint",
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "verify": "pnpm api:check && pnpm check && pnpm lint && pnpm fmt:check"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
+    "fastify": "^5.12.1",
+    "fastify-openapi-glue": "^4.11.4"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "@typescript/native-preview": "7.0.0-dev.20260702.3",
+    "openapi-typescript": "^7.13.0",
+    "oxfmt": "^0.56.0",
+    "oxlint": "^1.71.0",
+    "tsx": "4.23.1",
+    "typescript": "^6.0.3",
+    "vitest": "4.1.9"
+  }
+}
