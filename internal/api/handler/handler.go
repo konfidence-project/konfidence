@@ -45,7 +45,8 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 		authHandler:    *auth,
 		projectHandler: *project,
 	}
-	return middleware.SessionAuthentication(logger, sessionStore, authRepo, cfg, api.handler())
+
+	return middleware.Authenticator(logger, sessionStore, authRepo, cfg, api.handler())
 }
 
 func (s *apiHandler) handler() http.Handler {

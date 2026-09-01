@@ -73,7 +73,7 @@ export interface paths {
     };
     /**
      * Get the current user identity
-     * @description Returns identity claims for the authenticated session.
+     * @description Returns identity information for the authenticated caller.
      */
     get: operations["getIdentityV1"];
     put?: never;
@@ -316,7 +316,7 @@ export interface components {
        * @description The vectorDeployment status
        * @enum {string}
        */
-      status: "VectorDownloaded" | "ArtifactDeploymentCreated";
+      status: "DeployingVector" | "DeploymentReady" | "DeploymentFailed";
     };
     ArtifactDeploymentList: {
       data: components["schemas"]["ArtifactDeployment"][];
@@ -775,6 +775,7 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };
   };

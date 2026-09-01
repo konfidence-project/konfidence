@@ -38,6 +38,10 @@ func NewContext(ctx context.Context, session *Session) context.Context {
 	return context.WithValue(ctx, contextSession, session.Context)
 }
 
+func NewRequestContext(ctx context.Context, identity Context) context.Context {
+	return context.WithValue(ctx, contextSession, identity)
+}
+
 func FromContext(ctx context.Context) (*Context, error) {
 	sess, ok := ctx.Value(contextSession).(Context)
 	if !ok {
