@@ -6,6 +6,7 @@ type Landscape = components["schemas"]["Landscape"];
 type Project = components["schemas"]["Project"];
 type Stage = components["schemas"]["Stage"];
 type VectorDeployment = components["schemas"]["VectorDeployment"];
+type VectorPromotionConfig = components["schemas"]["VectorPromotionConfig"];
 
 interface ProjectFixture {
   artifactDeployments: ArtifactDeployment[];
@@ -14,6 +15,7 @@ interface ProjectFixture {
   roles: string[];
   stages: Stage[];
   vectorDeployments: VectorDeployment[];
+  vectorPromotionConfigs: VectorPromotionConfig[];
 }
 
 interface ScenarioFixture {
@@ -118,6 +120,58 @@ const artifactDeployments: ArtifactDeployment[] = [
   },
 ];
 
+const vectorPromotionConfigs: VectorPromotionConfig[] = [
+  {
+    id: "delivery-vector-dev-to-test",
+    keepLastPromotions: 5,
+    // Ordered newest-first (descending sequence) to mirror the real API.
+    promotions: [
+      {
+        id: "promo-dev-to-test-2",
+        requireApproval: true,
+        sequence: 2,
+        source: { kind: "Stage", landscape: "development", name: "dev-us30" },
+        status: "Waiting",
+        target: { kind: "Stage", landscape: "test", name: "test-eu20" },
+        vector: `${REPOSITORY}//delivery-vector:2026.8.5`,
+      },
+      {
+        approval: {
+          approvedAt: "2026-08-28T09:15:00Z",
+          approvedBy: "alex.admin@example.com",
+        },
+        id: "promo-dev-to-test-1",
+        requireApproval: true,
+        sequence: 1,
+        source: { kind: "Stage", landscape: "development", name: "dev-us30" },
+        status: "Succeeded",
+        target: { kind: "Stage", landscape: "test", name: "test-eu20" },
+        vector: `${REPOSITORY}//delivery-vector:2026.8.4`,
+      },
+    ],
+    source: { kind: "Stage", landscape: "development", name: "dev-us30" },
+    target: { kind: "Stage", landscape: "test", name: "test-eu20" },
+    ttlAfterFinished: "168h0m0s",
+  },
+  {
+    id: "delivery-vector-test-to-prod",
+    keepLastPromotions: 3,
+    promotions: [
+      {
+        id: "promo-test-to-prod-1",
+        requireApproval: false,
+        sequence: 1,
+        source: { kind: "Stage", landscape: "test", name: "test-eu20" },
+        status: "Ready",
+        target: { kind: "Stage", landscape: "production", name: "prod-eu30" },
+        vector: `${REPOSITORY}//delivery-vector:2026.8.3`,
+      },
+    ],
+    source: { kind: "Stage", landscape: "test", name: "test-eu20" },
+    target: { kind: "Stage", landscape: "production", name: "prod-eu30" },
+  },
+];
+
 const populatedProject: ProjectFixture = {
   artifactDeployments,
   landscapes,
@@ -125,6 +179,7 @@ const populatedProject: ProjectFixture = {
   roles: ["admin", "dev"],
   stages,
   vectorDeployments,
+  vectorPromotionConfigs,
 };
 
 const emptyProject = (project: Project, roles: string[]): ProjectFixture => ({
@@ -134,6 +189,7 @@ const emptyProject = (project: Project, roles: string[]): ProjectFixture => ({
   roles,
   stages: [],
   vectorDeployments: [],
+  vectorPromotionConfigs: [],
 });
 
 const scenarios = {
