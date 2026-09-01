@@ -46,6 +46,10 @@ paths:
         "302":
           description: Redirect to IDP authorization endpoint.
           headers:
+            Set-Cookie:
+              description: Contains the session ID (only set when OIDC is disabled).
+              schema:
+                type: string
             Location:
               description: Redirect url
               schema:

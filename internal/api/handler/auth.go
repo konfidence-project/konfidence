@@ -19,6 +19,13 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	staticAdminName       = "Local Admin"
+	staticAdminEmail      = "admin@local"
+	staticAdminGivenName  = "Local"
+	staticAdminFamilyName = "Admin"
+)
+
 type authHandler struct {
 	logger        *slog.Logger
 	oidcClient    oidc.Client
@@ -61,9 +68,28 @@ func (a *authHandler) LoginV1(ctx context.Context, request openapi.LoginV1Reques
 	}
 
 	if !a.config.OIDC.Enabled {
+		name := staticAdminName
+		email := staticAdminEmail
+		givenName := staticAdminGivenName
+		familyName := staticAdminFamilyName
+		sess := &session.Session{}
+		sess.Name = &name
+		sess.Email = &email
+		sess.GivenName = &givenName
+		sess.FamilyName = &familyName
+
+		sessionID, err := a.sessions.Save(ctx, sess)
+		if err != nil {
+			return nil, err
+		}
+
+		cookieValue := a.sessionCookie(sessionID).String()
 		returnURL := request.Params.ReturnUrl
 		return openapi.LoginV1302Response{
-			Headers: openapi.LoginV1302ResponseHeaders{Location: &returnURL},
+			Headers: openapi.LoginV1302ResponseHeaders{
+				Location:  &returnURL,
+				SetCookie: &cookieValue,
+			},
 		}, nil
 	}
 

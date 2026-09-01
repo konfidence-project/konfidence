@@ -77,9 +77,6 @@ API_OIDC_REDIRECT_URL ?= http://localhost:8090/api/v1/auth/callback
 API_OIDC_ALLOW_RETURN_URLS ?=
 API_SESSION_STORAGE_TYPE ?= in-memory
 
-## No-auth mode configuration (for UI development without IDP)
-API_NOAUTH_RETURN_URL ?= http://localhost:5173
-
 .PHONY: all
 all: api build
 
@@ -290,59 +287,6 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
-
-.PHONY: run-kden-api-noauth
-run-kden-api-noauth: fmt vet ## Run the kden API server with auth disabled (static admin user).
-	@echo "Starting API server with authentication DISABLED"
-	@echo "Static admin user: Local Admin <admin@local>"
-	@echo "All projects will be accessible with admin role"
-	@echo ""
-	go run ./cmd/api/main.go \
-		--oidc-enabled=false \
-		--oidc-allow-return-urls=$(API_NOAUTH_RETURN_URL) \
-		--session-storage-type=in-memory \
-		--session-cookie-secure=false
-
-.PHONY: stop-kden-api
-stop-kden-api: ## Stop any running kden API server instances.
-	@echo "Stopping kden API server..."
-	@pkill -f "go-build.*api" 2>/dev/null && echo "[OK] API server stopped" || true
-	@pkill -f "cmd/api" 2>/dev/null || true
-	@lsof -ti:8090 | xargs kill -9 2>/dev/null && echo "[OK] Killed process on port 8090" || echo "[OK] No process running on port 8090"
-
-.PHONY: test-kden-api-noauth
-test-kden-api-noauth: ## Test the no-auth API setup (requires API running with make run-kden-api-noauth).
-	@echo "Testing API server with authentication disabled..."
-	@echo ""
-	@echo "1. Testing /healthz endpoint..."
-	@curl -sf http://localhost:8090/healthz > /dev/null && echo "   [OK] Health check passed" || (echo "   [FAIL] Health check failed - is the API running?" && exit 1)
-	@echo ""
-	@echo "2. Testing /api/v1/identity endpoint (static admin user)..."
-	@IDENTITY=$$(curl -sf http://localhost:8090/api/v1/identity) && \
-		echo "   Response: $$IDENTITY" && \
-		echo "$$IDENTITY" | grep -q "admin@local" && echo "   [OK] Static admin user verified" || (echo "   [FAIL] Unexpected identity response" && exit 1)
-	@echo ""
-	@echo "3. Testing /api/v1/login redirect (should redirect to return URL)..."
-	@LOCATION=$$(curl -sf -o /dev/null -w '%{redirect_url}' "http://localhost:8090/api/v1/login?return_url=$(API_NOAUTH_RETURN_URL)") && \
-		echo "   Redirect: $$LOCATION" && \
-		[ "$$LOCATION" = "$(API_NOAUTH_RETURN_URL)" ] && echo "   [OK] Login redirects correctly without IDP" || (echo "   [FAIL] Unexpected redirect" && exit 1)
-	@echo ""
-	@echo "4. Testing /api/v1/projects endpoint (admin access)..."
-	@PROJECTS=$$(curl -sf http://localhost:8090/api/v1/projects) && \
-		echo "   Response: $$PROJECTS" && \
-		echo "   [OK] Projects endpoint accessible"
-	@echo ""
-	@echo "5. Testing /api/v1/logout endpoint..."
-	@curl -sf -X POST http://localhost:8090/api/v1/logout > /dev/null && echo "   [OK] Logout endpoint works" || echo "   [WARN] Logout returned non-200 (expected in no-auth mode)"
-	@echo ""
-	@echo "==================================================================="
-	@echo "All tests passed! The API is ready for UI development."
-	@echo ""
-	@echo "UI developers can:"
-	@echo "  - Call /api/v1/identity to get the static admin user"
-	@echo "  - Use /api/v1/login which redirects directly to return_url"
-	@echo "  - Access all project APIs with admin privileges"
-	@echo "==================================================================="
 
 # These targets are only used for local environments (not in pipeline)
 .PHONY: docker-build
