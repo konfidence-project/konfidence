@@ -17,6 +17,7 @@ import (
 func NewDocsCmd() *cobra.Command {
 	var docType string
 	var dir string
+	var frontmatter bool
 
 	docsCmd := &cobra.Command{
 		Use:   "docs",
@@ -41,6 +42,12 @@ Examples:
 				f, err := os.Create(path)
 				if err != nil {
 					return fmt.Errorf("failed to create output file: %w", err)
+				}
+				if frontmatter {
+					if err := writeCLIFrontmatter(f); err != nil {
+						err := errors.Join(f.Close(), err)
+						return fmt.Errorf("failed to write frontmatter: %w", err)
+					}
 				}
 				if err := genMarkdownAll(cmd.Root(), f); err != nil {
 					err := errors.Join(f.Close(), err)
@@ -70,6 +77,7 @@ Examples:
 
 	docsCmd.Flags().StringVar(&docType, "type", "markdown", "output type: markdown or man")
 	docsCmd.Flags().StringVar(&dir, "dir", "./", "output directory")
+	docsCmd.Flags().BoolVar(&frontmatter, "frontmatter", false, "prepend VitePress frontmatter to the markdown output")
 
 	if err := docsCmd.RegisterFlagCompletionFunc("type", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) { //nolint:errcheck
 		return []string{"markdown", "man"}, cobra.ShellCompDirectiveNoFileComp
@@ -78,6 +86,22 @@ Examples:
 	}
 
 	return docsCmd
+}
+
+// writeCLIFrontmatter emits the VitePress frontmatter and top-level heading so
+// the docs site links and titles cli.md the same way it does crd.md.
+func writeCLIFrontmatter(w io.Writer) error {
+	const frontmatter = `---
+title: CLI
+description: Konfidence command-line interface reference and command documentation.
+outline: [2, 3]
+editLink: true
+lastUpdated: true
+---
+
+`
+	_, err := io.WriteString(w, frontmatter)
+	return err
 }
 
 // genMarkdownAll recursively writes all commands into a single Markdown document.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 
 	kdencmd "github.com/konfidence-project/konfidence/cmd/kden/cmd"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/docs"
@@ -49,12 +50,28 @@ var _ = Describe("docsCmd", func() {
 			Expect(string(content)).To(ContainSubstring("## kden"))
 		})
 
-		It("does not contain --- HR separators", func() {
+		It("omits frontmatter by default", func() {
 			dir := GinkgoT().TempDir()
 			Expect(run("docs", "--type", "markdown", "--dir", dir)).To(Succeed())
 			content, err := os.ReadFile(filepath.Join(dir, "cli.md"))
 			Expect(err).NotTo(HaveOccurred())
+			Expect(string(content)).NotTo(HavePrefix("---\n"))
 			Expect(string(content)).NotTo(ContainSubstring("\n---\n"))
+		})
+
+		It("prepends VitePress frontmatter with --frontmatter", func() {
+			dir := GinkgoT().TempDir()
+			Expect(run("docs", "--type", "markdown", "--dir", dir, "--frontmatter")).To(Succeed())
+			content, err := os.ReadFile(filepath.Join(dir, "cli.md"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(content)).To(HavePrefix("---\ntitle: CLI\n"))
+			// Body after the frontmatter block starts at the command tree, no H1.
+			body := string(content)
+			if end := strings.Index(body[4:], "\n---\n"); end != -1 {
+				body = body[4+end+len("\n---\n"):]
+			}
+			Expect(body).To(HavePrefix("\n## kden"))
+			Expect(body).NotTo(ContainSubstring("\n---\n"))
 		})
 	})
 
