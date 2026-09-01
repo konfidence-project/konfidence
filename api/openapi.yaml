@@ -12,6 +12,7 @@ servers:
 
 security:
   - sessionCookie: []
+  - bearerAuth: []
 
 paths:
   /v1/login:
@@ -108,6 +109,8 @@ paths:
       summary: Terminate the current session
       description: Clears the session cookie. Requires an active session.
       tags: [auth]
+      security:
+        - sessionCookie: []
       responses:
         "200":
           description: Session terminated successfully.
@@ -123,7 +126,7 @@ paths:
     get:
       operationId: getIdentityV1
       summary: Get the current user identity
-      description: Returns identity claims for the authenticated session.
+      description: Returns identity information for the authenticated caller.
       tags: [auth]
       responses:
         "200":
@@ -396,6 +399,10 @@ components:
       type: apiKey
       in: cookie
       name: kden-session
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 
   parameters:
     ProjectPathId:
