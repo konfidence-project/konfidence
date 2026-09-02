@@ -184,6 +184,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/projects/{projectId}/vectorPromotionConfigs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List all vectorPromotionConfigs for a project
+     * @description Returns all vectorPromotionConfigs resources for a project.
+     */
+    get: operations["listVectorPromotionConfigsV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/vectorPromotionConfigs/{vectorPromotionConfigId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a single vectorPromotionConfig for a project
+     * @description Returns a vectorPromotionConfig resource for a project.
+     */
+    get: operations["getVectorPromotionConfigV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Approves the given vectorPromotion for the specified project
+     * @description Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
+     */
+    post: operations["approveVectorPromotionV1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a single vectorPromotion for a project.
+     * @description Returns a single vectorPromotion resource for a project.
+     */
+    get: operations["getVectorPromotionV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/projects/{projectId}/artifactDeployments": {
     parameters: {
       query?: never;
@@ -253,6 +333,68 @@ export interface components {
        */
       status: "ArtifactFetched" | "ArtifactDeployed";
     };
+    VectorPromotionConfigList: {
+      data: components["schemas"]["VectorPromotionConfig"][];
+    };
+    VectorPromotionConfig: {
+      id: components["schemas"]["VectorPromotionConfigId"];
+      source: components["schemas"]["PromotionSourceReference"];
+      target: components["schemas"]["PromotionTargetReference"];
+      ttlAfterFinished?: string;
+      keepLastPromotions?: number;
+      promotions: components["schemas"]["VectorPromotion"][];
+    };
+    VectorPromotion: {
+      id: components["schemas"]["VectorPromotionId"];
+      source: components["schemas"]["PromotionSourceReference"];
+      target: components["schemas"]["PromotionTargetReference"];
+      vector: string;
+      /** @enum {string} */
+      status?:
+        | "Waiting"
+        | "Ready"
+        | "InProgress"
+        | "Blocked"
+        | "Succeeded"
+        | "Failed"
+        | "Superseded";
+      requireApproval?: boolean;
+      ttlAfterFinished?: string;
+      /** Format: int64 */
+      sequence?: number;
+      approval?: components["schemas"]["PromotionApproval"];
+    };
+    PromotionApproval: {
+      /** @description Identity that granted the approval */
+      approvedBy: string;
+      /**
+       * Format: date-time
+       * @description Time the approval was granted
+       */
+      approvedAt: string;
+    };
+    PromotionSourceReference: {
+      /**
+       * @description Promotion source kind
+       * @enum {string}
+       */
+      kind: "Stage" | "VectorTemplate";
+      /** @description Promotion source name */
+      name: string;
+      /** @description Promotion source landscape */
+      landscape?: string;
+    };
+    PromotionTargetReference: {
+      /**
+       * @description Promotion target kind
+       * @enum {string}
+       */
+      kind: "Stage";
+      /** @description Promotion target name */
+      name: string;
+      /** @description Promotion target landscape */
+      landscape: string;
+    };
     StageVersion: {
       id: components["schemas"]["StageVersionId"];
       /** @description StageVersion vector */
@@ -298,6 +440,10 @@ export interface components {
     VectorDeploymentId: string;
     /** @description The artifactDeployment id */
     ArtifactDeploymentId: string;
+    /** @description The vectorPromotionConfig id */
+    VectorPromotionConfigId: string;
+    /** @description The vectorPromotion id */
+    VectorPromotionId: string;
     /** @description The stage id */
     StageId: string;
     /** @description The stageVersion id */
@@ -337,6 +483,15 @@ export interface components {
         "application/json": components["schemas"]["ErrorResponse"];
       };
     };
+    /** @description The request conflicts with the current state of the resource. */
+    Conflict: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
     /** @description Invalid request parameters. */
     BadRequest: {
       headers: {
@@ -361,6 +516,10 @@ export interface components {
     ProjectPathId: string;
     /** @description Landscape Id */
     LandscapePathId: string;
+    /** @description VectorPromotion Id */
+    VectorPromotionPathId: string;
+    /** @description VectorPromotionConfig Id */
+    VectorPromotionConfigPathId: string;
     /** @description Filter by landscapeId */
     LandscapeQueryId: string;
     /** @description Filter by vectorDeploymentId */
@@ -605,6 +764,119 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  listVectorPromotionConfigsV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VectorPromotionConfigList"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getVectorPromotionConfigV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description VectorPromotionConfig Id */
+        vectorPromotionConfigId: components["parameters"]["VectorPromotionConfigPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VectorPromotionConfig"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  approveVectorPromotionV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description VectorPromotion Id */
+        vectorPromotionId: components["parameters"]["VectorPromotionPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description VectorPromotion successfully approved. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getVectorPromotionV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description VectorPromotion Id */
+        vectorPromotionId: components["parameters"]["VectorPromotionPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VectorPromotion"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };
   };

@@ -33,20 +33,27 @@ func NewNotFound(resource, name string) *Error {
 	}
 }
 
-func NewBadRequest(message string, cause error) *Error {
-	return &Error{
-		Status:  http.StatusBadRequest,
-		Code:    "bad_request",
-		Message: message,
-		Err:     cause,
-	}
-}
-
 func NewUnauthorized() *Error {
 	return &Error{
 		Status:  http.StatusUnauthorized,
 		Code:    "unauthorized",
 		Message: "authentication required or session expired",
+	}
+}
+
+func NewForbidden(msg string) *Error {
+	return &Error{
+		Status:  http.StatusForbidden,
+		Code:    "forbidden",
+		Message: msg,
+	}
+}
+
+func NewConflict(msg string) *Error {
+	return &Error{
+		Status:  http.StatusConflict,
+		Code:    "conflict",
+		Message: msg,
 	}
 }
 

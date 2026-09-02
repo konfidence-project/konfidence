@@ -194,12 +194,12 @@ var _ = ginkgo.Describe("DBStore", func() {
 		ginkgo.It("maps and stores all session fields", func() {
 			refreshToken := "refresh-token"
 			session := &Session{
-				Subject:      "subject-id",
 				Groups:       []string{"developers", "admins"},
 				AccessToken:  "access-token",
 				RefreshToken: &refreshToken,
 				TokenExpiry:  123456789,
 				Context: Context{
+					Subject:           "subject-id",
 					Name:              new("Test User"),
 					GivenName:         new("Test"),
 					FamilyName:        new("User"),
@@ -249,7 +249,7 @@ var _ = ginkgo.Describe("DBStore", func() {
 			}
 
 			id, err := store.Save(ctx, &Session{
-				Subject: "subject-id",
+				Context: Context{Subject: "subject-id"},
 			})
 
 			Expect(id).To(BeEmpty())
@@ -289,10 +289,10 @@ var _ = ginkgo.Describe("DBStore", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stored).To(Equal(&Session{
-				Subject: databaseSession.Subject,
-				Groups:  databaseSession.Groups,
+				Groups: databaseSession.Groups,
 				Context: Context{
 					ID:                databaseSessionID,
+					Subject:           databaseSession.Subject,
 					Name:              databaseSession.Name,
 					Email:             databaseSession.Email,
 					GivenName:         databaseSession.GivenName,
