@@ -33,6 +33,10 @@ spec:
     - jsonPath: .spec.vector
       name: Vector
       type: string
+    - description: The currently active StageVersion
+      jsonPath: .status.activeStageVersion.name
+      name: Active-Version
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -68,6 +72,17 @@ spec:
           status:
             description: StageStatus defines the observed state of Stage.
             properties:
+              activeStageVersion:
+                description: |-
+                  ActiveStageVersion references the StageVersion whose vector is currently
+                  active on this stage, mirrored from the stage's active StageVersionUsage.
+                properties:
+                  name:
+                    description: Name is the name of the StageVersion. Required.
+                    type: string
+                required:
+                - name
+                type: object
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current

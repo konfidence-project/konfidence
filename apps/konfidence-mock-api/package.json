@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "all": "pnpm verify && pnpm test",
-    "api:check": "sh -c 'trap \"rm -f src/generated/schema.check.d.ts\" EXIT; openapi-typescript ../../api/openapi.yaml -o src/generated/schema.check.d.ts && oxfmt src/generated/schema.check.d.ts && cmp src/generated/schema.d.ts src/generated/schema.check.d.ts'",
+    "api:check": "bash ../../hack/check-openapi-types.sh ../../api/openapi.yaml src/generated/schema.d.ts",
     "api:generate": "openapi-typescript ../../api/openapi.yaml -o src/generated/schema.d.ts && oxfmt src/generated/schema.d.ts",
     "check": "tsgo -p ./tsconfig.json --noEmit",
     "dev": "tsx watch src/main.ts",

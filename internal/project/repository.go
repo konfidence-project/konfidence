@@ -26,16 +26,18 @@ func NewRepository(reader client.Reader) Repository {
 }
 
 func (r *k8sRepository) Get(ctx context.Context, name string, projectRoles auth.ProjectRoles) (*konfidence.Project, error) {
+	// Authorization is checked before the project is read, so an unauthorized caller
+	// cannot tell existing from non-existing projects.
+	if len(projectRoles[name]) == 0 {
+		return nil, ErrForbidden
+	}
+
 	var project konfidence.Project
 	if err := r.reader.Get(ctx, types.NamespacedName{Name: name}, &project); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("getting project %q: %w", name, err)
-	}
-
-	if len(projectRoles[name]) == 0 {
-		return nil, ErrForbidden
 	}
 
 	return &project, nil

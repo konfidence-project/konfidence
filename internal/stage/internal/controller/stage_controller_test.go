@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -135,7 +136,88 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			verifyStageVersionUsage(ctx, k8sClient, Namespace, stage, Vector001Digest, timeout, interval)
 		})
 	})
+
+	Context("When mirroring the active stageVersion into the stage status", func() {
+		It("should leave the active stageVersion reference unset if no active stageVersionUsage exists", func() {
+			ctx := context.Background()
+			controller.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
+
+			verifyStageReady(ctx, k8sClient, StageDev, Namespace, timeout, interval)
+			verifyActiveStageVersion(ctx, k8sClient, StageDev, Namespace, nil, timeout, interval)
+		})
+
+		It("should mirror, update and clear the active stageVersion reference", func() {
+			ctx := context.Background()
+			controller.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
+			verifyStageReady(ctx, k8sClient, StageDev, Namespace, timeout, interval)
+
+			stage := controller.GetStage(ctx, k8sClient, StageDev, Namespace, false)
+
+			// creating the active stageVersionUsage is mirrored into the stage status
+			controller.CreateActiveStageVersionUsage(ctx, k8sClient, stage, StageVersion)
+			verifyActiveStageVersion(ctx, k8sClient, StageDev, Namespace, ptr.To(StageVersion), timeout, interval)
+
+			// updating the reference bumps the usage generation and is mirrored as well
+			controller.UpdateActiveStageVersionUsageRef(ctx, k8sClient, stage, StageVersionUpdated)
+			verifyActiveStageVersion(ctx, k8sClient, StageDev, Namespace, ptr.To(StageVersionUpdated), timeout, interval)
+
+			// deleting the active stageVersionUsage clears the reference again
+			activeUsage := controller.GetStageVersionUsage(ctx, k8sClient, konfidence.ActiveStageVersionUsageName(StageDev), Namespace, false)
+			controller.DeleteStageVersionUsage(ctx, k8sClient, activeUsage)
+			verifyActiveStageVersion(ctx, k8sClient, StageDev, Namespace, nil, timeout, interval)
+		})
+
+		It("should leave the active stageVersion reference unset if the active stageVersionUsage references no stageVersion", func() {
+			ctx := context.Background()
+			controller.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)
+			verifyStageReady(ctx, k8sClient, StageDev, Namespace, timeout, interval)
+
+			stage := controller.GetStage(ctx, k8sClient, StageDev, Namespace, false)
+
+			// an active stageVersionUsage that resolves its stageVersion by selector carries
+			// no reference to mirror
+			controller.CreateActiveStageVersionUsageWithSelector(ctx, k8sClient, stage)
+			verifyActiveStageVersionStaysUnset(ctx, k8sClient, StageDev, Namespace, interval)
+
+			// setting a reference on that very usage is mirrored ...
+			controller.UpdateActiveStageVersionUsageRef(ctx, k8sClient, stage, StageVersion)
+			verifyActiveStageVersion(ctx, k8sClient, StageDev, Namespace, ptr.To(StageVersion), timeout, interval)
+
+			// ... and dropping it again clears the mirrored reference
+			controller.ClearActiveStageVersionUsageRef(ctx, k8sClient, stage)
+			verifyActiveStageVersion(ctx, k8sClient, StageDev, Namespace, nil, timeout, interval)
+		})
+	})
 })
+
+// check that the stage status keeps mirroring no active stageVersion at all
+func verifyActiveStageVersionStaysUnset(ctx context.Context, k8sClient client.Client, stageName string,
+	namespace string, interval time.Duration) {
+	stage := &konfidence.Stage{}
+	stageLookupKey := types.NamespacedName{Name: stageName, Namespace: namespace}
+	Consistently(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+		g.Expect(stage.Status.ActiveStageVersion).To(BeNil())
+	}, time.Second*2, interval).Should(Succeed())
+}
+
+// check that the stage status mirrors the expected active stageVersion, nil meaning no reference at all
+//
+//nolint:unparam
+func verifyActiveStageVersion(ctx context.Context, k8sClient client.Client, stageName string, namespace string,
+	expected *string, timeout time.Duration, interval time.Duration) {
+	stage := &konfidence.Stage{}
+	stageLookupKey := types.NamespacedName{Name: stageName, Namespace: namespace}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, stageLookupKey, stage)).To(Succeed())
+		if expected == nil {
+			g.Expect(stage.Status.ActiveStageVersion).To(BeNil())
+			return
+		}
+		g.Expect(stage.Status.ActiveStageVersion).ToNot(BeNil())
+		g.Expect(stage.Status.ActiveStageVersion.Name).To(Equal(*expected))
+	}, timeout, interval).Should(Succeed())
+}
 
 // check that the stageVersion has been created and has valid properties
 func verifyStageVersion(ctx context.Context, k8sClient client.Client, stageVersionName string, namespace string,
@@ -177,6 +259,7 @@ func verifyStageVersionUsage(ctx context.Context, k8sClient client.Client, names
 	}, timeout, interval).Should(Succeed())
 }
 
+//nolint:unparam
 func verifyStageReady(ctx context.Context, k8sClient client.Client, stageName string, namespace string, timeout time.Duration, interval time.Duration) {
 	stage := &konfidence.Stage{}
 	stageLookupKey := types.NamespacedName{Name: stageName, Namespace: namespace}

@@ -56,6 +56,16 @@ func TestRepositoryGetForbidden(t *testing.T) {
 	}
 }
 
+func TestRepositoryGetForbiddenForUnknownProject(t *testing.T) {
+	k8s := fake.NewClientBuilder().WithScheme(projectScheme(t)).Build()
+
+	_, err := project.NewRepository(k8s).Get(context.Background(), "missing", auth.ProjectRoles{})
+
+	if !errors.Is(err, project.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden for an unauthorized caller, got %v", err)
+	}
+}
+
 func TestRepositoryList(t *testing.T) {
 	k8s := fake.NewClientBuilder().WithScheme(projectScheme(t)).WithObjects(
 		&konfidence.Project{ObjectMeta: metav1.ObjectMeta{Name: "one"}},

@@ -106,7 +106,13 @@ const operationHandlers = {
     reply.send({ data: scenarioFor(request).projects.map(({ project }) => project) }),
   listStagesV1: (request, reply) => {
     const { landscapeId } = request.query as Query<"listStagesV1">;
-    return reply.send({ data: inLandscape(projectFor(request).stages, landscapeId) });
+    const project = projectFor(request);
+    // Filtering by a landscape the project does not have is a miss, not an empty result.
+    // A landscape that exists but holds no stages still answers with an empty list.
+    if (landscapeId !== undefined && !project.landscapes.some(({ id }) => id === landscapeId)) {
+      throw httpError(404, `Landscape ${landscapeId} not found`);
+    }
+    return reply.send({ data: inLandscape(project.stages, landscapeId) });
   },
   listVectorDeploymentsV1: (request, reply) => {
     const { landscapeId } = request.query as Query<"listVectorDeploymentsV1">;

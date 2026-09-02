@@ -219,7 +219,10 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
         - $ref: "#/components/parameters/LandscapeQueryId"
-      description: Returns all stage resources for a project. Can be filtered by landscape.
+      description: >
+        Returns all stage resources for a project. Can be filtered by landscape:
+        a landscapeId that does not name a landscape of the project is reported as
+        404, while a landscape that exists but holds no stages returns an empty list.
       tags: [projects]
       responses:
         "200":
@@ -232,6 +235,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -633,7 +638,7 @@ components:
 
     StageVersion:
       type: object
-      required: [id, vector, stageGeneration, active, status]
+      required: [id, vector, stageGeneration, status]
       properties:
         id:
           $ref: "#/components/schemas/StageVersionId"
@@ -643,13 +648,17 @@ components:
         stageGeneration:
           type: integer
           description: Generation of the parent stage
-        active:
-          type: boolean
-          description: Indicates if this is the latest active stageVersion
         status:
           type: string
-          # TODO define states
-          enum: [DeploymentCreated]
+          enum: [PendingDeployment, DeployingVector, MigratingVector, ActivatingVector, Ready, Failed]
+          description: >
+            Derived rollout state of the stageVersion.
+            PendingDeployment: created, vector deployment not yet started.
+            DeployingVector: vector deployment in progress.
+            MigratingVector: migration tasks running.
+            ActivatingVector: activation tasks running (transient).
+            Ready: fully rolled out.
+            Failed: reserved for failure detection; not emitted yet.
 
     StageList:
       type: object
@@ -662,7 +671,7 @@ components:
 
     Stage:
       type: object
-      required: [id, name, landscapeId, targetStageVersion]
+      required: [id, name, landscapeId]
       properties:
         id:
           $ref: "#/components/schemas/StageId"
@@ -672,7 +681,13 @@ components:
         landscapeId:
           $ref: "#/components/schemas/LandscapeId"
         targetStageVersion:
-          $ref: "#/components/schemas/StageVersion"
+          description: The StageVersion the stage's current spec is converging to. Absent while it has not been created yet.
+          allOf:
+            - $ref: "#/components/schemas/StageVersion"
+        activeStageVersion:
+          description: The currently active StageVersion. Absent while nothing has been activated.
+          allOf:
+            - $ref: "#/components/schemas/StageVersion"
 
     Identity:
       type: object

@@ -10,7 +10,7 @@
     "start": "vite preview",
     "preview": "vite preview",
     "prepare": "svelte-kit sync",
-    "api:check": "sh -c 'trap \"rm -f src/lib/konfidence-api/schema.check.d.ts\" EXIT; openapi-typescript ../../api/openapi.yaml -o src/lib/konfidence-api/schema.check.d.ts && oxfmt src/lib/konfidence-api/schema.check.d.ts && cmp src/lib/konfidence-api/schema.d.ts src/lib/konfidence-api/schema.check.d.ts'",
+    "api:check": "bash ../../hack/check-openapi-types.sh ../../api/openapi.yaml src/lib/konfidence-api/schema.d.ts",
     "api:generate": "openapi-typescript ../../api/openapi.yaml -o src/lib/konfidence-api/schema.d.ts && oxfmt src/lib/konfidence-api/schema.d.ts",
     "check": "svelte-kit sync && tsgo -p ./tsconfig.json --noEmit",
     "check:svelte": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
