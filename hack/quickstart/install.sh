@@ -23,6 +23,8 @@ helm upgrade --install konfidence oci://ghcr.io/konfidence-project/charts/konfid
   --create-namespace \
   --set image.repository=ghcr.io/konfidence-project/konfidence-operator \
   --set image.tag="$version" \
+  --set api.oidc.enabled=false \
+  --set webhook.enabled=false \
   $image_pull_secret_args \
   --wait
 
