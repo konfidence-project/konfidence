@@ -15,7 +15,6 @@ export default defineConfig({
     builtin: true,
     node: true,
   },
-  ignorePatterns: ["src/generated/schema.d.ts"],
   plugins: ["typescript", "unicorn", "oxc", "eslint", "import"],
   rules: {
     "eslint/init-declarations": "off",

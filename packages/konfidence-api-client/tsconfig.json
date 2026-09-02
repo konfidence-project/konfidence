@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2024"
+  },
+  "include": ["src/**/*.ts"]
+}

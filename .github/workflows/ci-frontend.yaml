@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - .goreleaser.yaml
+      - Makefile
+      - api/codegen-client.yaml
+      - api/codegen-server.yaml
       - api/openapi.yaml
       - package.json
       - pnpm-lock.yaml
@@ -11,10 +14,14 @@ on:
       - tsconfig.json
       - apps/konfidence-mock-api/**
       - apps/konfidence-ui/**
+      - packages/konfidence-api-client/**
   push:
     branches: [main]
     paths:
       - .goreleaser.yaml
+      - Makefile
+      - api/codegen-client.yaml
+      - api/codegen-server.yaml
       - api/openapi.yaml
       - package.json
       - pnpm-lock.yaml
@@ -22,6 +29,7 @@ on:
       - tsconfig.json
       - apps/konfidence-mock-api/**
       - apps/konfidence-ui/**
+      - packages/konfidence-api-client/**
   merge_group:
 
 permissions:
@@ -56,7 +64,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run checks
-        run: pnpm ui:verify && pnpm mock-api:verify
+        run: pnpm api-client:verify && pnpm ui:verify && pnpm mock-api:verify
 
   test-mock-api:
     name: Test Mock API
