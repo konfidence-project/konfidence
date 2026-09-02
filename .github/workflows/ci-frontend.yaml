@@ -22,6 +22,7 @@ on:
       - tsconfig.json
       - apps/konfidence-mock-api/**
       - apps/konfidence-ui/**
+  merge_group:
 
 permissions:
   contents: read
