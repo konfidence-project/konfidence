@@ -14,8 +14,6 @@ import (
 var ErrNotFound = fmt.Errorf("project not found")
 
 type Repository interface {
-	// Get reads a project without checking authorization: callers authorize first
-	// (see resolveProjectNamespace in the API handler).
 	Get(ctx context.Context, name string) (*konfidence.Project, error)
 	List(ctx context.Context, projectRoles auth.ProjectRoles) ([]konfidence.Project, error)
 }
