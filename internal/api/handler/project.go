@@ -115,13 +115,10 @@ func (h *projectHandler) resolveProjectNamespace(ctx context.Context, identity *
 	if !identity.IsAuthenticatedForProject(projectId) {
 		return "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
 	}
-	project, err := h.projectRepo.Get(ctx, projectId, identity.ProjectRoles)
+	project, err := h.projectRepo.Get(ctx, projectId)
 	if err != nil {
 		if errors.Is(err, projectdomain.ErrNotFound) {
 			return "", apierror.NewNotFound("project", projectId)
-		}
-		if errors.Is(err, projectdomain.ErrForbidden) {
-			return "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
 		}
 		return "", apierror.NewInternal(err)
 	}
