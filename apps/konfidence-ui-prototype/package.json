@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "all": "pnpm verify && pnpm test:unit && pnpm test:e2e",
-    "api:check": "pnpm api:generate && git diff --exit-code -- src/lib/konfidence-api/schema.d.ts",
+    "api:check": "bash ../../hack/check-openapi-types.sh ../../api/openapi.yaml src/lib/konfidence-api/schema.d.ts",
     "api:generate": "openapi-typescript ../../api/openapi.yaml -o src/lib/konfidence-api/schema.d.ts && oxfmt src/lib/konfidence-api/schema.d.ts",
     "dev": "vite dev",
     "dev:mock": "KONFIDENCE_API_URL=http://127.0.0.1:8091 concurrently --kill-others --names ui,mock-api \"pnpm dev\" \"pnpm --filter konfidence-mock-api dev\"",

@@ -153,7 +153,7 @@ export interface paths {
     };
     /**
      * List all stages for a project
-     * @description Returns all stage resources for a project. Can be filtered by landscape.
+     * @description Returns all stage resources for a project. Can be filtered by landscape: a landscapeId that does not name a landscape of the project is reported as 404, while a landscape that exists but holds no stages returns an empty list.
      */
     get: operations["listStagesV1"];
     put?: never;
@@ -401,10 +401,17 @@ export interface components {
       vector: string;
       /** @description Generation of the parent stage */
       stageGeneration: number;
-      /** @description Indicates if this is the latest active stageVersion */
-      active: boolean;
-      /** @enum {string} */
-      status: "DeploymentCreated";
+      /**
+       * @description Derived rollout state of the stageVersion. PendingDeployment: created, vector deployment not yet started. DeployingVector: vector deployment in progress. MigratingVector: migration tasks running. ActivatingVector: activation tasks running (transient). Ready: fully rolled out. Failed: reserved for failure detection; not emitted yet.
+       * @enum {string}
+       */
+      status:
+        | "PendingDeployment"
+        | "DeployingVector"
+        | "MigratingVector"
+        | "ActivatingVector"
+        | "Ready"
+        | "Failed";
     };
     StageList: {
       data: components["schemas"]["Stage"][];
@@ -414,7 +421,10 @@ export interface components {
       /** @description The stage name */
       name: string;
       landscapeId: components["schemas"]["LandscapeId"];
-      targetStageVersion: components["schemas"]["StageVersion"];
+      /** @description The StageVersion the stage's current spec is converging to. Absent while it has not been created yet. */
+      targetStageVersion?: components["schemas"]["StageVersion"];
+      /** @description The currently active StageVersion. Absent while nothing has been activated. */
+      activeStageVersion?: components["schemas"]["StageVersion"];
     };
     Identity: {
       name: string;
@@ -735,6 +745,7 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };
   };

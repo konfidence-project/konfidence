@@ -12,24 +12,54 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/session"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
+	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 )
+
+// errNoSession marks a request that does not carry an authenticated session.
+var errNoSession = errors.New("session not found in context")
 
 type projectHandler struct {
 	projectRepo               projectdomain.Repository
 	landscapeRepo             landscapedomain.Repository
+	stageRepo                 stagedomain.Repository
 	vectorPromotionRepo       vectorpromotiondomain.Repository
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository
 }
 
 func newProjectHandler(projectRepo projectdomain.Repository, landscapeRepo landscapedomain.Repository,
-	vectorPromotionRepo vectorpromotiondomain.Repository, vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository) *projectHandler {
+	stageRepo stagedomain.Repository, vectorPromotionRepo vectorpromotiondomain.Repository,
+	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository,
+) *projectHandler {
 	return &projectHandler{
 		projectRepo:               projectRepo,
 		landscapeRepo:             landscapeRepo,
+		stageRepo:                 stageRepo,
 		vectorPromotionRepo:       vectorPromotionRepo,
 		vectorPromotionConfigRepo: vectorPromotionConfigRepo,
 	}
+}
+
+// resolveProject runs the shared preamble of every project-scoped endpoint: it requires a
+// session, authorizes the caller for the project and resolves the project's managed namespace.
+// Callers map the returned sentinel errors (errNoSession, projectdomain.ErrForbidden,
+// projectdomain.ErrNotFound) onto their own response types; any other error is internal.
+func (h *projectHandler) resolveProject(ctx context.Context, projectId string) (*konfidence.Project, error) {
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, errNoSession
+	}
+
+	project, err := h.projectRepo.Get(ctx, projectId, identity.ProjectRoles)
+	if err != nil {
+		return nil, err
+	}
+
+	if project.Status.Namespace == "" {
+		return nil, fmt.Errorf("project %q has no managed namespace", projectId)
+	}
+
+	return project, nil
 }
 
 func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProjectsV1RequestObject) (openapi.ListProjectsV1ResponseObject, error) {
@@ -55,34 +85,26 @@ func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProje
 }
 
 func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListLandscapesV1RequestObject) (openapi.ListLandscapesV1ResponseObject, error) {
-	identity, err := session.FromContext(ctx)
+	project, err := h.resolveProject(ctx, req.ProjectId)
 	if err != nil {
-		return openapi.ListLandscapesV1401JSONResponse{
-			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
-		}, nil
-	}
-
-	project, err := h.projectRepo.Get(ctx, req.ProjectId, identity.ProjectRoles)
-	if err != nil {
-		if errors.Is(err, projectdomain.ErrNotFound) {
-			return openapi.ListLandscapesV1404JSONResponse{
-				NotFoundJSONResponse: apierror.NewNotFoundResponse(fmt.Sprintf("project %q not found", req.ProjectId)),
+		switch {
+		case errors.Is(err, errNoSession):
+			return openapi.ListLandscapesV1401JSONResponse{
+				UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
 			}, nil
-		}
-		if errors.Is(err, projectdomain.ErrForbidden) {
+		case errors.Is(err, projectdomain.ErrForbidden):
 			return openapi.ListLandscapesV1403JSONResponse{
 				ForbiddenJSONResponse: apierror.NewForbiddenResponse(fmt.Sprintf("access to project %q is not allowed", req.ProjectId)),
 			}, nil
+		case errors.Is(err, projectdomain.ErrNotFound):
+			return openapi.ListLandscapesV1404JSONResponse{
+				NotFoundJSONResponse: apierror.NewNotFoundResponse(fmt.Sprintf("project %q not found", req.ProjectId)),
+			}, nil
+		default:
+			return openapi.ListLandscapesV1500JSONResponse{
+				InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
+			}, nil
 		}
-		return openapi.ListLandscapesV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
-	}
-
-	if project.Status.Namespace == "" {
-		return openapi.ListLandscapesV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
 	}
 
 	landscapes, err := h.landscapeRepo.ListForProject(ctx, project.Status.Namespace)
@@ -112,10 +134,6 @@ func toLandscapeResponse(l konfidence.Landscape) openapi.Landscape {
 		Id:   l.Name,
 		Name: l.Spec.DisplayName,
 	}
-}
-
-func (h *projectHandler) ListStagesV1(_ context.Context, _ openapi.ListStagesV1RequestObject) (openapi.ListStagesV1ResponseObject, error) {
-	return nil, nil
 }
 
 func (h *projectHandler) ListVectorDeploymentsV1(_ context.Context,

@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
@@ -187,6 +188,70 @@ func CreateStageVersionUsage(ctx context.Context, k8sClient client.Client, name 
 	}
 
 	Expect(k8sClient.Create(ctx, usage)).To(Succeed())
+}
+
+// CreateActiveStageVersionUsage creates the active StageVersionUsage of a stage the same way
+// the vectoractivation domain does: deterministic name, active label and a controller
+// reference to the stage.
+func CreateActiveStageVersionUsage(ctx context.Context, k8sClient client.Client, stage *konfidence.Stage, stageVersionName string) {
+	createActiveStageVersionUsage(ctx, k8sClient, stage, &konfidence.StageVersionReference{Name: stageVersionName})
+}
+
+// CreateActiveStageVersionUsageWithSelector creates the active StageVersionUsage of a stage
+// without a stageVersion reference: it resolves its stageVersion by selector instead. The CRD
+// requires exactly one of both fields, so this is the shape a reference-less usage has.
+func CreateActiveStageVersionUsageWithSelector(ctx context.Context, k8sClient client.Client, stage *konfidence.Stage) {
+	createActiveStageVersionUsage(ctx, k8sClient, stage, nil)
+}
+
+func createActiveStageVersionUsage(ctx context.Context, k8sClient client.Client, stage *konfidence.Stage,
+	stageVersionRef *konfidence.StageVersionReference,
+) {
+	usage := &konfidence.StageVersionUsage{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "konfidence.cloud/v1alpha1",
+			Kind:       "StageVersionUsage",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      konfidence.ActiveStageVersionUsageName(stage.Name),
+			Namespace: stage.Namespace,
+			Labels: map[string]string{
+				konfidence.ActiveStageVersionLabel: stage.Name,
+			},
+		},
+		Spec: konfidence.StageVersionUsageSpec{StageVersionRef: stageVersionRef},
+	}
+	if stageVersionRef == nil {
+		usage.Spec.StageVersionSelector = activeStageVersionSelector(stage)
+	}
+
+	Expect(controllerutil.SetControllerReference(stage, usage, k8sClient.Scheme())).To(Succeed())
+	Expect(k8sClient.Create(ctx, usage)).To(Succeed())
+}
+
+// UpdateActiveStageVersionUsageRef points the active StageVersionUsage of a stage at another
+// stageVersion. The spec change bumps the usage generation, which triggers a stage reconcile.
+func UpdateActiveStageVersionUsageRef(ctx context.Context, k8sClient client.Client, stage *konfidence.Stage, stageVersionName string) {
+	usage := GetStageVersionUsage(ctx, k8sClient, konfidence.ActiveStageVersionUsageName(stage.Name), stage.Namespace, false)
+	usage.Spec.StageVersionRef = &konfidence.StageVersionReference{Name: stageVersionName}
+	usage.Spec.StageVersionSelector = nil
+
+	Expect(k8sClient.Update(ctx, usage)).To(Succeed())
+}
+
+// ClearActiveStageVersionUsageRef drops the stageVersion reference of a stage's active
+// StageVersionUsage in favour of a selector. The spec change bumps the usage generation,
+// which triggers a stage reconcile.
+func ClearActiveStageVersionUsageRef(ctx context.Context, k8sClient client.Client, stage *konfidence.Stage) {
+	usage := GetStageVersionUsage(ctx, k8sClient, konfidence.ActiveStageVersionUsageName(stage.Name), stage.Namespace, false)
+	usage.Spec.StageVersionRef = nil
+	usage.Spec.StageVersionSelector = activeStageVersionSelector(stage)
+
+	Expect(k8sClient.Update(ctx, usage)).To(Succeed())
+}
+
+func activeStageVersionSelector(stage *konfidence.Stage) *metav1.LabelSelector {
+	return &metav1.LabelSelector{MatchLabels: map[string]string{pkgctrl.StageNameLabel: stage.Name}}
 }
 
 func CreateStageVersionUsageWithSelector(

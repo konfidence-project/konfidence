@@ -1073,6 +1073,7 @@ _Appears in:_
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
 | `vectorHistory` _string array_ |  |  |  |
 | `latestVectorDeploymentRef` _[TypedObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#typedobjectreference-v1-core)_ |  |  |  |
+| `activeStageVersion` _[StageVersionReference](#stageversionreference)_ | ActiveStageVersion references the StageVersion whose vector is currently<br />active on this stage, mirrored from the stage's active StageVersionUsage. |  | Optional: \{\} <br /> |
 
 
 ### StageVersion
@@ -1126,6 +1127,7 @@ StageVersionReference holds a reference to a StageVersion in the same namespace.
 
 
 _Appears in:_
+- [StageStatus](#stagestatus)
 - [StageVersionUsageSpec](#stageversionusagespec)
 
 | Field | Description | Default | Validation |

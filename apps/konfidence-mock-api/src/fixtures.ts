@@ -5,6 +5,7 @@ type Identity = components["schemas"]["Identity"];
 type Landscape = components["schemas"]["Landscape"];
 type Project = components["schemas"]["Project"];
 type Stage = components["schemas"]["Stage"];
+type StageVersion = components["schemas"]["StageVersion"];
 type VectorDeployment = components["schemas"]["VectorDeployment"];
 type VectorPromotionConfig = components["schemas"]["VectorPromotionConfig"];
 
@@ -36,7 +37,6 @@ const rows = [
     landscape: "development",
     landscapeName: "Development",
     stage: "dev-us30",
-    stageName: "Development US",
     vectorStatus: "ArtifactDeploymentCreated",
     version: "2026.8.5",
   },
@@ -45,7 +45,6 @@ const rows = [
     landscape: "test",
     landscapeName: "Test",
     stage: "test-eu20",
-    stageName: "Test EU",
     vectorStatus: "ArtifactDeploymentCreated",
     version: "2026.8.4",
   },
@@ -54,7 +53,6 @@ const rows = [
     landscape: "production",
     landscapeName: "Production",
     stage: "prod-eu30",
-    stageName: "Production EU",
     vectorStatus: "VectorDownloaded",
     version: "2026.8.3",
   },
@@ -62,18 +60,22 @@ const rows = [
 
 const landscapes: Landscape[] = rows.map((row) => ({ id: row.landscape, name: row.landscapeName }));
 
-const stages: Stage[] = rows.map((row) => ({
-  id: row.stage,
-  landscapeId: row.landscape,
-  name: row.stageName,
-  targetStageVersion: {
-    active: true,
+const stages: Stage[] = rows.map((row) => {
+  // CRD Stage has no displayName yet, so name mirrors id (metadata.name).
+  const version: StageVersion = {
     id: `${row.stage}-v${row.generation}`,
     stageGeneration: row.generation,
-    status: "DeploymentCreated",
+    status: "Ready",
     vector: `${REPOSITORY}//delivery-vector:${row.version}`,
-  },
-}));
+  };
+  return {
+    activeStageVersion: version,
+    id: row.stage,
+    landscapeId: row.landscape,
+    name: row.stage,
+    targetStageVersion: version,
+  };
+});
 
 const vectorDeployments: VectorDeployment[] = rows.map((row) => ({
   id: `vector-${row.stage}-1`,

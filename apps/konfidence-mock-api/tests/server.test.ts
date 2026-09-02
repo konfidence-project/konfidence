@@ -75,6 +75,23 @@ test("filters stages by landscape", async () => {
   });
 });
 
+test("reports a stage filter naming a landscape the project does not have as not found", async () => {
+  const unknown = await get("/api/v1/projects/payments-platform/stages?landscapeId=nowhere");
+  expect(unknown.status).toBe(404);
+
+  const empty = await get("/api/v1/projects/payments-platform/stages?landscapeId=");
+  expect(empty.status).toBe(404);
+});
+
+test("lists no stages for a landscape of the project that holds none", async () => {
+  const stages = await get(
+    "/api/v1/projects/payments-platform/stages?landscapeId=test",
+    scenario("developer"),
+  );
+  expect(stages.status).toBe(200);
+  await expect(stages.json()).resolves.toEqual({ data: [] });
+});
+
 test("filters vector deployments by landscape", async () => {
   const vectors = await get(
     "/api/v1/projects/payments-platform/vectorDeployments?landscapeId=development",

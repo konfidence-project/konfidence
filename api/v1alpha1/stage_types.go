@@ -41,6 +41,11 @@ type StageStatus struct {
 
 	VectorHistory             []string                    `json:"vectorHistory,omitempty"`
 	LatestVectorDeploymentRef corev1.TypedObjectReference `json:"latestVectorDeploymentRef,omitempty"`
+
+	// ActiveStageVersion references the StageVersion whose vector is currently
+	// active on this stage, mirrored from the stage's active StageVersionUsage.
+	// +optional
+	ActiveStageVersion *StageVersionReference `json:"activeStageVersion,omitempty"`
 }
 
 // Stage is the Schema for the stages API.
@@ -51,6 +56,7 @@ type StageStatus struct {
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=".status.conditions[?(@.type=='Ready')].status",description="Ready status"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Age"
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=`.spec.vector`
+// +kubebuilder:printcolumn:name="Active-Version",type=string,JSONPath=".status.activeStageVersion.name",description="The currently active StageVersion"
 type Stage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
