@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"net/http"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
@@ -161,10 +162,7 @@ var _ = Describe("ListStagesV1", func() {
 			ProjectId: "my-project",
 			Params:    landscapeIdParam("unknown"),
 		})
-		Expect(err).NotTo(HaveOccurred())
-
-		_, is404 := resp.(openapi.ListStagesV1404JSONResponse)
-		Expect(is404).To(BeTrue())
+		expectAPIError(resp, err, http.StatusNotFound)
 	})
 
 	It("returns 404 when the landscape filter is supplied but empty", func() {
@@ -177,10 +175,7 @@ var _ = Describe("ListStagesV1", func() {
 			ProjectId: "my-project",
 			Params:    landscapeIdParam(""),
 		})
-		Expect(err).NotTo(HaveOccurred())
-
-		_, is404 := resp.(openapi.ListStagesV1404JSONResponse)
-		Expect(is404).To(BeTrue())
+		expectAPIError(resp, err, http.StatusNotFound)
 	})
 
 	It("returns an empty list for a landscape that is still provisioning", func() {
@@ -235,10 +230,7 @@ var _ = Describe("ListStagesV1", func() {
 		h := newProjectHandlerForTest(project)
 
 		resp, err := h.ListStagesV1(context.Background(), openapi.ListStagesV1RequestObject{ProjectId: "my-project"})
-		Expect(err).NotTo(HaveOccurred())
-
-		_, is401 := resp.(openapi.ListStagesV1401JSONResponse)
-		Expect(is401).To(BeTrue())
+		expectAPIError(resp, err, http.StatusUnauthorized)
 	})
 
 	It("returns 403 for an existing project the caller has no role for", func() {
@@ -247,10 +239,7 @@ var _ = Describe("ListStagesV1", func() {
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"other-project": {"admin"}})
 		resp, err := h.ListStagesV1(ctx, openapi.ListStagesV1RequestObject{ProjectId: "my-project"})
-		Expect(err).NotTo(HaveOccurred())
-
-		_, is403 := resp.(openapi.ListStagesV1403JSONResponse)
-		Expect(is403).To(BeTrue())
+		expectAPIError(resp, err, http.StatusForbidden)
 	})
 
 	It("returns 403 for a nonexistent project the caller has no role for", func() {
@@ -258,10 +247,7 @@ var _ = Describe("ListStagesV1", func() {
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"other-project": {"admin"}})
 		resp, err := h.ListStagesV1(ctx, openapi.ListStagesV1RequestObject{ProjectId: "nonexistent"})
-		Expect(err).NotTo(HaveOccurred())
-
-		_, is403 := resp.(openapi.ListStagesV1403JSONResponse)
-		Expect(is403).To(BeTrue())
+		expectAPIError(resp, err, http.StatusForbidden)
 	})
 
 	It("returns 404 when an authorized caller requests a nonexistent project", func() {
@@ -269,10 +255,7 @@ var _ = Describe("ListStagesV1", func() {
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"nonexistent": {"admin"}})
 		resp, err := h.ListStagesV1(ctx, openapi.ListStagesV1RequestObject{ProjectId: "nonexistent"})
-		Expect(err).NotTo(HaveOccurred())
-
-		_, is404 := resp.(openapi.ListStagesV1404JSONResponse)
-		Expect(is404).To(BeTrue())
+		expectAPIError(resp, err, http.StatusNotFound)
 	})
 
 	It("returns 500 when the project has no managed namespace yet", func() {
@@ -281,9 +264,6 @@ var _ = Describe("ListStagesV1", func() {
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
 		resp, err := h.ListStagesV1(ctx, openapi.ListStagesV1RequestObject{ProjectId: "my-project"})
-		Expect(err).NotTo(HaveOccurred())
-
-		_, is500 := resp.(openapi.ListStagesV1500JSONResponse)
-		Expect(is500).To(BeTrue())
+		expectAPIError(resp, err, http.StatusInternalServerError)
 	})
 })

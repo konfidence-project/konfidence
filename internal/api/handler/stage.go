@@ -3,37 +3,24 @@ package handler
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
+	"github.com/konfidence-project/konfidence/internal/api/session"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
-	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 )
 
 func (h *projectHandler) ListStagesV1(ctx context.Context, req openapi.ListStagesV1RequestObject) (openapi.ListStagesV1ResponseObject, error) {
-	project, err := h.resolveProject(ctx, req.ProjectId)
+	identity, err := session.FromContext(ctx)
 	if err != nil {
-		switch {
-		case errors.Is(err, errNoSession):
-			return openapi.ListStagesV1401JSONResponse{
-				UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
-			}, nil
-		case errors.Is(err, projectdomain.ErrForbidden):
-			return openapi.ListStagesV1403JSONResponse{
-				ForbiddenJSONResponse: apierror.NewForbiddenResponse(fmt.Sprintf("access to project %q is not allowed", req.ProjectId)),
-			}, nil
-		case errors.Is(err, projectdomain.ErrNotFound):
-			return openapi.ListStagesV1404JSONResponse{
-				NotFoundJSONResponse: apierror.NewNotFoundResponse(fmt.Sprintf("project %q not found", req.ProjectId)),
-			}, nil
-		default:
-			return openapi.ListStagesV1500JSONResponse{
-				InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-			}, nil
-		}
+		return nil, apierror.NewUnauthorized()
+	}
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, req.ProjectId)
+	if err != nil {
+		return nil, err
 	}
 
 	// A supplied landscapeId always filters, even when empty: no landscape can carry an
@@ -45,23 +32,17 @@ func (h *projectHandler) ListStagesV1(ctx context.Context, req openapi.ListStage
 		opts = append(opts, landscapedomain.WithLandscapeId(landscapeId))
 	}
 
-	scope, err := h.landscapeRepo.ResolveScope(ctx, project.Status.Namespace, opts...)
+	scope, err := h.landscapeRepo.ResolveScope(ctx, namespace, opts...)
 	if err != nil {
 		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
-			return openapi.ListStagesV1404JSONResponse{
-				NotFoundJSONResponse: apierror.NewNotFoundResponse(fmt.Sprintf("landscape %q not found", landscapeId)),
-			}, nil
+			return nil, apierror.NewNotFound("landscape", landscapeId)
 		}
-		return openapi.ListStagesV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
+		return nil, apierror.NewInternal(err)
 	}
 
 	stages, err := h.stageRepo.ListForScope(ctx, scope)
 	if err != nil {
-		return openapi.ListStagesV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
+		return nil, apierror.NewInternal(err)
 	}
 
 	data := make([]openapi.Stage, len(stages))
