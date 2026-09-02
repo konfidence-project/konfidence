@@ -28,7 +28,7 @@ Konfidence runs on a Kubernetes cluster and consists of two main components:
 
 You can quickly set up a local test environment using kind or install Konfidence on an existing Kubernetes cluster using Helm charts.
 
-For a step-by-step guide including cluster setup, component installation, and your first vector deployment, see the [Quickstart Guide](https://preview.konfidence.cloud/docs/getting-started/quickstart.html).
+For a step-by-step guide including cluster setup, component installation, and your first vector deployment, see the [Quickstart Guide](https://konfidence.cloud/docs/getting-started/quickstart.html).
 
 For detailed installation instructions and production deployment considerations, see the [Installation Guide](https://konfidence.cloud/docs/deploy-operate/installation.html).
 
