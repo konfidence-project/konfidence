@@ -1,4 +1,6 @@
 <script lang="ts">
+    import "../theme/app.css";
+
     import type { Snippet } from "svelte";
     import { fade } from "svelte/transition";
     import { goto } from "$app/navigation";
@@ -43,35 +45,20 @@
         {@render children?.()}
     </div>
 {:else}
-    <div class="loading" role="status" aria-live="polite">
-        <span class="spinner" aria-hidden="true"></span>
-        <span class="loading__label">Loading…</span>
+    <!-- The loading indicator is intentionally invisible for the first 200 ms
+         so fast identity probes never flash "Loading…". The animation reveals
+         it via keyframes defined in src/theme/app.css. -->
+    <div
+        class="flex min-h-screen items-center justify-center gap-3 text-sm text-[color:var(--text-secondary)] opacity-0 [animation:konfidence-fade-in_240ms_ease_200ms_forwards]"
+        role="status"
+        aria-live="polite"
+    >
+        <span
+            class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"
+            aria-hidden="true"
+        ></span>
+        <span class="font-[family-name:var(--font-mono)] uppercase tracking-[0.08em]">
+            Loading…
+        </span>
     </div>
 {/if}
-
-<!-- TODO(#892): migrate scoped CSS to Tailwind per ADR. -->
-<style>
-    .loading {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--space-3);
-        min-height: 100vh;
-        color: var(--text-secondary);
-        font-size: var(--text-sm);
-        /* Only reveal the spinner if the identity probe takes noticeable time.
-           Avoids a jarring flash of "Loading…" for fast (<200 ms) responses. */
-        opacity: 0;
-        animation: fade-in var(--motion-base, 240ms) var(--ease, ease) 200ms forwards;
-    }
-    .loading__label {
-        font-family: var(--font-mono);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-    @keyframes fade-in {
-        to {
-            opacity: 1;
-        }
-    }
-</style>

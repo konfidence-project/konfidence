@@ -11,16 +11,29 @@
     <title>{dashboardTitle}</title>
 </svelte:head>
 
-<main class="dashboard">
+<main class="flex min-h-screen flex-col">
     <Brandbar />
-    <section class="dashboard__content">
-        <h1>{dashboardTitle}</h1>
+    <section
+        class="mx-auto flex w-full max-w-[70rem] flex-1 flex-col items-start gap-4 px-12 py-10"
+    >
+        <h1
+            class="m-0 text-[color:var(--text-primary)] font-[weight:var(--weight-display)] [font-size:var(--text-h1)] [letter-spacing:var(--tracking-h1)]"
+        >
+            {dashboardTitle}
+        </h1>
         {#if session.user}
-            <p class="dashboard__signed-in" data-testid="signed-in-user">
-                Signed in as <strong>{session.user.name}</strong>
+            <p class="m-0 text-[color:var(--text-secondary)] [font-size:var(--text-body)]" data-testid="signed-in-user">
+                Signed in as
+                <strong class="font-[weight:var(--weight-semibold)] text-[color:var(--text-primary)]">
+                    {session.user.name}
+                </strong>
             </p>
         {/if}
-        <a class="btn btn--secondary" href={resolve("/logout")} data-testid="sign-out">
+        <a
+            class="btn btn--secondary"
+            href={resolve("/logout")}
+            data-testid="sign-out"
+        >
             Sign out
         </a>
         <!-- rel="external" bypasses SvelteKit's client router, so the lint
@@ -37,39 +50,3 @@
         </a>
     </section>
 </main>
-
-<style>
-    /* TODO(#892): migrate scoped CSS to Tailwind per ADR. */
-    .dashboard {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-    }
-    .dashboard__content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-4);
-        padding: var(--space-10) var(--space-12);
-        max-width: 1120px;
-        margin: 0 auto;
-        width: 100%;
-    }
-    h1 {
-        margin: 0;
-        font-size: var(--text-h1);
-        font-weight: var(--weight-display);
-        letter-spacing: var(--tracking-h1);
-        color: var(--text-primary);
-    }
-    .dashboard__signed-in {
-        margin: 0;
-        color: var(--text-secondary);
-        font-size: var(--text-body);
-    }
-    .dashboard__signed-in strong {
-        color: var(--text-primary);
-        font-weight: var(--weight-semibold);
-    }
-</style>

@@ -21,27 +21,18 @@
     <title>Konfidence – Signing Out</title>
 </svelte:head>
 
-<main class="signing-out" role="status" aria-live="polite">
-    <span class="spinner" aria-hidden="true"></span>
-    <p>Signing out…</p>
+<main
+    class="flex min-h-screen flex-col items-center justify-center gap-3 text-[color:var(--text-secondary)]"
+    role="status"
+    aria-live="polite"
+>
+    <span
+        class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"
+        aria-hidden="true"
+    ></span>
+    <p
+        class="m-0 font-[family-name:var(--font-mono)] uppercase tracking-[0.08em] [font-size:var(--text-sm)]"
+    >
+        Signing out…
+    </p>
 </main>
-
-<style>
-    /* TODO(#892): migrate scoped CSS to Tailwind per ADR. */
-    .signing-out {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: var(--space-3);
-        min-height: 100vh;
-        color: var(--text-secondary);
-    }
-    p {
-        margin: 0;
-        font-family: var(--font-mono);
-        font-size: var(--text-sm);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-</style>
