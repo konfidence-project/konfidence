@@ -64,6 +64,7 @@ GOLANGCI_LINT   = golangci-lint
 HELM           ?= helm
 HELM_DOCS      ?= helm-docs
 OAPI_CODEGEN   ?= go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
+OPENAPI_SPEC   ?= api/openapi.yaml
 
 ## Image names
 OPERATOR_IMAGE = $(REGISTRY)/konfidence-operator:$(TAG)
@@ -172,9 +173,21 @@ webhook-certs: ## Generate self-signed certificates for local webhook developmen
 api: hermit manifests generate generate-api schemas docs-reference helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, schemas, CRD reference doc, helm lint).
 
 .PHONY: generate-api
-generate-api: hermit ## Generate the OpenAPI server and kden API client from api/openapi.yaml.
-	$(OAPI_CODEGEN) -config api/codegen-server.yaml api/openapi.yaml
-	$(OAPI_CODEGEN) -config api/codegen-client.yaml api/openapi.yaml
+generate-api: generate-api-go generate-api-typescript ## Generate all server and client code from api/openapi.yaml.
+
+.PHONY: generate-api-go
+generate-api-go: hermit ## Generate the OpenAPI Go server and kden client.
+	$(OAPI_CODEGEN) -config api/codegen-server.yaml $(OPENAPI_SPEC)
+	$(OAPI_CODEGEN) -config api/codegen-client.yaml $(OPENAPI_SPEC)
+
+.PHONY: generate-api-typescript
+generate-api-typescript: hermit ## Generate the shared TypeScript API contract.
+	pnpm --filter @konfidence/api-client exec openapi-typescript "$(abspath $(OPENAPI_SPEC))" -o src/schema.d.ts
+	pnpm --filter @konfidence/api-client exec oxfmt src/schema.d.ts
+
+.PHONY: check-openapi
+check-openapi: generate-api ## Verify committed OpenAPI-derived code is up to date.
+	@hack/check-openapi.sh
 
 .PHONY: docs-reference
 docs-reference: hermit ## Generate + transform the CRD reference into api/docs/crd.md.

@@ -1,0 +1,28 @@
+{
+  "name": "@konfidence/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "types": "./src/client.ts",
+  "exports": {
+    ".": "./src/client.ts",
+    "./schema": "./src/schema.d.ts"
+  },
+  "scripts": {
+    "check": "tsgo -p ./tsconfig.json --noEmit",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint",
+    "verify": "pnpm check && pnpm lint && pnpm fmt:check"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
+    "openapi-typescript": "^7.13.0",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0",
+    "typescript": "^6.0.3"
+  }
+}

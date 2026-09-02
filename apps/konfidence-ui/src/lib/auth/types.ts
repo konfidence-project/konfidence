@@ -1,4 +1,4 @@
-import type { components } from "$lib/konfidence-api/schema";
+import type { components } from "@konfidence/api-client/schema";
 
 type ApiIdentity = components["schemas"]["Identity"];
 
