@@ -26,7 +26,7 @@ func TestRepositoryGet(t *testing.T) {
 	want := &konfidence.Project{ObjectMeta: metav1.ObjectMeta{Name: "my-project"}}
 	k8s := fake.NewClientBuilder().WithScheme(projectScheme(t)).WithObjects(want).Build()
 
-	got, err := project.NewRepository(k8s).Get(context.Background(), want.Name, auth.ProjectRoles{"my-project": {"admin"}})
+	got, err := project.NewRepository(k8s).Get(context.Background(), want.Name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,31 +38,10 @@ func TestRepositoryGet(t *testing.T) {
 func TestRepositoryGetNotFound(t *testing.T) {
 	k8s := fake.NewClientBuilder().WithScheme(projectScheme(t)).Build()
 
-	_, err := project.NewRepository(k8s).Get(context.Background(), "missing", auth.ProjectRoles{"missing": {"admin"}})
+	_, err := project.NewRepository(k8s).Get(context.Background(), "missing")
 
 	if !errors.Is(err, project.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
-	}
-}
-
-func TestRepositoryGetForbidden(t *testing.T) {
-	want := &konfidence.Project{ObjectMeta: metav1.ObjectMeta{Name: "my-project"}}
-	k8s := fake.NewClientBuilder().WithScheme(projectScheme(t)).WithObjects(want).Build()
-
-	_, err := project.NewRepository(k8s).Get(context.Background(), "my-project", auth.ProjectRoles{})
-
-	if !errors.Is(err, project.ErrForbidden) {
-		t.Fatalf("expected ErrForbidden, got %v", err)
-	}
-}
-
-func TestRepositoryGetForbiddenForUnknownProject(t *testing.T) {
-	k8s := fake.NewClientBuilder().WithScheme(projectScheme(t)).Build()
-
-	_, err := project.NewRepository(k8s).Get(context.Background(), "missing", auth.ProjectRoles{})
-
-	if !errors.Is(err, project.ErrForbidden) {
-		t.Fatalf("expected ErrForbidden for an unauthorized caller, got %v", err)
 	}
 }
 

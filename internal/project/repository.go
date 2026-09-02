@@ -12,10 +12,11 @@ import (
 )
 
 var ErrNotFound = fmt.Errorf("project not found")
-var ErrForbidden = fmt.Errorf("access to project not allowed")
 
 type Repository interface {
-	Get(ctx context.Context, name string, projectRoles auth.ProjectRoles) (*konfidence.Project, error)
+	// Get reads a project without checking authorization: callers authorize first
+	// (see resolveProjectNamespace in the API handler).
+	Get(ctx context.Context, name string) (*konfidence.Project, error)
 	List(ctx context.Context, projectRoles auth.ProjectRoles) ([]konfidence.Project, error)
 }
 
@@ -25,13 +26,7 @@ func NewRepository(reader client.Reader) Repository {
 	return &k8sRepository{reader: reader}
 }
 
-func (r *k8sRepository) Get(ctx context.Context, name string, projectRoles auth.ProjectRoles) (*konfidence.Project, error) {
-	// Authorization is checked before the project is read, so an unauthorized caller
-	// cannot tell existing from non-existing projects.
-	if len(projectRoles[name]) == 0 {
-		return nil, ErrForbidden
-	}
-
+func (r *k8sRepository) Get(ctx context.Context, name string) (*konfidence.Project, error) {
 	var project konfidence.Project
 	if err := r.reader.Get(ctx, types.NamespacedName{Name: name}, &project); err != nil {
 		if apierrors.IsNotFound(err) {

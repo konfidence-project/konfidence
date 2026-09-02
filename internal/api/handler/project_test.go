@@ -18,7 +18,7 @@ type projectRepository struct {
 	err      error
 }
 
-func (r *projectRepository) Get(_ context.Context, _ string, _ auth.ProjectRoles) (*konfidence.Project, error) {
+func (r *projectRepository) Get(_ context.Context, _ string) (*konfidence.Project, error) {
 	return nil, project.ErrNotFound
 }
 
