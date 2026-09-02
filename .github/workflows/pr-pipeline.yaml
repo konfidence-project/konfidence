@@ -20,6 +20,7 @@ jobs:
 
   secret-scanning-review:
     name: Secret Scanning Review
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
     uses: konfidence-project/.github/.github/workflows/secret-scanning-review.yaml@v4
