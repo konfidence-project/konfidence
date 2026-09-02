@@ -36,10 +36,6 @@ func (r *testAuthRepository) GetProjectRoles(_ context.Context, groups []string)
 	return r.projectRoles, r.err
 }
 
-func (r *testAuthRepository) GetAdminProjectRoles(_ context.Context) (auth.ProjectRoles, error) {
-	return r.projectRoles, r.err
-}
-
 func (s *testSessionStore) Get(_ context.Context, id string) (*session.Session, error) {
 	s.getCalls++
 

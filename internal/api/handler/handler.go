@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
@@ -18,12 +19,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type authFlowHandler interface {
+	LoginV1(ctx context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error)
+	AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error)
+	LogoutV1(ctx context.Context, request openapi.LogoutV1RequestObject) (openapi.LogoutV1ResponseObject, error)
+}
+
 type apiHandler struct {
-	authHandler
+	authFlowHandler
+	auth *authHandler
 	projectHandler
 }
 
 var _ openapi.StrictServerInterface = (*apiHandler)(nil)
+
+func (a *apiHandler) GetIdentityV1(ctx context.Context, req openapi.GetIdentityV1RequestObject) (openapi.GetIdentityV1ResponseObject, error) {
+	return a.auth.GetIdentityV1(ctx, req)
+}
+
+func (a *apiHandler) PostExchangeCodeV1(ctx context.Context, req openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
+	return a.auth.PostExchangeCodeV1(ctx, req)
+}
 
 func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc.Client,
 	stateStore oidc.StateStore, exchangeStore oidc.ExchangeStore, sessionStore session.Store,
@@ -36,10 +52,18 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	vectorPromotionRepo := vectorpromotiondomain.NewRepository(k8sClient)
 	vectorPromotionConfigRepo := vectorpromotiondomain.NewConfigRepository(k8sClient)
 
+	var authFlow authFlowHandler
+	if cfg.OIDC.Enabled {
+		authFlow = auth
+	} else {
+		authFlow = &fakeAuthHandler{sessions: sessionStore, config: cfg}
+	}
+
 	project := newProjectHandler(projectRepo, landscapeRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
 	api := &apiHandler{
-		authHandler:    *auth,
-		projectHandler: *project,
+		authFlowHandler: authFlow,
+		auth:            auth,
+		projectHandler:  *project,
 	}
 	return middleware.SessionAuthentication(logger, sessionStore, authRepo, cfg, api.handler())
 }

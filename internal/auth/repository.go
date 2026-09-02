@@ -12,7 +12,6 @@ import (
 // Repository that handle auth related functions
 type Repository interface {
 	GetProjectRoles(ctx context.Context, idpGroups []string) (ProjectRoles, error)
-	GetAdminProjectRoles(ctx context.Context) (ProjectRoles, error)
 }
 
 type ProjectRoles map[string][]string
@@ -33,37 +32,6 @@ func (r *k8sRepository) GetProjectRoles(ctx context.Context, idpGroups []string)
 	}
 
 	return mapProjectRoles(idpGroups, projects.Items), nil
-}
-
-func (r *k8sRepository) GetAdminProjectRoles(ctx context.Context) (ProjectRoles, error) {
-	var projects konfidence.ProjectList
-	if err := r.reader.List(ctx, &projects); err != nil {
-		return nil, fmt.Errorf("failed to list projects: %w", err)
-	}
-
-	allGroups := collectAllGroups(projects.Items)
-	return mapProjectRoles(allGroups, projects.Items), nil
-}
-
-func collectAllGroups(projects []konfidence.Project) []string {
-	seen := make(map[string]struct{})
-	for _, p := range projects {
-		for _, subjects := range p.Spec.RoleBindings {
-			for _, subject := range subjects {
-				if subject.Session == nil {
-					continue
-				}
-				for _, group := range subject.Session.MemberOf {
-					seen[group] = struct{}{}
-				}
-			}
-		}
-	}
-	groups := make([]string, 0, len(seen))
-	for g := range seen {
-		groups = append(groups, g)
-	}
-	return groups
 }
 
 func mapProjectRoles(groups []string, projects []konfidence.Project) ProjectRoles {
