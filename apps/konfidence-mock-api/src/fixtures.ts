@@ -37,7 +37,7 @@ const rows = [
     landscape: "development",
     landscapeName: "Development",
     stage: "dev-us30",
-    vectorStatus: "ArtifactDeploymentCreated",
+    vectorStatus: "DeploymentReady",
     version: "2026.8.5",
   },
   {
@@ -45,7 +45,7 @@ const rows = [
     landscape: "test",
     landscapeName: "Test",
     stage: "test-eu20",
-    vectorStatus: "ArtifactDeploymentCreated",
+    vectorStatus: "DeploymentReady",
     version: "2026.8.4",
   },
   {
@@ -53,7 +53,7 @@ const rows = [
     landscape: "production",
     landscapeName: "Production",
     stage: "prod-eu30",
-    vectorStatus: "VectorDownloaded",
+    vectorStatus: "DeployingVector",
     version: "2026.8.3",
   },
 ] as const;

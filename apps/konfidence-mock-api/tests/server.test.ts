@@ -96,7 +96,19 @@ test("filters vector deployments by landscape", async () => {
   const vectors = await get(
     "/api/v1/projects/payments-platform/vectorDeployments?landscapeId=development",
   );
-  await expect(vectors.json()).resolves.toMatchObject({ data: [{ id: "vector-dev-us30-1" }] });
+  await expect(vectors.json()).resolves.toMatchObject({
+    data: [{ id: "vector-dev-us30-1", status: "DeploymentReady" }],
+  });
+});
+
+test("reports a vector deployment filter naming an unknown landscape as not found", async () => {
+  const unknown = await get(
+    "/api/v1/projects/payments-platform/vectorDeployments?landscapeId=nowhere",
+  );
+  expect(unknown.status).toBe(404);
+
+  const empty = await get("/api/v1/projects/payments-platform/vectorDeployments?landscapeId=");
+  expect(empty.status).toBe(404);
 });
 
 test("filters artifact deployments by vector deployment", async () => {

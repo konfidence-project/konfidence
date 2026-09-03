@@ -13,25 +13,30 @@ import (
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
+	vectordeploymentdomain "github.com/konfidence-project/konfidence/internal/vectordeployment"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
+	compref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 )
 
 type projectHandler struct {
 	projectRepo               projectdomain.Repository
 	landscapeRepo             landscapedomain.Repository
 	stageRepo                 stagedomain.Repository
+	vectorDeploymentRepo      vectordeploymentdomain.Repository
 	vectorPromotionRepo       vectorpromotiondomain.Repository
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository
 }
 
-func newProjectHandler(projectRepo projectdomain.Repository, landscapeRepo landscapedomain.Repository,
-	stageRepo stagedomain.Repository, vectorPromotionRepo vectorpromotiondomain.Repository,
+func newProjectHandler(projectRepo projectdomain.Repository,
+	landscapeRepo landscapedomain.Repository,
+	stageRepo stagedomain.Repository, vectorDeploymentRepo vectordeploymentdomain.Repository, vectorPromotionRepo vectorpromotiondomain.Repository,
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository,
 ) *projectHandler {
 	return &projectHandler{
 		projectRepo:               projectRepo,
 		landscapeRepo:             landscapeRepo,
 		stageRepo:                 stageRepo,
+		vectorDeploymentRepo:      vectorDeploymentRepo,
 		vectorPromotionRepo:       vectorPromotionRepo,
 		vectorPromotionConfigRepo: vectorPromotionConfigRepo,
 	}
@@ -97,9 +102,64 @@ func toLandscapeResponse(l konfidence.Landscape) openapi.Landscape {
 	}
 }
 
-func (h *projectHandler) ListVectorDeploymentsV1(_ context.Context,
-	_ openapi.ListVectorDeploymentsV1RequestObject) (openapi.ListVectorDeploymentsV1ResponseObject, error) {
-	return nil, nil
+func (h *projectHandler) ListVectorDeploymentsV1(ctx context.Context,
+	req openapi.ListVectorDeploymentsV1RequestObject) (openapi.ListVectorDeploymentsV1ResponseObject, error) {
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, apierror.NewUnauthorized()
+	}
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, req.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	landscapeId := ""
+	var opts []landscapedomain.ScopeOption
+	if req.Params.LandscapeId != nil {
+		landscapeId = *req.Params.LandscapeId
+		opts = append(opts, landscapedomain.WithLandscapeId(landscapeId))
+	}
+
+	scope, err := h.landscapeRepo.ResolveScope(ctx, namespace, opts...)
+	if err != nil {
+		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
+			return nil, apierror.NewNotFound("landscape", landscapeId)
+		}
+		return nil, apierror.NewInternal(err)
+	}
+
+	deployments, err := h.vectorDeploymentRepo.ListForScope(ctx, scope)
+	if err != nil {
+		return nil, apierror.NewInternal(err)
+	}
+
+	data := make([]openapi.VectorDeployment, len(deployments))
+	for i, deployment := range deployments {
+		data[i], err = toVectorDeploymentResponse(deployment)
+		if err != nil {
+			return nil, apierror.NewInternal(err)
+		}
+	}
+	return openapi.ListVectorDeploymentsV1200JSONResponse{Data: data}, nil
+}
+
+func toVectorDeploymentResponse(resolvedVectorDeployment vectordeploymentdomain.ResolvedVectorDeployment) (openapi.VectorDeployment, error) {
+	ref, err := compref.ParseComponentVersionReference(resolvedVectorDeployment.VectorDeployment.Spec.Vector)
+	if err != nil {
+		return openapi.VectorDeployment{}, fmt.Errorf("parsing vector reference: %w", err)
+	}
+	return openapi.VectorDeployment{
+		Id:          resolvedVectorDeployment.VectorDeployment.Name,
+		LandscapeId: resolvedVectorDeployment.LandscapeId,
+		StageId:     resolvedVectorDeployment.StageId,
+		Vector: openapi.VectorReference{
+			Repository:       ref.Repository,
+			ComponentName:    ref.Component,
+			ComponentVersion: ref.Version,
+		},
+		Status: openapi.VectorDeploymentStatus(vectordeploymentdomain.StateFromConditions(resolvedVectorDeployment.VectorDeployment.Status.Conditions)),
+	}, nil
 }
 
 func (h *projectHandler) ListArtifactDeploymentsV1(_ context.Context,

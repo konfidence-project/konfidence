@@ -52,6 +52,19 @@ func TestListForProject_ReturnsLandscapes(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	want := landscapeFixture("dev", "kden-p-my-project", "Development")
+	repo := landscape.NewRepository(fakeClient(want))
+
+	got, err := repo.Get(context.Background(), "kden-p-my-project", "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != want.Name || got.Spec.DisplayName != want.Spec.DisplayName {
+		t.Fatalf("unexpected landscape: %#v", got)
+	}
+}
+
 func TestListForProject_EmptyNamespace(t *testing.T) {
 	repo := landscape.NewRepository(fakeClient())
 

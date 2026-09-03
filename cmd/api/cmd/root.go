@@ -170,6 +170,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		&konfidence.StageVersion{},
 		&konfidence.VectorPromotionConfig{},
 		&konfidence.VectorPromotion{},
+		&konfidence.VectorDeployment{},
 	)
 	if err != nil {
 		return err
