@@ -24,16 +24,22 @@ import (
 
 // Defines values for ArtifactDeploymentStatus.
 const (
-	ArtifactDeployed ArtifactDeploymentStatus = "ArtifactDeployed"
-	ArtifactFetched  ArtifactDeploymentStatus = "ArtifactFetched"
+	ArtifactDeploymentStatusAppHealthy       ArtifactDeploymentStatus = "AppHealthy"
+	ArtifactDeploymentStatusArtifactDeployed ArtifactDeploymentStatus = "ArtifactDeployed"
+	ArtifactDeploymentStatusArtifactFetched  ArtifactDeploymentStatus = "ArtifactFetched"
+	ArtifactDeploymentStatusReady            ArtifactDeploymentStatus = "Ready"
 )
 
 // Valid indicates whether the value is a known member of the ArtifactDeploymentStatus enum.
 func (e ArtifactDeploymentStatus) Valid() bool {
 	switch e {
-	case ArtifactDeployed:
+	case ArtifactDeploymentStatusAppHealthy:
 		return true
-	case ArtifactFetched:
+	case ArtifactDeploymentStatusArtifactDeployed:
+		return true
+	case ArtifactDeploymentStatusArtifactFetched:
+		return true
+	case ArtifactDeploymentStatusReady:
 		return true
 	default:
 		return false
@@ -1621,6 +1627,20 @@ func (response ListArtifactDeploymentsV1403JSONResponse) VisitListArtifactDeploy
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListArtifactDeploymentsV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListArtifactDeploymentsV1404JSONResponse) VisitListArtifactDeploymentsV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }

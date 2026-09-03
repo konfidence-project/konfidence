@@ -93,9 +93,14 @@ func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts
 		return nil, fmt.Errorf("landscape %q not found", *landscapeId)
 	}
 
+	adLabelSelector := client.MatchingLabels{}
+	if vdId, ok := labelSelector[utils.VectorDeploymentNameLabel]; ok {
+		adLabelSelector[utils.VectorDeploymentNameLabel] = vdId
+	}
+
 	for _, scoped := range scopedLandscapes {
 		var artifactDeployments konfidence.ArtifactDeploymentList
-		if err := r.reader.List(ctx, &artifactDeployments, client.InNamespace(scoped.Namespace), labelSelector); err != nil {
+		if err := r.reader.List(ctx, &artifactDeployments, client.InNamespace(scoped.Namespace), adLabelSelector); err != nil {
 			return nil, fmt.Errorf("listing artifact deployments in namespace %q: %w", scoped.Namespace, err)
 		}
 
