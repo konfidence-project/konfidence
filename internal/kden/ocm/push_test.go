@@ -27,6 +27,14 @@ func (m *mockConstructor) GetGraph() *syncdag.SyncedDirectedAcyclicGraph[string]
 	return nil
 }
 
+// stubCredentialResolver is a no-op credentials.Resolver used to assert that a
+// credential graph is wired through to the component repository resolver.
+type stubCredentialResolver struct{}
+
+func (stubCredentialResolver) Resolve(_ context.Context, _ runtime.Identity) (runtime.Typed, error) {
+	return nil, nil
+}
+
 type failingConstructor struct{}
 
 func (f *failingConstructor) Construct(_ context.Context) error {
@@ -123,6 +131,34 @@ var _ = Describe("GetOcmConstructorProvider", func() {
 		It("creates the constructor provider successfully", func() {
 			_, err := GetOcmConstructorProvider(&ocmConfig, ctx, registry)
 			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("passes the credential graph to the component repository resolver", func() {
+			// Regression: the resolver must receive the credential graph so
+			// resolving external component references is authenticated (not nil).
+			origGraph := ocmGetCredentialGraph
+			origResolver := ocmGetComponentRepositoryResolver
+			defer func() {
+				ocmGetCredentialGraph = origGraph
+				ocmGetComponentRepositoryResolver = origResolver
+			}()
+
+			sentinel := stubCredentialResolver{}
+			ocmGetCredentialGraph = func(_ context.Context, _ *manager.PluginManager,
+				_ *ocmgenericspecv1.Config) (credentials.Resolver, error) {
+				return sentinel, nil
+			}
+			var passed credentials.Resolver
+			ocmGetComponentRepositoryResolver = func(_ context.Context,
+				_ repository.ComponentVersionRepositoryProvider, graph credentials.Resolver,
+				_ ...RepositoryResolverOption) (resolvers.ComponentVersionRepositoryResolver, error) {
+				passed = graph
+				return nil, nil
+			}
+
+			_, err := GetOcmConstructorProvider(&ocmConfig, ctx, registry)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(passed).To(Equal(sentinel))
 		})
 	})
 
