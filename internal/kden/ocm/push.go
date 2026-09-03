@@ -23,19 +23,22 @@ func GetOcmConstructorProvider(ocmConfiguration *ocmgenericspecv1.Config, ctx co
 		return nil, fmt.Errorf("failed to load repository spec: %w", err)
 	}
 
+	credentialsGraph, err := ocmGetCredentialGraph(ctx, pluginManager, ocmConfiguration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get credential graph: %w", err)
+	}
+
+	// Pass the credential graph to the resolver so resolving external component
+	// references (e.g. a vector's componentReferences) is authenticated, not just
+	// the target repository.
 	repoResolver, err := ocmGetComponentRepositoryResolver(
 		ctx,
 		pluginManager.ComponentVersionRepositoryRegistry,
-		nil,
+		credentialsGraph,
 		WithRepository(repoSpec),
 		WithConfig(ocmConfiguration))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository resolver: %w", err)
-	}
-
-	credentialsGraph, err := ocmGetCredentialGraph(ctx, pluginManager, ocmConfiguration)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get credential graph: %w", err)
 	}
 
 	return &ConstructorProvider{
