@@ -1,0 +1,69 @@
+{
+  "name": "@konfidence/design-system",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "types": "./src/lib/index.ts",
+  "svelte": "./src/lib/index.ts",
+  "exports": {
+    ".": {
+      "svelte": "./src/lib/index.ts",
+      "types": "./src/lib/index.ts",
+      "default": "./src/lib/index.ts"
+    },
+    "./components": {
+      "svelte": "./src/components/index.ts",
+      "types": "./src/components/index.ts",
+      "default": "./src/components/index.ts"
+    },
+    "./theme": {
+      "types": "./src/theme/index.ts",
+      "default": "./src/theme/index.ts"
+    },
+    "./styles": "./src/styles/index.css",
+    "./styles/tokens": "./src/styles/tokens.css",
+    "./styles/skeleton": "./src/styles/konfidence.skeleton.css",
+    "./styles/custom": "./src/styles/konfidence.custom.css",
+    "./styles/buttons": "./src/styles/konfidence.buttons.css"
+  },
+  "scripts": {
+    "check": "tsgo -p ./tsconfig.json --noEmit",
+    "check:svelte": "svelte-check --tsconfig ./tsconfig.json",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint && pnpm lint:svelte-templates",
+    "lint:fix": "oxlint --fix && pnpm lint:svelte-templates:fix",
+    "lint:svelte-templates": "eslint \"src/**/*.svelte\"",
+    "lint:svelte-templates:fix": "eslint \"src/**/*.svelte\" --fix",
+    "test": "pnpm test:unit && pnpm test:browser",
+    "test:unit": "vitest run --project server",
+    "test:browser": "vitest run --project client",
+    "verify": "pnpm check && pnpm lint && pnpm check:svelte && pnpm fmt:check"
+  },
+  "devDependencies": {
+    "@skeletonlabs/skeleton": "^5.0.0",
+    "@skeletonlabs/skeleton-svelte": "^5.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@typescript-eslint/parser": "^8.68.0",
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
+    "@vitest/browser-playwright": "^4.1.11",
+    "eslint": "^10.9.1",
+    "eslint-plugin-svelte": "^3.23.0",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0",
+    "playwright": "^1.62.1",
+    "svelte": "^5.57.0",
+    "svelte-check": "^4.7.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
+    "vitest-browser-svelte": "^2.1.1"
+  },
+  "peerDependencies": {
+    "@skeletonlabs/skeleton": "^5.0.0",
+    "@skeletonlabs/skeleton-svelte": "^5.0.0",
+    "svelte": "^5.0.0"
+  }
+}

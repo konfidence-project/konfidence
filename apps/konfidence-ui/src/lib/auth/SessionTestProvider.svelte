@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { untrack, type Component, type Snippet } from "svelte";
+    import type { Component, Snippet } from "svelte";
+    import { untrack } from "svelte";
     import type { SessionStore } from "$lib/auth/session.svelte";
     import { provideSession } from "$lib/auth/session.svelte";
 

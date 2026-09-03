@@ -1,0 +1,29 @@
+/*
+ * Konfidence design-system stylesheet entry.
+ *
+ * Consumers import this once (typically from their app's `app.css`) AFTER
+ * Tailwind and Skeleton have been imported. The order below is deliberate:
+ * design tokens first, Skeleton theme override next, custom components
+ * after, and finally the `.btn` block so it wins at equal specificity
+ * against Skeleton's `@utility btn`.
+ */
+
+@import "./tokens.css";
+@import "./konfidence.skeleton.css";
+@import "./konfidence.custom.css";
+@import "./konfidence.buttons.css";
+
+html,
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+@keyframes konfidence-fade-in {
+  to {
+    opacity: 1;
+  }
+}

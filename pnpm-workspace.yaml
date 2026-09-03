@@ -2,6 +2,7 @@ packages:
   - apps/konfidence-mock-api
   - apps/konfidence-ui
   - apps/konfidence-ui-prototype
+  - packages/*
 # image-size <=2.0.2 (build-time transitive of less) has no patched release;
 # drop these ignores once upstream ships a fix.
 auditConfig:
