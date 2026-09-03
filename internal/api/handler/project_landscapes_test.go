@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"net/http"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
@@ -9,6 +10,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
+	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -55,6 +57,7 @@ func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
 	return newProjectHandler(
 		projectdomain.NewRepository(k8s),
 		landscapedomain.NewRepository(k8s),
+		stagedomain.NewRepository(k8s),
 		vectorpromotiondomain.NewRepository(k8s),
 		vectorpromotiondomain.NewConfigRepository(k8s),
 	)
@@ -123,10 +126,7 @@ var _ = Describe("ListLandscapesV1", func() {
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"nonexistent": {"admin"}})
 		resp, err := h.ListLandscapesV1(ctx, openapi.ListLandscapesV1RequestObject{ProjectId: "nonexistent"})
-		Expect(err).NotTo(HaveOccurred())
-
-		_, is404 := resp.(openapi.ListLandscapesV1404JSONResponse)
-		Expect(is404).To(BeTrue())
+		expectAPIError(resp, err, http.StatusNotFound)
 	})
 
 	It("returns 401 when no session is present", func() {
@@ -134,10 +134,7 @@ var _ = Describe("ListLandscapesV1", func() {
 		h := newProjectHandlerForTest(project)
 
 		resp, err := h.ListLandscapesV1(context.Background(), openapi.ListLandscapesV1RequestObject{ProjectId: "my-project"})
-		Expect(err).NotTo(HaveOccurred())
-
-		_, is401 := resp.(openapi.ListLandscapesV1401JSONResponse)
-		Expect(is401).To(BeTrue())
+		expectAPIError(resp, err, http.StatusUnauthorized)
 	})
 
 	It("only returns landscapes belonging to the requested project", func() {

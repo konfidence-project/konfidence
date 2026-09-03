@@ -70,13 +70,28 @@ func (e PromotionTargetReferenceKind) Valid() bool {
 
 // Defines values for StageVersionStatus.
 const (
-	DeploymentCreated StageVersionStatus = "DeploymentCreated"
+	StageVersionStatusActivatingVector  StageVersionStatus = "ActivatingVector"
+	StageVersionStatusDeployingVector   StageVersionStatus = "DeployingVector"
+	StageVersionStatusFailed            StageVersionStatus = "Failed"
+	StageVersionStatusMigratingVector   StageVersionStatus = "MigratingVector"
+	StageVersionStatusPendingDeployment StageVersionStatus = "PendingDeployment"
+	StageVersionStatusReady             StageVersionStatus = "Ready"
 )
 
 // Valid indicates whether the value is a known member of the StageVersionStatus enum.
 func (e StageVersionStatus) Valid() bool {
 	switch e {
-	case DeploymentCreated:
+	case StageVersionStatusActivatingVector:
+		return true
+	case StageVersionStatusDeployingVector:
+		return true
+	case StageVersionStatusFailed:
+		return true
+	case StageVersionStatusMigratingVector:
+		return true
+	case StageVersionStatusPendingDeployment:
+		return true
+	case StageVersionStatusReady:
 		return true
 	default:
 		return false
@@ -103,31 +118,31 @@ func (e VectorDeploymentStatus) Valid() bool {
 
 // Defines values for VectorPromotionStatus.
 const (
-	Blocked    VectorPromotionStatus = "Blocked"
-	Failed     VectorPromotionStatus = "Failed"
-	InProgress VectorPromotionStatus = "InProgress"
-	Ready      VectorPromotionStatus = "Ready"
-	Succeeded  VectorPromotionStatus = "Succeeded"
-	Superseded VectorPromotionStatus = "Superseded"
-	Waiting    VectorPromotionStatus = "Waiting"
+	VectorPromotionStatusBlocked    VectorPromotionStatus = "Blocked"
+	VectorPromotionStatusFailed     VectorPromotionStatus = "Failed"
+	VectorPromotionStatusInProgress VectorPromotionStatus = "InProgress"
+	VectorPromotionStatusReady      VectorPromotionStatus = "Ready"
+	VectorPromotionStatusSucceeded  VectorPromotionStatus = "Succeeded"
+	VectorPromotionStatusSuperseded VectorPromotionStatus = "Superseded"
+	VectorPromotionStatusWaiting    VectorPromotionStatus = "Waiting"
 )
 
 // Valid indicates whether the value is a known member of the VectorPromotionStatus enum.
 func (e VectorPromotionStatus) Valid() bool {
 	switch e {
-	case Blocked:
+	case VectorPromotionStatusBlocked:
 		return true
-	case Failed:
+	case VectorPromotionStatusFailed:
 		return true
-	case InProgress:
+	case VectorPromotionStatusInProgress:
 		return true
-	case Ready:
+	case VectorPromotionStatusReady:
 		return true
-	case Succeeded:
+	case VectorPromotionStatusSucceeded:
 		return true
-	case Superseded:
+	case VectorPromotionStatusSuperseded:
 		return true
-	case Waiting:
+	case VectorPromotionStatusWaiting:
 		return true
 	default:
 		return false
@@ -263,6 +278,9 @@ type PromotionTargetReferenceKind string
 
 // Stage defines model for Stage.
 type Stage struct {
+	// ActiveStageVersion The currently active StageVersion. Absent while nothing has been activated.
+	ActiveStageVersion *StageVersion `json:"activeStageVersion,omitempty"`
+
 	// Id The stage id
 	Id StageId `json:"id"`
 
@@ -270,8 +288,10 @@ type Stage struct {
 	LandscapeId LandscapeId `json:"landscapeId"`
 
 	// Name The stage name
-	Name               string       `json:"name"`
-	TargetStageVersion StageVersion `json:"targetStageVersion"`
+	Name string `json:"name"`
+
+	// TargetStageVersion The StageVersion the stage's current spec is converging to. Absent while it has not been created yet.
+	TargetStageVersion *StageVersion `json:"targetStageVersion,omitempty"`
 }
 
 // StageId The stage id
@@ -284,21 +304,20 @@ type StageList struct {
 
 // StageVersion defines model for StageVersion.
 type StageVersion struct {
-	// Active Indicates if this is the latest active stageVersion
-	Active bool `json:"active"`
-
 	// Id The stageVersion id
 	Id StageVersionId `json:"id"`
 
 	// StageGeneration Generation of the parent stage
-	StageGeneration int                `json:"stageGeneration"`
-	Status          StageVersionStatus `json:"status"`
+	StageGeneration int `json:"stageGeneration"`
+
+	// Status Derived rollout state of the stageVersion. PendingDeployment: created, vector deployment not yet started. DeployingVector: vector deployment in progress. MigratingVector: migration tasks running. ActivatingVector: activation tasks running (transient). Ready: fully rolled out. Failed: reserved for failure detection; not emitted yet.
+	Status StageVersionStatus `json:"status"`
 
 	// Vector StageVersion vector
 	Vector string `json:"vector"`
 }
 
-// StageVersionStatus defines model for StageVersion.Status.
+// StageVersionStatus Derived rollout state of the stageVersion. PendingDeployment: created, vector deployment not yet started. DeployingVector: vector deployment in progress. MigratingVector: migration tasks running. ActivatingVector: activation tasks running (transient). Ready: fully rolled out. Failed: reserved for failure detection; not emitted yet.
 type StageVersionStatus string
 
 // StageVersionId The stageVersion id
@@ -597,7 +616,7 @@ type ClientInterface interface {
 
 	// ListStagesV1 List all stages for a project
 	//
-	// Returns all stage resources for a project. Can be filtered by landscape.
+	// Returns all stage resources for a project. Can be filtered by landscape: a landscapeId that does not name a landscape of the project is reported as 404, while a landscape that exists but holds no stages returns an empty list.
 	//
 	// Corresponds with GET /v1/projects/{projectId}/stages (the `ListStagesV1` operationId).
 	ListStagesV1(ctx context.Context, projectId ProjectPathId, params *ListStagesV1Params, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -797,7 +816,7 @@ func (c *Client) ListLandscapesV1(ctx context.Context, projectId ProjectPathId, 
 
 // ListStagesV1 List all stages for a project
 //
-// Returns all stage resources for a project. Can be filtered by landscape.
+// Returns all stage resources for a project. Can be filtered by landscape: a landscapeId that does not name a landscape of the project is reported as 404, while a landscape that exists but holds no stages returns an empty list.
 //
 // Corresponds with GET /v1/projects/{projectId}/stages (the `ListStagesV1` operationId).
 func (c *Client) ListStagesV1(ctx context.Context, projectId ProjectPathId, params *ListStagesV1Params, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -1679,7 +1698,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListStagesV1WithResponse List all stages for a project
 	//
-	// Returns all stage resources for a project. Can be filtered by landscape.
+	// Returns all stage resources for a project. Can be filtered by landscape: a landscapeId that does not name a landscape of the project is reported as 404, while a landscape that exists but holds no stages returns an empty list.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -2203,6 +2222,8 @@ type ListStagesV1Response struct {
 	JSON401 *Unauthorized
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalError
 }
@@ -2220,6 +2241,11 @@ func (r ListStagesV1Response) GetJSON401() *Unauthorized {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r ListStagesV1Response) GetJSON403() *Forbidden {
 	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListStagesV1Response) GetJSON404() *NotFound {
+	return r.JSON404
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -2731,7 +2757,7 @@ func (c *ClientWithResponses) ListLandscapesV1WithResponse(ctx context.Context, 
 
 // ListStagesV1WithResponse List all stages for a project
 //
-// Returns all stage resources for a project. Can be filtered by landscape.
+// Returns all stage resources for a project. Can be filtered by landscape: a landscapeId that does not name a landscape of the project is reported as 404, while a landscape that exists but holds no stages returns an empty list.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -3237,6 +3263,13 @@ func ParseListStagesV1Response(rsp *http.Response) (*ListStagesV1Response, error
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError

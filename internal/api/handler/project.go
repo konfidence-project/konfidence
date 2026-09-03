@@ -12,21 +12,26 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/session"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
+	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 )
 
 type projectHandler struct {
 	projectRepo               projectdomain.Repository
 	landscapeRepo             landscapedomain.Repository
+	stageRepo                 stagedomain.Repository
 	vectorPromotionRepo       vectorpromotiondomain.Repository
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository
 }
 
 func newProjectHandler(projectRepo projectdomain.Repository, landscapeRepo landscapedomain.Repository,
-	vectorPromotionRepo vectorpromotiondomain.Repository, vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository) *projectHandler {
+	stageRepo stagedomain.Repository, vectorPromotionRepo vectorpromotiondomain.Repository,
+	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository,
+) *projectHandler {
 	return &projectHandler{
 		projectRepo:               projectRepo,
 		landscapeRepo:             landscapeRepo,
+		stageRepo:                 stageRepo,
 		vectorPromotionRepo:       vectorPromotionRepo,
 		vectorPromotionConfigRepo: vectorPromotionConfigRepo,
 	}
@@ -57,39 +62,17 @@ func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProje
 func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListLandscapesV1RequestObject) (openapi.ListLandscapesV1ResponseObject, error) {
 	identity, err := session.FromContext(ctx)
 	if err != nil {
-		return openapi.ListLandscapesV1401JSONResponse{
-			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
-		}, nil
+		return nil, apierror.NewUnauthorized()
 	}
 
-	project, err := h.projectRepo.Get(ctx, req.ProjectId, identity.ProjectRoles)
+	namespace, err := h.resolveProjectNamespace(ctx, identity, req.ProjectId)
 	if err != nil {
-		if errors.Is(err, projectdomain.ErrNotFound) {
-			return openapi.ListLandscapesV1404JSONResponse{
-				NotFoundJSONResponse: apierror.NewNotFoundResponse(fmt.Sprintf("project %q not found", req.ProjectId)),
-			}, nil
-		}
-		if errors.Is(err, projectdomain.ErrForbidden) {
-			return openapi.ListLandscapesV1403JSONResponse{
-				ForbiddenJSONResponse: apierror.NewForbiddenResponse(fmt.Sprintf("access to project %q is not allowed", req.ProjectId)),
-			}, nil
-		}
-		return openapi.ListLandscapesV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
+		return nil, err
 	}
 
-	if project.Status.Namespace == "" {
-		return openapi.ListLandscapesV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
-	}
-
-	landscapes, err := h.landscapeRepo.ListForProject(ctx, project.Status.Namespace)
+	landscapes, err := h.landscapeRepo.ListForProject(ctx, namespace)
 	if err != nil {
-		return openapi.ListLandscapesV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
+		return nil, apierror.NewInternal(err)
 	}
 
 	data := make([]openapi.Landscape, len(landscapes))
@@ -114,10 +97,6 @@ func toLandscapeResponse(l konfidence.Landscape) openapi.Landscape {
 	}
 }
 
-func (h *projectHandler) ListStagesV1(_ context.Context, _ openapi.ListStagesV1RequestObject) (openapi.ListStagesV1ResponseObject, error) {
-	return nil, nil
-}
-
 func (h *projectHandler) ListVectorDeploymentsV1(_ context.Context,
 	_ openapi.ListVectorDeploymentsV1RequestObject) (openapi.ListVectorDeploymentsV1ResponseObject, error) {
 	return nil, nil
@@ -136,13 +115,10 @@ func (h *projectHandler) resolveProjectNamespace(ctx context.Context, identity *
 	if !identity.IsAuthenticatedForProject(projectId) {
 		return "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
 	}
-	project, err := h.projectRepo.Get(ctx, projectId, identity.ProjectRoles)
+	project, err := h.projectRepo.Get(ctx, projectId)
 	if err != nil {
 		if errors.Is(err, projectdomain.ErrNotFound) {
 			return "", apierror.NewNotFound("project", projectId)
-		}
-		if errors.Is(err, projectdomain.ErrForbidden) {
-			return "", apierror.NewForbidden(fmt.Sprintf("access to project %q is not allowed", projectId))
 		}
 		return "", apierror.NewInternal(err)
 	}

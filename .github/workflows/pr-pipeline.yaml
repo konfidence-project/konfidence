@@ -20,14 +20,64 @@ jobs:
 
   secret-scanning-review:
     name: Secret Scanning Review
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
     uses: konfidence-project/.github/.github/workflows/secret-scanning-review.yaml@v4
     secrets: inherit
 
+  codeql-status:
+    name: CodeQL Status
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: read
+    steps:
+      - name: Check CodeQL result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 20); do
+            CONCLUSION=$(gh api graphql -f query='
+              query($owner: String!, $repo: String!, $ref: String!) {
+                repository(owner: $owner, name: $repo) {
+                  ref(qualifiedName: $ref) {
+                    target {
+                      ... on Commit {
+                        checkSuites(first: 10) {
+                          nodes {
+                            checkRuns(first: 20, filterBy: {checkName: "CodeQL"}) {
+                              nodes { name conclusion }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }' \
+              -f owner='${{ github.repository_owner }}' \
+              -f repo='${{ github.event.repository.name }}' \
+              -f ref='${{ github.head_ref }}' \
+              --jq '[.data.repository.ref.target.checkSuites.nodes[].checkRuns.nodes[] | select(.name == "CodeQL")] | first | .conclusion' \
+              2>/dev/null || echo "null")
+            echo "Attempt $i: CodeQL conclusion: $CONCLUSION"
+            if [ "$CONCLUSION" = '"SUCCESS"' ] || [ "$CONCLUSION" = 'SUCCESS' ]; then
+              echo "CodeQL passed"
+              exit 0
+            elif [ "$CONCLUSION" = '"FAILURE"' ] || [ "$CONCLUSION" = 'FAILURE' ]; then
+              echo "CodeQL failed"
+              exit 1
+            fi
+            echo "CodeQL not yet complete, waiting 30s..."
+            sleep 30
+          done
+          echo "CodeQL did not complete within 10 minutes"
+          exit 1
+
   ci-gate:
     name: CI Gate
-    needs: [lint-test-build, secret-scanning-review]
+    needs: [lint-test-build, secret-scanning-review, codeql-status]
     if: always()
     uses: konfidence-project/.github/.github/workflows/ci-gate.yaml@v4
     with:

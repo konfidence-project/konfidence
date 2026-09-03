@@ -15,6 +15,7 @@ import (
 	authdomain "github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
+	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -49,6 +50,7 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	authRepo := authdomain.NewRepository(k8sClient)
 	projectRepo := projectdomain.NewRepository(k8sClient)
 	landscapeRepo := landscapedomain.NewRepository(k8sClient)
+	stageRepo := stagedomain.NewRepository(k8sClient)
 	vectorPromotionRepo := vectorpromotiondomain.NewRepository(k8sClient)
 	vectorPromotionConfigRepo := vectorpromotiondomain.NewConfigRepository(k8sClient)
 
@@ -56,10 +58,10 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	if cfg.OIDC.Enabled {
 		authFlow = auth
 	} else {
-		authFlow = &fakeAuthHandler{sessions: sessionStore, config: cfg}
+		authFlow = &fakeAuthHandler{auth: auth, exchangeStore: exchangeStore}
 	}
 
-	project := newProjectHandler(projectRepo, landscapeRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
+	project := newProjectHandler(projectRepo, landscapeRepo, stageRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
 	api := &apiHandler{
 		authFlowHandler: authFlow,
 		auth:            auth,

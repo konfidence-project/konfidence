@@ -9,9 +9,11 @@ import (
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/hash"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -92,6 +94,10 @@ func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, 
 		return err
 	}
 
+	if err := r.mirrorActiveStageVersion(ctx, stage); err != nil {
+		return err
+	}
+
 	meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StageReady,
 		Status:             metav1.ConditionTrue,
@@ -101,6 +107,39 @@ func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, 
 		LastTransitionTime: metav1.Now(),
 	})
 	log.Info("Stage reconciled")
+	return nil
+}
+
+// mirrorActiveStageVersion mirrors the StageVersion referenced by the stage's active
+// StageVersionUsage into the stage status. The reference is cleared if the active usage
+// does not exist (yet) or does not reference a stageVersion. The stage controller is the
+// only writer of the stage status; the mirrored value is persisted by the status patch in
+// Reconcile.
+func (r *StageReconciler) mirrorActiveStageVersion(ctx context.Context, stage *konfidence.Stage) error {
+	log := logf.FromContext(ctx)
+
+	activeStageVersionUsage := &konfidence.StageVersionUsage{}
+	name := types.NamespacedName{Name: konfidence.ActiveStageVersionUsageName(stage.Name), Namespace: stage.Namespace}
+
+	if err := r.Get(ctx, name, activeStageVersionUsage); err != nil {
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("unable to get active stageVersionUsage: %w", err)
+		}
+
+		log.Info("No active stageVersionUsage found. Clearing active stageVersion reference")
+		stage.Status.ActiveStageVersion = nil
+		return nil
+	}
+
+	if activeStageVersionUsage.Spec.StageVersionRef == nil {
+		log.Info("Active stageVersionUsage references no stageVersion. Clearing active stageVersion reference")
+		stage.Status.ActiveStageVersion = nil
+		return nil
+	}
+
+	stage.Status.ActiveStageVersion = &konfidence.StageVersionReference{Name: activeStageVersionUsage.Spec.StageVersionRef.Name}
+	log.Info("Mirrored active stageVersion", "stageVersion", stage.Status.ActiveStageVersion.Name)
+
 	return nil
 }
 

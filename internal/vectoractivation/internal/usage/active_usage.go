@@ -114,5 +114,5 @@ func CreateOrUpdateActiveUsage(
 }
 
 func getName(stage *konfidence.Stage) string {
-	return fmt.Sprintf("%s-active-usage", stage.Name)
+	return konfidence.ActiveStageVersionUsageName(stage.Name)
 }

@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -13,7 +15,17 @@ const (
 
 	// StageVersionUsageReady indicates that all referenced stage versions are ready.
 	StageVersionUsageReady = "Ready"
+
+	// ActiveStageVersionLabel marks the StageVersionUsage that tracks the active StageVersion of a stage.
+	// Its value is the name of the stage.
+	ActiveStageVersionLabel = "konfidence.cloud/active-stage-version"
 )
+
+// ActiveStageVersionUsageName returns the deterministic name of the StageVersionUsage
+// tracking the active StageVersion of the given stage.
+func ActiveStageVersionUsageName(stageName string) string {
+	return fmt.Sprintf("%s-active-usage", stageName)
+}
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
