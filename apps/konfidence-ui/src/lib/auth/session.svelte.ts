@@ -1,6 +1,8 @@
 import { getContext, setContext } from "svelte";
-import { toAuthUser, type AuthStatus, type AuthUser } from "$lib/auth/types";
-import { resolveApiBaseUrl, type ApiClient } from "$lib/konfidence-api/client";
+import type { AuthStatus, AuthUser } from "$lib/auth/types";
+import { toAuthUser } from "$lib/auth/types";
+import type { ApiClient } from "$lib/konfidence-api/client";
+import { resolveApiBaseUrl } from "$lib/konfidence-api/client";
 import { goto } from "$app/navigation";
 import { HTTP_UNAUTHORIZED } from "$lib/http-status";
 import type { paths } from "$lib/konfidence-api/schema";

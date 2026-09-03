@@ -1,4 +1,5 @@
-import createOpenApiClient, { type Client, type Middleware } from "openapi-fetch";
+import type { Client, Middleware } from "openapi-fetch";
+import createOpenApiClient from "openapi-fetch";
 import { HTTP_UNAUTHORIZED } from "$lib/http-status";
 import type { paths } from "$lib/konfidence-api/schema";
 

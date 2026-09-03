@@ -9,8 +9,8 @@
     import {
         LOGIN_PATH,
         LOGOUT_PATH,
-        provideSession,
         SessionStore,
+        provideSession,
     } from "$lib/auth/session.svelte";
     import { getApiClient, setOnUnauthorized } from "$lib/konfidence-api/client-instance";
 
