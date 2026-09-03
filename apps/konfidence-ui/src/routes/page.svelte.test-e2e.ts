@@ -10,12 +10,11 @@ test("redirects unauthenticated visitors to the login page", async ({ page }) =>
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sign in to Konfidence");
 });
 
-test("renders the dashboard after signing in", async ({ page }) => {
+test("redirects an authenticated visitor to the first project's landscape", async ({ page }) => {
   await signIn(page);
 
-  await expect(page).toHaveURL("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Konfidence Dashboard");
-  await expect(page.getByTestId("signed-in-user")).toContainText("Alex Admin");
+  await expect(page).toHaveURL(/\/projects\/[^/]+\/landscape$/);
+  await expect(page.getByTestId("page-heading")).toHaveText("Landscape");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "konfidence");
 });
 

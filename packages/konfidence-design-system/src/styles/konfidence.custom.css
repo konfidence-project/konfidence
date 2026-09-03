@@ -1891,3 +1891,378 @@
   border: 1.5px solid var(--orbit-ring);
   opacity: 0.4;
 }
+
+/* ============================================================================
+   SHELL — brandbar, topbar, sidebar. Ported from konfidence-design/
+   konfidence-design-system/components.css (SHELL section) and adapted to the
+   Konfidence dark theme selector [data-theme="konfidence-dark"].
+   ============================================================================ */
+.brandbar {
+  height: 4px;
+  background: var(--gradient-aurora);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 56px;
+  padding: 0 var(--space-4);
+  background: var(--surface-default);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.topbar__logo {
+  height: 22px;
+  flex-shrink: 0;
+}
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.proj-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+.proj-switch:hover {
+  background: var(--surface-sunken);
+}
+.proj-switch:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+/* Sidebar-hosted switcher spans the column and lets the popover panel match
+   the trigger width so the project list stays readable inside the drawer.
+   Hidden on desktop where `.topbar__proj-switch` renders the switcher instead. */
+.sidebar__project {
+  display: none;
+  margin-bottom: var(--space-4);
+}
+.sidebar__project .proj-switch {
+  width: 100%;
+}
+.sidebar__project .proj-switch__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.topbar__proj-switch {
+  display: flex;
+}
+
+.icon-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background var(--motion-fast) cubic-bezier(var(--ease));
+}
+.icon-btn:hover {
+  background: var(--surface-sunken);
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gradient-teal);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.avatar:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.sidebar {
+  background: var(--surface-default);
+  border-right: 1px solid var(--border-subtle);
+  padding: var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+}
+.nav-group {
+  margin-bottom: var(--space-5);
+}
+.nav-group__label {
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  text-decoration: none;
+  margin-bottom: 1px;
+  position: relative;
+}
+.nav-item:hover {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+.nav-item:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+.nav-item--active {
+  background: var(--amber-50);
+  color: var(--amber-800);
+  font-weight: var(--weight-semibold);
+}
+[data-theme="konfidence-dark"] .nav-item--active {
+  background: rgba(255, 181, 48, 0.12);
+  color: var(--amber-300);
+}
+.nav-item--active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-amber);
+}
+
+/* ============================================================================
+   SHELL — dropdown menu. Applied to the Skeleton `Menu.Content` / `Menu.Item`
+   slots via the `class` prop; Zag drives keyboard state through
+   `[data-highlighted]`. Ported from konfidence-design/
+   konfidence-design-system/components.css (POPOVER section).
+   ============================================================================ */
+.menu {
+  background: var(--surface-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  min-width: 200px;
+  max-width: 320px;
+}
+/* Skeleton's Menu.Positioner is absolutely positioned inline; Zag emits
+   `style="z-index: var(--z-index)"` on it (see @zag-js/popper), which
+   defeats a plain class rule at equal specificity. `!important` is the
+   pragmatic override so the menu stacks above the mobile drawer
+   (`.app-shell__sidebar`, z-index 400). */
+.menu-positioner {
+  z-index: 500 !important;
+}
+/* Zag focuses the content element for roving tabindex; the browser's default
+   outline would draw a black ring around the whole panel. Focus is already
+   communicated on the highlighted item via `[data-highlighted]`. */
+.menu:focus,
+.menu:focus-visible {
+  outline: none;
+}
+.menu__label {
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 6px 10px 4px;
+}
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+}
+.menu__item:hover,
+.menu__item:focus-visible,
+.menu__item[data-highlighted] {
+  background: var(--surface-sunken);
+  outline: none;
+}
+.menu__item--active {
+  background: var(--amber-50);
+  color: var(--amber-800);
+  font-weight: var(--weight-semibold);
+}
+[data-theme="konfidence-dark"] .menu__item--active {
+  background: rgba(255, 181, 48, 0.12);
+  color: var(--amber-300);
+}
+.menu__item--danger {
+  color: var(--status-error-fg);
+}
+.menu__text {
+  flex: 1;
+  min-width: 0;
+}
+.menu__desc {
+  display: block;
+  font-size: var(--text-meta);
+  color: var(--text-tertiary);
+  font-weight: var(--weight-regular);
+  margin-top: 1px;
+}
+.menu__sep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: var(--space-2) 0;
+}
+.menu--header .menu__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+}
+.menu__header-info {
+  min-width: 0;
+}
+.menu__header-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.menu__header-mail {
+  font-size: var(--text-meta);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================================
+   SHELL — app layout: brandbar + topbar + (sidebar | main). Below md the
+   sidebar becomes an off-canvas drawer opened from the topbar hamburger.
+   ============================================================================ */
+.app-shell {
+  display: grid;
+  grid-template-rows: 4px 56px 1fr;
+  min-height: 100dvh;
+}
+.app-shell__body {
+  display: grid;
+  grid-template-columns: 224px 1fr;
+  overflow: hidden;
+}
+.app-shell__sidebar {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.app-shell__sidebar > .sidebar {
+  flex: 1;
+}
+.app-shell__main {
+  overflow-y: auto;
+  min-width: 0;
+}
+.app-shell__hamburger {
+  display: none;
+}
+.app-shell__scrim {
+  display: none;
+}
+@media (max-width: 767px) {
+  .app-shell__body {
+    grid-template-columns: 1fr;
+  }
+  .app-shell__hamburger {
+    display: flex;
+  }
+  .app-shell__sidebar {
+    position: fixed;
+    inset: 60px 0 0 0;
+    width: 260px;
+    max-width: 80vw;
+    z-index: 400;
+    transform: translateX(-100%);
+    transition: transform var(--motion-base) cubic-bezier(var(--ease-out));
+  }
+  .app-shell__sidebar[data-open="true"] {
+    transform: translateX(0);
+  }
+  .app-shell__scrim {
+    position: fixed;
+    inset: 60px 0 0 0;
+    background: var(--scrim, rgba(0, 0, 0, 0.4));
+    z-index: 399;
+    display: block;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--motion-base) cubic-bezier(var(--ease));
+  }
+  .app-shell__scrim[data-open="true"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .topbar__proj-switch {
+    display: none;
+  }
+  .sidebar__project {
+    display: block;
+  }
+}
+
+/* Skip-to-content link — visually hidden until focused. */
+.skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: var(--space-3);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-default);
+  color: var(--text-primary);
+  border: 1px solid var(--border-focus);
+  font-size: var(--text-sm);
+  z-index: 500;
+  transform: translateY(-200%);
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
+}

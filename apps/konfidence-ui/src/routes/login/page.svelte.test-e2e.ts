@@ -42,5 +42,5 @@ test("redirects an already authenticated visitor away from /login", async ({ pag
 
   await page.goto("/login");
 
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL(/\/projects\/[^/]+\/landscape/);
 });
