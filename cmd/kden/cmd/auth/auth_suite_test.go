@@ -58,6 +58,7 @@ func newTestAuthClient(
 
 	client, err := kdenauth.NewClient(
 		endpoint,
+		"",
 		store,
 		time.Second,
 		time.Second,

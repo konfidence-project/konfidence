@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -9,6 +10,7 @@ import (
 type Authenticator interface {
 	Invalidate() error
 	Login(context.Context) error
+	UsesAccessToken() bool
 }
 
 type statusResponse interface {
@@ -27,6 +29,10 @@ func RequestWithAuthRetry[T statusResponse](
 
 	if response.StatusCode() != http.StatusUnauthorized {
 		return response, nil
+	}
+
+	if authenticator.UsesAccessToken() {
+		return response, errors.New("authenticating with access token failed. token was rejected")
 	}
 
 	if err := authenticator.Invalidate(); err != nil {

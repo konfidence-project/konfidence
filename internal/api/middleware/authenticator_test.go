@@ -28,12 +28,23 @@ type testAuthRepository struct {
 	groups       []string
 	calls        int
 	err          error
+
+	tokenIdentity *auth.TokenIdentity
+	rawToken      string
+	tokenCalls    int
+	tokenErr      error
 }
 
 func (r *testAuthRepository) GetProjectRoles(_ context.Context, groups []string) (auth.ProjectRoles, error) {
 	r.calls++
 	r.groups = append([]string(nil), groups...)
 	return r.projectRoles, r.err
+}
+
+func (r *testAuthRepository) AuthenticateToken(_ context.Context, rawToken string) (*auth.TokenIdentity, error) {
+	r.tokenCalls++
+	r.rawToken = rawToken
+	return r.tokenIdentity, r.tokenErr
 }
 
 func (s *testSessionStore) Get(_ context.Context, id string) (*session.Session, error) {
@@ -80,7 +91,7 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	h, err := middleware.SessionAuthentication(
+	h, err := middleware.Authenticator(
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		store,
 		authRepo,
@@ -184,8 +195,9 @@ func TestSessionAuthenticationMapsProjectRoles(t *testing.T) {
 	store := &testSessionStore{sessions: map[string]*session.Session{
 		"valid-session": {Groups: []string{"all-users", "platform-engineers"}},
 	}}
+	const adminRole = "admin"
 	authRepo := &testAuthRepository{projectRoles: auth.ProjectRoles{
-		"accessible": {"admin", "viewer"},
+		"accessible": {adminRole, "viewer"},
 	}}
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		storedSession, err := session.FromContext(r.Context())
@@ -194,7 +206,7 @@ func TestSessionAuthenticationMapsProjectRoles(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if roles := storedSession.ProjectRoles["accessible"]; len(roles) != 2 || roles[0] != "admin" || roles[1] != "viewer" {
+		if roles := storedSession.ProjectRoles["accessible"]; len(roles) != 2 || roles[0] != adminRole || roles[1] != "viewer" {
 			t.Errorf("unexpected roles: %v", roles)
 		}
 		if _, ok := storedSession.ProjectRoles["hidden"]; ok {
@@ -202,7 +214,7 @@ func TestSessionAuthenticationMapsProjectRoles(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
-	h, err := middleware.SessionAuthentication(
+	h, err := middleware.Authenticator(
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		store,
 		authRepo,
@@ -228,7 +240,7 @@ func TestSessionAuthenticationMapsProjectRoles(t *testing.T) {
 		t.Fatalf("unexpected groups passed to auth repository: %v", authRepo.groups)
 	}
 	roles := store.sessions["valid-session"].ProjectRoles["accessible"]
-	if len(roles) != 2 || roles[0] != "admin" || roles[1] != "viewer" {
+	if len(roles) != 2 || roles[0] != adminRole || roles[1] != "viewer" {
 		t.Fatalf("expected stored session to be mapped, got %v", roles)
 	}
 }
@@ -253,7 +265,7 @@ func TestSessionAuthenticationRejectsSessionMappingFailures(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			nextCalled := false
-			h, err := middleware.SessionAuthentication(
+			h, err := middleware.Authenticator(
 				slog.New(slog.NewTextHandler(io.Discard, nil)),
 				test.store,
 				test.authRepo,
@@ -324,7 +336,7 @@ func TestSessionAuthenticationTokenExpiry(t *testing.T) {
 			authRepo := &testAuthRepository{}
 			nextCalled := false
 
-			handler, err := middleware.SessionAuthentication(
+			handler, err := middleware.Authenticator(
 				slog.New(slog.NewTextHandler(io.Discard, nil)),
 				store,
 				authRepo,
@@ -401,5 +413,348 @@ func TestSessionAuthenticationTokenExpiry(t *testing.T) {
 				t.Fatal("expected valid session to reach next handler")
 			}
 		})
+	}
+}
+
+func TestBearerAuthentication(t *testing.T) {
+	store := &testSessionStore{
+		sessions: map[string]*session.Session{
+			"valid-session": {
+				Context: session.Context{
+					ID: "valid-session",
+				},
+			},
+		},
+	}
+	authRepo := &testAuthRepository{
+		tokenIdentity: &auth.TokenIdentity{
+			Subject: "workload-subject",
+			ProjectRoles: auth.ProjectRoles{
+				"project-a": {"admin"},
+			},
+		},
+	}
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		identity, err := session.FromContext(r.Context())
+		if err != nil {
+			t.Errorf("expected bearer identity in context: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if identity.Subject != "workload-subject" {
+			t.Errorf("unexpected subject: %q", identity.Subject)
+		}
+		if roles := identity.ProjectRoles["project-a"]; len(roles) != 1 ||
+			roles[0] != "admin" {
+			t.Errorf("unexpected project roles: %v", identity.ProjectRoles)
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	handler, err := middleware.Authenticator(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		store,
+		authRepo,
+		config.Parsed{
+			Session: config.ParsedSessionConfig{
+				Cookie: config.SessionCookieConfig{
+					Name: "session",
+				},
+			},
+		},
+		next,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/identity",
+		nil,
+	)
+	request.Header.Set("Authorization", "bEaReR workload-token")
+
+	// Bearer authentication must take precedence over a valid cookie.
+	request.AddCookie(&http.Cookie{
+		Name:  "session",
+		Value: "valid-session",
+	})
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf(
+			"expected status %d, got %d",
+			http.StatusNoContent,
+			response.Code,
+		)
+	}
+	if authRepo.tokenCalls != 1 {
+		t.Fatalf(
+			"expected one token authentication, got %d",
+			authRepo.tokenCalls,
+		)
+	}
+	if authRepo.rawToken != "workload-token" {
+		t.Fatalf("unexpected token passed to repository")
+	}
+	if store.getCalls != 0 {
+		t.Fatalf(
+			"expected no session lookup, got %d",
+			store.getCalls,
+		)
+	}
+	if authRepo.calls != 0 {
+		t.Fatalf(
+			"expected no session role lookup, got %d",
+			authRepo.calls,
+		)
+	}
+}
+
+func TestBearerAuthenticationRejectsInvalidCredentials(t *testing.T) {
+	tests := map[string]struct {
+		authorization   string
+		tokenErr        error
+		expectTokenCall bool
+		expectChallenge bool
+	}{
+		"missing token": {
+			authorization:   "Bearer",
+			expectChallenge: true,
+		},
+		"empty token": {
+			authorization:   "Bearer ",
+			expectChallenge: true,
+		},
+		"token containing whitespace": {
+			authorization:   "Bearer first second",
+			expectChallenge: true,
+		},
+		"unsupported scheme": {
+			authorization: "Basic credentials",
+		},
+		"repository rejection": {
+			authorization:   "Bearer rejected-token",
+			tokenErr:        auth.ErrInvalidBearerToken,
+			expectTokenCall: true,
+			expectChallenge: true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			store := &testSessionStore{
+				sessions: map[string]*session.Session{
+					"valid-session": {
+						Context: session.Context{
+							ID: "valid-session",
+						},
+					},
+				},
+			}
+			authRepo := &testAuthRepository{
+				tokenIdentity: &auth.TokenIdentity{
+					Subject: "unexpected",
+				},
+				tokenErr: test.tokenErr,
+			}
+			nextCalled := false
+
+			handler, err := middleware.Authenticator(
+				slog.New(slog.NewTextHandler(io.Discard, nil)),
+				store,
+				authRepo,
+				config.Parsed{
+					Session: config.ParsedSessionConfig{
+						Cookie: config.SessionCookieConfig{
+							Name: "session",
+						},
+					},
+				},
+				http.HandlerFunc(func(
+					http.ResponseWriter,
+					*http.Request,
+				) {
+					nextCalled = true
+				}),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			request := httptest.NewRequest(
+				http.MethodGet,
+				"/api/v1/identity",
+				nil,
+			)
+			request.Header.Set(
+				"Authorization",
+				test.authorization,
+			)
+			request.AddCookie(&http.Cookie{
+				Name:  "session",
+				Value: "valid-session",
+			})
+
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+
+			if response.Code != http.StatusUnauthorized {
+				t.Fatalf(
+					"expected status %d, got %d",
+					http.StatusUnauthorized,
+					response.Code,
+				)
+			}
+			if nextCalled {
+				t.Fatal("unexpected call to next handler")
+			}
+			if store.getCalls != 0 {
+				t.Fatalf(
+					"unexpected cookie fallback: %d lookups",
+					store.getCalls,
+				)
+			}
+
+			gotTokenCall := authRepo.tokenCalls > 0
+			if gotTokenCall != test.expectTokenCall {
+				t.Fatalf(
+					"expected token call=%t, got %t",
+					test.expectTokenCall,
+					gotTokenCall,
+				)
+			}
+
+			challenge := response.Header().
+				Get("WWW-Authenticate")
+			if test.expectChallenge && challenge != "Bearer" {
+				t.Fatalf(
+					"expected Bearer challenge, got %q",
+					challenge,
+				)
+			}
+			if !test.expectChallenge && challenge != "" {
+				t.Fatalf(
+					"expected no challenge, got %q",
+					challenge,
+				)
+			}
+		})
+	}
+}
+
+func TestLogoutDoesNotAcceptBearerAuthentication(t *testing.T) {
+	store := &testSessionStore{
+		sessions: make(map[string]*session.Session),
+	}
+	authRepo := &testAuthRepository{
+		tokenIdentity: &auth.TokenIdentity{
+			Subject: "workload-subject",
+		},
+	}
+	nextCalled := false
+
+	handler, err := middleware.Authenticator(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		store,
+		authRepo,
+		config.Parsed{
+			Session: config.ParsedSessionConfig{
+				Cookie: config.SessionCookieConfig{
+					Name: "session",
+				},
+			},
+		},
+		http.HandlerFunc(func(
+			http.ResponseWriter,
+			*http.Request,
+		) {
+			nextCalled = true
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/logout",
+		nil,
+	)
+	request.Header.Set(
+		"Authorization",
+		"Bearer workload-token",
+	)
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf(
+			"expected status %d, got %d",
+			http.StatusUnauthorized,
+			response.Code,
+		)
+	}
+	if nextCalled {
+		t.Fatal("bearer-authenticated logout reached next handler")
+	}
+	if authRepo.tokenCalls != 0 {
+		t.Fatalf(
+			"logout attempted bearer authentication %d times",
+			authRepo.tokenCalls,
+		)
+	}
+}
+
+func TestBearerAuthenticationRejectsNilIdentity(t *testing.T) {
+	authRepo := &testAuthRepository{}
+	nextCalled := false
+
+	handler, err := middleware.Authenticator(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		&testSessionStore{
+			sessions: make(map[string]*session.Session),
+		},
+		authRepo,
+		config.Parsed{
+			Session: config.ParsedSessionConfig{
+				Cookie: config.SessionCookieConfig{
+					Name: "session",
+				},
+			},
+		},
+		http.HandlerFunc(func(
+			http.ResponseWriter,
+			*http.Request,
+		) {
+			nextCalled = true
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/identity",
+		nil,
+	)
+	request.Header.Set("Authorization", "Bearer workload-token")
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
+	}
+	if nextCalled {
+		t.Fatal("request with nil identity reached next handler")
 	}
 }

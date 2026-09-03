@@ -101,6 +101,27 @@ var _ = ginkgo.Describe("Session context", func() {
 		Expect(stored).To(BeNil())
 		Expect(err).To(MatchError("session not found in context"))
 	})
+
+	ginkgo.It("stores a workload request identity", func() {
+		identity := Context{
+			Subject: "workload-subject",
+			ProjectRoles: auth.ProjectRoles{
+				"project-a": {"admin"},
+			},
+		}
+
+		ctx := NewRequestContext(context.Background(), identity)
+		identity.Subject = "changed-subject"
+		stored, err := FromContext(ctx)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stored).To(Equal(&Context{
+			Subject: "workload-subject",
+			ProjectRoles: auth.ProjectRoles{
+				"project-a": {"admin"},
+			},
+		}))
+	})
 })
 
 var _ = ginkgo.Describe("Session token expiry", func() {
