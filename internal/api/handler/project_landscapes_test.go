@@ -11,6 +11,7 @@ import (
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
+	vectordeploymentdomain "github.com/konfidence-project/konfidence/internal/vectordeployment"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -58,6 +59,7 @@ func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
 		projectdomain.NewRepository(k8s),
 		landscapedomain.NewRepository(k8s),
 		stagedomain.NewRepository(k8s),
+		vectordeploymentdomain.NewRepository(k8s),
 		vectorpromotiondomain.NewRepository(k8s),
 		vectorpromotiondomain.NewConfigRepository(k8s),
 	)

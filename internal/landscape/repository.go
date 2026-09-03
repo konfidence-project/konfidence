@@ -41,6 +41,7 @@ func WithLandscapeId(id string) ScopeOption {
 }
 
 type Repository interface {
+	Get(ctx context.Context, namespace, name string) (*konfidence.Landscape, error)
 	ListForProject(ctx context.Context, namespace string) ([]konfidence.Landscape, error)
 
 	// ResolveScope resolves the authoritative set of landscape namespaces a
@@ -55,6 +56,14 @@ type k8sRepository struct{ reader client.Reader }
 
 func NewRepository(reader client.Reader) Repository {
 	return &k8sRepository{reader: reader}
+}
+
+func (r *k8sRepository) Get(ctx context.Context, namespace, name string) (*konfidence.Landscape, error) {
+	landscape := &konfidence.Landscape{}
+	if err := r.reader.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, landscape); err != nil {
+		return nil, fmt.Errorf("getting landscape %q in namespace %q: %w", name, namespace, err)
+	}
+	return landscape, nil
 }
 
 func (r *k8sRepository) ListForProject(ctx context.Context, namespace string) ([]konfidence.Landscape, error) {

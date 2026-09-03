@@ -260,6 +260,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -502,8 +504,7 @@ components:
           $ref: "#/components/schemas/VectorReference"
         status:
           type: string
-          # TODO add status values
-          enum: [VectorDownloaded, ArtifactDeploymentCreated]
+          enum: [DeployingVector, DeploymentReady, DeploymentFailed]
           description: The vectorDeployment status
 
     ArtifactDeploymentList:

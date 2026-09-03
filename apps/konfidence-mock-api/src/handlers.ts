@@ -27,7 +27,13 @@ const absoluteUrl = (value: string | undefined, whenInvalid: string): string => 
 const inLandscape = <Item extends { landscapeId?: string }>(
   items: Item[],
   landscapeId?: string,
-): Item[] => items.filter((item) => !landscapeId || item.landscapeId === landscapeId);
+): Item[] => items.filter((item) => landscapeId === undefined || item.landscapeId === landscapeId);
+
+const requireLandscape = (project: ProjectFixture, landscapeId?: string): void => {
+  if (landscapeId !== undefined && !project.landscapes.some(({ id }) => id === landscapeId)) {
+    throw httpError(404, `Landscape ${landscapeId} not found`);
+  }
+};
 
 const scenarioFor = (request: FastifyRequest): ScenarioFixture =>
   scenarios[request.cookies[SCENARIO_COOKIE] as keyof typeof scenarios] ?? scenarios.admin;
@@ -107,16 +113,14 @@ const operationHandlers = {
   listStagesV1: (request, reply) => {
     const { landscapeId } = request.query as Query<"listStagesV1">;
     const project = projectFor(request);
-    // Filtering by a landscape the project does not have is a miss, not an empty result.
-    // A landscape that exists but holds no stages still answers with an empty list.
-    if (landscapeId !== undefined && !project.landscapes.some(({ id }) => id === landscapeId)) {
-      throw httpError(404, `Landscape ${landscapeId} not found`);
-    }
+    requireLandscape(project, landscapeId);
     return reply.send({ data: inLandscape(project.stages, landscapeId) });
   },
   listVectorDeploymentsV1: (request, reply) => {
     const { landscapeId } = request.query as Query<"listVectorDeploymentsV1">;
-    return reply.send({ data: inLandscape(projectFor(request).vectorDeployments, landscapeId) });
+    const project = projectFor(request);
+    requireLandscape(project, landscapeId);
+    return reply.send({ data: inLandscape(project.vectorDeployments, landscapeId) });
   },
   listVectorPromotionConfigsV1: (request, reply) =>
     reply.send({ data: projectFor(request).vectorPromotionConfigs }),

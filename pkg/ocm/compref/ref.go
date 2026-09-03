@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"ocm.software/open-component-model/bindings/go/oci/compref"
+	ociv1 "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 )
 
 // ErrInvalidComponentReference is returned when a component reference fails validation.
@@ -20,6 +22,36 @@ const (
 var (
 	versionRegex = regexp.MustCompile(VersionRegex)
 )
+
+// ComponentVersionReference is a component version reference without exposing
+// upstream OCM repository types.
+type ComponentVersionReference struct {
+	Repository string
+	Component  string
+	Version    string
+}
+
+// ParseComponentVersionReference parses an OCI-backed OCM component version reference.
+func ParseComponentVersionReference(raw string) (ComponentVersionReference, error) {
+	ref, err := Parse(raw)
+	if err != nil {
+		return ComponentVersionReference{}, err
+	}
+	repository, ok := ref.Repository.(*ociv1.Repository)
+	if !ok {
+		return ComponentVersionReference{}, fmt.Errorf("component reference does not use an OCI repository")
+	}
+
+	repositoryURL := strings.TrimSuffix(repository.BaseUrl, "/")
+	if repository.SubPath != "" {
+		repositoryURL += "/" + strings.Trim(repository.SubPath, "/")
+	}
+	return ComponentVersionReference{
+		Repository: repositoryURL,
+		Component:  ref.Component,
+		Version:    ref.Version,
+	}, nil
+}
 
 // VersionValidationMode defines how strictly version strings are validated.
 type VersionValidationMode int
