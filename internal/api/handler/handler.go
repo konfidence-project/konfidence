@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
@@ -58,7 +59,11 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	if cfg.OIDC.Enabled {
 		authFlow = auth
 	} else {
-		authFlow = &fakeAuthHandler{auth: auth, exchangeStore: exchangeStore}
+		authFlow = &fakeAuthHandler{
+			auth:          auth,
+			exchangeStore: exchangeStore,
+			serverBaseURL: serverBaseURL(cfg.Server.Addr),
+		}
 	}
 
 	project := newProjectHandler(projectRepo, landscapeRepo, stageRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
@@ -86,4 +91,14 @@ func (s *apiHandler) handler() http.Handler {
 			ResponseErrorHandlerFunc: errHandler,
 		})))
 	return apiRouter
+}
+
+// serverBaseURL converts a listen address (e.g. ":8090" or "0.0.0.0:8090") to
+// an absolute localhost URL used to build redirect targets in no-auth mode.
+func serverBaseURL(addr string) string {
+	if !strings.Contains(addr, ":") {
+		return "http://localhost"
+	}
+	port := addr[strings.LastIndex(addr, ":"):]
+	return "http://localhost" + port
 }

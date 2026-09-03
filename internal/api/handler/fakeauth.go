@@ -2,82 +2,111 @@ package handler
 
 import (
 	"context"
-	"net/http"
+	"encoding/json"
+	"net/url"
 
-	"github.com/konfidence-project/konfidence/internal/api/config"
+	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	"golang.org/x/oauth2"
 )
 
 type fakeAuthHandler struct {
-	sessions session.Writer
-	config   config.Parsed
+	auth          *authHandler
+	exchangeStore oidc.ExchangeStore
+	serverBaseURL string
 }
 
-func (f *fakeAuthHandler) LoginV1(ctx context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error) {
+type fakeAuthState struct {
+	ReturnURL     string `json:"return_url"`
+	CodeChallenge string `json:"code_challenge,omitempty"`
+}
+
+// LoginV1 redirects to the callback endpoint, encoding the return URL and optional
+// PKCE code challenge into the state parameter.
+func (f *fakeAuthHandler) LoginV1(_ context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error) {
+	state := fakeAuthState{ReturnURL: request.Params.ReturnUrl}
+	if request.Params.CodeChallenge != nil {
+		state.CodeChallenge = *request.Params.CodeChallenge
+	}
+
+	stateJSON, err := json.Marshal(state)
+	if err != nil {
+		return nil, err
+	}
+
+	q := url.Values{}
+	q.Set("state", string(stateJSON))
+	callbackURL := f.serverBaseURL + "/api/v1/auth/callback?" + q.Encode()
+	return openapi.LoginV1302Response{
+		Headers: openapi.LoginV1302ResponseHeaders{
+			Location: &callbackURL,
+		},
+	}, nil
+}
+
+// AuthCallbackV1 creates a static admin session. For CLI flows (identified by a
+// code_challenge in the encoded state) it saves an exchange code and redirects to
+// the CLI callback URL. For browser flows it sets a session cookie directly.
+func (f *fakeAuthHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error) {
+	var state fakeAuthState
+	if err := json.Unmarshal([]byte(request.Params.State), &state); err != nil || state.ReturnURL == "" {
+		state.ReturnURL = "/"
+	}
+
 	name := staticAdminName
 	email := staticAdminEmail
 	givenName := staticAdminGivenName
 	familyName := staticAdminFamilyName
 
-	sess := &session.Session{}
+	sess := &session.Session{
+		Groups: staticAdminGroups,
+	}
 	sess.Name = &name
 	sess.Email = &email
 	sess.GivenName = &givenName
 	sess.FamilyName = &familyName
-	sess.Groups = staticAdminGroups
 
-	sessionID, err := f.sessions.Save(ctx, sess)
+	sessionID, err := f.auth.sessions.Save(ctx, sess)
 	if err != nil {
 		return nil, err
 	}
 
-	returnURL := request.Params.ReturnUrl
-	return &loginV1ResponseWithCookie{
-		cookie:    f.sessionCookie(sessionID),
-		returnURL: returnURL,
-	}, nil
-}
+	// CLI flow: a code_challenge was included in the state by LoginV1
+	if state.CodeChallenge != "" {
+		exchangeCode := oauth2.GenerateVerifier()
+		if err := f.exchangeStore.Save(ctx, exchangeCode, oidc.Exchange{
+			SessionID:     sessionID,
+			CodeChallenge: state.CodeChallenge,
+		}); err != nil {
+			return nil, err
+		}
 
-type loginV1ResponseWithCookie struct {
-	cookie    *http.Cookie
-	returnURL string
-}
+		callbackURL, err := url.Parse(state.ReturnURL)
+		if err != nil {
+			return nil, err
+		}
+		q := callbackURL.Query()
+		q.Set("code", exchangeCode)
+		callbackURL.RawQuery = q.Encode()
+		location := callbackURL.String()
 
-func (r *loginV1ResponseWithCookie) VisitLoginV1Response(w http.ResponseWriter) error {
-	http.SetCookie(w, r.cookie)
-	w.Header().Set("Location", r.returnURL)
-	w.WriteHeader(http.StatusFound)
-	return nil
-}
-
-func (f *fakeAuthHandler) AuthCallbackV1(_ context.Context, _ openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error) {
-	return openapi.AuthCallbackV1400JSONResponse{}, nil
-}
-
-func (f *fakeAuthHandler) LogoutV1(ctx context.Context, _ openapi.LogoutV1RequestObject) (openapi.LogoutV1ResponseObject, error) {
-	storedSession, err := session.FromContext(ctx)
-	if err == nil {
-		_ = f.sessions.Delete(ctx, storedSession.ID)
+		return openapi.AuthCallbackV1302Response{
+			Headers: openapi.AuthCallbackV1302ResponseHeaders{
+				Location: &location,
+			},
+		}, nil
 	}
 
-	cookie := &http.Cookie{
-		Name:     f.config.Session.Cookie.Name,
-		Value:    "",
-		MaxAge:   -1,
-		HttpOnly: f.config.Session.Cookie.HTTPOnly,
-		Secure:   f.config.Session.Cookie.Secure,
-		SameSite: sameSiteMode(f.config.Session.Cookie.SameSite),
-		Path:     "/",
-	}
-	cookieStr := cookie.String()
-	return openapi.LogoutV1200Response{
-		Headers: openapi.LogoutV1200ResponseHeaders{
-			SetCookie: &cookieStr,
+	cookieValue := f.auth.sessionCookie(sessionID).String()
+	return openapi.AuthCallbackV1302Response{
+		Headers: openapi.AuthCallbackV1302ResponseHeaders{
+			Location:  &state.ReturnURL,
+			SetCookie: &cookieValue,
 		},
 	}, nil
 }
 
-func (f *fakeAuthHandler) sessionCookie(sessionID string) *http.Cookie {
-	return (&authHandler{config: f.config}).sessionCookie(sessionID)
+func (f *fakeAuthHandler) LogoutV1(ctx context.Context, req openapi.LogoutV1RequestObject) (openapi.LogoutV1ResponseObject, error) {
+	return f.auth.LogoutV1(ctx, req)
 }
