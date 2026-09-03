@@ -16,7 +16,6 @@ import (
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 	vectordeploymentdomain "github.com/konfidence-project/konfidence/internal/vectordeployment"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
-	utils "github.com/konfidence-project/konfidence/pkg/controller"
 	compref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -127,12 +126,10 @@ func (h *projectHandler) ListVectorDeploymentsV1(ctx context.Context,
 		opts = append(opts, landscapedomain.WithLandscapeId(landscapeId))
 	}
 
-	scope, err := h.landscapeRepo.ResolveScope(ctx, namespace, opts...)
+	var scope []landscapedomain.ScopedLandscape
+	scope, err = h.resolveLandscapeScope(ctx, namespace, *req.Params.LandscapeId, opts...)
 	if err != nil {
-		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
-			return nil, apierror.NewNotFound("landscape", landscapeId)
-		}
-		return nil, apierror.NewInternal(err)
+		return nil, err
 	}
 
 	deployments, err := h.vectorDeploymentRepo.ListForScope(ctx, scope)
@@ -168,8 +165,26 @@ func toVectorDeploymentResponse(resolvedVectorDeployment vectordeploymentdomain.
 	}, nil
 }
 
-func (h *projectHandler) ListArtifactDeploymentsV1(ctx context.Context, request openapi.ListArtifactDeploymentsV1RequestObject) (openapi.ListArtifactDeploymentsV1ResponseObject, error) {
+// can be reused for artifact deployment
+func (h *projectHandler) resolveLandscapeScope(ctx context.Context,
+	projectNamespace string, landscapeId string, scopeOpts ...landscapedomain.ScopeOption) ([]landscapedomain.ScopedLandscape, error) {
+	scope, err := h.landscapeRepo.ResolveScope(ctx, projectNamespace, scopeOpts...)
+	if err != nil {
+		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
+			return nil, fmt.Errorf("landscape %q not found", landscapeId)
+		}
+		return nil, err
+	}
+
+	return scope, nil
+}
+
+func (h *projectHandler) ListArtifactDeploymentsV1(ctx context.Context,
+	request openapi.ListArtifactDeploymentsV1RequestObject) (openapi.ListArtifactDeploymentsV1ResponseObject, error) {
 	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, apierror.NewUnauthorized()
+	}
 
 	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
 	if err != nil {
@@ -185,43 +200,36 @@ func (h *projectHandler) ListArtifactDeploymentsV1(ctx context.Context, request 
 		opts = append(opts, artifactdeploymentdomain.WithVectorDeploymentId(*request.Params.VectorDeploymentId))
 	}
 
-	ads, err := h.artifactDeploymentRepo.List(ctx, namespace, opts...)
+	ads, err := h.artifactDeploymentRepo.ListForScope(ctx, namespace, opts...)
 	if err != nil {
-		return openapi.ListArtifactDeploymentsV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
+		return nil, apierror.NewInternal(err)
 	}
 
 	data := make([]openapi.ArtifactDeployment, len(ads))
-	for i, ad := range ads {
-		data[i] = toArtifactDeploymentResponse(ad)
+	for i, resolved := range ads {
+		data[i], err = toArtifactDeploymentResponse(resolved)
+		if err != nil {
+			return nil, apierror.NewInternal(err)
+		}
 	}
 
 	return openapi.ListArtifactDeploymentsV1200JSONResponse{Data: data}, nil
 }
 
-func toArtifactDeploymentResponse(ad konfidence.ArtifactDeployment) openapi.ArtifactDeployment {
-	var vectorDeploymentIds []string
-	if vdName, ok := ad.Labels[utils.VectorDeploymentNameLabel]; ok {
-		vectorDeploymentIds = append(vectorDeploymentIds, vdName)
-	}
-
-	// TODO: Do we reverse query these or do we filter them by some kind of label ?
-	// as far as i understand, artifact deployments are created after stages so we have to find the vector deployment
-	// (maybe by the id from the new label) and then get the StageVersion.spec.stageRef from which it was created ?
-	var stageIds []string
+func toArtifactDeploymentResponse(resolved artifactdeploymentdomain.ResolvedArtifactDeployment) (openapi.ArtifactDeployment, error) {
+	ad := resolved.ArtifactDeployment
 
 	return openapi.ArtifactDeployment{
 		Id:                  ad.Name,
-		LandscapeId:         ad.Labels[utils.LandscapeNameLabel],
-		VectorDeploymentIds: vectorDeploymentIds,
-		StageIds:            stageIds,
+		LandscapeId:         resolved.LandscapeId,
+		VectorDeploymentIds: resolved.VectorDeploymentIds,
+		StageIds:            resolved.StageIds,
 		Artifact: openapi.ArtifactReference{
 			ComponentName:    ad.Spec.Component.Name,
 			ComponentVersion: ad.Spec.Component.Version,
 		},
 		Status: openapi.ArtifactDeploymentStatus(calculateArtifactDeploymentStatus(ad.Status.Conditions)),
-	}
+	}, nil
 }
 
 func calculateArtifactDeploymentStatus(conditions []metav1.Condition) string {
@@ -246,7 +254,7 @@ func calculateArtifactDeploymentStatus(conditions []metav1.Condition) string {
 		}
 	}
 
-	// TODO: No conditions set, should we handle differently
+	// TODO: No conditions set, should handle differently
 	return "ArtifactFetched"
 }
 
