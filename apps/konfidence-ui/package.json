@@ -28,6 +28,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@konfidence/design-system": "workspace:*",
     "@skeletonlabs/skeleton": "^5.0.0",
     "@skeletonlabs/skeleton-svelte": "^5.0.0",
     "openapi-fetch": "^0.17.0"

@@ -5,21 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="text-scale" content="scale" />
     <link rel="icon" href="%sveltekit.assets%/logos/icon.svg" />
-    <script>
-      // Apply the persisted Konfidence theme before the first paint so a
-      // reload never flashes the wrong theme. Only two values are allowed;
-      // anything else falls back to the light theme.
-      (function () {
-        try {
-          var t = localStorage.getItem("konfidence.theme");
-          if (t === "konfidence" || t === "konfidence-dark") {
-            document.documentElement.setAttribute("data-theme", t);
-          }
-        } catch (_) {
-          /* localStorage may be disabled; fall back to markup default */
-        }
-      })();
-    </script>
+    <!--@konfidence/theme-bootstrap-->
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

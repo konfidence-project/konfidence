@@ -1,8 +1,8 @@
 <script lang="ts">
+    import { Brandbar, Button } from "@konfidence/design-system/components";
     import { goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
-    import Brandbar from "$lib/components/Brandbar.svelte";
     import { useSession } from "$lib/auth/session.svelte";
 
     const session = useSession();
@@ -72,8 +72,9 @@
             </p>
         {/if}
 
-        <a
-            class="btn btn--primary min-w-[340px] px-6 py-4 [font-size:var(--text-body)]"
+        <Button
+            variant="primary"
+            class="min-w-[340px] px-6 py-4 [font-size:var(--text-body)]"
             href={loginUrl}
             rel="external"
             data-testid="sign-in"
@@ -87,7 +88,7 @@
                 </svg>
             </span>
             <span>Continue with SSO</span>
-        </a>
+        </Button>
     </main>
     <footer
         class="p-6 text-center text-[color:var(--text-tertiary)] [font-size:var(--text-meta)]"

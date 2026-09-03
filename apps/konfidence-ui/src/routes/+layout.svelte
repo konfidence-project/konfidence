@@ -1,8 +1,9 @@
 <script lang="ts">
-    import "../theme/app.css";
+    import "../app.css";
 
     import type { Snippet } from "svelte";
     import { fade } from "svelte/transition";
+    import { OrbitLoader } from "@konfidence/design-system/components";
     import { goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
@@ -47,18 +48,10 @@
 {:else}
     <!-- The loading indicator is intentionally invisible for the first 200 ms
          so fast identity probes never flash "Loading…". The animation reveals
-         it via keyframes defined in src/theme/app.css. -->
-    <div
-        class="flex min-h-screen items-center justify-center gap-3 text-sm text-[color:var(--text-secondary)] opacity-0 [animation:konfidence-fade-in_240ms_ease_200ms_forwards]"
-        role="status"
-        aria-live="polite"
-    >
-        <span
-            class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"
-            aria-hidden="true"
-        ></span>
-        <span class="font-[family-name:var(--font-mono)] uppercase tracking-[0.08em]">
-            Loading…
-        </span>
-    </div>
+         it via the `konfidence-fade-in` keyframes defined in the design
+         system's styles/index.css. -->
+    <OrbitLoader
+        class="min-h-screen items-center justify-center opacity-0 [animation:konfidence-fade-in_240ms_ease_200ms_forwards]"
+        label="Loading\u2026"
+    />
 {/if}

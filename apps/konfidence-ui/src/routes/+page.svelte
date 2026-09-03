@@ -1,6 +1,6 @@
 <script lang="ts">
+    import { Brandbar, Button } from "@konfidence/design-system/components";
     import { resolve } from "$app/paths";
-    import Brandbar from "$lib/components/Brandbar.svelte";
     import { dashboardTitle } from "$lib/dashboard";
     import { useSession } from "$lib/auth/session.svelte";
 
@@ -29,24 +29,24 @@
                 </strong>
             </p>
         {/if}
-        <a
-            class="btn btn--secondary"
+        <Button
+            variant="secondary"
             href={resolve("/logout")}
             data-testid="sign-out"
         >
             Sign out
-        </a>
+        </Button>
         <!-- rel="external" bypasses SvelteKit's client router, so the lint
              rule and the typed `resolve()` are both skipped. The fallback
              serves the SPA shell for /does-not-exist and +error.svelte
              renders because no route matches. -->
-        <a
-            class="btn btn--secondary"
+        <Button
+            variant="secondary"
             href="/does-not-exist"
             rel="external"
             data-testid="show-error-page"
         >
             Show error page
-        </a>
+        </Button>
     </section>
 </main>

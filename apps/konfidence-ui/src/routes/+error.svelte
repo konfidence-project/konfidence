@@ -1,7 +1,7 @@
 <script lang="ts">
+    import { Brandbar, Button } from "@konfidence/design-system/components";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
-    import Brandbar from "$lib/components/Brandbar.svelte";
 
     const status = $derived(page.status);
     const message = $derived(page.error?.message ?? "Something went wrong.");
@@ -25,7 +25,7 @@
     >
         {message}
     </h1>
-    <a class="btn btn--primary" href={resolve("/")} data-testid="error-home">
+    <Button variant="primary" href={resolve("/")} data-testid="error-home">
         Back to dashboard
-    </a>
+    </Button>
 </main>
