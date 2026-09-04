@@ -13,9 +13,6 @@ Skeleton v5, provides:
   badges, tags, icon chips, …).
 - **`.btn` overrides** — Konfidence gradient fill, amber glow, hover
   lift; imported after Skeleton so it wins at equal specificity.
-- **Theme store** — a small runtime that resolves the initial theme
-  from `?theme=`, `localStorage`, or a default, exposes it reactively,
-  and persists user changes.
 - **Svelte components** — Tier-1 wrappers over the CSS layer:
   `Button`, `Brandbar`, `OrbitLoader`, `StatusBadge`.
 
@@ -53,41 +50,18 @@ fit (`@konfidence/design-system/styles/tokens`, `/styles/skeleton`,
 
 ## Wire the theme bootstrap
 
-Two pieces cooperate: a synchronous inline `<script>` in `app.html`
-that resolves the theme before the first paint (so reloads never
-flash the wrong theme), and the reactive `ThemeStore` used at runtime.
+Theme resolution and persistence live in the consuming application
+(the design system stays runtime-free) — see
+`apps/konfidence-ui/src/lib/theme/` for the reference wiring:
 
-```html
-<!-- app.html -->
-<html lang="en" data-theme="konfidence">
-  <head>
-    <!-- Paste the string emitted by buildInlineBootstrapScript(). A
-         snapshot test in @konfidence/design-system asserts the two
-         stay in sync. -->
-    <script>
-      /* injected verbatim */
-    </script>
-  </head>
-  …
-</html>
-```
+- a synchronous inline `<script>` in `app.html` that resolves the
+  theme before the first paint (so reloads never flash the wrong
+  theme), and
+- a reactive `ThemeStore` used at runtime to read/toggle/persist the
+  theme.
 
-```ts
-// anywhere in your app
-import { themeStore, type Theme } from "@konfidence/design-system/theme";
-
-themeStore.current; // 'konfidence' | 'konfidence-dark'
-themeStore.set("konfidence-dark");
-themeStore.toggle();
-```
-
-### Theme precedence (highest wins)
-
-1. `?theme=konfidence|konfidence-dark` in the URL — applied, persisted
-   to `localStorage`, and stripped from the URL via
-   `history.replaceState` so refreshes are idempotent.
-2. `localStorage["konfidence.theme"]` — verbatim.
-3. `konfidence` (light) — the default.
+The `konfidence` and `konfidence-dark` CSS selectors shipped here are
+the contract those runtimes target.
 
 ## Components
 

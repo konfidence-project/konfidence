@@ -1,4 +1,4 @@
-import { resolveInitialTheme } from "./bootstrap.js";
+import { resolveInitialTheme } from "./resolve.js";
 import { DEFAULT_THEME, THEME_STORAGE_KEY, isTheme } from "./constants.js";
 import type { Theme } from "./types.js";
 

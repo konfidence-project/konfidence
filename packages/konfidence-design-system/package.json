@@ -16,10 +16,6 @@
       "types": "./src/components/index.ts",
       "default": "./src/components/index.ts"
     },
-    "./theme": {
-      "types": "./src/theme/index.ts",
-      "default": "./src/theme/index.ts"
-    },
     "./styles": "./src/styles/index.css",
     "./styles/tokens": "./src/styles/tokens.css",
     "./styles/skeleton": "./src/styles/konfidence.skeleton.css",

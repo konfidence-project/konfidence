@@ -1,4 +1,4 @@
-export { buildInlineBootstrapScript, resolveInitialTheme } from "./bootstrap.js";
+export { buildInlineBootstrapScript, resolveInitialTheme } from "./resolve.js";
 export {
   DEFAULT_THEME,
   isTheme,

@@ -1,5 +1,6 @@
-import { buildInlineBootstrapScript } from "@konfidence/design-system/theme";
 import type { Handle } from "@sveltejs/kit";
+
+import { buildInlineBootstrapScript } from "$lib/theme";
 
 /**
  * Placeholder written into `app.html`. `transformPageChunk` replaces it

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { resolveInitialTheme } from "../theme/bootstrap.js";
-import { DEFAULT_THEME, THEME_QUERY_PARAM, THEME_STORAGE_KEY } from "../theme/constants.js";
+import { resolveInitialTheme } from "./resolve.js";
+import { DEFAULT_THEME, THEME_QUERY_PARAM, THEME_STORAGE_KEY } from "./constants.js";
 
 const makeLocation = (search: string, pathname = "/dashboard", hash = ""): Location =>
   ({ hash, pathname, search }) as Location;
