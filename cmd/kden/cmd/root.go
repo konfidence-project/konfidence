@@ -14,15 +14,12 @@ import (
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/config"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/docs"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/project"
-	"github.com/konfidence-project/konfidence/cmd/kden/cmd/upgrade"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vector"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vectorpromotion"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/version"
 	kdenauth "github.com/konfidence-project/konfidence/internal/kden/auth"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/log"
-	"github.com/konfidence-project/konfidence/internal/kden/release"
-	"github.com/konfidence-project/konfidence/pkg/build"
 	"github.com/spf13/cobra"
 	"ocm.software/open-component-model/cli/cmd/setup"
 )
@@ -37,9 +34,6 @@ Example usage:
   kden version
   kden help`
 var appConfig = &cfg.AppConfig{}
-
-// updateNotifier is started in PersistentPreRun and read in PersistentPostRun.
-var updateNotifier *release.Notifier
 
 var rootCmd = &cobra.Command{
 	Use:   cfg.RootCommandName,
@@ -80,15 +74,6 @@ var rootCmd = &cobra.Command{
 		})
 
 		setup.Syscalls(cmd)
-
-		// Kick off a throttled, non-blocking check for a newer release. Skip it
-		// for `upgrade` itself, which already resolves the latest version.
-		if cmd.Name() != "upgrade" {
-			updateNotifier = release.StartUpdateCheck(cmd.Context(), build.Version)
-		}
-	},
-	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
-		updateNotifier.Notify(cmd.ErrOrStderr())
 	},
 	SilenceErrors: true,
 }
@@ -134,7 +119,6 @@ func initCmd() {
 	rootCmd.AddCommand(docs.NewDocsCmd())
 	rootCmd.AddCommand(artifact.NewArtifactCmd())
 	rootCmd.AddCommand(version.NewVersionCmd())
-	rootCmd.AddCommand(upgrade.NewUpgradeCmd())
 	rootCmd.AddCommand(vector.NewVectorCmd())
 	rootCmd.AddCommand(project.NewProjectCmd(appConfig))
 	rootCmd.AddCommand(vectorpromotion.NewVectorPromotionCmd(appConfig))
