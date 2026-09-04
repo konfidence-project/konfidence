@@ -1,5 +1,91 @@
 # Changelog
 
+## [0.1.0-alpha.1](https://github.com/konfidence-project/konfidence/compare/0.0.1-alpha.1...0.1.0-alpha.1) (2026-09-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** enforce unique (name,type) on deployment results
+
+### Features
+
+* add DeploymentClass and DeploymentTarget resources ([5e9b6be](https://github.com/konfidence-project/konfidence/commit/5e9b6bef36b3f444046bc87162b1653b3110bbca))
+* **api:** add vector promotion endpoints ([#230](https://github.com/konfidence-project/konfidence/issues/230)) ([1e54fad](https://github.com/konfidence-project/konfidence/commit/1e54fad2b0e9bbc89cc68f28d0e7ca352445d989))
+* **api:** enforce unique (name,type) on deployment results ([5e60e11](https://github.com/konfidence-project/konfidence/commit/5e60e11a6eecd3584c0b8efbe67ee3d915835755))
+* **api:** implement listStages endpoint with landscape-scoped resolution ([27f80f9](https://github.com/konfidence-project/konfidence/commit/27f80f95809e0ad65b9aa5d2a0a74942c7131f4d))
+* **api:** serve OpenAPI version as a bare number ([cf8d951](https://github.com/konfidence-project/konfidence/commit/cf8d9516199386511ca7396bbd7b4f4cea0a2a99))
+* **docs:** add CLI reference pipeline and manifest drift gate ([fad4f2c](https://github.com/konfidence-project/konfidence/commit/fad4f2cd9def35ff99b6137447155ac09f369df4))
+* **docs:** generate CRD reference with validated samples, gate in CI ([4725e60](https://github.com/konfidence-project/konfidence/commit/4725e609c9c9e899dc4f42ae89870c4ea5f955a4))
+* implement cli auth flow ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* implement db based state and exchange stores. remove refresh token functionality ([0fc8ab4](https://github.com/konfidence-project/konfidence/commit/0fc8ab44a927fa642f9f5477fec6ec84adaed985))
+* implement login and logout cmd ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* implement token refresh flow ([284cb03](https://github.com/konfidence-project/konfidence/commit/284cb0377b18609f5a13b1914e70954bcb627025))
+* introduce projects endpoint at konfidence API ([38d563e](https://github.com/konfidence-project/konfidence/commit/38d563e762c2f87e1089878caaa6cd20885065d3))
+* landscapes endpoints handling ([8fcaae1](https://github.com/konfidence-project/konfidence/commit/8fcaae1e31daf21fab7778479253fbb0ef11340b))
+* list vectordeployments API endpoint ([#216](https://github.com/konfidence-project/konfidence/issues/216)) ([094e2a0](https://github.com/konfidence-project/konfidence/commit/094e2a04aec2edd257c372a96ef178698a844490))
+* **mock-api:** add OpenAPI-validated development server ([72b9e06](https://github.com/konfidence-project/konfidence/commit/72b9e066211d7a575cad120c4e3d799ba6a913bf))
+* **ui:** add login and session handling ([63f8a7c](https://github.com/konfidence-project/konfidence/commit/63f8a7c5b58f25f581b0349ee3804f09a530482f))
+* **ui:** serve dashboard SPA from API ([640d091](https://github.com/konfidence-project/konfidence/commit/640d0914957524006c84fb4bce120ccfad267e6d))
+
+
+### Bug Fixes
+
+* add advisery lock to sync db cleanup ([0fc8ab4](https://github.com/konfidence-project/konfidence/commit/0fc8ab44a927fa642f9f5477fec6ec84adaed985))
+* add error response ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* add expired_at column to store session expiration ([d691709](https://github.com/konfidence-project/konfidence/commit/d69170922bc60795f269d70004b8903912d6d7e3))
+* add lazy init of auth client to prevent problems with keyring ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* add unit tests ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* **api:** preserve OpenAPI validation error codes ([#232](https://github.com/konfidence-project/konfidence/issues/232)) ([2bff267](https://github.com/konfidence-project/konfidence/commit/2bff2678418c7f0606d3fe3f3dc16a3a56b388c0))
+* apply changes after review ([ddf36e7](https://github.com/konfidence-project/konfidence/commit/ddf36e74e306fa7b09aa0f461dbcd888017caff2))
+* apply review comments ([31e02d5](https://github.com/konfidence-project/konfidence/commit/31e02d5d5b7be0e16daf19b0e8ce7f16d5798405))
+* **chart:** separate operator/API component labels and selectors in Helm templates ([80c68e2](https://github.com/konfidence-project/konfidence/commit/80c68e206884ee27af70cb2588a06c51303898ad))
+* **ci:** add CodeQL proxy job to enforce CodeQL on PR votes only ([#257](https://github.com/konfidence-project/konfidence/issues/257)) ([69cbc7c](https://github.com/konfidence-project/konfidence/commit/69cbc7cf90717f42bcb885e59868d5299635c359))
+* **ci:** skip secret-scanning-review in merge queue ([1d198b6](https://github.com/konfidence-project/konfidence/commit/1d198b6afacadc60098f1d02e84c2c1e9ac95cdc))
+* correct VectorTemplate sample to match spec ([#263](https://github.com/konfidence-project/konfidence/issues/263)) ([168953e](https://github.com/konfidence-project/konfidence/commit/168953e6908a919f8178c56c9b44d1aef8d39c85))
+* **deps:** constrain cookie override to 0.7.x ([7a052eb](https://github.com/konfidence-project/konfidence/commit/7a052eb898ba3a5247d6fb409db94aeff3b2d317))
+* **deps:** resolve npm dependabot alerts ([f7bf830](https://github.com/konfidence-project/konfidence/commit/f7bf8307e7a8dacd06211a89c58b45bc615694fe))
+* disable oidc and webhooks in quickstart script ([#258](https://github.com/konfidence-project/konfidence/issues/258)) ([6934b9e](https://github.com/konfidence-project/konfidence/commit/6934b9efdcdd5873458ffd09cd715d57e22b565d))
+* **docs:** add --frontmatter flag to gate VitePress frontmatter on cli.md ([a67ce12](https://github.com/konfidence-project/konfidence/commit/a67ce12bc885f75d94c34dd60572d0943855fa1d))
+* enable project pretty print ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* exit non-zero on kden CLI errors and log panic stack at debug ([5fb911c](https://github.com/konfidence-project/konfidence/commit/5fb911ca320d15881f3505d5e6248522ff053e41))
+* extract session oidc mapping to separate method ([284cb03](https://github.com/konfidence-project/konfidence/commit/284cb0377b18609f5a13b1914e70954bcb627025))
+* fix config default ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* fix formatting ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* fix tests ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* fix unit test ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* fixing comments ([e2e7ade](https://github.com/konfidence-project/konfidence/commit/e2e7ade35743f3e3cb771194bdcdf99f1234a03c))
+* handle auth error ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* improve code ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* **kden:** authenticate external component references on push ([#265](https://github.com/konfidence-project/konfidence/issues/265)) ([22c6756](https://github.com/konfidence-project/konfidence/commit/22c675690afe8163518ee989d982c33021562e15))
+* **kden:** digest external ociArtifact resources via upstream resource repository ([#155](https://github.com/konfidence-project/konfidence/issues/155)) ([a1516d3](https://github.com/konfidence-project/konfidence/commit/a1516d3e411231e3f0a7643416e300044283334d))
+* **kden:** inject OCM command context so config loading doesn't panic ([7497780](https://github.com/konfidence-project/konfidence/commit/74977807fed6babbc176e2febf9e8d1e717b081b))
+* **kden:** treat a missing .ocmconfig as anonymous, not a panic ([0c37657](https://github.com/konfidence-project/konfidence/commit/0c37657e075f7351d04011f7c1ae6e3bc0bbb5ac))
+* make browser login timeout configurable ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* **ocm/crypto:** enforce safe-digestibility at preFlight; best-effort cache fill; length-prefix cache key ([1dff7f6](https://github.com/konfidence-project/konfidence/commit/1dff7f62eff0c72b24faa21ac9cc8d954995a323))
+* **README.md:** fix quickstart link ([#248](https://github.com/konfidence-project/konfidence/issues/248)) ([45f6ab8](https://github.com/konfidence-project/konfidence/commit/45f6ab8f659afb78eeb0010c57105770c15ef6bc))
+* rebasing ([cc84ec5](https://github.com/konfidence-project/konfidence/commit/cc84ec5b7e28a2210de5a81d0b5245c5ca27030c))
+* refactoring ([87f55bd](https://github.com/konfidence-project/konfidence/commit/87f55bd87c39570e7ee452410a663af2c9f74c4b))
+* refactoring ([d44558b](https://github.com/konfidence-project/konfidence/commit/d44558ba23594f7f726268d131d72e40599253c9))
+* refactoring after review ([cf0bb94](https://github.com/konfidence-project/konfidence/commit/cf0bb9465a23c6e3c2b195ea3bda564e19ffa7ca))
+* rename expiry fields ([284cb03](https://github.com/konfidence-project/konfidence/commit/284cb0377b18609f5a13b1914e70954bcb627025))
+* rename session timeout param and refactor session handling ([284cb03](https://github.com/konfidence-project/konfidence/commit/284cb0377b18609f5a13b1914e70954bcb627025))
+* small refactoring ([284cb03](https://github.com/konfidence-project/konfidence/commit/284cb0377b18609f5a13b1914e70954bcb627025))
+* update generated server ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+* update generated server and client ([71dcaba](https://github.com/konfidence-project/konfidence/commit/71dcaba91a26eef6aec964fbd3c1cef77b5fb693))
+
+
+### Maintenance
+
+* **api/auth:** improve logging and error responses ([8cb2254](https://github.com/konfidence-project/konfidence/commit/8cb22545bb8f4d0051b6bbd9ebc5d3ca7b3ef779))
+* **deps-dev:** bump @typescript/native-preview ([0955391](https://github.com/konfidence-project/konfidence/commit/0955391b096d7d718b95dc33636e71ce8f17301a))
+* **deps:** bump actions/setup-go from 6 to 7 ([8ceac31](https://github.com/konfidence-project/konfidence/commit/8ceac313a56a082a34686c23544e01da78d86f62))
+* **deps:** bump github.com/moby/go-archive from 0.2.0 to 0.3.0 ([e6c1eb0](https://github.com/konfidence-project/konfidence/commit/e6c1eb0bf52fbc9aba54457f7dbf2ccf73fc5f8c))
+* **deps:** bump the gomod-minor-patch group with 10 updates ([ed94c76](https://github.com/konfidence-project/konfidence/commit/ed94c763e6c3ed5c2041512f260646f5d5bc33bb))
+* **deps:** bump the gomod-minor-patch group with 6 updates ([650c1f3](https://github.com/konfidence-project/konfidence/commit/650c1f354b3dc7db655086b750ab1ad526f1e1a7))
+* **deps:** bump the gomod-minor-patch group with 7 updates ([af3ab4b](https://github.com/konfidence-project/konfidence/commit/af3ab4bc1d3dada7e3d6974609a18acd40e1de4e))
+* **deps:** bump the npm-minor-patch group across 1 directory with 22 updates ([eaa7934](https://github.com/konfidence-project/konfidence/commit/eaa79349fbec3d0d8e82c29b107d5ef434333bc7))
+* **ui:** remove prototype ([#274](https://github.com/konfidence-project/konfidence/issues/274)) ([deea105](https://github.com/konfidence-project/konfidence/commit/deea10530fbab6068cb5b8977885afaa98a41a17))
+
 ## 0.0.1-alpha.1 (2026-08-18)
 
 
