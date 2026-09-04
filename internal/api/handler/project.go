@@ -234,33 +234,33 @@ func toArtifactDeploymentResponse(resolved artifactdeploymentdomain.ResolvedArti
 
 func calculateArtifactDeploymentStatus(conditions []metav1.Condition) string {
 	for _, cond := range conditions {
-		if cond.Type == "Ready" && cond.Status == metav1.ConditionTrue {
+		if cond.Type == konfidence.ArtifactDeploymentReadyCondition && cond.Status == metav1.ConditionTrue {
 			return "Ready"
 		}
 	}
 	for _, cond := range conditions {
-		if cond.Type == "AppHealthy" && cond.Status == metav1.ConditionTrue {
+		if cond.Type == konfidence.AppHealthyCondition && cond.Status == metav1.ConditionTrue {
 			return "AppHealthy"
 		}
 	}
 	for _, cond := range conditions {
-		if cond.Type == "ArtifactDeployed" && cond.Status == metav1.ConditionTrue {
+		if cond.Type == konfidence.ArtifactDeployedCondition && cond.Status == metav1.ConditionTrue {
 			return "ArtifactDeployed"
 		}
 	}
 	for _, cond := range conditions {
-		if cond.Type == "ArtifactFetched" && cond.Status == metav1.ConditionTrue {
+		if cond.Type == konfidence.ArtifactFetchedCondition && cond.Status == metav1.ConditionTrue {
 			return "ArtifactFetched"
 		}
 	}
 
-	// TODO: No conditions set, should handle differently
-	return "ArtifactFetched"
+	// TODO: No error conditions set, should handle differently
+	return konfidence.ArtifactFetchedCondition
 }
 
 // resolveProjectNamespace handles the preamble common to handlers that operate on
 // a project-scoped k8s namespace: it checks authorization, fetches the project, and
-// confirms the namespace is set. On failure it returns an *apierror.Error carrying
+// confirms the namespace is set. On failure, it returns an *apierror.Error carrying
 // the HTTP status and a client-safe message.
 func (h *projectHandler) resolveProjectNamespace(ctx context.Context, identity *session.Context, projectId string) (string, error) {
 	if !identity.IsAuthenticatedForProject(projectId) {

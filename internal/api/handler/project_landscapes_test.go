@@ -7,6 +7,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	artifactdeploymentdomain "github.com/konfidence-project/konfidence/internal/artifactdeployment"
 	"github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
@@ -59,6 +60,7 @@ func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
 		projectdomain.NewRepository(k8s),
 		landscapedomain.NewRepository(k8s),
 		stagedomain.NewRepository(k8s),
+		artifactdeploymentdomain.NewRepository(k8s),
 		vectordeploymentdomain.NewRepository(k8s),
 		vectorpromotiondomain.NewRepository(k8s),
 		vectorpromotiondomain.NewConfigRepository(k8s),
