@@ -162,13 +162,40 @@ place_binary() {
 
 	case ":${PATH}:" in
 	*":${INSTALL_DIR}:"*) ;;
+	*) print_path_hint ;;
+	esac
+}
+
+# print_path_hint tells the user how to add INSTALL_DIR to PATH, in the syntax
+# of THEIR shell. We read $SHELL (the login shell), not $0 — inside `curl | sh`
+# $0 is always "sh", which would misidentify every user as a POSIX-sh user.
+# We print the command rather than editing rc files ourselves (low-trust).
+print_path_hint() {
+	shell_name=$(basename "${SHELL:-sh}")
+	echo "" >&2
+	echo "  $INSTALL_DIR is not on your PATH. To add it:" >&2
+	case "$shell_name" in
+	fish)
+		# fish_add_path persists to the fish universal variable store — no rc edit.
+		echo "    fish_add_path $INSTALL_DIR" >&2
+		;;
+	zsh)
+		echo "    echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc" >&2
+		echo "    export PATH=\"$INSTALL_DIR:\$PATH\"   # current shell" >&2
+		;;
+	bash)
+		# Login shells read ~/.bash_profile; interactive non-login read ~/.bashrc.
+		# ~/.profile is the portable spot most bash setups source; recommend it.
+		echo "    echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.profile" >&2
+		echo "    export PATH=\"$INSTALL_DIR:\$PATH\"   # current shell" >&2
+		;;
 	*)
-		echo "" >&2
-		echo "  $INSTALL_DIR is not on your PATH. Add it with:" >&2
-		echo "    export PATH=\"$INSTALL_DIR:\$PATH\"" >&2
-		echo "" >&2
+		# sh / dash / ksh and unknowns: POSIX export, portable rc.
+		echo "    echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.profile" >&2
+		echo "    export PATH=\"$INSTALL_DIR:\$PATH\"   # current shell" >&2
 		;;
 	esac
+	echo "" >&2
 }
 
 install_from_release() {
