@@ -199,18 +199,11 @@ print_path_hint() {
 }
 
 install_from_release() {
+	# latest_release already falls back to the newest release including
+	# prereleases (alpha), so a missing tag here means resolution genuinely
+	# failed. Don't silently compile from main — that's what KDEN_GIT_REF is for.
 	tag=${KDEN_VERSION:-$(latest_release || true)}
-	if [ -z "$tag" ]; then
-		# Pre-release window: no release published yet. Fall back to building
-		# from main if Go is available. (This fallback is retired once the first
-		# release exists; a missing pinned KDEN_VERSION then becomes an error.)
-		if have go && have git; then
-			info "no release found; building from main (Go detected)"
-			KDEN_GIT_REF=main install_from_source
-			return
-		fi
-		die "no release found and Go/git not available to build from source"
-	fi
+	[ -n "$tag" ] || die "could not resolve a release to install (set KDEN_VERSION, or KDEN_GIT_REF to build from source)"
 
 	info "installing release $tag ($asset)"
 	dl="https://github.com/${REPO}/releases/download/${tag}"
