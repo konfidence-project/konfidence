@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
@@ -20,8 +22,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type authFlowHandler interface {
+	LoginV1(ctx context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error)
+	AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error)
+	LogoutV1(ctx context.Context, request openapi.LogoutV1RequestObject) (openapi.LogoutV1ResponseObject, error)
+	GetIdentityV1(ctx context.Context, request openapi.GetIdentityV1RequestObject) (openapi.GetIdentityV1ResponseObject, error)
+	PostExchangeCodeV1(ctx context.Context, request openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error)
+}
+
 type apiHandler struct {
-	authHandler
+	authFlowHandler
 	projectHandler
 }
 
@@ -40,10 +50,21 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	vectorPromotionConfigRepo := vectorpromotiondomain.NewConfigRepository(k8sClient)
 	vectorDeploymentRepo := vectordeploymentdomain.NewRepository(k8sClient)
 
+	var authFlow authFlowHandler
+	if cfg.OIDC.Enabled {
+		authFlow = auth
+	} else {
+		authFlow = &fakeAuthHandler{
+			auth:          auth,
+			exchangeStore: exchangeStore,
+			serverBaseURL: serverBaseURL(cfg.Server.Addr),
+		}
+	}
+
 	project := newProjectHandler(projectRepo, landscapeRepo, stageRepo, vectorDeploymentRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
 	api := &apiHandler{
-		authHandler:    *auth,
-		projectHandler: *project,
+		authFlowHandler: authFlow,
+		projectHandler:  *project,
 	}
 	return middleware.SessionAuthentication(logger, sessionStore, authRepo, cfg, api.handler())
 }
@@ -64,4 +85,14 @@ func (s *apiHandler) handler() http.Handler {
 			ResponseErrorHandlerFunc: errHandler,
 		})))
 	return apiRouter
+}
+
+// serverBaseURL converts a listen address (e.g. ":8090" or "0.0.0.0:8090") to
+// an absolute localhost URL used to build redirect targets in no-auth mode.
+func serverBaseURL(addr string) string {
+	if !strings.Contains(addr, ":") {
+		return "http://localhost"
+	}
+	port := addr[strings.LastIndex(addr, ":"):]
+	return "http://localhost" + port
 }

@@ -84,7 +84,7 @@ func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		store,
 		authRepo,
-		config.Parsed{Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
+		config.Parsed{OIDC: config.ParsedOIDCConfig{Enabled: true}, Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
 		next,
 	)
 	if err != nil {
@@ -206,7 +206,7 @@ func TestSessionAuthenticationMapsProjectRoles(t *testing.T) {
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		store,
 		authRepo,
-		config.Parsed{Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
+		config.Parsed{OIDC: config.ParsedOIDCConfig{Enabled: true}, Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
 		next,
 	)
 	if err != nil {
@@ -257,7 +257,7 @@ func TestSessionAuthenticationRejectsSessionMappingFailures(t *testing.T) {
 				slog.New(slog.NewTextHandler(io.Discard, nil)),
 				test.store,
 				test.authRepo,
-				config.Parsed{Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
+				config.Parsed{OIDC: config.ParsedOIDCConfig{Enabled: true}, Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
 				http.HandlerFunc(func(http.ResponseWriter, *http.Request) { nextCalled = true }),
 			)
 			if err != nil {
@@ -330,7 +330,8 @@ func TestSessionAuthenticationTokenExpiry(t *testing.T) {
 				authRepo,
 				config.Parsed{
 					OIDC: config.ParsedOIDCConfig{
-						Scopes: test.scopes,
+						Enabled: true,
+						Scopes:  test.scopes,
 					},
 					Session: config.ParsedSessionConfig{
 						Cookie: config.SessionCookieConfig{
