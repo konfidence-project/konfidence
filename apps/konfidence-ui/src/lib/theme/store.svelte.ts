@@ -76,8 +76,7 @@ class ThemeStore {
 
   /** Cycle light -> dark -> system -> light. */
   toggleMode(): void {
-    const next: Mode =
-      this.#mode === "light" ? "dark" : this.#mode === "dark" ? "system" : "light";
+    const next: Mode = this.#mode === "light" ? "dark" : this.#mode === "dark" ? "system" : "light";
     this.setMode(next);
   }
 

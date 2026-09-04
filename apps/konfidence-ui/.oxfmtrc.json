@@ -1,4 +1,3 @@
 {
-  "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": ["static/design-system/**", "src/app.html"]
+  "$schema": "./node_modules/oxfmt/configuration_schema.json"
 }
