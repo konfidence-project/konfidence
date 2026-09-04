@@ -136,6 +136,10 @@ verify_checksum() {
 	want=$(awk -v f="$3" '$2 == f {print $1}' "$2" | head -n1)
 	[ -n "$want" ] || die "no checksum for $3 in checksums.txt"
 	got=$(sha256_of "$1")
+	# Guard the empty case explicitly: without pipefail, a failed hasher pipes
+	# empty through awk with exit 0. The equality check below already fails
+	# closed on empty, but say so plainly rather than print "got ".
+	[ -n "$got" ] || die "failed to compute sha256 of $1"
 	[ "$want" = "$got" ] || die "checksum mismatch for $3 (want $want, got $got)"
 	info "checksum verified"
 }
