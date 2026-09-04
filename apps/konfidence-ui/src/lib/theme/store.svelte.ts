@@ -1,62 +1,93 @@
 import { resolveInitialTheme } from "./resolve.js";
-import { DEFAULT_THEME, THEME_STORAGE_KEY, isTheme } from "./constants.js";
-import type { Theme } from "./types.js";
+import {
+  DEFAULT_MODE,
+  DEFAULT_THEME,
+  MODE_STORAGE_KEY,
+  THEME_STORAGE_KEY,
+  isMode,
+  isTheme,
+} from "./constants.js";
+import type { Mode, Theme } from "./types.js";
 
 /**
- * Reactive holder for the active Konfidence theme.
+ * Reactive holder for the active Konfidence theme + colour mode.
  *
- * The initial value is resolved via {@link resolveInitialTheme} on
- * construction (in a browser context) so `?theme=…` deep-links land on
- * the correct theme even before the `<html data-theme>` attribute has
- * been re-read. Subsequent calls to {@link ThemeStore.set} update the
- * attribute AND persist to `localStorage`.
+ * The initial values are resolved via {@link resolveInitialTheme} on
+ * construction (in a browser context) so `?theme=…` / `?mode=…`
+ * deep-links land on the correct pair even before the `<html
+ * data-theme>` / `<html data-mode>` attributes have been re-read.
+ * Subsequent calls to {@link ThemeStore.setMode} update the attribute
+ * AND persist to `localStorage`.
  */
 class ThemeStore {
-  #current = $state<Theme>(DEFAULT_THEME);
+  #theme = $state<Theme>(DEFAULT_THEME);
+  #mode = $state<Mode>(DEFAULT_MODE);
 
   constructor() {
     if (typeof globalThis.document === "undefined") {
       return;
     }
-    // The inline script in `app.html` has already resolved the theme and
-    // applied it to <html data-theme>. Prefer that value; fall back to
-    // resolving from location/localStorage in case the attribute was
-    // stripped (e.g. by third-party tooling).
-    const attr = globalThis.document.documentElement.getAttribute("data-theme");
-    if (isTheme(attr)) {
-      this.#current = attr;
+    // The inline script in `app.html` has already resolved the pair and
+    // applied them to <html data-theme>/<html data-mode>. Prefer those
+    // values; fall back to resolving from location/localStorage in case
+    // the attributes were stripped (e.g. by third-party tooling).
+    const themeAttr = globalThis.document.documentElement.getAttribute("data-theme");
+    const modeAttr = globalThis.document.documentElement.getAttribute("data-mode");
+    if (isTheme(themeAttr) && isMode(modeAttr)) {
+      this.#theme = themeAttr;
+      this.#mode = modeAttr;
       return;
     }
     if (typeof globalThis.location !== "undefined") {
-      this.#current = resolveInitialTheme({
+      const resolved = resolveInitialTheme({
         history: typeof globalThis.history === "undefined" ? undefined : globalThis.history,
         location: globalThis.location,
         storage:
           typeof globalThis.localStorage === "undefined" ? undefined : globalThis.localStorage,
       });
+      this.#theme = resolved.theme;
+      this.#mode = resolved.mode;
     }
   }
 
-  get current(): Theme {
-    return this.#current;
+  get theme(): Theme {
+    return this.#theme;
   }
 
-  set(theme: Theme): void {
-    this.#current = theme;
+  get mode(): Mode {
+    return this.#mode;
+  }
+
+  setTheme(theme: Theme): void {
+    this.#theme = theme;
     if (typeof globalThis.document !== "undefined") {
       globalThis.document.documentElement.setAttribute("data-theme", theme);
     }
-    if (typeof globalThis.localStorage !== "undefined") {
-      try {
-        globalThis.localStorage.setItem(THEME_STORAGE_KEY, theme);
-      } catch {
-        // LocalStorage may be disabled or full; ignore.
-      }
-    }
+    this.#persist(THEME_STORAGE_KEY, theme);
   }
 
-  toggle(): void {
-    this.set(this.#current === "konfidence" ? "konfidence-dark" : "konfidence");
+  setMode(mode: Mode): void {
+    this.#mode = mode;
+    if (typeof globalThis.document !== "undefined") {
+      globalThis.document.documentElement.setAttribute("data-mode", mode);
+    }
+    this.#persist(MODE_STORAGE_KEY, mode);
+  }
+
+  /** Cycle light -> dark -> system -> light. */
+  toggleMode(): void {
+    const next: Mode =
+      this.#mode === "light" ? "dark" : this.#mode === "dark" ? "system" : "light";
+    this.setMode(next);
+  }
+
+  #persist(key: string, value: string): void {
+    if (typeof globalThis.localStorage === "undefined") return;
+    try {
+      globalThis.localStorage.setItem(key, value);
+    } catch {
+      // LocalStorage may be disabled or full; ignore.
+    }
   }
 }
 

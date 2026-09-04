@@ -17,6 +17,7 @@ test("renders the dashboard after signing in", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Konfidence Dashboard");
   await expect(page.getByTestId("signed-in-user")).toContainText("Alex Admin");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "konfidence");
+  await expect(page.locator("html")).toHaveAttribute("data-mode", "light");
 });
 
 test("serves the SPA document for a deep link", async ({ request }) => {

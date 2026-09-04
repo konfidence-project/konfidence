@@ -4,10 +4,11 @@ Konfidence dashboard design system. Layered on top of Tailwind CSS v4 and
 Skeleton v5, provides:
 
 - **Design tokens** — colour ramps, spacing, typography, motion, radii,
-  semantic tokens for the `konfidence` (light) and `konfidence-dark`
-  themes.
-- **Skeleton theme** — colour ramps for `data-theme="konfidence"` and
-  `data-theme="konfidence-dark"`.
+  semantic tokens. Light-mode tokens live on `:root`; dark-mode tokens
+  apply under `[data-mode="dark"]` on any element under `<html
+  data-theme="konfidence">`, plus `[data-mode="system"]` inside a
+  `@media (prefers-color-scheme: dark)` block (Skeleton pattern).
+- **Skeleton theme** — colour ramps for `data-theme="konfidence"`.
 - **Custom components** — Konfidence-specific CSS classes with no
   Skeleton equivalent (orbit, phases, diff, timelines, charts, status
   badges, tags, icon chips, …).
@@ -40,7 +41,12 @@ imports them first, then layers the Konfidence styles on top:
 @import "tailwindcss";
 @import "@skeletonlabs/skeleton";
 @import "@skeletonlabs/skeleton-svelte";
-@custom-variant dark (&:where([data-theme="konfidence-dark"], [data-theme="konfidence-dark"] *));
+@custom-variant dark {
+  &:where([data-mode="dark"], [data-mode="dark"] *) { @slot; }
+  @media (prefers-color-scheme: dark) {
+    &:where([data-mode="system"], [data-mode="system"] *) { @slot; }
+  }
+}
 @import "@konfidence/design-system/styles";
 ```
 
@@ -60,8 +66,8 @@ Theme resolution and persistence live in the consuming application
 - a reactive `ThemeStore` used at runtime to read/toggle/persist the
   theme.
 
-The `konfidence` and `konfidence-dark` CSS selectors shipped here are
-the contract those runtimes target.
+The `data-theme="konfidence"` + `data-mode` selectors shipped here
+are the contract those runtimes target.
 
 ## Components
 

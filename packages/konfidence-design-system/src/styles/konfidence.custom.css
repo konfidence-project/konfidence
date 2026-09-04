@@ -1055,8 +1055,13 @@
   padding-left: var(--space-3);
   padding-right: var(--space-3);
 }
-[data-theme="dark"] .feed-item--unread {
+[data-mode="dark"] .feed-item--unread {
   background: rgba(255, 181, 48, 0.08);
+}
+@media (prefers-color-scheme: dark) {
+  [data-mode="system"] .feed-item--unread {
+    background: rgba(255, 181, 48, 0.08);
+  }
 }
 
 /* richer feed card */
@@ -1506,8 +1511,13 @@
   fill: var(--teal-100);
   opacity: 0.4;
 }
-[data-theme="dark"] .linechart path.area {
+[data-mode="dark"] .linechart path.area {
   fill: rgba(27, 160, 201, 0.15);
+}
+@media (prefers-color-scheme: dark) {
+  [data-mode="system"] .linechart path.area {
+    fill: rgba(27, 160, 201, 0.15);
+  }
 }
 .linechart path.line {
   fill: none;
@@ -1749,9 +1759,15 @@
   color: var(--amber-800);
   font-weight: var(--weight-semibold);
 }
-[data-theme="dark"] .command__item--active {
+[data-mode="dark"] .command__item--active {
   background: rgba(255, 181, 48, 0.12);
   color: var(--amber-300);
+}
+@media (prefers-color-scheme: dark) {
+  [data-mode="system"] .command__item--active {
+    background: rgba(255, 181, 48, 0.12);
+    color: var(--amber-300);
+  }
 }
 .command__text {
   flex: 1;
@@ -1770,9 +1786,15 @@
   border-radius: 2px;
   padding: 0 1px;
 }
-[data-theme="dark"] .command mark {
+[data-mode="dark"] .command mark {
   background: rgba(255, 181, 48, 0.16);
   color: var(--amber-300);
+}
+@media (prefers-color-scheme: dark) {
+  [data-mode="system"] .command mark {
+    background: rgba(255, 181, 48, 0.16);
+    color: var(--amber-300);
+  }
 }
 
 /* signature — orbit ring motif ("glowing planet") */

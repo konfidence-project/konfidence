@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { signIn } from "../../../e2e/helpers";
 
 // The Konfidence primary CTA renders with the design-system's amber-gradient
-// fill and glow shadow (see src/theme/konfidence.buttons.css). Guarding both
+// fill and glow shadow (see @konfidence/design-system Button). Guarding both
 // prevents drift back to Skeleton's plain preset fill or an unstyled button
 // when the design-system CSS is regenerated.
 const KONFIDENCE_PRIMARY_BG_GRADIENT_START = "rgb(255, 203, 107)"; // #FFCB6B

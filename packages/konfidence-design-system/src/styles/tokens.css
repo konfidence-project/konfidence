@@ -288,7 +288,7 @@
   --tag-radius: 6px;
 }
 
-[data-theme="konfidence-dark"] {
+[data-theme="konfidence"][data-mode="dark"] {
   --surface-canvas: #14110b;
   --surface-default: #1b1710;
   --surface-subtle: #221d15;
@@ -388,4 +388,110 @@
   --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.7);
   --glow-amber-shadow: 0 4px 16px rgba(255, 149, 12, 0.42), 0 0 0 1px rgba(255, 149, 12, 0.18);
   --scrim: rgba(0, 0, 0, 0.62);
+}
+
+/* When the preference is "system", follow the OS. Kept in sync with the
+   [data-mode="dark"] block above; Skeleton uses the same pattern. */
+@media (prefers-color-scheme: dark) {
+  [data-theme="konfidence"][data-mode="system"] {
+    --surface-canvas: #14110b;
+    --surface-default: #1b1710;
+    --surface-subtle: #221d15;
+    --surface-sunken: #2b251b;
+    --surface-inverse: #f8f7f4;
+    --surface-card: #1b1710;
+    --text-primary: #ede8de;
+    --text-secondary: #bdb4a2;
+    --text-tertiary: #9b917e;
+    --text-disabled: #6b6151;
+    --text-inverse: #14110b;
+    --text-link: #63c9e7;
+    --border-subtle: #362f23;
+    --border-default: #473f30;
+    --border-strong: #6b6151;
+    --border-focus: #33b0d6;
+    --accent-primary-hover: #ffcb6b;
+    --accent-primary-active: #f59e0b;
+    --accent-secondary: #33b0d6;
+    --chart-blue: #6bb8ff;
+    --chart-green: #3ed598;
+    --chart-red: #ff7a6e;
+    --chart-orange: #fda274;
+    --chart-purple: #bca6ff;
+    --chart-cyan: #67e8f9;
+    --chart-pink: #f9a8d4;
+    --chart-grey: #9b917e;
+    --track: #362f23;
+    --status-healthy-fg: #6ee7b0;
+    --status-healthy-bg: rgba(23, 178, 106, 0.16);
+    --status-warning-fg: #fbbf5a;
+    --status-warning-bg: rgba(247, 144, 9, 0.16);
+    --status-degraded-fg: #fda274;
+    --status-degraded-bg: rgba(239, 104, 32, 0.16);
+    --status-error-fg: #ff9b92;
+    --status-error-bg: rgba(240, 68, 56, 0.16);
+    --status-promoting-fg: #bca6ff;
+    --status-promoting-bg: rgba(122, 90, 248, 0.18);
+    --status-deploying-fg: #8fc5ff;
+    --status-deploying-bg: rgba(46, 144, 250, 0.16);
+    --status-queued-fg: #bdb4a2;
+    --status-queued-bg: rgba(255, 255, 255, 0.06);
+    --status-queued-solid: #6b6151;
+    --tag-red-fg: #ff9b92;
+    --tag-red-bg: rgba(240, 68, 56, 0.15);
+    --tag-red-bd: rgba(240, 68, 56, 0.3);
+    --tag-orange-fg: #fda274;
+    --tag-orange-bg: rgba(239, 104, 32, 0.15);
+    --tag-orange-bd: rgba(239, 104, 32, 0.3);
+    --tag-amber-fg: #fbbf5a;
+    --tag-amber-bg: rgba(247, 144, 9, 0.15);
+    --tag-amber-bd: rgba(247, 144, 9, 0.3);
+    --tag-lime-fg: #b5e06a;
+    --tag-lime-bg: rgba(132, 204, 22, 0.14);
+    --tag-lime-bd: rgba(132, 204, 22, 0.3);
+    --tag-green-fg: #6ee7b0;
+    --tag-green-bg: rgba(23, 178, 106, 0.15);
+    --tag-green-bd: rgba(23, 178, 106, 0.3);
+    --tag-teal-fg: #5eead4;
+    --tag-teal-bg: rgba(20, 184, 166, 0.15);
+    --tag-teal-bd: rgba(20, 184, 166, 0.3);
+    --tag-cyan-fg: #67e8f9;
+    --tag-cyan-bg: rgba(6, 182, 212, 0.14);
+    --tag-cyan-bd: rgba(6, 182, 212, 0.3);
+    --tag-blue-fg: #8fc5ff;
+    --tag-blue-bg: rgba(46, 144, 250, 0.15);
+    --tag-blue-bd: rgba(46, 144, 250, 0.3);
+    --tag-indigo-fg: #a5b4fc;
+    --tag-indigo-bg: rgba(99, 102, 241, 0.15);
+    --tag-indigo-bd: rgba(99, 102, 241, 0.3);
+    --tag-violet-fg: #c4b5fd;
+    --tag-violet-bg: rgba(139, 92, 246, 0.16);
+    --tag-violet-bd: rgba(139, 92, 246, 0.3);
+    --tag-pink-fg: #f9a8d4;
+    --tag-pink-bg: rgba(236, 72, 153, 0.15);
+    --tag-pink-bd: rgba(236, 72, 153, 0.3);
+    --tag-slate-fg: #cbd5e1;
+    --tag-slate-bg: rgba(148, 163, 184, 0.14);
+    --tag-slate-bd: rgba(148, 163, 184, 0.3);
+    --gradient-hero-bg: radial-gradient(120% 130% at 82% -10%, #22283a 0%, #14110b 55%);
+    --gradient-section: linear-gradient(160deg, #221d15 0%, #1b1710 100%);
+    --gradient-tile: linear-gradient(158deg, #1c2230 0%, #171b24 55%, #141a22 100%);
+    --tile-glow: radial-gradient(
+      120% 90% at 78% 18%,
+      rgba(255, 181, 48, 0.14) 0%,
+      rgba(27, 160, 201, 0.08) 45%,
+      rgba(255, 255, 255, 0) 72%
+    );
+    --glow-amber: radial-gradient(closest-side, rgba(255, 181, 48, 0.28), rgba(255, 181, 48, 0) 72%);
+    --card-rim-glow: 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    --focus-ring: 0 0 0 3px rgba(255, 181, 48, 0.5);
+    --focus-ring-teal: 0 0 0 3px rgba(51, 176, 214, 0.5);
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5), 0 20px 44px rgba(0, 0, 0, 0.6);
+    --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.7);
+    --glow-amber-shadow: 0 4px 16px rgba(255, 149, 12, 0.42), 0 0 0 1px rgba(255, 149, 12, 0.18);
+    --scrim: rgba(0, 0, 0, 0.62);
+  }
 }

@@ -1,6 +1,6 @@
-/* Konfidence Skeleton theme. Activated by `<html data-theme="konfidence[-dark]">`. */
-[data-theme="konfidence"],
-[data-theme="konfidence-dark"] {
+/* Konfidence Skeleton theme. Activated by `<html data-theme="konfidence">`.
+   Light and dark mode are selected via `data-mode` (see tokens.css). */
+[data-theme="konfidence"] {
   /* primary — amber */
   --color-primary-50: #fff8ec;
   --color-primary-contrast-50: #1a1815;

@@ -3,14 +3,26 @@
  *
  * The order below is deliberate: Tailwind first, Skeleton next, then
  * the `@custom-variant dark` that maps Tailwind's `dark:` prefix onto
- * `data-theme="konfidence-dark"`, and finally the Konfidence design
- * system (tokens + Skeleton override + custom + .btn) layered on top.
+ * the active mode (Skeleton pattern: `data-mode="dark"` always, plus
+ * `data-mode="system"` when the OS prefers dark), and finally the
+ * Konfidence design system (tokens + Skeleton override + custom +
+ * .btn) layered on top.
  */
 
 @import "tailwindcss";
 @import "@skeletonlabs/skeleton";
 @import "@skeletonlabs/skeleton-svelte";
 
-@custom-variant dark (&:where([data-theme="konfidence-dark"], [data-theme="konfidence-dark"] *));
+@custom-variant dark {
+  &:where([data-mode="dark"], [data-mode="dark"] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:where([data-mode="system"], [data-mode="system"] *) {
+      @slot;
+    }
+  }
+}
 
 @import "@konfidence/design-system/styles";

@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { resolveInitialTheme } from "./resolve.js";
-import { DEFAULT_THEME, THEME_QUERY_PARAM, THEME_STORAGE_KEY } from "./constants.js";
+import {
+  DEFAULT_MODE,
+  DEFAULT_THEME,
+  MODE_QUERY_PARAM,
+  MODE_STORAGE_KEY,
+  THEME_QUERY_PARAM,
+  THEME_STORAGE_KEY,
+} from "./constants.js";
 
 const makeLocation = (search: string, pathname = "/dashboard", hash = ""): Location =>
   ({ hash, pathname, search }) as Location;
@@ -23,52 +30,91 @@ const makeStorage = (initial: Record<string, string> = {}): Storage => {
 };
 
 describe("resolveInitialTheme", () => {
-  it("returns the default when no query param and no storage value", () => {
-    const theme = resolveInitialTheme({
+  it("returns the default theme + mode when no query params and no storage", () => {
+    const state = resolveInitialTheme({
       location: makeLocation(""),
       storage: makeStorage(),
     });
-    expect(theme).toBe(DEFAULT_THEME);
+    expect(state.theme).toBe(DEFAULT_THEME);
+    expect(state.mode).toBe(DEFAULT_MODE);
   });
 
-  it("returns the persisted value when present and valid", () => {
-    const theme = resolveInitialTheme({
+  it("returns the persisted mode when present and valid", () => {
+    const state = resolveInitialTheme({
       location: makeLocation(""),
-      storage: makeStorage({ [THEME_STORAGE_KEY]: "konfidence-dark" }),
+      storage: makeStorage({ [MODE_STORAGE_KEY]: "dark" }),
     });
-    expect(theme).toBe("konfidence-dark");
+    expect(state.mode).toBe("dark");
   });
 
-  it("ignores invalid persisted values and falls back to default", () => {
-    const theme = resolveInitialTheme({
+  it("returns the persisted theme when present and valid", () => {
+    const state = resolveInitialTheme({
       location: makeLocation(""),
-      storage: makeStorage({ [THEME_STORAGE_KEY]: "cosmic" }),
-    });
-    expect(theme).toBe(DEFAULT_THEME);
-  });
-
-  it("prefers a valid query parameter over any persisted value", () => {
-    const theme = resolveInitialTheme({
-      location: makeLocation(`?${THEME_QUERY_PARAM}=konfidence-dark`),
       storage: makeStorage({ [THEME_STORAGE_KEY]: "konfidence" }),
     });
-    expect(theme).toBe("konfidence-dark");
+    expect(state.theme).toBe("konfidence");
   });
 
-  it("persists the query-parameter value as the new preference", () => {
+  it("ignores invalid persisted mode values and falls back to default", () => {
+    const state = resolveInitialTheme({
+      location: makeLocation(""),
+      storage: makeStorage({ [MODE_STORAGE_KEY]: "cosmic" }),
+    });
+    expect(state.mode).toBe(DEFAULT_MODE);
+  });
+
+  it("prefers a valid mode query parameter over any persisted value", () => {
+    const state = resolveInitialTheme({
+      location: makeLocation(`?${MODE_QUERY_PARAM}=dark`),
+      storage: makeStorage({ [MODE_STORAGE_KEY]: "light" }),
+    });
+    expect(state.mode).toBe("dark");
+  });
+
+  it("persists the mode query parameter as the new preference", () => {
     const storage = makeStorage();
     resolveInitialTheme({
-      location: makeLocation(`?${THEME_QUERY_PARAM}=konfidence-dark`),
+      location: makeLocation(`?${MODE_QUERY_PARAM}=dark`),
       storage,
     });
-    expect(storage.getItem(THEME_STORAGE_KEY)).toBe("konfidence-dark");
+    expect(storage.getItem(MODE_STORAGE_KEY)).toBe("dark");
   });
 
-  it("strips the query parameter from the URL via replaceState", () => {
+  it("persists the theme query parameter as the new preference", () => {
+    const storage = makeStorage();
+    resolveInitialTheme({
+      location: makeLocation(`?${THEME_QUERY_PARAM}=konfidence`),
+      storage,
+    });
+    expect(storage.getItem(THEME_STORAGE_KEY)).toBe("konfidence");
+  });
+
+  it("supports resolving both axes from a single URL", () => {
+    const state = resolveInitialTheme({
+      location: makeLocation(`?${THEME_QUERY_PARAM}=konfidence&${MODE_QUERY_PARAM}=dark`),
+      storage: makeStorage(),
+    });
+    expect(state.theme).toBe("konfidence");
+    expect(state.mode).toBe("dark");
+  });
+
+  it("accepts the `system` mode", () => {
+    const state = resolveInitialTheme({
+      location: makeLocation(`?${MODE_QUERY_PARAM}=system`),
+      storage: makeStorage(),
+    });
+    expect(state.mode).toBe("system");
+  });
+
+  it("strips both query parameters from the URL via replaceState", () => {
     const replaceState = vi.fn();
     resolveInitialTheme({
       history: { replaceState },
-      location: makeLocation(`?${THEME_QUERY_PARAM}=konfidence-dark&keep=1`, "/x", "#h"),
+      location: makeLocation(
+        `?${THEME_QUERY_PARAM}=konfidence&${MODE_QUERY_PARAM}=dark&keep=1`,
+        "/x",
+        "#h",
+      ),
       storage: makeStorage(),
     });
     expect(replaceState).toHaveBeenCalledWith(null, "", "/x?keep=1#h");
@@ -78,18 +124,18 @@ describe("resolveInitialTheme", () => {
     const replaceState = vi.fn();
     resolveInitialTheme({
       history: { replaceState },
-      location: makeLocation(`?${THEME_QUERY_PARAM}=konfidence`, "/dashboard", ""),
+      location: makeLocation(`?${MODE_QUERY_PARAM}=dark`, "/dashboard", ""),
       storage: makeStorage(),
     });
     expect(replaceState).toHaveBeenCalledWith(null, "", "/dashboard");
   });
 
-  it("ignores unknown query values and falls through to storage", () => {
-    const theme = resolveInitialTheme({
-      location: makeLocation(`?${THEME_QUERY_PARAM}=cosmic`),
-      storage: makeStorage({ [THEME_STORAGE_KEY]: "konfidence-dark" }),
+  it("ignores unknown mode query values and falls through to storage", () => {
+    const state = resolveInitialTheme({
+      location: makeLocation(`?${MODE_QUERY_PARAM}=cosmic`),
+      storage: makeStorage({ [MODE_STORAGE_KEY]: "dark" }),
     });
-    expect(theme).toBe("konfidence-dark");
+    expect(state.mode).toBe("dark");
   });
 
   it("swallows setItem quota errors", () => {
@@ -105,7 +151,7 @@ describe("resolveInitialTheme", () => {
     };
     expect(() =>
       resolveInitialTheme({
-        location: makeLocation(`?${THEME_QUERY_PARAM}=konfidence-dark`),
+        location: makeLocation(`?${MODE_QUERY_PARAM}=dark`),
         storage,
       }),
     ).not.toThrow();
@@ -118,9 +164,19 @@ describe("resolveInitialTheme", () => {
     expect(() =>
       resolveInitialTheme({
         history: { replaceState },
-        location: makeLocation(`?${THEME_QUERY_PARAM}=konfidence-dark`),
+        location: makeLocation(`?${MODE_QUERY_PARAM}=dark`),
         storage: makeStorage(),
       }),
     ).not.toThrow();
+  });
+
+  it("does not touch replaceState when neither param is present", () => {
+    const replaceState = vi.fn();
+    resolveInitialTheme({
+      history: { replaceState },
+      location: makeLocation(""),
+      storage: makeStorage(),
+    });
+    expect(replaceState).not.toHaveBeenCalled();
   });
 });
