@@ -234,7 +234,13 @@ install_from_source() {
 	fi
 
 	# go install of a monorepo subpath drops -X ldflags, so build explicitly.
-	ldflags="-s -w -X github.com/konfidence-project/konfidence/pkg/build.Version=${ref}"
+	# Inject all three build vars (like goreleaser does for releases) so
+	# `kden version` is honest about a source build: Version=the ref, GitCommit=
+	# the resolved SHA (a branch name moves; the SHA pins it), Date=build time.
+	commit=$(cd "$src" && git rev-parse --short HEAD)
+	date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+	pkg=github.com/konfidence-project/konfidence/pkg/build
+	ldflags="-s -w -X ${pkg}.Version=${ref} -X ${pkg}.GitCommit=${commit} -X ${pkg}.Date=${date}"
 	(cd "$src" && go build -ldflags "$ldflags" -o "$tmp/kden" ./cmd/kden)
 	place_binary "$tmp/kden"
 }
