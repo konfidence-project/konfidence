@@ -150,9 +150,13 @@ place_binary() {
 	# $1 = path to the built/extracted kden binary
 	mkdir -p "$INSTALL_DIR"
 	chmod 0755 "$1"
-	# mv within a checkout can cross filesystems; try atomic mv, fall back to cp.
+	# mv within a checkout can cross filesystems; try atomic mv, else copy to a
+	# temp name in the dest dir, atomically rename into place, and drop the source
+	# so this function consumes $1 on both paths (the mv path already does).
 	mv "$1" "$INSTALL_DIR/kden" 2>/dev/null || {
-		cp "$1" "$INSTALL_DIR/kden.tmp.$$" && mv "$INSTALL_DIR/kden.tmp.$$" "$INSTALL_DIR/kden"
+		cp "$1" "$INSTALL_DIR/kden.tmp.$$" &&
+			mv "$INSTALL_DIR/kden.tmp.$$" "$INSTALL_DIR/kden" &&
+			rm -f "$1"
 	}
 	info "installed kden to $INSTALL_DIR/kden"
 
