@@ -5,8 +5,6 @@
   "type": "module",
   "scripts": {
     "all": "pnpm verify && pnpm test",
-    "api:check": "bash ../../hack/check-openapi-types.sh ../../api/openapi.yaml src/generated/schema.d.ts",
-    "api:generate": "openapi-typescript ../../api/openapi.yaml -o src/generated/schema.d.ts && oxfmt src/generated/schema.d.ts",
     "check": "tsgo -p ./tsconfig.json --noEmit",
     "dev": "tsx watch src/main.ts",
     "fmt": "oxfmt",
@@ -14,7 +12,7 @@
     "lint": "oxlint",
     "start": "tsx src/main.ts",
     "test": "vitest run",
-    "verify": "pnpm api:check && pnpm check && pnpm lint && pnpm fmt:check"
+    "verify": "pnpm check && pnpm lint && pnpm fmt:check"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
@@ -24,9 +22,9 @@
     "fastify-openapi-glue": "^4.11.4"
   },
   "devDependencies": {
+    "@konfidence/api-client": "workspace:*",
     "@types/node": "26.4.0",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
-    "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
     "tsx": "4.23.13",

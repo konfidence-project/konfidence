@@ -100,16 +100,19 @@ func (e StageVersionStatus) Valid() bool {
 
 // Defines values for VectorDeploymentStatus.
 const (
-	ArtifactDeploymentCreated VectorDeploymentStatus = "ArtifactDeploymentCreated"
-	VectorDownloaded          VectorDeploymentStatus = "VectorDownloaded"
+	VectorDeploymentStatusDeployingVector  VectorDeploymentStatus = "DeployingVector"
+	VectorDeploymentStatusDeploymentFailed VectorDeploymentStatus = "DeploymentFailed"
+	VectorDeploymentStatusDeploymentReady  VectorDeploymentStatus = "DeploymentReady"
 )
 
 // Valid indicates whether the value is a known member of the VectorDeploymentStatus enum.
 func (e VectorDeploymentStatus) Valid() bool {
 	switch e {
-	case ArtifactDeploymentCreated:
+	case VectorDeploymentStatusDeployingVector:
 		return true
-	case VectorDownloaded:
+	case VectorDeploymentStatusDeploymentFailed:
+		return true
+	case VectorDeploymentStatusDeploymentReady:
 		return true
 	default:
 		return false
@@ -2291,6 +2294,8 @@ type ListVectorDeploymentsV1Response struct {
 	JSON401 *Unauthorized
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalError
 }
@@ -2308,6 +2313,11 @@ func (r ListVectorDeploymentsV1Response) GetJSON401() *Unauthorized {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r ListVectorDeploymentsV1Response) GetJSON403() *Forbidden {
 	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListVectorDeploymentsV1Response) GetJSON404() *NotFound {
+	return r.JSON404
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -3317,6 +3327,13 @@ func ParseListVectorDeploymentsV1Response(rsp *http.Response) (*ListVectorDeploy
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError

@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { scenarios, type ProjectFixture, type ScenarioFixture } from "./fixtures.js";
-import type { operations } from "./generated/schema.js";
+import type { operations } from "@konfidence/api-client/schema";
 
 const SESSION_COOKIE = "kden-session";
 const SCENARIO_COOKIE = "konfidence_mock_scenario";

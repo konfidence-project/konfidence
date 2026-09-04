@@ -2,4 +2,4 @@ package: apiclient
 generate:
   client: true
   models: true
-output: ../internal/kden/apiclient/client.go
+output: internal/kden/apiclient/client.go

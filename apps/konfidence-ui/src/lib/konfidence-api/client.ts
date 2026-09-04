@@ -1,10 +1,16 @@
-import createOpenApiClient, { type Client, type Middleware } from "openapi-fetch";
+import {
+  createKonfidenceApiClient,
+  type KonfidenceApiClient,
+  type KonfidenceApiClientOptions,
+  type Middleware,
+} from "@konfidence/api-client";
 import { HTTP_UNAUTHORIZED } from "$lib/http-status";
-import type { paths } from "$lib/konfidence-api/schema";
 
-type ApiClient = Client<paths>;
+type ApiClient = KonfidenceApiClient;
 
 interface CreateApiClientOptions {
+  baseUrl?: string;
+  fetch?: KonfidenceApiClientOptions["fetch"];
   onUnauthorized?: () => void;
 }
 
@@ -22,11 +28,22 @@ const resolveApiBaseUrl = (): string =>
 
 const isCrossOrigin = (baseUrl: string): boolean => /^https?:\/\//i.test(baseUrl);
 
-const createApiClient = ({ onUnauthorized }: CreateApiClientOptions = {}): ApiClient => {
-  const baseUrl = resolveApiBaseUrl();
-  const client = createOpenApiClient<paths>({
+const credentialsFor = (baseUrl: string): RequestCredentials => {
+  if (isCrossOrigin(baseUrl)) {
+    return "include";
+  }
+  return "same-origin";
+};
+
+const createApiClient = ({
+  baseUrl = resolveApiBaseUrl(),
+  fetch,
+  onUnauthorized,
+}: CreateApiClientOptions = {}): ApiClient => {
+  const client = createKonfidenceApiClient({
     baseUrl,
-    credentials: isCrossOrigin(baseUrl) ? "include" : "same-origin",
+    credentials: credentialsFor(baseUrl),
+    fetch,
   });
 
   if (onUnauthorized) {
