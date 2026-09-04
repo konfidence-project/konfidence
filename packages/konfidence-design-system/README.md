@@ -5,9 +5,9 @@ Skeleton v5, provides:
 
 - **Design tokens** — colour ramps, spacing, typography, motion, radii,
   semantic tokens. Light-mode tokens live on `:root`; dark-mode tokens
-  apply under `[data-mode="dark"]` on any element under `<html
-  data-theme="konfidence">`, plus `[data-mode="system"]` inside a
-  `@media (prefers-color-scheme: dark)` block (Skeleton pattern).
+  apply under `[data-mode="dark"]` on any element under
+  `<html data-theme="konfidence">`, plus `[data-mode="system"]` inside
+  a `@media (prefers-color-scheme: dark)` block (Skeleton pattern).
 - **Skeleton theme** — colour ramps for `data-theme="konfidence"`.
 - **Custom components** — Konfidence-specific CSS classes with no
   Skeleton equivalent (orbit, phases, diff, timelines, charts, status
@@ -43,9 +43,13 @@ imports them first, then layers the Konfidence styles on top:
 @import "@skeletonlabs/skeleton";
 @import "@skeletonlabs/skeleton-svelte";
 @custom-variant dark {
-  &:where([data-mode="dark"], [data-mode="dark"] *) { @slot; }
+  &:where([data-mode="dark"], [data-mode="dark"] *) {
+    @slot;
+  }
   @media (prefers-color-scheme: dark) {
-    &:where([data-mode="system"], [data-mode="system"] *) { @slot; }
+    &:where([data-mode="system"], [data-mode="system"] *) {
+      @slot;
+    }
   }
 }
 @import "@konfidence/design-system/styles";
@@ -72,12 +76,12 @@ are the contract those runtimes target.
 
 ## Components
 
-| Component     | CSS classes it wraps                                                            | Purpose                                                                    |
-| ------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `Button`      | `.btn`, `.btn--{primary,secondary,ghost,danger}`                                | Renders `<button>` or `<a>`; forwards `disabled`, `aria-*`, click handler. |
-| `Brandbar`    | (Tailwind arbitrary-value utilities)                                            | The amber-teal aurora strip at the top of every screen.                    |
-| `OrbitLoader` | (Tailwind arbitrary-value utilities)                                            | Live-region loading indicator with an accessible label.                    |
-| `StatusBadge` | `.badge`, `.badge--<status>`                                                    | Passes `status` through to the class list; the API owns the vocabulary.    |
+| Component     | CSS classes it wraps                             | Purpose                                                                    |
+| ------------- | ------------------------------------------------ | -------------------------------------------------------------------------- |
+| `Button`      | `.btn`, `.btn--{primary,secondary,ghost,danger}` | Renders `<button>` or `<a>`; forwards `disabled`, `aria-*`, click handler. |
+| `Brandbar`    | (Tailwind arbitrary-value utilities)             | The amber-teal aurora strip at the top of every screen.                    |
+| `OrbitLoader` | (Tailwind arbitrary-value utilities)             | Live-region loading indicator with an accessible label.                    |
+| `StatusBadge` | `.badge`, `.badge--<status>`                     | Passes `status` through to the class list; the API owns the vocabulary.    |
 
 ```svelte
 <script lang="ts">

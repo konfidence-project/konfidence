@@ -482,7 +482,11 @@
       rgba(27, 160, 201, 0.08) 45%,
       rgba(255, 255, 255, 0) 72%
     );
-    --glow-amber: radial-gradient(closest-side, rgba(255, 181, 48, 0.28), rgba(255, 181, 48, 0) 72%);
+    --glow-amber: radial-gradient(
+      closest-side,
+      rgba(255, 181, 48, 0.28),
+      rgba(255, 181, 48, 0) 72%
+    );
     --card-rim-glow: 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
     --focus-ring: 0 0 0 3px rgba(255, 181, 48, 0.5);
     --focus-ring-teal: 0 0 0 3px rgba(51, 176, 214, 0.5);

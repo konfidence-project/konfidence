@@ -1,4 +1,4 @@
-import type { Theme, Mode } from "./types.js";
+import type { Mode, Theme } from "./types.js";
 
 /** All Konfidence theme identifiers, in canonical order. */
 const THEMES: readonly Theme[] = ["konfidence"] as const;

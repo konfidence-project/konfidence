@@ -76,12 +76,18 @@ class ThemeStore {
 
   /** Cycle light -> dark -> system -> light. */
   toggleMode(): void {
-    const next: Mode = this.#mode === "light" ? "dark" : this.#mode === "dark" ? "system" : "light";
-    this.setMode(next);
+    const NEXT_MODE: Record<Mode, Mode> = {
+      dark: "system",
+      light: "dark",
+      system: "light",
+    };
+    this.setMode(NEXT_MODE[this.#mode]);
   }
 
   #persist(key: string, value: string): void {
-    if (typeof globalThis.localStorage === "undefined") return;
+    if (typeof globalThis.localStorage === "undefined") {
+      return;
+    }
     try {
       globalThis.localStorage.setItem(key, value);
     } catch {

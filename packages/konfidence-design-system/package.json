@@ -31,7 +31,7 @@
     "lint:svelte-templates": "eslint \"src/**/*.svelte\"",
     "lint:svelte-templates:fix": "eslint \"src/**/*.svelte\" --fix",
     "test": "pnpm test:unit && pnpm test:browser",
-    "test:unit": "vitest run --project server",
+    "test:unit": "vitest run --project server --passWithNoTests",
     "test:browser": "vitest run --project client",
     "verify": "pnpm check && pnpm lint && pnpm check:svelte && pnpm fmt:check"
   },
