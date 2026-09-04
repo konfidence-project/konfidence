@@ -1,9 +1,21 @@
-# Image registry and tag used by all build/push targets
+# Image registry and tag for build/push targets; use localhost:5001 for dev-cluster.
 REGISTRY ?= ghcr.io/konfidence-project
 TAG      ?= dev
 
 # Namespace for deploying to Kubernetes cluster
 NAMESPACE ?= konfidence-system
+
+# API OIDC values for `make deploy`; unset deploys the operator only.
+DEPLOY_OIDC_ISSUER_URL ?=
+DEPLOY_OIDC_CLIENT_ID ?=
+DEPLOY_OIDC_REDIRECT_URL ?=
+DEPLOY_OIDC_CLIENT_SECRET ?=
+DEPLOY_OIDC_ALLOW_RETURN_URLS ?=
+# Non-empty mounts Caddy's local CA into the API pod, for HTTPS issuer URLs.
+DEPLOY_OIDC_TRUST_CADDY_CA ?=
+
+# kind cluster name; must match hack/kind/dev-cluster.sh's CLUSTER_NAME.
+KIND_CLUSTER_NAME ?= konfidence-dev
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -63,18 +75,24 @@ ENVTEST        ?= setup-envtest
 GOLANGCI_LINT   = golangci-lint
 HELM           ?= helm
 HELM_DOCS      ?= helm-docs
+SQLC           ?= sqlc
 OAPI_CODEGEN   ?= go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
 
 ## Image names
 OPERATOR_IMAGE = $(REGISTRY)/konfidence-operator:$(TAG)
+API_IMAGE      = $(REGISTRY)/api:$(TAG)
 
-## Local API server configuration
-API_OIDC_ENABLED ?= true
-API_OIDC_ISSUER_URL ?= http://localhost:5556/oidc
+## GOARCH for locally-built container images; defaults to the host's.
+DOCKER_GOARCH ?= $(shell go env GOARCH)
+
+## Local API server config; OIDC on requires trusting Caddy's CA in your OS store.
+API_OIDC_ENABLED ?= false
+API_OIDC_ISSUER_URL ?= https://auth.localhost
+API_OIDC_CLIENT_ID ?= konfidence
 API_OIDC_CLIENT_SECRET ?= konfidence-local-secret
 API_OIDC_SCOPES ?= openid,profile,email,groups
-API_OIDC_REDIRECT_URL ?= http://localhost:8090/api/v1/auth/callback
-API_OIDC_ALLOW_RETURN_URLS ?=
+API_OIDC_REDIRECT_URL ?= https://api.localhost/api/v1/auth/callback
+API_OIDC_ALLOW_RETURN_URLS ?= http://localhost:8090
 API_SESSION_STORAGE_TYPE ?= in-memory
 
 .PHONY: all
@@ -163,18 +181,22 @@ lint-config: hermit ## Verify the golangci-lint configuration.
 	$(GOLANGCI_LINT) config verify
 
 .PHONY: webhook-certs
-webhook-certs: ## Generate self-signed certificates for local webhook development.
+webhook-certs: hermit ## Generate self-signed certificates for local webhook development.
 	@./hack/generate-webhook-certs.sh
 
 ##@ API
 
 .PHONY: api
-api: hermit manifests generate generate-api schemas docs-reference helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, schemas, CRD reference doc, helm lint).
+api: hermit manifests generate generate-api generate-sqlc schemas docs-reference helm-lint ## Run full API generation pipeline (manifests, deepcopy, OpenAPI clients/server, sqlc, schemas, CRD reference doc, helm lint).
 
 .PHONY: generate-api
 generate-api: hermit ## Generate the OpenAPI server and kden API client from api/openapi.yaml.
 	$(OAPI_CODEGEN) -config api/codegen-server.yaml api/openapi.yaml
 	$(OAPI_CODEGEN) -config api/codegen-client.yaml api/openapi.yaml
+
+.PHONY: generate-sqlc
+generate-sqlc: hermit ## Generate the API server's database access code from cmd/api/sqlc.yaml.
+	cd cmd/api && $(SQLC) generate
 
 .PHONY: docs-reference
 docs-reference: hermit ## Generate + transform the CRD reference into api/docs/crd.md.
@@ -241,7 +263,7 @@ test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.
 	$(GINKGO) --coverprofile=cover-pkg.out -v ./pkg/...
 
 .PHONY: test-kden-cli
-test-kden-cli: hermit
+test-kden-cli: hermit ## Run unit tests for the kden CLI.
 	go test ./cmd/kden/... ./internal/kden/...
 
 .PHONY: test-api
@@ -257,7 +279,7 @@ setup-envtest: hermit ## Download the envtest binaries for the configured Kubern
 	}
 
 .PHONY: ginkgo
-ginkgo: ## Install ginkgo CLI to LOCALBIN.
+ginkgo: hermit ## Install ginkgo CLI to LOCALBIN.
 	go build -o $(LOCALBIN)/ginkgo github.com/onsi/ginkgo/v2/ginkgo
 
 ##@ Build
@@ -282,20 +304,57 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 	go run ./cmd/api/main.go \
 		--oidc-enabled=$(API_OIDC_ENABLED) \
 		--oidc-issuer-url=$(API_OIDC_ISSUER_URL) \
+		--oidc-client-id=$(API_OIDC_CLIENT_ID) \
 		--oidc-client-secret=$(API_OIDC_CLIENT_SECRET) \
 		--oidc-scopes=$(API_OIDC_SCOPES) \
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
 
-# These targets are only used for local environments (not in pipeline)
+##@ Local Development
+
+DEV_COMPOSE_FILE ?= hack/kden_local_dev/docker-compose.yml
+
+.PHONY: dev-up
+dev-up: ## Start local dev dependencies (IDP, reverse proxy, Postgres) used by run-kden-api.
+	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) up -d
+
+.PHONY: dev-down
+dev-down: ## Stop local dev dependencies started by dev-up.
+	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) down
+
+.PHONY: dev-logs
+dev-logs: ## Tail logs from local dev dependencies.
+	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) logs -f
+
+.PHONY: dev-cluster
+dev-cluster: hermit ## Create a local kind cluster with a local OCI registry at localhost:5001.
+	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh up
+
+.PHONY: dev-cluster-down
+dev-cluster-down: hermit ## Delete the local kind cluster and its registry container.
+	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh down
+
+# Local-only targets (not in pipeline); they cross-compile for Linux themselves.
 .PHONY: docker-build
 docker-build: hermit ## Build the konfidence operator container image (local use only).
-	$(CONTAINER_TOOL) build -f Dockerfile --build-arg TARGETPLATFORM=bin --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
+	@mkdir -p bin/linux-build
+	GOOS=linux GOARCH=$(DOCKER_GOARCH) GORELEASER_CURRENT_TAG=$(TAG) goreleaser build --clean --snapshot --single-target --id konfidence -o bin/linux-build/konfidence
+	$(CONTAINER_TOOL) build -f Dockerfile --build-arg TARGETPLATFORM=bin/linux-build --build-arg OPERATOR_NAME=konfidence -t $(OPERATOR_IMAGE) .
 
 .PHONY: docker-push
 docker-push: ## Push the konfidence operator container image.
 	$(CONTAINER_TOOL) push $(OPERATOR_IMAGE)
+
+.PHONY: docker-build-api
+docker-build-api: hermit ## Build the kden API server container image (local use only).
+	@mkdir -p bin/linux-build
+	GOOS=linux GOARCH=$(DOCKER_GOARCH) GORELEASER_CURRENT_TAG=$(TAG) goreleaser build --clean --snapshot --single-target --id api -o bin/linux-build/api
+	$(CONTAINER_TOOL) build -f Dockerfile.api --build-arg TARGETPLATFORM=bin/linux-build -t $(API_IMAGE) .
+
+.PHONY: docker-push-api
+docker-push-api: ## Push the kden API server container image.
+	$(CONTAINER_TOOL) push $(API_IMAGE)
 
 ##@ Deployment
 
@@ -348,6 +407,49 @@ deploy: hermit manifests ## Deploy the konfidence operator to the cluster specif
 			echo "Deployment cancelled."; \
 			exit 1; \
 		fi; \
+	fi; \
+	if [ -n "$(DEPLOY_OIDC_CLIENT_SECRET)" ]; then \
+		echo "Creating API OIDC client secret in namespace '$(NAMESPACE)'..."; \
+		printf '%s' "$(DEPLOY_OIDC_CLIENT_SECRET)" | kubectl create secret generic konfidence-api-oidc \
+			--from-file=client-secret=/dev/stdin \
+			--namespace=$(NAMESPACE) \
+			--dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
+		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS --set api.oidc.clientSecretRef.name=konfidence-api-oidc --set api.oidc.clientSecretRef.key=client-secret"; \
+	fi; \
+	if [ -n "$(DEPLOY_OIDC_TRUST_CADDY_CA)" ]; then \
+		echo "Trusting Caddy's local CA in namespace '$(NAMESPACE)'..."; \
+		$(CONTAINER_TOOL) exec caddy cat /data/caddy/pki/authorities/local/root.crt /data/caddy/pki/authorities/local/intermediate.crt | \
+			kubectl create configmap konfidence-dev-ca --from-file=ca-certificates.crt=/dev/stdin \
+				--namespace=$(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
+		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS \
+			--set api.volumes[0].name=dev-ca \
+			--set api.volumes[0].configMap.name=konfidence-dev-ca \
+			--set api.volumeMounts[0].name=dev-ca \
+			--set api.volumeMounts[0].mountPath=/etc/konfidence/ca \
+			--set api.env[0].name=SSL_CERT_FILE \
+			--set api.env[0].value=/etc/konfidence/ca/ca-certificates.crt"; \
+	fi; \
+	if [ -z "$(DEPLOY_OIDC_ISSUER_URL)" ]; then \
+		echo "No DEPLOY_OIDC_* values set; deploying the operator only (api.enabled=false)."; \
+		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS --set api.enabled=false"; \
+	else \
+		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS \
+			--set api.oidc.issuerURL=$(DEPLOY_OIDC_ISSUER_URL) \
+			--set api.oidc.clientId=$(DEPLOY_OIDC_CLIENT_ID) \
+			--set api.oidc.redirectURL=$(DEPLOY_OIDC_REDIRECT_URL) \
+			--set api.oidc.allowReturnUrls={$(DEPLOY_OIDC_ALLOW_RETURN_URLS)}"; \
+		case "$(DEPLOY_OIDC_ISSUER_URL)" in \
+			*host.docker.internal*) \
+				echo "Resolving host.docker.internal for the API pod (kind node has no such DNS entry outside Docker Desktop)..."; \
+				NODE=$$($(KIND) get nodes --name $(KIND_CLUSTER_NAME) | head -n1); \
+				GATEWAY_IP=$$($(CONTAINER_TOOL) exec $$NODE ip route show default | awk '{print $$3}'); \
+				echo "  aliasing host.docker.internal -> $$GATEWAY_IP (gateway seen from node '$$NODE')"; \
+				echo "  browser login redirects go to https://auth.localhost instead (host.docker.internal doesn't resolve on the host itself)"; \
+				HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS \
+					--set api.hostAliases[0].ip=$$GATEWAY_IP --set api.hostAliases[0].hostnames[0]=host.docker.internal \
+					--set api.oidc.authorizationURL=https://auth.localhost/api/oidc/authorization"; \
+				;; \
+		esac; \
 	fi; \
 	$(HELM) upgrade --install konfidence charts/konfidence \
 		--namespace=$(NAMESPACE) \
