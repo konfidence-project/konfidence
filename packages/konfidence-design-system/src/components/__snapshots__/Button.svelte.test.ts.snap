@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`<Button> > variant snapshots > matches the anchor snapshot 1`] = `"<!----><a class="btn btn--secondary" href="/">Home<!----></a>"`;
+
+exports[`<Button> > variant snapshots > matches the danger snapshot 1`] = `"<!----><button class="btn btn--danger" type="button">Go<!----></button>"`;
+
+exports[`<Button> > variant snapshots > matches the disabled snapshot 1`] = `"<!----><button class="btn btn--primary" type="button" disabled="">Deploy<!----></button>"`;
+
+exports[`<Button> > variant snapshots > matches the ghost snapshot 1`] = `"<!----><button class="btn btn--ghost" type="button">Go<!----></button>"`;
+
+exports[`<Button> > variant snapshots > matches the primary snapshot 1`] = `"<!----><button class="btn btn--primary" type="button">Go<!----></button>"`;
+
+exports[`<Button> > variant snapshots > matches the secondary snapshot 1`] = `"<!----><button class="btn btn--secondary" type="button">Go<!----></button>"`;

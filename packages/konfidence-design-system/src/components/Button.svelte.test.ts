@@ -52,4 +52,36 @@ describe("<Button>", () => {
       .element(page.getByRole("button", { name: "Deploy" }))
       .toHaveAttribute("type", "button");
   });
+
+  // Snapshot tests guard against silent DOM drift across variants /
+  // states. If a rendered variant changes shape, the snapshot mismatch
+  // forces a deliberate `-u` (or "Update Snapshot" in the UI) so the
+  // change is reviewed rather than merged unnoticed. Kept as HTML
+  // string snapshots to stay readable in code review — no external
+  // renderer, no image diffing.
+  describe("variant snapshots", () => {
+    for (const variant of Object.keys(VARIANT_CLASSES) as (keyof typeof VARIANT_CLASSES)[]) {
+      it(`matches the ${variant} snapshot`, async () => {
+        const { container } = await render(ButtonHarness, { label: "Go", variant });
+        expect(container.innerHTML).toMatchSnapshot();
+      });
+    }
+
+    it("matches the anchor snapshot", async () => {
+      const { container } = await render(ButtonHarness, {
+        href: "/",
+        label: "Home",
+        variant: "secondary",
+      });
+      expect(container.innerHTML).toMatchSnapshot();
+    });
+
+    it("matches the disabled snapshot", async () => {
+      const { container } = await render(ButtonHarness, {
+        disabled: true,
+        label: "Deploy",
+      });
+      expect(container.innerHTML).toMatchSnapshot();
+    });
+  });
 });
