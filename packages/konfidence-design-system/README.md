@@ -77,7 +77,7 @@ are the contract those runtimes target.
 | `Button`      | `.btn`, `.btn--{primary,secondary,ghost,danger}`                                | Renders `<button>` or `<a>`; forwards `disabled`, `aria-*`, click handler. |
 | `Brandbar`    | (Tailwind arbitrary-value utilities)                                            | The amber-teal aurora strip at the top of every screen.                    |
 | `OrbitLoader` | (Tailwind arbitrary-value utilities)                                            | Live-region loading indicator with an accessible label.                    |
-| `StatusBadge` | `.badge`, `.badge--{healthy,warning,degraded,error,promoting,deploying,queued}` | Named domain state; requires visible text.                                 |
+| `StatusBadge` | `.badge`, `.badge--<status>`                                                    | Passes `status` through to the class list; the API owns the vocabulary.    |
 
 ```svelte
 <script lang="ts">

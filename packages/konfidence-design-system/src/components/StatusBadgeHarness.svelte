@@ -2,14 +2,7 @@
     import StatusBadge from "./StatusBadge.svelte";
 
     interface Props {
-        status:
-            | "healthy"
-            | "warning"
-            | "degraded"
-            | "error"
-            | "promoting"
-            | "deploying"
-            | "queued";
+        status: string;
         showDot?: boolean;
         label: string;
     }

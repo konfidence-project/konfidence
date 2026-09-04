@@ -1,22 +1,16 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
 
-    /**
-     * Named domain state. Auditability rule: badges are always identified
-     * by name (text + colour), never by colour alone.
-     */
-    type Status =
-        | "healthy"
-        | "warning"
-        | "degraded"
-        | "error"
-        | "promoting"
-        | "deploying"
-        | "queued";
-
     interface Props {
-        /** Semantic status. Drives colour + surface tokens. */
-        status: Status;
+        /**
+         * Status identifier. Free-form on purpose: the API owns the
+         * vocabulary (`healthy`, `deploying`, …) and this component is
+         * a passive dispatcher — it appends the value to the badge
+         * class so styling comes from `.badge--<status>` in
+         * konfidence.custom.css. Unknown values render as an
+         * unstyled `.badge` with a `data-status` for debugging.
+         */
+        status: string;
         /** Whether to show the leading state dot. Defaults to `true`. */
         showDot?: boolean;
         /** Extra class names for layout tweaks. */
