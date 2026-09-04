@@ -2,6 +2,7 @@ package version
 
 import (
 	"fmt"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -11,14 +12,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// devVersion is the ldflags default in pkg/build; a binary reporting it was not
-// built from a release, so there is no newer version to point an update at.
-const devVersion = "dev"
-
 // installCommand is the one-liner users re-run to update. Updating is a
 // deliberate act (never automatic): the CLI is a client of the API/controllers
 // and must not silently move ahead of the server it talks to.
 const installCommand = "curl -fsSL https://konfidence.cloud/install.sh | sh"
+
+// releaseVersion matches a released tag (v0.4.0, 0.0.1-alpha.1) but not a source
+// build. Source builds via KDEN_GIT_REF set Version to a branch/tag/sha (e.g.
+// "main", a commit sha) and dev builds report "dev" — re-running the installer
+// would fetch a release, not rebuild that ref, so we don't show the update hint
+// for them.
+var releaseVersion = regexp.MustCompile(`^v?\d`)
+
+func isRelease(version string) bool {
+	return releaseVersion.MatchString(version)
+}
 
 // Info is the machine-readable version payload. Tags keep json and yaml output
 // lowercase and stable for scripts.
@@ -65,8 +73,9 @@ pollutes json/yaml/pretty output).`,
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), strings.TrimRight(formatted, "\n"))
 		}
 
-		// Update hint on stderr, released builds only.
-		if info.Version != devVersion {
+		// Update hint on stderr for released builds only. Source builds
+		// (KDEN_GIT_REF) and dev builds have no release to re-point at.
+		if isRelease(info.Version) {
 			_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
 				"\nTo update, re-run the installer:\n  %s\n", installCommand)
 		}
