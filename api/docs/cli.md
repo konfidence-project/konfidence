@@ -42,6 +42,7 @@ Example usage:
 * [kden login](#kden-login)  - Kden API Login
 * [kden logout](#kden-logout)  - Kden API Logout
 * [kden project](#kden-project)  - Manage projects
+* [kden upgrade](#kden-upgrade)  - Update the kden CLI to the latest release in place
 * [kden vector](#kden-vector)  - Manage vectors
 * [kden vector-promotion](#kden-vector-promotion)  - Manage vector promotions
 * [kden version](#kden-version)  - Print the kden CLI version
@@ -557,6 +558,41 @@ kden project list [flags]
 ### SEE ALSO
 
 * [kden project](#kden-project)  - Manage projects
+
+
+## kden upgrade
+
+Update the kden CLI to the latest release in place
+
+### Synopsis
+
+Download the latest kden release, verify its checksum and atomically
+replace the running binary. Use KDEN_VERSION to pin a specific release.
+
+```
+kden upgrade [flags]
+```
+
+### Options
+
+```
+  -h, --help   help for upgrade
+```
+
+### Options inherited from parent commands
+
+```
+      --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
+      --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
+      --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
+      --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
+```
+
+### SEE ALSO
+
+* [kden](#kden)  - Kden CLI tool for working with Konfidence
 
 
 ## kden vector

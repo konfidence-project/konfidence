@@ -60,7 +60,7 @@ builds:
       - goos: darwin
         goarch: amd64
     ldflags:
-      - -s -w -X github.com/konfidence-project/konfidence/cmd/version.version={{.Version}}
+      - -s -w -X github.com/konfidence-project/konfidence/pkg/build.Version={{.Version}} -X github.com/konfidence-project/konfidence/pkg/build.GitCommit={{.Commit}}
 
   - id: api
     binary: api
