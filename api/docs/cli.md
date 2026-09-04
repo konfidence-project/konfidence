@@ -803,6 +803,14 @@ kden vector-promotion list [flags]
 
 Print the kden CLI version
 
+### Synopsis
+
+Print the kden CLI version, build metadata and platform.
+
+Respects the global --output flag (json, yaml, pretty). When run against a
+released build, prints the command to re-run to update (to stderr, so it never
+pollutes json/yaml/pretty output).
+
 ```
 kden version [flags]
 ```
