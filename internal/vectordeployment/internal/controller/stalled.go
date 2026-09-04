@@ -9,25 +9,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// stalledReasonNotStalled is the reason carried by Stalled=False. A reason is required on
-// every condition, and naming the healthy case explicitly keeps "evaluated, nothing
-// blocking" distinguishable in the status from a condition that was never written.
 const stalledReasonNotStalled = "NotStalled"
 
-// stalledChild is an ArtifactDeployment that reported Stalled=True, captured so the parent
-// can name one of them.
+// stalledChild is an ArtifactDeployment reporting Stalled=True.
 type stalledChild struct {
 	name    string
 	reason  string
 	message string
 }
 
-// setStalled records that the vector deployment cannot progress without manual action.
-//
-// Ready is forced to False in the same call rather than left to the caller's control flow.
-// Stalled=True alongside Ready=True is a contradiction a reader could act on wrongly, and
-// writing both here means a later edit that adds an early return cannot break the
-// invariant by forgetting one of them.
+// setStalled marks the vector deployment blocked. Ready is forced False here rather than
+// left to the caller, so no return path can leave the two contradicting each other.
 func setStalled(vectorDeployment *konfidence.VectorDeployment, reason, message string) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StalledCondition,
@@ -45,14 +37,8 @@ func setStalled(vectorDeployment *konfidence.VectorDeployment, reason, message s
 	})
 }
 
-// clearStalled records that this reconcile observed no blocking cause.
-//
-// Called at the top of every reconcile so that Stalled is always present on an object the
-// controller has seen. kstatus-style tooling reads an absent Stalled as "not stalled", so
-// leaving it off the healthy path would make "nothing is blocking" indistinguishable from
-// "never evaluated"; writing it always reserves absence for the latter. meta.SetStatusCondition
-// leaves an unchanged condition untouched, so repeating this on every reconcile does not
-// churn lastTransitionTime or produce a status patch.
+// clearStalled records that this reconcile found nothing blocking. Called on every pass so
+// absence of the condition means only that the object was never reconciled.
 func clearStalled(vectorDeployment *konfidence.VectorDeployment) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StalledCondition,
@@ -77,12 +63,8 @@ func collectStalledChild(artifactDeployment *konfidence.ArtifactDeployment) (sta
 	}, true
 }
 
-// pickStalledChild chooses which stalled child the parent reports when several are blocked
-// at once.
-//
-// Only one can be named in the parent's message, and the choice has to be stable: reporting
-// whichever child the informer delivered last makes the parent's message flap as unrelated
-// children reconcile. Lowest name wins, arbitrary but deterministic.
+// pickStalledChild chooses which child the parent names. Lowest name wins: arbitrary, but
+// stable, so the message does not flap as children reconcile in informer order.
 func pickStalledChild(children []stalledChild) (stalledChild, bool) {
 	if len(children) == 0 {
 		return stalledChild{}, false
@@ -93,8 +75,6 @@ func pickStalledChild(children []stalledChild) (stalledChild, bool) {
 	return children[0], true
 }
 
-// stalledChildMessage describes a blocked child on the parent, naming the child and its own
-// reason so a reader does not have to go find the ArtifactDeployment to learn what to fix.
 func stalledChildMessage(child stalledChild, total int) string {
 	message := fmt.Sprintf("ArtifactDeployment %s is stalled (%s): %s", child.name, child.reason, child.message)
 	if total > 1 {

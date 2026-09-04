@@ -19,9 +19,7 @@ func vectorDeploymentWithGeneration(generation int64) *konfidence.VectorDeployme
 	return vectorDeployment
 }
 
-// A healthy reconcile has to leave Stalled present and False. If the controller only wrote
-// the condition on the failure path, "nothing is blocking" would be indistinguishable from
-// "never evaluated" for any reader following the kstatus convention.
+// A healthy reconcile must leave Stalled present and False, not absent.
 func TestClearStalledWritesFalseCondition(t *testing.T) {
 	vectorDeployment := vectorDeploymentWithGeneration(3)
 
@@ -39,7 +37,6 @@ func TestClearStalledWritesFalseCondition(t *testing.T) {
 	}
 }
 
-// Stalled=True and Ready=True is a contradiction, so setStalled owns both writes.
 func TestSetStalledForcesReadyFalse(t *testing.T) {
 	vectorDeployment := vectorDeploymentWithGeneration(1)
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
@@ -59,8 +56,7 @@ func TestSetStalledForcesReadyFalse(t *testing.T) {
 	}
 }
 
-// A reason changing while the status stays True must update in place rather than drop and
-// re-add the condition, so consumers keep watching one entry keyed by type.
+// A reason change while still True must update in place, not drop and re-add the entry.
 func TestSetStalledReasonTransitionKeepsSingleEntry(t *testing.T) {
 	vectorDeployment := vectorDeploymentWithGeneration(1)
 
@@ -83,8 +79,6 @@ func TestSetStalledReasonTransitionKeepsSingleEntry(t *testing.T) {
 	}
 }
 
-// Once the blocking cause is gone the condition has to flip back, otherwise a resolved
-// stall stays reported forever.
 func TestClearStalledAfterSetFlipsBackToFalse(t *testing.T) {
 	vectorDeployment := vectorDeploymentWithGeneration(1)
 
@@ -97,15 +91,12 @@ func TestClearStalledAfterSetFlipsBackToFalse(t *testing.T) {
 	}
 }
 
-// The stale-generation case: the spec is fixed, generation bumps, and the controller has
-// not reconciled yet. Stalled must still read True against the generation it was computed
-// from, so a client can tell the condition describes the previous spec rather than treating
-// it as a fresh verdict on the new one.
+// Spec fixed, generation bumped, controller not run yet: the condition must stay
+// detectably stale rather than read as a fresh verdict on the new spec.
 func TestStalledCarriesTheObservedGenerationItWasComputedFrom(t *testing.T) {
 	vectorDeployment := vectorDeploymentWithGeneration(7)
 	setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
 
-	// User edits the spec; the controller has not run again.
 	vectorDeployment.Generation = 8
 
 	condition := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.StalledCondition)
@@ -120,8 +111,7 @@ func TestStalledCarriesTheObservedGenerationItWasComputedFrom(t *testing.T) {
 	}
 }
 
-// Which child gets named must not depend on the order children were observed, or the
-// parent's message flaps as unrelated children reconcile.
+// The named child must not depend on observation order, or the message flaps.
 func TestPickStalledChildIsDeterministic(t *testing.T) {
 	forward := []stalledChild{
 		{name: testArtifactName, reason: konfidence.StalledReasonManifestMissing},
@@ -153,8 +143,6 @@ func TestPickStalledChildEmpty(t *testing.T) {
 	}
 }
 
-// The parent's message has to name the child and its own reason, so an operator reading the
-// vector does not have to go hunting for which artifact is blocked and why.
 func TestStalledChildMessageNamesChildAndReason(t *testing.T) {
 	child := stalledChild{
 		name:    testArtifactName,

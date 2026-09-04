@@ -74,8 +74,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	originalVectorDeployment := vectorDeployment.DeepCopy()
 	patch := client.MergeFrom(originalVectorDeployment)
 
-	// Default to not stalled on every reconcile. Blocking causes discovered below overwrite
-	// this before their status patch, so the condition always reflects what this pass saw.
+	// Default to not stalled; blocking causes below overwrite it before their status patch.
 	clearStalled(vectorDeployment)
 
 	vectorRef, err := compref.Parse(vectorDeployment.Spec.Vector)
@@ -291,8 +290,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				// not bad luck in a large hash space, so fail loudly instead of requeueing forever.
 				if collisionCount >= 5 {
 					log.Error(nil, msg, "name", deploymentName, "collisionCount", collisionCount)
-					// Salting has stopped helping, so no amount of requeueing resolves this.
-					// Report it as blocking rather than retrying behind an error backoff.
+					// Salting has stopped helping, so requeueing cannot resolve this.
 					setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision,
 						fmt.Sprintf("%s (giving up after %d salts)", msg, collisionCount))
 					return false, fmt.Errorf("%s (giving up after %d salts)", msg, collisionCount)
@@ -358,9 +356,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			allReady = false
 		}
 
-		// A child the deployer marked as blocked keeps this vector from ever reaching Ready.
-		// Collect rather than report immediately, so the reported child does not depend on
-		// the order artifacts happen to appear in the vector.
+		// Collect rather than report inline, so the named child does not depend on vector order.
 		if child, ok := collectStalledChild(artifactDeployment); ok {
 			stalledChildren = append(stalledChildren, child)
 		}
@@ -389,8 +385,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		LastTransitionTime: metav1.Now(),
 	})
 
-	// Surface a blocked child on the parent. Without this the vector sits with Ready=False
-	// and nothing explaining why, and the vector is the object an operator watches.
+	// Surface a blocked child, otherwise the vector sits at Ready=False with no explanation.
 	if child, ok := pickStalledChild(stalledChildren); ok {
 		setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled,
 			stalledChildMessage(child, len(stalledChildren)))

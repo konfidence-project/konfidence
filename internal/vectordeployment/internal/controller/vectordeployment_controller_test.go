@@ -501,9 +501,8 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}
 		gomega.Expect(k8sClient.Create(ctx, vectorDeployment)).To(gomega.Succeed())
 
-		// The healthy path must leave Stalled present and False. Asserting only the True case
-		// would pass against a controller that writes the condition solely on the failure path,
-		// which is what makes an absent Stalled ambiguous for kstatus-style readers.
+		// Asserting only the True case would pass against a controller that writes Stalled
+		// solely on the failure path.
 		By("Verifying the parent reports Stalled=False before anything blocks")
 		actual := &konfidence.VectorDeployment{}
 		gomega.Eventually(func(g gomega.Gomega) {
@@ -533,9 +532,8 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		})
 		gomega.Expect(k8sClient.Status().Update(ctx, child)).To(gomega.Succeed())
 
-		// This also exercises the child watch: the update above touches only status, so the
-		// parent is re-reconciled solely because Owns(&ArtifactDeployment{}) carries no
-		// GenerationChangedPredicate.
+		// The update above touches only status, so this also proves the Owns watch delivers
+		// status changes.
 		By("Verifying the parent goes Stalled=True naming the blocked child")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
