@@ -5,7 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="text-scale" content="scale" />
     <link rel="icon" href="%sveltekit.assets%/logos/icon.svg" />
-    <!--@konfidence/theme-bootstrap-->
+    <!--
+      Theme loader. Resolves ?theme / ?mode / localStorage BEFORE the
+      first paint so reloads never flash the wrong theme. Kept static
+      (no build-time interpolation) so CodeQL doesn't flag it, and so
+      adapter-static works without a request hook. Constants mirror
+      src/lib/theme/constants.ts; resolve.test.ts guards the TS twin.
+    -->
+    <script>
+      (() => {
+        const THEMES = new Set(["konfidence"]);
+        const MODES = new Set(["light", "dark", "system"]);
+        const THEME_KEY = "konfidence.theme";
+        const MODE_KEY = "konfidence.mode";
+
+        // localStorage + history can throw (CSP, quota, sandboxed frames);
+        // callers stay best-effort.
+        const attempt = (fn) => {
+          try {
+            return fn();
+          } catch {
+            return undefined;
+          }
+        };
+
+        const resolve = (queryValue, valid, storageKey) => {
+          if (valid.has(queryValue)) {
+            attempt(() => localStorage.setItem(storageKey, queryValue));
+            return queryValue;
+          }
+          const stored = attempt(() => localStorage.getItem(storageKey));
+          return valid.has(stored) ? stored : undefined;
+        };
+
+        const params = new URLSearchParams(location.search);
+        const theme = resolve(params.get("theme"), THEMES, THEME_KEY);
+        const mode = resolve(params.get("mode"), MODES, MODE_KEY);
+
+        if (params.has("theme") || params.has("mode")) {
+          params.delete("theme");
+          params.delete("mode");
+          const search = params.toString();
+          const url = location.pathname + (search ? `?${search}` : "") + location.hash;
+          attempt(() => history.replaceState(null, "", url));
+        }
+
+        const html = document.documentElement;
+        if (theme) html.setAttribute("data-theme", theme);
+        if (mode) html.setAttribute("data-mode", mode);
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

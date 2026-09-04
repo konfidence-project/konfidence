@@ -1,4 +1,4 @@
-export { buildInlineBootstrapScript, resolveInitialTheme } from "./resolve.js";
+export { resolveInitialTheme } from "./resolve.js";
 export type { ResolvedThemeState } from "./resolve.js";
 export {
   DEFAULT_MODE,

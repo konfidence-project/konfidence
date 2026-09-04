@@ -3,10 +3,8 @@ import {
   DEFAULT_THEME,
   MODE_QUERY_PARAM,
   MODE_STORAGE_KEY,
-  MODES,
   THEME_QUERY_PARAM,
   THEME_STORAGE_KEY,
-  THEMES,
   isMode,
   isTheme,
 } from "./constants.js";
@@ -30,6 +28,13 @@ interface ResolvedThemeState {
  * The helper is pure with respect to its inputs and touches only the
  * `location`, `history`, and `localStorage` you pass in, which keeps
  * it usable from tests without a full DOM.
+ *
+ * Kept in sync with the inline `<script>` in `app.html` — the script
+ * runs synchronously before the first paint (adapter-static, no
+ * server hook), and this typed function is the fallback path used by
+ * `ThemeStore` when the inline script did not run (e.g. blocked by
+ * CSP or reverted by third-party tooling). Unit tests cover that
+ * fallback.
  */
 // eslint-disable-next-line max-statements
 const resolveInitialTheme = (options: {
@@ -103,72 +108,5 @@ const resolveInitialTheme = (options: {
   return { mode, theme };
 };
 
-/**
- * Body of the inline `<script>` injected into every prerendered HTML
- * page. Must run synchronously in `<head>` before any stylesheet paints
- * so a reload never flashes the wrong theme.
- *
- * Constants are pulled from the shared `./constants.js` module so this
- * script and {@link resolveInitialTheme} agree on theme names, the
- * storage keys, and the query-parameter names. The typed function is
- * still exercised by the `ThemeStore` as a fallback when the inline
- * script did not run (e.g. blocked by CSP) or its side effects were
- * reverted by third-party tooling; unit tests cover that path.
- *
- * Injected at build time by `apps/konfidence-ui/src/hooks.server.ts`
- * via `transformPageChunk`, so `app.html` stays free of copy-pasted
- * script bodies.
- */
-const buildInlineBootstrapScript = (): string => {
-  const themes = JSON.stringify(THEMES);
-  const modes = JSON.stringify(MODES);
-  const themeQuery = JSON.stringify(THEME_QUERY_PARAM);
-  const modeQuery = JSON.stringify(MODE_QUERY_PARAM);
-  const themeStorage = JSON.stringify(THEME_STORAGE_KEY);
-  const modeStorage = JSON.stringify(MODE_STORAGE_KEY);
-  return `(() => {
-  try {
-    const themes = new Set(${themes});
-    const modes = new Set(${modes});
-    const params = new URLSearchParams(location.search);
-    const queryTheme = params.get(${themeQuery});
-    const queryMode = params.get(${modeQuery});
-    let theme, mode;
-    if (themes.has(queryTheme)) {
-      theme = queryTheme;
-      try { localStorage.setItem(${themeStorage}, theme); } catch {}
-    } else {
-      try {
-        const stored = localStorage.getItem(${themeStorage});
-        if (themes.has(stored)) theme = stored;
-      } catch {}
-    }
-    if (modes.has(queryMode)) {
-      mode = queryMode;
-      try { localStorage.setItem(${modeStorage}, mode); } catch {}
-    } else {
-      try {
-        const stored = localStorage.getItem(${modeStorage});
-        if (modes.has(stored)) mode = stored;
-      } catch {}
-    }
-    if (queryTheme != null || queryMode != null) {
-      try {
-        params.delete(${themeQuery});
-        params.delete(${modeQuery});
-        const search = params.toString();
-        history.replaceState(
-          null,
-          "",
-          location.pathname + (search ? "?" + search : "") + location.hash,
-        );
-      } catch {}
-    }
-    if (theme) document.documentElement.setAttribute("data-theme", theme);
-    if (mode) document.documentElement.setAttribute("data-mode", mode);
-  } catch {}
-})();`;
-};
-
-export { buildInlineBootstrapScript, resolveInitialTheme };
+export { resolveInitialTheme };
 export type { ResolvedThemeState };
