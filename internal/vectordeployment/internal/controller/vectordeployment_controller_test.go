@@ -553,7 +553,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		meta.SetStatusCondition(&child.Status.Conditions, metav1.Condition{
 			Type:               konfidence.StalledCondition,
 			Status:             metav1.ConditionFalse,
-			Reason:             "NotStalled",
+			Reason:             konfidence.StalledReasonNotStalled,
 			Message:            "No blocking condition detected",
 			ObservedGeneration: child.Generation,
 		})
