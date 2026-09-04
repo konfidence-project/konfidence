@@ -12,8 +12,9 @@ Skeleton v5, provides:
 - **Custom components** — Konfidence-specific CSS classes with no
   Skeleton equivalent (orbit, phases, diff, timelines, charts, status
   badges, tags, icon chips, …).
-- **`.btn` overrides** — Konfidence gradient fill, amber glow, hover
-  lift; imported after Skeleton so it wins at equal specificity.
+- **`.btn` styles** — Konfidence gradient fill, amber glow, hover
+  lift; scoped inside `Button.svelte` (colocated with the component)
+  so consumers get them via `<Button>`, not raw `.btn` markup.
 - **Svelte components** — Tier-1 wrappers over the CSS layer:
   `Button`, `Brandbar`, `OrbitLoader`, `StatusBadge`.
 
@@ -52,7 +53,7 @@ imports them first, then layers the Konfidence styles on top:
 
 Fine-grained subpaths are available if the default order does not
 fit (`@konfidence/design-system/styles/tokens`, `/styles/skeleton`,
-`/styles/custom`, `/styles/buttons`).
+`/styles/custom`).
 
 ## Wire the theme bootstrap
 

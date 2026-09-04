@@ -19,8 +19,7 @@
     "./styles": "./src/styles/index.css",
     "./styles/tokens": "./src/styles/tokens.css",
     "./styles/skeleton": "./src/styles/konfidence.skeleton.css",
-    "./styles/custom": "./src/styles/konfidence.custom.css",
-    "./styles/buttons": "./src/styles/konfidence.buttons.css"
+    "./styles/custom": "./src/styles/konfidence.custom.css"
   },
   "scripts": {
     "check": "tsgo -p ./tsconfig.json --noEmit",

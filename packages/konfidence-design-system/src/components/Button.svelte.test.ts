@@ -59,11 +59,18 @@ describe("<Button>", () => {
   // change is reviewed rather than merged unnoticed. Kept as HTML
   // string snapshots to stay readable in code review — no external
   // renderer, no image diffing.
+  //
+  // Svelte's scoped-CSS compiler suffixes every rendered element with
+  // a `svelte-<hash>` class that changes on every content edit; strip
+  // it so snapshots aren't churned by unrelated tweaks.
+  const stripSvelteScope = (html: string): string =>
+    html.replace(/ svelte-[a-z0-9]+/g, "").replace(/class=""/g, "");
+
   describe("variant snapshots", () => {
     for (const variant of Object.keys(VARIANT_CLASSES) as (keyof typeof VARIANT_CLASSES)[]) {
       it(`matches the ${variant} snapshot`, async () => {
         const { container } = await render(ButtonHarness, { label: "Go", variant });
-        expect(container.innerHTML).toMatchSnapshot();
+        expect(stripSvelteScope(container.innerHTML)).toMatchSnapshot();
       });
     }
 
@@ -73,7 +80,7 @@ describe("<Button>", () => {
         label: "Home",
         variant: "secondary",
       });
-      expect(container.innerHTML).toMatchSnapshot();
+      expect(stripSvelteScope(container.innerHTML)).toMatchSnapshot();
     });
 
     it("matches the disabled snapshot", async () => {
@@ -81,7 +88,7 @@ describe("<Button>", () => {
         disabled: true,
         label: "Deploy",
       });
-      expect(container.innerHTML).toMatchSnapshot();
+      expect(stripSvelteScope(container.innerHTML)).toMatchSnapshot();
     });
   });
 });
