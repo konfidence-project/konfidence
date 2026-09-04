@@ -470,4 +470,101 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		gomega.Expect(untouched.Annotations[pkgctrl.ArtifactComponentAnnotation]).To(gomega.Equal("github.com/konfidence-project/some-other-service"))
 		gomega.Expect(untouched.OwnerReferences).To(gomega.BeEmpty(), "foreign ArtifactDeployment must not be adopted")
 	})
+
+	It("should surface a stalled ArtifactDeployment on the parent VectorDeployment", func() {
+		ctx := context.Background()
+
+		const stalledOcmName = "stalled.konfidence.cloud.example.vector-0.3.0"
+
+		vectorDescriptor := VectorDescriptor{
+			References: []compref.Ref{
+				{
+					Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
+					Component:  "github.com/konfidence-project/sample-service-1",
+					Version:    "0.0.1",
+				},
+			},
+			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +
+				`"version":"0.3.0","creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project",` +
+				`"resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1",` +
+				`"componentName":"github.com/konfidence-project/sample-service-1",` +
+				`"digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
+		}
+		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(vectorDescriptor, nil).AnyTimes()
+		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).
+			Return(ArtifactManifest{Type: "cloud.konfidence.flux.helm", AllowReuse: true}, nil).AnyTimes()
+
+		vectorDeployment := &konfidence.VectorDeployment{
+			TypeMeta:   metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
+			ObjectMeta: metav1.ObjectMeta{Name: stalledOcmName, Namespace: testNamespace},
+			Spec:       konfidence.VectorDeploymentSpec{Vector: vectorReference},
+		}
+		gomega.Expect(k8sClient.Create(ctx, vectorDeployment)).To(gomega.Succeed())
+
+		// Asserting only the True case would pass against a controller that writes Stalled
+		// solely on the failure path.
+		By("Verifying the parent reports Stalled=False before anything blocks")
+		actual := &konfidence.VectorDeployment{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(condition).ToNot(gomega.BeNil(), "Stalled must be written on every reconcile, not only when blocked")
+			g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionFalse))
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Waiting for the child ArtifactDeployment to be created")
+		artifactDeploymentList := &konfidence.ArtifactDeploymentList{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.List(ctx, artifactDeploymentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
+			g.Expect(artifactDeploymentList.Items).To(gomega.HaveLen(1))
+		}, timeout, interval).Should(gomega.Succeed())
+		childName := artifactDeploymentList.Items[0].Name
+
+		By("Marking the child ArtifactDeployment as stalled, as a deployer would")
+		child := &konfidence.ArtifactDeployment{}
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: childName, Namespace: testNamespace}, child)).To(gomega.Succeed())
+		meta.SetStatusCondition(&child.Status.Conditions, metav1.Condition{
+			Type:               konfidence.StalledCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.StalledReasonManifestMissing,
+			Message:            "no konfidence manifest in artifact",
+			ObservedGeneration: child.Generation,
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, child)).To(gomega.Succeed())
+
+		// The update above touches only status, so this also proves the Owns watch delivers
+		// status changes.
+		By("Verifying the parent goes Stalled=True naming the blocked child")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(condition).ToNot(gomega.BeNil())
+			g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionTrue))
+			g.Expect(condition.Reason).To(gomega.Equal(konfidence.StalledReasonChildArtifactDeploymentStalled))
+			g.Expect(condition.Message).To(gomega.ContainSubstring(childName))
+			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.StalledReasonManifestMissing))
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Verifying Ready is False while Stalled is True")
+		gomega.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeFalse())
+
+		By("Clearing the stall on the child")
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: childName, Namespace: testNamespace}, child)).To(gomega.Succeed())
+		meta.SetStatusCondition(&child.Status.Conditions, metav1.Condition{
+			Type:               konfidence.StalledCondition,
+			Status:             metav1.ConditionFalse,
+			Reason:             "NotStalled",
+			Message:            "No blocking condition detected",
+			ObservedGeneration: child.Generation,
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, child)).To(gomega.Succeed())
+
+		By("Verifying the parent recovers to Stalled=False once the cause is gone")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(condition).ToNot(gomega.BeNil())
+			g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionFalse))
+		}, timeout, interval).Should(gomega.Succeed())
+	})
 })
