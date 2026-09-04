@@ -43,7 +43,7 @@ export default defineConfig({
       env: {
         node: true,
       },
-      files: ["src/tests/**/*.ts"],
+      files: ["src/**/*.test.ts", "src/**/*.svelte.test.ts"],
       rules: {
         "eslint/max-statements": "off",
         "eslint/no-magic-numbers": "off",

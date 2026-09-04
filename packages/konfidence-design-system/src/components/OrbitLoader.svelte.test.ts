@@ -2,7 +2,7 @@ import { page } from "vitest/browser";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import OrbitLoader from "../components/OrbitLoader.svelte";
+import OrbitLoader from "./OrbitLoader.svelte";
 
 describe("<OrbitLoader>", () => {
   it("exposes a live-region with the default label", async () => {
