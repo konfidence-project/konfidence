@@ -26,23 +26,16 @@ type authFlowHandler interface {
 	LoginV1(ctx context.Context, request openapi.LoginV1RequestObject) (openapi.LoginV1ResponseObject, error)
 	AuthCallbackV1(ctx context.Context, request openapi.AuthCallbackV1RequestObject) (openapi.AuthCallbackV1ResponseObject, error)
 	LogoutV1(ctx context.Context, request openapi.LogoutV1RequestObject) (openapi.LogoutV1ResponseObject, error)
+	GetIdentityV1(ctx context.Context, request openapi.GetIdentityV1RequestObject) (openapi.GetIdentityV1ResponseObject, error)
+	PostExchangeCodeV1(ctx context.Context, request openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error)
 }
 
 type apiHandler struct {
 	authFlowHandler
-	auth *authHandler
 	projectHandler
 }
 
 var _ openapi.StrictServerInterface = (*apiHandler)(nil)
-
-func (a *apiHandler) GetIdentityV1(ctx context.Context, req openapi.GetIdentityV1RequestObject) (openapi.GetIdentityV1ResponseObject, error) {
-	return a.auth.GetIdentityV1(ctx, req)
-}
-
-func (a *apiHandler) PostExchangeCodeV1(ctx context.Context, req openapi.PostExchangeCodeV1RequestObject) (openapi.PostExchangeCodeV1ResponseObject, error) {
-	return a.auth.PostExchangeCodeV1(ctx, req)
-}
 
 func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc.Client,
 	stateStore oidc.StateStore, exchangeStore oidc.ExchangeStore, sessionStore session.Store,
@@ -71,7 +64,6 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	project := newProjectHandler(projectRepo, landscapeRepo, stageRepo, vectorDeploymentRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
 	api := &apiHandler{
 		authFlowHandler: authFlow,
-		auth:            auth,
 		projectHandler:  *project,
 	}
 	return middleware.SessionAuthentication(logger, sessionStore, authRepo, cfg, api.handler())

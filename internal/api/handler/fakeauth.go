@@ -110,3 +110,13 @@ func (f *fakeAuthHandler) AuthCallbackV1(ctx context.Context, request openapi.Au
 func (f *fakeAuthHandler) LogoutV1(ctx context.Context, req openapi.LogoutV1RequestObject) (openapi.LogoutV1ResponseObject, error) {
 	return f.auth.LogoutV1(ctx, req)
 }
+
+func (f *fakeAuthHandler) GetIdentityV1(ctx context.Context, req openapi.GetIdentityV1RequestObject) (openapi.GetIdentityV1ResponseObject, error) {
+	return f.auth.GetIdentityV1(ctx, req)
+}
+
+func (f *fakeAuthHandler) PostExchangeCodeV1(
+	ctx context.Context, req openapi.PostExchangeCodeV1RequestObject,
+) (openapi.PostExchangeCodeV1ResponseObject, error) {
+	return f.auth.PostExchangeCodeV1(ctx, req)
+}
