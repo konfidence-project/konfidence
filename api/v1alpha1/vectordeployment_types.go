@@ -55,6 +55,8 @@ type VectorDeploymentStatus struct {
 
 	// Conditions represents the current set of status conditions for this vector
 	// deployment. These conditions track progress through the lifecycle stages.
+	// +listType=map
+	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// ResolvedVectorOcm contains the fully materialized content of the OCM ComponentVersion after it has been
