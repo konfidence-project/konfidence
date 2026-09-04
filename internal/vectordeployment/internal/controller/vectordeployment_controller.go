@@ -74,6 +74,10 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	originalVectorDeployment := vectorDeployment.DeepCopy()
 	patch := client.MergeFrom(originalVectorDeployment)
 
+	// Default to not stalled on every reconcile. Blocking causes discovered below overwrite
+	// this before their status patch, so the condition always reflects what this pass saw.
+	clearStalled(vectorDeployment)
+
 	vectorRef, err := compref.Parse(vectorDeployment.Spec.Vector)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to parse vector reference %s: %w", vectorDeployment.Spec.Vector, err)
@@ -223,6 +227,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	var (
 		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifactReferences))
 		deploymentResults            = make(map[string]konfidence.ComponentDeploymentResults)
+		stalledChildren              []stalledChild
 	)
 	allReady := true
 
@@ -286,6 +291,10 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				// not bad luck in a large hash space, so fail loudly instead of requeueing forever.
 				if collisionCount >= 5 {
 					log.Error(nil, msg, "name", deploymentName, "collisionCount", collisionCount)
+					// Salting has stopped helping, so no amount of requeueing resolves this.
+					// Report it as blocking rather than retrying behind an error backoff.
+					setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision,
+						fmt.Sprintf("%s (giving up after %d salts)", msg, collisionCount))
 					return false, fmt.Errorf("%s (giving up after %d salts)", msg, collisionCount)
 				}
 
@@ -348,6 +357,13 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.ArtifactDeploymentReadyCondition) {
 			allReady = false
 		}
+
+		// A child the deployer marked as blocked keeps this vector from ever reaching Ready.
+		// Collect rather than report immediately, so the reported child does not depend on
+		// the order artifacts happen to appear in the vector.
+		if child, ok := collectStalledChild(artifactDeployment); ok {
+			stalledChildren = append(stalledChildren, child)
+		}
 	}
 
 	// Write local maps back to status. Assign nil when empty so that the
@@ -372,6 +388,13 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
+
+	// Surface a blocked child on the parent. Without this the vector sits with Ready=False
+	// and nothing explaining why, and the vector is the object an operator watches.
+	if child, ok := pickStalledChild(stalledChildren); ok {
+		setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled,
+			stalledChildMessage(child, len(stalledChildren)))
+	}
 
 	if allReady {
 		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
