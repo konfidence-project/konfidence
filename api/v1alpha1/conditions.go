@@ -10,6 +10,9 @@ package v1alpha1
 // absent Stalled means only that the object has never been reconciled.
 const StalledCondition = "Stalled"
 
+// StalledReasonNotStalled is the reason carried by Stalled=False.
+const StalledReasonNotStalled = "NotStalled"
+
 // Stalled reasons written by the VectorDeployment controller.
 const (
 	// StalledReasonArtifactDeploymentNamingCollision: a deterministic ArtifactDeployment

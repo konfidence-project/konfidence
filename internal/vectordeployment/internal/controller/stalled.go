@@ -9,8 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const stalledReasonNotStalled = "NotStalled"
-
 // stalledChild is an ArtifactDeployment reporting Stalled=True.
 type stalledChild struct {
 	name    string
@@ -43,7 +41,7 @@ func clearStalled(vectorDeployment *konfidence.VectorDeployment) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StalledCondition,
 		Status:             metav1.ConditionFalse,
-		Reason:             stalledReasonNotStalled,
+		Reason:             konfidence.StalledReasonNotStalled,
 		Message:            "No blocking condition detected",
 		ObservedGeneration: vectorDeployment.Generation,
 	})

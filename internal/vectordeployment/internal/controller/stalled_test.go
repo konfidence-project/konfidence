@@ -1,207 +1,161 @@
+//nolint:staticcheck // ST1001: allow dot-import for test specs using Ginkgo/Gomega
 package controller
 
 import (
-	"strings"
-	"testing"
-
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const testArtifactName = "artifact-a"
+var _ = Describe("Stalled condition", func() {
+	const artifactName = "artifact-a"
 
-func vectorDeploymentWithGeneration(generation int64) *konfidence.VectorDeployment {
-	vectorDeployment := &konfidence.VectorDeployment{}
-	vectorDeployment.Name = "test-vector"
-	vectorDeployment.Generation = generation
+	newVectorDeployment := func(generation int64) *konfidence.VectorDeployment {
+		vectorDeployment := &konfidence.VectorDeployment{}
+		vectorDeployment.Name = "test-vector"
+		vectorDeployment.Generation = generation
 
-	return vectorDeployment
-}
-
-// A healthy reconcile must leave Stalled present and False, not absent.
-func TestClearStalledWritesFalseCondition(t *testing.T) {
-	vectorDeployment := vectorDeploymentWithGeneration(3)
-
-	clearStalled(vectorDeployment)
-
-	condition := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.StalledCondition)
-	if condition == nil {
-		t.Fatal("expected Stalled condition to be written on a healthy reconcile")
+		return vectorDeployment
 	}
-	if condition.Status != metav1.ConditionFalse {
-		t.Fatalf("Stalled = %q, want %q", condition.Status, metav1.ConditionFalse)
-	}
-	if condition.ObservedGeneration != 3 {
-		t.Fatalf("ObservedGeneration = %d, want 3", condition.ObservedGeneration)
-	}
-}
 
-func TestSetStalledForcesReadyFalse(t *testing.T) {
-	vectorDeployment := vectorDeploymentWithGeneration(1)
-	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-		Type:               konfidence.VectorReadyCondition,
-		Status:             metav1.ConditionTrue,
-		Reason:             konfidence.VectorReadyCondition,
-		ObservedGeneration: 1,
+	stalledCondition := func(vectorDeployment *konfidence.VectorDeployment) *metav1.Condition {
+		return meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.StalledCondition)
+	}
+
+	Context("writing the condition", func() {
+		// A healthy reconcile must leave Stalled present and False, not absent.
+		It("should write Stalled=False when nothing blocks", func() {
+			vectorDeployment := newVectorDeployment(3)
+
+			clearStalled(vectorDeployment)
+
+			condition := stalledCondition(vectorDeployment)
+			Expect(condition).ToNot(BeNil())
+			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
+			Expect(condition.ObservedGeneration).To(Equal(int64(3)))
+		})
+
+		It("should force Ready=False whenever Stalled is True", func() {
+			vectorDeployment := newVectorDeployment(1)
+			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+				Type:               konfidence.VectorReadyCondition,
+				Status:             metav1.ConditionTrue,
+				Reason:             konfidence.VectorReadyCondition,
+				ObservedGeneration: 1,
+			})
+
+			setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision, "collision")
+
+			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.StalledCondition)).To(BeTrue())
+			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeFalse())
+		})
+
+		// A reason change while still True must update in place, not drop and re-add the entry.
+		It("should keep a single entry across a reason transition", func() {
+			vectorDeployment := newVectorDeployment(1)
+
+			setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision, "collision")
+			setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
+
+			var count int
+			for _, condition := range vectorDeployment.Status.Conditions {
+				if condition.Type == konfidence.StalledCondition {
+					count++
+				}
+			}
+			Expect(count).To(Equal(1))
+			Expect(stalledCondition(vectorDeployment).Reason).To(Equal(konfidence.StalledReasonChildArtifactDeploymentStalled))
+		})
+
+		It("should flip back to False once the cause resolves", func() {
+			vectorDeployment := newVectorDeployment(1)
+
+			setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
+			clearStalled(vectorDeployment)
+
+			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
+		})
+
+		// Spec fixed, generation bumped, controller not run yet: the condition must stay
+		// detectably stale rather than read as a fresh verdict on the new spec.
+		It("should carry the generation the stall was computed from", func() {
+			vectorDeployment := newVectorDeployment(7)
+			setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
+
+			vectorDeployment.Generation = 8
+
+			condition := stalledCondition(vectorDeployment)
+			Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+			Expect(condition.ObservedGeneration).To(Equal(int64(7)))
+			Expect(condition.ObservedGeneration).To(BeNumerically("<", vectorDeployment.Generation))
+		})
 	})
 
-	setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision, "collision")
+	Context("aggregating stalled children", func() {
+		DescribeTable("should recognise a stalled child",
+			func(conditions []metav1.Condition, expectStalled bool) {
+				artifactDeployment := &konfidence.ArtifactDeployment{}
+				artifactDeployment.Name = artifactName
+				artifactDeployment.Status.Conditions = conditions
 
-	if !meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.StalledCondition) {
-		t.Fatal("expected Stalled=True")
-	}
-	if meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition) {
-		t.Fatal("Ready must be False whenever Stalled is True")
-	}
-}
+				child, ok := collectStalledChild(artifactDeployment)
 
-// A reason change while still True must update in place, not drop and re-add the entry.
-func TestSetStalledReasonTransitionKeepsSingleEntry(t *testing.T) {
-	vectorDeployment := vectorDeploymentWithGeneration(1)
-
-	setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision, "collision")
-	setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
-
-	var count int
-	for _, condition := range vectorDeployment.Status.Conditions {
-		if condition.Type == konfidence.StalledCondition {
-			count++
-		}
-	}
-	if count != 1 {
-		t.Fatalf("found %d Stalled conditions, want exactly 1", count)
-	}
-
-	condition := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.StalledCondition)
-	if condition.Reason != konfidence.StalledReasonChildArtifactDeploymentStalled {
-		t.Fatalf("Reason = %q, want %q", condition.Reason, konfidence.StalledReasonChildArtifactDeploymentStalled)
-	}
-}
-
-func TestClearStalledAfterSetFlipsBackToFalse(t *testing.T) {
-	vectorDeployment := vectorDeploymentWithGeneration(1)
-
-	setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
-	clearStalled(vectorDeployment)
-
-	condition := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.StalledCondition)
-	if condition.Status != metav1.ConditionFalse {
-		t.Fatalf("Stalled = %q, want %q after the cause cleared", condition.Status, metav1.ConditionFalse)
-	}
-}
-
-// Spec fixed, generation bumped, controller not run yet: the condition must stay
-// detectably stale rather than read as a fresh verdict on the new spec.
-func TestStalledCarriesTheObservedGenerationItWasComputedFrom(t *testing.T) {
-	vectorDeployment := vectorDeploymentWithGeneration(7)
-	setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
-
-	vectorDeployment.Generation = 8
-
-	condition := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.StalledCondition)
-	if condition.Status != metav1.ConditionTrue {
-		t.Fatalf("Stalled = %q, want %q", condition.Status, metav1.ConditionTrue)
-	}
-	if condition.ObservedGeneration != 7 {
-		t.Fatalf("ObservedGeneration = %d, want 7 (the generation the stall was computed from)", condition.ObservedGeneration)
-	}
-	if condition.ObservedGeneration >= vectorDeployment.Generation {
-		t.Fatal("condition should be detectably stale relative to metadata.generation")
-	}
-}
-
-// The named child must not depend on observation order, or the message flaps.
-func TestPickStalledChildIsDeterministic(t *testing.T) {
-	forward := []stalledChild{
-		{name: testArtifactName, reason: konfidence.StalledReasonManifestMissing},
-		{name: "artifact-b", reason: konfidence.StalledReasonDeploymentResultNotUnique},
-		{name: "artifact-c", reason: konfidence.StalledReasonManifestMissing},
-	}
-	reversed := []stalledChild{forward[2], forward[1], forward[0]}
-
-	first, ok := pickStalledChild(forward)
-	if !ok {
-		t.Fatal("expected a child to be picked")
-	}
-	second, ok := pickStalledChild(reversed)
-	if !ok {
-		t.Fatal("expected a child to be picked")
-	}
-
-	if first.name != second.name {
-		t.Fatalf("pick depends on input order: %q vs %q", first.name, second.name)
-	}
-	if first.name != testArtifactName {
-		t.Fatalf("picked %q, want the lowest name", first.name)
-	}
-}
-
-func TestPickStalledChildEmpty(t *testing.T) {
-	if _, ok := pickStalledChild(nil); ok {
-		t.Fatal("expected no child to be picked from an empty set")
-	}
-}
-
-func TestStalledChildMessageNamesChildAndReason(t *testing.T) {
-	child := stalledChild{
-		name:    testArtifactName,
-		reason:  konfidence.StalledReasonManifestMissing,
-		message: "no konfidence manifest in artifact",
-	}
-
-	single := stalledChildMessage(child, 1)
-	if !strings.Contains(single, testArtifactName) || !strings.Contains(single, konfidence.StalledReasonManifestMissing) {
-		t.Fatalf("message %q should name the child and its reason", single)
-	}
-
-	multiple := stalledChildMessage(child, 3)
-	if !strings.Contains(multiple, "3 artifact deployments are stalled") {
-		t.Fatalf("message %q should report how many children are stalled", multiple)
-	}
-}
-
-func TestCollectStalledChild(t *testing.T) {
-	tests := []struct {
-		name       string
-		conditions []metav1.Condition
-		wantOK     bool
-	}{
-		{name: "no conditions", wantOK: false},
-		{
-			name: "not stalled",
-			conditions: []metav1.Condition{{
+				Expect(ok).To(Equal(expectStalled))
+				if expectStalled {
+					Expect(child.name).To(Equal(artifactName))
+				}
+			},
+			Entry("with no conditions", nil, false),
+			Entry("when not stalled", []metav1.Condition{{
 				Type:   konfidence.StalledCondition,
 				Status: metav1.ConditionFalse,
-				Reason: stalledReasonNotStalled,
-			}},
-			wantOK: false,
-		},
-		{
-			name: "stalled",
-			conditions: []metav1.Condition{{
+				Reason: konfidence.StalledReasonNotStalled,
+			}}, false),
+			Entry("when stalled", []metav1.Condition{{
 				Type:    konfidence.StalledCondition,
 				Status:  metav1.ConditionTrue,
 				Reason:  konfidence.StalledReasonManifestMissing,
 				Message: "no konfidence manifest",
-			}},
-			wantOK: true,
-		},
-	}
+			}}, true),
+		)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			artifactDeployment := &konfidence.ArtifactDeployment{}
-			artifactDeployment.Name = testArtifactName
-			artifactDeployment.Status.Conditions = tt.conditions
+		// The named child must not depend on observation order, or the message flaps.
+		It("should pick the same child regardless of input order", func() {
+			forward := []stalledChild{
+				{name: artifactName, reason: konfidence.StalledReasonManifestMissing},
+				{name: "artifact-b", reason: konfidence.StalledReasonDeploymentResultNotUnique},
+				{name: "artifact-c", reason: konfidence.StalledReasonManifestMissing},
+			}
+			reversed := []stalledChild{forward[2], forward[1], forward[0]}
 
-			child, ok := collectStalledChild(artifactDeployment)
-			if ok != tt.wantOK {
-				t.Fatalf("collectStalledChild ok = %v, want %v", ok, tt.wantOK)
-			}
-			if ok && child.name != testArtifactName {
-				t.Fatalf("child.name = %q, want %q", child.name, testArtifactName)
-			}
+			first, ok := pickStalledChild(forward)
+			Expect(ok).To(BeTrue())
+			second, ok := pickStalledChild(reversed)
+			Expect(ok).To(BeTrue())
+
+			Expect(first.name).To(Equal(second.name))
+			Expect(first.name).To(Equal(artifactName))
 		})
-	}
-}
+
+		It("should pick nothing from an empty set", func() {
+			_, ok := pickStalledChild(nil)
+			Expect(ok).To(BeFalse())
+		})
+
+		It("should name the child and its reason in the message", func() {
+			child := stalledChild{
+				name:    artifactName,
+				reason:  konfidence.StalledReasonManifestMissing,
+				message: "no konfidence manifest in artifact",
+			}
+
+			Expect(stalledChildMessage(child, 1)).To(SatisfyAll(
+				ContainSubstring(artifactName),
+				ContainSubstring(konfidence.StalledReasonManifestMissing),
+			))
+			Expect(stalledChildMessage(child, 3)).To(ContainSubstring("3 artifact deployments are stalled"))
+		})
+	})
+})
