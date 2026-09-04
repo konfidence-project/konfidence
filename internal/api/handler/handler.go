@@ -11,6 +11,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	artifactdeploymentdomain "github.com/konfidence-project/konfidence/internal/artifactdeployment"
 	authdomain "github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
@@ -36,11 +37,12 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	projectRepo := projectdomain.NewRepository(k8sClient)
 	landscapeRepo := landscapedomain.NewRepository(k8sClient)
 	stageRepo := stagedomain.NewRepository(k8sClient)
+	artifactDeploymentRepo := artifactdeploymentdomain.NewRepository(k8sClient)
 	vectorPromotionRepo := vectorpromotiondomain.NewRepository(k8sClient)
 	vectorPromotionConfigRepo := vectorpromotiondomain.NewConfigRepository(k8sClient)
 	vectorDeploymentRepo := vectordeploymentdomain.NewRepository(k8sClient)
 
-	project := newProjectHandler(projectRepo, landscapeRepo, stageRepo, vectorDeploymentRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
+	project := newProjectHandler(projectRepo, landscapeRepo, stageRepo, artifactDeploymentRepo, vectorDeploymentRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
 	api := &apiHandler{
 		authHandler:    *auth,
 		projectHandler: *project,

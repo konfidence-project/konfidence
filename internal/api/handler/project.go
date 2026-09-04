@@ -10,12 +10,14 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	artifactdeploymentdomain "github.com/konfidence-project/konfidence/internal/artifactdeployment"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	projectdomain "github.com/konfidence-project/konfidence/internal/project"
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 	vectordeploymentdomain "github.com/konfidence-project/konfidence/internal/vectordeployment"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	compref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type projectHandler struct {
@@ -23,13 +25,15 @@ type projectHandler struct {
 	landscapeRepo             landscapedomain.Repository
 	stageRepo                 stagedomain.Repository
 	vectorDeploymentRepo      vectordeploymentdomain.Repository
+	artifactDeploymentRepo    artifactdeploymentdomain.Repository
 	vectorPromotionRepo       vectorpromotiondomain.Repository
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository
 }
 
 func newProjectHandler(projectRepo projectdomain.Repository,
-	landscapeRepo landscapedomain.Repository,
-	stageRepo stagedomain.Repository, vectorDeploymentRepo vectordeploymentdomain.Repository, vectorPromotionRepo vectorpromotiondomain.Repository,
+	landscapeRepo landscapedomain.Repository, stageRepo stagedomain.Repository,
+	artifactDeploymentRepo artifactdeploymentdomain.Repository, vectorDeploymentRepo vectordeploymentdomain.Repository,
+	vectorPromotionRepo vectorpromotiondomain.Repository,
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository,
 ) *projectHandler {
 	return &projectHandler{
@@ -37,6 +41,7 @@ func newProjectHandler(projectRepo projectdomain.Repository,
 		landscapeRepo:             landscapeRepo,
 		stageRepo:                 stageRepo,
 		vectorDeploymentRepo:      vectorDeploymentRepo,
+		artifactDeploymentRepo:    artifactDeploymentRepo,
 		vectorPromotionRepo:       vectorPromotionRepo,
 		vectorPromotionConfigRepo: vectorPromotionConfigRepo,
 	}
@@ -56,12 +61,19 @@ func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProje
 		}, nil
 	}
 
-	data := make([]openapi.Project, 0, len(projects))
-	for _, p := range projects {
-		data = append(data, toProjectResponse(p))
+	data := make([]openapi.Project, len(projects))
+	for i, p := range projects {
+		data[i] = toProjectResponse(p)
 	}
 
 	return openapi.ListProjectsV1200JSONResponse{Data: data}, nil
+}
+
+func toProjectResponse(p konfidence.Project) openapi.Project {
+	return openapi.Project{
+		Id:   p.Name,
+		Name: p.Spec.DisplayName,
+	}
 }
 
 func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListLandscapesV1RequestObject) (openapi.ListLandscapesV1ResponseObject, error) {
@@ -86,13 +98,6 @@ func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListL
 	}
 
 	return openapi.ListLandscapesV1200JSONResponse{Data: data}, nil
-}
-
-func toProjectResponse(p konfidence.Project) openapi.Project {
-	return openapi.Project{
-		Id:   p.Name,
-		Name: p.Spec.DisplayName,
-	}
 }
 
 func toLandscapeResponse(l konfidence.Landscape) openapi.Landscape {
@@ -121,12 +126,10 @@ func (h *projectHandler) ListVectorDeploymentsV1(ctx context.Context,
 		opts = append(opts, landscapedomain.WithLandscapeId(landscapeId))
 	}
 
-	scope, err := h.landscapeRepo.ResolveScope(ctx, namespace, opts...)
+	var scope []landscapedomain.ScopedLandscape
+	scope, err = h.resolveLandscapeScope(ctx, namespace, *req.Params.LandscapeId, opts...)
 	if err != nil {
-		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
-			return nil, apierror.NewNotFound("landscape", landscapeId)
-		}
-		return nil, apierror.NewInternal(err)
+		return nil, err
 	}
 
 	deployments, err := h.vectorDeploymentRepo.ListForScope(ctx, scope)
@@ -162,14 +165,102 @@ func toVectorDeploymentResponse(resolvedVectorDeployment vectordeploymentdomain.
 	}, nil
 }
 
-func (h *projectHandler) ListArtifactDeploymentsV1(_ context.Context,
-	_ openapi.ListArtifactDeploymentsV1RequestObject) (openapi.ListArtifactDeploymentsV1ResponseObject, error) {
-	return nil, nil
+// can be reused for artifact deployment
+func (h *projectHandler) resolveLandscapeScope(ctx context.Context,
+	projectNamespace string, landscapeId string, scopeOpts ...landscapedomain.ScopeOption) ([]landscapedomain.ScopedLandscape, error) {
+	scope, err := h.landscapeRepo.ResolveScope(ctx, projectNamespace, scopeOpts...)
+	if err != nil {
+		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
+			return nil, fmt.Errorf("landscape %q not found", landscapeId)
+		}
+		return nil, err
+	}
+
+	return scope, nil
+}
+
+func (h *projectHandler) ListArtifactDeploymentsV1(ctx context.Context,
+	request openapi.ListArtifactDeploymentsV1RequestObject) (openapi.ListArtifactDeploymentsV1ResponseObject, error) {
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, apierror.NewUnauthorized()
+	}
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	var opts []artifactdeploymentdomain.ListOption
+	if request.Params.LandscapeId != nil {
+		opts = append(opts, artifactdeploymentdomain.WithLandscapeId(*request.Params.LandscapeId))
+	}
+
+	if request.Params.VectorDeploymentId != nil {
+		opts = append(opts, artifactdeploymentdomain.WithVectorDeploymentId(*request.Params.VectorDeploymentId))
+	}
+
+	ads, err := h.artifactDeploymentRepo.ListForScope(ctx, namespace, opts...)
+	if err != nil {
+		return nil, apierror.NewInternal(err)
+	}
+
+	data := make([]openapi.ArtifactDeployment, len(ads))
+	for i, resolved := range ads {
+		data[i], err = toArtifactDeploymentResponse(resolved)
+		if err != nil {
+			return nil, apierror.NewInternal(err)
+		}
+	}
+
+	return openapi.ListArtifactDeploymentsV1200JSONResponse{Data: data}, nil
+}
+
+func toArtifactDeploymentResponse(resolved artifactdeploymentdomain.ResolvedArtifactDeployment) (openapi.ArtifactDeployment, error) {
+	ad := resolved.ArtifactDeployment
+
+	return openapi.ArtifactDeployment{
+		Id:                  ad.Name,
+		LandscapeId:         resolved.LandscapeId,
+		VectorDeploymentIds: resolved.VectorDeploymentIds,
+		StageIds:            resolved.StageIds,
+		Artifact: openapi.ArtifactReference{
+			ComponentName:    ad.Spec.Component.Name,
+			ComponentVersion: ad.Spec.Component.Version,
+		},
+		Status: openapi.ArtifactDeploymentStatus(calculateArtifactDeploymentStatus(ad.Status.Conditions)),
+	}, nil
+}
+
+func calculateArtifactDeploymentStatus(conditions []metav1.Condition) string {
+	for _, cond := range conditions {
+		if cond.Type == konfidence.ArtifactDeploymentReadyCondition && cond.Status == metav1.ConditionTrue {
+			return "Ready"
+		}
+	}
+	for _, cond := range conditions {
+		if cond.Type == konfidence.AppHealthyCondition && cond.Status == metav1.ConditionTrue {
+			return "AppHealthy"
+		}
+	}
+	for _, cond := range conditions {
+		if cond.Type == konfidence.ArtifactDeployedCondition && cond.Status == metav1.ConditionTrue {
+			return "ArtifactDeployed"
+		}
+	}
+	for _, cond := range conditions {
+		if cond.Type == konfidence.ArtifactFetchedCondition && cond.Status == metav1.ConditionTrue {
+			return "ArtifactFetched"
+		}
+	}
+
+	// TODO: No error conditions set, should handle differently
+	return konfidence.ArtifactFetchedCondition
 }
 
 // resolveProjectNamespace handles the preamble common to handlers that operate on
 // a project-scoped k8s namespace: it checks authorization, fetches the project, and
-// confirms the namespace is set. On failure it returns an *apierror.Error carrying
+// confirms the namespace is set. On failure, it returns an *apierror.Error carrying
 // the HTTP status and a client-safe message.
 func (h *projectHandler) resolveProjectNamespace(ctx context.Context, identity *session.Context, projectId string) (string, error) {
 	if !identity.IsAuthenticatedForProject(projectId) {
