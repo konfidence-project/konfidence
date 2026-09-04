@@ -62,22 +62,9 @@ const (
 	StalledReasonDeploymentResultNotUnique = "DeploymentResultNotUnique"
 )
 
-// Stalled reason precedence, when more than one cause holds at once.
-//
-// Only one reason can be reported, so the choice has to be deterministic: picking
-// whichever check happens to run first makes the condition flap as unrelated code moves
-// around, and makes tests order-dependent. The rule is:
-//
-//	Terminal causes always outrank deadline-elapsed ones. Within the same class, the
-//	cause blocking the earlier pipeline stage wins. A derived cause takes the class of
-//	the cause it derives from.
-//
-// Terminal causes are decidable immediately: retrying cannot change the answer, only a
-// human editing spec or cluster state can. Deadline-elapsed causes are those where
-// "missing now" may still mean "not yet", and which therefore only become blocking after
-// a threshold. The third clause covers ChildArtifactDeploymentStalled, which is neither
-// on its own and inherits whichever class the child's own reason belongs to.
-//
-// The rule matters where it disagrees with pipeline order alone: a deployer seeing both
-// DeploymentTargetSecretsMissing (deadline-elapsed, earlier stage) and
-// DeploymentResultNotUnique (terminal, later stage) reports the terminal one.
+// Only one reason can be reported at a time. Where a controller can discover several
+// blocking causes in a single pass, the one it reports must not depend on incidental
+// ordering, or the condition flaps as unrelated work reconciles and tests become
+// order-dependent. A controller whose checks return at the first blocking cause gets this
+// from its own control flow; one that collects several needs an explicit tie-break, as the
+// VectorDeployment controller uses for stalled children.
