@@ -13,9 +13,93 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-jose/go-jose/v4"
 )
+
+const (
+	discoveryPath = "/discovery"
+	jwksPath      = "/jwks"
+)
+
+func newTestOIDCTokenVerifier(
+	t *testing.T,
+	client *http.Client,
+	ttl time.Duration,
+) *oidcTokenVerifier {
+	t.Helper()
+
+	verifier, ok := newOIDCTokenVerifier(ttl).(*oidcTokenVerifier)
+	if !ok {
+		t.Fatal("expected *oidcTokenVerifier")
+	}
+	verifier.httpClient = client
+
+	return verifier
+}
+
+func newTestOIDCProvider(
+	t *testing.T,
+	publicKey *rsa.PublicKey,
+	keyID string,
+) (*httptest.Server, *atomic.Int32, *atomic.Int32) {
+	t.Helper()
+
+	discoveryCalls := &atomic.Int32{}
+	jwksCalls := &atomic.Int32{}
+
+	var server *httptest.Server
+	server = httptest.NewTLSServer(http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		switch r.URL.Path {
+		case discoveryPath:
+			discoveryCalls.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(discoveryDocument{
+				Issuer:  server.URL,
+				JWKSURI: server.URL + jwksPath,
+			}); err != nil {
+				t.Errorf("encoding discovery document: %v", err)
+			}
+
+		case jwksPath:
+			jwksCalls.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(
+				jose.JSONWebKeySet{
+					Keys: []jose.JSONWebKey{{
+						Key:       publicKey,
+						KeyID:     keyID,
+						Algorithm: string(jose.RS256),
+						Use:       "sig",
+					}},
+				},
+			); err != nil {
+				t.Errorf("encoding JWKS: %v", err)
+			}
+
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	return server, discoveryCalls, jwksCalls
+}
+
+func validWorkloadClaims(
+	issuer string,
+	audience string,
+) map[string]any {
+	return map[string]any{
+		"iss": issuer,
+		"aud": audience,
+		"sub": "workload-subject",
+		"iat": time.Now().Add(-time.Minute).Unix(),
+		"exp": time.Now().Add(time.Hour).Unix(),
+	}
+}
 
 func signWorkloadToken(
 	t *testing.T,
@@ -75,7 +159,6 @@ func TestOIDCTokenVerifierVerifiesAndCachesProvider(t *testing.T) {
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
-		const jwksPath = "/jwks"
 		switch r.URL.Path {
 		case "/.well-known/openid-configuration":
 			discoveryCalls.Add(1)
@@ -109,11 +192,7 @@ func TestOIDCTokenVerifierVerifiesAndCachesProvider(t *testing.T) {
 	}))
 	defer server.Close()
 
-	verifier := &oidcTokenVerifier{
-		httpClient: server.Client(),
-		verifiers:  make(map[verifierKey]*oidc.IDTokenVerifier),
-	}
-
+	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
 	tests := []struct {
 		name        string
 		claims      map[string]any
@@ -204,7 +283,6 @@ func TestOIDCTokenVerifierRejectsInvalidClaims(t *testing.T) {
 	const keyID = "test-key"
 
 	var server *httptest.Server
-	const discoveryPath = "/discovery"
 	server = httptest.NewTLSServer(http.HandlerFunc(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -213,10 +291,10 @@ func TestOIDCTokenVerifierRejectsInvalidClaims(t *testing.T) {
 		case discoveryPath:
 			_ = json.NewEncoder(w).Encode(discoveryDocument{
 				Issuer:  server.URL,
-				JWKSURI: server.URL + "/jwks",
+				JWKSURI: server.URL + jwksPath,
 			})
 
-		case "/jwks":
+		case jwksPath:
 			_ = json.NewEncoder(w).Encode(
 				jose.JSONWebKeySet{
 					Keys: []jose.JSONWebKey{{
@@ -270,12 +348,7 @@ func TestOIDCTokenVerifierRejectsInvalidClaims(t *testing.T) {
 
 	for name, claims := range tests {
 		t.Run(name, func(t *testing.T) {
-			verifier := &oidcTokenVerifier{
-				httpClient: server.Client(),
-				verifiers: make(
-					map[verifierKey]*oidc.IDTokenVerifier,
-				),
-			}
+			verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
 			rawToken := signWorkloadToken(
 				t,
 				privateKey,
@@ -360,9 +433,7 @@ func TestValidateHTTPSURL(t *testing.T) {
 	}
 }
 
-func TestOIDCTokenVerifierRejectsOversizedDiscoveryDocument(
-	t *testing.T,
-) {
+func TestOIDCTokenVerifierRejectsOversizedDiscoveryDocument(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(
 		w http.ResponseWriter,
 		_ *http.Request,
@@ -380,15 +451,12 @@ func TestOIDCTokenVerifierRejectsOversizedDiscoveryDocument(
 	}))
 	defer server.Close()
 
-	verifier := &oidcTokenVerifier{
-		httpClient: server.Client(),
-		verifiers:  make(map[verifierKey]*oidc.IDTokenVerifier),
-	}
+	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
 
 	result, err := verifier.createVerifier(
 		context.Background(),
 		verifierKey{
-			endpoint: server.URL + "/discovery",
+			endpoint: server.URL + discoveryPath,
 			audience: "konfidence-api",
 		},
 	)
@@ -404,9 +472,7 @@ func TestOIDCTokenVerifierRejectsOversizedDiscoveryDocument(
 	}
 }
 
-func TestOIDCTokenVerifierRejectsDiscoveryWithoutIssuer(
-	t *testing.T,
-) {
+func TestOIDCTokenVerifierRejectsDiscoveryWithoutIssuer(t *testing.T) {
 	var server *httptest.Server
 
 	server = httptest.NewTLSServer(http.HandlerFunc(func(
@@ -414,15 +480,15 @@ func TestOIDCTokenVerifierRejectsDiscoveryWithoutIssuer(
 		r *http.Request,
 	) {
 		switch r.URL.Path {
-		case "/discovery":
+		case discoveryPath:
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(discoveryDocument{
-				JWKSURI: server.URL + "/jwks",
+				JWKSURI: server.URL + jwksPath,
 			}); err != nil {
 				t.Errorf("encoding discovery document: %v", err)
 			}
 
-		case "/jwks":
+		case jwksPath:
 			http.Error(
 				w,
 				"JWKS must not be requested",
@@ -435,15 +501,11 @@ func TestOIDCTokenVerifierRejectsDiscoveryWithoutIssuer(
 	}))
 	defer server.Close()
 
-	verifier := &oidcTokenVerifier{
-		httpClient: server.Client(),
-		verifiers:  make(map[verifierKey]*oidc.IDTokenVerifier),
-	}
-
+	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
 	result, err := verifier.createVerifier(
 		context.Background(),
 		verifierKey{
-			endpoint: server.URL + "/discovery",
+			endpoint: server.URL + discoveryPath,
 			audience: "konfidence-api",
 		},
 	)
@@ -459,16 +521,14 @@ func TestOIDCTokenVerifierRejectsDiscoveryWithoutIssuer(
 	}
 }
 
-func TestOIDCTokenVerifierRejectsInsecureJWKSURL(
-	t *testing.T,
-) {
+func TestOIDCTokenVerifierRejectsInsecureJWKSURL(t *testing.T) {
 	var server *httptest.Server
 
 	server = httptest.NewTLSServer(http.HandlerFunc(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
-		if r.URL.Path != "/discovery" {
+		if r.URL.Path != discoveryPath {
 			http.NotFound(w, r)
 			return
 		}
@@ -483,15 +543,11 @@ func TestOIDCTokenVerifierRejectsInsecureJWKSURL(
 	}))
 	defer server.Close()
 
-	verifier := &oidcTokenVerifier{
-		httpClient: server.Client(),
-		verifiers:  make(map[verifierKey]*oidc.IDTokenVerifier),
-	}
-
+	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
 	result, err := verifier.createVerifier(
 		context.Background(),
 		verifierKey{
-			endpoint: server.URL + "/discovery",
+			endpoint: server.URL + discoveryPath,
 			audience: "konfidence-api",
 		},
 	)
@@ -506,10 +562,136 @@ func TestOIDCTokenVerifierRejectsInsecureJWKSURL(
 	expected := "invalid OIDC JWKS URI: " +
 		"URL must use HTTPS and include a host"
 	if err.Error() != expected {
-		t.Fatalf(
-			"expected error %q, got %q",
-			expected,
-			err.Error(),
-		)
+		t.Fatalf("expected error %q, got %q", expected, err.Error())
+	}
+}
+
+func TestOIDCTokenVerifierExpiresCachedVerifier(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const (
+		keyID    = "test-key"
+		audience = "konfidence-api"
+	)
+
+	server, discoveryCalls, jwksCalls := newTestOIDCProvider(t, &privateKey.PublicKey, keyID)
+
+	// The entry is guaranteed to have expired before the second request.
+	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Nanosecond)
+	rawToken := signWorkloadToken(t, privateKey, keyID, validWorkloadClaims(server.URL, audience))
+
+	for range 2 {
+		token, err := verifier.Verify(context.Background(), rawToken, server.URL+discoveryPath, audience)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if token == nil {
+			t.Fatal("expected verified token")
+		}
+	}
+
+	if got := discoveryCalls.Load(); got != 2 {
+		t.Fatalf("expected two discovery requests after expiration, got %d", got)
+	}
+	if got := jwksCalls.Load(); got != 2 {
+		t.Fatalf("expected two JWKS requests after expiration, got %d", got)
+	}
+}
+
+func TestOIDCTokenVerifierInvalidatesAfterSignatureFailure(t *testing.T) {
+	trustedKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	untrustedKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const (
+		trustedKeyID   = "trusted-key"
+		untrustedKeyID = "untrusted-key"
+		audience       = "konfidence-api"
+	)
+
+	server, discoveryCalls, jwksCalls := newTestOIDCProvider(t, &trustedKey.PublicKey, trustedKeyID)
+	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
+
+	claims := validWorkloadClaims(server.URL, audience)
+	validToken := signWorkloadToken(t, trustedKey, trustedKeyID, claims)
+	if _, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience); err != nil {
+		t.Fatal(err)
+	}
+
+	invalidToken := signWorkloadToken(t, untrustedKey, untrustedKeyID, claims)
+	if _, err := verifier.Verify(context.Background(), invalidToken, server.URL+discoveryPath, audience); !errors.Is(err, ErrInvalidBearerToken) {
+		t.Fatalf("expected ErrInvalidBearerToken, got %v", err)
+	}
+
+	// The failed signature removed the verifier, so this verification must
+	// recreate it and refetch discovery and JWKS.
+	if _, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := discoveryCalls.Load(); got != 2 {
+		t.Fatalf("expected two discovery requests, got %d", got)
+	}
+	if got := jwksCalls.Load(); got != 3 {
+		t.Fatalf("expected three JWKS requests, got %d", got)
+	}
+}
+
+func TestOIDCTokenVerifierKeepsCacheAfterClaimFailure(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const (
+		keyID    = "test-key"
+		audience = "konfidence-api"
+	)
+
+	server, discoveryCalls, jwksCalls := newTestOIDCProvider(t, &privateKey.PublicKey, keyID)
+	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
+	validToken := signWorkloadToken(t, privateKey, keyID, validWorkloadClaims(server.URL, audience))
+	if _, err := verifier.Verify(
+		context.Background(),
+		validToken,
+		server.URL+discoveryPath,
+		audience,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	invalidClaims := validWorkloadClaims(server.URL, "different-audience")
+	invalidToken := signWorkloadToken(t, privateKey, keyID, invalidClaims)
+	if _, err := verifier.Verify(
+		context.Background(),
+		invalidToken,
+		server.URL+discoveryPath,
+		audience,
+	); !errors.Is(err, ErrInvalidBearerToken) {
+		t.Fatalf("expected ErrInvalidBearerToken, got %v", err)
+	}
+
+	if _, err := verifier.Verify(
+		context.Background(),
+		validToken,
+		server.URL+discoveryPath,
+		audience,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := discoveryCalls.Load(); got != 1 {
+		t.Fatalf("expected one discovery request, got %d", got)
+	}
+	if got := jwksCalls.Load(); got != 1 {
+		t.Fatalf("expected one JWKS request, got %d", got)
 	}
 }

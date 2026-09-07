@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,8 +33,8 @@ type k8sRepository struct {
 
 // NewRepository creates a Repository backed by the given reader. When reader is
 // an informer cache, all Get and List calls are served from its local store.
-func NewRepository(reader client.Reader) Repository {
-	return &k8sRepository{reader: reader, tokenVerifier: newOIDCTokenVerifier()}
+func NewRepository(reader client.Reader, jwksCacheTTL time.Duration) Repository {
+	return &k8sRepository{reader: reader, tokenVerifier: newOIDCTokenVerifier(jwksCacheTTL)}
 }
 
 func (r *k8sRepository) GetProjectRoles(ctx context.Context, idpGroups []string) (ProjectRoles, error) {

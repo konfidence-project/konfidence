@@ -54,6 +54,7 @@ spec:
             - --oidc-device-auth-url={{ .Values.api.oidc.deviceAuthURL }}
             - --oidc-user-info-url={{ .Values.api.oidc.userInfoURL }}
             - --oidc-jwks-url={{ .Values.api.oidc.jwksURL }}
+            - --oidc-jwks-cache-ttl={{ .Values.api.oidc.jwksCacheTTL }}
             - --oidc-pkce-enabled={{ .Values.api.oidc.pkceEnabled }}
             - --oidc-state-expiration={{ .Values.api.oidc.stateExpiration }}
             {{- end }}

@@ -8,11 +8,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"golang.org/x/sync/singleflight"
+	"github.com/maypok86/otter/v2"
 )
 
 const maximumDiscoveryDocumentSize = 1024 * 1024
@@ -33,9 +32,7 @@ type tokenVerifier interface {
 
 type oidcTokenVerifier struct {
 	httpClient *http.Client
-	mu         sync.RWMutex
-	verifiers  map[verifierKey]*oidc.IDTokenVerifier
-	requests   singleflight.Group
+	verifiers  *otter.Cache[verifierKey, *oidc.IDTokenVerifier]
 }
 
 type discoveryDocument struct {
@@ -43,7 +40,12 @@ type discoveryDocument struct {
 	JWKSURI string `json:"jwks_uri"`
 }
 
-func newOIDCTokenVerifier() tokenVerifier {
+type invalidatingKeySet struct {
+	keySet     oidc.KeySet
+	invalidate func()
+}
+
+func newOIDCTokenVerifier(jwksCacheTTL time.Duration) tokenVerifier {
 	return &oidcTokenVerifier{
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
@@ -57,7 +59,9 @@ func newOIDCTokenVerifier() tokenVerifier {
 				return nil
 			},
 		},
-		verifiers: make(map[verifierKey]*oidc.IDTokenVerifier),
+		verifiers: otter.Must(&otter.Options[verifierKey, *oidc.IDTokenVerifier]{
+			ExpiryCalculator: otter.ExpiryCreating[verifierKey, *oidc.IDTokenVerifier](jwksCacheTTL),
+		}),
 	}
 }
 
@@ -85,41 +89,7 @@ func (v *oidcTokenVerifier) Verify(ctx context.Context, rawToken string, endpoin
 }
 
 func (v *oidcTokenVerifier) getVerifier(ctx context.Context, key verifierKey) (*oidc.IDTokenVerifier, error) {
-	v.mu.RLock()
-	verifier := v.verifiers[key]
-	v.mu.RUnlock()
-	if verifier != nil {
-		return verifier, nil
-	}
-
-	result, err, _ := v.requests.Do(
-		key.endpoint+"\x00"+key.audience,
-		func() (any, error) {
-			v.mu.RLock()
-			cached := v.verifiers[key]
-			v.mu.RUnlock()
-
-			if cached != nil {
-				return cached, nil
-			}
-
-			created, err := v.createVerifier(ctx, key)
-			if err != nil {
-				return nil, err
-			}
-
-			v.mu.Lock()
-			v.verifiers[key] = created
-			v.mu.Unlock()
-
-			return created, nil
-		},
-	)
-
-	if err != nil {
-		return nil, err
-	}
-	return result.(*oidc.IDTokenVerifier), nil
+	return v.verifiers.Get(ctx, key, otter.LoaderFunc[verifierKey, *oidc.IDTokenVerifier](v.createVerifier))
 }
 
 func (v *oidcTokenVerifier) createVerifier(ctx context.Context, key verifierKey) (*oidc.IDTokenVerifier, error) {
@@ -167,9 +137,30 @@ func (v *oidcTokenVerifier) createVerifier(ctx context.Context, key verifierKey)
 	}
 
 	keySetContext := oidc.ClientContext(context.Background(), v.httpClient)
-	keySet := oidc.NewRemoteKeySet(keySetContext, document.JWKSURI)
+	remoteKeySet := oidc.NewRemoteKeySet(keySetContext, document.JWKSURI)
+	var verifier *oidc.IDTokenVerifier
+	keySet := &invalidatingKeySet{keySet: remoteKeySet, invalidate: func() {
+		v.verifiers.ComputeIfPresent(key, func(current *oidc.IDTokenVerifier) (*oidc.IDTokenVerifier, otter.ComputeOp) {
+			if current == verifier {
+				return nil, otter.InvalidateOp
+			}
 
-	return oidc.NewVerifier(document.Issuer, keySet, &oidc.Config{ClientID: key.audience}), nil
+			// keep a newer verifier installed while this verifier was in use.
+			return current, otter.CancelOp
+		})
+	}}
+
+	verifier = oidc.NewVerifier(document.Issuer, keySet, &oidc.Config{ClientID: key.audience})
+	return verifier, nil
+}
+
+func (k *invalidatingKeySet) VerifySignature(ctx context.Context, rawJWT string) ([]byte, error) {
+	payload, err := k.keySet.VerifySignature(ctx, rawJWT)
+	if err != nil {
+		k.invalidate()
+	}
+
+	return payload, err
 }
 
 func validateHTTPSURL(rawURL string) error {
