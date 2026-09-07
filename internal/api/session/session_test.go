@@ -101,6 +101,61 @@ var _ = ginkgo.Describe("Session context", func() {
 		Expect(stored).To(BeNil())
 		Expect(err).To(MatchError("session not found in context"))
 	})
+
+	ginkgo.It("stores a workload request identity", func() {
+		identity := Context{
+			Subject: "workload-subject",
+			ProjectRoles: auth.ProjectRoles{
+				"project-a": {"admin"},
+			},
+		}
+
+		ctx := NewRequestContext(context.Background(), identity)
+		identity.Subject = "changed-subject"
+		stored, err := FromContext(ctx)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stored).To(Equal(&Context{
+			Subject: "workload-subject",
+			ProjectRoles: auth.ProjectRoles{
+				"project-a": {"admin"},
+			},
+		}))
+	})
+
+	ginkgo.It("isolates project roles from mutations", func() {
+		roles := auth.ProjectRoles{
+			"project-a": {"admin", "viewer"},
+		}
+		session := &Session{
+			Context: Context{
+				ProjectRoles: roles,
+			},
+		}
+
+		ctx := NewContext(context.Background(), session)
+
+		// mutating the source must not affect the context.
+		const changed = "changed"
+		roles["project-a"][0] = changed
+		roles["project-b"] = []string{"admin"}
+
+		stored, err := FromContext(ctx)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stored.ProjectRoles).To(Equal(auth.ProjectRoles{
+			"project-a": {"admin", "viewer"},
+		}))
+
+		// mutating a retrieved value must not affect subsequent retrievals.
+		stored.ProjectRoles["project-a"][0] = changed
+		delete(stored.ProjectRoles, "project-a")
+
+		storedAgain, err := FromContext(ctx)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(storedAgain.ProjectRoles).To(Equal(auth.ProjectRoles{
+			"project-a": {"admin", "viewer"},
+		}))
+	})
 })
 
 var _ = ginkgo.Describe("Session token expiry", func() {

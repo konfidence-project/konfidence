@@ -65,8 +65,14 @@ var rootCmd = &cobra.Command{
 				return nil, fmt.Errorf("parsing request timeout failed: %w", err)
 			}
 
+			accessToken, err := resolveAccessToken(cmd)
+			if err != nil {
+				return nil, err
+			}
+
 			return kdenauth.NewClient(
 				normalizeAPIEndpoint(cfg.Config.APIEndpoint),
+				accessToken,
 				kdenauth.KeyringCookieStore{},
 				loginTimeout,
 				requestTimeout,
@@ -113,6 +119,11 @@ func initCmd() {
 		"",
 		"Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)",
 	)
+	rootCmd.PersistentFlags().String(
+		"access-token",
+		"",
+		"Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN",
+	)
 
 	rootCmd.AddCommand(completion.NewCompletionCmd())
 	rootCmd.AddCommand(config.NewConfigCmd())
@@ -148,4 +159,22 @@ func normalizeAPIEndpoint(endpoint string) string {
 	}
 
 	return strings.TrimRight(parsed.String(), "/")
+}
+
+func resolveAccessToken(cmd *cobra.Command) (string, error) {
+	if cmd.Flags().Changed("access-token") {
+		flag, err := cmd.Flags().GetString("access-token")
+		if err != nil {
+			return "", fmt.Errorf("reading access token flag failed: %w", err)
+		}
+		flag = strings.TrimSpace(flag)
+		if flag == "" {
+			return "", fmt.Errorf("access token is empty")
+		}
+
+		return flag, nil
+	}
+
+	token := os.Getenv("KDEN_ACCESS_TOKEN")
+	return strings.TrimSpace(token), nil
 }

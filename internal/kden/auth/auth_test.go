@@ -99,6 +99,7 @@ var _ = Describe("Client login", func() {
 		store := &recordingCookieStore{}
 		client, err := NewClient(
 			server.URL+"/api",
+			"",
 			store,
 			time.Second,
 			time.Second,
@@ -164,6 +165,7 @@ var _ = Describe("Client login", func() {
 
 		client, err := NewClient(
 			server.URL+"/api",
+			"",
 			&recordingCookieStore{},
 			time.Second,
 			time.Second,
@@ -189,6 +191,7 @@ var _ = Describe("Client login", func() {
 
 		client, err := NewClient(
 			server.URL,
+			"",
 			&recordingCookieStore{},
 			time.Second,
 			50*time.Millisecond,
@@ -302,5 +305,116 @@ var _ = Describe("Login callback handler", func() {
 
 		Expect(response.Code).To(Equal(http.StatusConflict))
 		Expect((<-results).code).To(Equal("first-code"))
+	})
+})
+
+var _ = Describe("Client access-token authentication", func() {
+	It("adds the bearer token to API requests", func() {
+		authorization := make(chan string, 1)
+
+		server := httptest.NewServer(http.HandlerFunc(func(
+			writer http.ResponseWriter,
+			request *http.Request,
+		) {
+			authorization <- request.Header.Get("Authorization")
+			writer.WriteHeader(http.StatusUnauthorized)
+		}))
+		DeferCleanup(server.Close)
+
+		store := &recordingCookieStore{
+			loadErr: errors.New("cookie store must not be loaded"),
+		}
+
+		client, err := NewClient(
+			server.URL+"/api",
+			"access-token",
+			store,
+			time.Second,
+			time.Second,
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(client.UsesAccessToken()).To(BeTrue())
+
+		response, err := client.KdenApiClient().
+			GetIdentityV1WithResponse(context.Background())
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(response.StatusCode()).To(Equal(http.StatusUnauthorized))
+		Expect(<-authorization).To(Equal("Bearer access-token"))
+	})
+
+	It("does not add an authorization header without a token", func() {
+		authorization := make(chan string, 1)
+
+		server := httptest.NewServer(http.HandlerFunc(func(
+			writer http.ResponseWriter,
+			request *http.Request,
+		) {
+			authorization <- request.Header.Get("Authorization")
+			writer.WriteHeader(http.StatusUnauthorized)
+		}))
+		DeferCleanup(server.Close)
+
+		client, err := NewClient(
+			server.URL+"/api",
+			"",
+			&recordingCookieStore{},
+			time.Second,
+			time.Second,
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(client.UsesAccessToken()).To(BeFalse())
+
+		_, err = client.KdenApiClient().
+			GetIdentityV1WithResponse(context.Background())
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(<-authorization).To(BeEmpty())
+	})
+
+	It("does not touch the cookie store in access-token mode", func() {
+		store := &recordingCookieStore{
+			loadErr:   errors.New("cookie store must not be loaded"),
+			deleteErr: errors.New("cookie store must not be deleted"),
+		}
+
+		client, err := NewClient(
+			"https://api.example.test/api",
+			"access-token",
+			store,
+			time.Second,
+			time.Second,
+		)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(client.Invalidate()).To(Succeed())
+		Expect(store.deleteCalls).To(BeZero())
+		Expect(store.saved).To(BeNil())
+	})
+
+	It("disables session operations in access-token mode", func() {
+		client, err := NewClient(
+			"https://api.example.test/api",
+			"access-token",
+			&recordingCookieStore{
+				loadErr: errors.New("cookie store must not be loaded"),
+			},
+			time.Second,
+			time.Second,
+		)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(client.Login(context.Background())).To(MatchError(
+			"login is not available when access-token authentication is active",
+		))
+		Expect(client.Logout(context.Background())).To(MatchError(
+			"logout is not available when access-token authentication is active",
+		))
+
+		valid, err := client.hasValidSession(context.Background())
+		Expect(valid).To(BeFalse())
+		Expect(err).To(MatchError(
+			"session validation is not available when access-token authentication is active",
+		))
 	})
 })

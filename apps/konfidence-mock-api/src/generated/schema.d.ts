@@ -73,7 +73,7 @@ export interface paths {
     };
     /**
      * Get the current user identity
-     * @description Returns identity claims for the authenticated session.
+     * @description Returns identity information for the authenticated caller.
      */
     get: operations["getIdentityV1"];
     put?: never;

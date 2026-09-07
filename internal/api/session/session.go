@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
@@ -35,7 +36,12 @@ type Context struct {
 }
 
 func NewContext(ctx context.Context, session *Session) context.Context {
-	return context.WithValue(ctx, contextSession, session.Context)
+	return NewRequestContext(ctx, session.Context)
+}
+
+func NewRequestContext(ctx context.Context, identity Context) context.Context {
+	identity.ProjectRoles = cloneProjectRoles(identity.ProjectRoles)
+	return context.WithValue(ctx, contextSession, identity)
 }
 
 func FromContext(ctx context.Context) (*Context, error) {
@@ -44,7 +50,21 @@ func FromContext(ctx context.Context) (*Context, error) {
 		return nil, fmt.Errorf("session not found in context")
 	}
 
+	sess.ProjectRoles = cloneProjectRoles(sess.ProjectRoles)
 	return &sess, nil
+}
+
+// cloning roles prevents a consumer from mutating the value held internally by the context
+func cloneProjectRoles(roles auth.ProjectRoles) auth.ProjectRoles {
+	if roles == nil {
+		return nil
+	}
+
+	cloned := make(auth.ProjectRoles, len(roles))
+	for project, projectRoles := range roles {
+		cloned[project] = slices.Clone(projectRoles)
+	}
+	return cloned
 }
 
 func UnixExpiry(expiry time.Time) int64 {

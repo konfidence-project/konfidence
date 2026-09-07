@@ -13,3 +13,7 @@ api.localhost {
         header_up X-Forwarded-Proto {scheme}
 	}
 }
+
+id.localhost {
+	reverse_proxy host.docker.internal:8092
+}
