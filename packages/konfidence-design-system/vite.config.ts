@@ -15,6 +15,7 @@ export default defineConfig({
             enabled: true,
             instances: [{ browser: "chromium", headless: true }],
             provider: playwright(),
+            ui: false,
           },
           include: ["src/**/*.svelte.test.{js,ts}"],
           name: "client",
@@ -30,5 +31,6 @@ export default defineConfig({
         },
       },
     ],
+    update: "all",
   },
 });

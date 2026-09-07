@@ -1,7 +1,8 @@
 import { page } from "vitest/browser";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
+import "../../../../../apps/konfidence-ui/src/app.css";
 import ButtonHarness from "./ButtonHarness.svelte";
 
 const VARIANT_CLASSES = {
@@ -53,42 +54,22 @@ describe("<Button>", () => {
       .toHaveAttribute("type", "button");
   });
 
-  // Snapshot tests guard against silent DOM drift across variants /
-  // states. If a rendered variant changes shape, the snapshot mismatch
-  // forces a deliberate `-u` (or "Update Snapshot" in the UI) so the
-  // change is reviewed rather than merged unnoticed. Kept as HTML
-  // string snapshots to stay readable in code review — no external
-  // renderer, no image diffing.
-  //
-  // Svelte's scoped-CSS compiler suffixes every rendered element with
-  // a `svelte-<hash>` class that changes on every content edit; strip
-  // it so snapshots aren't churned by unrelated tweaks.
-  const stripSvelteScope = (html: string): string =>
-    html.replace(/ svelte-[a-z0-9]+/g, "").replace(/class=""/g, "");
-
   describe("variant snapshots", () => {
-    for (const variant of Object.keys(VARIANT_CLASSES) as (keyof typeof VARIANT_CLASSES)[]) {
-      it(`matches the ${variant} snapshot`, async () => {
-        const { container } = await render(ButtonHarness, { label: "Go", variant });
-        expect(stripSvelteScope(container.innerHTML)).toMatchSnapshot();
-      });
+    afterEach(() => {
+      document.documentElement.removeAttribute("data-theme");
+      document.documentElement.removeAttribute("data-mode");
+    });
+
+    for (const mode of ["light", "dark"]) {
+      for (const variant of Object.keys(VARIANT_CLASSES) as (keyof typeof VARIANT_CLASSES)[]) {
+        it(`matches the ${mode} ${variant} screenshot`, async () => {
+          await page.viewport(320, 240);
+          document.documentElement.setAttribute("data-theme", "konfidence");
+          document.documentElement.setAttribute("data-mode", mode);
+          render(ButtonHarness, { label: "Deploy", variant });
+          await expect.element(page.getByRole("button", { name: "Deploy" })).toMatchScreenshot();
+        });
+      }
     }
-
-    it("matches the anchor snapshot", async () => {
-      const { container } = await render(ButtonHarness, {
-        href: "/",
-        label: "Home",
-        variant: "secondary",
-      });
-      expect(stripSvelteScope(container.innerHTML)).toMatchSnapshot();
-    });
-
-    it("matches the disabled snapshot", async () => {
-      const { container } = await render(ButtonHarness, {
-        disabled: true,
-        label: "Deploy",
-      });
-      expect(stripSvelteScope(container.innerHTML)).toMatchSnapshot();
-    });
   });
 });

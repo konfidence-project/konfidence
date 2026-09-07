@@ -1,0 +1,2 @@
+**/__screenshots__/**/*.png
+!**/__screenshots__/**/*-linux.png
