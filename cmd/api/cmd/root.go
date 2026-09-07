@@ -69,6 +69,8 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(konfidence.AddToScheme(scheme))
 
+	rootCmd.AddCommand(newVersionCmd())
+
 	rootCmd.Flags().StringVar(&cfg.Server.Addr, "addr", envOr("API_ADDR", ":8090"),
 		"TCP address the API server listens on. Env: API_ADDR")
 	rootCmd.Flags().StringVar(&cfg.Server.LogLevel, "log-level", envOr("API_LOG_LEVEL", "info"),

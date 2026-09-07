@@ -57,6 +57,8 @@ func init() {
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
+	rootCmd.AddCommand(newVersionCmd())
+
 	loggerOpts := zap.Options{
 		Development: true,
 	}
