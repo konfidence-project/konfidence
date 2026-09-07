@@ -69,37 +69,28 @@ var _ = Describe("resolveAccessToken", func() {
 		Expect(token).To(Equal("flag-token"))
 	})
 
-	It("allows an explicit empty flag to disable the environment token", func() {
-		GinkgoT().Setenv("KDEN_ACCESS_TOKEN", "environment-token")
-
+	It("rejects only whitespace or empty flag", func() {
 		cmd := newCommand()
-		Expect(cmd.Flags().Set("access-token", "")).To(Succeed())
+		Expect(cmd.Flags().Set("access-token", "    ")).To(Succeed())
+
+		_, err := resolveAccessToken(cmd)
+		Expect(err).To(MatchError(
+			"access token is empty",
+		))
+	})
+	It("trims flag", func() {
+		cmd := newCommand()
+		Expect(cmd.Flags().Set("access-token", " test    ")).To(Succeed())
 
 		token, err := resolveAccessToken(cmd)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(token).To(BeEmpty())
+		Expect(token).To(Equal("test"))
 	})
-
-	DescribeTable(
-		"rejects surrounding whitespace",
-		func(environmentToken, flagToken string, setFlag bool) {
-			GinkgoT().Setenv("KDEN_ACCESS_TOKEN", environmentToken)
-
-			cmd := newCommand()
-			if setFlag {
-				Expect(cmd.Flags().Set("access-token", flagToken)).To(Succeed())
-			}
-
-			token, err := resolveAccessToken(cmd)
-
-			Expect(token).To(BeEmpty())
-			Expect(err).To(MatchError(
-				"access token must not contain surrounding whitespace",
-			))
-		},
-		Entry("leading environment whitespace", " token", "", false),
-		Entry("trailing environment whitespace", "token ", "", false),
-		Entry("leading flag whitespace", "", " token", true),
-		Entry("trailing flag whitespace", "", "token ", true),
-	)
+	It("trims env var", func() {
+		GinkgoT().Setenv("KDEN_ACCESS_TOKEN", "   env-test  ")
+		cmd := newCommand()
+		token, err := resolveAccessToken(cmd)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(token).To(Equal("env-test"))
+	})
 })

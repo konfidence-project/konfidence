@@ -63,7 +63,10 @@ func handleOIDCConfiguration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(config)
+	err := json.NewEncoder(w).Encode(config)
+	if err != nil {
+		return
+	}
 }
 
 // handleJWKS exposes the public key so external cloud providers can verify tokens
@@ -89,7 +92,10 @@ func handleJWKS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(jwks)
+	err := json.NewEncoder(w).Encode(jwks)
+	if err != nil {
+		return
+	}
 }
 
 // handleGenerateToken simulates a workload minting its own identity token
@@ -116,5 +122,8 @@ func handleGenerateToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"id_token": tokenString})
+	err = json.NewEncoder(w).Encode(map[string]string{"id_token": tokenString})
+	if err != nil {
+		return
+	}
 }

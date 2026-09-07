@@ -10,92 +10,85 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 )
 
+type tokenBinding struct {
+	project string
+	role    string
+	claims  map[string]konfidence.GlobMatch
+}
+
 func (r *k8sRepository) AuthenticateToken(ctx context.Context, rawToken string) (*TokenIdentity, error) {
 	var projects konfidence.ProjectList
 	if err := r.reader.List(ctx, &projects); err != nil {
-		return nil, fmt.Errorf(
-			"failed to list projects: %w",
-			err,
-		)
+		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}
 
-	candidates := collectVerifierCandidates(projects.Items)
+	candidates := collectTokenBindings(projects.Items)
 	var subject string
-	verified := make(map[verifierKey]*verifiedToken)
-	for candidate := range candidates {
+	verifiedAny := false
+	projectRoles := make(map[string]map[string]struct{})
+	for candidate, bindings := range candidates {
 		token, err := r.tokenVerifier.Verify(ctx, rawToken, candidate.endpoint, candidate.audience)
-		if err == nil {
-			if len(verified) == 0 {
-				subject = token.subject
+		if err != nil {
+			continue
+		}
+
+		if !verifiedAny {
+			subject = token.subject
+			verifiedAny = true
+		}
+
+		for _, binding := range bindings {
+			if !matchesTokenClaims(token.claims, binding.claims) {
+				continue
 			}
-			verified[candidate] = token
+
+			if projectRoles[binding.project] == nil {
+				projectRoles[binding.project] = make(map[string]struct{})
+			}
+			projectRoles[binding.project][binding.role] = struct{}{}
 		}
 	}
 
-	if len(verified) == 0 {
+	if !verifiedAny {
 		return nil, ErrInvalidBearerToken
 	}
 
 	identity := &TokenIdentity{Subject: subject, ProjectRoles: make(ProjectRoles)}
-	for _, project := range projects.Items {
-		roles := matchingTokenRoles(project.Spec.RoleBindings, verified)
-		if len(roles) > 0 {
-			identity.ProjectRoles[project.Name] = roles
+	for project, roleSet := range projectRoles {
+		roles := make([]string, 0, len(roleSet))
+		for role := range roleSet {
+			roles = append(roles, role)
 		}
+		sort.Strings(roles)
+		identity.ProjectRoles[project] = roles
 	}
 
 	return identity, nil
 }
 
-func collectVerifierCandidates(projects []konfidence.Project) map[verifierKey]struct{} {
-	candidates := make(map[verifierKey]struct{})
+func collectTokenBindings(projects []konfidence.Project) map[verifierKey][]tokenBinding {
+	bindingsByCandidate := make(map[verifierKey][]tokenBinding)
 	for _, project := range projects {
-		for _, subjects := range project.Spec.RoleBindings {
+		for role, subjects := range project.Spec.RoleBindings {
 			for _, subject := range subjects {
 				if subject.JWKS == nil {
 					continue
 				}
 
-				candidates[verifierKey{
-					endpoint: subject.JWKS.Endpoint,
-					audience: subject.JWKS.Audience,
-				}] = struct{}{}
+				candidate := verifierKey{endpoint: subject.JWKS.Endpoint, audience: subject.JWKS.Audience}
+				bindingsByCandidate[candidate] = append(
+					bindingsByCandidate[candidate],
+					tokenBinding{
+						project: project.Name,
+						role:    role,
+						claims:  subject.JWKS.Claims,
+					},
+				)
 			}
 		}
 	}
 
-	return candidates
-}
-
-func matchingTokenRoles(roleBindings map[string]konfidence.Subjects, verified map[verifierKey]*verifiedToken) []string {
-	roles := make([]string, 0, len(roleBindings))
-	for role, subjects := range roleBindings {
-		if matchesTokenSubject(subjects, verified) {
-			roles = append(roles, role)
-		}
-	}
-
-	sort.Strings(roles)
-	return roles
-}
-
-func matchesTokenSubject(subjects konfidence.Subjects, verified map[verifierKey]*verifiedToken) bool {
-	for _, subject := range subjects {
-		if subject.JWKS == nil {
-			continue
-		}
-
-		token := verified[verifierKey{endpoint: subject.JWKS.Endpoint, audience: subject.JWKS.Audience}]
-		if token == nil {
-			continue
-		}
-
-		if matchesTokenClaims(token.claims, subject.JWKS.Claims) {
-			return true
-		}
-	}
-
-	return false
+	return bindingsByCandidate
 }
 
 func matchesTokenClaims(claims map[string]any, expected map[string]konfidence.GlobMatch) bool {

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -163,25 +162,19 @@ func normalizeAPIEndpoint(endpoint string) string {
 }
 
 func resolveAccessToken(cmd *cobra.Command) (string, error) {
-	var token string
 	if cmd.Flags().Changed("access-token") {
 		flag, err := cmd.Flags().GetString("access-token")
 		if err != nil {
 			return "", fmt.Errorf("reading access token flag failed: %w", err)
 		}
+		flag = strings.TrimSpace(flag)
+		if flag == "" {
+			return "", fmt.Errorf("access token is empty")
+		}
 
-		token = flag
-	} else {
-		token = os.Getenv("KDEN_ACCESS_TOKEN")
+		return flag, nil
 	}
 
-	if token == "" {
-		return "", nil
-	}
-
-	if token != strings.TrimSpace(token) {
-		return "", errors.New("access token must not contain surrounding whitespace")
-	}
-
-	return token, nil
+	token := os.Getenv("KDEN_ACCESS_TOKEN")
+	return strings.TrimSpace(token), nil
 }
