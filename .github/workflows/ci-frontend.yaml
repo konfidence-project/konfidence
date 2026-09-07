@@ -3,6 +3,8 @@ name: Frontend CI
 on:
   pull_request:
     paths:
+      - .github/workflows/ci-frontend.yaml
+      - hack/*design-system-screenshots.sh
       - .goreleaser.yaml
       - api/openapi.yaml
       - package.json
@@ -11,10 +13,13 @@ on:
       - tsconfig.json
       - apps/konfidence-mock-api/**
       - apps/konfidence-ui/**
+      - apps/konfidence-ui-prototype/**
       - packages/konfidence-design-system/**
   push:
     branches: [main]
     paths:
+      - .github/workflows/ci-frontend.yaml
+      - hack/*design-system-screenshots.sh
       - .goreleaser.yaml
       - api/openapi.yaml
       - package.json
@@ -23,6 +28,7 @@ on:
       - tsconfig.json
       - apps/konfidence-mock-api/**
       - apps/konfidence-ui/**
+      - apps/konfidence-ui-prototype/**
       - packages/konfidence-design-system/**
   merge_group:
 
@@ -74,24 +80,15 @@ jobs:
 
   test-design-system:
     name: Test Design System
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - *checkout-code
+
       - *install-pnpm
       - *setup-node
-      - *install-dependencies
 
-      - name: Cache Playwright browsers (design-system)
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml', 'packages/konfidence-design-system/package.json') }}
-
-      - name: Install Chromium
-        run: pnpm --filter @konfidence/design-system exec playwright install --with-deps chromium
-
-      - name: Run design-system tests
-        run: pnpm ds:test
+      - name: Run tests and require current Linux screenshots
+        run: pnpm ds:screenshots:check
 
   test-unit:
     name: Test Unit

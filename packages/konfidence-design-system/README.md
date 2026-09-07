@@ -93,6 +93,68 @@ are the contract those runtimes target.
 <StatusBadge status="deploying">Deploying</StatusBadge>
 ```
 
+## Linux screenshots
+
+Each component lives in `src/components/<Component>/` with its tests,
+harness, and screenshots. `pnpm ds:test` refreshes screenshot baselines
+automatically; visual changes are reviewed as PNG diffs rather than test
+failures. Only Linux PNGs are tracked by Git.
+
+Screenshot coverage includes all four Button variants, the Brandbar,
+OrbitLoader's default and custom labels, and StatusBadge's seven styled
+statuses plus an unknown-status fallback, with and without the dot.
+Every case runs in light and dark mode.
+
+ButtonHarness and StatusBadgeHarness are test-only fixtures that supply
+Svelte `children` snippets. Brandbar and OrbitLoader render directly in
+their tests because they take ordinary props without snippets.
+
+To regenerate the colocated Linux PNGs, run from the repository root:
+
+```sh
+pnpm ds:screenshots:generate
+```
+
+The generator builds `Dockerfile.screenshots` and runs `pnpm ds:test`
+inside Linux. After the tests pass, it copies Linux PNGs directly into
+each component's `__screenshots__/` directory and removes obsolete Linux
+baselines. Review and commit those changes with the component or stylesheet
+changes. Other platform screenshots remain untouched.
+
+To verify freshness without modifying the checkout:
+
+```sh
+pnpm ds:screenshots:check
+```
+
+The scripts live in `hack/`. The check script asks the generator to export
+into a temporary directory, compares filenames and contents with the
+colocated baselines, and cleans up. The normal generate command needs no
+temporary directory. Both commands remove their containers on exit.
+
+Docker is required. Both commands use `linux/arm64`, matching the
+`ubuntu-24.04-arm` CI runner and running natively on Apple Silicon.
+The image contains the checkout, so remote Docker daemons work without
+bind mounts. `Dockerfile.screenshots.dockerignore` excludes host dependencies
+and existing screenshots. Playwright package versions are defined in the
+root `pnpm-workspace.yaml` catalog and reused through `catalog:` dependencies.
+Keep the image's Playwright version aligned with that catalog and the
+lockfile. Native macOS `pnpm ds:test` runs refresh only ignored
+macOS screenshots.
+
+### PR freshness check
+
+Frontend CI runs `pnpm ds:screenshots:check` on `ubuntu-24.04-arm`.
+It fails for changed images, new images without committed baselines, and
+obsolete baselines whose tests no longer generate them.
+
+When this step fails, run `pnpm ds:screenshots:generate`, review the PNG
+additions, changes, and deletions, and commit them. CI never commits changes
+to your branch.
+
+Make `Test Design System` a required status check in the repository's
+branch rules to block merging when baselines are stale.
+
 ## Roadmap
 
 The design system will grow in the following order:

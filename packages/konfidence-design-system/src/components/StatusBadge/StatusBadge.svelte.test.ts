@@ -1,8 +1,9 @@
 import { page } from "vitest/browser";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import StatusBadgeHarness from "./StatusBadgeHarness.svelte";
+import "../../../../../apps/konfidence-ui/src/app.css";
 
 // Statuses shipped with a `.badge--<name>` CSS rule in
 // konfidence.custom.css. StatusBadge itself accepts any string
@@ -47,8 +48,28 @@ describe("<StatusBadge>", () => {
   it("hides the leading dot when showDot=false", async () => {
     render(StatusBadgeHarness, { label: "Healthy", showDot: false, status: "healthy" });
     const el = page.getByText("Healthy");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dots = (el.element() as HTMLElement).querySelectorAll(".dot");
     expect(dots.length).toBe(0);
+  });
+
+  describe("variant screenshots", () => {
+    afterEach(() => {
+      document.documentElement.removeAttribute("data-theme");
+      document.documentElement.removeAttribute("data-mode");
+    });
+
+    for (const mode of ["light", "dark"]) {
+      for (const status of [...STYLED_STATUSES, "rolling-out"]) {
+        for (const showDot of [true, false]) {
+          it(`renders ${mode} ${status} ${showDot ? "with" : "without"} dot`, async () => {
+            await page.viewport(320, 240);
+            document.documentElement.setAttribute("data-theme", "konfidence");
+            document.documentElement.setAttribute("data-mode", mode);
+            render(StatusBadgeHarness, { label: status, showDot, status });
+            await expect.element(page.getByText(status)).toMatchScreenshot();
+          });
+        }
+      }
+    }
   });
 });

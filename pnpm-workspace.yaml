@@ -3,6 +3,10 @@ packages:
   - apps/konfidence-ui
   - apps/konfidence-ui-prototype
   - packages/*
+catalog:
+  playwright: &playwright-version 1.62.1
+  "@playwright/test": *playwright-version
+  "@vitest/browser-playwright": 4.1.11
 # image-size <=2.0.2 (build-time transitive of less) has no patched release;
 # drop these ignores once upstream ships a fix.
 auditConfig:
