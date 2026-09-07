@@ -51,8 +51,9 @@ Create a local kind cluster with a local OCI registry:
 make dev-cluster
 ```
 
-This also installs Gateway API and Flux, needed by the landscape orchestrator. Skip with
-`SKIP_CLUSTER_DEPS=1` if you're only working on the API server or CLI.
+This is the cluster the operator and API server need. Deploying artifacts additionally needs a
+deployer, which installs its own prerequisites (for the Kubernetes deployer, Gateway API and
+Flux) from its own repository.
 
 Build, push and deploy the operator:
 

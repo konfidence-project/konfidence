@@ -14,10 +14,6 @@ REGISTRY_NAME="kind-registry"
 REGISTRY_PORT="5001"
 KIND_CONFIG="$(dirname "$0")/kind-config.yaml"
 
-# Orchestrator prerequisites; versions mirror hack/quickstart/install.sh.
-SKIP_CLUSTER_DEPS="${SKIP_CLUSTER_DEPS:-}"
-GATEWAY_API_VERSION="${GATEWAY_API_VERSION:-v1.4.1}"
-
 # Never inherit the current context; a rerun could otherwise target production.
 KUBE_CONTEXT="kind-${CLUSTER_NAME}"
 
@@ -73,25 +69,8 @@ data:
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 
-  if [ -z "${SKIP_CLUSTER_DEPS}" ]; then
-    install_cluster_deps
-  fi
-
   echo "Done. Push images to localhost:${REGISTRY_PORT}/<name>:<tag> and reference them from the cluster as such."
-}
-
-# Needed by the orchestrator, not the operator; without them nothing deploys.
-install_cluster_deps() {
-  echo "Installing Gateway API ${GATEWAY_API_VERSION}..."
-  kubectl --context "${KUBE_CONTEXT}" apply --server-side -f \
-    "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
-
-  echo "Installing Flux..."
-  kubectl --context "${KUBE_CONTEXT}" apply -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml
-  kubectl --context "${KUBE_CONTEXT}" wait deployment/source-controller \
-    --namespace flux-system \
-    --for=condition=Available \
-    --timeout=180s
+  echo "Deployer prerequisites (Gateway API, Flux) are installed by the deployer's own repository."
 }
 
 down() {
