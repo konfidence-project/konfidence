@@ -34,6 +34,13 @@ jobs:
     with:
       test-cmd: check-generate
 
+  check-openapi:
+    name: Check / OpenAPI
+    uses: konfidence-project/.github/.github/workflows/test.yaml@v4
+    with:
+      before-tests: pnpm install --frozen-lockfile
+      test-cmd: check-openapi
+
   check-validate:
     name: Check / Validate Samples
     uses: konfidence-project/.github/.github/workflows/test.yaml@v4
@@ -66,7 +73,7 @@ jobs:
 
   build:
     name: Build / Konfidence
-    needs: [lint, reuse-lint, check-manifests, check-generate, check-validate, test-operators, test-pkg, test-kden-cli, test-api]
+    needs: [lint, reuse-lint, check-manifests, check-generate, check-openapi, check-validate, test-operators, test-pkg, test-kden-cli, test-api]
     permissions:
       contents: write
       packages: write
