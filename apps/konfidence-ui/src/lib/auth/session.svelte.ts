@@ -3,7 +3,7 @@ import { toAuthUser, type AuthStatus, type AuthUser } from "$lib/auth/types";
 import { resolveApiBaseUrl, type ApiClient } from "$lib/konfidence-api/client";
 import { goto } from "$app/navigation";
 import { HTTP_UNAUTHORIZED } from "$lib/http-status";
-import type { paths } from "$lib/konfidence-api/schema";
+import type { paths } from "@konfidence/api-client/schema";
 
 // SvelteKit UI routes (not part of the OpenAPI surface).
 const LOGIN_PATH = "/login";

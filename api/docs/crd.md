@@ -2041,21 +2041,73 @@ apiVersion: konfidence.cloud/v1alpha1
 kind: VectorTemplate
 metadata:
   namespace: dev
-  name: shopping-app-latest
+  name: shopping-app
 spec:
+  # How often the assembly controller checks for drift. Optional; defaults to the
+  # controller's built-in interval when omitted.
+  reconcileInterval: 10m
+  # Target OCM component the assembled vector is uploaded to. Must NOT carry a
+  # version — the controller generates the assembled vector's version.
+  # This is the full "shopping app" vector: base platform + application tier.
+  uploadTarget: registry.kdenv.lab/shop//shop.example.com/vector/shopping-app
+  # Optional base: the most recently assembled vector of the referenced
+  # VectorTemplate is used as the base layer for this vector's assembly.
+  # The base carries the shared platform services (identity, config, gateway,
+  # notifications) that every environment inherits.
   base:
     kind: VectorTemplate
     name: shopping-app-base
-  uploadTarget: https://registry.kdenv.lab/sample-project//konfidence-project/constructed-vector
+  # Components pulled into the vector (at least one required). Each reference must
+  # carry a version — a semantic version or a moving alias such as `stable`.
+  # The application tier of the shop, layered on top of the base platform.
   components:
-    - name: https://registry.kdenv.lab/sample-project//konfidence-project/sample-vector/service1
-    - name: https://registry.kdenv.lab/sample-project//konfidence-project/sample-vector/service1
-    - name: https://registry.dwc.com/sample-project//dwc.tools.sap/dwc-project/dev/service2
-    - name: https://registry.example.lab/sample-project//dwc.tools.sap/dwc-project/dev/service3
-  config:
-    - kind: Secret
-      apiVersion: v1
-      name: registry-credentials
+    - name: registry.kdenv.lab/shop//shop.example.com/storefront/web-bff:stable
+    - name: registry.kdenv.lab/shop//shop.example.com/catalog/product-service:stable
+    - name: registry.kdenv.lab/shop//shop.example.com/catalog/search-service:stable
+    - name: registry.kdenv.lab/shop//shop.example.com/catalog/recommendation-service:stable
+    - name: registry.kdenv.lab/shop//shop.example.com/cart/cart-service:stable
+    - name: registry.kdenv.lab/shop//shop.example.com/checkout/checkout-service:stable
+    - name: registry.kdenv.lab/shop//shop.example.com/checkout/payment-service:stable
+    - name: registry.kdenv.lab/shop//shop.example.com/order/order-service:stable
+    - name: registry.kdenv.lab/shop//shop.example.com/inventory/inventory-service:stable
+    - name: registry.kdenv.lab/shop//shop.example.com/fulfilment/shipping-service:stable
+  # Credentials for OCM repository access and signing/verification key material.
+  # There is no separate signing/verify credential field: the controller feeds
+  # these same refs to the OCI client, the signer, and the verifier. Each ref is
+  # a same-namespace Secret holding .ocmconfig (which may carry RSA consumer
+  # entries for signing/verify keys) or .dockerconfigjson data.
+  credentials:
+    ocm:
+      refs:
+        - name: registry-credentials
+        - name: signing-keys
+  # Verify every artifact pulled into the assembly against these candidate
+  # signatures. Omit to disable artifact verification.
+  verifyArtifacts:
+    signatures:
+      - name: konfidence
+  # Verify any fetched vector (base or a pre-existing upload target) against
+  # these candidate signatures. Omit to disable vector verification.
+  verifyVector:
+    signatures:
+      - name: konfidence
+  # Signatures the controller produces on the emitted vector. Omit to disable
+  # signing. Algorithm/hash/media type default when unset.
+  signVector:
+    signatures:
+      - name: konfidence
+        algorithm: RSASSA-PSS
+        hashAlgorithm: SHA-256
+  # Feature flags and authored configuration baked into the vector.
+  vectorConfig:
+    features:
+      express-checkout:
+        enabled: true
+      recommendations:
+        enabled: true
+    authored:
+      storefrontReplicas: 3
+      currency: EUR
 ```
 
 ### VectorTemplateReference

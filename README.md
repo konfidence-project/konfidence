@@ -39,10 +39,10 @@ The production dashboard lives in `apps/konfidence-ui`. Activate Hermit and inst
 ```sh
 source ./bin/activate-hermit
 pnpm install
-pnpm ui:dev
+pnpm ui:dev:mock
 ```
 
-The development server proxies `/api/v1` requests to the API at `http://127.0.0.1:8090`. Run the API separately with `make run-kden-api` when developing API-backed features.
+This starts the dashboard and the OpenAPI-validated mock server together. The development server proxies `/api/v1` requests to the mock API at `http://127.0.0.1:8091`. Run `pnpm ui:dev` and `make run-kden-api` separately when developing against the Go API instead.
 
 Install Chromium once before running browser-based tests:
 
@@ -74,6 +74,30 @@ pnpm ui:start
 The preview server is intended for checking the root page. To exercise production SPA fallback behavior, serve the build through the API with `go run ./cmd/api --ui-asset-path=apps/konfidence-ui/build`.
 
 Production releases include the static SPA in the API image. The API serves the dashboard and `/api/v1` from the same origin; set `API_UI_ASSET_PATH` when running an API binary with an external dashboard build directory.
+
+### Typed API client
+
+`api/openapi.yaml` is the source for the Go server, the kden Go client, and the shared `@konfidence/api-client` TypeScript package. After changing the specification, regenerate every client and server artifact with:
+
+```sh
+make generate-api
+```
+
+Run `make check-openapi` to verify that committed generated output is current. Both commands require an activated Hermit environment and workspace dependencies installed with `pnpm install`.
+
+Dashboard code uses the browser-only singleton from `apps/konfidence-ui/src/lib/konfidence-api/client-instance.ts`. Put endpoint-specific calls in `src/lib/konfidence-api/` and handle both typed branches returned by `openapi-fetch`:
+
+```ts
+const result = await getApiClient().GET("/v1/projects");
+
+if ("error" in result) {
+  return { error: result.error, status: result.response.status };
+}
+
+return result.data.data;
+```
+
+The singleton is safe because the dashboard disables server-side rendering. If server-side rendering is restored, create one client per request instead.
 
 ## Support, Feedback, Contributing
 

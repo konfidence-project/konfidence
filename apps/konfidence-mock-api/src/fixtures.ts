@@ -1,4 +1,4 @@
-import type { components } from "./generated/schema.js";
+import type { components } from "@konfidence/api-client/schema";
 
 type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
 type Identity = components["schemas"]["Identity"];

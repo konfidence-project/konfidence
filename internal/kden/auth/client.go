@@ -128,14 +128,15 @@ const loginFailurePage = `<!DOCTYPE html>
 `
 
 type Client struct {
-	apiEndpoint  string
-	apiURL       *url.URL
-	apiClient    *kdenapi.ClientWithResponses
-	httpClient   *http.Client
-	cookieJar    http.CookieJar
-	cookieStore  CookieStore
-	openURL      func(string) error
-	loginTimeout time.Duration
+	apiEndpoint     string
+	apiURL          *url.URL
+	apiClient       *kdenapi.ClientWithResponses
+	httpClient      *http.Client
+	cookieJar       http.CookieJar
+	cookieStore     CookieStore
+	openURL         func(string) error
+	loginTimeout    time.Duration
+	usesAccessToken bool
 }
 
 type loginResult struct {
@@ -144,7 +145,8 @@ type loginResult struct {
 }
 
 // NewClient creates a new auth client embedding the login flow and the kden api client
-func NewClient(apiEndpoint string, store CookieStore, loginTimeout time.Duration, requestTimeout time.Duration) (*Client, error) {
+func NewClient(apiEndpoint string, accessToken string, store CookieStore,
+	loginTimeout time.Duration, requestTimeout time.Duration) (*Client, error) {
 	apiURL, err := url.Parse(apiEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("parsing API endpoint failed: %w", err)
@@ -163,33 +165,46 @@ func NewClient(apiEndpoint string, store CookieStore, loginTimeout time.Duration
 		},
 	}
 
-	// create the kden api client
-	api, err := kdenapi.NewClientWithResponses(
-		apiEndpoint,
+	options := []kdenapi.ClientOption{
 		kdenapi.WithHTTPClient(httpClient),
-	)
+	}
+
+	if accessToken != "" {
+		options = append(options, kdenapi.WithRequestEditorFn(
+			func(_ context.Context, req *http.Request) error {
+				req.Header.Set("Authorization", "Bearer "+accessToken)
+				return nil
+			},
+		))
+	}
+
+	// create the kden api client
+	api, err := kdenapi.NewClientWithResponses(apiEndpoint, options...)
 	if err != nil {
 		return nil, fmt.Errorf("creating API client failed: %w", err)
 	}
 
 	client := &Client{
-		apiEndpoint:  apiEndpoint,
-		apiURL:       apiURL,
-		apiClient:    api,
-		httpClient:   httpClient,
-		cookieJar:    jar,
-		cookieStore:  store,
-		openURL:      browser.OpenURL,
-		loginTimeout: loginTimeout,
+		apiEndpoint:     apiEndpoint,
+		apiURL:          apiURL,
+		apiClient:       api,
+		httpClient:      httpClient,
+		cookieJar:       jar,
+		cookieStore:     store,
+		openURL:         browser.OpenURL,
+		loginTimeout:    loginTimeout,
+		usesAccessToken: accessToken != "",
 	}
 
-	// load the session cookie in the cookie jar if it already exists in the keyring
-	cookie, err := store.Load(apiEndpoint)
-	if err != nil {
-		return nil, err
-	}
-	if cookie != nil {
-		jar.SetCookies(apiURL, []*http.Cookie{cookie})
+	if !client.usesAccessToken {
+		// load the session cookie in the cookie jar if it already exists in the keyring
+		cookie, err := store.Load(apiEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		if cookie != nil {
+			jar.SetCookies(apiURL, []*http.Cookie{cookie})
+		}
 	}
 
 	return client, nil
@@ -202,6 +217,10 @@ func (c *Client) KdenApiClient() *kdenapi.ClientWithResponses {
 
 // Invalidate invalidates the session cookie in the cookie jar
 func (c *Client) Invalidate() error {
+	if c.usesAccessToken {
+		return nil
+	}
+
 	cookieName := ""
 	cookie, err := c.cookieStore.Load(c.apiEndpoint)
 	if err != nil {
@@ -228,6 +247,10 @@ func (c *Client) Invalidate() error {
 
 // Login starts the OIDC login flow with the kden api if the user has no active valid session
 func (c *Client) Login(ctx context.Context) error {
+	if c.usesAccessToken {
+		return errors.New("login is not available when access-token authentication is active")
+	}
+
 	log.Info("Starting kden api login...")
 	authenticated, err := c.hasValidSession(ctx)
 	if err != nil {
@@ -374,6 +397,12 @@ func (c *Client) Login(ctx context.Context) error {
 }
 
 func (c *Client) Logout(ctx context.Context) error {
+	if c.usesAccessToken {
+		return errors.New(
+			"logout is not available when access-token authentication is active",
+		)
+	}
+
 	log.Info("Starting kden api logout...")
 
 	// ignore response code here, either the user was logged in (results in 200)
@@ -470,6 +499,12 @@ func (c *Client) sessionCookieName() string {
 }
 
 func (c *Client) hasValidSession(ctx context.Context) (bool, error) {
+	if c.usesAccessToken {
+		return false, errors.New(
+			"session validation is not available when access-token authentication is active",
+		)
+	}
+
 	response, err := c.apiClient.GetIdentityV1WithResponse(ctx)
 	if err != nil {
 		return false, fmt.Errorf("checking current session failed: %w", err)
@@ -495,6 +530,10 @@ func (c *Client) hasValidSession(ctx context.Context) (bool, error) {
 			string(response.Body),
 		)
 	}
+}
+
+func (c *Client) UsesAccessToken() bool {
+	return c.usesAccessToken
 }
 
 func writeLoginResultPage(

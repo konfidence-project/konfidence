@@ -10,8 +10,6 @@
     "start": "vite preview",
     "preview": "vite preview",
     "prepare": "svelte-kit sync",
-    "api:check": "bash ../../hack/check-openapi-types.sh ../../api/openapi.yaml src/lib/konfidence-api/schema.d.ts",
-    "api:generate": "openapi-typescript ../../api/openapi.yaml -o src/lib/konfidence-api/schema.d.ts && oxfmt src/lib/konfidence-api/schema.d.ts",
     "check": "svelte-kit sync && tsgo -p ./tsconfig.json --noEmit",
     "check:svelte": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -21,14 +19,14 @@
     "lint:svelte-templates:fix": "eslint \"src/**/*.svelte\" --fix",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "verify": "pnpm api:check && pnpm check && pnpm lint && pnpm check:svelte && pnpm fmt:check",
+    "verify": "pnpm check && pnpm lint && pnpm check:svelte && pnpm fmt:check",
     "test": "pnpm test:unit && pnpm test:browser && pnpm test:e2e",
     "test:unit": "vitest run --project server",
     "test:browser": "vitest run --project client",
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "openapi-fetch": "^0.17.0"
+    "@konfidence/api-client": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
@@ -40,7 +38,6 @@
     "@vitest/browser-playwright": "^4.1.11",
     "eslint": "^10.9.1",
     "eslint-plugin-svelte": "^3.23.0",
-    "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
     "playwright": "^1.62.1",
