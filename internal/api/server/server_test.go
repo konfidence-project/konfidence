@@ -25,6 +25,7 @@ func validParsed(addr string) config.Parsed {
 			IssuerURL: "http://localhost:5556/oidc", ClientID: "konfidence", ClientSecret: "a secret",
 			RedirectURL: "http://localhost:8090/api/v1/auth/callback", PKCEEnabled: true, StateExpiration: "15m",
 			AllowReturnURLs: []string{"http://localhost:3000/auth/callback"},
+			JWKSCacheTTL:    "15m",
 		},
 		Session: config.SessionConfig{
 			StorageType:     "in-memory",

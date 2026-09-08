@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/auth"
@@ -33,7 +34,7 @@ func TestRepositoryGetProjectRoles(t *testing.T) {
 		},
 	).Build()
 
-	roles, err := auth.NewRepository(k8s).GetProjectRoles(
+	roles, err := auth.NewRepository(k8s, 15*time.Minute).GetProjectRoles(
 		context.Background(), []string{"all-users", "platform-engineers"},
 	)
 	if err != nil {

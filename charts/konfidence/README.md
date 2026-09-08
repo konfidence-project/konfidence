@@ -50,6 +50,7 @@ Kubernetes: `>=1.27.0-0`
 | api.oidc.deviceAuthURL | string | `""` |  |
 | api.oidc.enabled | bool | `true` |  |
 | api.oidc.issuerURL | string | `""` |  |
+| api.oidc.jwksCacheTTL | string | `"15m"` |  |
 | api.oidc.jwksURL | string | `""` |  |
 | api.oidc.pkceEnabled | bool | `true` |  |
 | api.oidc.redirectURL | string | `""` |  |
