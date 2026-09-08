@@ -40,11 +40,6 @@ type discoveryDocument struct {
 	JWKSURI string `json:"jwks_uri"`
 }
 
-type invalidatingKeySet struct {
-	keySet     oidc.KeySet
-	invalidate func()
-}
-
 func newOIDCTokenVerifier(jwksCacheTTL time.Duration) tokenVerifier {
 	return &oidcTokenVerifier{
 		httpClient: &http.Client{
@@ -138,29 +133,11 @@ func (v *oidcTokenVerifier) createVerifier(ctx context.Context, key verifierKey)
 
 	keySetContext := oidc.ClientContext(context.Background(), v.httpClient)
 	remoteKeySet := oidc.NewRemoteKeySet(keySetContext, document.JWKSURI)
-	var verifier *oidc.IDTokenVerifier
-	keySet := &invalidatingKeySet{keySet: remoteKeySet, invalidate: func() {
-		v.verifiers.ComputeIfPresent(key, func(current *oidc.IDTokenVerifier) (*oidc.IDTokenVerifier, otter.ComputeOp) {
-			if current == verifier {
-				return nil, otter.InvalidateOp
-			}
-
-			// keep a newer verifier installed while this verifier was in use.
-			return current, otter.CancelOp
-		})
-	}}
-
-	verifier = oidc.NewVerifier(document.Issuer, keySet, &oidc.Config{ClientID: key.audience})
-	return verifier, nil
-}
-
-func (k *invalidatingKeySet) VerifySignature(ctx context.Context, rawJWT string) ([]byte, error) {
-	payload, err := k.keySet.VerifySignature(ctx, rawJWT)
-	if err != nil {
-		k.invalidate()
-	}
-
-	return payload, err
+	return oidc.NewVerifier(
+		document.Issuer,
+		remoteKeySet,
+		&oidc.Config{ClientID: key.audience},
+	), nil
 }
 
 func validateHTTPSURL(rawURL string) error {

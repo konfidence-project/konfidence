@@ -601,7 +601,7 @@ func TestOIDCTokenVerifierExpiresCachedVerifier(t *testing.T) {
 	}
 }
 
-func TestOIDCTokenVerifierInvalidatesAfterSignatureFailure(t *testing.T) {
+func TestOIDCTokenVerifierKeepsCachedVerifierAfterSignatureFailure(t *testing.T) {
 	trustedKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
@@ -631,17 +631,22 @@ func TestOIDCTokenVerifierInvalidatesAfterSignatureFailure(t *testing.T) {
 		t.Fatalf("expected ErrInvalidBearerToken, got %v", err)
 	}
 
-	// The failed signature removed the verifier, so this verification must
-	// recreate it and refetch discovery and JWKS.
+	// RemoteKeySet already refreshed JWKS after the signature failure. The
+	// verifier remains cached, so the valid token uses those refreshed keys.
 	if _, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience); err != nil {
 		t.Fatal(err)
 	}
 
-	if got := discoveryCalls.Load(); got != 2 {
-		t.Fatalf("expected two discovery requests, got %d", got)
+	if _, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience); err != nil {
+		t.Fatal(err)
 	}
-	if got := jwksCalls.Load(); got != 3 {
-		t.Fatalf("expected three JWKS requests, got %d", got)
+
+	if got := discoveryCalls.Load(); got != 1 {
+		t.Fatalf("expected one discovery request, got %d", got)
+	}
+
+	if got := jwksCalls.Load(); got != 2 {
+		t.Fatalf("expected two JWKS requests, got %d", got)
 	}
 }
 
