@@ -354,7 +354,7 @@ The accepted values are:
     'log-format' - [json text pretty]
     'log-level' - [debug info error]
     'login-timeout' - duration (e.g. 2m, 30s)
-    'output' - [json yaml pretty]
+    'output' - [json yaml pretty plain]
     'request-timeout' - duration (e.g. 30s, 1m)
 
 Additional information:
@@ -824,6 +824,10 @@ kden vector-promotion list [flags]
 
 Print the kden CLI version
 
+### Synopsis
+
+Print the kden CLI version, build metadata and platform.
+
 ```
 kden version [flags]
 ```
@@ -831,7 +835,8 @@ kden version [flags]
 ### Options
 
 ```
-  -h, --help   help for version
+  -h, --help            help for version
+      --output string   Output format. Supported values: 'json', 'yaml', 'pretty' and 'plain' (bare version string)
 ```
 
 ### Options inherited from parent commands
@@ -842,7 +847,6 @@ kden version [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 

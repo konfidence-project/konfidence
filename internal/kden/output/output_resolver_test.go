@@ -1,10 +1,9 @@
 package output_test
 
 import (
-	"charm.land/bubbles/v2/table"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/output"
-	"github.com/konfidence-project/konfidence/internal/kden/output/pretty"
+	valout "github.com/konfidence-project/konfidence/internal/kden/validation/output"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -31,20 +30,9 @@ var _ = Describe("format output", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 			},
-			Entry("with empty object and valid table", "pretty", "validate", []pretty.TableData{
-				{
-					Columns: []table.Column{
-						{Title: "Name", Width: 20},
-						{Title: "Ready", Width: 20},
-						{Title: "Status", Width: 20},
-						{Title: "Restarts", Width: 20},
-					},
-					Rows: []table.Row{
-						{"nginx", "1/1", "RUNNING", "0"},
-						{"alpine", "1/2", "PENDING", "0"},
-						{"ubuntu", "2/3", "PENDING", "0"},
-					},
-				},
+			Entry("with valid validation errors and pretty table", "pretty", "validate", []valout.SchemaValidationError{
+				{File: "a.yaml", Path: "/spec/name", Message: "required"},
+				{File: "b.yaml", Path: "/spec/kind", Message: "invalid enum value"},
 			}),
 		)
 
@@ -57,6 +45,8 @@ var _ = Describe("format output", func() {
 				Expect(err).To(MatchError(errorMessage))
 			},
 			Entry("with invalid format configuration", "xml", []byte("test: test"), "error with provided output format: xml"),
+			Entry("with plain for a non-version command", "plain", []byte("test: test"),
+				"plain output is only supported by the version command"),
 			Entry("with invalid object input", "yaml", []byte("{\"test\": \"t\"est\"}"),
 				"error occurred during parse of object to map: {\"test\": \"t\"est\"} : yaml: did not find expected ',' or '}'"),
 		)

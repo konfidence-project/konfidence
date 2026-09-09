@@ -6,6 +6,7 @@ import (
 
 	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
 	"github.com/konfidence-project/konfidence/internal/kden/validation/output"
+	"github.com/konfidence-project/konfidence/pkg/build"
 
 	"charm.land/bubbles/v2/table"
 )
@@ -20,9 +21,39 @@ func GetModelFuncMap() map[string]ModelFunc {
 		modelFuncMap = map[string]ModelFunc{
 			"validate":     validateModelFunc,
 			"project-list": projectListModelFunc,
+			"version":      versionModelFunc,
 		}
 	})
 	return modelFuncMap
+}
+
+// updateHint is the footer under the version table. It mirrors the install
+// one-liner in cmd/kden/cmd/version; keep the two in sync if the URL changes.
+const updateHint = "To update, re-run: curl -fsSL https://konfidence.cloud/install.sh | sh"
+
+func versionModelFunc(data interface{}) *TableData {
+	info, ok := data.(build.Info)
+	if !ok {
+		return &TableData{
+			Err: fmt.Errorf("error while creating table for command version: "+
+				"expected build.Info, got %T", data),
+		}
+	}
+
+	return &TableData{
+		Columns: []table.Column{
+			{Title: "Field", Width: 12},
+			{Title: "Value", Width: 60},
+		},
+		Rows: []table.Row{
+			{"Version", info.Version},
+			{"Commit", info.Commit},
+			{"Go", info.GoVersion},
+			{"Platform", info.Platform},
+			{"built", info.Date},
+		},
+		Footer: updateHint,
+	}
 }
 
 func validateModelFunc(data interface{}) *TableData {

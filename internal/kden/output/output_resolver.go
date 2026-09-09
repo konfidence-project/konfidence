@@ -7,7 +7,6 @@ import (
 
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 
-	"github.com/konfidence-project/konfidence/internal/kden/log"
 	"github.com/konfidence-project/konfidence/internal/kden/output/json"
 	"github.com/konfidence-project/konfidence/internal/kden/output/pretty"
 	"github.com/konfidence-project/konfidence/internal/kden/output/yaml"
@@ -19,6 +18,7 @@ const (
 	JsonOutputFormat        FormattedOutput = "json"
 	YamlOutputFormat        FormattedOutput = "yaml"
 	TablePrettyOutputFormat FormattedOutput = "pretty"
+	PlainOutputFormat       FormattedOutput = "plain"
 )
 
 type Formatter interface {
@@ -40,20 +40,21 @@ var Converters = map[FormattedOutput]Converter{
 }
 
 func ResolveFormat(data interface{}, command string) (string, error) {
-	outputFormat := FormattedOutput(strings.ToLower(cfg.Config.Output))
-
 	if data == nil {
 		return "", fmt.Errorf("error while resolving output format with no data")
 	}
 
+	outputFormat := FormattedOutput(strings.ToLower(cfg.Config.Output))
+	if outputFormat == PlainOutputFormat {
+		return "", fmt.Errorf("plain output is only supported by the version command")
+	}
 	if outputFormat == TablePrettyOutputFormat {
-		log.Info("Using table pretty output format")
 		modelFunc, ok := pretty.GetModelFuncMap()[command]
 		if !ok {
 			return "", fmt.Errorf("error while resolving command %s invocation", command)
 		}
 
-		return pretty.FormatTable(modelFunc, data)
+		return "", pretty.FormatTable(modelFunc, data)
 	}
 
 	formatted, ok := Formatters[outputFormat]
