@@ -1,86 +1,72 @@
 package pretty_test
 
 import (
+	"errors"
+	"io"
+	"os"
+	"strings"
+
 	"github.com/konfidence-project/konfidence/internal/kden/output/pretty"
 
-	"charm.land/bubbles/v2/spinner"
-	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/table"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("TableModel View", func() {
+// captureStdout runs fn and returns whatever it wrote to os.Stdout. FormatTable
+// prints the rendered table directly, so we intercept the real stdout.
+func captureStdout(fn func()) string {
+	orig := os.Stdout
+	r, w, err := os.Pipe()
+	Expect(err).NotTo(HaveOccurred())
+	os.Stdout = w
 
-	Describe("Init", func() {
-		Context("when the data fetch function is nil", func() {
-			It("should return cmd with no components initialized", func() {
-				model := pretty.NewTableModel(nil, true, nil)
-				cmd := model.Init()
-				Expect(cmd).To(BeNil())
-			})
-		})
-		Context("when the data fetch function is present", func() {
-			It("should return cmd with components initialized", func() {
-				model := pretty.NewTableModel(func(_ interface{}) *pretty.TableData {
-					return &pretty.TableData{}
-				}, true, nil)
-				cmd := model.Init()
-				Expect(cmd).NotTo(BeNil())
-			})
-		})
+	fn()
+
+	Expect(w.Close()).To(Succeed())
+	os.Stdout = orig
+	out, err := io.ReadAll(r)
+	Expect(err).NotTo(HaveOccurred())
+	return string(out)
+}
+
+var _ = Describe("FormatTable", func() {
+	twoCol := func(_ interface{}) *pretty.TableData {
+		return &pretty.TableData{
+			Columns: []table.Column{{Title: "Field", Width: 12}, {Title: "Value", Width: 20}},
+			Rows:    []table.Row{{"Version", "v1.2.3"}, {"Commit", "abc1234"}},
+			Footer:  "a faint hint",
+		}
+	}
+
+	It("renders the rows and footer to stdout", func() {
+		var out string
+		var err error
+		out = captureStdout(func() { err = pretty.FormatTable(twoCol, nil) })
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(out).To(ContainSubstring("Version"))
+		Expect(out).To(ContainSubstring("v1.2.3"))
+		Expect(out).To(ContainSubstring("a faint hint"))
 	})
 
-	Describe("View", func() {
-		Context("when the loading property is set to true", func() {
-			It("should return view with spinner component", func() {
-				model := pretty.NewTableModel(nil, true, nil)
-				view := model.View()
-
-				Expect(view).NotTo(BeNil())
-				Expect(view.Content).NotTo(BeEmpty())
-				Expect(view.Content).To(ContainSubstring("Loading..."))
-			})
-		})
-		Context("when the loading property is set to false", func() {
-			It("should return view with table component", func() {
-				model := pretty.NewTableModel(nil, true, nil)
-				model.Update(&pretty.TableData{})
-				view := model.View()
-
-				Expect(view).NotTo(BeNil())
-				Expect(view.Content).NotTo(BeEmpty())
-				Expect(view.Content).NotTo(ContainSubstring("Loading..."))
-			})
-		})
+	It("does not emit a scroll-help line", func() {
+		out := captureStdout(func() { _ = pretty.FormatTable(twoCol, nil) })
+		Expect(out).NotTo(ContainSubstring("↑/k")) // static table: no navigation help
 	})
 
-	Describe("Update", func() {
-		Context("when table data is loaded for update", func() {
-			It("should return new table with the fetched data", func() {
-				model := pretty.NewTableModel(nil, true, nil)
-				teaModel, cmd := model.Update(&pretty.TableData{})
+	It("keeps rows tight, not padded to a fixed max width", func() {
+		out := captureStdout(func() { _ = pretty.FormatTable(twoCol, nil) })
+		for _, line := range strings.Split(out, "\n") {
+			Expect(len(line)).To(BeNumerically("<", 100)) // 12+20 cols, not 500
+		}
+	})
 
-				Expect(teaModel).NotTo(BeNil())
-				Expect(cmd).To(BeNil())
-			})
-		})
-		Context("when quit keys are pressed", func() {
-			It("should return command to quit the operation", func() {
-				model := pretty.NewTableModel(nil, true, nil)
-				teaModel, cmd := model.Update(tea.KeyPressMsg{Text: pretty.QuitKey})
-
-				Expect(teaModel).NotTo(BeNil())
-				Expect(cmd()).To(Equal(tea.QuitMsg{}))
-			})
-		})
-		Context("when spinner's tick output is triggered", func() {
-			It("should update the spinners's state", func() {
-				model := pretty.NewTableModel(nil, true, nil)
-				teaModel, cmd := model.Update(spinner.TickMsg{})
-
-				Expect(teaModel).NotTo(BeNil())
-				Expect(cmd).NotTo(BeNil())
-			})
-		})
+	It("surfaces the model func error", func() {
+		bad := func(_ interface{}) *pretty.TableData {
+			return &pretty.TableData{Err: errors.New("boom")}
+		}
+		err := pretty.FormatTable(bad, nil)
+		Expect(err).To(MatchError(ContainSubstring("boom")))
 	})
 })

@@ -1,29 +1,20 @@
 package pretty
 
 import (
-	"bytes"
 	"fmt"
-	"os"
-
-	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
-
-	tea "charm.land/bubbletea/v2"
-	"golang.org/x/term"
 )
 
-func FormatTable(modelFunc ModelFunc, modelFuncData interface{}) (string, error) {
-	opts := []tea.ProgramOption{}
-
-	if !term.IsTerminal(int(os.Stdout.Fd())) {
-		var buf bytes.Buffer
-		opts = append(opts, tea.WithInput(nil), tea.WithOutput(&buf))
+// FormatTable renders a static table for the given command and prints it to
+// stdout. The output is one-shot (no scrolling, no interaction), so it renders
+// the view directly instead of running a bubbletea program — that avoids the
+// terminal-probe escape sequences and scroll-help line a full TUI would emit for
+// what is really a plain table.
+func FormatTable(modelFunc ModelFunc, modelFuncData interface{}) error {
+	data := modelFunc(modelFuncData)
+	if data.Err != nil {
+		return data.Err
 	}
 
-	_, err := tea.NewProgram(NewTableModel(modelFunc, false, modelFuncData), opts...).Run()
-	if err != nil {
-		return "", fmt.Errorf("error during table creation for output type: %s: %s",
-			cfg.Config.Output, err.Error())
-	}
-
-	return "", nil
+	fmt.Println(renderTable(data))
+	return nil
 }
