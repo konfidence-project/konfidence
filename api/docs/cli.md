@@ -25,6 +25,7 @@ Example usage:
 ### Options
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
   -h, --help                     help for kden
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
@@ -64,6 +65,7 @@ kden artifact [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -104,6 +106,7 @@ kden artifact alias <source-ref> <alias> [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -136,6 +139,7 @@ kden artifact push [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -176,6 +180,7 @@ kden artifact sign [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -207,6 +212,7 @@ kden artifact validate [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -279,6 +285,7 @@ kden completion [bash|zsh|fish|powershell]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -318,6 +325,7 @@ kden config [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -370,6 +378,7 @@ kden config set <configuration_property> <value> [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -413,6 +422,7 @@ kden config unset <configuration_property> [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -447,6 +457,7 @@ kden login [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -481,6 +492,7 @@ kden logout [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -511,6 +523,7 @@ kden project [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -546,6 +559,7 @@ kden project list [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -576,6 +590,7 @@ kden vector [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -612,6 +627,7 @@ kden vector push [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -652,6 +668,7 @@ kden vector sign [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -683,6 +700,7 @@ kden vector validate [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -713,6 +731,7 @@ kden vector-promotion [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -751,6 +770,7 @@ kden vector-promotion get [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -786,6 +806,7 @@ kden vector-promotion list [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
@@ -816,6 +837,7 @@ kden version [flags]
 ### Options inherited from parent commands
 
 ```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
       --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'

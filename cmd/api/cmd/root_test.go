@@ -45,3 +45,13 @@ func TestEnvList(t *testing.T) {
 		t.Fatalf("unexpected values: %#v", values)
 	}
 }
+
+func TestJWKSCacheTTLFlagDefault(t *testing.T) {
+	flag := rootCmd.Flags().Lookup("oidc-jwks-cache-ttl")
+	if flag == nil {
+		t.Fatal("oidc-jwks-cache-ttl flag is not registered")
+	}
+	if flag.DefValue != "15m" {
+		t.Fatalf("expected default JWKS cache TTL 15m, got %q", flag.DefValue)
+	}
+}

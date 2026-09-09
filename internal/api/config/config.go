@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"net/url"
@@ -39,6 +40,7 @@ type OIDCConfig struct {
 	DeviceAuthURL    string
 	UserInfoURL      string
 	JWKSURL          string
+	JWKSCacheTTL     string
 	ClientID         string
 	ClientSecret     string
 	Scopes           string
@@ -100,6 +102,7 @@ type ParsedOIDCConfig struct {
 	DeviceAuthURL    string
 	UserInfoURL      string
 	JWKSURL          string
+	JWKSCacheTTL     time.Duration
 	ClientID         string
 	ClientSecret     string
 	Scopes           []string
@@ -219,6 +222,14 @@ func (c OIDCConfig) validate() (ParsedOIDCConfig, error) {
 		allowReturnURLs = append(allowReturnURLs, returnURL)
 	}
 
+	jwksCacheTTL, err := time.ParseDuration(c.JWKSCacheTTL)
+	if err != nil {
+		return ParsedOIDCConfig{}, fmt.Errorf("invalid oidc-jwks-cache-ttl %q: %w", c.JWKSCacheTTL, err)
+	}
+	if jwksCacheTTL <= 0 {
+		return ParsedOIDCConfig{}, errors.New("oidc-jwks-cache-ttl must be greater than zero")
+	}
+
 	return ParsedOIDCConfig{
 		Enabled: c.Enabled, IssuerURL: c.IssuerURL, TokenURL: c.TokenURL,
 		AuthorizationURL: c.AuthorizationURL, DeviceAuthURL: c.DeviceAuthURL,
@@ -226,6 +237,7 @@ func (c OIDCConfig) validate() (ParsedOIDCConfig, error) {
 		ClientSecret: c.ClientSecret, Scopes: mergeScopes(parseCommaSeparatedList(c.Scopes)),
 		RedirectURL: c.RedirectURL, AllowReturnURLs: allowReturnURLs,
 		PKCEEnabled: c.PKCEEnabled, StateExpiration: stateExpiration,
+		JWKSCacheTTL: jwksCacheTTL,
 	}, nil
 }
 

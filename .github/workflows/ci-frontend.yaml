@@ -6,6 +6,9 @@ on:
       - .github/workflows/ci-frontend.yaml
       - hack/*design-system-screenshots.sh
       - .goreleaser.yaml
+      - Makefile
+      - api/codegen-client.yaml
+      - api/codegen-server.yaml
       - api/openapi.yaml
       - package.json
       - pnpm-lock.yaml
@@ -13,7 +16,7 @@ on:
       - tsconfig.json
       - apps/konfidence-mock-api/**
       - apps/konfidence-ui/**
-      - apps/konfidence-ui-prototype/**
+      - packages/konfidence-api-client/**
       - packages/konfidence-design-system/**
   push:
     branches: [main]
@@ -21,6 +24,9 @@ on:
       - .github/workflows/ci-frontend.yaml
       - hack/*design-system-screenshots.sh
       - .goreleaser.yaml
+      - Makefile
+      - api/codegen-client.yaml
+      - api/codegen-server.yaml
       - api/openapi.yaml
       - package.json
       - pnpm-lock.yaml
@@ -28,7 +34,7 @@ on:
       - tsconfig.json
       - apps/konfidence-mock-api/**
       - apps/konfidence-ui/**
-      - apps/konfidence-ui-prototype/**
+      - packages/konfidence-api-client/**
       - packages/konfidence-design-system/**
   merge_group:
 
@@ -64,7 +70,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run checks
-        run: pnpm ds:verify && pnpm ui:verify && pnpm mock-api:verify
+        run: pnpm ds:verify && pnpm api-client:verify && pnpm ui:verify && pnpm mock-api:verify
 
   test-mock-api:
     name: Test Mock API

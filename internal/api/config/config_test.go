@@ -1,6 +1,8 @@
 package config_test
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -22,6 +24,7 @@ var _ = Describe("Config.Validate", func() {
 				AllowReturnURLs: []string{"https://dashboard.example.com/callback", "http://localhost:3000/auth"},
 				UserInfoURL:     "http://localhost:5556/userinfo",
 				JWKSURL:         "http://localhost:5556/jwks",
+				JWKSCacheTTL:    "15m",
 				PKCEEnabled:     true, StateExpiration: "15m",
 			},
 			Session: config.SessionConfig{
@@ -50,6 +53,7 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.OIDC.AllowReturnURLs).To(Equal([]string{"https://dashboard.example.com/callback", "http://localhost:3000/auth"}))
 		Expect(parsed.OIDC.UserInfoURL).To(Equal("http://localhost:5556/userinfo"))
 		Expect(parsed.OIDC.JWKSURL).To(Equal("http://localhost:5556/jwks"))
+		Expect(parsed.OIDC.JWKSCacheTTL).To(Equal(15 * time.Minute))
 		Expect(parsed.OIDC.PKCEEnabled).To(BeTrue())
 		Expect(parsed.OIDC.StateExpiration.Minutes()).To(Equal(15.0))
 		Expect(parsed.Session.Cookie.Name).To(Equal("kden-session"))
@@ -91,6 +95,7 @@ var _ = Describe("Config.Validate", func() {
 		Entry("session-cleanup-interval", "session-cleanup-interval", func(c *config.Config) { c.Session.CleanupInterval = invalidDuration }),
 		Entry("db-max-conn-lifetime", "db-max-conn-lifetime", func(c *config.Config) { c.Database.MaxConnLifetime = invalidDuration }),
 		Entry("db-max-conn-idle-time", "db-max-conn-idle-time", func(c *config.Config) { c.Database.MaxConnIdleTime = invalidDuration }),
+		Entry("oidc-jwks-cache-ttl", "oidc-jwks-cache-ttl", func(c *config.Config) { c.OIDC.JWKSCacheTTL = invalidDuration }),
 	)
 
 	DescribeTable("rejects invalid database pool sizes",
@@ -185,8 +190,9 @@ var _ = Describe("Config.Validate", func() {
 				IssuerURL: "https://idp.example.com", TokenURL: "https://idp.example.com/token",
 				AuthorizationURL: "https://idp.example.com/auth", DeviceAuthURL: "https://idp.example.com/device",
 				UserInfoURL: "https://idp.example.com/userinfo", JWKSURL: "https://idp.example.com/jwks",
-				ClientID: "konfidence", ClientSecret: "secret", RedirectURL: "https://konfidence.example.com/auth/callback",
-				AllowReturnURLs: []string{"https://dashboard.example.com/auth/callback"}, StateExpiration: "5m",
+				JWKSCacheTTL: "15m", ClientID: "konfidence", ClientSecret: "secret",
+				RedirectURL: "https://konfidence.example.com/auth/callback", AllowReturnURLs: []string{"https://dashboard.example.com/auth/callback"},
+				StateExpiration: "5m",
 			},
 			Session: config.SessionConfig{
 				StorageType:     "in-memory",
@@ -215,4 +221,16 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.Session.Expiration.Hours()).To(Equal(1.0))
 		Expect(parsed.Session.CleanupInterval.Minutes()).To(Equal(15.0))
 	})
+
+	DescribeTable("rejects non-positive JWKS cache TTL",
+		func(value string) {
+			c := valid()
+			c.OIDC.JWKSCacheTTL = value
+			_, err := c.Validate()
+
+			Expect(err).To(MatchError("oidc-jwks-cache-ttl must be greater than zero"))
+		},
+		Entry("zero", "0s"),
+		Entry("negative", "-1m"),
+	)
 })

@@ -245,6 +245,14 @@ var _ = Describe("SetKey", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(strings.Contains(err.Error(), errorMessage)).To(BeTrue())
 		})
+
+		It("does not allow access tokens to be persisted", func() {
+			err := SetKey("access-token", "secret-token")
+
+			Expect(err).To(MatchError(
+				"'access-token' is not a valid configuration key",
+			))
+		})
 	})
 
 	Context("with invalid environment variable key", func() {

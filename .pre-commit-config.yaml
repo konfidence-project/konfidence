@@ -25,6 +25,12 @@ repos:
           language: system
           pass_filenames: false
           files: ^(api/v1alpha1/.*\.go|test/data/samples/.*\.yaml|hack/transform-crd-docs\.sh|cmd/kden/.*\.go|internal/kden/.*\.go)$
+        - id: check-openapi
+          name: make check-openapi
+          entry: make check-openapi
+          language: system
+          pass_filenames: false
+          files: ^(api/(openapi\.yaml|codegen-(client|server)\.yaml)|internal/(api/openapi/server|kden/apiclient/client)\.go|packages/konfidence-api-client/.*)$
         - id: validate
           name: make validate
           entry: make validate

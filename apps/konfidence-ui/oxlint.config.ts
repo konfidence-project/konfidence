@@ -15,7 +15,6 @@ export default defineConfig({
     browser: true,
     builtin: true,
   },
-  ignorePatterns: ["src/lib/konfidence-api/schema.d.ts"],
   overrides: [
     {
       files: ["src/**/*.svelte", "src/**/*.svelte.ts"],

@@ -86,6 +86,7 @@ api:
     deviceAuthURL: ""
     userInfoURL: ""
     jwksURL: ""
+    jwksCacheTTL: 15m
     clientId: ""
     clientSecretRef:
       name: ""

@@ -32,7 +32,7 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	cfg config.Parsed,
 ) (http.Handler, error) {
 	auth := newAuthHandler(logger, oidcClient, stateStore, exchangeStore, sessionStore, cfg)
-	authRepo := authdomain.NewRepository(k8sClient)
+	authRepo := authdomain.NewRepository(k8sClient, cfg.OIDC.JWKSCacheTTL)
 	projectRepo := projectdomain.NewRepository(k8sClient)
 	landscapeRepo := landscapedomain.NewRepository(k8sClient)
 	stageRepo := stagedomain.NewRepository(k8sClient)
@@ -45,7 +45,8 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 		authHandler:    *auth,
 		projectHandler: *project,
 	}
-	return middleware.SessionAuthentication(logger, sessionStore, authRepo, cfg, api.handler())
+
+	return middleware.Authenticator(logger, sessionStore, authRepo, cfg, api.handler())
 }
 
 func (s *apiHandler) handler() http.Handler {

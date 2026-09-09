@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "all": "pnpm --filter konfidence-ui all",
+    "api-client:verify": "pnpm --filter @konfidence/api-client verify",
     "ds:all": "pnpm --filter @konfidence/design-system verify && pnpm --filter @konfidence/design-system test",
     "ds:check": "pnpm --filter @konfidence/design-system check",
     "ds:check:svelte": "pnpm --filter @konfidence/design-system check:svelte",
@@ -21,6 +22,7 @@
     "mock-api:test": "pnpm --filter konfidence-mock-api test",
     "mock-api:verify": "pnpm --filter konfidence-mock-api verify",
     "ui:dev": "pnpm --filter konfidence-ui dev",
+    "ui:dev:mock": "pnpm --parallel --filter konfidence-ui --filter konfidence-mock-api dev",
     "ui:all": "pnpm --filter konfidence-ui all",
     "ui:build": "pnpm --filter konfidence-ui build",
     "ui:start": "pnpm --filter konfidence-ui start",
