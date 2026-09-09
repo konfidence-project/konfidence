@@ -15,11 +15,7 @@ const identityBody = {
   projectRoles: { "payments-platform": ["admin", "dev"] },
 };
 
-const jsonResponse = (status: number, body: unknown): Response =>
-  new Response(JSON.stringify(body), {
-    headers: { "Content-Type": "application/json" },
-    status,
-  });
+const jsonResponse = (status: number, body: unknown): Response => Response.json(body, { status });
 
 const mockFetchOnce = (response: Response): void => {
   vi.stubGlobal(
@@ -44,13 +40,14 @@ const mockFetchReject = (error: Error): void => {
  * singleton in `client-instance.ts`.
  */
 const createTestSession = (): SessionStore => {
-  let handler: (() => void) | undefined;
+  // Indirection through an object lets the middleware close over the store
+  // that is created immediately after the client, avoiding a TDZ reference.
+  const holder: { store?: SessionStore } = {};
   const client = createApiClient({
-    onUnauthorized: () => handler?.(),
+    onUnauthorized: () => holder.store?.handleUnauthorized(),
   });
-  const store = new SessionStore(client);
-  handler = () => store.handleUnauthorized();
-  return store;
+  holder.store = new SessionStore(client);
+  return holder.store;
 };
 
 export { createTestSession, identityBody, jsonResponse, mockFetchOnce, mockFetchReject };

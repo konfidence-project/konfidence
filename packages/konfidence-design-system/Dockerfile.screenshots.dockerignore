@@ -1,0 +1,17 @@
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.json
+!apps/
+!apps/**
+!packages/
+!packages/**
+**/node_modules
+**/.svelte-kit
+**/build
+**/dist
+**/.vitest-attachments
+**/__screenshots__
+**/test-results
+**/playwright-report
