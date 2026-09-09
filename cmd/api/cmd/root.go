@@ -95,6 +95,8 @@ func init() {
 		"External identity provider user info URL. Env: API_OIDC_USER_INFO_URL")
 	rootCmd.Flags().StringVar(&cfg.OIDC.JWKSURL, "oidc-jwks-url", envOr("API_OIDC_JWKS_URL", ""),
 		"External identity provider JWKS URL. Env: API_OIDC_JWKS_URL")
+	rootCmd.Flags().StringVar(&cfg.OIDC.JWKSCacheTTL, "oidc-jwks-cache-ttl", envOr("API_OIDC_JWKS_CACHE_TTL", "15m"),
+		"Maximum lifetime of cached workload-token OIDC discovery and JWKS data. Env: API_OIDC_JWKS_CACHE_TTL")
 	rootCmd.Flags().StringVar(&cfg.OIDC.ClientID, "oidc-client-id", envOr("API_OIDC_CLIENT_ID", ""),
 		"External identity provider client ID. Env: API_OIDC_CLIENT_ID")
 	rootCmd.Flags().StringVar(&cfg.OIDC.ClientSecret, "oidc-client-secret", "",

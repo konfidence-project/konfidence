@@ -3,6 +3,8 @@ name: Frontend CI
 on:
   pull_request:
     paths:
+      - .github/workflows/ci-frontend.yaml
+      - hack/*design-system-screenshots.sh
       - .goreleaser.yaml
       - Makefile
       - api/codegen-client.yaml
@@ -15,9 +17,12 @@ on:
       - apps/konfidence-mock-api/**
       - apps/konfidence-ui/**
       - packages/konfidence-api-client/**
+      - packages/konfidence-design-system/**
   push:
     branches: [main]
     paths:
+      - .github/workflows/ci-frontend.yaml
+      - hack/*design-system-screenshots.sh
       - .goreleaser.yaml
       - Makefile
       - api/codegen-client.yaml
@@ -30,6 +35,7 @@ on:
       - apps/konfidence-mock-api/**
       - apps/konfidence-ui/**
       - packages/konfidence-api-client/**
+      - packages/konfidence-design-system/**
   merge_group:
 
 permissions:
@@ -64,7 +70,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run checks
-        run: pnpm api-client:verify && pnpm ui:verify && pnpm mock-api:verify
+        run: pnpm ds:verify && pnpm api-client:verify && pnpm ui:verify && pnpm mock-api:verify
 
   test-mock-api:
     name: Test Mock API
@@ -77,6 +83,18 @@ jobs:
 
       - name: Run mock API contract tests
         run: pnpm --filter konfidence-mock-api exec vitest run --reporter=default --reporter=github-actions
+
+  test-design-system:
+    name: Test Design System
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - *checkout-code
+
+      - *install-pnpm
+      - *setup-node
+
+      - name: Run tests and require current Linux screenshots
+        run: pnpm ds:screenshots:check
 
   test-unit:
     name: Test Unit

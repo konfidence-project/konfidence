@@ -1,9 +1,9 @@
-import {
-  createKonfidenceApiClient,
-  type KonfidenceApiClient,
-  type KonfidenceApiClientOptions,
-  type Middleware,
+import type {
+  KonfidenceApiClient,
+  KonfidenceApiClientOptions,
+  Middleware,
 } from "@konfidence/api-client";
+import { createKonfidenceApiClient } from "@konfidence/api-client";
 import { HTTP_UNAUTHORIZED } from "$lib/http-status";
 
 type ApiClient = KonfidenceApiClient;
