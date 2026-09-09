@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe("login page", () => {
   it("renders a sign-in link that targets the default return URL", async () => {
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
     });
@@ -51,7 +51,7 @@ describe("login page", () => {
   it("propagates a returnTo query parameter into the sign-in URL", async () => {
     setLoginUrl("?returnTo=/projects/foo/landscape");
 
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
     });
@@ -66,7 +66,7 @@ describe("login page", () => {
   it("renders the error description from the callback query", async () => {
     setLoginUrl("?error=access_denied&error_description=Login%20denied");
 
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
     });
@@ -77,7 +77,7 @@ describe("login page", () => {
   it("falls back to the error code when no description is provided", async () => {
     setLoginUrl("?error=access_denied");
 
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
     });

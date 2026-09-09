@@ -20,7 +20,7 @@ afterEach(() => {
 
 describe("dashboard page", () => {
   it("renders the dashboard heading", async () => {
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: DashboardPage,
       session: createTestSession(),
     });
@@ -31,7 +31,7 @@ describe("dashboard page", () => {
   });
 
   it("renders a sign-out link", async () => {
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: DashboardPage,
       session: createTestSession(),
     });
