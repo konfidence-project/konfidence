@@ -61,6 +61,8 @@ OPERATOR_SUITE_DIRS = $(shell find internal -maxdepth 2 -name setup.go -exec dir
 
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
+# Kubeconfig written by dev-apiserver; export KUBECONFIG to it for run, run-kden-api and kden.
+ENVTEST_KUBECONFIG ?= $(REPO_ROOT)/.tmp/envtest.kubeconfig
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
@@ -95,6 +97,8 @@ API_OIDC_SCOPES ?= openid,profile,email,groups
 API_OIDC_REDIRECT_URL ?= https://api.localhost/api/v1/auth/callback
 API_OIDC_ALLOW_RETURN_URLS ?= http://localhost:8090
 API_SESSION_STORAGE_TYPE ?= in-memory
+# Set to a dashboard build (apps/konfidence-ui/build) to serve it from the API server.
+API_UI_ASSET_PATH ?=
 
 .PHONY: all
 all: api build
@@ -323,13 +327,23 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
+		--ui-asset-path=$(API_UI_ASSET_PATH)
 
 ##@ Local Development
 
 DEV_COMPOSE_FILE ?= hack/kden_local_dev/docker-compose.yml
 
+.PHONY: dev-apiserver
+dev-apiserver: hermit manifests setup-envtest ## Run a standalone envtest apiserver with the CRDs installed; no cluster needed.
+	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		go run ./hack/envtest --crd-dir $(CRD_DIR) --kubeconfig $(ENVTEST_KUBECONFIG)
+
+.PHONY: dev-registry
+dev-registry: ## Start a local OCI registry at localhost:5001.
+	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh registry
+
 .PHONY: dev-up
-dev-up: ## Start local dev dependencies (IDP, reverse proxy, Postgres) used by run-kden-api.
+dev-up: ## Start the local identity provider (Authelia behind Caddy) for OIDC work; Postgres is included but unused.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) up -d
 
 .PHONY: dev-down
@@ -341,7 +355,7 @@ dev-logs: ## Tail logs from local dev dependencies.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) logs -f
 
 .PHONY: dev-cluster
-dev-cluster: hermit ## Create a local kind cluster with a local OCI registry at localhost:5001.
+dev-cluster: hermit ## Create a local kind cluster wired to the local OCI registry (starts it if needed).
 	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh up
 
 .PHONY: dev-cluster-down
