@@ -1,0 +1,41 @@
+/*
+ * Konfidence design-system preview app CSS entry.
+ *
+ * Same layered order as apps/konfidence-ui/src/app.css: Tailwind first,
+ * Skeleton next, then the `@custom-variant dark` bridge that maps
+ * Tailwind's `dark:` prefix onto the active Skeleton mode, and finally
+ * the Konfidence design system (tokens + Skeleton overrides + custom).
+ */
+
+@import "tailwindcss";
+@import "@skeletonlabs/skeleton";
+@import "@skeletonlabs/skeleton-svelte";
+
+@custom-variant dark {
+  &:where([data-mode="dark"], [data-mode="dark"] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:where([data-mode="system"], [data-mode="system"] *) {
+      @slot;
+    }
+  }
+}
+
+@import "@konfidence/design-system/styles";
+
+/*
+ * Smooth-scroll in-page anchor jumps so the TOC in the style guide
+ * eases to the target section instead of snapping. Individual sections
+ * set `scroll-margin-top` to clear the sticky topbar.
+ */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
