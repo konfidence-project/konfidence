@@ -4,8 +4,8 @@
      * every icon's rendered SVG at once. Cheaper than 48 individual
      * snapshots and still detects any single-icon regression.
      */
-    import Icon from "./Icon.svelte";
-    import { ICON_NAMES } from "./icons.js";
+    import Icon from "../Icon.svelte";
+    import { ICON_NAMES } from "../icons.js";
 </script>
 
 <div

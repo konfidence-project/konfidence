@@ -4,7 +4,7 @@ import { render } from "vitest-browser-svelte";
 
 import "../../../../../apps/konfidence-ui/src/app.css";
 import Icon from "./Icon.svelte";
-import IconHarness from "./IconHarness.svelte";
+import IconTestContainer from "./__tests__/IconTestContainer.svelte";
 import { ICON_NAMES } from "./icons.js";
 
 describe("<Icon>", () => {
@@ -51,7 +51,7 @@ describe("<Icon>", () => {
         await page.viewport(320, 320);
         document.documentElement.setAttribute("data-theme", "konfidence");
         document.documentElement.setAttribute("data-mode", mode);
-        render(IconHarness);
+        render(IconTestContainer);
         await expect.element(page.getByTestId("icon-grid")).toMatchScreenshot();
       });
     }

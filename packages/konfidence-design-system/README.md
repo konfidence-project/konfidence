@@ -96,7 +96,7 @@ are the contract those runtimes target.
 ## Linux screenshots
 
 Each component lives in `src/components/<Component>/` with its tests,
-harness, and screenshots. `pnpm ds:test` refreshes screenshot baselines
+test container, and screenshots. `pnpm ds:test` refreshes screenshot baselines
 automatically; visual changes are reviewed as PNG diffs rather than test
 failures. Only Linux PNGs are tracked by Git.
 
@@ -105,9 +105,10 @@ OrbitLoader's default and custom labels, and StatusBadge's seven styled
 statuses plus an unknown-status fallback, with and without the dot.
 Every case runs in light and dark mode.
 
-ButtonHarness and StatusBadgeHarness are test-only fixtures that supply
-Svelte `children` snippets. Brandbar and OrbitLoader render directly in
-their tests because they take ordinary props without snippets.
+ButtonTestContainer and StatusBadgeTestContainer are test-only fixtures
+(colocated in each component's `__tests__/` directory) that supply Svelte
+`children` snippets. Brandbar and OrbitLoader render directly in their tests
+because they take ordinary props without snippets.
 
 To regenerate the colocated Linux PNGs, run from the repository root:
 

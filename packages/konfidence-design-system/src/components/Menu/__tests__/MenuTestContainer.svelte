@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Menu } from "./index.js";
+    import { Menu } from "../index.js";
 
     interface Props {
         variant: "plain" | "with-header" | "size-sm" | "size-lg";

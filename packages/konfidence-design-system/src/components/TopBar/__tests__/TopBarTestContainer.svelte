@@ -1,7 +1,7 @@
 <script lang="ts">
-    import Avatar from "../Avatar/Avatar.svelte";
-    import ProjectSwitcher from "../ProjectSwitcher/ProjectSwitcher.svelte";
-    import TopBar from "./TopBar.svelte";
+    import Avatar from "../../Avatar/Avatar.svelte";
+    import ProjectSwitcher from "../../ProjectSwitcher/ProjectSwitcher.svelte";
+    import TopBar from "../TopBar.svelte";
 
     interface Props {
         withHamburger?: boolean;

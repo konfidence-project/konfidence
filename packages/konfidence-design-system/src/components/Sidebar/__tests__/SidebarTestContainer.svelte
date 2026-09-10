@@ -1,8 +1,8 @@
 <script lang="ts">
-    import NavGroup from "../NavGroup/NavGroup.svelte";
-    import NavItem from "../NavItem/NavItem.svelte";
-    import ProjectSwitcher from "../ProjectSwitcher/ProjectSwitcher.svelte";
-    import Sidebar from "./Sidebar.svelte";
+    import NavGroup from "../../NavGroup/NavGroup.svelte";
+    import NavItem from "../../NavItem/NavItem.svelte";
+    import ProjectSwitcher from "../../ProjectSwitcher/ProjectSwitcher.svelte";
+    import Sidebar from "../Sidebar.svelte";
 
     interface Props {
         withFooter?: boolean;

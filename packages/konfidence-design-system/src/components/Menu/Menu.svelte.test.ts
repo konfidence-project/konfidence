@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import "../../../../../apps/konfidence-ui/src/app.css";
-import MenuHarness from "./MenuHarness.svelte";
+import MenuTestContainer from "./__tests__/MenuTestContainer.svelte";
 
 describe("<Menu>", () => {
   afterEach(() => {
@@ -12,25 +12,25 @@ describe("<Menu>", () => {
   });
 
   it("renders items with the .menu__item class", async () => {
-    render(MenuHarness, { variant: "plain" });
+    render(MenuTestContainer, { variant: "plain" });
     const items = document.querySelectorAll(".menu__item");
     expect(items.length).toBeGreaterThan(0);
   });
 
   it("marks the active item with .menu__item--active", async () => {
-    render(MenuHarness, { variant: "plain" });
+    render(MenuTestContainer, { variant: "plain" });
     const active = document.querySelector<HTMLElement>(".menu__item--active");
     expect(active?.textContent?.trim()).toBe("Konfidence");
   });
 
   it("marks danger items with .menu__item--danger", async () => {
-    render(MenuHarness, { variant: "plain" });
+    render(MenuTestContainer, { variant: "plain" });
     const danger = document.querySelector<HTMLElement>(".menu__item--danger");
     expect(danger?.textContent?.trim()).toBe("Delete project");
   });
 
   it("adds .menu--header when header=true", async () => {
-    render(MenuHarness, { variant: "with-header" });
+    render(MenuTestContainer, { variant: "with-header" });
     const header = document.querySelector<HTMLElement>(".menu--header");
     expect(header).not.toBeNull();
     const name = document.querySelector<HTMLElement>(".menu__header-name");
@@ -44,7 +44,7 @@ describe("<Menu>", () => {
           await page.viewport(320, 400);
           document.documentElement.setAttribute("data-theme", "konfidence");
           document.documentElement.setAttribute("data-mode", mode);
-          render(MenuHarness, { variant });
+          render(MenuTestContainer, { variant });
           await expect.element(page.getByTestId("menu-root")).toMatchScreenshot();
         });
       }

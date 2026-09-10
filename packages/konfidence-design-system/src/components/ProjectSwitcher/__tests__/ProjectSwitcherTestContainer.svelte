@@ -1,5 +1,5 @@
 <script lang="ts">
-    import ProjectSwitcher from "./ProjectSwitcher.svelte";
+    import ProjectSwitcher from "../ProjectSwitcher.svelte";
 
     interface Props {
         name?: string;

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import "../../../../../apps/konfidence-ui/src/app.css";
-import SkipLinkHarness from "./SkipLinkHarness.svelte";
+import SkipLinkTestContainer from "./__tests__/SkipLinkTestContainer.svelte";
 
 describe("<SkipLink>", () => {
   afterEach(() => {
@@ -12,7 +12,7 @@ describe("<SkipLink>", () => {
   });
 
   it("renders an anchor pointing at the target id", async () => {
-    render(SkipLinkHarness, {
+    render(SkipLinkTestContainer, {
       props: { label: "Skip to main content", target: "app-shell-main" },
     });
     const link = page.getByRole("link", { name: "Skip to main content" });
@@ -24,7 +24,7 @@ describe("<SkipLink>", () => {
       await page.viewport(320, 120);
       document.documentElement.setAttribute("data-theme", "konfidence");
       document.documentElement.setAttribute("data-mode", mode);
-      render(SkipLinkHarness, {
+      render(SkipLinkTestContainer, {
         props: { label: "Skip to main content", target: "app-shell-main" },
       });
       const anchor = document.querySelector<HTMLAnchorElement>("a.skip-link");

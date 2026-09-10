@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import "../../../../../apps/konfidence-ui/src/app.css";
-import NavGroupHarness from "./NavGroupHarness.svelte";
+import NavGroupTestContainer from "./__tests__/NavGroupTestContainer.svelte";
 
 describe("<NavGroup>", () => {
   afterEach(() => {
@@ -12,7 +12,7 @@ describe("<NavGroup>", () => {
   });
 
   it("renders the label and children", async () => {
-    render(NavGroupHarness);
+    render(NavGroupTestContainer);
     await expect.element(page.getByText("Delivery")).toBeInTheDocument();
     await expect.element(page.getByRole("link", { name: "Landscape" })).toBeInTheDocument();
     await expect
@@ -21,7 +21,7 @@ describe("<NavGroup>", () => {
   });
 
   it("hides the label div when no label is provided", async () => {
-    render(NavGroupHarness, { hideLabel: true });
+    render(NavGroupTestContainer, { hideLabel: true });
     const label = document.querySelector<HTMLElement>(".nav-group__label");
     expect(label).toBeNull();
   });
@@ -31,7 +31,7 @@ describe("<NavGroup>", () => {
       await page.viewport(240, 200);
       document.documentElement.setAttribute("data-theme", "konfidence");
       document.documentElement.setAttribute("data-mode", mode);
-      render(NavGroupHarness);
+      render(NavGroupTestContainer);
       await expect.element(page.getByTestId("nav-group-root")).toMatchScreenshot();
     });
   }

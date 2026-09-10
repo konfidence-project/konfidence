@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import "../../../../../apps/konfidence-ui/src/app.css";
-import AppShellHarness from "./AppShellHarness.svelte";
+import AppShellTestContainer from "./__tests__/AppShellTestContainer.svelte";
 
 describe("<AppShell>", () => {
   afterEach(() => {
@@ -12,7 +12,7 @@ describe("<AppShell>", () => {
   });
 
   it("renders the topbar, sidebar, and main slot content", async () => {
-    render(AppShellHarness);
+    render(AppShellTestContainer);
     // Brandbar is rendered via the DS component (Tailwind classes rather than
     // the raw .brandbar class), so we assert on structure instead.
     expect(document.querySelector<HTMLElement>(".app-shell")).not.toBeNull();
@@ -22,7 +22,7 @@ describe("<AppShell>", () => {
   });
 
   it("defaults the drawer to closed", async () => {
-    render(AppShellHarness);
+    render(AppShellTestContainer);
     const sidebar = document.querySelector<HTMLElement>(".app-shell__sidebar");
     expect(sidebar?.getAttribute("data-open")).toBe("false");
   });
@@ -30,7 +30,7 @@ describe("<AppShell>", () => {
   it("opens the drawer when the topbar hamburger is clicked", async () => {
     // Mobile viewport ensures the hamburger is visible.
     await page.viewport(400, 640);
-    render(AppShellHarness);
+    render(AppShellTestContainer);
     const trigger = document.querySelector<HTMLButtonElement>('[data-testid="drawer-toggle"]');
     trigger?.click();
     // Wait a microtask so Svelte flushes the reactivity update.
@@ -41,7 +41,7 @@ describe("<AppShell>", () => {
 
   it("closes the drawer when the scrim is clicked", async () => {
     await page.viewport(400, 640);
-    render(AppShellHarness);
+    render(AppShellTestContainer);
     const trigger = document.querySelector<HTMLButtonElement>('[data-testid="drawer-toggle"]');
     trigger?.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -59,7 +59,7 @@ describe("<AppShell>", () => {
       await page.viewport(1024, 640);
       document.documentElement.setAttribute("data-theme", "konfidence");
       document.documentElement.setAttribute("data-mode", mode);
-      render(AppShellHarness);
+      render(AppShellTestContainer);
       await expect.element(page.getByTestId("shell-root")).toMatchScreenshot();
     });
 
@@ -67,7 +67,7 @@ describe("<AppShell>", () => {
       await page.viewport(400, 640);
       document.documentElement.setAttribute("data-theme", "konfidence");
       document.documentElement.setAttribute("data-mode", mode);
-      render(AppShellHarness);
+      render(AppShellTestContainer);
       const trigger = document.querySelector<HTMLButtonElement>('[data-testid="drawer-toggle"]');
       trigger?.click();
       await new Promise((resolve) => setTimeout(resolve, 250));

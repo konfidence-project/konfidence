@@ -1,5 +1,5 @@
 <script lang="ts">
-    import SkipLink from "./SkipLink.svelte";
+    import SkipLink from "../SkipLink.svelte";
 
     interface Props {
         target: string;

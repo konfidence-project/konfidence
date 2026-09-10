@@ -1,6 +1,6 @@
 <script lang="ts">
-    import Avatar from "../Avatar/Avatar.svelte";
-    import AvatarGroup from "./AvatarGroup.svelte";
+    import Avatar from "../../Avatar/Avatar.svelte";
+    import AvatarGroup from "../AvatarGroup.svelte";
 
     interface Props {
         showMore?: boolean;

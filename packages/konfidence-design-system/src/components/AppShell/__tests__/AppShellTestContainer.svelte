@@ -1,11 +1,11 @@
 <script lang="ts">
-    import AppShell from "./AppShell.svelte";
-    import Avatar from "../Avatar/Avatar.svelte";
-    import NavGroup from "../NavGroup/NavGroup.svelte";
-    import NavItem from "../NavItem/NavItem.svelte";
-    import ProjectSwitcher from "../ProjectSwitcher/ProjectSwitcher.svelte";
-    import Sidebar from "../Sidebar/Sidebar.svelte";
-    import TopBar from "../TopBar/TopBar.svelte";
+    import AppShell from "../AppShell.svelte";
+    import Avatar from "../../Avatar/Avatar.svelte";
+    import NavGroup from "../../NavGroup/NavGroup.svelte";
+    import NavItem from "../../NavItem/NavItem.svelte";
+    import ProjectSwitcher from "../../ProjectSwitcher/ProjectSwitcher.svelte";
+    import Sidebar from "../../Sidebar/Sidebar.svelte";
+    import TopBar from "../../TopBar/TopBar.svelte";
 </script>
 
 <div data-testid="shell-root" style="min-height: 640px;">

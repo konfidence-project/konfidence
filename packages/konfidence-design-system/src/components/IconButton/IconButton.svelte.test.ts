@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import "../../../../../apps/konfidence-ui/src/app.css";
-import IconButtonHarness from "./IconButtonHarness.svelte";
+import IconButtonTestContainer from "./__tests__/IconButtonTestContainer.svelte";
 
 describe("<IconButton>", () => {
   afterEach(() => {
@@ -12,7 +12,7 @@ describe("<IconButton>", () => {
   });
 
   it("renders a button with the icon", async () => {
-    render(IconButtonHarness);
+    render(IconButtonTestContainer);
     const btn = page.getByRole("button", { name: "Notifications" });
     await expect.element(btn).toBeInTheDocument();
     const svg = document.querySelector<SVGElement>("button.icon-btn svg[data-icon='bell']");
@@ -20,20 +20,20 @@ describe("<IconButton>", () => {
   });
 
   it("renders a badge when provided", async () => {
-    render(IconButtonHarness, { badge: 3 });
+    render(IconButtonTestContainer, { badge: 3 });
     const badge = document.querySelector<HTMLElement>(".icon-btn__badge");
     expect(badge?.textContent).toBe("3");
   });
 
   it("clamps large badge values", async () => {
     const OVERFLOW_COUNT = 150;
-    render(IconButtonHarness, { badge: OVERFLOW_COUNT });
+    render(IconButtonTestContainer, { badge: OVERFLOW_COUNT });
     const badge = document.querySelector<HTMLElement>(".icon-btn__badge");
     expect(badge?.textContent).toBe("99+");
   });
 
   it("defaults to type=button", async () => {
-    render(IconButtonHarness);
+    render(IconButtonTestContainer);
     await expect
       .element(page.getByRole("button", { name: "Notifications" }))
       .toHaveAttribute("type", "button");
@@ -45,7 +45,7 @@ describe("<IconButton>", () => {
         await page.viewport(120, 96);
         document.documentElement.setAttribute("data-theme", "konfidence");
         document.documentElement.setAttribute("data-mode", mode);
-        render(IconButtonHarness, { badge: withBadge ? 3 : undefined });
+        render(IconButtonTestContainer, { badge: withBadge ? 3 : undefined });
         await expect
           .element(page.getByRole("button", { name: "Notifications" }))
           .toMatchScreenshot();

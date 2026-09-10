@@ -1,6 +1,6 @@
 <script lang="ts">
-    import NavGroup from "./NavGroup.svelte";
-    import NavItem from "../NavItem/NavItem.svelte";
+    import NavGroup from "../NavGroup.svelte";
+    import NavItem from "../../NavItem/NavItem.svelte";
 
     interface Props {
         label?: string;

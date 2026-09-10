@@ -1,6 +1,6 @@
 <script lang="ts">
-    import IconButton from "./IconButton.svelte";
-    import type { IconName } from "../Icon/icons.js";
+    import IconButton from "../IconButton.svelte";
+    import type { IconName } from "../../Icon/icons.js";
 
     interface Props {
         icon?: IconName;

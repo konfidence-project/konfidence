@@ -1,6 +1,6 @@
 <script lang="ts">
-    import NavItem from "./NavItem.svelte";
-    import type { IconName } from "../Icon/icons.js";
+    import NavItem from "../NavItem.svelte";
+    import type { IconName } from "../../Icon/icons.js";
 
     interface Props {
         label: string;

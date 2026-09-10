@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Avatar from "./Avatar.svelte";
+    import Avatar from "../Avatar.svelte";
 
     interface Props {
         initials?: string;
