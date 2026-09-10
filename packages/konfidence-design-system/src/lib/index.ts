@@ -14,7 +14,6 @@ export {
   OrbitLoader,
   ProjectSwitcher,
   Sidebar,
-  SkipLink,
   StatusBadge,
   TopBar,
   type IconName,

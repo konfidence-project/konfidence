@@ -21,6 +21,12 @@ describe("<AppShell>", () => {
     expect(document.querySelector<HTMLElement>(".app-shell__main")).not.toBeNull();
   });
 
+  it("renders a skip link pointing at the main content", async () => {
+    render(AppShellTestContainer);
+    const link = document.querySelector<HTMLAnchorElement>("a.skip-link");
+    expect(link?.getAttribute("href")).toBe("#app-shell-main");
+  });
+
   it("defaults the drawer to closed", async () => {
     render(AppShellTestContainer);
     const sidebar = document.querySelector<HTMLElement>(".app-shell__sidebar");

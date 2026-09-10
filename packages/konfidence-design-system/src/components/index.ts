@@ -13,6 +13,5 @@ export { isActive } from "./NavItem/nav-active.js";
 export { default as OrbitLoader } from "./OrbitLoader/OrbitLoader.svelte";
 export { default as ProjectSwitcher } from "./ProjectSwitcher/ProjectSwitcher.svelte";
 export { default as Sidebar } from "./Sidebar/Sidebar.svelte";
-export { default as SkipLink } from "./SkipLink/SkipLink.svelte";
 export { default as StatusBadge } from "./StatusBadge/StatusBadge.svelte";
 export { default as TopBar } from "./TopBar/TopBar.svelte";

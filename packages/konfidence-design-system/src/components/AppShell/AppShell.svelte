@@ -1,7 +1,6 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
     import Brandbar from "../Brandbar/Brandbar.svelte";
-    import SkipLink from "../SkipLink/SkipLink.svelte";
 
     /**
      * Application shell. Grid layout of `brandbar / topbar / (sidebar | main)`.
@@ -47,7 +46,7 @@
     };
 </script>
 
-<SkipLink target={mainId}>Skip to main content</SkipLink>
+<a class="skip-link" href={`#${mainId}`}>Skip to main content</a>
 <div class="app-shell">
     <Brandbar />
     {@render topbar({ toggleDrawer })}
