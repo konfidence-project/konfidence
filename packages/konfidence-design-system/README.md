@@ -9,14 +9,17 @@ Skeleton v5, provides:
   `<html data-theme="konfidence">`, plus `[data-mode="system"]` inside
   a `@media (prefers-color-scheme: dark)` block (Skeleton pattern).
 - **Skeleton theme** — colour ramps for `data-theme="konfidence"`.
-- **Custom components** — Konfidence-specific CSS classes with no
-  Skeleton equivalent (orbit, phases, diff, timelines, charts, status
-  badges, tags, icon chips, …).
-- **`.btn` styles** — Konfidence gradient fill, amber glow, hover
-  lift; scoped inside `Button.svelte` (colocated with the component)
-  so consumers get them via `<Button>`, not raw `.btn` markup.
+- **Component CSS** — colocated in each component's own scoped
+  `<style>` block (see `Button.svelte`, `StatusBadge.svelte`, …) rather
+  than a shared stylesheet, so a component's markup and styling stay
+  in one file.
 - **Svelte components** — Tier-1 wrappers over the CSS layer:
   `Button`, `Brandbar`, `OrbitLoader`, `StatusBadge`.
+- **Icons** — [SAP-icons](https://sap.github.io/ui5-webcomponents/nightly/v2/components/Icon/)
+  via `<ui5-icon name="…">`. Components that render icons import
+  `@ui5/webcomponents/dist/Icon.js` and
+  `@ui5/webcomponents-icons/dist/AllIcons.js` themselves, so consumers
+  only pass a SAP-icons name (e.g. `org-chart`, `slim-arrow-down`).
 
 The package is workspace-only (`"private": true`); it ships TypeScript
 and Svelte source without a build step and relies on the consumer's
@@ -56,8 +59,7 @@ imports them first, then layers the Konfidence styles on top:
 ```
 
 Fine-grained subpaths are available if the default order does not
-fit (`@konfidence/design-system/styles/tokens`, `/styles/skeleton`,
-`/styles/custom`).
+fit (`@konfidence/design-system/styles/tokens`, `/styles/skeleton`).
 
 ## Wire the theme bootstrap
 
@@ -96,7 +98,7 @@ are the contract those runtimes target.
 ## Linux screenshots
 
 Each component lives in `src/components/<Component>/` with its tests,
-harness, and screenshots. `pnpm ds:test` refreshes screenshot baselines
+test container, and screenshots. `pnpm ds:test` refreshes screenshot baselines
 automatically; visual changes are reviewed as PNG diffs rather than test
 failures. Only Linux PNGs are tracked by Git.
 
@@ -105,9 +107,10 @@ OrbitLoader's default and custom labels, and StatusBadge's seven styled
 statuses plus an unknown-status fallback, with and without the dot.
 Every case runs in light and dark mode.
 
-ButtonHarness and StatusBadgeHarness are test-only fixtures that supply
-Svelte `children` snippets. Brandbar and OrbitLoader render directly in
-their tests because they take ordinary props without snippets.
+ButtonTestContainer and StatusBadgeTestContainer are test-only fixtures
+(colocated in each component's `__tests__/` directory) that supply Svelte
+`children` snippets. Brandbar and OrbitLoader render directly in their tests
+because they take ordinary props without snippets.
 
 To regenerate the colocated Linux PNGs, run from the repository root:
 
@@ -179,10 +182,12 @@ tags, chips, form fields, dialogs, menus, tabs, toasts, tooltips)
 belong in `src/components/` as Svelte components so accessibility and
 keyboard behaviour live in one place.
 
-Decorative / layout patterns (`.orbit`, `.phase`, `.diff`, `.timeline`,
-charts, `.hero`, `.command`, `.filterbar`) stay in
-`src/styles/konfidence.custom.css` as CSS classes; promote them to
-components only when a real component API emerges.
+Every component's CSS lives inside its own `.svelte` file as a scoped
+`<style>` block — colocated with the markup it styles, not in a shared
+stylesheet. Build new decorative / layout patterns (phases, diff,
+timeline, charts, hero, command palette, …) as a component from the
+start; there is no separate CSS-only staging file to drop rules into
+before a component exists.
 
 Skeleton-provided primitives (Dialog, Popover, Tooltip, Menu, Tabs,
 Accordion, Segmented Control, Switch, Toast, Pagination, Progress,

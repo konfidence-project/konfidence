@@ -2,9 +2,13 @@
     import { Brandbar, Button } from "@konfidence/design-system/components";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
+    import { EMBEDDED_ON, EMBEDDED_QUERY, isEmbedded } from "$lib/shell/embedded";
 
     const status = $derived(page.status);
     const message = $derived(page.error?.message ?? "Something went wrong.");
+    const homeHref = $derived(
+        isEmbedded(page.url) ? `${resolve("/")}?${EMBEDDED_QUERY}=${EMBEDDED_ON}` : resolve("/"),
+    );
 </script>
 
 <svelte:head>
@@ -25,7 +29,7 @@
     >
         {message}
     </h1>
-    <Button variant="primary" href={resolve("/")} data-testid="error-home">
+    <Button variant="primary" href={homeHref} data-testid="error-home">
         Back to dashboard
     </Button>
 </main>

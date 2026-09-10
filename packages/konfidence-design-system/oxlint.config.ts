@@ -62,7 +62,7 @@ export default defineConfig({
     "eslint/one-var": "off",
     "import/no-named-export": "off",
     "import/no-namespace": "off",
-    "import/no-unassigned-import": ["warn", { allow: ["**/*.css"] }],
+    "import/no-unassigned-import": ["warn", { allow: ["**/*.css", "@ui5/**"] }],
     "import/prefer-default-export": "off",
     "no-magic-numbers": ["warn", { ignore: [-1, 0, 1] }],
     "sort-imports": ["warn", { ignoreDeclarationSort: true }],

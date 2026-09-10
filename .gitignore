@@ -75,4 +75,8 @@ node_modules/
 .svelte-kit/
 build/
 *.tsbuildinfo
+
+# Vitest failure attachments (screenshots, traces)
+.vitest-attachments/
+
 /AGENTS.md

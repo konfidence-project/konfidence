@@ -1,5 +1,6 @@
 export { resolveInitialTheme } from "./resolve.js";
 export type { ResolvedThemeState } from "./resolve.js";
+export { isDarkMode } from "./is-dark.js";
 export {
   DEFAULT_MODE,
   DEFAULT_THEME,

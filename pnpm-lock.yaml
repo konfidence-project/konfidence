@@ -99,7 +99,7 @@ importers:
         version: 4.3.3(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(tsx@4.23.13)(yaml@2.9.0))
       '@typescript-eslint/parser':
         specifier: ^8.68.0
-        version: 8.68.0(eslint@10.9.1(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+        version: 8.68.0(eslint@10.9.1(jiti@2.7.0))(typescript@6.0.3)
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20260707.2
         version: 7.0.0-dev.20260707.2
@@ -108,10 +108,10 @@ importers:
         version: 4.1.11(playwright@1.62.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(tsx@4.23.13)(yaml@2.9.0))(vitest@4.1.11)
       eslint:
         specifier: ^10.9.1
-        version: 10.9.1(jiti@2.7.0)(supports-color@10.2.2)
+        version: 10.9.1(jiti@2.7.0)
       eslint-plugin-svelte:
         specifier: ^3.23.0
-        version: 3.23.0(eslint@10.9.1(jiti@2.7.0)(supports-color@10.2.2))(svelte@5.57.0(@typescript-eslint/types@8.68.0))
+        version: 3.23.0(eslint@10.9.1(jiti@2.7.0))(svelte@5.57.0(@typescript-eslint/types@8.68.0))
       oxfmt:
         specifier: ^0.65.0
         version: 0.65.0(svelte@5.57.0(@typescript-eslint/types@8.68.0))
@@ -166,6 +166,13 @@ importers:
         version: 6.0.3
 
   packages/konfidence-design-system:
+    dependencies:
+      '@ui5/webcomponents':
+        specifier: ^2.26.0
+        version: 2.26.0
+      '@ui5/webcomponents-icons':
+        specifier: ^2.26.0
+        version: 2.26.0
     devDependencies:
       '@skeletonlabs/skeleton':
         specifier: ^5.0.0
@@ -181,7 +188,7 @@ importers:
         version: 4.3.3(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(tsx@4.23.13)(yaml@2.9.0))
       '@typescript-eslint/parser':
         specifier: ^8.68.0
-        version: 8.68.0(eslint@10.9.1(jiti@2.7.0))(typescript@6.0.3)
+        version: 8.68.0(eslint@10.9.1(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20260707.2
         version: 7.0.0-dev.20260707.2
@@ -190,10 +197,10 @@ importers:
         version: 4.1.11(playwright@1.62.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(tsx@4.23.13)(yaml@2.9.0))(vitest@4.1.11)
       eslint:
         specifier: ^10.9.1
-        version: 10.9.1(jiti@2.7.0)
+        version: 10.9.1(jiti@2.7.0)(supports-color@10.2.2)
       eslint-plugin-svelte:
         specifier: ^3.23.0
-        version: 3.23.0(eslint@10.9.1(jiti@2.7.0))(svelte@5.57.0(@typescript-eslint/types@8.68.0))
+        version: 3.23.0(eslint@10.9.1(jiti@2.7.0)(supports-color@10.2.2))(svelte@5.57.0(@typescript-eslint/types@8.68.0))
       oxfmt:
         specifier: ^0.65.0
         version: 0.65.0(svelte@5.57.0(@typescript-eslint/types@8.68.0))
@@ -507,6 +514,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lit-labs/ssr-dom-shim@1.6.0':
+    resolution: {integrity: sha512-VHb0ALPMTlgKjM6yIxxoQNnpKyUKLD04VzeQdsiXkMqkvYlAHxq9glGLmgbb889/1GsohSOAjvQYoiBppXFqrQ==}
 
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
@@ -879,6 +889,9 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
+  '@sap-theming/theming-base-content@11.36.4':
+    resolution: {integrity: sha512-LAcw9hDBTR4QUl2gxVWvErTmp1SHEV1kNhpWQXxv7hHfawY0VbXDv9AXhdy0XTua+PLSe/J1ZQX/eG76Dxd9rw==}
+
   '@seriousme/openapi-schema-validator@2.9.1':
     resolution: {integrity: sha512-EgGqVIP8xiKHmNTHWbrxec+RhD/WPUay7D/erEc7vWoZKxTT9f2aCEu1egKVpxcEbT1z0wdAbWFR9o2Is5FJEw==}
     hasBin: true
@@ -1054,11 +1067,26 @@ packages:
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
+  '@types/jquery@3.5.34':
+    resolution: {integrity: sha512-3m3939S3erqmTLJANS/uy0B6V7BorKx7RorcGZVjZ62dF5PAGbKEDZK1CuLtKombJkFA2T1jl8LAIIs7IV6gBQ==}
+
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
   '@types/node@26.4.0':
     resolution: {integrity: sha512-faiGnoIrLH/V8cibOMEAZ8pMw6oXqSukl29ra4mN8GdaB2ZewzeaLj+INpV5N+Z1eKWzY+IzaIZH2EIR6YZRNQ==}
+
+  '@types/openui5@1.152.0':
+    resolution: {integrity: sha512-MIZ0Id1KdHrIhTKoUw48bJrRaCkNElVbOEtvjtOebpcH1mdzzYLXoSCk14n1/DGXlN73GNkeaTjuw3DSUJrpNw==}
+
+  '@types/qunit@2.19.14':
+    resolution: {integrity: sha512-ou2RMtwyDnW1btrMnDMZeL6V5/yRRbuHKrRC6y8IuzDljjVzw6wPCVFb8p4qJD0NkUkf3BdZeJJIBzjK1BUUDQ==}
+
+  '@types/sizzle@2.3.10':
+    resolution: {integrity: sha512-TC0dmN0K8YcWEAEfiPi5gJP14eJe30TTGjkvek3iM/1NdHHsdCA/Td6GvNndMOo/iSnIsZ4HuuhrYPDAmbxzww==}
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@typescript-eslint/parser@8.68.0':
     resolution: {integrity: sha512-fHq2VC1kpyYfvEcbiMjOpySY4WS7voEp89yAThrHRX5sm9j2lzYppCb2umFMEed4fWcyeLjHxrz0mpjNBaBxMQ==}
@@ -1143,6 +1171,32 @@ packages:
     resolution: {integrity: sha512-oUGp+Rep/hqMhPunyinsALUwSlzHINSxitifPiSaeqoKOKD2OlR9NE3TaPqwsl4NlGslsOSUXI1JotWQzpYCPg==}
     engines: {node: '>=16.20.0'}
     hasBin: true
+
+  '@ui5/webcomponents-base@2.26.0':
+    resolution: {integrity: sha512-1hIKdd+kFRrBC/jrCcubyvXcNZB17cBKVch6XXV17nG9VMpoq/5xRpJWhSeASuVgpeBwMX68wP3TF2pRbgnjrA==}
+    peerDependencies:
+      react: '>=18'
+    peerDependenciesMeta:
+      react:
+        optional: true
+
+  '@ui5/webcomponents-icons-business-suite@2.26.0':
+    resolution: {integrity: sha512-3AvEw1J9r96nVAEKuQaK3lJCCy3w2IDU7rVY/Cizzhu+mtXKlrzC+Zrz5XxEB3EbdpjH7n5qE2RAMRvnViXcNA==}
+
+  '@ui5/webcomponents-icons-tnt@2.26.0':
+    resolution: {integrity: sha512-n695z7jCXByEU2E5FOpwbpcAxQP171Gm26OLvjLAhTarBKRKcBAGJlsKuSxjVxCqLXchKettiIdJj5U2i182Mw==}
+
+  '@ui5/webcomponents-icons@2.26.0':
+    resolution: {integrity: sha512-31jRdz1pqjJBan1Rm2TSdo8/hiyX02phr/GolFTH08l3RVHuBwfc/hnrQ6Q1bBcQQbLxOE7B5aIXm40/boSrag==}
+
+  '@ui5/webcomponents-localization@2.26.0':
+    resolution: {integrity: sha512-QIN/EBkZaq25eZ1iiPjhtgnLml+IPuMMiQrQ0WcGhmB5FBrCwxyN3tejWKw6x99uC74M+1CaYfx5cll6otbwYg==}
+
+  '@ui5/webcomponents-theming@2.26.0':
+    resolution: {integrity: sha512-yH+UmlB/OUYqRN4afFqBqda7jUo45hTKASgRI6RT83xACUO7rWC310smNA2T0vhguJDn40bhaY1bta6c2uMidg==}
+
+  '@ui5/webcomponents@2.26.0':
+    resolution: {integrity: sha512-0nmyFYQmDawfQMQv77dFe7g2lOzHL57/EVZuvi/XObw4uZQ9ktZCgZl0hp8IHdfqgRCyE28SZ4J6sfWWX5D+cQ==}
 
   '@vitest/browser-playwright@4.1.11':
     resolution: {integrity: sha512-riLBxPqwnJ0lWs2DN2WeUfYeKLoAjbP2Xx8cLQdSddzMi20sksIa6K2mPz79DyMZKKVKH2ksOC2yJvtNcZg8cg==}
@@ -1972,6 +2026,9 @@ packages:
   lilconfig@2.1.0:
     resolution: {integrity: sha512-utWOt/GHzuUxnLKxB6dk81RoOeoNeHgbrXiuGk4yyF5qlRz+iIVWu56E2fqGHFrXz0QNUhLB/8nKqvRH66JKGQ==}
     engines: {node: '>=10'}
+
+  lit-html@2.8.0:
+    resolution: {integrity: sha512-o9t+MQM3P4y7M7yNzqAyjp7z+mQGa4NS4CxiyLqFPyFWyc4O+nodLrkrxSaCTrla6M5YOLaT3RpbbqjszB5g3Q==}
 
   locate-character@3.0.0:
     resolution: {integrity: sha512-SW13ws7BjaeJ6p7Q6CO2nchbYEc3X3J6WrmTTDto7yMPqVSZTUyY5Tjbid+Ab8gLnATtygYtiDIJGQRRn2ZOiA==}
@@ -2850,6 +2907,8 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  '@lit-labs/ssr-dom-shim@1.6.0': {}
+
   '@lukeed/ms@2.0.2': {}
 
   '@oxc-project/types@0.147.0': {}
@@ -3046,6 +3105,8 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
+  '@sap-theming/theming-base-content@11.36.4': {}
+
   '@seriousme/openapi-schema-validator@2.9.1':
     dependencies:
       ajv: 8.20.0
@@ -3225,11 +3286,26 @@ snapshots:
 
   '@types/estree@1.0.9': {}
 
+  '@types/jquery@3.5.34':
+    dependencies:
+      '@types/sizzle': 2.3.10
+
   '@types/json-schema@7.0.15': {}
 
   '@types/node@26.4.0':
     dependencies:
       undici-types: 8.3.0
+
+  '@types/openui5@1.152.0':
+    dependencies:
+      '@types/jquery': 3.5.34
+      '@types/qunit': 2.19.14
+
+  '@types/qunit@2.19.14': {}
+
+  '@types/sizzle@2.3.10': {}
+
+  '@types/trusted-types@2.0.7': {}
 
   '@typescript-eslint/parser@8.68.0(eslint@10.9.1(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)':
     dependencies:
@@ -3325,6 +3401,54 @@ snapshots:
       '@typescript/native-preview-linux-x64': 7.0.0-dev.20260707.2
       '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260707.2
       '@typescript/native-preview-win32-x64': 7.0.0-dev.20260707.2
+
+  '@ui5/webcomponents-base@2.26.0':
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.6.0
+      lit-html: 2.8.0
+
+  '@ui5/webcomponents-icons-business-suite@2.26.0':
+    dependencies:
+      '@ui5/webcomponents-base': 2.26.0
+    transitivePeerDependencies:
+      - react
+
+  '@ui5/webcomponents-icons-tnt@2.26.0':
+    dependencies:
+      '@ui5/webcomponents-base': 2.26.0
+    transitivePeerDependencies:
+      - react
+
+  '@ui5/webcomponents-icons@2.26.0':
+    dependencies:
+      '@ui5/webcomponents-base': 2.26.0
+    transitivePeerDependencies:
+      - react
+
+  '@ui5/webcomponents-localization@2.26.0':
+    dependencies:
+      '@types/openui5': 1.152.0
+      '@ui5/webcomponents-base': 2.26.0
+    transitivePeerDependencies:
+      - react
+
+  '@ui5/webcomponents-theming@2.26.0':
+    dependencies:
+      '@sap-theming/theming-base-content': 11.36.4
+      '@ui5/webcomponents-base': 2.26.0
+    transitivePeerDependencies:
+      - react
+
+  '@ui5/webcomponents@2.26.0':
+    dependencies:
+      '@ui5/webcomponents-base': 2.26.0
+      '@ui5/webcomponents-icons': 2.26.0
+      '@ui5/webcomponents-icons-business-suite': 2.26.0
+      '@ui5/webcomponents-icons-tnt': 2.26.0
+      '@ui5/webcomponents-localization': 2.26.0
+      '@ui5/webcomponents-theming': 2.26.0
+    transitivePeerDependencies:
+      - react
 
   '@vitest/browser-playwright@4.1.11(playwright@1.62.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(tsx@4.23.13)(yaml@2.9.0))(vitest@4.1.11)':
     dependencies:
@@ -4396,6 +4520,10 @@ snapshots:
       lightningcss-win32-x64-msvc: 1.33.0
 
   lilconfig@2.1.0: {}
+
+  lit-html@2.8.0:
+    dependencies:
+      '@types/trusted-types': 2.0.7
 
   locate-character@3.0.0: {}
 

@@ -6,9 +6,9 @@
          * Status identifier. Free-form on purpose: the API owns the
          * vocabulary (`healthy`, `deploying`, …) and this component is
          * a passive dispatcher — it appends the value to the badge
-         * class so styling comes from `.badge--<status>` in
-         * konfidence.custom.css. Unknown values render as an
-         * unstyled `.badge` with a `data-status` for debugging.
+         * class so styling comes from the scoped `.badge--<status>`
+         * rules below. Unknown values render as an unstyled `.badge`
+         * with a `data-status` for debugging.
          */
         status: string;
         /** Whether to show the leading state dot. Defaults to `true`. */
@@ -24,14 +24,77 @@
 
     let { status, showDot = true, class: className, children }: Props = $props();
 
+    const BASE_CLASS =
+        "badge inline-flex items-center gap-1.5 whitespace-nowrap rounded-[var(--badge-radius)] border border-transparent pt-[var(--badge-py)] pb-[var(--badge-py)] pr-[var(--badge-px)] pl-2 text-[length:var(--text-meta)] font-semibold leading-[1.4]";
+
     const composedClass = $derived(
-        className ? `badge badge--${status} ${className}` : `badge badge--${status}`,
+        className
+            ? `${BASE_CLASS} badge--${status} ${className}`
+            : `${BASE_CLASS} badge--${status}`,
     );
 </script>
 
 <span class={composedClass} data-status={status}>
     {#if showDot}
-        <span class="dot" aria-hidden="true"></span>
+        <span class="dot size-2 shrink-0 rounded-full" aria-hidden="true"></span>
     {/if}
     {@render children()}
 </span>
+
+<style>
+    .badge--healthy {
+        color: var(--status-healthy-fg);
+        background: var(--status-healthy-bg);
+    }
+    .badge--healthy .dot {
+        background: var(--status-healthy-solid);
+    }
+
+    .badge--warning {
+        color: var(--status-warning-fg);
+        background: var(--status-warning-bg);
+    }
+    .badge--warning .dot {
+        background: var(--status-warning-solid);
+    }
+
+    .badge--degraded {
+        color: var(--status-degraded-fg);
+        background: var(--status-degraded-bg);
+    }
+    .badge--degraded .dot {
+        background: var(--status-degraded-solid);
+    }
+
+    .badge--error {
+        color: var(--status-error-fg);
+        background: var(--status-error-bg);
+    }
+    .badge--error .dot {
+        background: var(--status-error-solid);
+    }
+
+    .badge--promoting {
+        color: var(--status-promoting-fg);
+        background: var(--status-promoting-bg);
+    }
+    .badge--promoting .dot {
+        background: var(--status-promoting-solid);
+    }
+
+    .badge--deploying {
+        color: var(--status-deploying-fg);
+        background: var(--status-deploying-bg);
+    }
+    .badge--deploying .dot {
+        background: var(--status-deploying-solid);
+    }
+
+    .badge--queued {
+        color: var(--status-queued-fg);
+        background: var(--status-queued-bg);
+    }
+    .badge--queued .dot {
+        background: var(--status-queued-solid);
+    }
+</style>
