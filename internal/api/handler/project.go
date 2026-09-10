@@ -127,7 +127,7 @@ func (h *projectHandler) ListVectorDeploymentsV1(ctx context.Context,
 	}
 
 	var scope []landscapedomain.ScopedLandscape
-	scope, err = h.resolveLandscapeScope(ctx, namespace, *req.Params.LandscapeId, opts...)
+	scope, err = h.resolveLandscapeScope(ctx, namespace, landscapeId, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -171,9 +171,9 @@ func (h *projectHandler) resolveLandscapeScope(ctx context.Context,
 	scope, err := h.landscapeRepo.ResolveScope(ctx, projectNamespace, scopeOpts...)
 	if err != nil {
 		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
-			return nil, fmt.Errorf("landscape %q not found", landscapeId)
+			return nil, apierror.NewNotFound("landscape", landscapeId)
 		}
-		return nil, err
+		return nil, apierror.NewInternal(err)
 	}
 
 	return scope, nil
