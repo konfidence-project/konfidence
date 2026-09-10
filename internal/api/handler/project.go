@@ -207,16 +207,13 @@ func (h *projectHandler) ListArtifactDeploymentsV1(ctx context.Context,
 
 	data := make([]openapi.ArtifactDeployment, len(ads))
 	for i, resolved := range ads {
-		data[i], err = toArtifactDeploymentResponse(resolved)
-		if err != nil {
-			return nil, apierror.NewInternal(err)
-		}
+		data[i] = toArtifactDeploymentResponse(resolved)
 	}
 
 	return openapi.ListArtifactDeploymentsV1200JSONResponse{Data: data}, nil
 }
 
-func toArtifactDeploymentResponse(resolved artifactdeploymentdomain.ResolvedArtifactDeployment) (openapi.ArtifactDeployment, error) {
+func toArtifactDeploymentResponse(resolved artifactdeploymentdomain.ResolvedArtifactDeployment) openapi.ArtifactDeployment {
 	ad := resolved.ArtifactDeployment
 
 	return openapi.ArtifactDeployment{
@@ -229,7 +226,7 @@ func toArtifactDeploymentResponse(resolved artifactdeploymentdomain.ResolvedArti
 			ComponentVersion: ad.Spec.Component.Version,
 		},
 		Status: openapi.ArtifactDeploymentStatus(calculateArtifactDeploymentStatus(ad.Status.Conditions)),
-	}, nil
+	}
 }
 
 func calculateArtifactDeploymentStatus(conditions []metav1.Condition) string {

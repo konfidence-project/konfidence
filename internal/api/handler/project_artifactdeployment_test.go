@@ -19,7 +19,6 @@ import (
 type adRepository struct {
 	items []artifactdeployment.ResolvedArtifactDeployment
 	err   error
-	scope []landscapedomain.ScopedLandscape
 }
 
 type adLandscapeRepository struct {
@@ -113,9 +112,7 @@ func TestListArtifactDeploymentsV1(t *testing.T) {
 		StageIds:            []string{"prod"},
 		VectorDeploymentIds: []string{"vd-a"},
 	}}}
-	if _, err := toArtifactDeploymentResponse(repository.items[0]); err != nil {
-		t.Fatalf("test fixture cannot be mapped: %v", err)
-	}
+	_ = toArtifactDeploymentResponse(repository.items[0])
 	landscapeRepository := &adLandscapeRepository{scope: []landscapedomain.ScopedLandscape{{
 		Landscape: *selectedLandscape,
 		Namespace: selectedLandscape.Status.Namespace,

@@ -63,7 +63,8 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 		}
 	}
 
-	project := newProjectHandler(projectRepo, landscapeRepo, stageRepo, artifactDeploymentRepo, vectorDeploymentRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
+	project := newProjectHandler(projectRepo, landscapeRepo, stageRepo, artifactDeploymentRepo,
+		vectorDeploymentRepo, vectorPromotionRepo, vectorPromotionConfigRepo)
 	api := &apiHandler{
 		authFlowHandler: authFlow,
 		projectHandler:  *project,

@@ -331,7 +331,7 @@ export interface components {
        * @description The artifactDeployment status
        * @enum {string}
        */
-      status: "ArtifactFetched" | "ArtifactDeployed";
+      status: "ArtifactFetched" | "ArtifactDeployed" | "AppHealthy" | "Ready";
     };
     VectorPromotionConfigList: {
       data: components["schemas"]["VectorPromotionConfig"][];
