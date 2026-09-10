@@ -29,7 +29,11 @@
         ...rest
     }: Props = $props();
 
-    const composedClass = $derived(className ? `icon-btn ${className}` : "icon-btn");
+    const composedClass = $derived(
+        className
+            ? `icon-btn relative flex size-9 cursor-pointer items-center justify-center rounded-[var(--radius-md)] border border-transparent bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--motion-fast)] ease-[cubic-bezier(var(--ease))] hover:bg-[var(--surface-sunken)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] ${className}`
+            : "icon-btn relative flex size-9 cursor-pointer items-center justify-center rounded-[var(--radius-md)] border border-transparent bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--motion-fast)] ease-[cubic-bezier(var(--ease))] hover:bg-[var(--surface-sunken)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]",
+    );
 
     const BADGE_MAX = 99;
     const badgeLabel = $derived.by((): string | undefined => {
@@ -41,56 +45,10 @@
 </script>
 
 <button class={composedClass} {type} aria-label={ariaLabel} {...rest}>
-    <ui5-icon name={icon}></ui5-icon>
+    <ui5-icon class="size-5 text-current" name={icon}></ui5-icon>
     {#if badgeLabel !== undefined}
-        <span class="icon-btn__badge">{badgeLabel}</span>
+        <span
+            class="icon-btn__badge absolute top-[3px] right-[3px] flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-pill)] border-2 border-[var(--surface-default)] bg-[var(--status-error-solid)] px-1 text-[10px] font-bold text-white"
+        >{badgeLabel}</span>
     {/if}
 </button>
-
-<style>
-    ui5-icon {
-        width: 20px;
-        height: 20px;
-        color: currentColor;
-    }
-
-    .icon-btn {
-        position: relative;
-        width: 36px;
-        height: 36px;
-        border-radius: var(--radius-md);
-        border: 1px solid transparent;
-        background: transparent;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: var(--text-secondary);
-        transition: background var(--motion-fast) cubic-bezier(var(--ease));
-    }
-    .icon-btn:hover {
-        background: var(--surface-sunken);
-    }
-    .icon-btn:focus-visible {
-        outline: 2px solid var(--border-focus);
-        outline-offset: 2px;
-    }
-
-    .icon-btn__badge {
-        position: absolute;
-        top: 3px;
-        right: 3px;
-        min-width: 16px;
-        height: 16px;
-        padding: 0 4px;
-        border-radius: var(--radius-pill);
-        background: var(--status-error-solid);
-        color: #fff;
-        font-size: 10px;
-        font-weight: var(--weight-bold);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 2px solid var(--surface-default);
-    }
-</style>

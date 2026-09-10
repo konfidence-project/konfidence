@@ -46,12 +46,15 @@
     };
 </script>
 
-<a class="skip-link" href={`#${mainId}`}>Skip to main content</a>
-<div class="app-shell">
+<a
+    class="skip-link absolute top-3 left-3 z-[500] -translate-y-[200%] rounded-[var(--radius-md)] border border-[var(--border-focus)] bg-[var(--surface-default)] py-1.5 px-2.5 text-[length:var(--text-sm)] text-[var(--text-primary)] focus-visible:translate-y-0"
+    href={`#${mainId}`}
+>Skip to main content</a>
+<div class="app-shell grid min-h-dvh grid-rows-[4px_56px_1fr]">
     <Brandbar />
     {@render topbar({ toggleDrawer })}
-    <div class="app-shell__body">
-        <aside class="app-shell__sidebar" data-open={drawerOpen ? "true" : "false"}>
+    <div class="app-shell__body grid grid-cols-[224px_1fr] overflow-hidden max-md:grid-cols-1">
+        <aside class="app-shell__sidebar flex flex-col overflow-y-auto" data-open={drawerOpen ? "true" : "false"}>
             {@render sidebar({ closeDrawer })}
         </aside>
         <button
@@ -62,66 +65,20 @@
             tabindex={drawerOpen ? 0 : -1}
             onclick={closeDrawer}
         ></button>
-        <main class="app-shell__main" id={mainId}>
+        <main class="app-shell__main min-w-0 overflow-y-auto" id={mainId}>
             {@render main()}
         </main>
     </div>
 </div>
 
 <style>
-    .skip-link {
-        position: absolute;
-        left: var(--space-3);
-        top: var(--space-3);
-        padding: 6px 10px;
-        border-radius: var(--radius-md);
-        background: var(--surface-default);
-        color: var(--text-primary);
-        border: 1px solid var(--border-focus);
-        font-size: var(--text-sm);
-        z-index: 500;
-        transform: translateY(-200%);
-    }
-    .skip-link:focus-visible {
-        transform: translateY(0);
-    }
-
-    .app-shell {
-        display: grid;
-        grid-template-rows: 4px 56px 1fr;
-        min-height: 100dvh;
-    }
-    .app-shell__body {
-        display: grid;
-        grid-template-columns: 224px 1fr;
-        overflow: hidden;
-    }
-    .app-shell__sidebar {
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-    }
     .app-shell__sidebar :global(> .sidebar) {
         flex: 1;
-    }
-    .app-shell__main {
-        overflow-y: auto;
-        min-width: 0;
-    }
-    /* applied to the child <IconButton> rendered by TopBar.svelte, not this component's own markup */
-    :global(.app-shell__hamburger) {
-        display: none;
     }
     .app-shell__scrim {
         display: none;
     }
     @media (max-width: 767px) {
-        .app-shell__body {
-            grid-template-columns: 1fr;
-        }
-        :global(.app-shell__hamburger) {
-            display: flex;
-        }
         .app-shell__sidebar {
             position: fixed;
             inset: 60px 0 0 0;

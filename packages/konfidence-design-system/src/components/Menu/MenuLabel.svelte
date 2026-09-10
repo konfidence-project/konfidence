@@ -6,19 +6,11 @@
 
     let { class: className, ...rest }: SkLabelProps = $props();
 
-    const composedClass = $derived(className ? `menu__label ${className}` : "menu__label");
+    const composedClass = $derived(
+        className
+            ? `menu__label pt-1.5 pr-2.5 pb-1 pl-2.5 text-[10px] font-bold tracking-[0.08em] text-[var(--text-tertiary)] uppercase ${className}`
+            : "menu__label pt-1.5 pr-2.5 pb-1 pl-2.5 text-[10px] font-bold tracking-[0.08em] text-[var(--text-tertiary)] uppercase",
+    );
 </script>
 
 <SkMenu.ItemGroupLabel class={composedClass} {...rest} />
-
-<style>
-    /* applied to Skeleton's <Menu.ItemGroupLabel>, not an element in this template */
-    :global(.menu__label) {
-        font-size: 10px;
-        font-weight: var(--weight-bold);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--text-tertiary);
-        padding: 6px 10px 4px;
-    }
-</style>

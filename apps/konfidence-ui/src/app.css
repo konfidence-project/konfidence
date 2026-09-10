@@ -10,6 +10,7 @@
  */
 
 @import "tailwindcss";
+@source "../node_modules/@konfidence/design-system/src";
 @import "@skeletonlabs/skeleton";
 @import "@skeletonlabs/skeleton-svelte";
 

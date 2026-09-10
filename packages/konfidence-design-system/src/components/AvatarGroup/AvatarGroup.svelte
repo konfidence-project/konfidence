@@ -13,7 +13,7 @@
     let { more, children, class: className }: Props = $props();
 
     const composedClass = $derived(
-        className ? `avatar-group ${className}` : "avatar-group",
+        className ? `avatar-group inline-flex ${className}` : "avatar-group inline-flex",
     );
 </script>
 
@@ -25,9 +25,8 @@
 </div>
 
 <style>
-    .avatar-group {
-        display: inline-flex;
-    }
+    /* overrides a nested <Avatar>'s own Tailwind utility classes (e.g. `size-8`) —
+       kept as plain CSS since it targets a different component's rendered classes */
     .avatar-group :global(.avatar) {
         width: 30px;
         height: 30px;

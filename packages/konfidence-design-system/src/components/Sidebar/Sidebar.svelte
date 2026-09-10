@@ -21,40 +21,23 @@
     let { children, mobileSwitcher, footer }: Props = $props();
 </script>
 
-<nav class="sidebar" aria-label="Primary">
+<nav
+    class="sidebar flex flex-col border-r border-[var(--border-subtle)] bg-[var(--surface-default)] py-4 px-3"
+    aria-label="Primary"
+>
     {#if mobileSwitcher}
-        <div class="sidebar__project">{@render mobileSwitcher()}</div>
+        <div class="sidebar__project mb-4 block md:hidden">{@render mobileSwitcher()}</div>
     {/if}
     {@render children()}
     {#if footer}
-        <div class="sidebar__footer">{@render footer()}</div>
+        <div
+            class="sidebar__footer mt-auto flex items-center gap-2 border-t border-[var(--border-subtle)] p-3 text-[length:var(--text-meta)] text-[var(--text-tertiary)]"
+        >{@render footer()}</div>
     {/if}
 </nav>
 
 <style>
-    .sidebar {
-        background: var(--surface-default);
-        border-right: 1px solid var(--border-subtle);
-        padding: var(--space-4) var(--space-3);
-        display: flex;
-        flex-direction: column;
-    }
-    .sidebar__footer {
-        margin-top: auto;
-        padding: var(--space-3);
-        border-top: 1px solid var(--border-subtle);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: var(--text-meta);
-        color: var(--text-tertiary);
-    }
-
-    /* hidden on desktop; TopBar.svelte's `.topbar__proj-switch` renders the switcher there instead */
-    .sidebar__project {
-        display: none;
-        margin-bottom: var(--space-4);
-    }
+    /* overrides the nested <ProjectSwitcher>'s own classes when hosted in the mobile drawer */
     .sidebar__project :global(.project-switch) {
         width: 100%;
     }
@@ -65,10 +48,5 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         text-align: left;
-    }
-    @media (max-width: 767px) {
-        .sidebar__project {
-            display: block;
-        }
     }
 </style>

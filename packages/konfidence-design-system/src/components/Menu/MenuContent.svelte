@@ -26,8 +26,14 @@
         sm: "menu--sm",
     };
 
+    // Zag focuses the content element for roving tabindex; the browser's default
+    // outline would draw a black ring around the whole panel. Focus is already
+    // communicated on the highlighted item via `[data-highlighted]`.
+    const BASE_CLASS =
+        "menu min-w-[200px] max-w-[320px] rounded-[var(--radius-lg)] bg-[var(--surface-default)] p-2 shadow-[var(--shadow-lg)] focus:outline-none focus-visible:outline-none";
+
     const composedClass = $derived([
-        "menu",
+        BASE_CLASS,
         SIZE_CLASS[size],
         header ? "menu--header" : "",
         className ?? "",
@@ -37,22 +43,7 @@
 <SkMenu.Content class={composedClass} {...rest} />
 
 <style>
-    /* applied to Skeleton's <Menu.Content>, not an element in this template */
-    :global(.menu) {
-        background: var(--surface-default);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
-        padding: var(--space-2);
-        min-width: 200px;
-        max-width: 320px;
-    }
-    /* Zag focuses the content element for roving tabindex; the browser's default
-       outline would draw a black ring around the whole panel. Focus is already
-       communicated on the highlighted item via `[data-highlighted]`. */
-    :global(.menu):focus,
-    :global(.menu):focus-visible {
-        outline: none;
-    }
+    /* applied to a nested <Menu.Header>'s own class, not an element in this template */
     :global(.menu--header) :global(.menu__header) {
         display: flex;
         align-items: center;

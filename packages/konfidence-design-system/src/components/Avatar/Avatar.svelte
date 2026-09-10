@@ -44,8 +44,10 @@
     }: Props = $props();
 
     const composedClass = $derived([
-        "avatar",
-        orbit ? "avatar--orbit" : "",
+        "avatar flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[image:var(--gradient-teal)] text-[length:var(--text-meta)] font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]",
+        orbit
+            ? "avatar--orbit relative before:absolute before:-inset-[3px] before:rounded-full before:border-[1.5px] before:border-[var(--orbit-ring)] before:opacity-40 before:content-['']"
+            : "",
         typeof className === "string" && className.length > 0 ? className : "",
     ].filter(Boolean).join(" "));
 </script>
@@ -57,39 +59,5 @@
         {initials ?? ""}
     {/if}
 </div>
-
-<style>
-    .avatar {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: var(--gradient-teal);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: var(--text-meta);
-        font-weight: var(--weight-bold);
-        cursor: pointer;
-        flex-shrink: 0;
-    }
-    .avatar:focus-visible {
-        outline: 2px solid var(--border-focus);
-        outline-offset: 2px;
-    }
-
-    /* orbit ring signature */
-    .avatar--orbit {
-        position: relative;
-    }
-    .avatar--orbit::before {
-        content: "";
-        position: absolute;
-        inset: -3px;
-        border-radius: 50%;
-        border: 1.5px solid var(--orbit-ring);
-        opacity: 0.4;
-    }
-</style>
 
 

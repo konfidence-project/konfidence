@@ -24,39 +24,24 @@
 
     let { status, showDot = true, class: className, children }: Props = $props();
 
+    const BASE_CLASS =
+        "badge inline-flex items-center gap-1.5 whitespace-nowrap rounded-[var(--badge-radius)] border border-transparent pt-[var(--badge-py)] pb-[var(--badge-py)] pr-[var(--badge-px)] pl-2 text-[length:var(--text-meta)] font-semibold leading-[1.4]";
+
     const composedClass = $derived(
-        className ? `badge badge--${status} ${className}` : `badge badge--${status}`,
+        className
+            ? `${BASE_CLASS} badge--${status} ${className}`
+            : `${BASE_CLASS} badge--${status}`,
     );
 </script>
 
 <span class={composedClass} data-status={status}>
     {#if showDot}
-        <span class="dot" aria-hidden="true"></span>
+        <span class="dot size-2 shrink-0 rounded-full" aria-hidden="true"></span>
     {/if}
     {@render children()}
 </span>
 
 <style>
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: var(--text-meta);
-        font-weight: var(--weight-semibold);
-        padding: var(--badge-py) var(--badge-px) var(--badge-py) 8px;
-        border-radius: var(--badge-radius);
-        line-height: 1.4;
-        white-space: nowrap;
-        border: 1px solid transparent;
-    }
-
-    .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
     .badge--healthy {
         color: var(--status-healthy-fg);
         background: var(--status-healthy-bg);

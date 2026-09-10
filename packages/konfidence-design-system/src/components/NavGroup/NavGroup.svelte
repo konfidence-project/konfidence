@@ -16,27 +16,14 @@
 
     let { label, class: className, children }: Props = $props();
 
-    const composedClass = $derived(className ? `nav-group ${className}` : "nav-group");
+    const composedClass = $derived(className ? `nav-group mb-5 ${className}` : "nav-group mb-5");
 </script>
 
 <div class={composedClass}>
     {#if label}
-        <div class="nav-group__label">{label}</div>
+        <div
+            class="nav-group__label mb-2 px-3 text-[10px] font-bold tracking-[0.09em] text-[var(--text-tertiary)] uppercase"
+        >{label}</div>
     {/if}
     {@render children()}
 </div>
-
-<style>
-    .nav-group {
-        margin-bottom: var(--space-5);
-    }
-    .nav-group__label {
-        font-size: 10px;
-        font-weight: var(--weight-bold);
-        letter-spacing: 0.09em;
-        text-transform: uppercase;
-        color: var(--text-tertiary);
-        padding: 0 var(--space-3);
-        margin-bottom: var(--space-2);
-    }
-</style>

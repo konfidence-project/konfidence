@@ -6,16 +6,11 @@
 
     let { class: className, ...rest }: SkSeparatorProps = $props();
 
-    const composedClass = $derived(className ? `menu__sep ${className}` : "menu__sep");
+    const composedClass = $derived(
+        className
+            ? `menu__sep my-2 h-px bg-[var(--border-subtle)] ${className}`
+            : "menu__sep my-2 h-px bg-[var(--border-subtle)]",
+    );
 </script>
 
 <SkMenu.Separator class={composedClass} {...rest} />
-
-<style>
-    /* applied to Skeleton's <Menu.Separator>, not an element in this template */
-    :global(.menu__sep) {
-        height: 1px;
-        background: var(--border-subtle);
-        margin: var(--space-2) 0;
-    }
-</style>

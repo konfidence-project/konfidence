@@ -24,44 +24,18 @@
 
     let { name, class: className, ...rest }: Props = $props();
 
+    const BASE_CLASS =
+        "project-switch flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-subtle)] py-1.5 px-2.5 text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)] cursor-pointer hover:bg-[var(--surface-sunken)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]";
+
     const composedClass = $derived(
         typeof className === "string" && className.length > 0
-            ? `project-switch ${className}`
-            : "project-switch",
+            ? `${BASE_CLASS} ${className}`
+            : BASE_CLASS,
     );
 </script>
 
 <button type="button" class={composedClass} {...rest}>
     <span class="project-switch__name">{name}</span>
-    <ui5-icon name="slim-arrow-down"></ui5-icon>
+    <ui5-icon class="size-3.5 text-current" name="slim-arrow-down"></ui5-icon>
 </button>
-
-<style>
-    ui5-icon {
-        width: 14px;
-        height: 14px;
-        color: currentColor;
-    }
-
-    .project-switch {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 10px;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--border-subtle);
-        background: var(--surface-subtle);
-        cursor: pointer;
-        font-weight: var(--weight-semibold);
-        font-size: var(--text-sm);
-        color: var(--text-primary);
-    }
-    .project-switch:hover {
-        background: var(--surface-sunken);
-    }
-    .project-switch:focus-visible {
-        outline: 2px solid var(--border-focus);
-        outline-offset: 2px;
-    }
-</style>
 

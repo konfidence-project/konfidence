@@ -23,8 +23,11 @@
 
     let { variant = "default", active = false, class: className, ...rest }: KonfidenceItemProps = $props();
 
+    const BASE_CLASS =
+        "menu__item flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border-none bg-transparent px-2.5 py-2 text-left text-[length:var(--text-sm)] text-[var(--text-primary)] no-underline cursor-pointer hover:bg-[var(--surface-sunken)] focus-visible:bg-[var(--surface-sunken)] focus-visible:outline-none data-highlighted:bg-[var(--surface-sunken)] data-highlighted:outline-none";
+
     const composedClass = $derived([
-        "menu__item",
+        BASE_CLASS,
         variant === "danger" ? "menu__item--danger" : "",
         active ? "menu__item--active" : "",
         className ?? "",
@@ -34,28 +37,6 @@
 <SkMenu.Item class={composedClass} {...rest} />
 
 <style>
-    /* applied to Skeleton's <Menu.Item>, not an element in this template */
-    :global(.menu__item) {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        width: 100%;
-        padding: 8px 10px;
-        border-radius: var(--radius-sm);
-        font-size: var(--text-sm);
-        color: var(--text-primary);
-        background: none;
-        border: none;
-        cursor: pointer;
-        text-align: left;
-        text-decoration: none;
-    }
-    :global(.menu__item):hover,
-    :global(.menu__item):focus-visible,
-    :global(.menu__item[data-highlighted]) {
-        background: var(--surface-sunken);
-        outline: none;
-    }
     :global(.menu__item--active) {
         background: var(--amber-50);
         color: var(--amber-800);
@@ -74,6 +55,7 @@
     :global(.menu__item--danger) {
         color: var(--status-error-fg);
     }
+    /* applied by the consumer's item content, not this component's own markup */
     :global(.menu__item) :global(.menu__text) {
         flex: 1;
         min-width: 0;

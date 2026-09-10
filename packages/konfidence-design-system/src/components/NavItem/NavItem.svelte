@@ -36,7 +36,7 @@
     }: Props = $props();
 
     const composedClass = $derived([
-        "nav-item",
+        "nav-item relative mb-px flex items-center gap-2.5 rounded-[var(--radius-md)] py-2 px-3 text-[length:var(--text-sm)] font-medium text-[var(--text-secondary)] no-underline cursor-pointer hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)]",
         active ? "nav-item--active" : "",
         className ?? "",
     ].filter(Boolean).join(" "));
@@ -57,44 +57,17 @@
     {...rest}
 >
     {#if icon}
-        <ui5-icon name={icon}></ui5-icon>
+        <ui5-icon class="size-4 text-current" name={icon}></ui5-icon>
     {/if}
     <span>{@render children()}</span>
     {#if badgeLabel !== undefined}
-        <span class="nav-item__badge">{badgeLabel}</span>
+        <span
+            class="nav-item__badge ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-[var(--radius-pill)] bg-[var(--status-error-bg)] px-[5px] text-[10px] font-bold text-[var(--status-error-fg)]"
+        >{badgeLabel}</span>
     {/if}
 </a>
 
 <style>
-    ui5-icon {
-        width: 16px;
-        height: 16px;
-        color: currentColor;
-    }
-
-    .nav-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px var(--space-3);
-        border-radius: var(--radius-md);
-        color: var(--text-secondary);
-        font-size: var(--text-sm);
-        font-weight: var(--weight-medium);
-        cursor: pointer;
-        text-decoration: none;
-        margin-bottom: 1px;
-        position: relative;
-    }
-    .nav-item:hover {
-        background: var(--surface-sunken);
-        color: var(--text-primary);
-    }
-    .nav-item:focus-visible {
-        outline: 2px solid var(--border-focus);
-        outline-offset: -2px;
-    }
-
     .nav-item--active {
         background: var(--amber-50);
         color: var(--amber-800);
@@ -119,20 +92,5 @@
         width: 3px;
         border-radius: var(--radius-pill);
         background: var(--gradient-amber);
-    }
-
-    .nav-item__badge {
-        margin-left: auto;
-        min-width: 18px;
-        height: 18px;
-        padding: 0 5px;
-        border-radius: var(--radius-pill);
-        background: var(--status-error-bg);
-        color: var(--status-error-fg);
-        font-size: 10px;
-        font-weight: var(--weight-bold);
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 </style>

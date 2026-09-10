@@ -26,31 +26,14 @@
     {:else if initials}
         <Avatar {initials} />
     {/if}
-    <div class="menu__header-info">
-        <div class="menu__header-name">{@render name()}</div>
+    <div class="menu__header-info min-w-0">
+        <div
+            class="menu__header-name overflow-hidden text-[length:var(--text-sm)] font-semibold text-ellipsis whitespace-nowrap text-[var(--text-primary)]"
+        >{@render name()}</div>
         {#if mail}
-            <div class="menu__header-mail">{@render mail()}</div>
+            <div
+                class="menu__header-mail overflow-hidden text-[length:var(--text-meta)] text-ellipsis whitespace-nowrap text-[var(--text-tertiary)]"
+            >{@render mail()}</div>
         {/if}
     </div>
 </div>
-
-<style>
-    .menu__header-info {
-        min-width: 0;
-    }
-    .menu__header-name {
-        font-size: var(--text-sm);
-        font-weight: var(--weight-semibold);
-        color: var(--text-primary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .menu__header-mail {
-        font-size: var(--text-meta);
-        color: var(--text-tertiary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-</style>
