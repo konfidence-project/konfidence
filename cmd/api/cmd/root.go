@@ -84,7 +84,7 @@ func init() {
 	rootCmd.Flags().StringVar(&cfg.Server.ShutdownTimeout, "shutdown-timeout", envOr("API_SHUTDOWN_TIMEOUT", "15s"),
 		"Maximum duration for a graceful shutdown. Env: API_SHUTDOWN_TIMEOUT")
 	rootCmd.Flags().BoolVar(&cfg.OIDC.Enabled, "oidc-enabled", envBoolOr("API_OIDC_ENABLED", true),
-		"Enable OIDC authentication. When false, all requests run as an admin user. Env: API_OIDC_ENABLED")
+		"Enable OIDC authentication. When false, the login flow issues a local admin session without an identity provider. Env: API_OIDC_ENABLED")
 	rootCmd.Flags().StringVar(&cfg.OIDC.IssuerURL, "oidc-issuer-url", envOr("API_OIDC_ISSUER_URL", ""),
 		"External identity provider issuer URL. Env: API_OIDC_ISSUER_URL")
 	rootCmd.Flags().StringVar(&cfg.OIDC.TokenURL, "oidc-token-url", envOr("API_OIDC_TOKEN_URL", ""),
