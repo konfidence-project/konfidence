@@ -34,75 +34,22 @@ For detailed installation instructions and production deployment considerations,
 
 ## Local Development
 
-Beyond the kind and Helm setup in Installation, there are make targets for running the
-operator and API server against local dependencies (an IDP via Authelia, a reverse proxy via
-Caddy and Postgres).
+The smallest loop needs no cluster. Activate Hermit, start an envtest apiserver with the
+Konfidence CRDs, export the kubeconfig it prints, then run the operator and the API server
+in separate terminals:
 
 ```sh
 source ./bin/activate-hermit
-make dev-up
+make dev-apiserver
+make webhook-certs
+make run
+make run-kden-api
 ```
 
-`make dev-down` stops them, `make dev-logs` tails their logs.
-
-Create a local kind cluster with a local OCI registry:
-
-```sh
-make dev-cluster
-```
-
-This is the cluster the operator and API server need. Deploying artifacts additionally needs a
-deployer, which installs its own prerequisites (for the Kubernetes deployer, Gateway API and
-Flux) from its own repository.
-
-Build, push and deploy the operator:
-
-```sh
-REGISTRY=localhost:5001 make docker-build docker-push
-REGISTRY=localhost:5001 make deploy
-```
-
-Deploying the full stack with the API server needs the local Authelia instance wired in as its
-OIDC provider:
-
-```sh
-REGISTRY=localhost:5001 TAG=dev \
-DEPLOY_OIDC_ISSUER_URL=https://host.docker.internal \
-DEPLOY_OIDC_CLIENT_ID=konfidence \
-DEPLOY_OIDC_REDIRECT_URL=https://api.localhost/api/v1/auth/callback \
-DEPLOY_OIDC_CLIENT_SECRET=konfidence-local-secret \
-DEPLOY_OIDC_ALLOW_RETURN_URLS=https://api.localhost \
-DEPLOY_OIDC_TRUST_CADDY_CA=1 \
-make deploy
-```
-
-`make deploy` handles the `host.docker.internal` quirks itself (it only resolves for pods, not
-for your browser and not at all outside Docker Desktop) and mounts Caddy's local CA into the
-pod so it trusts Authelia's certificate.
-
-To run the operator and API server directly on your host instead, generate webhook
-certificates once with `make webhook-certs`, then run `make run` and `make run-kden-api` in
-separate terminals. Both need a cluster with the Konfidence CRDs already installed (`make
-install` or `make deploy`). OIDC is off by default. Set `API_OIDC_ENABLED=true` to test the
-real login flow (needs Caddy's CA trusted in your OS store, since on macOS the API server
-checks the system keychain, not `SSL_CERT_FILE`).
-
-`kden` talks to `http://localhost:8090` by default, matching `run-kden-api`. Pushing to the
-local registry needs an explicit scheme (`kden` defaults to HTTPS, which the registry
-container doesn't speak):
-
-```sh
-kden vector push --file vector.yaml --registry=http://localhost:5001/<subpath>
-```
-
-The [example-app repo](https://github.com/konfidence-project/example-app) has a full
-multi-service app deployed through Konfidence, using its own kind cluster and a released build
-rather than yours.
-
-The
-[kubernetes-landscape-orchestrator](https://github.com/konfidence-project/kubernetes-landscape-orchestrator)
-turns what the operator records into running workloads. It's built and deployed separately
-from its own repository, against the same `localhost:5001` registry.
+`make help` lists the other targets: a local registry, an identity provider for OIDC work,
+and a kind cluster for testing the chart and images. The full guide, organised by what your
+change has to reach, is in the
+[Extend & Customize section of the docs](https://konfidence.cloud/docs/extend-customize/).
 
 ## Dashboard Development
 
