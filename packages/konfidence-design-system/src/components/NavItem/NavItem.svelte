@@ -1,8 +1,8 @@
 <script lang="ts">
     import type { HTMLAnchorAttributes } from "svelte/elements";
     import type { Snippet } from "svelte";
-    import Icon from "../Icon/Icon.svelte";
-    import type { IconName } from "../Icon/icons.js";
+    import "@ui5/webcomponents/dist/Icon.js";
+    import "@ui5/webcomponents-icons/dist/AllIcons.js";
 
     interface Props extends Omit<HTMLAnchorAttributes, "class" | "href"> {
         /** Resolved destination URL. */
@@ -12,8 +12,8 @@
          * `.nav-item--active` and `aria-current="page"`.
          */
         active?: boolean;
-        /** Leading icon from the DS icon set. */
-        icon?: IconName;
+        /** Leading SAP-icons name, e.g. `grid`. */
+        icon?: string;
         /**
          * Optional numeric counter (`.nav-item__badge`). Values above 99
          * render as `99+`.
@@ -57,10 +57,18 @@
     {...rest}
 >
     {#if icon}
-        <Icon name={icon} size={16} />
+        <ui5-icon name={icon}></ui5-icon>
     {/if}
     <span>{@render children()}</span>
     {#if badgeLabel !== undefined}
         <span class="nav-item__badge">{badgeLabel}</span>
     {/if}
 </a>
+
+<style>
+    ui5-icon {
+        width: 16px;
+        height: 16px;
+        color: currentColor;
+    }
+</style>

@@ -30,7 +30,7 @@
 <div class="topbar">
     {#if onHamburger}
         <IconButton
-            icon="menu"
+            icon="menu2"
             ariaLabel="Toggle navigation"
             class="app-shell__hamburger"
             data-testid="drawer-toggle"

@@ -1,5 +1,6 @@
 <script lang="ts">
-    import Icon from "../Icon/Icon.svelte";
+    import "@ui5/webcomponents/dist/Icon.js";
+    import "@ui5/webcomponents-icons/dist/AllIcons.js";
 
     interface Props {
         /**
@@ -32,6 +33,14 @@
 
 <button type="button" class={composedClass} {...rest}>
     <span class="proj-switch__name">{name}</span>
-    <Icon name="chevron-down" size={14} />
+    <ui5-icon name="slim-arrow-down"></ui5-icon>
 </button>
+
+<style>
+    ui5-icon {
+        width: 14px;
+        height: 14px;
+        color: currentColor;
+    }
+</style>
 

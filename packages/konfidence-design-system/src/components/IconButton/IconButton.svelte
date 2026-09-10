@@ -1,11 +1,11 @@
 <script lang="ts">
     import type { HTMLButtonAttributes } from "svelte/elements";
-    import Icon from "../Icon/Icon.svelte";
-    import type { IconName } from "../Icon/icons.js";
+    import "@ui5/webcomponents/dist/Icon.js";
+    import "@ui5/webcomponents-icons/dist/AllIcons.js";
 
     interface Props extends Omit<HTMLButtonAttributes, "class" | "aria-label"> {
-        /** Icon identifier. */
-        icon: IconName;
+        /** SAP-icons name, e.g. `bell`. */
+        icon: string;
         /**
          * Accessible label. Required — the button has no visible text
          * so the SR-only name is the only affordance.
@@ -41,8 +41,16 @@
 </script>
 
 <button class={composedClass} {type} aria-label={ariaLabel} {...rest}>
-    <Icon name={icon} size={20} />
+    <ui5-icon name={icon}></ui5-icon>
     {#if badgeLabel !== undefined}
         <span class="icon-btn__badge">{badgeLabel}</span>
     {/if}
 </button>
+
+<style>
+    ui5-icon {
+        width: 20px;
+        height: 20px;
+        color: currentColor;
+    }
+</style>

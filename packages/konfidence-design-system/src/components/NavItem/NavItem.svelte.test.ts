@@ -26,9 +26,10 @@ describe("<NavItem>", () => {
   });
 
   it("renders a leading icon when set", async () => {
-    render(NavItemTestContainer, { icon: "landscape", label: "Landscape" });
-    const svg = document.querySelector<SVGElement>("a.nav-item svg[data-icon='landscape']");
-    expect(svg).not.toBeNull();
+    render(NavItemTestContainer, { icon: "grid", label: "Landscape" });
+    await customElements.whenDefined("ui5-icon");
+    const icon = document.querySelector<HTMLElement & { name?: string }>("a.nav-item ui5-icon");
+    expect(icon?.name).toBe("grid");
   });
 
   it("renders a trailing badge when set", async () => {
@@ -54,7 +55,7 @@ describe("<NavItem>", () => {
           const props = {
             active: variant === "active",
             badge: variant === "with-badge" ? 3 : undefined,
-            icon: variant === "with-icon" ? ("landscape" as const) : undefined,
+            icon: variant === "with-icon" ? ("grid" as const) : undefined,
             label: "Landscape",
           };
           render(NavItemTestContainer, props);

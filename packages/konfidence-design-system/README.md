@@ -17,6 +17,11 @@ Skeleton v5, provides:
   so consumers get them via `<Button>`, not raw `.btn` markup.
 - **Svelte components** — Tier-1 wrappers over the CSS layer:
   `Button`, `Brandbar`, `OrbitLoader`, `StatusBadge`.
+- **Icons** — [SAP-icons](https://sap.github.io/ui5-webcomponents/nightly/v2/components/Icon/)
+  via `<ui5-icon name="…">`. Components that render icons import
+  `@ui5/webcomponents/dist/Icon.js` and
+  `@ui5/webcomponents-icons/dist/AllIcons.js` themselves, so consumers
+  only pass a SAP-icons name (e.g. `org-chart`, `slim-arrow-down`).
 
 The package is workspace-only (`"private": true`); it ships TypeScript
 and Svelte source without a build step and relies on the consumer's

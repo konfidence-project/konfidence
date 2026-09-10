@@ -21,9 +21,9 @@
             {#if withFooter}<span data-testid="sidebar-footer-text">v1.2.3 · eu-west-1</span>{/if}
         {/snippet}
         <NavGroup label="Delivery">
-            <NavItem href="/landscape" active icon="landscape">Landscape</NavItem>
-            <NavItem href="/vectors" icon="vectors">Vector Deployments</NavItem>
-            <NavItem href="/artifacts" icon="artifacts">Artifact Deployments</NavItem>
+            <NavItem href="/landscape" active icon="grid">Landscape</NavItem>
+            <NavItem href="/vectors" icon="chain-link">Vector Deployments</NavItem>
+            <NavItem href="/artifacts" icon="product">Artifact Deployments</NavItem>
         </NavGroup>
     </Sidebar>
 </div>

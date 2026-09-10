@@ -15,8 +15,8 @@
     style="padding: 12px; background: var(--surface-default); width: 220px;"
 >
     <NavGroup label={hideLabel ? undefined : label}>
-        <NavItem href="/landscape" active icon="landscape">Landscape</NavItem>
-        <NavItem href="/vectors" icon="vectors">Vector Deployments</NavItem>
-        <NavItem href="/artifacts" icon="artifacts" badge={2}>Artifact Deployments</NavItem>
+        <NavItem href="/landscape" active icon="grid">Landscape</NavItem>
+        <NavItem href="/vectors" icon="chain-link">Vector Deployments</NavItem>
+        <NavItem href="/artifacts" icon="product" badge={2}>Artifact Deployments</NavItem>
     </NavGroup>
 </div>

@@ -15,8 +15,11 @@ describe("<IconButton>", () => {
     render(IconButtonTestContainer);
     const btn = page.getByRole("button", { name: "Notifications" });
     await expect.element(btn).toBeInTheDocument();
-    const svg = document.querySelector<SVGElement>("button.icon-btn svg[data-icon='bell']");
-    expect(svg).not.toBeNull();
+    await customElements.whenDefined("ui5-icon");
+    const icon = document.querySelector<HTMLElement & { name?: string }>(
+      "button.icon-btn ui5-icon",
+    );
+    expect(icon?.name).toBe("bell");
   });
 
   it("renders a badge when provided", async () => {

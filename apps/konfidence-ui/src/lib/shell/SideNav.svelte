@@ -56,7 +56,7 @@
         <NavItem
             href={landscape}
             active={isActive(activePath, landscape)}
-            icon="landscape"
+            icon="grid"
             data-testid="nav-landscape"
             onclick={closeDrawer}
         >
@@ -65,7 +65,7 @@
         <NavItem
             href={vectorDeployments}
             active={isActive(activePath, vectorDeployments)}
-            icon="vectors"
+            icon="chain-link"
             data-testid="nav-vector-deployments"
             onclick={closeDrawer}
         >
@@ -74,7 +74,7 @@
         <NavItem
             href={artifactDeployments}
             active={isActive(activePath, artifactDeployments)}
-            icon="artifacts"
+            icon="product"
             data-testid="nav-artifact-deployments"
             onclick={closeDrawer}
         >

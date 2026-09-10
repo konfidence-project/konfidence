@@ -1,12 +1,11 @@
 <script lang="ts">
     import NavItem from "../NavItem.svelte";
-    import type { IconName } from "../../Icon/icons.js";
 
     interface Props {
         label: string;
         href?: string;
         active?: boolean;
-        icon?: IconName;
+        icon?: string;
         badge?: number;
     }
 

@@ -37,21 +37,21 @@
                     <NavItem
                         href="/landscape"
                         active
-                        icon="landscape"
+                        icon="grid"
                         onclick={closeDrawer}
                     >
                         Landscape
                     </NavItem>
                     <NavItem
                         href="/vectors"
-                        icon="vectors"
+                        icon="chain-link"
                         onclick={closeDrawer}
                     >
                         Vector Deployments
                     </NavItem>
                     <NavItem
                         href="/artifacts"
-                        icon="artifacts"
+                        icon="product"
                         onclick={closeDrawer}
                     >
                         Artifact Deployments

@@ -35,6 +35,10 @@
     "test:browser": "vitest run --project client",
     "verify": "pnpm check && pnpm lint && pnpm check:svelte && pnpm fmt:check"
   },
+  "dependencies": {
+    "@ui5/webcomponents": "^2.26.0",
+    "@ui5/webcomponents-icons": "^2.26.0"
+  },
   "devDependencies": {
     "@skeletonlabs/skeleton": "^5.0.0",
     "@skeletonlabs/skeleton-svelte": "^5.0.0",

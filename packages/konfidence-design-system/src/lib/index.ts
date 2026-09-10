@@ -4,8 +4,6 @@ export {
   AvatarGroup,
   Brandbar,
   Button,
-  Icon,
-  ICON_NAMES,
   IconButton,
   isActive,
   Menu,
@@ -16,5 +14,4 @@ export {
   Sidebar,
   StatusBadge,
   TopBar,
-  type IconName,
 } from "../components/index.js";
