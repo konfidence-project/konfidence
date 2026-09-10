@@ -4,7 +4,7 @@
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
     import { AppShell, TopBar } from "@konfidence/design-system/components";
-    import { themeStore } from "$lib/theme";
+    import { isDarkMode, themeStore } from "$lib/theme";
     import { provideProjects } from "$lib/projects/projects";
     import ProjectSelector from "$lib/shell/ProjectSelector.svelte";
     import SideNav from "$lib/shell/SideNav.svelte";
@@ -46,16 +46,7 @@
 
     const embedded = $derived(isEmbedded(page.url));
 
-    // The topbar logo needs a colour that reads on the active surface. `mode`
-    // is "light" | "dark" | "system"; the CSS treats system-with-dark-OS as
-    // dark, so we mirror that here via `matchMedia`.
-    const prefersDark = $derived(
-        typeof globalThis.matchMedia === "function" &&
-            globalThis.matchMedia("(prefers-color-scheme: dark)").matches,
-    );
-    const isDark = $derived(
-        themeStore.mode === "dark" || (themeStore.mode === "system" && prefersDark),
-    );
+    const isDark = $derived(isDarkMode(themeStore.mode));
     const logoSrc = $derived(isDark ? "/logos/logo-dark.svg" : "/logos/logo-light.svg");
 
     beforeNavigate((navigation) => {
