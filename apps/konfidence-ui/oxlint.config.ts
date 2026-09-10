@@ -55,7 +55,7 @@ export default defineConfig({
       env: {
         node: true,
       },
-      files: ["src/**/*.test.ts", "src/**/*.svelte.test.ts"],
+      files: ["src/**/*.test.ts", "src/**/*.svelte.test.ts", "src/**/*.test-e2e.ts", "e2e/**/*.ts"],
       rules: {
         "eslint/max-statements": "off",
         "eslint/no-magic-numbers": "off",
@@ -99,7 +99,7 @@ export default defineConfig({
     "import/no-named-export": "off",
     "import/no-namespace": "off",
     // Global stylesheets are imported for their side effects.
-    "import/no-unassigned-import": ["warn", { allow: ["**/*.css"] }],
+    "import/no-unassigned-import": ["warn", { allow: ["**/*.css", "@ui5/**"] }],
     "import/prefer-default-export": "off",
     "no-magic-numbers": ["warn", { ignore: [-1, 0, 1, 200, 302, 400, 401, 403, 404, 500] }],
     "sort-imports": ["warn", { ignoreDeclarationSort: true }],

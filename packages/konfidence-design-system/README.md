@@ -78,12 +78,16 @@ are the contract those runtimes target.
 
 ## Components
 
-| Component     | CSS classes it wraps                             | Purpose                                                                    |
-| ------------- | ------------------------------------------------ | -------------------------------------------------------------------------- |
-| `Button`      | `.btn`, `.btn--{primary,secondary,ghost,danger}` | Renders `<button>` or `<a>`; forwards `disabled`, `aria-*`, click handler. |
-| `Brandbar`    | (Tailwind arbitrary-value utilities)             | The amber-teal aurora strip at the top of every screen.                    |
-| `OrbitLoader` | (Tailwind arbitrary-value utilities)             | Live-region loading indicator with an accessible label.                    |
-| `StatusBadge` | `.badge`, `.badge--<status>`                     | Passes `status` through to the class list; the API owns the vocabulary.    |
+| Component                                            | CSS classes it wraps                             | Purpose                                                                                                                          |
+| ---------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `Button`                                             | `.btn`, `.btn--{primary,secondary,ghost,danger}` | Renders `<button>` or `<a>`; forwards `disabled`, `aria-*`, click handler.                                                       |
+| `Brandbar`                                           | (Tailwind arbitrary-value utilities)             | The amber-teal aurora strip at the top of every screen.                                                                          |
+| `EmptyState`                                         | (Tailwind arbitrary-value utilities)             | Neutral shell for empty, info, and error placeholders (icon + text + action).                                                    |
+| `OrbitLoader`                                        | (Tailwind arbitrary-value utilities)             | Live-region loading indicator with an accessible label.                                                                          |
+| `SearchInput`                                        | (Tailwind arbitrary-value utilities)             | Icon-prefixed search field with inline clear button.                                                                             |
+| `SidePanel`                                          | (Tailwind arbitrary-value utilities)             | Right-anchored detail drawer built on native `<dialog>` (focus trap + `Esc` close).                                              |
+| `StatusBadge`                                        | `.badge`, `.badge--<status>`                     | Passes `status` through to the class list; the API owns the vocabulary.                                                          |
+| `Table` + `TableRow`, `TableCell`, `TableHeaderCell` | (Tailwind arbitrary-value utilities)             | Scrollable, sticky-header data-table primitives; `TableRow` accepts an `onselect` callback for click / Enter / Space activation. |
 
 ```svelte
 <script lang="ts">
