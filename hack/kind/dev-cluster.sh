@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: 2026 SAP SE or an SAP affiliate company and Konfidence contributors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Create or tear down a kind cluster with a local OCI registry.
-# Usage: dev-cluster.sh up|down
+# Create or tear down a kind cluster with a local OCI registry, or start the registry alone.
+# Usage: dev-cluster.sh up|down|registry
 
 set -euo pipefail
 
@@ -17,7 +17,7 @@ KIND_CONFIG="$(dirname "$0")/kind-config.yaml"
 # Never inherit the current context; a rerun could otherwise target production.
 KUBE_CONTEXT="kind-${CLUSTER_NAME}"
 
-up() {
+registry() {
   case "$("${CONTAINER_TOOL}" inspect -f '{{.State.Running}}' "${REGISTRY_NAME}" 2>/dev/null || echo missing)" in
     true)
       echo "Registry container '${REGISTRY_NAME}' already running."
@@ -35,6 +35,10 @@ up() {
         registry:2
       ;;
   esac
+}
+
+up() {
+  registry
 
   if ! "${KIND}" get clusters | grep -qx "${CLUSTER_NAME}"; then
     echo "Creating kind cluster '${CLUSTER_NAME}'..."
@@ -82,8 +86,9 @@ down() {
 case "${1:-}" in
   up) up ;;
   down) down ;;
+  registry) registry ;;
   *)
-    echo "Usage: $0 up|down" >&2
+    echo "Usage: $0 up|down|registry" >&2
     exit 1
     ;;
 esac
