@@ -33,3 +33,24 @@
         {/if}
     </div>
 </div>
+
+<style>
+    .menu__header-info {
+        min-width: 0;
+    }
+    .menu__header-name {
+        font-size: var(--text-sm);
+        font-weight: var(--weight-semibold);
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .menu__header-mail {
+        font-size: var(--text-meta);
+        color: var(--text-tertiary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>

@@ -8,7 +8,7 @@
 
     /**
      * Project switcher trigger + popover menu. Composes the DS
-     * `ProjectSwitcher` (renders `.proj-switch` chrome) inside Skeleton's
+     * `ProjectSwitcher` (renders `.project-switch` chrome) inside Skeleton's
      * `Menu.Trigger` via the `element` snippet, so Zag drives keyboard +
      * focus state on the real `<button>` `ProjectSwitcher` renders.
      */

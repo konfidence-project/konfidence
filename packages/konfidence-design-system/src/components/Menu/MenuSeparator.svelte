@@ -10,3 +10,12 @@
 </script>
 
 <SkMenu.Separator class={composedClass} {...rest} />
+
+<style>
+    /* applied to Skeleton's <Menu.Separator>, not an element in this template */
+    :global(.menu__sep) {
+        height: 1px;
+        background: var(--border-subtle);
+        margin: var(--space-2) 0;
+    }
+</style>

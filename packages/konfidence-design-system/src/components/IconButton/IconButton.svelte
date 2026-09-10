@@ -53,4 +53,44 @@
         height: 20px;
         color: currentColor;
     }
+
+    .icon-btn {
+        position: relative;
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
+        border: 1px solid transparent;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: background var(--motion-fast) cubic-bezier(var(--ease));
+    }
+    .icon-btn:hover {
+        background: var(--surface-sunken);
+    }
+    .icon-btn:focus-visible {
+        outline: 2px solid var(--border-focus);
+        outline-offset: 2px;
+    }
+
+    .icon-btn__badge {
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: var(--radius-pill);
+        background: var(--status-error-solid);
+        color: #fff;
+        font-size: 10px;
+        font-weight: var(--weight-bold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--surface-default);
+    }
 </style>

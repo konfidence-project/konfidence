@@ -47,3 +47,35 @@
         {@render actions()}
     </div>
 </div>
+
+<style>
+    .topbar {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        height: 56px;
+        padding: 0 var(--space-4);
+        background: var(--surface-default);
+        border-bottom: 1px solid var(--border-subtle);
+    }
+    /* applied by the consumer's `logo` snippet content, not this component's own markup */
+    :global(.topbar__logo) {
+        height: 22px;
+        flex-shrink: 0;
+    }
+    .topbar__actions {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-left: auto;
+    }
+    /* hidden on mobile; Sidebar.svelte's `.sidebar__project` takes over there (see AppShell's drawer media query) */
+    .topbar__proj-switch {
+        display: flex;
+    }
+    @media (max-width: 767px) {
+        .topbar__proj-switch {
+            display: none;
+        }
+    }
+</style>

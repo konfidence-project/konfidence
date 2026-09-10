@@ -25,3 +25,18 @@
     {/if}
     {@render children()}
 </div>
+
+<style>
+    .nav-group {
+        margin-bottom: var(--space-5);
+    }
+    .nav-group__label {
+        font-size: 10px;
+        font-weight: var(--weight-bold);
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+        padding: 0 var(--space-3);
+        margin-bottom: var(--space-2);
+    }
+</style>

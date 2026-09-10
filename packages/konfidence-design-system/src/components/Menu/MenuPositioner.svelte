@@ -18,3 +18,15 @@
 </script>
 
 <SkMenu.Positioner class={composedClass} {...rest} />
+
+<style>
+    /* Skeleton's Menu.Positioner is absolutely positioned inline; Zag emits
+       `style="z-index: var(--z-index)"` on it (see @zag-js/popper), which
+       defeats a plain class rule at equal specificity. `!important` is the
+       pragmatic override so the menu stacks above the mobile drawer
+       (`.app-shell__sidebar`, z-index 400). Applied to Skeleton's
+       <Menu.Positioner>, not an element in this template. */
+    :global(.menu-positioner) {
+        z-index: 500 !important;
+    }
+</style>

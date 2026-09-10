@@ -5,7 +5,7 @@
     interface Props {
         /**
          * Visible project name. Truncated with ellipsis inside
-         * `.proj-switch__name` when it overflows the trigger.
+         * `.project-switch__name` when it overflows the trigger.
          */
         name: string;
         /**
@@ -26,13 +26,13 @@
 
     const composedClass = $derived(
         typeof className === "string" && className.length > 0
-            ? `proj-switch ${className}`
-            : "proj-switch",
+            ? `project-switch ${className}`
+            : "project-switch",
     );
 </script>
 
 <button type="button" class={composedClass} {...rest}>
-    <span class="proj-switch__name">{name}</span>
+    <span class="project-switch__name">{name}</span>
     <ui5-icon name="slim-arrow-down"></ui5-icon>
 </button>
 
@@ -41,6 +41,27 @@
         width: 14px;
         height: 14px;
         color: currentColor;
+    }
+
+    .project-switch {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-subtle);
+        background: var(--surface-subtle);
+        cursor: pointer;
+        font-weight: var(--weight-semibold);
+        font-size: var(--text-sm);
+        color: var(--text-primary);
+    }
+    .project-switch:hover {
+        background: var(--surface-sunken);
+    }
+    .project-switch:focus-visible {
+        outline: 2px solid var(--border-focus);
+        outline-offset: 2px;
     }
 </style>
 

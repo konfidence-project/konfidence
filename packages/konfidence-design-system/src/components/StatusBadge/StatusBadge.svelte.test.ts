@@ -6,9 +6,9 @@ import StatusBadgeTestContainer from "./__tests__/StatusBadgeTestContainer.svelt
 import "../../../../../apps/konfidence-ui/src/app.css";
 
 // Statuses shipped with a `.badge--<name>` CSS rule in
-// konfidence.custom.css. StatusBadge itself accepts any string
-// (the API owns the vocabulary); this list only enumerates which
-// values currently have a styled representation.
+// StatusBadge.svelte's scoped <style> block. StatusBadge itself
+// accepts any string (the API owns the vocabulary); this list only
+// enumerates which values currently have a styled representation.
 const STYLED_STATUSES = [
   "healthy",
   "warning",

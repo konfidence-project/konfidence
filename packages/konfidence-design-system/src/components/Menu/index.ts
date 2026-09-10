@@ -15,7 +15,7 @@ import MenuSeparator from "./MenuSeparator.svelte";
  * - `Menu` renders Skeleton's state provider (via `MenuRoot`). Pass
  *   `positioning`, `onSelect`, etc. through as usual.
  * - `Menu.Trigger` is re-exported from Skeleton unchanged: consumers
- *   apply their own trigger class (`.avatar`, `.proj-switch`) because
+ *   apply their own trigger class (`.avatar`, `.project-switch`) because
  *   trigger visuals are context-specific.
  * - `Menu.ItemGroup` is re-exported unchanged from Skeleton for
  *   consumers who want to group options.

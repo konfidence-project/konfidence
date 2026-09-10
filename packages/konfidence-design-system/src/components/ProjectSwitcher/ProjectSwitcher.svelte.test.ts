@@ -11,11 +11,11 @@ describe("<ProjectSwitcher>", () => {
     document.documentElement.removeAttribute("data-mode");
   });
 
-  it("renders the name inside .proj-switch__name", async () => {
+  it("renders the name inside .project-switch__name", async () => {
     render(ProjectSwitcherTestContainer, { name: "Aurora" });
     const trigger = page.getByTestId("project-switch");
     await expect.element(trigger).toBeInTheDocument();
-    const inner = document.querySelector<HTMLElement>(".proj-switch__name");
+    const inner = document.querySelector<HTMLElement>(".project-switch__name");
     expect(inner?.textContent).toBe("Aurora");
   });
 

@@ -67,3 +67,86 @@
         </main>
     </div>
 </div>
+
+<style>
+    .skip-link {
+        position: absolute;
+        left: var(--space-3);
+        top: var(--space-3);
+        padding: 6px 10px;
+        border-radius: var(--radius-md);
+        background: var(--surface-default);
+        color: var(--text-primary);
+        border: 1px solid var(--border-focus);
+        font-size: var(--text-sm);
+        z-index: 500;
+        transform: translateY(-200%);
+    }
+    .skip-link:focus-visible {
+        transform: translateY(0);
+    }
+
+    .app-shell {
+        display: grid;
+        grid-template-rows: 4px 56px 1fr;
+        min-height: 100dvh;
+    }
+    .app-shell__body {
+        display: grid;
+        grid-template-columns: 224px 1fr;
+        overflow: hidden;
+    }
+    .app-shell__sidebar {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+    .app-shell__sidebar :global(> .sidebar) {
+        flex: 1;
+    }
+    .app-shell__main {
+        overflow-y: auto;
+        min-width: 0;
+    }
+    /* applied to the child <IconButton> rendered by TopBar.svelte, not this component's own markup */
+    :global(.app-shell__hamburger) {
+        display: none;
+    }
+    .app-shell__scrim {
+        display: none;
+    }
+    @media (max-width: 767px) {
+        .app-shell__body {
+            grid-template-columns: 1fr;
+        }
+        :global(.app-shell__hamburger) {
+            display: flex;
+        }
+        .app-shell__sidebar {
+            position: fixed;
+            inset: 60px 0 0 0;
+            width: 260px;
+            max-width: 80vw;
+            z-index: 400;
+            transform: translateX(-100%);
+            transition: transform var(--motion-base) cubic-bezier(var(--ease-out));
+        }
+        .app-shell__sidebar[data-open="true"] {
+            transform: translateX(0);
+        }
+        .app-shell__scrim {
+            position: fixed;
+            inset: 60px 0 0 0;
+            background: var(--scrim, rgba(0, 0, 0, 0.4));
+            z-index: 399;
+            display: block;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--motion-base) cubic-bezier(var(--ease));
+        }
+        .app-shell__scrim[data-open="true"] {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    }
+</style>
