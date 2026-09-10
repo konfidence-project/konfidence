@@ -1,8 +1,8 @@
 #!/bin/sh
 
+set -eu
 set -x
 
-konfidence_namespace=${KONFIDENCE_NAMESPACE:-konfidence-system}
+cluster_name=${KIND_CLUSTER_NAME:-konfidence-quickstart}
 
-helm uninstall kubernetes-landscape-orchestrator --namespace "$konfidence_namespace" --ignore-not-found
-helm uninstall konfidence --namespace "$konfidence_namespace" --ignore-not-found
+kind delete cluster --name "$cluster_name"
