@@ -24,6 +24,8 @@
      *   (host-integration mode).
      * - Keeps `?embedded=1` sticky across client-side navigation via
      *   `beforeNavigate` so internal `<a>` and `goto()` calls preserve it.
+     *   Skips navigations that will unload the page (external links, full
+     *   page reloads) since `goto()` can't target those.
      */
     interface Props {
         children: Snippet;
@@ -50,7 +52,7 @@
     const logoSrc = $derived(isDark ? "/logos/logo-dark.svg" : "/logos/logo-light.svg");
 
     beforeNavigate((navigation) => {
-        if (!embedded || !navigation.to) {
+        if (!embedded || !navigation.to || navigation.willUnload) {
             return;
         }
         const target = navigation.to.url;

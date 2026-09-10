@@ -157,4 +157,32 @@ test.describe("embedded mode", () => {
     const homeLink = page.getByTestId("error-home");
     await expect(homeLink).toHaveAttribute("href", "/?embedded=1");
   });
+
+  test("lets a link that unloads the page navigate normally", async ({ page }) => {
+    await signIn(page);
+    const projectId = projectIdFromUrl(page);
+
+    await page.goto(`/projects/${projectId}/landscape?embedded=1`);
+    await expect(page.getByTestId("embedded-main")).toBeVisible();
+
+    const pageErrors: Error[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error));
+
+    // Cross-origin links always unload the page (`willUnload: true`); mock
+    // the destination so the test stays offline. It must not be intercepted
+    // and re-pointed at goto(), which only accepts app routes.
+    await page.route("https://example.com/**", async (route) => {
+      await route.fulfill({ body: "<html><body>external</body></html>", contentType: "text/html" });
+    });
+    await page.evaluate(() => {
+      const anchor = globalThis.document.createElement("a");
+      anchor.href = "https://example.com/";
+      anchor.dataset.testid = "unload-nav-probe";
+      globalThis.document.body.appendChild(anchor);
+      anchor.click();
+    });
+
+    await expect(page).toHaveURL("https://example.com/");
+    expect(pageErrors).toHaveLength(0);
+  });
 });
