@@ -5,20 +5,18 @@
     import { page } from "$app/state";
     import { AppShell, TopBar } from "@konfidence/design-system/components";
     import { isDarkMode, themeStore } from "$lib/theme";
-    import { provideProjects } from "$lib/projects/projects";
+    import { EMBEDDED_ON, EMBEDDED_QUERY, isEmbedded } from "$lib/shell/embedded";
+    import ProjectsProvider from "$lib/projects/ProjectsProvider.svelte";
+    import ProjectsContent from "$lib/projects/components/ProjectsContent.svelte";
     import ProjectSelector from "$lib/shell/ProjectSelector.svelte";
     import SideNav from "$lib/shell/SideNav.svelte";
     import UserMenu from "$lib/shell/UserMenu.svelte";
-    import { EMBEDDED_ON, EMBEDDED_QUERY, isEmbedded } from "$lib/shell/embedded";
-    import type { LayoutProps } from "./$types";
 
     /**
      * Authenticated shell layout.
      *
-     * - Provides the projects context loaded by `+layout.ts`.
-     * - Selects a project id from the URL when present, else defaults to the
-     *   first project. Both cases feed the shell's project switcher and side
-     *   nav destinations.
+     * - Discovers accessible projects after authentication and provides their
+     *   loading state and URL-validated selection through context.
      * - Renders `<AppShell>` (from `@konfidence/design-system`) unless the URL
      *   carries `?embedded=1`, in which case the page owns the full viewport
      *   (host-integration mode).
@@ -29,22 +27,9 @@
      */
     interface Props {
         children: Snippet;
-        data: LayoutProps["data"];
     }
 
-    let { children, data }: Props = $props();
-
-    const projectIdFromUrl = $derived(page.params.projectId as string | undefined);
-    const selectedProjectId = $derived(projectIdFromUrl ?? data.projects[0]?.id ?? "");
-
-    provideProjects({
-        get projects() {
-            return data.projects;
-        },
-        get selectedProjectId() {
-            return selectedProjectId;
-        },
-    });
+    let { children }: Props = $props();
 
     const embedded = $derived(isEmbedded(page.url));
 
@@ -67,34 +52,36 @@
     });
 </script>
 
-{#if embedded}
-    <main class="min-h-dvh" data-testid="embedded-main">
-        {@render children()}
-    </main>
-{:else}
-    <AppShell>
-        {#snippet topbar({ toggleDrawer })}
-            <TopBar onHamburger={toggleDrawer}>
-                {#snippet logo()}
-                    <a href={resolve("/")} aria-label="Konfidence home" data-testid="brand-home">
-                        <img class="topbar__logo" src={logoSrc} alt="Konfidence" />
-                    </a>
-                {/snippet}
-                {#snippet switcher()}
-                    <ProjectSelector />
-                {/snippet}
-                {#snippet actions()}
-                    <UserMenu />
-                {/snippet}
-            </TopBar>
-        {/snippet}
+<ProjectsProvider>
+    {#if embedded}
+        <main class="min-h-dvh" data-testid="embedded-main">
+            <ProjectsContent>{@render children()}</ProjectsContent>
+        </main>
+    {:else}
+        <AppShell>
+            {#snippet topbar({ toggleDrawer })}
+                <TopBar onHamburger={toggleDrawer}>
+                    {#snippet logo()}
+                        <a href={resolve("/")} aria-label="Konfidence home" data-testid="brand-home">
+                            <img class="topbar__logo" src={logoSrc} alt="Konfidence" />
+                        </a>
+                    {/snippet}
+                    {#snippet switcher()}
+                        <ProjectSelector />
+                    {/snippet}
+                    {#snippet actions()}
+                        <UserMenu />
+                    {/snippet}
+                </TopBar>
+            {/snippet}
 
-        {#snippet sidebar({ closeDrawer })}
-            <SideNav {closeDrawer} />
-        {/snippet}
+            {#snippet sidebar({ closeDrawer })}
+                <SideNav {closeDrawer} />
+            {/snippet}
 
-        {#snippet main()}
-            {@render children()}
-        {/snippet}
-    </AppShell>
-{/if}
+            {#snippet main()}
+                <ProjectsContent>{@render children()}</ProjectsContent>
+            {/snippet}
+        </AppShell>
+    {/if}
+</ProjectsProvider>

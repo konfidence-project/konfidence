@@ -46,6 +46,12 @@ export default defineConfig({
       },
     },
     {
+      files: ["src/lib/projects/persistProjectPreference.ts", "src/lib/projects/projectContext.ts"],
+      rules: {
+        "unicorn/filename-case": "off",
+      },
+    },
+    {
       env: {
         node: true,
       },

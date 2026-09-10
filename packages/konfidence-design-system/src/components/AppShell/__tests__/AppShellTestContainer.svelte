@@ -3,7 +3,7 @@
     import Avatar from "../../Avatar/Avatar.svelte";
     import NavGroup from "../../NavGroup/NavGroup.svelte";
     import NavItem from "../../NavItem/NavItem.svelte";
-    import ProjectSwitcher from "../../ProjectSwitcher/ProjectSwitcher.svelte";
+    import ProjectSelection from "../../ProjectSelection/ProjectSelection.svelte";
     import Sidebar from "../../Sidebar/Sidebar.svelte";
     import TopBar from "../../TopBar/TopBar.svelte";
 </script>
@@ -20,7 +20,7 @@
                     >
                 {/snippet}
                 {#snippet switcher()}
-                    <ProjectSwitcher name="Konfidence" aria-label="Change project" />
+                    <ProjectSelection name="Konfidence" />
                 {/snippet}
                 {#snippet actions()}
                     <Avatar initials="AA" orbit ariaLabel="User menu" role="button" tabindex={0} />
@@ -31,7 +31,7 @@
         {#snippet sidebar({ closeDrawer })}
             <Sidebar>
                 {#snippet mobileSwitcher()}
-                    <ProjectSwitcher name="Konfidence" aria-label="Change project" />
+                    <ProjectSelection name="Konfidence" />
                 {/snippet}
                 <NavGroup label="Delivery">
                     <NavItem

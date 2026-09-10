@@ -10,7 +10,7 @@ export {
   NavGroup,
   NavItem,
   OrbitLoader,
-  ProjectSwitcher,
+  ProjectSelection,
   Sidebar,
   StatusBadge,
   TopBar,

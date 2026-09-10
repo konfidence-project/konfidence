@@ -29,7 +29,9 @@
     "@konfidence/api-client": "workspace:*",
     "@konfidence/design-system": "workspace:*",
     "@skeletonlabs/skeleton": "^5.0.0",
-    "@skeletonlabs/skeleton-svelte": "^5.0.0"
+    "@skeletonlabs/skeleton-svelte": "^5.0.0",
+    "@ui5/webcomponents": "^2.26.0",
+    "@ui5/webcomponents-icons": "^2.26.0"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",

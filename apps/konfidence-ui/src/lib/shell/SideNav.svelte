@@ -2,7 +2,7 @@
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
     import { NavGroup, NavItem, Sidebar, isActive } from "@konfidence/design-system/components";
-    import { useProjects } from "$lib/projects/projects";
+    import { useProjects } from "$lib/projects/projectContext";
     import ProjectSelector from "$lib/shell/ProjectSelector.svelte";
 
     /**
@@ -23,39 +23,32 @@
 
     const projects = useProjects();
 
-    const landscape = $derived(
-        resolve("/(shell)/projects/[projectId]/landscape", {
-            projectId: projects.selectedProjectId,
-        }),
-    );
-    const vectorDeployments = $derived(
-        resolve("/(shell)/projects/[projectId]/vector-deployments", {
-            projectId: projects.selectedProjectId,
-        }),
-    );
-    const artifactDeployments = $derived(
-        resolve("/(shell)/projects/[projectId]/artifact-deployments", {
-            projectId: projects.selectedProjectId,
-        }),
-    );
-    const errorDemo = $derived(
-        resolve("/(shell)/projects/[projectId]/error", {
-            projectId: projects.selectedProjectId,
-        }),
-    );
+    const destinations = $derived.by(() => {
+        const projectId = projects.selectedProject?.id;
+        if (!projectId) {
+            return undefined;
+        }
+        return {
+            artifactDeployments: resolve("/(shell)/projects/[projectId]/artifact-deployments", { projectId }),
+            errorDemo: resolve("/(shell)/projects/[projectId]/error", { projectId }),
+            landscape: resolve("/(shell)/projects/[projectId]/landscape", { projectId }),
+            vectorDeployments: resolve("/(shell)/projects/[projectId]/vector-deployments", { projectId }),
+        };
+    });
 
     const activePath = $derived(page.url.pathname);
 </script>
 
 <Sidebar>
     {#snippet mobileSwitcher()}
-        <ProjectSelector />
+        <ProjectSelector onSelect={closeDrawer} />
     {/snippet}
 
+    {#if destinations}
     <NavGroup label="Delivery">
         <NavItem
-            href={landscape}
-            active={isActive(activePath, landscape)}
+            href={destinations.landscape}
+            active={isActive(activePath, destinations.landscape)}
             icon="grid"
             data-testid="nav-landscape"
             onclick={closeDrawer}
@@ -63,8 +56,8 @@
             Landscape
         </NavItem>
         <NavItem
-            href={vectorDeployments}
-            active={isActive(activePath, vectorDeployments)}
+            href={destinations.vectorDeployments}
+            active={isActive(activePath, destinations.vectorDeployments)}
             icon="chain-link"
             data-testid="nav-vector-deployments"
             onclick={closeDrawer}
@@ -72,8 +65,8 @@
             Vector Deployments
         </NavItem>
         <NavItem
-            href={artifactDeployments}
-            active={isActive(activePath, artifactDeployments)}
+            href={destinations.artifactDeployments}
+            active={isActive(activePath, destinations.artifactDeployments)}
             icon="product"
             data-testid="nav-artifact-deployments"
             onclick={closeDrawer}
@@ -83,8 +76,8 @@
     </NavGroup>
     <NavGroup label="Demo">
         <NavItem
-            href={errorDemo}
-            active={isActive(activePath, errorDemo)}
+            href={destinations.errorDemo}
+            active={isActive(activePath, destinations.errorDemo)}
             icon="error"
             data-testid="nav-error"
             onclick={closeDrawer}
@@ -92,4 +85,5 @@
             Error page
         </NavItem>
     </NavGroup>
+    {/if}
 </Sidebar>
