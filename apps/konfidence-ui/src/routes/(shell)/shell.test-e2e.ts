@@ -148,4 +148,13 @@ test.describe("embedded mode", () => {
     await expect(page.getByTestId("embedded-main")).toBeVisible();
     await expect(page.getByTestId("brand-home")).toHaveCount(0);
   });
+
+  test("keeps ?embedded=1 on the error page's back-to-dashboard link", async ({ page }) => {
+    await signIn(page);
+
+    await page.goto("/does-not-exist?embedded=1");
+
+    const homeLink = page.getByTestId("error-home");
+    await expect(homeLink).toHaveAttribute("href", "/?embedded=1");
+  });
 });
