@@ -313,7 +313,7 @@ build-operator: hermit ## Build the konfidence operator binary.
 
 .PHONY: build-kden-cli
 build-kden-cli: hermit ## Build the kden cli binary.
-	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --id kden -o bin/kden
+	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --skip=before --id kden -o bin/kden
 
 .PHONY: run
 run: manifests generate fmt vet ## Run the konfidence operator from your host.
@@ -339,8 +339,9 @@ DEV_COMPOSE_FILE ?= hack/kden_local_dev/docker-compose.yml
 
 .PHONY: dev-apiserver
 dev-apiserver: hermit manifests setup-envtest ## Run a standalone envtest apiserver with the CRDs installed; no cluster needed.
+	go build -o $(LOCALBIN)/envtest-apiserver ./hack/envtest
 	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		go run ./hack/envtest --crd-dir $(CRD_DIR) --kubeconfig $(ENVTEST_KUBECONFIG)
+		$(LOCALBIN)/envtest-apiserver --crd-dir $(CRD_DIR) --kubeconfig $(ENVTEST_KUBECONFIG)
 
 .PHONY: dev-registry
 dev-registry: ## Start a local OCI registry at localhost:5001.
@@ -357,6 +358,10 @@ dev-down: ## Stop local dev dependencies started by dev-up.
 .PHONY: dev-logs
 dev-logs: ## Tail logs from local dev dependencies.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) logs -f
+
+.PHONY: dev-reset
+dev-reset: ## Stop local dev dependencies and delete their data (Postgres content, Caddy CA).
+	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) down -v
 
 .PHONY: dev-db-migrate
 dev-db-migrate: hermit ## Apply the API server's migrations to the Postgres from dev-up.
