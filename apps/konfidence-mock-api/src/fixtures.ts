@@ -120,6 +120,22 @@ const artifactDeployments: ArtifactDeployment[] = [
     status: "ArtifactDeployed",
     vectorDeploymentIds: ["vector-test-eu20-1"],
   },
+  {
+    artifact: component("payments-api", "3.4.1"),
+    id: "artifact-test-eu20-2",
+    landscapeId: "test",
+    stageIds: ["test-eu20"],
+    status: "AppHealthy",
+    vectorDeploymentIds: ["vector-test-eu20-1"],
+  },
+  {
+    artifact: component("payments-api", "3.4.1"),
+    id: "artifact-test-eu20-3",
+    landscapeId: "test",
+    stageIds: ["test-eu20"],
+    status: "Ready",
+    vectorDeploymentIds: ["vector-test-eu20-1"],
+  },
 ];
 
 const vectorPromotionConfigs: VectorPromotionConfig[] = [

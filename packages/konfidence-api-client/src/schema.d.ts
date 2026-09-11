@@ -331,7 +331,7 @@ export interface components {
        * @description The artifactDeployment status
        * @enum {string}
        */
-      status: "ArtifactFetched" | "ArtifactDeployed";
+      status: "ArtifactFetched" | "ArtifactDeployed" | "AppHealthy" | "Ready";
     };
     VectorPromotionConfigList: {
       data: components["schemas"]["VectorPromotionConfig"][];
@@ -920,6 +920,7 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
       500: components["responses"]["InternalError"];
     };
   };
