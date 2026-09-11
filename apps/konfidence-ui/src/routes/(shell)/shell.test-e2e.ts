@@ -19,6 +19,12 @@ const projectIdFromUrl = (page: Page): string => {
 
 const MOBILE_VIEWPORT = { height: 900, width: 480 } as const;
 
+const signIntoProject = async (page: Page): Promise<void> => {
+  await signIn(page, "/projects");
+  await page.getByRole("link", { name: "Payments Platform" }).click();
+  await page.waitForURL("/projects/payments-platform/landscape");
+};
+
 /**
  * Opens the mobile drawer via the topbar hamburger and asserts it stays open.
  * Extracted so the drawer test itself stays under the max-statements cap.
@@ -42,7 +48,7 @@ const expectProjectSwitcherInDrawer = async (page: Page): Promise<void> => {
 
 test.describe("application shell", () => {
   test("renders branding, primary nav, and the user menu when authenticated", async ({ page }) => {
-    await signIn(page);
+    await signIntoProject(page);
 
     await expect(page.getByTestId("brand-home")).toBeVisible();
     await expect(page.locator(".topbar").getByTestId("project-switch")).toBeVisible();
@@ -51,7 +57,7 @@ test.describe("application shell", () => {
   });
 
   test("navigates between destinations via client-side routing", async ({ page }) => {
-    await signIn(page);
+    await signIntoProject(page);
 
     const projectId = projectIdFromUrl(page);
     const vectorHref = `/projects/${projectId}/vector-deployments`;
@@ -67,7 +73,7 @@ test.describe("application shell", () => {
   });
 
   test("renders the shell for a direct URL to a destination", async ({ page }) => {
-    await signIn(page);
+    await signIntoProject(page);
     const projectId = projectIdFromUrl(page);
 
     await page.goto(`/projects/${projectId}/artifact-deployments`);
@@ -78,7 +84,7 @@ test.describe("application shell", () => {
 
   test("shows a mobile drawer and closes it after a destination is picked", async ({ page }) => {
     await page.setViewportSize(MOBILE_VIEWPORT);
-    await signIn(page);
+    await signIntoProject(page);
     const projectId = projectIdFromUrl(page);
 
     await openMobileDrawer(page);
@@ -90,8 +96,23 @@ test.describe("application shell", () => {
     await expect(page.locator(".app-shell__sidebar")).toHaveAttribute("data-open", "false");
   });
 
+  test("switches projects from the mobile drawer and closes it", async ({ page }) => {
+    await page.setViewportSize(MOBILE_VIEWPORT);
+    await signIntoProject(page);
+    await openMobileDrawer(page);
+
+    await page.locator(".sidebar").getByTestId("project-switch").click();
+    await page
+      .locator('[data-scope="menu"][data-part="content"][data-state="open"]')
+      .getByTestId("project-option-identity-service")
+      .click();
+
+    await expect(page).toHaveURL("/projects/identity-service/landscape");
+    await expect(page.locator(".app-shell__sidebar")).toHaveAttribute("data-open", "false");
+  });
+
   test("reaches Sign out through the user menu with the keyboard", async ({ page }) => {
-    await signIn(page);
+    await signIntoProject(page);
 
     const trigger = page.getByTestId("user-menu-trigger");
     await trigger.focus();
@@ -110,7 +131,7 @@ test.describe("application shell", () => {
 
 test.describe("embedded mode", () => {
   test("hides the shell chrome when ?embedded=1 is present", async ({ page }) => {
-    await signIn(page);
+    await signIntoProject(page);
     const projectId = projectIdFromUrl(page);
 
     await page.goto(`/projects/${projectId}/landscape?embedded=1`);
@@ -122,9 +143,8 @@ test.describe("embedded mode", () => {
   });
 
   test("preserves ?embedded=1 across internal client-side navigation", async ({ page }) => {
-    await signIn(page);
+    await signIntoProject(page);
     const projectId = projectIdFromUrl(page);
-
     await page.goto(`/projects/${projectId}/landscape?embedded=1`);
     const vectorHref = `/projects/${projectId}/vector-deployments`;
 
@@ -159,7 +179,7 @@ test.describe("embedded mode", () => {
   });
 
   test("lets a link that unloads the page navigate normally", async ({ page }) => {
-    await signIn(page);
+    await signIntoProject(page);
     const projectId = projectIdFromUrl(page);
 
     await page.goto(`/projects/${projectId}/landscape?embedded=1`);

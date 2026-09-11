@@ -9,7 +9,7 @@ export { default as NavGroup } from "./NavGroup/NavGroup.svelte";
 export { default as NavItem } from "./NavItem/NavItem.svelte";
 export { isActive } from "./NavItem/nav-active.js";
 export { default as OrbitLoader } from "./OrbitLoader/OrbitLoader.svelte";
-export { default as ProjectSwitcher } from "./ProjectSwitcher/ProjectSwitcher.svelte";
+export { default as ProjectSelection } from "./ProjectSelection/ProjectSelection.svelte";
 export { default as Sidebar } from "./Sidebar/Sidebar.svelte";
 export { default as StatusBadge } from "./StatusBadge/StatusBadge.svelte";
 export { default as TopBar } from "./TopBar/TopBar.svelte";

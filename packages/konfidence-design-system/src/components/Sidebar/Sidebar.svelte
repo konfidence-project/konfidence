@@ -37,7 +37,7 @@
 </nav>
 
 <style>
-    /* overrides the nested <ProjectSwitcher>'s own classes when hosted in the mobile drawer */
+    /* overrides the nested <ProjectSelection>'s own classes when hosted in the mobile drawer */
     .sidebar__project :global(.project-switch) {
         width: 100%;
     }

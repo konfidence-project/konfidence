@@ -1,7 +1,7 @@
 <script lang="ts">
     import NavGroup from "../../NavGroup/NavGroup.svelte";
     import NavItem from "../../NavItem/NavItem.svelte";
-    import ProjectSwitcher from "../../ProjectSwitcher/ProjectSwitcher.svelte";
+    import ProjectSelection from "../../ProjectSelection/ProjectSelection.svelte";
     import Sidebar from "../Sidebar.svelte";
 
     interface Props {
@@ -15,7 +15,9 @@
 <div data-testid="sidebar-root" style="width: 224px; height: 400px;">
     <Sidebar>
         {#snippet mobileSwitcher()}
-            {#if withMobileSwitcher}<ProjectSwitcher name="Konfidence" />{/if}
+            {#if withMobileSwitcher}
+                <ProjectSelection name="Konfidence" />
+            {/if}
         {/snippet}
         {#snippet footer()}
             {#if withFooter}<span data-testid="sidebar-footer-text">v1.2.3 · eu-west-1</span>{/if}

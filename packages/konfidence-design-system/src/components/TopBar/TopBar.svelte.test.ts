@@ -4,7 +4,6 @@ import { render } from "vitest-browser-svelte";
 
 import "../../../../../apps/konfidence-ui/src/app.css";
 import Avatar from "../Avatar/Avatar.svelte";
-import ProjectSwitcher from "../ProjectSwitcher/ProjectSwitcher.svelte";
 import TopBar from "./TopBar.svelte";
 import TopBarTestContainer from "./__tests__/TopBarTestContainer.svelte";
 
@@ -54,7 +53,7 @@ describe("<TopBar>", () => {
   }
 });
 
-// Placate the lint rule about unused imports — Avatar / ProjectSwitcher are
-// referenced by the test container and hence bundled; explicit consumers here
-// would duplicate the coverage without added value.
-void [Avatar, ProjectSwitcher];
+// Placate the lint rule about unused imports — Avatar is referenced by the
+// test container and hence bundled; an explicit consumer here would
+// duplicate the coverage without added value.
+void Avatar;

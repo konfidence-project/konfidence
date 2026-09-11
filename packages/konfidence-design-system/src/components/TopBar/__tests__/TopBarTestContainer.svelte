@@ -1,6 +1,6 @@
 <script lang="ts">
     import Avatar from "../../Avatar/Avatar.svelte";
-    import ProjectSwitcher from "../../ProjectSwitcher/ProjectSwitcher.svelte";
+    import ProjectSelection from "../../ProjectSelection/ProjectSelection.svelte";
     import TopBar from "../TopBar.svelte";
 
     interface Props {
@@ -20,7 +20,7 @@
             >
         {/snippet}
         {#snippet switcher()}
-            <ProjectSwitcher name="Konfidence" aria-label="Change project" />
+            <ProjectSelection name="Konfidence" />
         {/snippet}
         {#snippet actions()}
             <Avatar initials="AA" orbit ariaLabel="User menu" role="button" tabindex={0} />
