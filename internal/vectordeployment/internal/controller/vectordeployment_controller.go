@@ -74,6 +74,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	originalVectorDeployment := vectorDeployment.DeepCopy()
 	patch := client.MergeFrom(originalVectorDeployment)
 
+	// Default to not stalled; blocking causes below overwrite it before their status patch.
+	clearStalled(vectorDeployment)
+
 	vectorRef, err := compref.Parse(vectorDeployment.Spec.Vector)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to parse vector reference %s: %w", vectorDeployment.Spec.Vector, err)
@@ -223,6 +226,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	var (
 		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifactReferences))
 		deploymentResults            = make(map[string]konfidence.ComponentDeploymentResults)
+		stalledChildren              []stalledChild
 	)
 	allReady := true
 
@@ -286,6 +290,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				// not bad luck in a large hash space, so fail loudly instead of requeueing forever.
 				if collisionCount >= 5 {
 					log.Error(nil, msg, "name", deploymentName, "collisionCount", collisionCount)
+					// Salting has stopped helping, so requeueing cannot resolve this.
+					setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision,
+						fmt.Sprintf("%s (giving up after %d salts)", msg, collisionCount))
 					return false, fmt.Errorf("%s (giving up after %d salts)", msg, collisionCount)
 				}
 
@@ -348,6 +355,11 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.ArtifactDeploymentReadyCondition) {
 			allReady = false
 		}
+
+		// Collect rather than report inline, so the named child does not depend on vector order.
+		if child, ok := collectStalledChild(artifactDeployment); ok {
+			stalledChildren = append(stalledChildren, child)
+		}
 	}
 
 	// Write local maps back to status. Assign nil when empty so that the
@@ -372,6 +384,12 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
+
+	// Surface a blocked child, otherwise the vector sits at Ready=False with no explanation.
+	if child, ok := pickStalledChild(stalledChildren); ok {
+		setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled,
+			stalledChildMessage(child, len(stalledChildren)))
+	}
 
 	if allReady {
 		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{

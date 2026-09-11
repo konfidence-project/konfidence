@@ -241,6 +241,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               deploymentResult:
                 description: |-
                   DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as

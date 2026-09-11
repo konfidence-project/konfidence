@@ -20,12 +20,16 @@ const (
 	StateDeploymentFailed State = "DeploymentFailed"
 )
 
+// StateFromConditions maps conditions onto the coarse state the API reports. Ready is
+// checked first, so a stale Stalled entry cannot downgrade a vector that reached Ready.
 func StateFromConditions(conditions []metav1.Condition) State {
 	if meta.IsStatusConditionTrue(conditions, konfidence.VectorReadyCondition) {
 		return StateDeploymentReady
 	}
 
-	// TODO: mapping to StateDeploymentFailed https://github.com/konfidence-project/konfidence/issues/167
+	if meta.IsStatusConditionTrue(conditions, konfidence.StalledCondition) {
+		return StateDeploymentFailed
+	}
 
 	return StateDeployingVector
 }
