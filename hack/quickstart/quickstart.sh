@@ -61,10 +61,6 @@ create_cluster() {
 
 # Re-running the installation upgrades existing Helm releases.
 install_components() {
-  # Gateway API provides the resource types used by the Landscape Orchestrator
-  # to configure HTTP routes.
-  kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml
-
   # Flux reconciles Helm and Kustomize deployments. Wait for its controllers
   # so deployment reconciliation is available to Konfidence.
   kubectl apply -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml
