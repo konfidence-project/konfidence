@@ -76,6 +76,7 @@ CONTROLLER_GEN ?= controller-gen
 ENVTEST        ?= setup-envtest
 GOLANGCI_LINT   = golangci-lint
 HELM           ?= helm
+GOOSE          ?= goose
 HELM_DOCS      ?= helm-docs
 SQLC           ?= sqlc
 OAPI_CODEGEN   ?= go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
@@ -97,6 +98,8 @@ API_OIDC_SCOPES ?= openid,profile,email,groups
 API_OIDC_REDIRECT_URL ?= https://api.localhost/api/v1/auth/callback
 API_OIDC_ALLOW_RETURN_URLS ?= http://localhost:8090
 API_SESSION_STORAGE_TYPE ?= in-memory
+# Postgres from dev-up; used when API_SESSION_STORAGE_TYPE=db-pg and by dev-db-migrate.
+API_DB_CONNECTION ?= postgres://test_user:test_password@localhost:5432/kden?sslmode=disable
 # Set to a dashboard build (apps/konfidence-ui/build) to serve it from the API server.
 API_UI_ASSET_PATH ?=
 
@@ -327,6 +330,7 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
+		--db-connection=$(API_DB_CONNECTION) \
 		--ui-asset-path=$(API_UI_ASSET_PATH)
 
 ##@ Local Development
@@ -343,7 +347,7 @@ dev-registry: ## Start a local OCI registry at localhost:5001.
 	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh registry
 
 .PHONY: dev-up
-dev-up: ## Start the local identity provider (Authelia behind Caddy) for OIDC work; Postgres is included but unused.
+dev-up: ## Start the local identity provider (Authelia behind Caddy) and Postgres for the API server.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) up -d
 
 .PHONY: dev-down
@@ -353,6 +357,10 @@ dev-down: ## Stop local dev dependencies started by dev-up.
 .PHONY: dev-logs
 dev-logs: ## Tail logs from local dev dependencies.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) logs -f
+
+.PHONY: dev-db-migrate
+dev-db-migrate: hermit ## Apply the API server's migrations to the Postgres from dev-up.
+	$(GOOSE) -dir cmd/api/db/migration postgres "$(API_DB_CONNECTION)" up
 
 .PHONY: dev-cluster
 dev-cluster: hermit ## Create a local kind cluster wired to the local OCI registry (starts it if needed).
