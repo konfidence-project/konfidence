@@ -3,6 +3,8 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { createMockServer } from "../src/server.js";
 
+process.env.KONFIDENCE_MOCK_NO_DELAY = "1";
+
 const SESSION = "kden-session=mock-session";
 const scenario = (name: string): string => `${SESSION}; konfidence_mock_scenario=${name}`;
 

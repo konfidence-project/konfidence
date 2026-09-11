@@ -9,6 +9,7 @@ export default defineConfig({
   webServer: [
     {
       command: "pnpm --filter konfidence-mock-api start",
+      env: { KONFIDENCE_MOCK_NO_DELAY: "1" },
       gracefulShutdown: { signal: "SIGTERM", timeout: 1000 },
       name: "Mock API",
       reuseExistingServer: !process.env.CI,
