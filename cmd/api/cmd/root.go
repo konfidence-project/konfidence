@@ -41,8 +41,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "api",
-	Short: "Run the Konfidence API server",
+	Use:          "api",
+	Short:        "Run the Konfidence API server",
+	SilenceUsage: true,
 	Long: `api is the Konfidence API gateway.
 
 It exposes an HTTP API consumed by the kden CLI, the Konfidence Dashboard,
