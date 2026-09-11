@@ -38,6 +38,13 @@ registry() {
 }
 
 up() {
+  # kind writes its context into $KUBECONFIG; the envtest one is regenerated on every start.
+  case "${KUBECONFIG:-}" in
+    *envtest.kubeconfig)
+      echo "KUBECONFIG points at the envtest kubeconfig; unset it or open a new terminal before creating the kind cluster." >&2
+      exit 1
+      ;;
+  esac
   registry
 
   if ! "${KIND}" get clusters | grep -qx "${CLUSTER_NAME}"; then
