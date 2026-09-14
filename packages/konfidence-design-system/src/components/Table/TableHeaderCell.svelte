@@ -13,20 +13,18 @@
     }
 
     let { class: className, children, sort, onsort, ...rest }: Props = $props();
-
-    const cellClass = $derived(
-        [
-            "sticky top-0 z-[1] whitespace-nowrap text-left align-middle",
-            "px-3.5 py-2.5 border-b border-[color:var(--border-subtle)] bg-[color:var(--surface-subtle)]",
-            "text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]",
-            className,
-        ]
-            .filter(Boolean)
-            .join(" "),
-    );
 </script>
 
-<th class={cellClass} aria-sort={sort} {...rest}>
+<th
+    class={[
+        "sticky top-0 z-[1] whitespace-nowrap text-left align-middle",
+        "px-3.5 py-2.5 border-b border-[color:var(--border-subtle)] bg-[color:var(--surface-subtle)]",
+        "text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]",
+        className,
+    ]}
+    aria-sort={sort}
+    {...rest}
+>
     {#if onsort}
         <button
             type="button"

@@ -10,21 +10,18 @@
     }
 
     let { class: className, header, body, caption, ...rest }: Props = $props();
-
-    const tableClass = $derived(
-        [
-            "w-full border-collapse text-[length:var(--text-sm)] text-[color:var(--text-primary)]",
-            "[font-variant-numeric:tabular-nums]",
-            className,
-        ]
-            .filter(Boolean)
-            .join(" "),
-    );
 </script>
 
 <div class="overflow-hidden rounded-[var(--card-radius)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-card)] shadow-[var(--card-shadow)]">
     <div class="max-h-[min(65vh,45rem)] overflow-auto">
-        <table class={tableClass} {...rest}>
+        <table
+            class={[
+                "w-full border-collapse text-[length:var(--text-sm)] text-[color:var(--text-primary)]",
+                "[font-variant-numeric:tabular-nums]",
+                className,
+            ]}
+            {...rest}
+        >
             {#if caption}
                 <caption class="sr-only">{caption}</caption>
             {/if}

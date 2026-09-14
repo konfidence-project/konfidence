@@ -16,22 +16,19 @@
         disabled,
         ...rest
     }: Props = $props();
-
-    const wrapperClass = $derived(
-        [
-            "relative inline-flex w-full max-w-[24rem] items-center gap-1.5 px-2.5",
-            "rounded-[var(--input-radius)] border border-[color:var(--input-bd)] bg-[color:var(--input-bg)] text-[color:var(--input-fg)]",
-            "transition-[border-color,box-shadow] duration-[var(--motion-fast)]",
-            "focus-within:border-[color:var(--border-strong)] focus-within:shadow-[var(--focus-ring)]",
-            disabled && "cursor-not-allowed opacity-50 focus-within:border-[color:var(--input-bd)] focus-within:shadow-none",
-            className,
-        ]
-            .filter(Boolean)
-            .join(" "),
-    );
 </script>
 
-<span class={wrapperClass}>
+<span
+    class={[
+        "relative inline-flex w-full max-w-[24rem] items-center gap-1.5 px-2.5",
+        "rounded-[var(--input-radius)] border border-[color:var(--input-bd)] bg-[color:var(--input-bg)] text-[color:var(--input-fg)]",
+        "transition-[border-color,box-shadow] duration-[var(--motion-fast)]",
+        "focus-within:border-[color:var(--border-strong)] focus-within:shadow-[var(--focus-ring)]",
+        disabled &&
+            "cursor-not-allowed opacity-50 focus-within:border-[color:var(--input-bd)] focus-within:shadow-none",
+        className,
+    ]}
+>
     <ui5-icon
         class="text-[color:var(--text-tertiary)] h-[var(--icon-md)] w-[var(--icon-md)] shrink-0"
         name="search"

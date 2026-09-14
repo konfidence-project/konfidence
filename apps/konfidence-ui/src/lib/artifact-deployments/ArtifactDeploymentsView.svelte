@@ -223,9 +223,10 @@
                 <span class={labelTextClass} aria-hidden="true">&nbsp;</span>
                 <button
                     type="button"
-                    class="cursor-pointer border border-transparent bg-transparent px-1.5 py-2 text-[length:var(--text-sm)] leading-[1.4] text-[color:var(--text-link,var(--btn-primary-fg))] underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none {anyFiltersActive
-                        ? ''
-                        : 'invisible pointer-events-none'}"
+                    class={[
+                        "cursor-pointer border border-transparent bg-transparent px-1.5 py-2 text-[length:var(--text-sm)] leading-[1.4] text-[color:var(--text-link,var(--btn-primary-fg))] underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none",
+                        !anyFiltersActive && "invisible pointer-events-none",
+                    ]}
                     onclick={clearFilters}
                     disabled={!anyFiltersActive}
                     aria-hidden={!anyFiltersActive}
