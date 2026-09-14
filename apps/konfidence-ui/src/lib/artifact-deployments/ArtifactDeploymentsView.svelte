@@ -2,8 +2,6 @@
     import "@ui5/webcomponents-icons/dist/product.js";
     import "@ui5/webcomponents-icons/dist/error.js";
     import "@ui5/webcomponents/dist/Icon.js";
-    import { goto } from "$app/navigation";
-    import { page } from "$app/state";
     import type { components } from "@konfidence/api-client/schema";
     import {
         Button,
@@ -16,9 +14,8 @@
 
     import ArtifactDeploymentDetail from "./ArtifactDeploymentDetail.svelte";
     import ArtifactDeploymentsTable from "./ArtifactDeploymentsTable.svelte";
-    import type { ArtifactDeploymentRow, ArtifactDeploymentStatus } from "./deployments.js";
-    import { matchesQuery, matchesStatus, toArtifactDeploymentRows } from "./deployments.js";
-    import { DEEP_LINK_PARAM, LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "./params.js";
+    import { toArtifactDeploymentRows } from "./deployments.js";
+    import { useDeploymentFilters } from "./useDeploymentFilters.svelte.js";
 
     type Landscape = components["schemas"]["Landscape"];
     type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
@@ -51,21 +48,15 @@
         onRetry,
     }: Props = $props();
 
-    let query = $state("");
-    let status = $state<"" | ArtifactDeploymentStatus>("");
-
     const rows = $derived(
         toArtifactDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
     );
-    const visibleRows = $derived(
-        rows.filter((row) => matchesQuery(row, query) && matchesStatus(row, status)),
-    );
 
-    const selectedId = $derived(page.url.searchParams.get(DEEP_LINK_PARAM) ?? undefined);
-    const selected = $derived<ArtifactDeploymentRow | undefined>(
-        selectedId ? rows.find((row) => row.id === selectedId) : undefined,
-    );
-    const panelOpen = $derived(selected !== undefined);
+    const filters = useDeploymentFilters({
+        rows: () => rows,
+        selectedLandscapeId: () => selectedLandscapeId,
+        selectedVectorDeploymentId: () => selectedVectorDeploymentId,
+    });
 
     const vectorOptions = $derived(
         (selectedLandscapeId
@@ -76,68 +67,6 @@
             label: `${deployment.vector.componentName}@${deployment.vector.componentVersion}`,
         })),
     );
-
-    const serverFiltersActive = $derived(
-        selectedLandscapeId !== undefined || selectedVectorDeploymentId !== undefined,
-    );
-    const clientFiltersActive = $derived(query.trim() !== "" || status !== "");
-    const anyFiltersActive = $derived(serverFiltersActive || clientFiltersActive);
-
-    const updateUrl = (mutate: (params: URLSearchParams) => void): void => {
-        const next = new globalThis.URL(page.url);
-        mutate(next.searchParams);
-        // eslint-disable-next-line svelte/no-navigation-without-resolve -- reusing the current page URL.
-        void goto(next, { keepFocus: true, noScroll: true });
-    };
-
-    const openRow = (row: ArtifactDeploymentRow): void => {
-        if (page.url.searchParams.get(DEEP_LINK_PARAM) === row.id) {
-            return;
-        }
-        updateUrl((params) => params.set(DEEP_LINK_PARAM, row.id));
-    };
-
-    const closePanel = (): void => {
-        if (!page.url.searchParams.has(DEEP_LINK_PARAM)) {
-            return;
-        }
-        updateUrl((params) => params.delete(DEEP_LINK_PARAM));
-    };
-
-    const changeLandscape = (value: string): void => {
-        updateUrl((params) => {
-            if (value === "") {
-                params.delete(LANDSCAPE_PARAM);
-            } else {
-                params.set(LANDSCAPE_PARAM, value);
-            }
-            params.delete(VECTOR_DEPLOYMENT_PARAM);
-            params.delete(DEEP_LINK_PARAM);
-        });
-    };
-
-    const changeVectorDeployment = (value: string): void => {
-        updateUrl((params) => {
-            if (value === "") {
-                params.delete(VECTOR_DEPLOYMENT_PARAM);
-            } else {
-                params.set(VECTOR_DEPLOYMENT_PARAM, value);
-            }
-            params.delete(DEEP_LINK_PARAM);
-        });
-    };
-
-    const clearFilters = (): void => {
-        query = "";
-        status = "";
-        if (serverFiltersActive || page.url.searchParams.has(DEEP_LINK_PARAM)) {
-            updateUrl((params) => {
-                params.delete(LANDSCAPE_PARAM);
-                params.delete(VECTOR_DEPLOYMENT_PARAM);
-                params.delete(DEEP_LINK_PARAM);
-            });
-        }
-    };
 
     const labelTextClass =
         "text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]";
@@ -168,7 +97,7 @@
             <div class="flex min-w-[16rem] grow-[2] basis-[20rem] flex-col gap-1">
                 <span class={labelTextClass}>Search</span>
                 <SearchInput
-                    bind:value={query}
+                    bind:value={filters.query}
                     placeholder="Search artifact, version, stage, vector…"
                     aria-label="Search artifact deployments"
                     data-testid="artifact-search"
@@ -178,7 +107,7 @@
             <label class="flex min-w-[12rem] flex-col gap-1">
                 <span class={labelTextClass}>Status</span>
                 <Select
-                    bind:value={status}
+                    bind:value={filters.status}
                     aria-label="Filter by status"
                     data-testid="artifact-status-filter"
                 >
@@ -191,7 +120,7 @@
                 <span class={labelTextClass}>Landscape</span>
                 <Select
                     value={selectedLandscapeId ?? ""}
-                    onchange={(event) => changeLandscape(event.currentTarget.value)}
+                    onchange={(event) => filters.changeLandscape(event.currentTarget.value)}
                     disabled={landscapes.length === 0}
                     aria-label="Filter by landscape"
                     data-testid="artifact-landscape-filter"
@@ -206,7 +135,7 @@
                 <span class={labelTextClass}>Vector deployment</span>
                 <Select
                     value={selectedVectorDeploymentId ?? ""}
-                    onchange={(event) => changeVectorDeployment(event.currentTarget.value)}
+                    onchange={(event) => filters.changeVectorDeployment(event.currentTarget.value)}
                     disabled={vectorOptions.length === 0}
                     aria-label="Filter by vector deployment"
                     data-testid="artifact-vector-filter"
@@ -223,12 +152,12 @@
                     type="button"
                     class={[
                         "cursor-pointer border border-transparent bg-transparent px-1.5 py-2 text-[length:var(--text-sm)] leading-[1.4] text-[color:var(--text-link,var(--btn-primary-fg))] underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none",
-                        !anyFiltersActive && "invisible pointer-events-none",
+                        !filters.anyFiltersActive && "invisible pointer-events-none",
                     ]}
-                    onclick={clearFilters}
-                    disabled={!anyFiltersActive}
-                    aria-hidden={!anyFiltersActive}
-                    tabindex={anyFiltersActive ? 0 : -1}
+                    onclick={filters.clearFilters}
+                    disabled={!filters.anyFiltersActive}
+                    aria-hidden={!filters.anyFiltersActive}
+                    tabindex={filters.anyFiltersActive ? 0 : -1}
                     data-testid="artifact-view-clear-filters"
                 >
                     Clear filters
@@ -259,10 +188,10 @@
     {:else if rows.length === 0}
         <div data-testid="artifact-view-empty">
             <EmptyState
-                title={serverFiltersActive
+                title={filters.serverFiltersActive
                     ? "No artifact deployments match the current filters"
                     : "No artifact deployments"}
-                description={serverFiltersActive
+                description={filters.serverFiltersActive
                     ? "Try widening the landscape or vector-deployment filter."
                     : "This project does not have any artifact deployments yet."}
             >
@@ -270,8 +199,8 @@
                     <ui5-icon name="product" aria-hidden="true"></ui5-icon>
                 {/snippet}
                 {#snippet action()}
-                    {#if serverFiltersActive}
-                        <Button variant="secondary" onclick={clearFilters} data-testid="artifact-view-empty-clear">
+                    {#if filters.serverFiltersActive}
+                        <Button variant="secondary" onclick={filters.clearFilters} data-testid="artifact-view-empty-clear">
                             <span>Clear filters</span>
                         </Button>
                     {/if}
@@ -285,9 +214,9 @@
                 aria-live="polite"
                 data-testid="artifact-view-count"
             >
-                {visibleRows.length.toLocaleString()} of {rows.length.toLocaleString()} deployment{rows.length === 1 ? "" : "s"}
+                {filters.visibleRows.length.toLocaleString()} of {rows.length.toLocaleString()} deployment{rows.length === 1 ? "" : "s"}
             </p>
-            {#if visibleRows.length === 0}
+            {#if filters.visibleRows.length === 0}
                 <div
                     class="flex flex-col items-center gap-2 rounded-[var(--card-radius)] border border-dashed border-[color:var(--border-default)] px-6 py-12 text-center text-[color:var(--text-secondary)]"
                     role="status"
@@ -297,24 +226,24 @@
                     <button
                         type="button"
                         class="cursor-pointer border-0 bg-transparent text-[color:var(--text-link,var(--btn-primary-fg))] underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
-                        onclick={clearFilters}
+                        onclick={filters.clearFilters}
                     >
                         Clear filters
                     </button>
                 </div>
             {:else}
-                <ArtifactDeploymentsTable rows={visibleRows} {selectedId} onSelect={openRow} />
+                <ArtifactDeploymentsTable rows={filters.visibleRows} selectedId={filters.selectedId} onSelect={filters.openRow} />
             {/if}
         </div>
     {/if}
 </section>
 
 <SidePanel
-    open={panelOpen}
-    title={selected ? `${selected.component}@${selected.version}` : "Artifact deployment"}
-    onClose={closePanel}
+    open={filters.panelOpen}
+    title={filters.selected ? `${filters.selected.component}@${filters.selected.version}` : "Artifact deployment"}
+    onClose={filters.closePanel}
 >
-    {#if selected}
-        <ArtifactDeploymentDetail row={selected} />
+    {#if filters.selected}
+        <ArtifactDeploymentDetail row={filters.selected} />
     {/if}
 </SidePanel>
