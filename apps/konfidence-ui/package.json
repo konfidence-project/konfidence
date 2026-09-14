@@ -23,7 +23,10 @@
     "test": "pnpm test:unit && pnpm test:browser && pnpm test:e2e",
     "test:unit": "vitest run --project server",
     "test:browser": "vitest run --project client",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "screenshots:generate": "bash ../../hack/generate-screenshots.sh apps/konfidence-ui",
+    "screenshots:check": "bash ../../hack/check-screenshots.sh apps/konfidence-ui",
+    "test:screenshots": "svelte-kit sync && vitest run --project client --update"
   },
   "dependencies": {
     "@humanspeak/svelte-headless-table": "^6.2.0",
@@ -32,7 +35,8 @@
     "@skeletonlabs/skeleton": "^5.0.0",
     "@skeletonlabs/skeleton-svelte": "^5.0.0",
     "@ui5/webcomponents": "^2.26.0",
-    "@ui5/webcomponents-icons": "^2.26.0"
+    "@ui5/webcomponents-icons": "^2.26.0",
+    "@xyflow/svelte": "^1.6.6"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",

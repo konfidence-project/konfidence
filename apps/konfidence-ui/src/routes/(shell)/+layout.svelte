@@ -5,7 +5,11 @@
     import { page } from "$app/state";
     import { AppShell, TopBar } from "@konfidence/design-system/components";
     import { isDarkMode, themeStore } from "$lib/theme";
-    import { EMBEDDED_ON, EMBEDDED_QUERY, isEmbedded } from "$lib/shell/embedded";
+    import {
+        EMBEDDED_ON,
+        EMBEDDED_QUERY,
+        isEmbedded,
+    } from "$lib/shell/embedded";
     import ProjectsProvider from "$lib/projects/ProjectsProvider.svelte";
     import ProjectsContent from "$lib/projects/components/ProjectsContent.svelte";
     import ProjectSelector from "$lib/shell/ProjectSelector.svelte";
@@ -32,9 +36,14 @@
     let { children }: Props = $props();
 
     const embedded = $derived(isEmbedded(page.url));
+    const canvasPage = $derived(
+        page.route.id === "/(shell)/projects/[projectId]/landscape",
+    );
 
     const isDark = $derived(isDarkMode(themeStore.mode));
-    const logoSrc = $derived(isDark ? "/logos/logo-dark.svg" : "/logos/logo-light.svg");
+    const logoSrc = $derived(
+        isDark ? "/logos/logo-dark.svg" : "/logos/logo-light.svg",
+    );
 
     beforeNavigate((navigation) => {
         if (!embedded || !navigation.to || navigation.willUnload) {
@@ -52,36 +61,51 @@
     });
 </script>
 
-<ProjectsProvider>
-    {#if embedded}
-        <main class="min-h-dvh" data-testid="embedded-main">
-            <ProjectsContent>{@render children()}</ProjectsContent>
-        </main>
-    {:else}
-        <AppShell>
-            {#snippet topbar({ toggleDrawer })}
-                <TopBar onHamburger={toggleDrawer}>
-                    {#snippet logo()}
-                        <a href={resolve("/")} aria-label="Konfidence home" data-testid="brand-home">
-                            <img class="topbar__logo" src={logoSrc} alt="Konfidence" />
-                        </a>
-                    {/snippet}
-                    {#snippet switcher()}
-                        <ProjectSelector />
-                    {/snippet}
-                    {#snippet actions()}
-                        <UserMenu />
-                    {/snippet}
-                </TopBar>
-            {/snippet}
-
-            {#snippet sidebar({ closeDrawer })}
-                <SideNav {closeDrawer} />
-            {/snippet}
-
-            {#snippet main()}
+<div
+    class={[
+        canvasPage &&
+            "[&_.app-shell]:h-dvh [&_.app-shell]:min-h-0 [&_.app-shell>div]:min-h-0 [&_main]:min-h-0 [&_[data-testid=embedded-main]]:h-dvh",
+    ]}
+>
+    <ProjectsProvider>
+        {#if embedded}
+            <main class="min-h-dvh" data-testid="embedded-main">
                 <ProjectsContent>{@render children()}</ProjectsContent>
-            {/snippet}
-        </AppShell>
-    {/if}
-</ProjectsProvider>
+            </main>
+        {:else}
+            <AppShell>
+                {#snippet topbar({ toggleDrawer })}
+                    <TopBar onHamburger={toggleDrawer}>
+                        {#snippet logo()}
+                            <a
+                                href={resolve("/")}
+                                aria-label="Konfidence home"
+                                data-testid="brand-home"
+                            >
+                                <img
+                                    class="topbar__logo"
+                                    src={logoSrc}
+                                    alt="Konfidence"
+                                />
+                            </a>
+                        {/snippet}
+                        {#snippet switcher()}
+                            <ProjectSelector />
+                        {/snippet}
+                        {#snippet actions()}
+                            <UserMenu />
+                        {/snippet}
+                    </TopBar>
+                {/snippet}
+
+                {#snippet sidebar({ closeDrawer })}
+                    <SideNav {closeDrawer} />
+                {/snippet}
+
+                {#snippet main()}
+                    <ProjectsContent>{@render children()}</ProjectsContent>
+                {/snippet}
+            </AppShell>
+        {/if}
+    </ProjectsProvider>
+</div>

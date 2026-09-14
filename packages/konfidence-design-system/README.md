@@ -122,7 +122,7 @@ To regenerate the colocated Linux PNGs, run from the repository root:
 pnpm ds:screenshots:generate
 ```
 
-The generator builds `Dockerfile.screenshots` and runs `pnpm ds:test`
+The shared generator builds `hack/Dockerfile.screenshots` and runs `test:screenshots` in this workspace
 inside Linux. After the tests pass, it copies Linux PNGs directly into
 each component's `__screenshots__/` directory and removes obsolete Linux
 baselines. Review and commit those changes with the component or stylesheet
@@ -142,7 +142,7 @@ temporary directory. Both commands remove their containers on exit.
 Docker is required. Both commands use `linux/arm64`, matching the
 `ubuntu-24.04-arm` CI runner and running natively on Apple Silicon.
 The image contains the checkout, so remote Docker daemons work without
-bind mounts. `Dockerfile.screenshots.dockerignore` excludes host dependencies
+bind mounts. `hack/Dockerfile.screenshots.dockerignore` excludes host dependencies
 and existing screenshots. Playwright package versions are defined in the
 root `pnpm-workspace.yaml` catalog and reused through `catalog:` dependencies.
 Keep the image's Playwright version aligned with that catalog and the

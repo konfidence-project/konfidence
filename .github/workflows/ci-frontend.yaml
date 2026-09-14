@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/ci-frontend.yaml
-      - hack/*design-system-screenshots.sh
+      - hack/*screenshots*
       - .goreleaser.yaml
       - Makefile
       - api/codegen-client.yaml
@@ -22,7 +22,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/ci-frontend.yaml
-      - hack/*design-system-screenshots.sh
+      - hack/*screenshots*
       - .goreleaser.yaml
       - Makefile
       - api/codegen-client.yaml
@@ -95,6 +95,18 @@ jobs:
 
       - name: Run tests and require current Linux screenshots
         run: pnpm ds:screenshots:check
+
+  test-ui-screenshots:
+    name: Test UI Screenshots
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - *checkout-code
+
+      - *install-pnpm
+      - *setup-node
+
+      - name: Run tests and require current Linux screenshots
+        run: pnpm --filter konfidence-ui screenshots:check
 
   test-unit:
     name: Test Unit

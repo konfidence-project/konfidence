@@ -6,11 +6,13 @@ const PROJECTS_API = "**/api/v1/projects";
 const NOOP = (): void => undefined;
 
 const useScenario = async (page: Page, scenario: string): Promise<void> => {
-  await page
-    .context()
-    .addCookies([
-      { name: "konfidence_mock_scenario", url: "http://127.0.0.1:8091", value: scenario },
-    ]);
+  await page.context().addCookies([
+    {
+      name: "konfidence_mock_scenario",
+      url: "http://127.0.0.1:8091",
+      value: scenario,
+    },
+  ]);
 };
 
 const switchToIdentity = async (page: Page): Promise<void> => {
@@ -43,7 +45,7 @@ test("automatically opens the only accessible project", async ({ page }) => {
   await useScenario(page, "developer");
   await signIn(page, "/projects/payments-platform/landscape");
 
-  await expect(page.getByTestId("page-heading")).toHaveText("Landscape");
+  await expect(page.getByTestId("landscape-flow")).toBeVisible();
 });
 
 test("shows the zero-project state", async ({ page }) => {
@@ -60,7 +62,9 @@ test("shows loading, then opens the only project after discovery", async ({ page
   });
   await page.route(PROJECTS_API, async (route) => {
     await responseHeld;
-    await route.fulfill({ json: { data: [{ id: "delayed", name: "Delayed" }] } });
+    await route.fulfill({
+      json: { data: [{ id: "delayed", name: "Delayed" }] },
+    });
   });
 
   try {

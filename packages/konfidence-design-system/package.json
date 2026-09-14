@@ -32,6 +32,7 @@
     "test": "pnpm test:unit && pnpm test:browser",
     "test:unit": "vitest run --project server --passWithNoTests",
     "test:browser": "vitest run --project client",
+    "test:screenshots": "pnpm test",
     "verify": "pnpm check && pnpm lint && pnpm check:svelte && pnpm fmt:check"
   },
   "dependencies": {

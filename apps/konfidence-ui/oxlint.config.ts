@@ -28,6 +28,7 @@ export default defineConfig({
       rules: {
         "eslint/capitalized-comments": "off",
         "eslint/no-implicit-coercion": "off",
+        "one-var": "off",
         "prefer-const": "off",
         "unicorn/filename-case": "off",
       },
