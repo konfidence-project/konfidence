@@ -15,7 +15,7 @@
 
     import type { ArtifactDeploymentRow } from "./deployments.js";
     import { statusLabel, statusTone } from "./deployments.js";
-    import { createArtifactTable } from "./columns.js";
+    import { createArtifactTable } from "./createArtifactTable.js";
 
     interface Props {
         rows: readonly ArtifactDeploymentRow[];
