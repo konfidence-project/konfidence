@@ -91,7 +91,7 @@ const matchesQuery = (row: ArtifactDeploymentRow, query: string): boolean => {
   if (!trimmed) {
     return true;
   }
-  const haystack = [
+  const searchableText = [
     row.id,
     row.component,
     row.version,
@@ -104,7 +104,7 @@ const matchesQuery = (row: ArtifactDeploymentRow, query: string): boolean => {
   ]
     .join(" ")
     .toLowerCase();
-  return haystack.includes(trimmed);
+  return searchableText.includes(trimmed);
 };
 
 const matchesStatus = (
