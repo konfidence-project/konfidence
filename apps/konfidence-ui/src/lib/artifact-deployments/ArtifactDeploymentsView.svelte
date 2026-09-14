@@ -138,13 +138,6 @@
         }
     };
 
-    // Strip a stale ?deployment= that no longer resolves to a row.
-    $effect(() => {
-        if (!loading && rows.length > 0 && selectedId && selected === undefined) {
-            closePanel();
-        }
-    });
-
     const selectClass =
         "min-w-[12rem] appearance-none rounded-[var(--input-radius)] border border-[color:var(--input-bd)] bg-[color:var(--input-bg)] px-3 py-2 text-[length:var(--text-sm)] text-[color:var(--input-fg)] focus-visible:border-[color:var(--border-strong)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
     const labelTextClass =

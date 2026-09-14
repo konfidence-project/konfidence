@@ -121,21 +121,15 @@ test.describe("artifact deployments", () => {
     await expect(page.getByTestId("artifact-detail-id")).toHaveText("artifact-test-eu20-1");
   });
 
-  test("clears the deployment param when the URL points at a missing id", async ({ page }) => {
-    /*
-     * `signIn`'s `waitForURL` matches the exact `returnTo` first; the
-     * view's own `$effect` then strips the stale `?deployment` value,
-     * leaving the bare path. We wait for that final URL rather than
-     * asserting mid-flight.
-     */
-    await signIn(
-      page,
-      ARTIFACT_DEPLOYMENTS_PATH,
-      `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=does-not-exist`,
-    );
+  test("keeps the panel closed when the URL points at a missing deployment id", async ({
+    page,
+  }) => {
+    const missingDeploymentPath = `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=does-not-exist`;
+
+    await signIn(page, missingDeploymentPath, missingDeploymentPath);
 
     await expect(page.getByTestId("side-panel")).toBeHidden();
-    await expect(page).toHaveURL(ARTIFACT_DEPLOYMENTS_PATH);
+    await expect(page).toHaveURL(missingDeploymentPath);
   });
 
   test("keeps deep-link state addressable through the back button", async ({ page }) => {
