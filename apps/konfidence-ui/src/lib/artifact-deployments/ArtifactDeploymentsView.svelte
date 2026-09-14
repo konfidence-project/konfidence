@@ -16,15 +16,18 @@
     import ArtifactDeploymentDetail from "./ArtifactDeploymentDetail.svelte";
     import ArtifactDeploymentsTable from "./ArtifactDeploymentsTable.svelte";
     import type { ArtifactDeploymentRow, ArtifactDeploymentStatus } from "./deployments.js";
-    import { matchesQuery, matchesStatus } from "./deployments.js";
+    import { matchesQuery, matchesStatus, toArtifactDeploymentRows } from "./deployments.js";
     import { DEEP_LINK_PARAM, LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "./params.js";
 
     type Landscape = components["schemas"]["Landscape"];
+    type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
+    type Stage = components["schemas"]["Stage"];
     type VectorDeployment = components["schemas"]["VectorDeployment"];
 
     interface Props {
-        rows: readonly ArtifactDeploymentRow[];
+        artifactDeployments?: readonly ArtifactDeployment[];
         landscapes?: readonly Landscape[];
+        stages?: readonly Stage[];
         vectorDeployments?: readonly VectorDeployment[];
         selectedLandscapeId?: string | undefined;
         selectedVectorDeploymentId?: string | undefined;
@@ -35,8 +38,9 @@
     }
 
     let {
-        rows,
+        artifactDeployments = [],
         landscapes = [],
+        stages = [],
         vectorDeployments = [],
         selectedLandscapeId,
         selectedVectorDeploymentId,
@@ -49,6 +53,9 @@
     let query = $state("");
     let status = $state<"" | ArtifactDeploymentStatus>("");
 
+    const rows = $derived(
+        toArtifactDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
+    );
     const visibleRows = $derived(
         rows.filter((row) => matchesQuery(row, query) && matchesStatus(row, status)),
     );

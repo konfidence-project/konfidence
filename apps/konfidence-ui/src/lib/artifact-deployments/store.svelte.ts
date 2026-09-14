@@ -1,9 +1,9 @@
 import type { components } from "@konfidence/api-client/schema";
 import type { ApiClient } from "$lib/konfidence-api/client";
-import type { ArtifactDeploymentRow } from "./deployments.js";
-import { toArtifactDeploymentRows } from "./deployments.js";
 
 type Landscape = components["schemas"]["Landscape"];
+type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
+type Stage = components["schemas"]["Stage"];
 type VectorDeployment = components["schemas"]["VectorDeployment"];
 
 type Status = "idle" | "loading" | "ready" | "error";
@@ -23,8 +23,9 @@ interface FetchResult {
 const UNAVAILABLE = "Artifact deployments are currently unavailable.";
 
 class ArtifactDeploymentsStore {
-  rows = $state.raw<readonly ArtifactDeploymentRow[]>([]);
+  artifactDeployments = $state.raw<readonly ArtifactDeployment[]>([]);
   landscapes = $state.raw<readonly Landscape[]>([]);
+  stages = $state.raw<readonly Stage[]>([]);
   vectorDeployments = $state.raw<readonly VectorDeployment[]>([]);
   status = $state<Status>("idle");
   error = $state<string | undefined>(undefined);
@@ -82,9 +83,10 @@ class ArtifactDeploymentsStore {
   }
 
   #applyResult(result: FetchResult): void {
+    this.artifactDeployments = result.artifactDeployments;
     this.landscapes = result.landscapes;
+    this.stages = result.stages;
     this.vectorDeployments = result.vectorDeployments;
-    this.rows = toArtifactDeploymentRows(result);
     this.status = "ready";
     this.hasLoaded = true;
   }
@@ -92,7 +94,10 @@ class ArtifactDeploymentsStore {
   #applyError(message: string): void {
     this.status = "error";
     this.error = message;
-    this.rows = [];
+    this.artifactDeployments = [];
+    this.landscapes = [];
+    this.stages = [];
+    this.vectorDeployments = [];
   }
 }
 

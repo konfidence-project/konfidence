@@ -21,8 +21,9 @@
 <svelte:head><title>Artifact Deployments · Konfidence</title></svelte:head>
 
 <ArtifactDeploymentsView
-    rows={store.rows}
+    artifactDeployments={store.artifactDeployments}
     landscapes={store.landscapes}
+    stages={store.stages}
     vectorDeployments={store.vectorDeployments}
     selectedLandscapeId={landscapeId}
     selectedVectorDeploymentId={vectorDeploymentId}
