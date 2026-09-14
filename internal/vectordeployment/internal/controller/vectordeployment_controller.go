@@ -226,6 +226,12 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	)
 	allReady := true
 
+	ns := &corev1.Namespace{}
+	if err := r.Get(ctx, types.NamespacedName{Name: vectorDeployment.Namespace}, ns); err != nil {
+		return false, fmt.Errorf("failed to get namespace %q: %w", vectorDeployment.Namespace, err)
+	}
+	landscapeName := ns.Labels[pkgctrl.LandscapeNameLabel]
+
 	// TODO parallelize and handle partial failures
 	for _, artifactRef := range artifactReferences {
 		// fetch the artifact component version from OCI
@@ -262,7 +268,8 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			}
 
 			log.Info("ArtifactDeployment not found, create new one", "name", deploymentName)
-			artifactDeployment = r.constructArtifactDeployment(artifactRef, artifactManifest, vectorDeployment, deploymentName, deploymentHash, uid)
+			artifactDeployment = r.constructArtifactDeployment(artifactRef, artifactManifest, vectorDeployment, deploymentName,
+				deploymentHash, uid, landscapeName)
 			if err := r.Create(ctx, artifactDeployment); err != nil {
 				return false, fmt.Errorf("failed to create ArtifactDeployment resource %s: %w", deploymentName, err)
 			}
@@ -542,6 +549,7 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 	deploymentName string,
 	deploymentHash string,
 	uid *string,
+	landscapeName string,
 ) *konfidence.ArtifactDeployment {
 	// map task manifests from domain.TaskManifest to konfidence.TaskManifest
 	taskManifests := mapTaskManifestsToLandscape(artifactManifest.Tasks)
@@ -556,12 +564,17 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 	if uid != nil {
 		ann[pkgctrl.VectorDeploymentUIDAnnotation] = *uid
 	}
+	labels := map[string]string{
+		pkgctrl.LandscapeNameLabel:        landscapeName,
+		pkgctrl.VectorDeploymentNameLabel: vectorDeployment.Name,
+	}
 
 	return &konfidence.ArtifactDeployment{
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:        deploymentName,
 			Namespace:   vectorDeployment.Namespace,
 			Annotations: ann,
+			Labels:      labels,
 		},
 		Spec: konfidence.ArtifactDeploymentSpec{
 			Manifest: konfidence.ArtifactManifest{

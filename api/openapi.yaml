@@ -390,6 +390,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -545,8 +547,7 @@ components:
           $ref: "#/components/schemas/ArtifactReference"
         status:
           type: string
-          # TODO add status values
-          enum: [ArtifactFetched, ArtifactDeployed]
+          enum: [ArtifactFetched, ArtifactDeployed, AppHealthy, Ready]
           description: The artifactDeployment status
 
     VectorPromotionConfigList:

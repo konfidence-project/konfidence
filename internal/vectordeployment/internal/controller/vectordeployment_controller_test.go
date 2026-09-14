@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,6 +31,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		artifactPrefix  = "sample-service-1-0-0-1-"
 		timeout         = time.Second * 10
 		interval        = time.Millisecond * 250
+		landscapeName   = "test-landscape"
 	)
 
 	var (
@@ -39,6 +41,15 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 	)
 
 	BeforeAll(func() {
+		ctx := context.Background()
+		ns := &corev1.Namespace{}
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: testNamespace}, ns)).To(gomega.Succeed())
+		if ns.Labels == nil {
+			ns.Labels = make(map[string]string)
+		}
+		ns.Labels[pkgctrl.LandscapeNameLabel] = landscapeName
+		gomega.Expect(k8sClient.Update(ctx, ns)).To(gomega.Succeed())
+
 		reconciler = &VectorDeploymentReconciler{
 			Client:   k8sManager.GetClient(),
 			Scheme:   k8sManager.GetScheme(),
@@ -455,6 +466,8 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: saltedName, Namespace: testNamespace}, recovered)).To(gomega.Succeed())
 			g.Expect(recovered.Annotations[pkgctrl.ArtifactComponentAnnotation]).To(gomega.Equal(collidingComponent))
 			g.Expect(recovered.Annotations[pkgctrl.ArtifactVersionAnnotation]).To(gomega.Equal(collidingVersion))
+			g.Expect(recovered.Labels[pkgctrl.LandscapeNameLabel]).To(gomega.Equal(landscapeName))
+			g.Expect(recovered.Labels[pkgctrl.VectorDeploymentNameLabel]).To(gomega.Equal(vectorDeployment.Name))
 			foundOwner := false
 			for _, ownerRef := range recovered.OwnerReferences {
 				if ownerRef.UID == vectorDeployment.UID {
