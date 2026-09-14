@@ -2,8 +2,8 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import SidePanelFixture from "./__tests__/SidePanelFixture.svelte";
-import "../../../../../apps/konfidence-ui/src/app.css";
+import SidePanelFixture from "./SidePanelFixture.svelte";
+import "../../../../../../apps/konfidence-ui/src/app.css";
 
 describe("<SidePanel>", () => {
   it("stays closed until asked to open", async () => {

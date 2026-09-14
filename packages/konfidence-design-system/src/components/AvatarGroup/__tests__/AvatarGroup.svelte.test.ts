@@ -2,8 +2,8 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../apps/konfidence-ui/src/app.css";
-import AvatarGroupTestContainer from "./__tests__/AvatarGroupTestContainer.svelte";
+import "../../../../../../apps/konfidence-ui/src/app.css";
+import AvatarGroupFixture from "./AvatarGroupFixture.svelte";
 
 describe("<AvatarGroup>", () => {
   afterEach(() => {
@@ -12,7 +12,7 @@ describe("<AvatarGroup>", () => {
   });
 
   it("renders child avatars and the more slot", async () => {
-    render(AvatarGroupTestContainer);
+    render(AvatarGroupFixture);
     const group = document.querySelector<HTMLElement>(".avatar-group");
     expect(group?.querySelectorAll(".avatar").length).toBe(3);
     expect(group?.querySelector(".avatar-group__more")?.textContent?.trim()).toBe("+5");
@@ -23,7 +23,7 @@ describe("<AvatarGroup>", () => {
       await page.viewport(220, 96);
       document.documentElement.setAttribute("data-theme", "konfidence");
       document.documentElement.setAttribute("data-mode", mode);
-      render(AvatarGroupTestContainer);
+      render(AvatarGroupFixture);
       const group = document.querySelector<HTMLElement>(".avatar-group");
       if (group) {
         await expect.element(group).toMatchScreenshot();

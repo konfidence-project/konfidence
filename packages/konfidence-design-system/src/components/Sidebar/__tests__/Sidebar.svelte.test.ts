@@ -2,8 +2,8 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../apps/konfidence-ui/src/app.css";
-import SidebarTestContainer from "./__tests__/SidebarTestContainer.svelte";
+import "../../../../../../apps/konfidence-ui/src/app.css";
+import SidebarFixture from "./SidebarFixture.svelte";
 
 describe("<Sidebar>", () => {
   afterEach(() => {
@@ -12,17 +12,17 @@ describe("<Sidebar>", () => {
   });
 
   it("renders default slot content", async () => {
-    render(SidebarTestContainer);
+    render(SidebarFixture);
     await expect.element(page.getByRole("link", { name: "Landscape" })).toBeInTheDocument();
   });
 
   it("renders the footer slot when provided", async () => {
-    render(SidebarTestContainer);
+    render(SidebarFixture);
     await expect.element(page.getByTestId("sidebar-footer-text")).toBeInTheDocument();
   });
 
   it("still renders a footer container when the snippet returns nothing", async () => {
-    render(SidebarTestContainer, { withFooter: false });
+    render(SidebarFixture, { withFooter: false });
     const footer = document.querySelector<HTMLElement>(".sidebar__footer");
     // The footer slot renders an empty container when the snippet is provided
     // but returns nothing; the container itself is still present. Assert the
@@ -36,7 +36,7 @@ describe("<Sidebar>", () => {
         await page.viewport(260, 440);
         document.documentElement.setAttribute("data-theme", "konfidence");
         document.documentElement.setAttribute("data-mode", mode);
-        render(SidebarTestContainer, { withMobileSwitcher });
+        render(SidebarFixture, { withMobileSwitcher });
         await expect.element(page.getByTestId("sidebar-root")).toMatchScreenshot();
       });
     }

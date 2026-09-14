@@ -2,8 +2,8 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import TableFixture from "./__tests__/TableFixture.svelte";
-import "../../../../../apps/konfidence-ui/src/app.css";
+import TableFixture from "./TableFixture.svelte";
+import "../../../../../../apps/konfidence-ui/src/app.css";
 
 describe("<Table>", () => {
   it("renders header and body content", async () => {

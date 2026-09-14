@@ -2,8 +2,8 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../apps/konfidence-ui/src/app.css";
-import Brandbar from "./Brandbar.svelte";
+import "../../../../../../apps/konfidence-ui/src/app.css";
+import Brandbar from "../Brandbar.svelte";
 
 describe("<Brandbar>", () => {
   afterEach(() => {

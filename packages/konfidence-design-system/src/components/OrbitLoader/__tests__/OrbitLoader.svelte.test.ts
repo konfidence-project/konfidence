@@ -2,8 +2,8 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import OrbitLoader from "./OrbitLoader.svelte";
-import "../../../../../apps/konfidence-ui/src/app.css";
+import OrbitLoader from "../OrbitLoader.svelte";
+import "../../../../../../apps/konfidence-ui/src/app.css";
 
 describe("<OrbitLoader>", () => {
   it("exposes a live-region with the default label", async () => {

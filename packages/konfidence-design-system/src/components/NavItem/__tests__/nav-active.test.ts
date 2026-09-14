@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isActive } from "./nav-active.js";
+import { isActive } from "../nav-active.js";
 
 describe("isActive", () => {
   it("matches an exact path", () => {

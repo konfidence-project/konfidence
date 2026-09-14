@@ -2,9 +2,9 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import EmptyState from "./EmptyState.svelte";
-import EmptyStateFixture from "./__tests__/EmptyStateFixture.svelte";
-import "../../../../../apps/konfidence-ui/src/app.css";
+import EmptyState from "../EmptyState.svelte";
+import EmptyStateFixture from "./EmptyStateFixture.svelte";
+import "../../../../../../apps/konfidence-ui/src/app.css";
 
 const TONES = ["empty", "info", "error"] as const;
 

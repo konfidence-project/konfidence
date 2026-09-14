@@ -2,9 +2,9 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import SearchInput from "./SearchInput.svelte";
-import SearchInputFixture from "./__tests__/SearchInputFixture.svelte";
-import "../../../../../apps/konfidence-ui/src/app.css";
+import SearchInput from "../SearchInput.svelte";
+import SearchInputFixture from "./SearchInputFixture.svelte";
+import "../../../../../../apps/konfidence-ui/src/app.css";
 
 describe("<SearchInput>", () => {
   it("renders a searchbox with the default placeholder", async () => {
