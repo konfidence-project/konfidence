@@ -12,6 +12,7 @@ export { isActive } from "./NavItem/nav-active.js";
 export { default as OrbitLoader } from "./OrbitLoader/OrbitLoader.svelte";
 export { default as ProjectSelection } from "./ProjectSelection/ProjectSelection.svelte";
 export { default as SearchInput } from "./SearchInput/SearchInput.svelte";
+export { default as Select } from "./Select/Select.svelte";
 export { default as Sidebar } from "./Sidebar/Sidebar.svelte";
 export { default as SidePanel } from "./SidePanel/SidePanel.svelte";
 export { default as StatusBadge } from "./StatusBadge/StatusBadge.svelte";

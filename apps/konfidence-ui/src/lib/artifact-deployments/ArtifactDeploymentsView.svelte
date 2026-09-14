@@ -10,6 +10,7 @@
         EmptyState,
         OrbitLoader,
         SearchInput,
+        Select,
         SidePanel,
     } from "@konfidence/design-system/components";
 
@@ -138,8 +139,6 @@
         }
     };
 
-    const selectClass =
-        "min-w-[12rem] appearance-none rounded-[var(--input-radius)] border border-[color:var(--input-bd)] bg-[color:var(--input-bg)] px-3 py-2 text-[length:var(--text-sm)] text-[color:var(--input-fg)] focus-visible:border-[color:var(--border-strong)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
     const labelTextClass =
         "text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]";
 </script>
@@ -178,8 +177,7 @@
             </div>
             <label class="flex min-w-[12rem] flex-col gap-1">
                 <span class={labelTextClass}>Status</span>
-                <select
-                    class={selectClass}
+                <Select
                     bind:value={status}
                     aria-label="Filter by status"
                     data-testid="artifact-status-filter"
@@ -187,37 +185,37 @@
                     <option value="">All statuses</option>
                     <option value="ArtifactDeployed">Deployed</option>
                     <option value="ArtifactFetched">Fetched</option>
-                </select>
+                </Select>
             </label>
             <label class="flex min-w-[12rem] flex-col gap-1">
                 <span class={labelTextClass}>Landscape</span>
-                <select
-                    class={selectClass}
+                <Select
                     value={selectedLandscapeId ?? ""}
                     onchange={(event) => changeLandscape(event.currentTarget.value)}
                     disabled={landscapes.length === 0}
+                    aria-label="Filter by landscape"
                     data-testid="artifact-landscape-filter"
                 >
                     <option value="">All landscapes</option>
                     {#each landscapes as landscape (landscape.id)}
                         <option value={landscape.id}>{landscape.name}</option>
                     {/each}
-                </select>
+                </Select>
             </label>
             <label class="flex min-w-[12rem] flex-col gap-1">
                 <span class={labelTextClass}>Vector deployment</span>
-                <select
-                    class={selectClass}
+                <Select
                     value={selectedVectorDeploymentId ?? ""}
                     onchange={(event) => changeVectorDeployment(event.currentTarget.value)}
                     disabled={vectorOptions.length === 0}
+                    aria-label="Filter by vector deployment"
                     data-testid="artifact-vector-filter"
                 >
                     <option value="">All vector deployments</option>
                     {#each vectorOptions as option (option.id)}
                         <option value={option.id}>{option.label} · {option.id}</option>
                     {/each}
-                </select>
+                </Select>
             </label>
             <div class="flex min-w-0 flex-col">
                 <span class={labelTextClass} aria-hidden="true">&nbsp;</span>
