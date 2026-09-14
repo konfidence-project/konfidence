@@ -17,7 +17,9 @@
 
     $effect(() => {
         const target = dialog;
-        if (!target) return;
+        if (!target) {
+            return;
+        }
         if (open && !target.open) {
             target.showModal();
         } else if (!open && target.open) {

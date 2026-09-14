@@ -4,7 +4,7 @@ import { getApiClient } from "$lib/konfidence-api/client-instance";
 import type { PageLoad } from "./$types";
 
 export const load: PageLoad = async ({ params, url }) => {
-  const projectId = params.projectId;
+  const { projectId } = params;
   const landscapeId = url.searchParams.get(LANDSCAPE_PARAM) ?? undefined;
   const vectorDeploymentId = url.searchParams.get(VECTOR_DEPLOYMENT_PARAM) ?? undefined;
   const store = new ArtifactDeploymentsStore(getApiClient());
@@ -12,9 +12,9 @@ export const load: PageLoad = async ({ params, url }) => {
   await store.refresh(projectId, { landscapeId, vectorDeploymentId });
 
   return {
-    projectId,
     landscapeId,
-    vectorDeploymentId,
+    projectId,
     store,
+    vectorDeploymentId,
   };
 };

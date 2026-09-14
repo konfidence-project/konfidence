@@ -20,6 +20,7 @@ export default defineConfig({
     "eslint/init-declarations": "off",
     "eslint/max-statements": "off",
     "eslint/no-ternary": "off",
+    "eslint/one-var": "off",
     "import/consistent-type-specifier-style": "off",
     "import/no-named-export": "off",
     "import/no-nodejs-modules": "off",

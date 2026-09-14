@@ -16,7 +16,7 @@
     import StatusCell from "./cells/StatusCell.svelte";
     import TagListCell from "./cells/TagListCell.svelte";
     import type { ArtifactDeploymentRow } from "./deployments.js";
-    import { createArtifactTable } from "./createArtifactTable.js";
+    import { createArtifactTable } from "./create-artifact-table.js";
 
     interface Props {
         rows: readonly ArtifactDeploymentRow[];

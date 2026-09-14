@@ -31,8 +31,7 @@ const delay = (): Promise<void> => {
   if (!MOCK_DELAY_ENABLED) {
     return Promise.resolve();
   }
-  const duration =
-    MIN_MOCK_DELAY_MS + Math.random() * (MAX_MOCK_DELAY_MS - MIN_MOCK_DELAY_MS);
+  const duration = MIN_MOCK_DELAY_MS + Math.random() * (MAX_MOCK_DELAY_MS - MIN_MOCK_DELAY_MS);
   return wait(duration);
 };
 

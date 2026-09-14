@@ -2,12 +2,12 @@
     import type { HTMLAttributes } from "svelte/elements";
     import type { Snippet } from "svelte";
 
-    type Interactive = {
+    interface Interactive {
         onselect: () => void;
-    };
-    type Static = {
+    }
+    interface Static {
         onselect?: undefined;
-    };
+    }
 
     type Props = (Interactive | Static) & {
         children: Snippet;
