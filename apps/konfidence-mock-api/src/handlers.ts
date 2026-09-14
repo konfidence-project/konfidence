@@ -18,20 +18,22 @@ type MockHandler = (
 const httpError = (status: number, message: string): Error =>
   Object.assign(new Error(message), { statusCode: status });
 
-const MIN_ARTIFACT_DELAY_MS = 500;
-const MAX_ARTIFACT_DELAY_MS = 3000;
+const MOCK_DELAY_ENABLED = process.env.KONFIDENCE_MOCK_DELAY === "1";
+const MIN_MOCK_DELAY_MS = 500;
+const MAX_MOCK_DELAY_MS = 2000;
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
 
-const randomArtifactDelay = (): Promise<void> => {
-  if (process.env.KONFIDENCE_MOCK_NO_DELAY === "1") {
+const delay = (): Promise<void> => {
+  if (!MOCK_DELAY_ENABLED) {
     return Promise.resolve();
   }
-  const span = MAX_ARTIFACT_DELAY_MS - MIN_ARTIFACT_DELAY_MS;
-  return wait(MIN_ARTIFACT_DELAY_MS + Math.random() * span);
+  const duration =
+    MIN_MOCK_DELAY_MS + Math.random() * (MAX_MOCK_DELAY_MS - MIN_MOCK_DELAY_MS);
+  return wait(duration);
 };
 
 const absoluteUrl = (value: string | undefined, whenInvalid: string): string => {
@@ -41,7 +43,6 @@ const absoluteUrl = (value: string | undefined, whenInvalid: string): string => 
     throw httpError(400, whenInvalid);
   }
 };
-
 const inLandscape = <Item extends { landscapeId?: string }>(
   items: Item[],
   landscapeId?: string,
@@ -118,7 +119,6 @@ const operationHandlers = {
   },
   getVectorPromotionV1: (request, reply) => reply.send(promotionFor(request)),
   listArtifactDeploymentsV1: async (request, reply) => {
-    await randomArtifactDelay();
     const { landscapeId, vectorDeploymentId } = request.query as Query<"listArtifactDeploymentsV1">;
     const data = inLandscape(projectFor(request).artifactDeployments, landscapeId).filter(
       (deployment) =>
@@ -161,4 +161,4 @@ const securityHandlers = {
   },
 };
 
-export { operationHandlers, securityHandlers };
+export { delay, operationHandlers, securityHandlers };

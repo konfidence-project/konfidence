@@ -5,7 +5,7 @@ import fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import openapiGlue from "fastify-openapi-glue";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { operationHandlers, securityHandlers } from "./handlers.js";
+import { delay, operationHandlers, securityHandlers } from "./handlers.js";
 
 const OPENAPI_PATH = fileURLToPath(new URL("../../../api/openapi.yaml", import.meta.url));
 
@@ -22,6 +22,8 @@ const createMockServer = async (): Promise<FastifyInstance> => {
   const server = fastify({
     ajv: { customOptions: { coerceTypes: false, validateFormats: false } },
   });
+
+  server.addHook("onRequest", delay);
 
   server.setErrorHandler((error: FastifyError, _request, reply) => {
     const status = error.statusCode ?? 500;
