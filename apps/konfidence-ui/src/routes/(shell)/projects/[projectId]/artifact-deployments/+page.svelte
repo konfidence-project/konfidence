@@ -1,34 +1,25 @@
 <script lang="ts">
-    import { page } from "$app/state";
     import ArtifactDeploymentsView from "$lib/artifact-deployments/ArtifactDeploymentsView.svelte";
-    import { ArtifactDeploymentsStore } from "$lib/artifact-deployments/store.svelte";
-    import { LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "$lib/artifact-deployments/params";
-    import { getApiClient } from "$lib/konfidence-api/client-instance";
+    import type { PageProps } from "./$types";
 
-    const store = new ArtifactDeploymentsStore(getApiClient());
-
-    const projectId = $derived(page.params.projectId as string);
-    const landscapeId = $derived(page.url.searchParams.get(LANDSCAPE_PARAM) ?? undefined);
-    const vectorDeploymentId = $derived(
-        page.url.searchParams.get(VECTOR_DEPLOYMENT_PARAM) ?? undefined,
-    );
-
-    $effect(() => {
-        void store.refresh(projectId, { landscapeId, vectorDeploymentId });
-    });
+    let { data }: PageProps = $props();
 </script>
 
 <svelte:head><title>Artifact Deployments · Konfidence</title></svelte:head>
 
 <ArtifactDeploymentsView
-    artifactDeployments={store.artifactDeployments}
-    landscapes={store.landscapes}
-    stages={store.stages}
-    vectorDeployments={store.vectorDeployments}
-    selectedLandscapeId={landscapeId}
-    selectedVectorDeploymentId={vectorDeploymentId}
-    loading={store.status === "loading"}
-    hasLoaded={store.hasLoaded}
-    error={store.status === "error" ? store.error : undefined}
-    onRetry={() => store.refresh(projectId, { landscapeId, vectorDeploymentId })}
+    artifactDeployments={data.store.artifactDeployments}
+    landscapes={data.store.landscapes}
+    stages={data.store.stages}
+    vectorDeployments={data.store.vectorDeployments}
+    selectedLandscapeId={data.landscapeId}
+    selectedVectorDeploymentId={data.vectorDeploymentId}
+    loading={data.store.status === "loading"}
+    hasLoaded={data.store.hasLoaded}
+    error={data.store.status === "error" ? data.store.error : undefined}
+    onRetry={() =>
+        data.store.refresh(data.projectId, {
+            landscapeId: data.landscapeId,
+            vectorDeploymentId: data.vectorDeploymentId,
+        })}
 />
