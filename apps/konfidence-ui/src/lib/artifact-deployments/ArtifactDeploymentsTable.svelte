@@ -5,7 +5,6 @@
     import "@ui5/webcomponents/dist/Icon.js";
     import { Render, Subscribe } from "@humanspeak/svelte-headless-table";
     import {
-        StatusBadge,
         Table,
         TableCell,
         TableHeaderCell,
@@ -13,8 +12,10 @@
     } from "@konfidence/design-system/components";
     import { toStore } from "svelte/store";
 
+    import MonoCell from "./cells/MonoCell.svelte";
+    import StatusCell from "./cells/StatusCell.svelte";
+    import TagListCell from "./cells/TagListCell.svelte";
     import type { ArtifactDeploymentRow } from "./deployments.js";
-    import { statusLabel, statusTone } from "./deployments.js";
     import { createArtifactTable } from "./createArtifactTable.js";
 
     interface Props {
@@ -92,40 +93,17 @@
                         <Subscribe attrs={cell.attrs()} let:attrs>
                             <TableCell {...attrs} data-column={cell.id}>
                                 {#if cell.id === "status"}
-                                    <StatusBadge status={statusTone(rowData.status)}>
-                                        {statusLabel(rowData.status)}
-                                    </StatusBadge>
+                                    <StatusCell status={rowData.status} />
                                 {:else if cell.id === "stages"}
-                                    {#if rowData.stageNames.length === 0}
-                                        <span class="text-[color:var(--text-tertiary)]">—</span>
-                                    {:else}
-                                        <div class="inline-flex flex-wrap gap-1">
-                                            {#each rowData.stageNames as name (name)}
-                                                <span
-                                                    class="inline-flex items-center rounded-[var(--tag-radius)] bg-[color:var(--surface-sunken)] px-2 py-0.5 text-[length:var(--text-meta)] font-medium text-[color:var(--text-secondary)]"
-                                                    >{name}</span
-                                                >
-                                            {/each}
-                                        </div>
-                                    {/if}
+                                    <TagListCell labels={rowData.stageNames} />
                                 {:else if cell.id === "vectorDeployments"}
-                                    {#if rowData.vectorDeploymentLabels.length === 0}
-                                        <span class="text-[color:var(--text-tertiary)]">—</span>
-                                    {:else}
-                                        <div class="inline-flex flex-wrap gap-1">
-                                            {#each rowData.vectorDeploymentLabels as label, index (rowData.vectorDeploymentIds[index] ?? label)}
-                                                <span
-                                                    class="inline-flex items-center rounded-[var(--tag-radius)] bg-[color:var(--surface-sunken)] px-2 py-0.5 font-[family-name:var(--font-mono)] text-[length:var(--text-meta)] font-medium text-[color:var(--text-secondary)]"
-                                                    >{label}</span
-                                                >
-                                            {/each}
-                                        </div>
-                                    {/if}
+                                    <TagListCell
+                                        labels={rowData.vectorDeploymentLabels}
+                                        keys={rowData.vectorDeploymentIds}
+                                        mono
+                                    />
                                 {:else if cell.id === "id" || cell.id === "version" || cell.id === "repository"}
-                                    <span
-                                        class="font-[family-name:var(--font-mono)] text-[length:var(--text-sm)] text-[color:var(--text-secondary)]"
-                                        ><Render of={cell.render()} /></span
-                                    >
+                                    <MonoCell><Render of={cell.render()} /></MonoCell>
                                 {:else}
                                     <Render of={cell.render()} />
                                 {/if}
