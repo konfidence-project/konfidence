@@ -56,15 +56,17 @@ describe("<Button>", () => {
 
   it("renders a ui5-icon when the icon prop is set", async () => {
     render(ButtonFixture, { label: "Add", icon: "add" });
-    const btn = page.getByRole("button", { name: "Add" });
-    await expect.element(btn.locator("ui5-icon")).toBeInTheDocument();
-    await expect.element(btn.locator("ui5-icon")).toHaveAttribute("name", "add");
+    await expect.element(page.getByRole("button", { name: "Add" })).toBeInTheDocument();
+    await customElements.whenDefined("ui5-icon");
+    const icon = document.querySelector<HTMLElement & { name?: string }>("button.btn ui5-icon");
+    expect(icon?.getAttribute("name")).toBe("add");
   });
 
   it("renders no icon element when icon prop is omitted", async () => {
     render(ButtonFixture, { label: "Deploy" });
-    const btn = page.getByRole("button", { name: "Deploy" });
-    expect(btn.locator("ui5-icon").elements()).toHaveLength(0);
+    await expect.element(page.getByRole("button", { name: "Deploy" })).toBeInTheDocument();
+    const icon = document.querySelector("button.btn ui5-icon");
+    expect(icon).toBeNull();
   });
 
   describe("variant snapshots", () => {
