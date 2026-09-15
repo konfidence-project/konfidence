@@ -345,7 +345,7 @@ dev-apiserver: hermit manifests setup-envtest ## Run a standalone envtest apiser
 
 .PHONY: dev-registry
 dev-registry: ## Start a local OCI registry at localhost:5001.
-	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh registry
+	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) KUBECTL=$(KUBECTL) ./hack/kind/dev-cluster.sh registry
 
 .PHONY: dev-up
 dev-up: ## Start the local identity provider (Authelia behind Caddy) and Postgres for the API server.
@@ -369,11 +369,11 @@ dev-db-migrate: hermit ## Apply the API server's migrations to the Postgres from
 
 .PHONY: dev-cluster
 dev-cluster: hermit ## Create a local kind cluster wired to the local OCI registry (starts it if needed).
-	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh up
+	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) KUBECTL=$(KUBECTL) ./hack/kind/dev-cluster.sh up
 
 .PHONY: dev-cluster-down
 dev-cluster-down: hermit ## Delete the local kind cluster and its registry container.
-	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) ./hack/kind/dev-cluster.sh down
+	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) KUBECTL=$(KUBECTL) ./hack/kind/dev-cluster.sh down
 
 # Local-only targets (not in pipeline); they cross-compile for Linux themselves.
 .PHONY: docker-build
