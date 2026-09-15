@@ -34,13 +34,19 @@ For detailed installation instructions and production deployment considerations,
 
 ## Local Development
 
-The smallest loop needs no cluster. Activate Hermit, start an envtest apiserver with the
-Konfidence CRDs, export the kubeconfig it prints, then run the operator and the API server
-in separate terminals:
+The smallest loop needs no cluster. Start an envtest apiserver with the Konfidence CRDs; it
+keeps running and prints the kubeconfig to export:
 
 ```sh
 source ./bin/activate-hermit
 make dev-apiserver
+```
+
+Then run the operator and the API server, each in its own terminal, with that kubeconfig:
+
+```sh
+source ./bin/activate-hermit
+export KUBECONFIG=$PWD/.tmp/envtest.kubeconfig
 make webhook-certs
 make run
 make run-kden-api

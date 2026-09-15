@@ -9,6 +9,7 @@ set -euo pipefail
 
 CONTAINER_TOOL="${CONTAINER_TOOL:-docker}"
 KIND="${KIND:-kind}"
+KUBECTL="${KUBECTL:-kubectl}"
 CLUSTER_NAME="konfidence-dev"
 REGISTRY_NAME="kind-registry"
 REGISTRY_PORT="5001"
@@ -68,7 +69,7 @@ EOF
     "${CONTAINER_TOOL}" network connect kind "${REGISTRY_NAME}"
   fi
 
-  cat <<EOF | kubectl --context "${KUBE_CONTEXT}" apply -f -
+  cat <<EOF | "${KUBECTL}" --context "${KUBE_CONTEXT}" apply -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
