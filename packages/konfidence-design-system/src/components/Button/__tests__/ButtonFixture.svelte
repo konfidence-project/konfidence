@@ -7,6 +7,7 @@
         disabled?: boolean;
         "aria-label"?: string;
         label: string;
+        icon?: string;
         onclick?: () => void;
     }
 
