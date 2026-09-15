@@ -119,6 +119,8 @@ api:
   env: []
   volumes: []
   volumeMounts: []
+  # -- Host aliases added to the API pod. Used by local development to reach an identity provider on the host.
+  hostAliases: []
 
   replicas: 1
 
