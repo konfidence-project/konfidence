@@ -108,7 +108,6 @@
         height: 100%;
         width: 0;
         border-radius: var(--radius-pill);
-        transition: width var(--motion-slow) ease-out;
     }
     .stage-progress__seg--done .stage-progress__bar span {
         width: 100%;
