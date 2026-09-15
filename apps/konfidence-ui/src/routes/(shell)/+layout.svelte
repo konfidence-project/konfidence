@@ -39,6 +39,7 @@
     const canvasPage = $derived(
         page.route.id === "/(shell)/projects/[projectId]/landscape",
     );
+    const shellLayout = $derived(canvasPage ? "canvas" : "scroll");
 
     const isDark = $derived(isDarkMode(themeStore.mode));
     const logoSrc = $derived(
@@ -61,51 +62,47 @@
     });
 </script>
 
-<div
-    class={[
-        canvasPage &&
-            "[&_.app-shell]:h-dvh [&_.app-shell]:min-h-0 [&_.app-shell>div]:min-h-0 [&_main]:min-h-0 [&_[data-testid=embedded-main]]:h-dvh",
-    ]}
->
-    <ProjectsProvider>
-        {#if embedded}
-            <main class="min-h-dvh" data-testid="embedded-main">
+<ProjectsProvider>
+    {#if embedded}
+        <main
+            class={canvasPage ? "h-dvh min-h-0" : "min-h-dvh"}
+            data-testid="embedded-main"
+        >
+            <ProjectsContent>{@render children()}</ProjectsContent>
+        </main>
+    {:else}
+        <AppShell layout={shellLayout}>
+            {#snippet topbar({ toggleDrawer })}
+                <TopBar onHamburger={toggleDrawer}>
+                    {#snippet logo()}
+                        <a
+                            href={resolve("/")}
+                            aria-label="Konfidence home"
+                            data-testid="brand-home"
+                        >
+                            <img
+                                class="topbar__logo"
+                                src={logoSrc}
+                                alt="Konfidence"
+                            />
+                        </a>
+                    {/snippet}
+                    {#snippet switcher()}
+                        <ProjectSelector />
+                    {/snippet}
+                    {#snippet actions()}
+                        <UserMenu />
+                    {/snippet}
+                </TopBar>
+            {/snippet}
+
+            {#snippet sidebar({ closeDrawer })}
+                <SideNav {closeDrawer} />
+            {/snippet}
+
+            {#snippet main()}
                 <ProjectsContent>{@render children()}</ProjectsContent>
-            </main>
-        {:else}
-            <AppShell>
-                {#snippet topbar({ toggleDrawer })}
-                    <TopBar onHamburger={toggleDrawer}>
-                        {#snippet logo()}
-                            <a
-                                href={resolve("/")}
-                                aria-label="Konfidence home"
-                                data-testid="brand-home"
-                            >
-                                <img
-                                    class="topbar__logo"
-                                    src={logoSrc}
-                                    alt="Konfidence"
-                                />
-                            </a>
-                        {/snippet}
-                        {#snippet switcher()}
-                            <ProjectSelector />
-                        {/snippet}
-                        {#snippet actions()}
-                            <UserMenu />
-                        {/snippet}
-                    </TopBar>
-                {/snippet}
-
-                {#snippet sidebar({ closeDrawer })}
-                    <SideNav {closeDrawer} />
-                {/snippet}
-
-                {#snippet main()}
-                    <ProjectsContent>{@render children()}</ProjectsContent>
-                {/snippet}
-            </AppShell>
-        {/if}
-    </ProjectsProvider>
-</div>
+            {/snippet}
+        </AppShell>
+    {/if}
+</ProjectsProvider>

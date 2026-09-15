@@ -33,9 +33,24 @@
          * link. Overridable in case the app wants a shorter/aliased id.
          */
         mainId?: string;
+        /**
+         * Layout mode.
+         * - `"scroll"` (default): shell grows to fit content and the main
+         *   region scrolls internally.
+         * - `"canvas"`: shell is pinned to the viewport height and the main
+         *   region hands vertical space to the page for full-height canvases
+         *   (e.g. SvelteFlow). The page owns its own scrolling if needed.
+         */
+        layout?: "scroll" | "canvas";
     }
 
-    let { topbar, sidebar, main, mainId = "app-shell-main" }: Props = $props();
+    let {
+        topbar,
+        sidebar,
+        main,
+        mainId = "app-shell-main",
+        layout = "scroll",
+    }: Props = $props();
 
     let drawerOpen = $state(false);
     const toggleDrawer = (): void => {
@@ -50,10 +65,20 @@
     class="skip-link absolute top-3 left-3 z-[500] -translate-y-[200%] rounded-[var(--radius-md)] border border-[var(--border-focus)] bg-[var(--surface-default)] py-1.5 px-2.5 text-[length:var(--text-sm)] text-[var(--text-primary)] focus-visible:translate-y-0"
     href={`#${mainId}`}
 >Skip to main content</a>
-<div class="app-shell grid min-h-dvh grid-rows-[4px_56px_1fr]">
+<div
+    class={[
+        "app-shell grid grid-rows-[4px_56px_1fr]",
+        layout === "canvas" ? "h-dvh min-h-0" : "min-h-dvh",
+    ]}
+>
     <Brandbar />
     {@render topbar({ toggleDrawer })}
-    <div class="app-shell__body grid grid-cols-[224px_1fr] overflow-hidden max-md:grid-cols-1">
+    <div
+        class={[
+            "app-shell__body grid grid-cols-[224px_1fr] overflow-hidden max-md:grid-cols-1",
+            layout === "canvas" && "min-h-0",
+        ]}
+    >
         <aside class="app-shell__sidebar flex flex-col overflow-y-auto" data-open={drawerOpen ? "true" : "false"}>
             {@render sidebar({ closeDrawer })}
         </aside>
@@ -65,7 +90,13 @@
             tabindex={drawerOpen ? 0 : -1}
             onclick={closeDrawer}
         ></button>
-        <main class="app-shell__main min-w-0 overflow-y-auto" id={mainId}>
+        <main
+            class={[
+                "app-shell__main min-w-0",
+                layout === "canvas" ? "min-h-0 overflow-hidden" : "overflow-y-auto",
+            ]}
+            id={mainId}
+        >
             {@render main()}
         </main>
     </div>
