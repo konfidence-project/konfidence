@@ -1,19 +1,9 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { signIn } from "../../../../e2e/helpers";
+import { signIn, useScenario } from "../../../../e2e/helpers";
 
 const PROJECTS_API = "**/api/v1/projects";
 const NOOP = (): void => undefined;
-
-const useScenario = async (page: Page, scenario: string): Promise<void> => {
-  await page.context().addCookies([
-    {
-      name: "konfidence_mock_scenario",
-      url: "http://127.0.0.1:8091",
-      value: scenario,
-    },
-  ]);
-};
 
 const switchToIdentity = async (page: Page): Promise<void> => {
   await page.locator(".topbar").getByTestId("project-switch").click();

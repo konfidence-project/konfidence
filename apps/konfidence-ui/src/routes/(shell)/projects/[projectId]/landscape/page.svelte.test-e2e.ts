@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { signIn } from "../../../../../../e2e/helpers";
+import { signIn, useScenario } from "../../../../../../e2e/helpers";
 
 const LANDSCAPES_API = "**/api/v1/projects/payments-platform/landscapes";
 const STAGES_API = "**/api/v1/projects/payments-platform/stages*";
@@ -34,16 +34,6 @@ const DRAG_START_X = 20;
 const DRAG_START_Y = 20;
 const DRAG_MOVE_X = 160;
 const DRAG_MOVE_Y = 120;
-
-const useScenario = async (page: Page, scenario: string): Promise<void> => {
-  await page.context().addCookies([
-    {
-      name: "konfidence_mock_scenario",
-      url: "http://127.0.0.1:8091",
-      value: scenario,
-    },
-  ]);
-};
 
 // oxlint-disable-next-line eslint/max-statements -- One journey covers every landscape label, category, and status shape on the single canvas.
 test("renders the admin mock landscape data on one flow canvas", async ({ page }) => {

@@ -26,7 +26,6 @@ export default defineConfig({
     "import/no-nodejs-modules": "off",
     "import/prefer-default-export": "off",
     "no-magic-numbers": ["warn", { ignore: [-1, 0, 1, 200, 302, 400, 401, 403, 404, 405, 500] }],
-    "one-var": "off",
     "sort-imports": "off",
   },
 });
