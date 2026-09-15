@@ -7,54 +7,63 @@ type Stage = components["schemas"]["Stage"];
 const LANDSCAPES_ROUTE = "/v1/projects/{projectId}/landscapes" satisfies keyof paths;
 const STAGES_ROUTE = "/v1/projects/{projectId}/stages" satisfies keyof paths;
 
-interface LandscapeData {
-  landscapes: readonly Landscape[];
-  stages: readonly Stage[];
-}
+type LandscapeResource = "landscapes" | "stages";
 
 class LandscapeApiError extends Error {
   readonly status: number;
+  readonly resource: LandscapeResource;
 
-  constructor(resource: string, status: number) {
+  constructor(resource: LandscapeResource, status: number) {
     super(`Unable to load ${resource} (status ${status})`);
     this.name = "LandscapeApiError";
     this.status = status;
+    this.resource = resource;
   }
 }
 
-interface GetLandscapeDataOptions {
+interface GetLandscapesOptions {
   client: ApiClient;
   projectId: string;
   signal: AbortSignal;
+}
+
+interface GetStagesOptions extends GetLandscapesOptions {
   landscapeId?: string;
 }
 
-const getLandscapeData = async ({
+const getLandscapes = async ({
+  client,
+  projectId,
+  signal,
+}: GetLandscapesOptions): Promise<readonly Landscape[]> => {
+  const result = await client.GET(LANDSCAPES_ROUTE, {
+    params: { path: { projectId } },
+    signal,
+  });
+  if (!result.data) {
+    throw new LandscapeApiError("landscapes", result.response.status);
+  }
+  return result.data.data;
+};
+
+const getStages = async ({
   client,
   projectId,
   signal,
   landscapeId,
-}: GetLandscapeDataOptions): Promise<LandscapeData> => {
-  const path = { projectId };
-  const [landscapes, stages] = await Promise.all([
-    client.GET(LANDSCAPES_ROUTE, { params: { path }, signal }),
-    client.GET(STAGES_ROUTE, {
-      params: {
-        path,
-        query: landscapeId === undefined ? undefined : { landscapeId },
-      },
-      signal,
-    }),
-  ]);
-
-  if (!landscapes.data) {
-    throw new LandscapeApiError("landscapes", landscapes.response.status);
+}: GetStagesOptions): Promise<readonly Stage[]> => {
+  const result = await client.GET(STAGES_ROUTE, {
+    params: {
+      path: { projectId },
+      query: landscapeId === undefined ? undefined : { landscapeId },
+    },
+    signal,
+  });
+  if (!result.data) {
+    throw new LandscapeApiError("stages", result.response.status);
   }
-  if (!stages.data) {
-    throw new LandscapeApiError("stages", stages.response.status);
-  }
-  return { landscapes: landscapes.data.data, stages: stages.data.data };
+  return result.data.data;
 };
 
-export { getLandscapeData, LandscapeApiError };
-export type { Landscape, LandscapeData, Stage };
+export { getLandscapes, getStages, LandscapeApiError };
+export type { Landscape, LandscapeResource, Stage };

@@ -11,14 +11,29 @@ describe("landscape requests", () => {
         : Response.json({ data: [] }),
     );
     const store = new LandscapeDataStore(createApiClient({ fetch }));
-    await store.load("payments");
+    await store.refresh("payments");
     expect(store.status).toBe("error");
     expect(store.errorStatus).toBe(503);
+    expect(store.errorSource).toBe("landscapes");
     failed = false;
-    await store.load("payments");
+    await store.refresh("payments");
     expect(store.status).toBe("ready");
     expect(store.error).toBeUndefined();
-    expect(fetch).toHaveBeenCalledTimes(4);
+    // 1 failed landscapes call, then 1 successful landscapes + 1 successful stages call.
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("reports the errorSource as 'stages' when landscapes load but stages fail", async () => {
+    const fetch = vi.fn(async (request: Request) =>
+      request.url.endsWith("/landscapes")
+        ? Response.json({ data: [{ id: "primary", name: "Primary" }] })
+        : Response.json({ error: { code: "404", message: "Not found" } }, { status: 404 }),
+    );
+    const store = new LandscapeDataStore(createApiClient({ fetch }));
+    await store.refresh("payments", { landscapeId: "nowhere" });
+    expect(store.status).toBe("error");
+    expect(store.errorStatus).toBe(404);
+    expect(store.errorSource).toBe("stages");
   });
 
   it("ignores an old project response even if fetch does not honor cancellation", async () => {
@@ -35,9 +50,9 @@ describe("landscape requests", () => {
       });
     });
     const store = new LandscapeDataStore(createApiClient({ fetch }));
-    const oldRequest = store.load("old");
-    await vi.waitFor(() => expect(pending).toHaveLength(2));
-    await store.load("new");
+    const oldRequest = store.refresh("old");
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+    await store.refresh("new");
     for (const resolve of pending) {
       resolve();
     }
