@@ -3,8 +3,8 @@
     import "@xyflow/svelte/dist/style.css";
     import { Controls, SvelteFlow } from "@xyflow/svelte";
     import type { Node } from "@xyflow/svelte";
-    import type { Landscape, Stage } from "$lib/landscape/api";
-    import { groupStages } from "$lib/landscape/grouping";
+    import type { Landscape, Stage } from "$lib/landscape/landscapeApi";
+    import { groupStages } from "$lib/landscape/stageGrouping";
     import { stageDetailsUrl } from "$lib/projects/url";
     import { themeStore } from "$lib/theme";
     import StageNode from "$lib/landscape/components/StageNode.svelte";

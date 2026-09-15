@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Button, OrbitLoader } from "@konfidence/design-system/components";
-    import type { Landscape, Stage } from "$lib/landscape/api";
-    import type { LandscapeDataStatus } from "$lib/landscape/landscape-data.svelte";
+    import type { Landscape, Stage } from "$lib/landscape/landscapeApi";
+    import type { LandscapeDataStatus } from "$lib/landscape/landscapeData.svelte";
     import StageVersionDetails from "$lib/landscape/components/StageVersionDetails.svelte";
 
     interface Props {

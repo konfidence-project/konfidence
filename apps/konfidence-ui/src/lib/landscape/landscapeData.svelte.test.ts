@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createApiClient } from "$lib/konfidence-api/client";
-import { LandscapeDataStore } from "$lib/landscape/landscape-data.svelte";
+import { LandscapeDataStore } from "$lib/landscape/landscapeData.svelte";
 
 describe("landscape requests", () => {
   it("retries both resources after an API failure", async () => {

@@ -1,6 +1,6 @@
 import type { ApiClient } from "$lib/konfidence-api/client";
-import { LandscapeApiError, getLandscapes, getStages } from "$lib/landscape/api";
-import type { Landscape, LandscapeResource, Stage } from "$lib/landscape/api";
+import { LandscapeApiError, getLandscapes, getStages } from "$lib/landscape/landscapeApi";
+import type { Landscape, LandscapeResource, Stage } from "$lib/landscape/landscapeApi";
 
 type LandscapeDataStatus = "loading" | "ready" | "error";
 

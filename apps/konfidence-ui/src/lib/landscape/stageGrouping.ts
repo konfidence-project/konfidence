@@ -1,4 +1,4 @@
-import type { Stage } from "$lib/landscape/api";
+import type { Stage } from "$lib/landscape/landscapeApi";
 
 type StageGroups = Record<"dev" | "test" | "prod" | "other", Stage[]>;
 

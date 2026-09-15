@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupStages } from "$lib/landscape/grouping";
+import { groupStages } from "$lib/landscape/stageGrouping";
 
 describe("stage categories", () => {
   it("matches prefixes case-insensitively and retains API order within each category", () => {

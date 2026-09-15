@@ -1,7 +1,7 @@
 <script lang="ts">
     import { StatusBadge } from "@konfidence/design-system/components";
-    import type { Stage } from "$lib/landscape/api";
-    import { stageStatuses } from "$lib/landscape/status";
+    import type { Stage } from "$lib/landscape/landscapeApi";
+    import { stageStatuses } from "$lib/landscape/stageStatus";
 
     interface Props {
         stage: Stage;

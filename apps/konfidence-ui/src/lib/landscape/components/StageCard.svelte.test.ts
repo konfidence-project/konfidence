@@ -2,9 +2,9 @@ import "../../../app.css";
 import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
-import type { Stage } from "$lib/landscape/api";
+import type { Stage } from "$lib/landscape/landscapeApi";
 import StageCard from "$lib/landscape/components/StageCard.svelte";
-import type { StageVersion } from "$lib/landscape/status";
+import type { StageVersion } from "$lib/landscape/stageStatus";
 
 const active: StageVersion = {
   id: "dev-api-v1",

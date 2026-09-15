@@ -1,5 +1,5 @@
 import { getApiClient } from "$lib/konfidence-api/client-instance";
-import { LandscapeDataStore } from "$lib/landscape/landscape-data.svelte";
+import { LandscapeDataStore } from "$lib/landscape/landscapeData.svelte";
 import type { PageLoad } from "./$types";
 
 export const load: PageLoad = ({ params }) => {
