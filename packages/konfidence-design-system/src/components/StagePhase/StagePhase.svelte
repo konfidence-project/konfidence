@@ -4,12 +4,18 @@
      * pill-shaped bars, one per phase, each in one of four states:
      *
      *   • done    → 100 % green gradient fill
-     *   • active  →  60 % blue  gradient fill
+     *   • active  → 100 % blue  gradient fill (running)
      *   • failed  → 100 % red   gradient fill
      *   • pending →   0 % fill (empty track)
      *
-     * Mirrors the `.stage-progress` primitive from the Konfidence
-     * design-system reference (see design-system/components.css).
+     * Colour alone distinguishes `active` (running) from `done`
+     * (completed); the bar width is intentionally uniform across all
+     * three filled states so the strip reads as a coloured status
+     * ribbon rather than a per-segment progress meter. This is a
+     * deliberate divergence from the design-system reference (which
+     * paints `active` at 60 %); label typography (semibold blue vs
+     * medium green) still separates running from completed.
+     *
      * The parent decides what the phases are and what state each is
      * in — this component is a passive dispatcher, styling only.
      */
@@ -109,7 +115,7 @@
         background: var(--progress-done);
     }
     .stage-progress__seg--active .stage-progress__bar span {
-        width: 60%;
+        width: 100%;
         background: var(--progress-active);
     }
     .stage-progress__seg--failed .stage-progress__bar span {

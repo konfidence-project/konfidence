@@ -78,7 +78,7 @@
      * the design-system `.stage-progress` semantics:
      *
      *   • done    — completed step
-     *   • active  — currently running (60 % blue fill)
+     *   • active  — currently running (blue fill)
      *   • failed  — this step failed (100 % red fill)
      *   • pending — not started yet
      */
