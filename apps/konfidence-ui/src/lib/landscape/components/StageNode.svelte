@@ -22,6 +22,15 @@
     };
 </script>
 
-<div class="nodrag nopan" onfocusin={revealFocusedCard}>
+<!--
+  Wrapper carries no `.nodrag` / `.nopan` opt-outs. Node repositioning
+  is already disabled at the SvelteFlow level (`nodesDraggable={false}`
+  in LandscapeFlow), and dropping `.nopan` lets touches/drags that land
+  on a card initiate a canvas pan — critical for mobile viewports where
+  cards cover most of the pane. Short taps still fire the underlying
+  `<a>` link because xyflow uses a small drag threshold before it
+  commits to a pan.
+-->
+<div onfocusin={revealFocusedCard}>
     <StageCard {...data} />
 </div>

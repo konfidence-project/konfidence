@@ -1,7 +1,7 @@
 <script lang="ts">
     /* oxlint-disable eslint/id-length -- SvelteFlow positions use x and y coordinates. */
     import "@xyflow/svelte/dist/style.css";
-    import { Controls, SvelteFlow } from "@xyflow/svelte";
+    import { Controls, PanOnScrollMode, SvelteFlow } from "@xyflow/svelte";
     import type { Node } from "@xyflow/svelte";
     import type { Landscape, Stage } from "$lib/landscape/landscapeApi";
     import { groupStages } from "$lib/landscape/stageGrouping";
@@ -109,6 +109,8 @@
             deleteKey={null}
             selectionKey={null}
             multiSelectionKey={null}
+            panOnScroll
+            panOnScrollMode={PanOnScrollMode.Free}
         >
             <Controls showLock={false} />
             <LandscapeCanvasResize

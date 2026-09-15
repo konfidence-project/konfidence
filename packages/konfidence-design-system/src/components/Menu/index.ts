@@ -14,9 +14,21 @@ import MenuSeparator from "./MenuSeparator.svelte";
  * Composition rules:
  * - `Menu` renders Skeleton's state provider (via `MenuRoot`). Pass
  *   `positioning`, `onSelect`, etc. through as usual.
- * - `Menu.Trigger` is re-exported from Skeleton unchanged: consumers
- *   apply their own trigger class (`.avatar`, `.project-switch`) because
- *   trigger visuals are context-specific.
+ * - `Menu.Trigger` is re-exported from Skeleton unchanged. Trigger
+ *   visuals are context-specific, so consumers render the appropriate
+ *   DS component via Skeleton's `element` snippet and spread the Zag
+ *   attribute bag onto it:
+ *
+ *     <Menu.Trigger>
+ *       {#snippet element(attributes)}
+ *         <Avatar {...attributes} class={attributes.class} orbit />
+ *       {/snippet}
+ *     </Menu.Trigger>
+ *
+ *   Attaching raw class names such as `"avatar"` directly to
+ *   `Menu.Trigger` will not paint anything — the DS emits component
+ *   visuals from each component's own scoped template, not as global
+ *   CSS rules.
  * - `Menu.ItemGroup` is re-exported unchanged from Skeleton for
  *   consumers who want to group options.
  * - `Menu.Positioner` adds `.menu-positioner` so the panel stacks
