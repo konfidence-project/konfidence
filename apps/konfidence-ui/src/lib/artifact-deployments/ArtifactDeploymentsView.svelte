@@ -105,8 +105,10 @@
                     data-testid="artifact-status-filter"
                 >
                     <option value="">All statuses</option>
-                    <option value="ArtifactDeployed">Deployed</option>
                     <option value="ArtifactFetched">Fetched</option>
+                    <option value="ArtifactDeployed">Deployed</option>
+                    <option value="AppHealthy">Healthy</option>
+                    <option value="Ready">Ready</option>
                 </Select>
             </label>
             <label class="flex min-w-[12rem] flex-col gap-1">
