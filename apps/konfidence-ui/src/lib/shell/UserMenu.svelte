@@ -39,6 +39,7 @@
         {#snippet element(attributes)}
             <Avatar
                 {...attributes}
+                as="button"
                 class={attributes.class}
                 {initials}
                 orbit

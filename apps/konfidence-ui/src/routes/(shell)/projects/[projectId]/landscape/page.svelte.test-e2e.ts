@@ -138,16 +138,21 @@ test("groups stages and opens a real detail route with the keyboard", async ({ p
 });
 
 test("recovers from an overview API error and fits a mobile viewport", async ({ page }) => {
-  let attempts = 0;
-  await page.route(LANDSCAPES_API, (route) => {
-    attempts += 1;
-    return attempts === 1
+  // The +page.ts loader fires an API call at load-time — including
+  // during the pre-auth navigation that happens inside `signIn()`. Using
+  // a simple attempts counter would burn the 503 on that discarded pre-
+  // auth load; drive the mock via an explicit phase flag instead so the
+  // 503 lands on the authenticated landscape render, and the retry-click
+  // resolves against the success payload.
+  let failing = true;
+  await page.route(LANDSCAPES_API, (route) =>
+    failing
       ? route.fulfill({
           json: { error: { code: "503", message: "Unavailable" } },
           status: 503,
         })
-      : route.fulfill({ json: { data: [{ id: "primary", name: "Primary" }] } });
-  });
+      : route.fulfill({ json: { data: [{ id: "primary", name: "Primary" }] } }),
+  );
   await page.route(STAGES_API, (route) => route.fulfill({ json: { data: [stage] } }));
   await page.setViewportSize({ height: 800, width: 375 });
   await signIn(
@@ -157,6 +162,7 @@ test("recovers from an overview API error and fits a mobile viewport", async ({ 
   );
 
   await expect(page.getByRole("heading", { name: "Landscape could not be loaded" })).toBeVisible();
+  failing = false;
   await page.getByRole("button", { name: "Retry" }).click();
   await expect(page.getByRole("link", { name: /View details for stage dev-api/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
