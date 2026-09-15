@@ -15,6 +15,8 @@ export { default as SearchInput } from "./SearchInput/SearchInput.svelte";
 export { default as Select } from "./Select/Select.svelte";
 export { default as Sidebar } from "./Sidebar/Sidebar.svelte";
 export { default as SidePanel } from "./SidePanel/SidePanel.svelte";
+export { default as StagePhase } from "./StagePhase/StagePhase.svelte";
+export type { StagePhaseItem, StagePhaseSize, StagePhaseState } from "./StagePhase/types.js";
 export { default as StatusBadge } from "./StatusBadge/StatusBadge.svelte";
 export { default as Table } from "./Table/Table.svelte";
 export { default as TableCell } from "./Table/TableCell.svelte";

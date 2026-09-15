@@ -79,6 +79,14 @@ for (const mode of ["light", "dark"]) {
         await expect.element(page.getByRole("link")).toMatchScreenshot();
       });
     }
+
+    it("renders selected", async () => {
+      await page.viewport(304, 300);
+      document.documentElement.setAttribute("data-theme", "konfidence");
+      document.documentElement.setAttribute("data-mode", mode);
+      render(StageCard, { ...props, selected: true, stage: scenarios.deploying });
+      await expect.element(page.getByRole("link")).toMatchScreenshot();
+    });
   });
 }
 
@@ -90,20 +98,37 @@ it("keeps the active version visible when a new target fails and responds to pro
   await expect.element(link).toHaveAttribute("href", props.href);
   await expect.element(page.getByRole("group", { exact: true, name: "Failed" })).toBeVisible();
   await expect.element(page.getByText(active.id)).toBeVisible();
-  await expect.element(page.getByText("Active", { exact: true })).not.toBeInTheDocument();
+  await expect.element(page.getByText("live", { exact: true })).not.toBeInTheDocument();
   await rendered.rerender({ ...props, stage: scenarios.active });
-  await expect.element(page.getByText("Active", { exact: true })).toBeVisible();
+  await expect.element(page.getByText("live", { exact: true })).toBeVisible();
   await expect.element(page.getByText("Matches target")).toBeVisible();
 });
 
-it("moves the status dot to the running step and clears it when the failed step is unknown", async () => {
+it("advances the active phase as the target status progresses", async () => {
   const rendered = render(StageCard, { ...props, stage: scenarios.deploying });
   const card = page.getByRole("link").element();
-  expect(card.querySelector('[aria-current="step"]')?.textContent?.trim()).toBe("Deploy");
-  expect(card.querySelector('[aria-current="step"] .dot')).not.toBeNull();
+  const activeSeg = () => card.querySelector(".stage-progress__seg--active");
+  expect(activeSeg()?.textContent?.trim()).toBe("Deploy");
   await rendered.rerender({ ...props, stage: scenarios.migrating });
-  expect(card.querySelector('[aria-current="step"]')?.textContent?.trim()).toBe("Migrate");
+  expect(activeSeg()?.textContent?.trim()).toBe("Migrate");
+  await rendered.rerender({ ...props, stage: scenarios.activating });
+  expect(activeSeg()?.textContent?.trim()).toBe("Activate");
   await rendered.rerender({ ...props, stage: scenarios.failed });
-  expect(card.querySelector('[aria-current="step"]')).toBeNull();
-  expect(card.querySelector("footer .dot")).toBeNull();
+  // On Failed with an active version we mark Activate as failed and
+  // clear any `active` segment.
+  expect(card.querySelector(".stage-progress__seg--active")).toBeNull();
+  const failed = card.querySelector(".stage-progress__seg--failed");
+  expect(failed?.textContent?.trim()).toBe("Activate");
+});
+
+it("colours the top stripe from the target status", async () => {
+  const rendered = render(StageCard, { ...props, stage: scenarios.deploying });
+  const link = page.getByRole("link").element() as HTMLElement;
+  expect(link.getAttribute("data-status")).toBe("deploying");
+  await rendered.rerender({ ...props, stage: scenarios.failed });
+  expect(link.getAttribute("data-status")).toBe("error");
+  await rendered.rerender({ ...props, stage: scenarios.active });
+  expect(link.getAttribute("data-status")).toBe("healthy");
+  await rendered.rerender({ ...props, stage: scenarios.pending });
+  expect(link.getAttribute("data-status")).toBe("neutral");
 });

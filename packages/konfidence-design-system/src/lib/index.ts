@@ -15,6 +15,7 @@ export {
   SearchInput,
   Sidebar,
   SidePanel,
+  StagePhase,
   StatusBadge,
   Table,
   TableCell,
@@ -22,3 +23,4 @@ export {
   TableRow,
   TopBar,
 } from "../components/index.js";
+export type { StagePhaseItem, StagePhaseSize, StagePhaseState } from "../components/index.js";
