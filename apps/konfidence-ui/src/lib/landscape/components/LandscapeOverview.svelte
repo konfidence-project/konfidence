@@ -35,7 +35,11 @@
     <!-- Header is inset by the standard page gutter; the flow canvas below
          keeps its edge-to-edge working area for panning. -->
     <div class="px-6 pt-6">
-        <PageHeader id="landscape-title" title="Landscapes" />
+        <PageHeader
+            id="landscape-title"
+            title="Landscapes"
+            description="Every stage across this project's deployment landscapes."
+        />
     </div>
     {#if status === "loading"}
         <div class="place-self-center p-6">
