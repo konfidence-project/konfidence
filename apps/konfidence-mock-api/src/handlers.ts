@@ -10,11 +10,30 @@ const HTTP_NO_CONTENT = 204;
 const COOKIE_OPTIONS = { httpOnly: true, path: "/", sameSite: "lax" } as const;
 
 type Query<Name extends keyof operations> = NonNullable<operations[Name]["parameters"]["query"]>;
-type MockHandler = (request: FastifyRequest, reply: FastifyReply) => FastifyReply;
+type MockHandler = (
+  request: FastifyRequest,
+  reply: FastifyReply,
+) => FastifyReply | Promise<FastifyReply>;
 
-// Thrown errors carry the status the error handler in server.ts reports.
 const httpError = (status: number, message: string): Error =>
   Object.assign(new Error(message), { statusCode: status });
+
+const MOCK_DELAY_ENABLED = process.env.KONFIDENCE_MOCK_DELAY === "1";
+const MIN_MOCK_DELAY_MS = 500;
+const MAX_MOCK_DELAY_MS = 2000;
+
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const delay = (): Promise<void> => {
+  if (!MOCK_DELAY_ENABLED) {
+    return Promise.resolve();
+  }
+  const duration = MIN_MOCK_DELAY_MS + Math.random() * (MAX_MOCK_DELAY_MS - MIN_MOCK_DELAY_MS);
+  return wait(duration);
+};
 
 const absoluteUrl = (value: string | undefined, whenInvalid: string): string => {
   try {
@@ -23,7 +42,6 @@ const absoluteUrl = (value: string | undefined, whenInvalid: string): string => 
     throw httpError(400, whenInvalid);
   }
 };
-
 const inLandscape = <Item extends { landscapeId?: string }>(
   items: Item[],
   landscapeId?: string,
@@ -51,7 +69,7 @@ const projectFor = (request: FastifyRequest): ProjectFixture => {
   return found;
 };
 
-// Looks up a single promotion across all of the project's configs, 404ing if absent.
+// Looks up a single promotion across all of the project's configs.
 const promotionFor = (request: FastifyRequest) => {
   const { vectorPromotionId } = request.params as { vectorPromotionId: string };
   const promotion = projectFor(request)
@@ -99,7 +117,7 @@ const operationHandlers = {
     return reply.send(config);
   },
   getVectorPromotionV1: (request, reply) => reply.send(promotionFor(request)),
-  listArtifactDeploymentsV1: (request, reply) => {
+  listArtifactDeploymentsV1: async (request, reply) => {
     const { landscapeId, vectorDeploymentId } = request.query as Query<"listArtifactDeploymentsV1">;
     const data = inLandscape(projectFor(request).artifactDeployments, landscapeId).filter(
       (deployment) =>
@@ -142,4 +160,4 @@ const securityHandlers = {
   },
 };
 
-export { operationHandlers, securityHandlers };
+export { delay, operationHandlers, securityHandlers };
