@@ -4,8 +4,8 @@ description: >-
   Konfidence operator for orchestrating multi-service deployments (with bundled
   CRDs).
 type: application
-version: 0.0.1-alpha.1
-appVersion: 0.0.1-alpha.1
+version: 0.1.0-alpha.1
+appVersion: 0.1.0-alpha.1
 kubeVersion: '>=1.27.0-0'
 keywords:
   - konfidence
