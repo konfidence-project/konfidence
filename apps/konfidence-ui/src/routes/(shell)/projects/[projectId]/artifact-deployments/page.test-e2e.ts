@@ -8,7 +8,7 @@ import { signIn } from "../../../../../../e2e/helpers";
  */
 const PROJECT_ID = "payments-platform";
 const ARTIFACT_DEPLOYMENTS_PATH = `/projects/${PROJECT_ID}/artifact-deployments`;
-const EXPECTED_ROW_COUNT = 3;
+const EXPECTED_ROW_COUNT = 5;
 
 const setScenario = async (page: Page, scenario: string): Promise<void> => {
   await page.context().addCookies([
@@ -39,13 +39,15 @@ test.describe("artifact deployments", () => {
     await gotoArtifactDeployments(page);
 
     await expect(page.getByTestId("page-heading")).toHaveText("Artifact Deployments");
-    await expect(page.getByTestId("artifact-view-count")).toHaveText("3 of 3 deployments");
+    await expect(page.getByTestId("artifact-view-count")).toHaveText("5 of 5 deployments");
 
     const rows = page.getByTestId("artifact-row");
     await expect(rows).toHaveCount(EXPECTED_ROW_COUNT);
     await expect(page.locator('[data-row-id="artifact-dev-us30-1"]')).toBeVisible();
     await expect(page.locator('[data-row-id="artifact-dev-us30-2"]')).toBeVisible();
     await expect(page.locator('[data-row-id="artifact-test-eu20-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-test-eu20-2"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-test-eu20-3"]')).toBeVisible();
   });
 
   test("narrows the table by search text", async ({ page }) => {
@@ -196,8 +198,10 @@ test.describe("artifact deployments", () => {
 
     await expect(page).toHaveURL(`${ARTIFACT_DEPLOYMENTS_PATH}?landscapeId=test`);
     const rows = page.getByTestId("artifact-row");
-    await expect(rows).toHaveCount(1);
+    await expect(rows).toHaveCount(3);
     await expect(page.locator('[data-row-id="artifact-test-eu20-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-test-eu20-2"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-test-eu20-3"]')).toBeVisible();
 
     // The `landscapeId=test` query must reach the API (server-side
     // narrowing), not just filter locally.

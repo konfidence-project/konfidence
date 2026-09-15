@@ -139,7 +139,7 @@ test.describe("embedded mode", () => {
     await expect(page.getByTestId("embedded-main")).toBeVisible();
     await expect(page.getByTestId("brand-home")).toHaveCount(0);
     await expect(page.getByTestId("user-menu-trigger")).toHaveCount(0);
-    await expect(page.getByTestId("page-heading")).toHaveText("Landscape");
+    await expect(page.getByTestId("landscape-flow")).toBeVisible();
   });
 
   test("preserves ?embedded=1 across internal client-side navigation", async ({ page }) => {
@@ -192,7 +192,10 @@ test.describe("embedded mode", () => {
     // the destination so the test stays offline. It must not be intercepted
     // and re-pointed at goto(), which only accepts app routes.
     await page.route("https://example.com/**", async (route) => {
-      await route.fulfill({ body: "<html><body>external</body></html>", contentType: "text/html" });
+      await route.fulfill({
+        body: "<html><body>external</body></html>",
+        contentType: "text/html",
+      });
     });
     await page.evaluate(() => {
       const anchor = globalThis.document.createElement("a");

@@ -74,13 +74,17 @@ const toArtifactDeploymentRows = ({
 };
 
 const STATUS_LABEL: Record<ArtifactDeploymentStatus, string> = {
+  AppHealthy: "Healthy",
   ArtifactDeployed: "Deployed",
   ArtifactFetched: "Fetched",
+  Ready: "Ready",
 };
 
 const STATUS_TONE: Record<ArtifactDeploymentStatus, string> = {
+  AppHealthy: "healthy",
   ArtifactDeployed: "healthy",
   ArtifactFetched: "deploying",
+  Ready: "healthy",
 };
 
 const statusLabel = (status: ArtifactDeploymentStatus): string => STATUS_LABEL[status];

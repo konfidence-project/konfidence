@@ -16,6 +16,20 @@ Supported scenarios are `admin` (the default), `developer`, and `degraded`. They
 
 The CLI exchange endpoint sets the `kden-session` cookie for any request body matching the OpenAPI schema. Anything the spec rejects comes back as an `ErrorResponse`, as does an unknown route.
 
+## Manual verification
+
+From the repository root, start the dashboard and mock server together:
+
+```sh
+pnpm ui:dev:mock
+```
+
+On the sign-in page, use the mock sign-in flow: the button redirects through the mock login and callback endpoints, which set the `kden-session` cookie, so no real identity provider is needed. The active response scenario is controlled by the `konfidence_mock_scenario` cookie as described above.
+
+In the default `admin` scenario, choose **Payments Platform** to explore a fully populated landscape overview and follow its stage links, including stages whose active and target versions differ. Choose **Identity Service** to see the empty project state. The `developer` and `degraded` scenarios exercise the sparse and unavailable-resource behaviors described above.
+
+Stage statuses in the overview are independent API status values, not an ordered deployment sequence. A stage can report `Ready`, `Failed`, `PendingDeployment`, `DeployingVector`, `MigratingVector`, or `ActivatingVector` independently of the others; do not read across stages as a progression.
+
 Use `createMockServer` from `src/server.ts` to start the server on an ephemeral port in integration tests. For Playwright, it can also be configured as a web server:
 
 ```ts

@@ -240,9 +240,13 @@ describe("matchesStatus", () => {
 
 describe("status label helpers", () => {
   it("maps API statuses to human labels and design-system tones", () => {
-    expect(statusLabel("ArtifactDeployed")).toBe("Deployed");
     expect(statusLabel("ArtifactFetched")).toBe("Fetched");
-    expect(statusTone("ArtifactDeployed")).toBe("healthy");
+    expect(statusLabel("ArtifactDeployed")).toBe("Deployed");
+    expect(statusLabel("AppHealthy")).toBe("Healthy");
+    expect(statusLabel("Ready")).toBe("Ready");
     expect(statusTone("ArtifactFetched")).toBe("deploying");
+    expect(statusTone("ArtifactDeployed")).toBe("healthy");
+    expect(statusTone("AppHealthy")).toBe("healthy");
+    expect(statusTone("Ready")).toBe("healthy");
   });
 });

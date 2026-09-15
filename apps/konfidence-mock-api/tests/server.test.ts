@@ -1,7 +1,11 @@
+import type { components } from "@konfidence/api-client/schema";
 import type { FastifyInstance } from "fastify";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { createMockServer } from "../src/server.js";
+
+type Stage = components["schemas"]["Stage"];
+type StageVersion = components["schemas"]["StageVersion"];
 
 const SESSION = "kden-session=mock-session";
 const scenario = (name: string): string => `${SESSION}; konfidence_mock_scenario=${name}`;
@@ -22,6 +26,31 @@ const get = (path: string, cookie = SESSION): Promise<Response> =>
 
 const post = (path: string, init: RequestInit = {}): Promise<Response> =>
   fetch(`${baseUrl}${path}`, { method: "POST", redirect: "manual", ...init });
+
+const adminStages = async (query = ""): Promise<Stage[]> => {
+  const response = await get(`/api/v1/projects/payments-platform/stages${query}`);
+  expect(response.status).toBe(200);
+  const body = (await response.json()) as { data: Stage[] };
+  return body.data;
+};
+
+const adminStageIds = [
+  "dev-us30",
+  "test-eu20",
+  "prod-eu30",
+  "dev-eu10",
+  "dev-canary",
+  "dev-rollback",
+  "dev-new",
+  "sandbox",
+  "test-us10",
+  "test-hotfix",
+  "test-broken",
+  "test-green",
+  "prod-us40",
+  "prod-dr",
+  "prod-legacy",
+];
 
 test("logs in through the callback and sets a session cookie", async () => {
   const returnUrl = "http://127.0.0.1:4173/projects";
@@ -66,13 +95,97 @@ test("lists empty collections for a project without resources", async () => {
   const landscapes = await get("/api/v1/projects/identity-service/landscapes");
   expect(landscapes.status).toBe(200);
   await expect(landscapes.json()).resolves.toEqual({ data: [] });
+
+  const stages = await get("/api/v1/projects/identity-service/stages");
+  expect(stages.status).toBe(200);
+  await expect(stages.json()).resolves.toEqual({ data: [] });
+});
+
+test("lists every landscape of the admin project, including one without stages", async () => {
+  const response = await get("/api/v1/projects/payments-platform/landscapes");
+  expect(response.status).toBe(200);
+  await expect(response.json()).resolves.toEqual({
+    data: [
+      { id: "development", name: "Development" },
+      { id: "test", name: "Test" },
+      { id: "production", name: "Production" },
+      { id: "sandbox", name: "Sandbox" },
+    ],
+  });
+});
+
+test("lists every stage of the admin project across all landscapes", async () => {
+  const stages = await adminStages();
+  const ids = stages.map(({ id }) => id);
+  expect(ids).toHaveLength(adminStageIds.length);
+  expect(ids).toEqual(expect.arrayContaining(adminStageIds));
 });
 
 test("filters stages by landscape", async () => {
-  const stages = await get("/api/v1/projects/payments-platform/stages?landscapeId=production");
-  await expect(stages.json()).resolves.toMatchObject({
-    data: [{ id: "prod-eu30", landscapeId: "production" }],
-  });
+  const stages = await adminStages("?landscapeId=production");
+  expect(stages.map(({ id }) => id)).toEqual(["prod-eu30", "prod-us40", "prod-dr", "prod-legacy"]);
+  expect(stages.every(({ landscapeId }) => landscapeId === "production")).toBe(true);
+});
+
+test("returns an empty stage list for a landscape without stages", async () => {
+  await expect(adminStages("?landscapeId=sandbox")).resolves.toEqual([]);
+});
+
+test("represents every StageVersion status in the admin project", async () => {
+  const stages = await adminStages();
+  const statuses = stages.flatMap(({ activeStageVersion, targetStageVersion }) =>
+    [activeStageVersion, targetStageVersion]
+      .filter((version): version is StageVersion => version !== undefined)
+      .map(({ status }) => status),
+  );
+  expect(new Set(statuses)).toEqual(
+    new Set([
+      "PendingDeployment",
+      "DeployingVector",
+      "MigratingVector",
+      "ActivatingVector",
+      "Ready",
+      "Failed",
+    ]),
+  );
+});
+
+test("represents the stage version target and active combinations", async () => {
+  const stages = await adminStages();
+  const byId = Object.fromEntries(stages.map((stage) => [stage.id, stage]));
+
+  // Target equals active: the desired and deployed versions are the same.
+  expect(byId["dev-us30"]?.targetStageVersion).toEqual(byId["dev-us30"]?.activeStageVersion);
+  expect(byId["sandbox"]?.targetStageVersion).toEqual(byId["sandbox"]?.activeStageVersion);
+
+  // Target differs from active while the vector is still deploying.
+  const deploying = byId["dev-eu10"];
+  expect(deploying?.targetStageVersion?.status).toBe("DeployingVector");
+  expect(deploying?.activeStageVersion?.status).toBe("Ready");
+  expect(deploying?.targetStageVersion?.id).not.toBe(deploying?.activeStageVersion?.id);
+
+  // A Ready target that still differs from the active version.
+  const converged = byId["test-green"];
+  expect(converged?.targetStageVersion?.status).toBe("Ready");
+  expect(converged?.activeStageVersion?.status).toBe("Ready");
+  expect(converged?.targetStageVersion?.id).not.toBe(converged?.activeStageVersion?.id);
+
+  // Target without an active version: the first rollout of a new stage.
+  expect(byId["dev-canary"]?.targetStageVersion?.status).toBe("PendingDeployment");
+  expect(byId["dev-canary"]?.activeStageVersion).toBeUndefined();
+
+  // Neither target nor active: the stage has no versions yet.
+  expect(byId["dev-new"]?.targetStageVersion).toBeUndefined();
+  expect(byId["dev-new"]?.activeStageVersion).toBeUndefined();
+});
+
+test("names stage groups with case-insensitive dev, test, and prod prefixes", async () => {
+  const stages = await adminStages();
+  const byId = Object.fromEntries(stages.map((stage) => [stage.id, stage]));
+  expect(byId["dev-canary"]?.name).toBe("DEV-canary");
+  expect(byId["test-hotfix"]?.name).toBe("Test-hotfix");
+  expect(byId["prod-dr"]?.name).toBe("PROD-dr");
+  expect(byId["sandbox"]?.name).toBe("sandbox");
 });
 
 test("reports a stage filter naming a landscape the project does not have as not found", async () => {
@@ -155,7 +268,9 @@ test("fails project resource requests in the degraded scenario", async () => {
   const cookie = scenario("degraded");
 
   const identity = await get("/api/v1/identity", cookie);
-  await expect(identity.json()).resolves.toMatchObject({ email: "riley.operator@example.com" });
+  await expect(identity.json()).resolves.toMatchObject({
+    email: "riley.operator@example.com",
+  });
 
   const projects = await get("/api/v1/projects", cookie);
   expect(projects.status).toBe(200);
@@ -193,7 +308,9 @@ test("reports a login the identity provider denied", async () => {
     "/api/v1/auth/callback?state=http%3A%2F%2F127.0.0.1%3A4173%2Flogin&error=access_denied&error_description=Login%20denied",
   );
   expect(denied.status).toBe(401);
-  await expect(denied.json()).resolves.toMatchObject({ error: { message: "Login denied" } });
+  await expect(denied.json()).resolves.toMatchObject({
+    error: { message: "Login denied" },
+  });
 });
 
 test("rejects a malformed request body", async () => {

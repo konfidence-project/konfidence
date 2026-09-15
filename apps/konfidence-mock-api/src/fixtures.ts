@@ -1,3 +1,4 @@
+/* oxlint-disable eslint/no-magic-numbers, eslint/max-params -- Fixture builders keep explicit generations and API field values together. */
 import type { components } from "@konfidence/api-client/schema";
 
 type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
@@ -27,55 +28,43 @@ interface ScenarioFixture {
 
 const REPOSITORY = "ghcr.io/konfidence/mock";
 
-const paymentsProject = { id: "payments-platform", name: "Payments Platform" } satisfies Project;
-const identityProject = { id: "identity-service", name: "Identity Service" } satisfies Project;
+const paymentsProject = {
+  id: "payments-platform",
+  name: "Payments Platform",
+} satisfies Project;
+const identityProject = {
+  id: "identity-service",
+  name: "Identity Service",
+} satisfies Project;
 
-// One row per landscape, each with the single stage it holds and the vector deployed there.
+// Vector deployments for the three original stages.
 const rows = [
   {
-    generation: 5,
     landscape: "development",
-    landscapeName: "Development",
     stage: "dev-us30",
     vectorStatus: "DeploymentReady",
     version: "2026.8.5",
   },
   {
-    generation: 4,
     landscape: "test",
-    landscapeName: "Test",
     stage: "test-eu20",
     vectorStatus: "DeploymentReady",
     version: "2026.8.4",
   },
   {
-    generation: 3,
     landscape: "production",
-    landscapeName: "Production",
     stage: "prod-eu30",
     vectorStatus: "DeployingVector",
     version: "2026.8.3",
   },
 ] as const;
 
-const landscapes: Landscape[] = rows.map((row) => ({ id: row.landscape, name: row.landscapeName }));
-
-const stages: Stage[] = rows.map((row) => {
-  // CRD Stage has no displayName yet, so name mirrors id (metadata.name).
-  const version: StageVersion = {
-    id: `${row.stage}-v${row.generation}`,
-    stageGeneration: row.generation,
-    status: "Ready",
-    vector: `${REPOSITORY}//delivery-vector:${row.version}`,
-  };
-  return {
-    activeStageVersion: version,
-    id: row.stage,
-    landscapeId: row.landscape,
-    name: row.stage,
-    targetStageVersion: version,
-  };
-});
+const landscapes: Landscape[] = [
+  { id: "development", name: "Development" },
+  { id: "test", name: "Test" },
+  { id: "production", name: "Production" },
+  { id: "sandbox", name: "Sandbox" },
+];
 
 const vectorDeployments: VectorDeployment[] = rows.map((row) => ({
   id: `vector-${row.stage}-1`,
@@ -88,6 +77,88 @@ const vectorDeployments: VectorDeployment[] = rows.map((row) => ({
     repository: REPOSITORY,
   },
 }));
+
+const stageVersion = (
+  stageId: string,
+  stageGeneration: number,
+  status: StageVersion["status"],
+  version: string,
+): StageVersion => ({
+  id: `${stageId}-v${stageGeneration}`,
+  stageGeneration,
+  status,
+  vector: `${REPOSITORY}//delivery-vector:${version}`,
+});
+
+const stage = (
+  id: string,
+  name: string,
+  landscapeId: string,
+  versions: Pick<Stage, "activeStageVersion" | "targetStageVersion">,
+): Stage => ({ id, landscapeId, name, ...versions });
+
+const sandboxVersion = stageVersion("sandbox", 2, "Ready", "2026.8.2");
+const devVersion = stageVersion("dev-us30", 5, "Ready", "2026.8.5");
+const testVersion = stageVersion("test-eu20", 4, "Ready", "2026.8.4");
+const prodVersion = stageVersion("prod-eu30", 3, "Ready", "2026.8.3");
+
+const stages: Stage[] = [
+  stage("dev-us30", "dev-us30", "development", {
+    activeStageVersion: devVersion,
+    targetStageVersion: devVersion,
+  }),
+  stage("test-eu20", "test-eu20", "test", {
+    activeStageVersion: testVersion,
+    targetStageVersion: testVersion,
+  }),
+  stage("prod-eu30", "prod-eu30", "production", {
+    activeStageVersion: prodVersion,
+    targetStageVersion: prodVersion,
+  }),
+  stage("dev-eu10", "dev-eu10", "development", {
+    activeStageVersion: stageVersion("dev-eu10", 5, "Ready", "2026.8.5"),
+    targetStageVersion: stageVersion("dev-eu10", 6, "DeployingVector", "2026.8.6"),
+  }),
+  stage("dev-canary", "DEV-canary", "development", {
+    targetStageVersion: stageVersion("dev-canary", 1, "PendingDeployment", "2026.9.0"),
+  }),
+  stage("dev-rollback", "dev-rollback", "development", {
+    activeStageVersion: stageVersion("dev-rollback", 1, "Ready", "2026.8.1"),
+    targetStageVersion: stageVersion("dev-rollback", 2, "Failed", "2026.8.7"),
+  }),
+  stage("dev-new", "dev-new", "development", {}),
+  stage("sandbox", "sandbox", "development", {
+    activeStageVersion: sandboxVersion,
+    targetStageVersion: sandboxVersion,
+  }),
+  stage("test-us10", "test-us10", "test", {
+    activeStageVersion: stageVersion("test-us10", 4, "Ready", "2026.8.4"),
+    targetStageVersion: stageVersion("test-us10", 5, "MigratingVector", "2026.8.5"),
+  }),
+  stage("test-hotfix", "Test-hotfix", "test", {
+    activeStageVersion: stageVersion("test-hotfix", 5, "Ready", "2026.8.5"),
+    targetStageVersion: stageVersion("test-hotfix", 6, "ActivatingVector", "2026.8.6"),
+  }),
+  stage("test-broken", "test-broken", "test", {
+    activeStageVersion: stageVersion("test-broken", 2, "Ready", "2026.7.9"),
+    targetStageVersion: stageVersion("test-broken", 3, "Failed", "2026.8.0"),
+  }),
+  stage("test-green", "test-green", "test", {
+    activeStageVersion: stageVersion("test-green", 3, "Ready", "2026.8.3"),
+    targetStageVersion: stageVersion("test-green", 4, "Ready", "2026.8.4"),
+  }),
+  stage("prod-us40", "prod-us40", "production", {
+    activeStageVersion: stageVersion("prod-us40", 3, "Ready", "2026.8.3"),
+    targetStageVersion: stageVersion("prod-us40", 4, "ActivatingVector", "2026.8.4"),
+  }),
+  stage("prod-dr", "PROD-dr", "production", {
+    targetStageVersion: stageVersion("prod-dr", 1, "PendingDeployment", "2026.8.8"),
+  }),
+  stage("prod-legacy", "prod-legacy", "production", {
+    activeStageVersion: stageVersion("prod-legacy", 1, "Ready", "2026.6.0"),
+    targetStageVersion: stageVersion("prod-legacy", 2, "Failed", "2026.7.0"),
+  }),
+];
 
 const component = (componentName: string, componentVersion: string) => ({
   componentName,
@@ -237,7 +308,7 @@ const scenarios = {
     projects: [
       {
         ...emptyProject(paymentsProject, ["dev"]),
-        landscapes: landscapes.filter(({ id }) => id !== "production"),
+        landscapes: landscapes.filter(({ id }) => id === "development" || id === "test"),
         stages: stages.slice(0, 1),
         vectorDeployments: vectorDeployments.slice(0, 1),
       },

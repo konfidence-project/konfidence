@@ -5,7 +5,11 @@
     import { page } from "$app/state";
     import { AppShell, TopBar } from "@konfidence/design-system/components";
     import { isDarkMode, themeStore } from "$lib/theme";
-    import { EMBEDDED_ON, EMBEDDED_QUERY, isEmbedded } from "$lib/shell/embedded";
+    import {
+        EMBEDDED_ON,
+        EMBEDDED_QUERY,
+        isEmbedded,
+    } from "$lib/shell/embedded";
     import ProjectsProvider from "$lib/projects/ProjectsProvider.svelte";
     import ProjectsContent from "$lib/projects/components/ProjectsContent.svelte";
     import ProjectSelector from "$lib/shell/ProjectSelector.svelte";
@@ -32,9 +36,15 @@
     let { children }: Props = $props();
 
     const embedded = $derived(isEmbedded(page.url));
+    const canvasPage = $derived(
+        page.route.id === "/(shell)/projects/[projectId]/landscape",
+    );
+    const shellLayout = $derived(canvasPage ? "canvas" : "scroll");
 
     const isDark = $derived(isDarkMode(themeStore.mode));
-    const logoSrc = $derived(isDark ? "/logos/logo-dark.svg" : "/logos/logo-light.svg");
+    const logoSrc = $derived(
+        isDark ? "/logos/logo-dark.svg" : "/logos/logo-light.svg",
+    );
 
     beforeNavigate((navigation) => {
         if (!embedded || !navigation.to || navigation.willUnload) {
@@ -54,16 +64,27 @@
 
 <ProjectsProvider>
     {#if embedded}
-        <main class="min-h-dvh" data-testid="embedded-main">
+        <main
+            class={canvasPage ? "h-dvh min-h-0" : "min-h-dvh"}
+            data-testid="embedded-main"
+        >
             <ProjectsContent>{@render children()}</ProjectsContent>
         </main>
     {:else}
-        <AppShell>
+        <AppShell layout={shellLayout}>
             {#snippet topbar({ toggleDrawer })}
                 <TopBar onHamburger={toggleDrawer}>
                     {#snippet logo()}
-                        <a href={resolve("/")} aria-label="Konfidence home" data-testid="brand-home">
-                            <img class="topbar__logo" src={logoSrc} alt="Konfidence" />
+                        <a
+                            href={resolve("/")}
+                            aria-label="Konfidence home"
+                            data-testid="brand-home"
+                        >
+                            <img
+                                class="topbar__logo"
+                                src={logoSrc}
+                                alt="Konfidence"
+                            />
                         </a>
                     {/snippet}
                     {#snippet switcher()}

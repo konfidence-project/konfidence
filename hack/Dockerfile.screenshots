@@ -7,10 +7,11 @@ ENV CI=true
 
 RUN npm install --global pnpm@11.9.0
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY apps ./apps
 COPY packages ./packages
-# The design-system tests compile Svelte directly and need no app prepare scripts.
 RUN pnpm install --frozen-lockfile --ignore-scripts
+# The root tsconfig references the UI, including when other workspaces resolve dependencies.
+RUN pnpm --filter konfidence-ui exec svelte-kit sync
 
-CMD ["pnpm", "ds:test"]
+CMD ["bash"]
