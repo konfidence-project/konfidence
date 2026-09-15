@@ -41,6 +41,13 @@ class LandscapeDataStore {
         projectId,
         signal: controller.signal,
       });
+      // Bail out before the second request if a newer refresh has already
+      // superseded this one. This is what keeps the store consistent even
+      // when the underlying fetch implementation does not honour the
+      // AbortSignal (mocks in tests, non-standard hosts, etc.).
+      if (controller.signal.aborted) {
+        return;
+      }
       const stages = await getStages({
         client: this.#client,
         landscapeId: options.landscapeId,
