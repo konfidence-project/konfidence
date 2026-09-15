@@ -49,6 +49,12 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 			case http.StatusUnauthorized:
 				return errors.New("api rejected the newly established session")
 
+			case http.StatusForbidden:
+				return errors.New(response.JSON403.Error.Message)
+
+			case http.StatusNotFound:
+				return errors.New(response.JSON404.Error.Message)
+
 			default:
 				return fmt.Errorf(
 					"listing vector promotion configs returned HTTP %d: %s",

@@ -13,43 +13,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewGetCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
+func NewApproveCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get a vector promotion config for a given project id",
-		Long:  `Retrieve and display a single vector promotion config for a given project id.`,
+		Use:   "approve <vectorPromotionId>",
+		Short: "Approve a vector promotion for a specific project id",
+		Long:  "Grant approval for a vector promotion with the given vector promotion id for a specific project id.",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectId, _ := cmd.Flags().GetString("projectId")
-			vectorPromotionConfigId, _ := cmd.Flags().GetString("vectorPromotionConfigId")
+			vectorPromotionId := args[0]
 			authClient, err := appConfig.APIProvider.AuthClient()
 			if err != nil {
 				return fmt.Errorf("failed initializing API client: %w", err)
 			}
 
 			response, err := auth.RequestWithAuthRetry(cmd.Context(), authClient,
-				func(ctx context.Context) (*apiclient.GetVectorPromotionConfigV1Response, error) {
-					return authClient.KdenApiClient().
-						GetVectorPromotionConfigV1WithResponse(
-							ctx,
-							projectId,
-							vectorPromotionConfigId,
-						)
+				func(ctx context.Context) (*apiclient.ApproveVectorPromotionV1Response, error) {
+					return authClient.KdenApiClient().ApproveVectorPromotionV1WithResponse(ctx, projectId, vectorPromotionId)
 				})
 			if err != nil {
-				return fmt.Errorf("getting vector promotion config failed: %w", err)
+				return fmt.Errorf("approving vector promotion failed: %w", err)
 			}
 
 			switch response.StatusCode() {
-			case http.StatusOK:
-				if response.JSON200 == nil {
-					return errors.New("vector promotion config response did not contain a body")
-				}
-				formatted, err := output.ResolveFormat(response.JSON200, "vector-promotion-config")
-				if err != nil {
-					return fmt.Errorf("formatting vector promotion config failed: %w", err)
-				}
-
-				output.PrintMessage(formatted)
+			case http.StatusNoContent:
+				output.PrintMessage(fmt.Sprintf("Vector promotion %s approved successfully", vectorPromotionId))
 				return nil
 
 			case http.StatusUnauthorized:
@@ -61,9 +49,12 @@ func NewGetCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 			case http.StatusNotFound:
 				return errors.New(response.JSON404.Error.Message)
 
+			case http.StatusConflict:
+				return errors.New(response.JSON409.Error.Message)
+
 			default:
 				return fmt.Errorf(
-					"getting vector promotion config returned HTTP %d: %s",
+					"approving vector promotion returned HTTP %d: %s",
 					response.StatusCode(),
 					string(response.Body),
 				)
