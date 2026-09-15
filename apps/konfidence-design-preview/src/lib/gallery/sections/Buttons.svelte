@@ -30,6 +30,18 @@
             <Button variant="danger" disabled>Danger</Button>
         </Sample>
 
+        <Sample title="With icon" description="Optional `icon` prop places a SAP-icon to the left of the label.">
+            <Button variant="primary" icon="add">Add project</Button>
+            <Button variant="secondary" icon="edit">Edit</Button>
+            <Button variant="ghost" icon="filter">Filter</Button>
+            <Button variant="danger" icon="decline">Delete</Button>
+        </Sample>
+
+        <Sample title="With icon — disabled">
+            <Button variant="primary" icon="add" disabled>Add project</Button>
+            <Button variant="secondary" icon="edit" disabled>Edit</Button>
+        </Sample>
+
         <Sample
             title="Icon buttons"
             description="`<IconButton>` requires an aria-label; supports a numeric badge overlay."

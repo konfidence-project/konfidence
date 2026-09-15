@@ -54,6 +54,19 @@ describe("<Button>", () => {
       .toHaveAttribute("type", "button");
   });
 
+  it("renders a ui5-icon when the icon prop is set", async () => {
+    render(ButtonFixture, { label: "Add", icon: "add" });
+    const btn = page.getByRole("button", { name: "Add" });
+    await expect.element(btn.locator("ui5-icon")).toBeInTheDocument();
+    await expect.element(btn.locator("ui5-icon")).toHaveAttribute("name", "add");
+  });
+
+  it("renders no icon element when icon prop is omitted", async () => {
+    render(ButtonFixture, { label: "Deploy" });
+    const btn = page.getByRole("button", { name: "Deploy" });
+    expect(btn.locator("ui5-icon").elements()).toHaveLength(0);
+  });
+
   describe("variant snapshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
