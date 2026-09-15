@@ -80,7 +80,10 @@ test("opens and reloads real mock details without nesting main landmarks", async
   await expect(page.locator("main")).toHaveCount(1);
   await page.reload();
   await expect(page.locator("main")).toHaveCount(1);
-  await page.getByRole("link", { name: /Back to landscapes/ }).click();
+  await page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Landscapes" })
+    .click();
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
 });
 
@@ -127,7 +130,10 @@ test("groups stages and opens a real detail route with the keyboard", async ({ p
   await expect(page.getByRole("heading", { name: "Target version" })).toBeVisible();
   await expect(page.getByText("registry.example:5000//delivery/vector:main")).toBeVisible();
   await page.reload();
-  await page.getByRole("link", { name: /Back to landscapes/ }).click();
+  await page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Landscapes" })
+    .click();
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
 });
 

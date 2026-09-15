@@ -1,5 +1,9 @@
 <script lang="ts">
-    import { Button, OrbitLoader } from "@konfidence/design-system/components";
+    import {
+        Button,
+        OrbitLoader,
+        PageHeader,
+    } from "@konfidence/design-system/components";
     import type { Landscape, Stage } from "$lib/landscape/landscapeApi";
     import type { LandscapeDataStatus } from "$lib/landscape/landscapeData.svelte";
     import LandscapeFlow from "$lib/landscape/components/LandscapeFlow.svelte";
@@ -28,13 +32,11 @@
     class="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]"
     aria-labelledby="landscape-title"
 >
-    <h1
-        class="m-0 border-b border-[var(--border-subtle)] px-6 py-5 text-[length:var(--text-h2)] font-semibold text-[var(--text-primary)]"
-        id="landscape-title"
-        data-testid="page-heading"
-    >
-        Landscapes
-    </h1>
+    <!-- Header is inset by the standard page gutter; the flow canvas below
+         keeps its edge-to-edge working area for panning. -->
+    <div class="px-6 pt-6">
+        <PageHeader id="landscape-title" title="Landscapes" />
+    </div>
     {#if status === "loading"}
         <div class="place-self-center p-6">
             <OrbitLoader label="Loading landscapes and stages" />

@@ -21,7 +21,7 @@
 
 <svelte:head><title>{stage?.name ?? "Stage"} · Konfidence</title></svelte:head>
 
-<section class="mx-auto max-w-280 px-4 py-6 sm:px-6 sm:py-8">
+<section class="mx-auto flex w-full max-w-[84rem] flex-col gap-5 px-6 pt-6 pb-10">
     <StageDetails
         backHref={projectLandscapeUrl(data.projectId, embedded)}
         error={data.store.error}

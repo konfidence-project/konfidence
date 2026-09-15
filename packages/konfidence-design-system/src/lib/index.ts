@@ -3,6 +3,7 @@ export {
   Avatar,
   AvatarGroup,
   Brandbar,
+  Breadcrumbs,
   Button,
   EmptyState,
   IconButton,
@@ -11,6 +12,7 @@ export {
   NavGroup,
   NavItem,
   OrbitLoader,
+  PageHeader,
   ProjectSelection,
   SearchInput,
   Sidebar,
@@ -23,4 +25,9 @@ export {
   TableRow,
   TopBar,
 } from "../components/index.js";
-export type { StagePhaseItem, StagePhaseSize, StagePhaseState } from "../components/index.js";
+export type {
+  BreadcrumbItem,
+  StagePhaseItem,
+  StagePhaseSize,
+  StagePhaseState,
+} from "../components/index.js";

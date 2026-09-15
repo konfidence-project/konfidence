@@ -1,5 +1,11 @@
 <script lang="ts">
-    import { Button, OrbitLoader } from "@konfidence/design-system/components";
+    import {
+        Breadcrumbs,
+        Button,
+        OrbitLoader,
+        PageHeader,
+    } from "@konfidence/design-system/components";
+    import type { BreadcrumbItem } from "@konfidence/design-system/components";
     import type { Landscape, Stage } from "$lib/landscape/landscapeApi";
     import type { LandscapeDataStatus } from "$lib/landscape/landscapeData.svelte";
     import StageVersionDetails from "$lib/landscape/components/StageVersionDetails.svelte";
@@ -22,6 +28,19 @@
         status,
         onRetry,
     }: Props = $props();
+
+    const crumbs: BreadcrumbItem[] = $derived(
+        landscape && stage
+            ? [
+                  { href: backHref, label: "Landscapes" },
+                  // No dedicated per-landscape route yet — this crumb
+                  // renders as plain text and becomes a link when the
+                  // landscape detail route ships.
+                  { label: landscape.name },
+                  { label: stage.name },
+              ]
+            : [],
+    );
 </script>
 
 {#if status === "loading"}
@@ -41,16 +60,11 @@
         <Button href={backHref}>Back to landscapes</Button>
     </section>
 {:else}
-    <Button href={backHref} variant="ghost">← Back to landscapes</Button>
-    <header class="my-5">
-        <p class="text-[var(--text-secondary)]">{landscape.name}</p>
-        <h1
-            class="text-[length:var(--text-h1)] [overflow-wrap:anywhere]"
-            data-testid="page-heading"
-        >
-            {stage.name}
-        </h1>
-    </header>
+    <PageHeader title={stage.name}>
+        {#snippet eyebrow()}
+            <Breadcrumbs items={crumbs} />
+        {/snippet}
+    </PageHeader>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StageVersionDetails
             label="Target"
