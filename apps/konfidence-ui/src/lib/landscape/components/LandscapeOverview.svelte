@@ -38,7 +38,6 @@
         <PageHeader
             id="landscape-title"
             title="Landscapes"
-            description="Every stage across this project's deployment landscapes."
         />
     </div>
     {#if status === "loading"}

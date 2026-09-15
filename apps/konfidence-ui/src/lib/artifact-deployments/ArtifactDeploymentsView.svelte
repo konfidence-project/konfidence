@@ -80,7 +80,6 @@
     <PageHeader
         id="artifact-view-title"
         title="Artifact Deployments"
-        description="Inspect the artifact deployments backing this project's vectors, stages, and landscapes."
     />
 
     {#if hasLoaded && !error}
