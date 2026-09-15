@@ -122,7 +122,7 @@ To regenerate the colocated Linux PNGs, run from the repository root:
 pnpm ds:screenshots:generate
 ```
 
-The shared generator builds `hack/Dockerfile.screenshots` and runs `test:screenshots` in this workspace
+The shared generator builds `hack/Dockerfile.screenshots` and runs `screenshots:regenerate` in this workspace
 inside Linux. After the tests pass, it copies Linux PNGs directly into
 each component's `__screenshots__/` directory and removes obsolete Linux
 baselines. Review and commit those changes with the component or stylesheet

@@ -26,7 +26,7 @@
     "test:e2e": "playwright test",
     "screenshots:generate": "bash ../../hack/generate-screenshots.sh apps/konfidence-ui",
     "screenshots:check": "bash ../../hack/check-screenshots.sh apps/konfidence-ui",
-    "test:screenshots": "svelte-kit sync && vitest run --project client --update"
+    "screenshots:regenerate": "svelte-kit sync && vitest run --project client --update"
   },
   "dependencies": {
     "@humanspeak/svelte-headless-table": "^6.2.0",

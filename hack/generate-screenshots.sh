@@ -24,7 +24,7 @@ docker build --platform linux/arm64 \
 	-t konfidence-screenshots "$root"
 container=$(docker create --platform linux/arm64 --ipc=host \
 	konfidence-screenshots bash -e -o pipefail -c '
-		pnpm --dir "$1" test:screenshots
+		pnpm --dir "$1" screenshots:regenerate
 		mkdir /screenshots
 		cd "$1/src"
 		find . -type f -path "*/__screenshots__/*-linux.png" -exec cp --parents -t /screenshots {} +

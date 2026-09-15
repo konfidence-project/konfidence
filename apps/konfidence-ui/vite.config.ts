@@ -62,7 +62,5 @@ export default defineConfig({
         },
       },
     ],
-    // The dedicated Docker check compares baselines; native runs generate previews like the design system.
-    update: "all",
   },
 });
