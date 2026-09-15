@@ -87,6 +87,8 @@ type ArtifactDeploymentStatus struct {
 	// ArtifactFetched -> ArtifactDeployed -> AppHealthy
 	//
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as
