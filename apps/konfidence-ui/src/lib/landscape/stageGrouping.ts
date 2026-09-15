@@ -1,5 +1,6 @@
 import type { Stage } from "$lib/landscape/landscapeApi";
 
+// TODO: prefix-based grouping; revisit to derive from landscape.
 type StageGroups = Record<"dev" | "test" | "prod" | "other", Stage[]>;
 
 const groupStages = (stages: readonly Stage[]): StageGroups =>

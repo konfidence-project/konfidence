@@ -6,7 +6,8 @@
     import type { Landscape, Stage } from "$lib/landscape/landscapeApi";
     import { groupStages } from "$lib/landscape/stageGrouping";
     import { stageDetailsUrl } from "$lib/projects/url";
-    import { themeStore } from "$lib/theme";
+    import { isDarkMode, themeStore } from "$lib/theme";
+    import LandscapeCanvasResize from "$lib/landscape/components/LandscapeCanvasResize.svelte";
     import StageNode from "$lib/landscape/components/StageNode.svelte";
 
     interface Props {
@@ -28,14 +29,11 @@
         categories.length * (CARD_WIDTH + CATEGORY_GAP) - CATEGORY_GAP;
     const MIN_READABLE_ZOOM = 0.75;
     let canvasWidth = $state(0);
-    const initialViewport = $derived({
-        x: GAP,
-        y: GAP,
-        zoom: Math.max(
+    const readableZoom = (width: number): number =>
+        Math.max(
             MIN_READABLE_ZOOM,
-            Math.min(1, (canvasWidth - GAP - GAP) / CONTENT_WIDTH),
-        ),
-    });
+            Math.min(1, (width - GAP - GAP) / CONTENT_WIDTH),
+        );
     const labels = { dev: "Dev", other: "Other", prod: "Prod", test: "Test" };
     const defaults = {
         connectable: false,
@@ -80,6 +78,8 @@
             })),
         );
     });
+
+    const colorMode = $derived(isDarkMode(themeStore.mode) ? "dark" : "light");
 </script>
 
 <div
@@ -91,9 +91,13 @@
         <SvelteFlow
             {nodes}
             {nodeTypes}
-            {initialViewport}
+            initialViewport={{
+                x: GAP,
+                y: GAP,
+                zoom: readableZoom(canvasWidth),
+            }}
             edges={[]}
-            colorMode={themeStore.mode}
+            {colorMode}
             minZoom={0.1}
             maxZoom={1.5}
             nodesDraggable={false}
@@ -107,6 +111,12 @@
             multiSelectionKey={null}
         >
             <Controls showLock={false} />
+            <LandscapeCanvasResize
+                {canvasWidth}
+                contentWidth={CONTENT_WIDTH}
+                gap={GAP}
+                minReadableZoom={MIN_READABLE_ZOOM}
+            />
         </SvelteFlow>
     {/if}
 </div>

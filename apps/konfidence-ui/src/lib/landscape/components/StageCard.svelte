@@ -16,7 +16,6 @@
     const targetIsActive = $derived(
         target !== undefined && target.id === active?.id,
     );
-    const status = $derived(target ? stageStatuses[target.status] : undefined);
     const steps = [
         { label: "Deploy", status: "DeployingVector" },
         { label: "Migrate", status: "MigratingVector" },
@@ -76,7 +75,7 @@
         <div
             class="flex w-full items-center justify-between gap-2"
             role="group"
-            aria-label={status?.label ?? "No target"}
+            aria-label={target ? stageStatuses[target.status].label : "No target"}
         >
             {#each steps as step (step.status)}
                 {@const isCurrentPhase = target?.status === step.status}
