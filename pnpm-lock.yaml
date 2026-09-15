@@ -69,6 +69,9 @@ importers:
 
   apps/konfidence-ui:
     dependencies:
+      '@humanspeak/svelte-headless-table':
+        specifier: ^6.2.0
+        version: 6.2.0(svelte@5.57.0(@typescript-eslint/types@8.68.0))
       '@konfidence/api-client':
         specifier: workspace:*
         version: link:../../packages/konfidence-api-client
@@ -493,6 +496,26 @@ packages:
   '@humanfs/types@0.15.0':
     resolution: {integrity: sha512-ZZ1w0aoQkwuUuC7Yf+7sdeaNfqQiiLcSRbfI08oAxqLtpXQr9AIVX7Ay7HLDuiLYAaFPu8oBYNq/QIi9URHJ3Q==}
     engines: {node: '>=18.18.0'}
+
+  '@humanspeak/memory-cache@1.2.0':
+    resolution: {integrity: sha512-im7GIIpgjdD6Fx68xCeiXw3XiDv30/WMRAaodMm+ep0ptYfEUd0cdNeTAylHGIRTJIeByKFHdTmPjAktyDM/JQ==}
+    engines: {node: '>=20.19.0'}
+
+  '@humanspeak/svelte-headless-table@6.2.0':
+    resolution: {integrity: sha512-/fuepqeMa0UsXfhPwvWilI2tmQ8zw8WLgFqTGQ4PBE4D+/Pabn5xblbqZBWDs8rw4VAweENBg10uri1VlkE15w==}
+    peerDependencies:
+      svelte: ^5.30.0
+
+  '@humanspeak/svelte-keyed@5.0.1':
+    resolution: {integrity: sha512-jFvANd9Nb5B/u9ELTSw1iUyuckgjF9R15BvK1V7eLLPurt4hxu35bZAoZMkqYxmj8fazcSw9UkmEu66jZ0+0Rg==}
+
+  '@humanspeak/svelte-render@5.1.1':
+    resolution: {integrity: sha512-OGqKLVezvEvHmouQXhzfGibtFxgA6a9PAuuNzJ54t1KFQScBCDl9MtLao+ze+5nVUJHoVCWbvXOEMOFY4eGROw==}
+    peerDependencies:
+      svelte: ^5.0.0
+
+  '@humanspeak/svelte-subscribe@5.0.0':
+    resolution: {integrity: sha512-rQEcFFk77ZzYXFPHWf3K8TmjP/97NwNbf6qBE0s5XYB2eqdDNvxa8fKHVPDBukTmBCX53O20FJjXvmlN5yXzjw==}
 
   '@humanwhocodes/module-importer@1.0.1':
     resolution: {integrity: sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA==}
@@ -2885,6 +2908,25 @@ snapshots:
       '@humanwhocodes/retry': 0.4.3
 
   '@humanfs/types@0.15.0': {}
+
+  '@humanspeak/memory-cache@1.2.0': {}
+
+  '@humanspeak/svelte-headless-table@6.2.0(svelte@5.57.0(@typescript-eslint/types@8.68.0))':
+    dependencies:
+      '@humanspeak/memory-cache': 1.2.0
+      '@humanspeak/svelte-keyed': 5.0.1
+      '@humanspeak/svelte-render': 5.1.1(svelte@5.57.0(@typescript-eslint/types@8.68.0))
+      '@humanspeak/svelte-subscribe': 5.0.0
+      svelte: 5.57.0(@typescript-eslint/types@8.68.0)
+
+  '@humanspeak/svelte-keyed@5.0.1': {}
+
+  '@humanspeak/svelte-render@5.1.1(svelte@5.57.0(@typescript-eslint/types@8.68.0))':
+    dependencies:
+      '@humanspeak/svelte-subscribe': 5.0.0
+      svelte: 5.57.0(@typescript-eslint/types@8.68.0)
+
+  '@humanspeak/svelte-subscribe@5.0.0': {}
 
   '@humanwhocodes/module-importer@1.0.1': {}
 

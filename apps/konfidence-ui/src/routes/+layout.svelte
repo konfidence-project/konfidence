@@ -52,6 +52,6 @@
          system's styles/index.css. -->
     <OrbitLoader
         class="min-h-screen items-center justify-center opacity-0 [animation:konfidence-fade-in_240ms_ease_200ms_forwards]"
-        label="Loading\u2026"
+        label="Loading"
     />
 {/if}
