@@ -137,6 +137,12 @@ func init() {
 		"Maximum lifetime of a database pool connection. Env: API_DB_MAX_CONN_LIFETIME")
 	rootCmd.Flags().StringVar(&cfg.Database.MaxConnIdleTime, "db-max-conn-idle-time", envOr("API_DB_MAX_CONN_IDLE_TIME", "5m"),
 		"Maximum idle time of a database pool connection. Env: API_DB_MAX_CONN_IDLE_TIME")
+	rootCmd.Flags().BoolVar(&cfg.Server.TLSEnabled, "tls-enabled", envBoolOr("API_TLS_ENABLED", false),
+		"Serve the API over TLS (HTTPS). Requires --tls-cert-file and --tls-key-file. Env: API_TLS_ENABLED")
+	rootCmd.Flags().StringVar(&cfg.Server.TLSCertFile, "tls-cert-file", envOr("API_TLS_CERT_FILE", ""),
+		"Path to the PEM-encoded TLS certificate file. Required when --tls-enabled=true. Env: API_TLS_CERT_FILE")
+	rootCmd.Flags().StringVar(&cfg.Server.TLSKeyFile, "tls-key-file", envOr("API_TLS_KEY_FILE", ""),
+		"Path to the PEM-encoded TLS private key file. Required when --tls-enabled=true. Env: API_TLS_KEY_FILE")
 }
 
 func loadOIDCClientSecret(cmd *cobra.Command, _ []string) {

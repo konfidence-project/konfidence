@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
 	"github.com/konfidence-project/konfidence/internal/api/ui"
+	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 )
 
 // Server wraps an http.Server with graceful shutdown support.
@@ -55,9 +57,26 @@ func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) err
 
 	errCh := make(chan error, 1)
 	go func() {
-		s.logger.Info("api server starting", "addr", ln.Addr().String())
-		if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
-			errCh <- fmt.Errorf("server error: %w", err)
+		s.logger.Info("api server starting", "addr", ln.Addr().String(), "tls", s.cfg.Server.TLSEnabled)
+		var serveErr error
+		if s.cfg.Server.TLSEnabled {
+			watcher, err := certwatcher.New(s.cfg.Server.TLSCertFile, s.cfg.Server.TLSKeyFile)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to initialize cert watcher: %w", err)
+				return
+			}
+			go func() {
+				if err := watcher.Start(ctx); err != nil {
+					s.logger.Error("cert watcher stopped", "error", err)
+				}
+			}()
+			srv.TLSConfig = &tls.Config{GetCertificate: watcher.GetCertificate}
+			serveErr = srv.ServeTLS(ln, "", "")
+		} else {
+			serveErr = srv.Serve(ln)
+		}
+		if !errors.Is(serveErr, http.ErrServerClosed) {
+			errCh <- fmt.Errorf("server error: %w", serveErr)
 		}
 		close(errCh)
 	}()
