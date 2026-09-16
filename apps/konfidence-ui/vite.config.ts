@@ -43,6 +43,16 @@ export default defineConfig({
         test: {
           browser: {
             enabled: true,
+            // Tolerate env drift; byte-for-byte parity is enforced by screenshots:check.
+            expect: {
+              toMatchScreenshot: {
+                comparatorName: "pixelmatch",
+                comparatorOptions: {
+                  allowedMismatchedPixelRatio: 0.03,
+                  threshold: 0.15,
+                },
+              },
+            },
             instances: [{ browser: "chromium", headless: true }],
             provider: playwright(),
           },

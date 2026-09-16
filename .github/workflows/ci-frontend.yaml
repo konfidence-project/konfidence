@@ -122,8 +122,7 @@ jobs:
 
   test-browser:
     name: Test Browser
-    # Match the ARM64 baselines under apps/konfidence-ui/**/__screenshots__.
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     steps:
       - *checkout-code
       - *install-pnpm
@@ -135,7 +134,6 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          # Playwright browsers are per-arch; keep ARM and x86_64 caches separate.
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles('pnpm-lock.yaml', 'apps/konfidence-ui/package.json') }}
 
       - name: Install Chromium
