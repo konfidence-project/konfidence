@@ -10,28 +10,36 @@
         TableHeaderCell,
         TableRow,
     } from "@konfidence/design-system/components";
-    import MonoCell from "$lib/components/table-cells/MonoCell.svelte";
+    import { resolve } from "$app/paths";
+    import { VECTOR_DEPLOYMENT_PARAM } from "$lib/artifact-deployments/params";
+    import LinkCell from "$lib/components/table-cells/LinkCell.svelte";
     import StatusCell from "$lib/components/table-cells/StatusCell.svelte";
-    import TagListCell from "$lib/components/table-cells/TagListCell.svelte";
     import { toStore } from "svelte/store";
 
-    import type { ArtifactDeploymentRow } from "./deployments.js";
+    import { createVectordeploymentTable } from "./create-vectordeployment-table.js";
+    import type { VectorDeploymentRow } from "./deployments.js";
     import { statusLabel, statusTone } from "./deployments.js";
-    import { createArtifactTable } from "./create-artifact-table.js";
 
     interface Props {
-        rows: readonly ArtifactDeploymentRow[];
+        projectId: string;
+        rows: readonly VectorDeploymentRow[];
         selectedId?: string | undefined;
-        onSelect: (row: ArtifactDeploymentRow) => void;
+        onSelect: (row: VectorDeploymentRow) => void;
     }
 
-    let { rows, selectedId, onSelect }: Props = $props();
+    let { projectId, rows, selectedId, onSelect }: Props = $props();
 
     const rowsStore = toStore(() => [...rows]);
-    const { table, columns } = createArtifactTable(rowsStore);
+    const { table, columns } = createVectordeploymentTable(rowsStore);
     const { headerRows, pageRows, tableAttrs } = table.createViewModel(columns, {
         rowDataId: (row) => row.id,
     });
+
+    const artifactDeploymentsUrl = (deploymentId: string) =>
+        resolve(
+            `/(shell)/projects/[projectId]/artifact-deployments?${VECTOR_DEPLOYMENT_PARAM}=${encodeURIComponent(deploymentId)}`,
+            { projectId },
+        );
 
     const sortIcon = (order: "asc" | "desc" | undefined): string => {
         if (order === "asc") {
@@ -85,7 +93,7 @@
             <Subscribe attrs={row.attrs()} let:attrs>
                 <TableRow
                     {...attrs}
-                    data-testid="artifact-row"
+                    data-testid="vectordeployment-row"
                     data-row-id={rowData.id}
                     selected={rowData.id === selectedId}
                     onselect={() => onSelect(rowData)}
@@ -98,16 +106,13 @@
                                         label={statusLabel(rowData.status)}
                                         tone={statusTone(rowData.status)}
                                     />
-                                {:else if cell.id === "stages"}
-                                    <TagListCell labels={rowData.stageNames} />
-                                {:else if cell.id === "vectorDeployments"}
-                                    <TagListCell
-                                        labels={rowData.vectorDeploymentLabels}
-                                        keys={rowData.vectorDeploymentIds}
-                                        mono
-                                    />
-                                {:else if cell.id === "id" || cell.id === "version" || cell.id === "repository"}
-                                    <MonoCell><Render of={cell.render()} /></MonoCell>
+                                {:else if cell.id === "relatedArtifactDeployments"}
+                                    <LinkCell
+                                        url={artifactDeploymentsUrl(rowData.id)}
+                                        ariaLabel={`View artifact deployments for ${rowData.id}`}
+                                    >
+                                        {rowData.relatedArtifactDeployments.length}
+                                    </LinkCell>
                                 {:else}
                                     <Render of={cell.render()} />
                                 {/if}

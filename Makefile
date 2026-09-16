@@ -336,6 +336,11 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 ##@ Local Development
 
 DEV_COMPOSE_FILE ?= hack/kden_local_dev/docker-compose.yml
+DEV_UI_API_URL ?= https://api.localhost/api
+
+.PHONY: dev-ui
+dev-ui: hermit ## Run Vite for access through the local Caddy HTTPS proxy.
+	VITE_KONFIDENCE_API_BASE_URL="$(DEV_UI_API_URL)" pnpm --filter konfidence-ui dev --host 0.0.0.0
 
 .PHONY: dev-apiserver
 dev-apiserver: hermit manifests setup-envtest ## Run a standalone envtest apiserver with the CRDs installed; no cluster needed.
