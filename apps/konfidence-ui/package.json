@@ -32,7 +32,8 @@
     "@skeletonlabs/skeleton": "^5.0.0",
     "@skeletonlabs/skeleton-svelte": "^5.0.0",
     "@ui5/webcomponents": "^2.26.0",
-    "@ui5/webcomponents-icons": "^2.26.0"
+    "@ui5/webcomponents-icons": "^2.26.0",
+    "@xyflow/svelte": "^1.6.6"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",

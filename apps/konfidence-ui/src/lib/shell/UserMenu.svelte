@@ -1,17 +1,17 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { resolve } from "$app/paths";
-    import { Menu } from "@konfidence/design-system/components";
+    import { Avatar, Menu } from "@konfidence/design-system/components";
     import { useSession } from "$lib/auth/session.svelte";
 
     /**
-     * Avatar trigger + user menu. Skeleton's `Menu.Trigger` renders a real
-     * `<button>` when no `element` snippet is provided; we style it with the
-     * `.avatar` class vocabulary from the design system so the visual stays
-     * consistent while getting native keyboard activation (Enter/Space) for
-     * free.
-     * Sign-out is dispatched through the menu's `onSelect` so the existing
-     * sign-out route handles the session flow without menu-specific coupling.
+     * Avatar trigger + user menu. Follows the same idiom as
+     * `ProjectSelector.svelte`: `Menu.Trigger` delegates its DOM to the
+     * `element` snippet so the real DS component (`<Avatar>`) becomes the
+     * trigger and inherits Zag's keyboard/focus/aria wiring via the
+     * spread `attributes`. Sign-out is dispatched through the menu's
+     * `onSelect` so the existing sign-out route handles the session flow
+     * without menu-specific coupling.
      */
     const AVATAR_INITIALS_MAX = 2;
     const SIGN_OUT_VALUE = "sign-out";
@@ -35,12 +35,18 @@
 </script>
 
 <Menu positioning={{ placement: "bottom-end" }} onSelect={handleSelect}>
-    <Menu.Trigger
-        class="avatar avatar--orbit"
-        aria-label={`Open user menu for ${session.user?.name ?? "current user"}`}
-        data-testid="user-menu-trigger"
-    >
-        {initials}
+    <Menu.Trigger>
+        {#snippet element(attributes)}
+            <Avatar
+                {...attributes}
+                as="button"
+                class={attributes.class}
+                {initials}
+                orbit
+                ariaLabel={`Open user menu for ${session.user?.name ?? "current user"}`}
+                data-testid="user-menu-trigger"
+            />
+        {/snippet}
     </Menu.Trigger>
     <Menu.Positioner>
         <Menu.Content header>

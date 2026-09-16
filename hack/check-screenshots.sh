@@ -3,10 +3,15 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-committed="$root/packages/konfidence-design-system/src/components"
+if [[ $# -ne 1 || ! -f "$root/$1/package.json" ]]; then
+	printf 'Usage: %s <workspace-directory>\n' "${0##*/}" >&2
+	exit 2
+fi
+workspace="$1"
+committed="$root/$workspace/src"
 generated=$(mktemp -d)
 trap 'rm -rf "$generated"' EXIT
-bash "$root/hack/generate-design-system-screenshots.sh" "$generated"
+bash "$root/hack/generate-screenshots.sh" "$workspace" "$generated"
 
 drift=0
 while IFS= read -r -d '' file; do
@@ -28,6 +33,6 @@ while IFS= read -r -d '' file; do
 done < <(find "$committed" -type f -path '*/__screenshots__/*-linux.png' -print0)
 
 if [[ "$drift" != 0 ]]; then
-	echo "::error::Linux screenshots are stale. Run 'pnpm ds:screenshots:generate', review the PNG changes, and commit them."
+	printf "::error::Linux screenshots are stale. Run 'bash hack/generate-screenshots.sh %s' and review the PNG changes.\n" "$workspace"
 	exit 1
 fi

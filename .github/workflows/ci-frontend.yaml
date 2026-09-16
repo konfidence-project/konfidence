@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/ci-frontend.yaml
-      - hack/*design-system-screenshots.sh
+      - hack/*screenshots*
       - .goreleaser.yaml
       - Makefile
       - api/codegen-client.yaml
@@ -22,7 +22,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/ci-frontend.yaml
-      - hack/*design-system-screenshots.sh
+      - hack/*screenshots*
       - .goreleaser.yaml
       - Makefile
       - api/codegen-client.yaml
@@ -122,7 +122,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml', 'apps/konfidence-ui/package.json') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles('pnpm-lock.yaml', 'apps/konfidence-ui/package.json') }}
 
       - name: Install Chromium
         run: pnpm --filter konfidence-ui exec playwright install --with-deps chromium

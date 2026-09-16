@@ -46,7 +46,13 @@ export default defineConfig({
       },
     },
     {
-      files: ["src/lib/projects/persistProjectPreference.ts", "src/lib/projects/projectContext.ts"],
+      files: [
+        "src/lib/landscape/landscapeApi.ts",
+        "src/lib/landscape/stageGrouping.ts",
+        "src/lib/landscape/stageStatus.ts",
+        "src/lib/projects/persistProjectPreference.ts",
+        "src/lib/projects/projectContext.ts",
+      ],
       rules: {
         "unicorn/filename-case": "off",
       },

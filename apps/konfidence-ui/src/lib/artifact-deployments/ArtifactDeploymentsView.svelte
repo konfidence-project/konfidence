@@ -7,6 +7,7 @@
         Button,
         EmptyState,
         OrbitLoader,
+        PageHeader,
         SearchInput,
         Select,
         SidePanel,
@@ -76,18 +77,10 @@
     class="mx-auto flex w-full max-w-[84rem] flex-col gap-5 px-6 pt-6 pb-10"
     aria-labelledby="artifact-view-title"
 >
-    <header class="flex flex-col gap-1">
-        <h1
-            id="artifact-view-title"
-            class="m-0 text-[length:var(--text-h1)] font-[weight:var(--weight-display)] tracking-[var(--tracking-h1)] text-[color:var(--text-primary)]"
-            data-testid="page-heading"
-        >
-            Artifact Deployments
-        </h1>
-        <p class="m-0 text-[length:var(--text-sm)] text-[color:var(--text-secondary)]">
-            Inspect the artifact deployments backing this project's vectors, stages, and landscapes.
-        </p>
-    </header>
+    <PageHeader
+        id="artifact-view-title"
+        title="Artifact Deployments"
+    />
 
     {#if hasLoaded && !error}
         <div
@@ -112,8 +105,10 @@
                     data-testid="artifact-status-filter"
                 >
                     <option value="">All statuses</option>
-                    <option value="ArtifactDeployed">Deployed</option>
                     <option value="ArtifactFetched">Fetched</option>
+                    <option value="ArtifactDeployed">Deployed</option>
+                    <option value="AppHealthy">Healthy</option>
+                    <option value="Ready">Ready</option>
                 </Select>
             </label>
             <label class="flex min-w-[12rem] flex-col gap-1">
