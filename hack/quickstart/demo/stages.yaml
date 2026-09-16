@@ -1,0 +1,16 @@
+# dev-eu12 pins the public Example App vector; prod-eu12 is filled by the promotion.
+apiVersion: konfidence.cloud/v1alpha1
+kind: Stage
+metadata:
+  name: dev-eu12
+  namespace: kden-l-dev
+spec:
+  vector: https://ghcr.io/konfidence-project/example-app//github.com/konfidence-project/example-app/vector:0.1.0-f486ecb
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Stage
+metadata:
+  name: prod-eu12
+  namespace: kden-l-prod
+spec:
+  vector: ""

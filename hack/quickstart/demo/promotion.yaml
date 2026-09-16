@@ -1,0 +1,15 @@
+# Stage source defaults to requiring approval, so this waits for a manual approval.
+apiVersion: konfidence.cloud/v1alpha1
+kind: VectorPromotionConfig
+metadata:
+  name: dev-to-prod
+  namespace: kden-p-example-app
+spec:
+  source:
+    kind: Stage
+    name: dev-eu12
+    landscape: dev
+  target:
+    kind: Stage
+    name: prod-eu12
+    landscape: prod

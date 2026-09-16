@@ -1,0 +1,18 @@
+# spec.namespace pins the managed namespace so the Stages can target it.
+apiVersion: konfidence.cloud/v1alpha1
+kind: Landscape
+metadata:
+  name: dev
+  namespace: kden-p-example-app
+spec:
+  displayName: Development
+  namespace: kden-l-dev
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Landscape
+metadata:
+  name: prod
+  namespace: kden-p-example-app
+spec:
+  displayName: Production
+  namespace: kden-l-prod

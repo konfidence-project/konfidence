@@ -1,0 +1,98 @@
+# Self-contained Postgres for the Example App (candidates/interviews require it).
+# No external credentials: the DB and its example-app-db-credentials secrets are
+# created here. A production deployment would point the secret at a managed DB.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-app-db
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: example-app-db
+data:
+  init.sql: |
+    CREATE USER example WITH PASSWORD 'example';
+    CREATE DATABASE example OWNER example;
+    \c example
+    GRANT ALL ON SCHEMA public TO example;
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: example-app-db
+spec:
+  replicas: 1
+  serviceName: postgres
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_PASSWORD
+              value: rootpw
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: init
+          configMap:
+            name: postgres-init
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: example-app-db
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# Credentials consumed by the workloads in each landscape's managed namespace.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: example-app-db-credentials
+  namespace: kden-l-dev
+type: Opaque
+stringData:
+  PGHOST: postgres.example-app-db.svc.cluster.local
+  PGPORT: "5432"
+  PGUSER: example
+  PGPASSWORD: example
+  PGDATABASE: example
+  PGSSLMODE: disable
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: example-app-db-credentials
+  namespace: kden-l-prod
+type: Opaque
+stringData:
+  PGHOST: postgres.example-app-db.svc.cluster.local
+  PGPORT: "5432"
+  PGUSER: example
+  PGPASSWORD: example
+  PGDATABASE: example
+  PGSSLMODE: disable

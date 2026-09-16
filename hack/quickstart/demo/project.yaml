@@ -1,0 +1,11 @@
+# roleBindings grants admin to local-admin so the project shows in the quickstart UI.
+apiVersion: konfidence.cloud/v1alpha1
+kind: Project
+metadata:
+  name: example-app
+spec:
+  displayName: Example App
+  roleBindings:
+    admin:
+      - session:
+          memberOf: [local-admin]

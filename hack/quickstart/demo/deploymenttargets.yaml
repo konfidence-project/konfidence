@@ -1,0 +1,42 @@
+# Tells each landscape to deploy into the local (in-cluster) control plane.
+# One per DeploymentClass (kustomize + helm) per managed namespace; type "local"
+# needs no kubeconfig.
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: local-kustomize
+  namespace: kden-l-dev
+spec:
+  deploymentClassName: kustomize.konfidence.cloud
+  connection:
+    type: local
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: local-helm
+  namespace: kden-l-dev
+spec:
+  deploymentClassName: helm.konfidence.cloud
+  connection:
+    type: local
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: local-kustomize
+  namespace: kden-l-prod
+spec:
+  deploymentClassName: kustomize.konfidence.cloud
+  connection:
+    type: local
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: local-helm
+  namespace: kden-l-prod
+spec:
+  deploymentClassName: helm.konfidence.cloud
+  connection:
+    type: local
