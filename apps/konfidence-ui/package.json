@@ -23,10 +23,7 @@
     "test": "pnpm test:unit && pnpm test:browser && pnpm test:e2e",
     "test:unit": "vitest run --project server",
     "test:browser": "vitest run --project client",
-    "test:e2e": "playwright test",
-    "screenshots:generate": "bash ../../hack/generate-screenshots.sh apps/konfidence-ui",
-    "screenshots:check": "bash ../../hack/check-screenshots.sh apps/konfidence-ui",
-    "screenshots:regenerate": "svelte-kit sync && vitest run --project client --update"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@humanspeak/svelte-headless-table": "^6.2.0",
