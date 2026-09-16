@@ -2,7 +2,7 @@
     import type { Node, NodeProps } from "@xyflow/svelte";
     import { useSvelteFlow } from "@xyflow/svelte";
     import type { Stage } from "$lib/landscape/landscapeApi";
-    import StageCard from "$lib/landscape/components/StageCard.svelte";
+    import LandscapeStageCard from "$lib/landscape/components/LandscapeStageCard.svelte";
 
     type StageNode = Node<
         { stage: Stage; landscapeName: string; category: string; href: string },
@@ -32,5 +32,5 @@
   commits to a pan.
 -->
 <div onfocusin={revealFocusedCard}>
-    <StageCard {...data} />
+    <LandscapeStageCard {...data} />
 </div>

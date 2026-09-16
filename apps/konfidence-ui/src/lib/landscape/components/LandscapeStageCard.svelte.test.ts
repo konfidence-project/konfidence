@@ -1,9 +1,9 @@
 import "../../../app.css";
 import { page } from "vitest/browser";
-import { afterEach, describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 import type { Stage } from "$lib/landscape/landscapeApi";
-import StageCard from "$lib/landscape/components/StageCard.svelte";
+import LandscapeStageCard from "$lib/landscape/components/LandscapeStageCard.svelte";
 import type { StageVersion } from "$lib/landscape/stageStatus";
 
 const active: StageVersion = {
@@ -30,23 +30,13 @@ const scenarios: Record<string, Stage> = {
     targetStageVersion: { ...active, id: "new", status: "ActivatingVector" },
   },
   active: { ...stage, targetStageVersion: active },
-  "active only": stage,
   deploying: {
     ...stage,
     targetStageVersion: { ...active, id: "new", status: "DeployingVector" },
   },
-  empty: { ...stage, activeStageVersion: undefined },
   failed: {
     ...stage,
     targetStageVersion: { ...active, id: "new", status: "Failed" },
-  },
-  "long references": {
-    ...stage,
-    name: "dev-payments-international-reconciliation-service",
-    targetStageVersion: {
-      ...active,
-      vector: `registry.example.com:5000/konfidence/payments/international-reconciliation@sha256:${"abcdef0123456789".repeat(4)}`,
-    },
   },
   migrating: {
     ...stage,
@@ -57,41 +47,10 @@ const scenarios: Record<string, Stage> = {
     activeStageVersion: undefined,
     targetStageVersion: { ...active, id: "new", status: "PendingDeployment" },
   },
-  "ready but not active": {
-    ...stage,
-    targetStageVersion: { ...active, id: "new" },
-  },
 };
 
-afterEach(() => {
-  document.documentElement.removeAttribute("data-theme");
-  document.documentElement.removeAttribute("data-mode");
-});
-
-for (const mode of ["light", "dark"]) {
-  describe(`stage card ${mode}`, () => {
-    for (const [name, example] of Object.entries(scenarios)) {
-      it(`renders ${name}`, async () => {
-        await page.viewport(304, 300);
-        document.documentElement.setAttribute("data-theme", "konfidence");
-        document.documentElement.setAttribute("data-mode", mode);
-        render(StageCard, { ...props, stage: example });
-        await expect.element(page.getByRole("link")).toMatchScreenshot();
-      });
-    }
-
-    it("renders selected", async () => {
-      await page.viewport(304, 300);
-      document.documentElement.setAttribute("data-theme", "konfidence");
-      document.documentElement.setAttribute("data-mode", mode);
-      render(StageCard, { ...props, selected: true, stage: scenarios.deploying });
-      await expect.element(page.getByRole("link")).toMatchScreenshot();
-    });
-  });
-}
-
 it("keeps the active version visible when a new target fails and responds to prop changes", async () => {
-  const rendered = render(StageCard, { ...props, stage: scenarios.failed });
+  const rendered = render(LandscapeStageCard, { ...props, stage: scenarios.failed });
   const link = page.getByRole("link", {
     name: "View details for stage dev-api in Primary, Dev",
   });
@@ -105,7 +64,7 @@ it("keeps the active version visible when a new target fails and responds to pro
 });
 
 it("advances the active phase as the target status progresses", async () => {
-  const rendered = render(StageCard, { ...props, stage: scenarios.deploying });
+  const rendered = render(LandscapeStageCard, { ...props, stage: scenarios.deploying });
   const card = page.getByRole("link").element();
   const activeSeg = () => card.querySelector(".stage-progress__seg--active");
   expect(activeSeg()?.textContent?.trim()).toBe("Deploy");
@@ -114,15 +73,13 @@ it("advances the active phase as the target status progresses", async () => {
   await rendered.rerender({ ...props, stage: scenarios.activating });
   expect(activeSeg()?.textContent?.trim()).toBe("Activate");
   await rendered.rerender({ ...props, stage: scenarios.failed });
-  // On Failed with an active version we mark Activate as failed and
-  // clear any `active` segment.
   expect(card.querySelector(".stage-progress__seg--active")).toBeNull();
   const failed = card.querySelector(".stage-progress__seg--failed");
   expect(failed?.textContent?.trim()).toBe("Activate");
 });
 
 it("colours the top stripe from the target status", async () => {
-  const rendered = render(StageCard, { ...props, stage: scenarios.deploying });
+  const rendered = render(LandscapeStageCard, { ...props, stage: scenarios.deploying });
   const link = page.getByRole("link").element() as HTMLElement;
   expect(link.getAttribute("data-status")).toBe("deploying");
   await rendered.rerender({ ...props, stage: scenarios.failed });

@@ -17,6 +17,7 @@ export {
   SearchInput,
   Sidebar,
   SidePanel,
+  StageCard,
   StagePhase,
   StatusBadge,
   Table,
@@ -27,6 +28,7 @@ export {
 } from "../components/index.js";
 export type {
   BreadcrumbItem,
+  StageCardStatusRole,
   StagePhaseItem,
   StagePhaseSize,
   StagePhaseState,
