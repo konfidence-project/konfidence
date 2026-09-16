@@ -14,8 +14,11 @@ metadata:
 data:
   init.sql: |
     CREATE USER example WITH PASSWORD 'example';
-    CREATE DATABASE example OWNER example;
-    \c example
+    CREATE DATABASE example_dev OWNER example;
+    CREATE DATABASE example_prod OWNER example;
+    \c example_dev
+    GRANT ALL ON SCHEMA public TO example;
+    \c example_prod
     GRANT ALL ON SCHEMA public TO example;
 ---
 apiVersion: apps/v1
@@ -80,7 +83,7 @@ stringData:
   PGPORT: "5432"
   PGUSER: example
   PGPASSWORD: example
-  PGDATABASE: example
+  PGDATABASE: example_dev
   PGSSLMODE: disable
 ---
 apiVersion: v1
@@ -94,5 +97,5 @@ stringData:
   PGPORT: "5432"
   PGUSER: example
   PGPASSWORD: example
-  PGDATABASE: example
+  PGDATABASE: example_prod
   PGSSLMODE: disable
