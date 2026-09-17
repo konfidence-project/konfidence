@@ -30,7 +30,7 @@ func runMigrations(ctx context.Context, dsn string, direction string, logger *sl
 	if err != nil {
 		return 0, fmt.Errorf("opening database: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.PingContext(ctx); err != nil {
 		return 0, fmt.Errorf("database unreachable: %w", err)

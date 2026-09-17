@@ -117,17 +117,15 @@ api:
   # Enable when session-storage-type is "db-pg" to apply schema migrations
   # automatically before the API server starts.
   migrations:
-    # When false, the migration Job is not rendered. Enable alongside db-pg storage.
+    # -- When true, runs a Helm pre-install/pre-upgrade Job that applies all pending schema migrations before the API server starts. Enable when `api.session.storageType` is `db-pg`.
     enabled: false
-    # Name of the Secret containing the DB connection string under the key
-    # specified by dbConnectionSecretKey.
+    # -- Secret containing the Postgres connection string. The key within the Secret defaults to `db-connection` and must match the `--db-connection` flag the migration Job uses.
     dbConnectionSecretRef:
       name: ""
       key: db-connection
-    # Hook weight controls ordering relative to other pre-install/pre-upgrade hooks.
-    # Lower values run first (default 0).
+    # -- Helm hook weight controlling execution order relative to other pre-install/pre-upgrade hooks. Lower values run first.
     hookWeight: "0"
-    # Resource limits for the migration job's container.
+    # -- Resource requests and limits for the migration Job container.
     resources: {}
 
   # Extra CLI arguments appended to the container args list.
