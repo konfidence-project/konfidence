@@ -233,4 +233,26 @@ var _ = Describe("Config.Validate", func() {
 		Entry("zero", "0s"),
 		Entry("negative", "-1m"),
 	)
+
+	It("allows TLS files to be omitted when tls-enabled is false", func() {
+		c := valid()
+		_, err := c.Validate()
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("rejects empty tls-cert-file when tls-enabled is true", func() {
+		c := valid()
+		c.Server.TLSEnabled = true
+		c.Server.TLSKeyFile = "key.pem"
+		_, err := c.Validate()
+		Expect(err).To(MatchError(ContainSubstring("tls-cert-file")))
+	})
+
+	It("rejects empty tls-key-file when tls-enabled is true", func() {
+		c := valid()
+		c.Server.TLSEnabled = true
+		c.Server.TLSCertFile = "cert.pem"
+		_, err := c.Validate()
+		Expect(err).To(MatchError(ContainSubstring("tls-key-file")))
+	})
 })

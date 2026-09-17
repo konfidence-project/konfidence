@@ -2,7 +2,16 @@ package server_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"log/slog"
+	"math/big"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -43,6 +52,22 @@ func validParsed(addr string) config.Parsed {
 
 func getLogger() *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+}
+
+func generateTestCert() (certPEM, keyPEM []byte) {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "localhost"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	certDER, _ := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyDER, _ := x509.MarshalECPrivateKey(key)
+	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+	return
 }
 
 var _ = Describe("Server", func() {
@@ -122,5 +147,48 @@ var _ = Describe("Server", func() {
 			Expect(resp.Header.Get("Content-Type")).NotTo(ContainSubstring("text/html"))
 			_ = resp.Body.Close()
 		})
+
+		It("serves /healthz over TLS when tls-enabled is true", func() {
+			certPEM, keyPEM := generateTestCert()
+
+			dir := GinkgoT().TempDir()
+			certFile := filepath.Join(dir, "tls.crt")
+			keyFile := filepath.Join(dir, "tls.key")
+			Expect(os.WriteFile(certFile, certPEM, 0600)).To(Succeed())
+			Expect(os.WriteFile(keyFile, keyPEM, 0600)).To(Succeed())
+
+			cfg := validParsed("127.0.0.1:0")
+			cfg.Server.TLSEnabled = true
+			cfg.Server.TLSCertFile = certFile
+			cfg.Server.TLSKeyFile = keyFile
+
+			srv := server.New(cfg, getLogger(), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}))
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			var addr string
+			errCh := make(chan error, 1)
+			go func() { errCh <- srv.ListenAndServe(ctx, func(a string) { addr = a }) }()
+
+			tlsClient := &http.Client{Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}}
+			Eventually(func() int {
+				if addr == "" {
+					return 0
+				}
+				resp, err := tlsClient.Get("https://" + addr + "/healthz")
+				if err != nil {
+					return 0
+				}
+				return resp.StatusCode
+			}, 3*time.Second, 50*time.Millisecond).Should(Equal(http.StatusOK))
+
+			cancel()
+			Eventually(errCh, 3*time.Second).Should(Receive(BeNil()))
+		})
+
 	})
 })
