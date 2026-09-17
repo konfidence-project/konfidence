@@ -32,6 +32,31 @@ For a step-by-step guide including cluster setup, component installation, and yo
 
 For detailed installation instructions and production deployment considerations, see the [Installation Guide](https://konfidence.cloud/docs/deploy-operate/installation.html).
 
+## Local Development
+
+The smallest loop needs no cluster. Start an envtest apiserver with the Konfidence CRDs; it
+keeps running and prints the kubeconfig to export:
+
+```sh
+source ./bin/activate-hermit
+make dev-apiserver
+```
+
+Then run the operator and the API server, each in its own terminal, with that kubeconfig:
+
+```sh
+source ./bin/activate-hermit
+export KUBECONFIG=$PWD/.tmp/envtest.kubeconfig
+make webhook-certs
+make run
+make run-kden-api
+```
+
+`make help` lists the other targets: a local registry, an identity provider for OIDC work,
+and a kind cluster for testing the chart and images. The full guide, organised by what your
+change has to reach, is in the
+[Extend & Customize section of the docs](https://konfidence.cloud/docs/extend-customize/).
+
 ## Dashboard Development
 
 The production dashboard lives in `apps/konfidence-ui`. Activate Hermit and install the workspace dependencies before starting it:
@@ -42,7 +67,9 @@ pnpm install
 pnpm ui:dev:mock
 ```
 
-This starts the dashboard and the OpenAPI-validated mock server together. The development server proxies `/api/v1` requests to the mock API at `http://127.0.0.1:8091`. Run `pnpm ui:dev` and `make run-kden-api` separately when developing against the Go API instead.
+This starts the dashboard and the OpenAPI-validated mock server together. The development server proxies `/api/v1` requests to the mock API at `http://127.0.0.1:8091`. To develop against the Go API instead, run `make run-kden-api` and point the proxy at it with `KONFIDENCE_API_URL=http://127.0.0.1:8090 pnpm ui:dev`.
+
+The design system in `packages/konfidence-design-system` is a workspace package that the dashboard imports from source, so changes to it show up live in the same development server.
 
 Install Chromium once before running browser-based tests:
 
