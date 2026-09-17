@@ -395,6 +395,45 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/migrate/up:
+    post:
+      operationId: migrateUpV1
+      summary: Apply pending database migrations
+      description: >
+        Runs all pending goose SQL migrations against the configured database.
+        This is a no-op when the schema is already at the latest version.
+        Intended for use by the Helm pre-deploy job and privileged operators.
+      tags: [admin]
+      security: []
+      responses:
+        "200":
+          description: Migrations applied successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MigrateResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/migrate/down:
+    post:
+      operationId: migrateDownV1
+      summary: Roll back the most recent database migration
+      description: >
+        Rolls back the most recently applied goose SQL migration.
+        Intended for controlled rollback by privileged operators.
+      tags: [admin]
+      security: []
+      responses:
+        "200":
+          description: Migration rolled back successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MigrateResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   securitySchemes:
     sessionCookie:
@@ -452,6 +491,14 @@ components:
 
 
   schemas:
+    MigrateResponse:
+      type: object
+      required: [ applied ]
+      properties:
+        applied:
+          type: integer
+          description: Number of migration steps applied or rolled back.
+
     ProjectList:
       type: object
       required: [ data ]

@@ -167,6 +167,23 @@ api:
     # -- Maximum idle time of a connection.
     maxConnIdleTime: 5m
 
+  # Database migration job run as a Helm pre-install/pre-upgrade hook.
+  # Enable when session-storage-type is "db-pg" to apply schema migrations
+  # automatically before the API server starts.
+  migrations:
+    # When false, the migration Job is not rendered. Enable alongside db-pg storage.
+    enabled: false
+    # Name of the Secret containing the DB connection string under the key
+    # specified by dbConnectionSecretKey.
+    dbConnectionSecretRef:
+      name: ""
+      key: db-connection
+    # Hook weight controls ordering relative to other pre-install/pre-upgrade hooks.
+    # Lower values run first (default 0).
+    hookWeight: "0"
+    # Resource limits for the migration job's container.
+    resources: {}
+
   # -- Extra CLI arguments appended to the API server container args list.
   extraArgs: []
 
