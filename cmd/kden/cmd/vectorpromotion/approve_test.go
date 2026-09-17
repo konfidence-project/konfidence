@@ -10,12 +10,13 @@ import (
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vectorpromotion"
 	kdenauth "github.com/konfidence-project/konfidence/internal/kden/auth"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
+	. "github.com/konfidence-project/konfidence/internal/kden/testutil"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cobra"
 )
 
-const testApprovePath = "/api/v1/projects/" + testProjectID + "/vectorPromotions/" + testVectorPromotionID + "/approve"
+const testApprovePath = "/api/v1/projects/" + TestProjectID + "/vectorPromotions/" + testVectorPromotionID + "/approve"
 
 func executeApproveCommand(appConfig *cfg.AppConfig, args ...string) error {
 	GinkgoHelper()
@@ -55,24 +56,24 @@ var _ = Describe("approve command", func() {
 
 		appConfig = &cfg.AppConfig{
 			APIProvider: cfg.NewAPIClientProvider(func() (*kdenauth.Client, error) {
-				return newTestAuthClient(server.URL + "/api"), nil
+				return NewTestAuthClient(server.URL + "/api"), nil
 			}),
 		}
 	})
 
 	It("succeeds on 204 and prints a success message", func() {
 		var err error
-		printed := captureOutput(func() {
-			err = executeApproveCommand(appConfig, testVectorPromotionID, flagProjectID, testProjectID)
+		printed := CaptureOutput(func() {
+			err = executeApproveCommand(appConfig, testVectorPromotionID, FlagProjectID, TestProjectID)
 		})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(printed).To(Equal(fmt.Sprintf("Vector promotion %s approved successfully", testVectorPromotionID)))
-		expectRequest(requests, http.MethodPost, testApprovePath)
+		ExpectRequest(requests, http.MethodPost, testApprovePath)
 	})
 
 	It("fails when no positional argument is provided", func() {
-		err := executeApproveCommand(appConfig, flagProjectID, testProjectID)
+		err := executeApproveCommand(appConfig, FlagProjectID, TestProjectID)
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("accepts 1 arg(s), received 0"))
@@ -93,7 +94,7 @@ var _ = Describe("approve command", func() {
 			}),
 		}
 
-		err := executeApproveCommand(appConfig, testVectorPromotionID, flagProjectID, testProjectID)
+		err := executeApproveCommand(appConfig, testVectorPromotionID, FlagProjectID, TestProjectID)
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("failed initializing API client"))
@@ -104,26 +105,26 @@ var _ = Describe("approve command", func() {
 	It("wraps transport errors", func() {
 		server.Close()
 
-		err := executeApproveCommand(appConfig, testVectorPromotionID, flagProjectID, testProjectID)
+		err := executeApproveCommand(appConfig, testVectorPromotionID, FlagProjectID, TestProjectID)
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("approving vector promotion failed"))
 	})
 
 	It("returns an error on 403", func() {
-		errorMsg := fmt.Sprintf(`access to project %q is not allowed`, testProjectID)
+		errorMsg := fmt.Sprintf(`access to project %q is not allowed`, TestProjectID)
 		server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requests <- r
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
-			_, _ = w.Write(errorResponseBody("forbidden", errorMsg))
+			_, _ = w.Write(ErrorResponseBody("forbidden", errorMsg))
 		})
 
-		err := executeApproveCommand(appConfig, testVectorPromotionID, flagProjectID, testProjectID)
+		err := executeApproveCommand(appConfig, testVectorPromotionID, FlagProjectID, TestProjectID)
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(Equal(errorMsg))
-		expectRequest(requests, http.MethodPost, testApprovePath)
+		ExpectRequest(requests, http.MethodPost, testApprovePath)
 	})
 
 	It("returns an error on 404", func() {
@@ -132,14 +133,14 @@ var _ = Describe("approve command", func() {
 			requests <- r
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write(errorResponseBody("not_found", errorMsg))
+			_, _ = w.Write(ErrorResponseBody("not_found", errorMsg))
 		})
 
-		err := executeApproveCommand(appConfig, testVectorPromotionID, flagProjectID, testProjectID)
+		err := executeApproveCommand(appConfig, testVectorPromotionID, FlagProjectID, TestProjectID)
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(Equal(errorMsg))
-		expectRequest(requests, http.MethodPost, testApprovePath)
+		ExpectRequest(requests, http.MethodPost, testApprovePath)
 	})
 
 	It("returns an error on 409", func() {
@@ -148,14 +149,14 @@ var _ = Describe("approve command", func() {
 			requests <- r
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			_, _ = w.Write(errorResponseBody("conflict", errorMsg))
+			_, _ = w.Write(ErrorResponseBody("conflict", errorMsg))
 		})
 
-		err := executeApproveCommand(appConfig, testVectorPromotionID, flagProjectID, testProjectID)
+		err := executeApproveCommand(appConfig, testVectorPromotionID, FlagProjectID, TestProjectID)
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(errorMsg))
-		expectRequest(requests, http.MethodPost, testApprovePath)
+		ExpectRequest(requests, http.MethodPost, testApprovePath)
 	})
 
 	It("returns an error on unexpected status code", func() {
@@ -163,15 +164,15 @@ var _ = Describe("approve command", func() {
 			requests <- r
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write(errorResponseBody("internal_server_error", unexpectedErrorMsg))
+			_, _ = w.Write(ErrorResponseBody("internal_server_error", UnexpectedErrorMsg))
 		})
 
-		err := executeApproveCommand(appConfig, testVectorPromotionID, flagProjectID, testProjectID)
+		err := executeApproveCommand(appConfig, testVectorPromotionID, FlagProjectID, TestProjectID)
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("approving vector promotion returned HTTP %d", http.StatusInternalServerError)))
-		Expect(err.Error()).To(ContainSubstring(unexpectedErrorMsg))
-		expectRequest(requests, http.MethodPost, testApprovePath)
+		Expect(err.Error()).To(ContainSubstring(UnexpectedErrorMsg))
+		ExpectRequest(requests, http.MethodPost, testApprovePath)
 	})
 
 })
