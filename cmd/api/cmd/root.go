@@ -70,6 +70,7 @@ func init() {
 	utilruntime.Must(konfidence.AddToScheme(scheme))
 
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newMigrateCmd())
 
 	rootCmd.Flags().StringVar(&cfg.Server.Addr, "addr", envOr("API_ADDR", ":8090"),
 		"TCP address the API server listens on. Env: API_ADDR")

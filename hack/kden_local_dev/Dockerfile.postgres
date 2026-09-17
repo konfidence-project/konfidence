@@ -1,0 +1,17 @@
+FROM postgres:18-alpine
+
+ARG PG_UUIDV7_VERSION=1.7.0
+
+RUN apk add --no-cache git build-base \
+ && git clone --depth 1 --branch v${PG_UUIDV7_VERSION} \
+      https://github.com/fboulnois/pg_uuidv7.git /tmp/pg_uuidv7 \
+ && cd /tmp/pg_uuidv7 \
+ && gcc -Wall -O2 -fPIC -fvisibility=hidden \
+      -I$(pg_config --includedir-server) \
+      -shared -o pg_uuidv7.so pg_uuidv7.c \
+ && install -m 755 pg_uuidv7.so $(pg_config --pkglibdir)/ \
+ && install -m 644 pg_uuidv7.control $(pg_config --sharedir)/extension/ \
+ && find sql/ -name 'pg_uuidv7--*.sql' \
+      -exec install -m 644 {} $(pg_config --sharedir)/extension/ \; \
+ && apk del git build-base \
+ && rm -rf /tmp/pg_uuidv7
