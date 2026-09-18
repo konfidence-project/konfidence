@@ -113,6 +113,21 @@ api:
     maxConnLifetime: 30m
     maxConnIdleTime: 5m
 
+  # Database migration job run as a Helm pre-install/pre-upgrade hook.
+  # Enable when session-storage-type is "db-pg" to apply schema migrations
+  # automatically before the API server starts.
+  migrations:
+    # -- When true, runs a Helm pre-install/pre-upgrade Job that applies all pending schema migrations before the API server starts. Enable when `api.session.storageType` is `db-pg`.
+    enabled: false
+    # -- Secret containing the Postgres connection string. The key within the Secret defaults to `db-connection` and must match the `--db-connection` flag the migration Job uses.
+    dbConnectionSecretRef:
+      name: ""
+      key: db-connection
+    # -- Helm hook weight controlling execution order relative to other pre-install/pre-upgrade hooks. Lower values run first.
+    hookWeight: "0"
+    # -- Resource requests and limits for the migration Job container.
+    resources: {}
+
   # Extra CLI arguments appended to the container args list.
   extraArgs: []
 

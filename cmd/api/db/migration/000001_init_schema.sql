@@ -1,6 +1,8 @@
 -- +goose Up
+CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
+
 CREATE TABLE session (
-    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
     subject TEXT NOT NULL,
     name TEXT,
     given_name TEXT,
@@ -42,3 +44,4 @@ CREATE INDEX oidc_exchange_expires_at_idx ON oidc_exchange (expires_at);
 DROP TABLE IF EXISTS oidc_exchange;
 DROP TABLE IF EXISTS oidc_state;
 DROP TABLE IF EXISTS session;
+DROP EXTENSION IF EXISTS pg_uuidv7;

@@ -43,6 +43,10 @@ Kubernetes: `>=1.27.0-0`
 | api.ingress.hosts[0].paths[0].path | string | `"/"` |  |
 | api.ingress.hosts[0].paths[0].pathType | string | `"Prefix"` |  |
 | api.ingress.tls | list | `[]` |  |
+| api.migrations.dbConnectionSecretRef | object | `{"key":"db-connection","name":""}` | Secret containing the Postgres connection string. The key within the Secret defaults to `db-connection` and must match the `--db-connection` flag the migration Job uses. |
+| api.migrations.enabled | bool | `false` | When true, runs a Helm pre-install/pre-upgrade Job that applies all pending schema migrations before the API server starts. Enable when `api.session.storageType` is `db-pg`. |
+| api.migrations.hookWeight | string | `"0"` | Helm hook weight controlling execution order relative to other pre-install/pre-upgrade hooks. Lower values run first. |
+| api.migrations.resources | object | `{}` | Resource requests and limits for the migration Job container. |
 | api.oidc.allowReturnUrls | list | `[]` |  |
 | api.oidc.authorizationURL | string | `""` |  |
 | api.oidc.clientId | string | `""` |  |

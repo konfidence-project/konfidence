@@ -36,7 +36,10 @@ services:
       - authelia
 
   db:
-    image: postgres:18-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    image: konfidence-postgres:local
     container_name: postgres_kden
     restart: unless-stopped
     environment:
