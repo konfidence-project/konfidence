@@ -45,8 +45,23 @@ func stageVersionResource(name, landscapeNamespace, stageName string) *konfidenc
 	}
 }
 
+func vectorDeploymentResource(name, landscapeNamespace, stageVersionName string) *konfidence.VectorDeployment {
+	return &konfidence.VectorDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: landscapeNamespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: konfidence.StageVersionKind,
+					Name: stageVersionName,
+				},
+			},
+		},
+	}
+}
+
 func artifactDeploymentResource(name, landscapeNamespace, landscapeId,
-	vectorDeploymentId, stageVersionName string) *konfidence.ArtifactDeployment {
+	vectorDeploymentId string) *konfidence.ArtifactDeployment {
 	return &konfidence.ArtifactDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -57,8 +72,8 @@ func artifactDeploymentResource(name, landscapeNamespace, landscapeId,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					Kind: konfidence.StageVersionKind,
-					Name: stageVersionName,
+					Kind: konfidence.VectorDeploymentKind,
+					Name: vectorDeploymentId,
 				},
 			},
 		},
@@ -90,11 +105,12 @@ func TestRepositoryGetNotFound(t *testing.T) {
 func TestListForScopeNoFilters(t *testing.T) {
 	landscape := landscapeResource(landscapeId, landscapeNamespace)
 	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId, "sv-1")
+	vectorDeployment := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
+	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId)
 
 	k8s := fake.NewClientBuilder().
 		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, ad).
+		WithObjects(landscape, stageVersion, vectorDeployment, ad).
 		Build()
 
 	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(context.Background(), projectNamespace)
@@ -118,13 +134,16 @@ func TestListForScopeFilterByLandscape(t *testing.T) {
 
 	devStageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
 	prodStageVersion := stageVersionResource("sv-2", "kden-l-prod", "stage-prod")
+	devVectorDeployment := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
+	prodVectorDeployment := vectorDeploymentResource(vectorDeploymentId, "kden-l-prod", "sv-2")
 
-	devAd := artifactDeploymentResource("ad-dev", landscapeNamespace, "dev", vectorDeploymentId, "sv-1")
-	prodAd := artifactDeploymentResource("ad-prod", "kden-l-prod", "prod", vectorDeploymentId, "sv-2")
+	devAd := artifactDeploymentResource("ad-dev", landscapeNamespace, "dev", vectorDeploymentId)
+	prodAd := artifactDeploymentResource("ad-prod", "kden-l-prod", "prod", vectorDeploymentId)
 
 	k8s := fake.NewClientBuilder().
 		WithScheme(projectScheme(t)).
-		WithObjects(devLandscape, prodLandscape, devStageVersion, prodStageVersion, devAd, prodAd).
+		WithObjects(devLandscape, prodLandscape, devStageVersion, prodStageVersion,
+			devVectorDeployment, prodVectorDeployment, devAd, prodAd).
 		Build()
 
 	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(
@@ -150,12 +169,14 @@ func TestListForScopeFilterByLandscape(t *testing.T) {
 func TestListForScopeFilterByVectorDeployment(t *testing.T) {
 	landscape := landscapeResource(landscapeId, landscapeNamespace)
 	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	adA := artifactDeploymentResource("ad-vd-a", landscapeNamespace, landscapeId, "vd-a", "sv-1")
-	adB := artifactDeploymentResource("ad-vd-b", landscapeNamespace, landscapeId, "vd-b", "sv-1")
+	vdA := vectorDeploymentResource("vd-a", landscapeNamespace, "sv-1")
+	vdB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-1")
+	adA := artifactDeploymentResource("ad-vd-a", landscapeNamespace, landscapeId, "vd-a")
+	adB := artifactDeploymentResource("ad-vd-b", landscapeNamespace, landscapeId, "vd-b")
 
 	k8s := fake.NewClientBuilder().
 		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, adA, adB).
+		WithObjects(landscape, stageVersion, vdA, vdB, adA, adB).
 		Build()
 
 	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(
@@ -177,13 +198,15 @@ func TestListForScopeFilterByVectorDeployment(t *testing.T) {
 func TestListForScopeFilterByBoth(t *testing.T) {
 	landscape := landscapeResource(landscapeId, landscapeNamespace)
 	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
+	vdA := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
+	vdB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-1")
 
-	adMatch := artifactDeploymentResource("ad-match", landscapeNamespace, landscapeId, vectorDeploymentId, "sv-1")
-	adWrongVD := artifactDeploymentResource("ad-wrong-vd", landscapeNamespace, landscapeId, "vd-b", "sv-1")
+	adMatch := artifactDeploymentResource("ad-match", landscapeNamespace, landscapeId, vectorDeploymentId)
+	adWrongVD := artifactDeploymentResource("ad-wrong-vd", landscapeNamespace, landscapeId, "vd-b")
 
 	k8s := fake.NewClientBuilder().
 		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, adMatch, adWrongVD).
+		WithObjects(landscape, stageVersion, vdA, vdB, adMatch, adWrongVD).
 		Build()
 
 	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(
@@ -205,12 +228,19 @@ func TestListForScopeFilterByBoth(t *testing.T) {
 
 func TestListForScopeResolvesStageIds(t *testing.T) {
 	landscape := landscapeResource(landscapeId, landscapeNamespace)
-	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId, "sv-1")
+	stageVersionA := stageVersionResource("sv-1", landscapeNamespace, stageId)
+	stageVersionB := stageVersionResource("sv-2", landscapeNamespace, "stage-preview")
+	vectorDeploymentA := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
+	vectorDeploymentB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-2")
+	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId)
+	ad.OwnerReferences = append(ad.OwnerReferences, metav1.OwnerReference{
+		Kind: konfidence.VectorDeploymentKind,
+		Name: vectorDeploymentB.Name,
+	})
 
 	k8s := fake.NewClientBuilder().
 		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, ad).
+		WithObjects(landscape, stageVersionA, stageVersionB, vectorDeploymentA, vectorDeploymentB, ad).
 		Build()
 
 	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(context.Background(), projectNamespace)
@@ -222,22 +252,26 @@ func TestListForScopeResolvesStageIds(t *testing.T) {
 		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
 	}
 
-	if len(resolved[0].StageIds) != 1 {
-		t.Fatalf("expected 1 stage ID, got %d", len(resolved[0].StageIds))
+	if len(resolved[0].StageIds) != 2 {
+		t.Fatalf("expected 2 stage IDs, got %d", len(resolved[0].StageIds))
 	}
 	if resolved[0].StageIds[0] != stageId {
 		t.Fatalf("expected stage %q, got %q", stageId, resolved[0].StageIds[0])
+	}
+	if resolved[0].StageIds[1] != "stage-preview" {
+		t.Fatalf("expected stage %q, got %q", "stage-preview", resolved[0].StageIds[1])
 	}
 }
 
 func TestListForScopeResolvesStageIdsAndVectorDeploymentIds(t *testing.T) {
 	landscape := landscapeResource(landscapeId, landscapeNamespace)
 	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId, "sv-1")
+	vectorDeployment := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
+	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId)
 
 	k8s := fake.NewClientBuilder().
 		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, ad).
+		WithObjects(landscape, stageVersion, vectorDeployment, ad).
 		Build()
 
 	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(context.Background(), projectNamespace)

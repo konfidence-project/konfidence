@@ -109,15 +109,26 @@ func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts
 			return nil, fmt.Errorf("listing stage versions in namespace %q: %w", scoped.Namespace, err)
 		}
 
+		var vectorDeployments konfidence.VectorDeploymentList
+		if err := r.reader.List(ctx, &vectorDeployments, client.InNamespace(scoped.Namespace)); err != nil {
+			return nil, fmt.Errorf("listing vector deployments in namespace %q: %w", scoped.Namespace, err)
+		}
+
 		stageVersionByName := make(map[string]*konfidence.StageVersion, len(stageVersions.Items))
 		for i := range stageVersions.Items {
 			sv := &stageVersions.Items[i]
 			stageVersionByName[sv.Name] = sv
 		}
 
+		vectorDeploymentByName := make(map[string]*konfidence.VectorDeployment, len(vectorDeployments.Items))
+		for i := range vectorDeployments.Items {
+			vd := &vectorDeployments.Items[i]
+			vectorDeploymentByName[vd.Name] = vd
+		}
+
 		for i := range artifactDeployments.Items {
 			ad := &artifactDeployments.Items[i]
-			stageIds := extractStageIds(ad, stageVersionByName)
+			stageIds := extractStageIds(ad, vectorDeploymentByName, stageVersionByName)
 			vectorDeploymentIds := extractVectorDeploymentIds(ad)
 
 			resolved = append(resolved, ResolvedArtifactDeployment{
@@ -140,11 +151,25 @@ func extractVectorDeploymentIds(ad *konfidence.ArtifactDeployment) []string {
 	return vectorDeploymentIds
 }
 
-func extractStageIds(ad *konfidence.ArtifactDeployment, stageVersionByName map[string]*konfidence.StageVersion) []string {
+func extractStageIds(
+	ad *konfidence.ArtifactDeployment,
+	vectorDeploymentByName map[string]*konfidence.VectorDeployment,
+	stageVersionByName map[string]*konfidence.StageVersion,
+) []string {
 	var stageIds []string
-	for _, ownerRef := range ad.OwnerReferences {
-		if ownerRef.Kind == konfidence.StageVersionKind {
-			stageVersion := stageVersionByName[ownerRef.Name]
+	for _, artifactOwnerRef := range ad.OwnerReferences {
+		if artifactOwnerRef.Kind != konfidence.VectorDeploymentKind {
+			continue
+		}
+		vectorDeployment := vectorDeploymentByName[artifactOwnerRef.Name]
+		if vectorDeployment == nil {
+			continue
+		}
+		for _, vectorOwnerRef := range vectorDeployment.OwnerReferences {
+			if vectorOwnerRef.Kind != konfidence.StageVersionKind {
+				continue
+			}
+			stageVersion := stageVersionByName[vectorOwnerRef.Name]
 			if stageVersion != nil && stageVersion.Spec.StageRef != nil && stageVersion.Spec.StageRef.Name != "" {
 				stageIds = append(stageIds, stageVersion.Spec.StageRef.Name)
 			}
