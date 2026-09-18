@@ -1,6 +1,8 @@
 <script lang="ts">
     import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
     import type { Snippet } from "svelte";
+    import "@ui5/webcomponents/dist/Icon.js";
+    import "@ui5/webcomponents-icons/dist/AllIcons.js";
 
     type Variant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -11,6 +13,8 @@
         class?: string;
         /** Button label. */
         children?: Snippet;
+        /** Optional SAP-icon name shown to the left of the label, e.g. `"add"` or `"edit"`. */
+        icon?: string;
     }
 
     type ButtonProps = CommonProps & {
@@ -23,7 +27,7 @@
 
     type Props = ButtonProps | AnchorProps;
 
-    let { variant = "primary", class: className, children, ...rest }: Props = $props();
+    let { variant = "primary", class: className, children, icon, ...rest }: Props = $props();
 
     const VARIANT_CLASS: Record<Variant, string> = {
         danger: "btn btn--danger",
@@ -39,10 +43,12 @@
 
 {#if "href" in rest && rest.href !== undefined}
     <a class={composedClass} {...rest as HTMLAnchorAttributes}>
+        {#if icon}<ui5-icon class="btn__icon" name={icon}></ui5-icon>{/if}
         {@render children?.()}
     </a>
 {:else}
     <button class={composedClass} type={(rest as HTMLButtonAttributes).type ?? "button"} {...rest as HTMLButtonAttributes}>
+        {#if icon}<ui5-icon class="btn__icon" name={icon}></ui5-icon>{/if}
         {@render children?.()}
     </button>
 {/if}
@@ -77,6 +83,12 @@
         height: var(--icon-md);
         position: relative;
         z-index: 1;
+    }
+
+    .btn :global(.btn__icon) {
+        width: var(--icon-md);
+        height: var(--icon-md);
+        flex-shrink: 0;
     }
 
     .btn > :global(span) {
