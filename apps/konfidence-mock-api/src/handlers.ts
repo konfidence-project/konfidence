@@ -148,6 +148,8 @@ const operationHandlers = {
     return reply.redirect(`/api/v1/auth/callback?code=${MOCK_CODE}&state=${state}`);
   },
   logoutV1: (_request, reply) => reply.clearCookie(SESSION_COOKIE, COOKIE_OPTIONS).send(),
+  migrateDownV1: (_request, reply) => reply.send({ applied: 0 }),
+  migrateUpV1: (_request, reply) => reply.send({ applied: 0 }),
   postExchangeCodeV1: (_request, reply) =>
     reply.setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS).send(),
 } satisfies Record<keyof operations, MockHandler>;
