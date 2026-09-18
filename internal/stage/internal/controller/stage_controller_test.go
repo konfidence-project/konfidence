@@ -62,6 +62,45 @@ var _ = Describe("Stage Controller", Ordered, func() {
 	})
 
 	Context("When reconciling a stage", func() {
+		It("should keep an empty stage ready until its first vector is assigned", func() {
+			ctx := context.Background()
+			controller.CreateStage(ctx, k8sClient, StageDev, Namespace, "")
+
+			verifyStageReady(ctx, k8sClient, StageDev, Namespace, timeout, interval)
+			Consistently(func(g Gomega) {
+				stageVersions := &konfidence.StageVersionList{}
+				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
+				g.Expect(stageVersions.Items).To(BeEmpty())
+
+				stageVersionUsages := &konfidence.StageVersionUsageList{}
+				g.Expect(k8sClient.List(ctx, stageVersionUsages, client.InNamespace(Namespace))).To(Succeed())
+				g.Expect(stageVersionUsages.Items).To(BeEmpty())
+			}, time.Second, interval).Should(Succeed())
+
+			stage := controller.GetStage(ctx, k8sClient, StageDev, Namespace, false)
+			stage.Spec.Vector = Vector001
+			Expect(k8sClient.Update(ctx, stage)).To(Succeed())
+
+			stage = controller.GetStage(ctx, k8sClient, StageDev, Namespace, false)
+			verifyStageVersionUsage(ctx, k8sClient, Namespace, stage, Vector001Digest, timeout, interval)
+			Eventually(func(g Gomega) {
+				stageVersions := &konfidence.StageVersionList{}
+				g.Expect(k8sClient.List(ctx, stageVersions, client.InNamespace(Namespace))).To(Succeed())
+				g.Expect(stageVersions.Items).To(HaveLen(1))
+				g.Expect(stageVersions.Items[0].Spec.Vector).To(Equal(Vector001))
+				g.Expect(stageVersions.Items[0].Spec.StageGeneration).To(Equal(stage.Generation))
+			}, timeout, interval).Should(Succeed())
+			verifyStageReady(ctx, k8sClient, StageDev, Namespace, timeout, interval)
+
+			stage = &konfidence.Stage{ObjectMeta: metav1.ObjectMeta{Name: StageDev, Namespace: Namespace}}
+			removeVector := client.RawPatch(types.JSONPatchType, []byte(`[{"op":"remove","path":"/spec/vector"}]`))
+			Expect(k8sClient.Patch(ctx, stage, removeVector)).To(MatchError(ContainSubstring("vector cannot be cleared after it has been set")))
+
+			stage = &konfidence.Stage{ObjectMeta: metav1.ObjectMeta{Name: StageDev, Namespace: Namespace}}
+			removeSpec := client.RawPatch(types.JSONPatchType, []byte(`[{"op":"remove","path":"/spec"}]`))
+			Expect(k8sClient.Patch(ctx, stage, removeSpec)).To(MatchError(ContainSubstring("vector cannot be cleared after it has been set")))
+		})
+
 		It("should successfully reconcile the stage", func() {
 			ctx := context.Background()
 			controller.CreateStage(ctx, k8sClient, StageDev, Namespace, Vector001)

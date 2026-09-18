@@ -32,7 +32,9 @@ const (
 type StageSpec struct {
 
 	// Vector points to the OCM component version that contains the deployment vector for this stage.
-	Vector string `json:"vector"`
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	Vector string `json:"vector,omitempty"`
 }
 
 // StageStatus defines the observed state of Stage.
@@ -57,6 +59,9 @@ type StageStatus struct {
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=".metadata.creationTimestamp",description="Age"
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=`.spec.vector`
 // +kubebuilder:printcolumn:name="Active-Version",type=string,JSONPath=".status.activeStageVersion.name",description="The currently active StageVersion"
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || !has(oldSelf.spec.vector) || (has(self.spec) && has(self.spec.vector))",message="vector cannot be cleared after it has been set"
+//
+//nolint:lll // Kubebuilder annotations are intentionally long.
 type Stage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
