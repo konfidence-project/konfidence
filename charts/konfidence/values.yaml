@@ -191,7 +191,8 @@ api:
   volumes: []
   # -- Extra volume mounts on the API server container.
   volumeMounts: []
-  # -- Host aliases added to the API pod. Used by local development to reach an identity provider on the host.
+  # -- Host aliases added to the API pod. Used by local development to reach
+  # an identity provider on the host.
   hostAliases: []
 
   # -- Number of API server replicas.
