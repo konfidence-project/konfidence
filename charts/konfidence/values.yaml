@@ -1,32 +1,36 @@
 # CRD lifecycle configuration.
-# install:        apply CRDs alongside the controller. Disable for GitOps
-#                 setups that manage CRDs out-of-band.
-# keep:           on `helm uninstall`, retain CRDs to protect existing CRs.
-#                 Strongly recommended.
-# annotations,
-# labels:         extra metadata merged onto every CRD. Useful for tools
-#                 that inspect CRD metadata (e.g. Argo CD:
-#                 `argocd.argoproj.io/sync-options: ServerSideApply=true`
-#                 to avoid the client-side apply size limit).
+
 crd:
+  # -- Apply CRDs alongside the controller. Disable for GitOps setups that
+  # manage CRDs out-of-band.
   install: true
+  # -- On `helm uninstall`, retain CRDs to protect existing CRs. Strongly
+  # recommended.
   keep: true
+  # -- Extra annotations merged onto every CRD. Useful for tools that inspect
+  # CRD metadata (e.g. Argo CD: `argocd.argoproj.io/sync-options:
+  # ServerSideApply=true` to avoid the client-side apply size limit).
   annotations: {}
+  # -- Extra labels merged onto every CRD.
   labels: {}
 
 # Forwarded as flags to the operator binary (cmd/konfidence).
+
 controller:
-  # When false, the chart renders only the CRDs (gated by crd.install)
-  # and skips Deployment, ServiceAccount, RBAC, Service, ServiceMonitor,
-  # and PodDisruptionBudget. Useful for installing CRDs into a local
-  # development cluster without running the controller.
+  # -- Deploy the controller. When false, the chart renders only the CRDs
+  # (gated by `crd.install`) and skips Deployment, ServiceAccount, RBAC,
+  # Service, ServiceMonitor, and PodDisruptionBudget. Useful for installing
+  # CRDs into a local development cluster without running the controller.
   install: true
-  # Comma-separated list of sub-controllers, or "*" for all.
+  # -- Comma-separated list of sub-controllers, or `"*"` for all.
   controllers: "*"
+  # -- Enable leader election for the controller.
   leaderElection: true
+  # -- Lease ID used for leader election.
   leaseId: "konfidence-operator.konfidence.cloud"
+  # -- Bind address for the health probe endpoint.
   healthProbeBindAddress: ":8081"
-  # Bind address for the Prometheus /metrics endpoint. Set to "0" to
+  # -- Bind address for the Prometheus `/metrics` endpoint. Set to `"0"` to
   # disable the metrics server entirely (also suppresses the metrics
   # container port, Service, and ServiceMonitor).
   metricsBindAddress: ":8080"
@@ -34,169 +38,262 @@ controller:
 # Admission webhooks for resource validation (e.g. Project/Landscape namespace checks).
 # Webhooks require TLS certificates. By default, the chart expects you to create a
 # Secret named by webhook.certificateSecret with keys tls.crt and tls.key.
+
 webhook:
+  # -- Enable the validating admission webhooks. Requires the TLS Secret
+  # named by `webhook.certificateSecret` to exist before the controller starts.
   enabled: true
-  # Port the webhook server listens on inside the container.
+  # -- Port the webhook server listens on inside the container.
   port: 9443
-  # Directory inside the container where TLS certificates are mounted.
-  # The Secret specified by certificateSecret will be mounted here.
+  # -- Directory inside the container where TLS certificates are mounted.
+  # The Secret specified by `certificateSecret` will be mounted here.
   certDir: "/tmp/k8s-webhook-server/serving-certs"
-  # Name of the Secret containing tls.crt and tls.key in the release namespace.
-  # You must create this Secret before installing the chart, or set enabled: false.
+  # -- Name of the Secret containing `tls.crt` and `tls.key` in the release
+  # namespace. You must create this Secret before installing the chart, or
+  # set `enabled: false`.
   certificateSecret: "konfidence-webhook-server-cert"
-  # failurePolicy: Fail means requests are blocked if the webhook is unavailable.
-  # Set to "Ignore" for less strict validation (allow requests if webhook is down).
+  # -- `Fail` blocks requests if the webhook is unavailable. Set to `Ignore`
+  # for less strict validation (allow requests if the webhook is down).
   failurePolicy: Fail
-  # caBundle: Base64-encoded CA certificate for the webhook's TLS certificate.
-  # Leave empty when using a CA injection mechanism (e.g. cert-manager).
-  # REQUIRED for self-signed certificates without an injection mechanism.
-  # WARNING: If empty and no injection occurs, API server will skip TLS verification (not recommended).
+  # -- Base64-encoded CA certificate for the webhook's TLS certificate. Leave
+  # empty when using a CA injection mechanism (e.g. cert-manager). REQUIRED
+  # for self-signed certificates without an injection mechanism. WARNING: if
+  # empty and no injection occurs, the API server skips TLS verification
+  # (not recommended).
   caBundle: ""
-  # annotations: Extra annotations for the ValidatingWebhookConfiguration resource.
+  # -- Extra annotations for the ValidatingWebhookConfiguration resource, for
+  # example `cert-manager.io/inject-ca-from`.
   annotations: {}
-  # labels: Extra labels for the ValidatingWebhookConfiguration resource.
+  # -- Extra labels for the ValidatingWebhookConfiguration resource.
   labels: {}
 
 
 # Konfidence API server - HTTP gateway between CLI/UI clients and the Konfidence CRDs.
 # Deployed in the same namespace as the Konfidence operator.
+
 api:
-  # When false, all API server resources (Deployment, Service, RBAC) are skipped.
+  # -- Deploy the API server. When false, all API server resources
+  # (Deployment, Service, RBAC) are skipped.
   enabled: true
 
   image:
+    # -- API server image repository.
     repository: ghcr.io/konfidence-project/api
-    # Defaults to .Chart.AppVersion when empty.
+    # -- API server image tag. Defaults to `.Chart.AppVersion` when empty.
     tag: ""
+    # -- API server image pull policy.
     pullPolicy: IfNotPresent
 
   server:
-    # TCP address the API server listens on inside the container.
+    # -- TCP address the API server listens on inside the container.
     addr: ":8090"
+    # -- Log level of the API server.
     logLevel: info
+    # -- HTTP read timeout.
     readTimeout: "10s"
+    # -- HTTP write timeout.
     writeTimeout: "10s"
+    # -- Grace period for in-flight requests on shutdown.
     shutdownTimeout: "15s"
 
   oidc:
+    # -- Enable login through an OpenID Connect provider. When true,
+    # `issuerURL` must be set or the API server refuses to start.
     enabled: true
+    # -- Issuer URL of the OpenID Connect provider.
     issuerURL: ""
+    # -- Token endpoint. Defaults to the value from the provider's discovery
+    # document when empty.
     tokenURL: ""
+    # -- Authorization endpoint. Defaults to the discovery document when empty.
     authorizationURL: ""
+    # -- Device authorization endpoint. Defaults to the discovery document
+    # when empty.
     deviceAuthURL: ""
+    # -- UserInfo endpoint. Defaults to the discovery document when empty.
     userInfoURL: ""
+    # -- JWKS endpoint. Defaults to the discovery document when empty.
     jwksURL: ""
+    # -- How long fetched JWKS signing keys are cached before they are
+    # fetched again.
     jwksCacheTTL: 15m
+    # -- OAuth client id registered at the provider.
     clientId: ""
     clientSecretRef:
+      # -- Name of the Secret in the release namespace holding the client
+      # secret.
       name: ""
+      # -- Key inside that Secret holding the client secret.
       key: client-secret
+    # -- Comma-separated scopes requested at login. Add the scope that makes
+    # your provider include group membership, since role bindings match users
+    # by group.
     scopes: "openid,profile,email"
+    # -- Redirect URL registered at the provider, ending in
+    # `/api/v1/auth/callback`.
     redirectURL: ""
+    # -- URLs the login flow may redirect back to after authentication.
     allowReturnUrls: []
+    # -- Use PKCE for the authorization code flow.
     pkceEnabled: true
+    # -- Lifetime of the login state parameter.
     stateExpiration: 15m
 
   session:
+    # -- Session storage backend.
     storageType: in-memory
     cookie:
+      # -- Name of the session cookie.
       name: "kden-session"
+      # -- Mark the session cookie HttpOnly.
       httpOnly: true
+      # -- Mark the session cookie Secure. Browsers then send it over HTTPS
+      # only.
       secure: true
+      # -- SameSite attribute of the session cookie.
       sameSite: SameSiteStrictMode
+    # -- Session lifetime.
     expiration: 12h
+    # -- Interval at which expired sessions are removed.
     cleanupInterval: 15m
 
   database:
+    # -- Maximum number of open connections.
     maxConns: 10
+    # -- Minimum number of idle connections kept open.
     minConns: 5
+    # -- Maximum lifetime of a connection.
     maxConnLifetime: 30m
+    # -- Maximum idle time of a connection.
     maxConnIdleTime: 5m
 
-  # Extra CLI arguments appended to the container args list.
+  # -- Extra CLI arguments appended to the API server container args list.
   extraArgs: []
 
+  # -- Additional environment variables for the API server container.
   env: []
+  # -- Extra volumes mounted onto the API server Pod.
   volumes: []
+  # -- Extra volume mounts on the API server container.
   volumeMounts: []
-  # -- Host aliases added to the API pod. Used by local development to reach an identity provider on the host.
+  # -- Host aliases added to the API pod. Used by local development to reach
+  # an identity provider on the host.
   hostAliases: []
 
+  # -- Number of API server replicas.
   replicas: 1
 
+  # -- Resource requests and limits for the API server container.
   resources: {}
 
+  # -- Annotations to add to the API server Pod.
   podAnnotations: {}
+  # -- Labels to add to the API server Pod.
   podLabels: {}
 
   # Kubernetes Service exposing the API server.
   # ClusterIP is the default - reachable inside the cluster only.
   # For production external access, enable the Ingress below.
+
   service:
+    # -- Service type. `ClusterIP` is reachable inside the cluster only.
     type: ClusterIP
+    # -- Service port.
     port: 8090
+    # -- Node port when `type` is `NodePort`.
     nodePort: ""
+    # -- Annotations to add to the Service.
     annotations: {}
 
   # Ingress for external access to the API server.
   # Disabled by default — enable and configure for production deployments.
+
   ingress:
+    # -- Create an Ingress for the API server.
     enabled: false
+    # -- IngressClass to use.
     className: ""
+    # -- Annotations to add to the Ingress, for example for cert-manager.
     annotations: {}
+    # -- Hosts and paths routed to the API server. `host` is required on
+    # each entry.
     hosts:
       - host: ""
         paths:
           - path: /
             pathType: Prefix
+    # -- TLS configuration of the Ingress.
     tls: []
 
   podDisruptionBudget:
+    # -- Enable the PodDisruptionBudget for the API server.
     enabled: false
+    # -- Minimum number of pods that must be available. Set exactly one of
+    # `minAvailable` or `maxUnavailable`.
     minAvailable: ~
+    # -- Maximum number of pods that may be unavailable.
     maxUnavailable: 1
 
+# -- Override the chart name used in resource names.
 nameOverride: ""
+# -- Override the fully-qualified app name used in resource names.
 fullnameOverride: ""
 
 # Prometheus Operator ServiceMonitor for the controller's /metrics
 # endpoint. Requires the monitoring.coreos.com CRDs to be installed in
 # the cluster; off by default.
+
 serviceMonitor:
+  # -- Enable the ServiceMonitor resource. Requires the
+  # `monitoring.coreos.com` CRDs.
   enabled: false
-  # Namespace to create the ServiceMonitor in. Defaults to the release
+  # -- Namespace to create the ServiceMonitor in. Defaults to the release
   # namespace. Override when your Prometheus instance only watches a
   # specific namespace.
   namespace: ""
-  # Extra labels merged onto the ServiceMonitor — typically the label
-  # selector your Prometheus instance uses (e.g. release: kube-prometheus).
+  # -- Extra labels merged onto the ServiceMonitor — typically the label
+  # selector your Prometheus instance uses (e.g. `release: kube-prometheus`).
   labels: {}
+  # -- Scrape interval.
   interval: 30s
+  # -- Scrape timeout.
   scrapeTimeout: 10s
+  # -- Relabeling rules applied to scraped samples before ingestion.
   relabelings: []
+  # -- Metric relabeling rules applied after scraping.
   metricRelabelings: []
 
 image:
+  # -- Operator image repository.
   repository: ghcr.io/konfidence-project/konfidence-operator
-  # tag defaults to .Chart.AppVersion when empty.
+  # -- Operator image tag. Defaults to `.Chart.AppVersion` when empty.
   tag: ""
+  # -- Operator image pull policy.
   pullPolicy: IfNotPresent
 
+# -- Image pull secrets for private registries.
 imagePullSecrets: []
 
+# -- Number of controller replicas. Use `>= 2` with
+# `controller.leaderElection: true` for HA.
 replicas: 1
 
 # PodDisruptionBudget for the controller. Only meaningful when running
 # replicas >= 2 (with leader election a single active replica handles
 # reconciliation; the others stand by). Disabled by default to match the
 # default replicas: 1.
+
 podDisruptionBudget:
+  # -- Enable the PodDisruptionBudget for the controller.
   enabled: false
-  # Set exactly one of minAvailable or maxUnavailable. Both accept an
-  # integer or a percentage string (e.g. "50%").
+  # -- Minimum number of pods that must be available. Set exactly one of
+  # `minAvailable` or `maxUnavailable`. Both accept an integer or a
+  # percentage string (e.g. `"50%"`).
   minAvailable: ~
+  # -- Maximum number of pods that may be unavailable.
   maxUnavailable: 1
 
+# -- Resource requests and limits for the controller container.
 resources:
   limits:
     cpu: 500m
@@ -206,36 +303,50 @@ resources:
     memory: 128Mi
 
 serviceAccount:
+  # -- Create a ServiceAccount for the controller.
   create: true
+  # -- Name of the ServiceAccount to use. Defaults to the fully-qualified
+  # app name when empty.
   name: ""
+  # -- Annotations to add to the ServiceAccount.
   annotations: {}
 
+# -- Annotations to add to the controller Pod.
 podAnnotations: {}
+# -- Labels to add to the controller Pod.
 podLabels: {}
 
+# -- Additional environment variables for the controller container.
 env: []
+# -- Additional command-line arguments passed to the controller binary.
 extraArgs: []
 
-# Extra volumes mounted onto the manager Pod, and the corresponding
-# mounts on the manager container. Use these for additional secrets,
-# CA bundles, or other files the controller needs at runtime. An
-# emptyDir is always mounted at /tmp (the OCM transfer writes there,
-# and the root filesystem is read-only).
+# -- Extra volumes mounted onto the manager Pod. Use these for additional
+# secrets, CA bundles, or other files the controller needs at runtime. An
+# emptyDir is always mounted at `/tmp` (the OCM transfer writes there, and
+# the root filesystem is read-only).
 volumes: []
+# -- Extra volume mounts on the manager container, corresponding to
+# `volumes`.
 volumeMounts: []
 
+# -- Pod-level security context.
 securityContext:
   runAsNonRoot: true
   runAsUser: 65532
   seccompProfile:
     type: RuntimeDefault
 
+# -- Container-level security context.
 containerSecurityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities:
     drop: [ALL]
 
+# -- Node selector for the controller Pod.
 nodeSelector: {}
+# -- Tolerations for the controller Pod.
 tolerations: []
+# -- Affinity rules for the controller Pod.
 affinity: {}
