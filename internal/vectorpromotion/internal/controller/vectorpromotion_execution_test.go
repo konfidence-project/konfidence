@@ -44,9 +44,9 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 
 	BeforeEach(func() { cleanupPromotions() })
 
-	It("promotes a gateless promotion without stamping an approval", func() {
+	It("assigns the first vector to an empty stage without stamping an approval", func() {
 		createLandscapeWithNamespace("exec-auto-landscape", "kden-l-exec-auto")
-		stage := createStage("kden-l-exec-auto", "exec-stage", "registry.example//konfidence.io/promo/app:0.9.0")
+		stage := createStage("kden-l-exec-auto", "exec-stage", "")
 		config := createConfig("exec-auto-config",
 			templateSource("some-template"), stageTargetInLandscape("exec-stage", "exec-auto-landscape"))
 		promotion := createPromotionTargeting("exec-auto-promotion", config.Name,

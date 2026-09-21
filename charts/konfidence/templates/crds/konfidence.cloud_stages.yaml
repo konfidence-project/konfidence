@@ -65,9 +65,8 @@ spec:
               vector:
                 description: Vector points to the OCM component version that contains
                   the deployment vector for this stage.
+                minLength: 1
                 type: string
-            required:
-            - vector
             type: object
           status:
             description: StageStatus defines the observed state of Stage.
@@ -171,6 +170,10 @@ spec:
                 type: array
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: vector cannot be cleared after it has been set
+          rule: '!has(oldSelf.spec) || !has(oldSelf.spec.vector) || (has(self.spec)
+            && has(self.spec.vector))'
     served: true
     storage: true
     subresources:

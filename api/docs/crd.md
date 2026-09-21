@@ -1054,7 +1054,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  |  |
+| `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  | MinLength: 1 <br />Optional: \{\} <br /> |
 
 
 ### StageStatus

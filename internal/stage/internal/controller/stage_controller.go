@@ -83,6 +83,18 @@ func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, 
 		ObservedGeneration: stage.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
+	if stage.Spec.Vector == "" {
+		meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{
+			Type:               konfidence.StageReady,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.StageReady,
+			Message:            "Stage is ready without an assigned vector",
+			ObservedGeneration: stage.Generation,
+			LastTransitionTime: metav1.Now(),
+		})
+		log.Info("Stage reconciled without an assigned vector")
+		return nil
+	}
 
 	_, err := r.getOrCreateTargetStageVersionUsage(ctx, req, stage)
 	if err != nil {
