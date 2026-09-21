@@ -284,54 +284,10 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/v1/migrate/up": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Apply pending database migrations
-     * @description Runs all pending goose SQL migrations against the configured database. This is a no-op when the schema is already at the latest version. Intended for use by the Helm pre-deploy job and privileged operators.
-     */
-    post: operations["migrateUpV1"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/migrate/down": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Roll back the most recent database migration
-     * @description Rolls back the most recently applied goose SQL migration. Intended for controlled rollback by privileged operators.
-     */
-    post: operations["migrateDownV1"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
-    MigrateResponse: {
-      /** @description Number of migration steps applied or rolled back. */
-      applied: number;
-    };
     ProjectList: {
       data: components["schemas"]["Project"][];
     };
@@ -965,48 +921,6 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];
-      500: components["responses"]["InternalError"];
-    };
-  };
-  migrateUpV1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Migrations applied successfully. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["MigrateResponse"];
-        };
-      };
-      500: components["responses"]["InternalError"];
-    };
-  };
-  migrateDownV1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Migration rolled back successfully. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["MigrateResponse"];
-        };
-      };
       500: components["responses"]["InternalError"];
     };
   };

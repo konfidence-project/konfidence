@@ -229,12 +229,6 @@ type LandscapeList struct {
 	Data []Landscape `json:"data"`
 }
 
-// MigrateResponse defines model for MigrateResponse.
-type MigrateResponse struct {
-	// Applied Number of migration steps applied or rolled back.
-	Applied int `json:"applied"`
-}
-
 // Project defines model for Project.
 type Project struct {
 	// Id The project id
@@ -608,20 +602,6 @@ type ClientInterface interface {
 	// Corresponds with POST /v1/logout (the `LogoutV1` operationId).
 	LogoutV1(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// MigrateDownV1 Roll back the most recent database migration
-	//
-	// Rolls back the most recently applied goose SQL migration. Intended for controlled rollback by privileged operators.
-	//
-	// Corresponds with POST /v1/migrate/down (the `MigrateDownV1` operationId).
-	MigrateDownV1(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// MigrateUpV1 Apply pending database migrations
-	//
-	// Runs all pending goose SQL migrations against the configured database. This is a no-op when the schema is already at the latest version. Intended for use by the Helm pre-deploy job and privileged operators.
-	//
-	// Corresponds with POST /v1/migrate/up (the `MigrateUpV1` operationId).
-	MigrateUpV1(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// ListProjectsV1 List all projects
 	//
 	// Returns all Project resources visible to the authenticated user.
@@ -782,40 +762,6 @@ func (c *Client) LoginV1(ctx context.Context, params *LoginV1Params, reqEditors 
 // Corresponds with POST /v1/logout (the `LogoutV1` operationId).
 func (c *Client) LogoutV1(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewLogoutV1Request(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// MigrateDownV1 Roll back the most recent database migration
-//
-// Rolls back the most recently applied goose SQL migration. Intended for controlled rollback by privileged operators.
-//
-// Corresponds with POST /v1/migrate/down (the `MigrateDownV1` operationId).
-func (c *Client) MigrateDownV1(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewMigrateDownV1Request(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// MigrateUpV1 Apply pending database migrations
-//
-// Runs all pending goose SQL migrations against the configured database. This is a no-op when the schema is already at the latest version. Intended for use by the Helm pre-deploy job and privileged operators.
-//
-// Corresponds with POST /v1/migrate/up (the `MigrateUpV1` operationId).
-func (c *Client) MigrateUpV1(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewMigrateUpV1Request(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -1204,60 +1150,6 @@ func NewLogoutV1Request(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/v1/logout")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewMigrateDownV1Request constructs an http.Request for the MigrateDownV1 method
-func NewMigrateDownV1Request(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/v1/migrate/down")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewMigrateUpV1Request constructs an http.Request for the MigrateUpV1 method
-func NewMigrateUpV1Request(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/v1/migrate/up")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1786,24 +1678,6 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /v1/logout (the `LogoutV1` operationId).
 	LogoutV1WithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*LogoutV1Response, error)
 
-	// MigrateDownV1WithResponse Roll back the most recent database migration
-	//
-	// Rolls back the most recently applied goose SQL migration. Intended for controlled rollback by privileged operators.
-	//
-	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /v1/migrate/down (the `MigrateDownV1` operationId).
-	MigrateDownV1WithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*MigrateDownV1Response, error)
-
-	// MigrateUpV1WithResponse Apply pending database migrations
-	//
-	// Runs all pending goose SQL migrations against the configured database. This is a no-op when the schema is already at the latest version. Intended for use by the Helm pre-deploy job and privileged operators.
-	//
-	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /v1/migrate/up (the `MigrateUpV1` operationId).
-	MigrateUpV1WithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*MigrateUpV1Response, error)
-
 	// ListProjectsV1WithResponse List all projects
 	//
 	// Returns all Project resources visible to the authenticated user.
@@ -2156,102 +2030,6 @@ func (r LogoutV1Response) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r LogoutV1Response) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type MigrateDownV1Response struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *MigrateResponse
-	// JSON500 the response for an HTTP 500 `application/json` response
-	JSON500 *InternalError
-}
-
-// GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r MigrateDownV1Response) GetJSON200() *MigrateResponse {
-	return r.JSON200
-}
-
-// GetJSON500 returns the response for an HTTP 500 `application/json` response
-func (r MigrateDownV1Response) GetJSON500() *InternalError {
-	return r.JSON500
-}
-
-// GetBody returns the raw response body bytes
-func (r MigrateDownV1Response) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r MigrateDownV1Response) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r MigrateDownV1Response) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r MigrateDownV1Response) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type MigrateUpV1Response struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *MigrateResponse
-	// JSON500 the response for an HTTP 500 `application/json` response
-	JSON500 *InternalError
-}
-
-// GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r MigrateUpV1Response) GetJSON200() *MigrateResponse {
-	return r.JSON200
-}
-
-// GetJSON500 returns the response for an HTTP 500 `application/json` response
-func (r MigrateUpV1Response) GetJSON500() *InternalError {
-	return r.JSON500
-}
-
-// GetBody returns the raw response body bytes
-func (r MigrateUpV1Response) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r MigrateUpV1Response) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r MigrateUpV1Response) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r MigrateUpV1Response) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -2955,36 +2733,6 @@ func (c *ClientWithResponses) LogoutV1WithResponse(ctx context.Context, reqEdito
 	return ParseLogoutV1Response(rsp)
 }
 
-// MigrateDownV1WithResponse Roll back the most recent database migration
-//
-// Rolls back the most recently applied goose SQL migration. Intended for controlled rollback by privileged operators.
-//
-// Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /v1/migrate/down (the `MigrateDownV1` operationId).
-func (c *ClientWithResponses) MigrateDownV1WithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*MigrateDownV1Response, error) {
-	rsp, err := c.MigrateDownV1(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseMigrateDownV1Response(rsp)
-}
-
-// MigrateUpV1WithResponse Apply pending database migrations
-//
-// Runs all pending goose SQL migrations against the configured database. This is a no-op when the schema is already at the latest version. Intended for use by the Helm pre-deploy job and privileged operators.
-//
-// Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /v1/migrate/up (the `MigrateUpV1` operationId).
-func (c *ClientWithResponses) MigrateUpV1WithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*MigrateUpV1Response, error) {
-	rsp, err := c.MigrateUpV1(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseMigrateUpV1Response(rsp)
-}
-
 // ListProjectsV1WithResponse List all projects
 //
 // Returns all Project resources visible to the authenticated user.
@@ -3358,72 +3106,6 @@ func ParseLogoutV1Response(rsp *http.Response) (*LogoutV1Response, error) {
 			headers.SetCookie = &value
 		}
 		response.Headers200 = &headers
-	}
-
-	return response, nil
-}
-
-// ParseMigrateDownV1Response parses an HTTP response from a MigrateDownV1WithResponse call
-func ParseMigrateDownV1Response(rsp *http.Response) (*MigrateDownV1Response, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &MigrateDownV1Response{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest MigrateResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalError
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseMigrateUpV1Response parses an HTTP response from a MigrateUpV1WithResponse call
-func ParseMigrateUpV1Response(rsp *http.Response) (*MigrateUpV1Response, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &MigrateUpV1Response{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest MigrateResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalError
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
 	}
 
 	return response, nil

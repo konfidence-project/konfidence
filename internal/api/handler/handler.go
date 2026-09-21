@@ -34,7 +34,6 @@ type authFlowHandler interface {
 type apiHandler struct {
 	authFlowHandler
 	projectHandler
-	migrateHandler
 }
 
 var _ openapi.StrictServerInterface = (*apiHandler)(nil)
@@ -69,7 +68,6 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	api := &apiHandler{
 		authFlowHandler: authFlow,
 		projectHandler:  *project,
-		migrateHandler:  *newMigrateHandler(cfg.Database.Connection, logger),
 	}
 
 	return middleware.Authenticator(logger, sessionStore, authRepo, cfg, api.handler())
