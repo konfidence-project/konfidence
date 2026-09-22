@@ -26,12 +26,13 @@ services:
       - "443:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ../../local/tls:/certs:ro
       - caddy_data:/data
       - caddy_config:/config
     extra_hosts:
-      - "host.docker.internal:host-gateway"  
+      - "host.docker.internal:host-gateway"
     networks:
-    - oidc_net
+      - oidc_net
     depends_on:
       - authelia
 
@@ -51,4 +52,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
-  postgres_kden_data:     
+  postgres_kden_data:

@@ -12,7 +12,7 @@ const requestCredentials = async (baseUrl: string): Promise<RequestCredentials> 
   return fetch.mock.calls[0]?.[0].credentials;
 };
 
-test("uses same-origin credentials with the dashboard proxy", async () => {
+test("uses same-origin credentials with the default API path", async () => {
   await expect(requestCredentials("/api")).resolves.toBe("same-origin");
 });
 

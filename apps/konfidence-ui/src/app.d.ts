@@ -11,7 +11,7 @@ declare global {
 
   interface ImportMetaEnv {
     /**
-     * Base URL of the Konfidence API. Defaults to `/api` (same-origin proxy).
+     * Base URL of the Konfidence API. Defaults to the same-origin `/api` path.
      * Set to a fully-qualified `https://...` URL when the API is hosted on a
      * different origin; the fetch client then switches to `credentials: "include"`
      * and the backend must send matching CORS headers.

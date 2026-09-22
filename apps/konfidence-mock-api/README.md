@@ -24,7 +24,7 @@ From the repository root, start the dashboard and mock server together:
 pnpm ui:dev:mock
 ```
 
-On the sign-in page, use the mock sign-in flow: the button redirects through the mock login and callback endpoints, which set the `kden-session` cookie, so no real identity provider is needed. The active response scenario is controlled by the `konfidence_mock_scenario` cookie as described above.
+The dashboard calls the mock server directly, and the mock server allows credentialed requests from the local Vite development and preview origins. On the sign-in page, use the mock sign-in flow: the button redirects through the mock login and callback endpoints, which set the `kden-session` cookie, so no real identity provider is needed. The active response scenario is controlled by the `konfidence_mock_scenario` cookie as described above.
 
 In the default `admin` scenario, choose **Payments Platform** to explore a fully populated landscape overview and follow its stage links, including stages whose active and target versions differ. Choose **Identity Service** to see the empty project state. The `developer` and `degraded` scenarios exercise the sparse and unavailable-resource behaviors described above.
 
