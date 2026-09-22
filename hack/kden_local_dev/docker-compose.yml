@@ -7,12 +7,14 @@ services:
     image: authelia/authelia:4.39.20
     container_name: authelia
     volumes:
-      - ./authelia/configuration.yml:/config/configuration.yml
-      - ./authelia/users.yml:/config/users.yml
+      - ./authelia/configuration.yml:/config/configuration.yml:ro
+      - ./authelia/users.yml:/config/users.yml:ro
+      - ${DEV_CERT_DIR:-../../local/certs}:/certs:ro
     ports:
       - "9091:9091"
     environment:
-      - TZ=Europe/Berlin
+      TZ: Europe/Berlin
+      X_AUTHELIA_CONFIG_FILTERS: template
     restart: unless-stopped
     networks:
       - oidc_net
@@ -26,12 +28,13 @@ services:
       - "443:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ${DEV_CERT_DIR:-../../local/certs}:/certs:ro
       - caddy_data:/data
       - caddy_config:/config
     extra_hosts:
-      - "host.docker.internal:host-gateway"  
+      - "host.docker.internal:host-gateway"
     networks:
-    - oidc_net
+      - oidc_net
     depends_on:
       - authelia
 
@@ -41,7 +44,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: test_user
-      POSTGRES_PASSWORD: test_password
+      POSTGRES_PASSWORD: password
       POSTGRES_DB: kden
     ports:
       - "5432:5432"
@@ -51,4 +54,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
-  postgres_kden_data:     
+  postgres_kden_data:

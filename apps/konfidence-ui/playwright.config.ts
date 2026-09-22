@@ -17,7 +17,7 @@ export default defineConfig({
     },
     {
       command: "pnpm build && pnpm preview --host 127.0.0.1 --port 4173",
-      env: { KONFIDENCE_API_URL: "http://127.0.0.1:8091" },
+      env: { VITE_KONFIDENCE_API_BASE_URL: "http://127.0.0.1:8091/api" },
       gracefulShutdown: { signal: "SIGTERM", timeout: 1000 },
       name: "Dashboard",
       reuseExistingServer: !process.env.CI,

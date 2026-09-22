@@ -18,7 +18,7 @@ const DEFAULT_API_BASE_URL = "/api";
 
 /**
  * Resolves the API base URL from `VITE_KONFIDENCE_API_BASE_URL` at build time,
- * falling back to the same-origin `/api` proxy. When the value is a fully
+ * falling back to the same-origin `/api` path. When the value is a fully
  * qualified URL (http/https), the client treats the API as cross-origin and
  * sends credentialed requests; the backend must then respond with matching
  * CORS headers (`Access-Control-Allow-Origin` + `Access-Control-Allow-Credentials`).
