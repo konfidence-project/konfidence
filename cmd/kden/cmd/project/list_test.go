@@ -12,6 +12,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
 	kdenauth "github.com/konfidence-project/konfidence/internal/kden/auth"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
+	. "github.com/konfidence-project/konfidence/internal/kden/testutil"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cobra"
@@ -22,7 +23,7 @@ const testListPath = "/api/v1/projects"
 var testProjectList = apiclient.ProjectList{
 	Data: []apiclient.Project{
 		{
-			Id:   "test-project-id",
+			Id:   TestProjectID,
 			Name: "test-project",
 		},
 	},
@@ -65,19 +66,19 @@ var _ = Describe("list command", func() {
 
 		appConfig = &cfg.AppConfig{
 			APIProvider: cfg.NewAPIClientProvider(func() (*kdenauth.Client, error) {
-				return newTestAuthClient(server.URL + "/api"), nil
+				return NewTestAuthClient(server.URL + "/api"), nil
 			}),
 		}
 	})
 
 	It("succeeds on 200 and prints the response", func() {
-		printed := captureOutput(func() {
+		printed := CaptureOutput(func() {
 			err := executeListCommand(appConfig)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		expectRequest(requests, http.MethodGet, testListPath)
-		Expect(printed).To(Equal(toJSON(&testProjectList)))
+		ExpectRequest(requests, http.MethodGet, testListPath)
+		Expect(printed).To(Equal(ToJSON(&testProjectList)))
 	})
 
 	It("returns an error when 200 response has no body", func() {
@@ -90,12 +91,12 @@ var _ = Describe("list command", func() {
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("projects response did not contain a body"))
-		expectRequest(requests, http.MethodGet, testListPath)
+		ExpectRequest(requests, http.MethodGet, testListPath)
 	})
 
 	It("returns an error when output formatting fails", func() {
 		cfg.Config.Output = "invalid"
-		DeferCleanup(func() { cfg.Config.Output = jsonOutputFormat })
+		DeferCleanup(func() { cfg.Config.Output = JSONOutputFormat })
 
 		err := executeListCommand(appConfig)
 
@@ -133,14 +134,14 @@ var _ = Describe("list command", func() {
 			requests <- r
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write(errorResponseBody("internal_server_error", unexpectedErrorMsg))
+			_, _ = w.Write(ErrorResponseBody("internal_server_error", UnexpectedErrorMsg))
 		})
 
 		err := executeListCommand(appConfig)
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("listing projects returned HTTP %d", http.StatusInternalServerError)))
-		Expect(err.Error()).To(ContainSubstring(unexpectedErrorMsg))
-		expectRequest(requests, http.MethodGet, testListPath)
+		Expect(err.Error()).To(ContainSubstring(UnexpectedErrorMsg))
+		ExpectRequest(requests, http.MethodGet, testListPath)
 	})
 })
