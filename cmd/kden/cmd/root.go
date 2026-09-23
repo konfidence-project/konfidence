@@ -13,6 +13,7 @@ import (
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/completion"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/config"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/docs"
+	"github.com/konfidence-project/konfidence/cmd/kden/cmd/landscape"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/project"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vector"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vectorpromotion"
@@ -132,6 +133,7 @@ func initCmd() {
 	rootCmd.AddCommand(version.NewVersionCmd())
 	rootCmd.AddCommand(vector.NewVectorCmd())
 	rootCmd.AddCommand(project.NewProjectCmd(appConfig))
+	rootCmd.AddCommand(landscape.NewLandscapeCmd(appConfig))
 	rootCmd.AddCommand(vectorpromotion.NewVectorPromotionCmd(appConfig))
 
 	loginCmd, err := auth.NewLoginCmd(appConfig)
