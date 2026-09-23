@@ -158,7 +158,6 @@ var _ = Describe("Server", func() {
 			Expect(os.WriteFile(keyFile, keyPEM, 0600)).To(Succeed())
 
 			cfg := validParsed("127.0.0.1:0")
-			cfg.Server.TLSEnabled = true
 			cfg.Server.TLSCertFile = certFile
 			cfg.Server.TLSKeyFile = keyFile
 

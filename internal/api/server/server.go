@@ -56,27 +56,31 @@ func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) err
 	}
 
 	errCh := make(chan error, 1)
-	go func() {
-		s.logger.Info("api server starting", "addr", ln.Addr().String(), "tls", s.cfg.Server.TLSEnabled)
-		var serveErr error
-		if s.cfg.Server.TLSEnabled {
-			watcher, err := certwatcher.New(s.cfg.Server.TLSCertFile, s.cfg.Server.TLSKeyFile)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to initialize cert watcher: %w", err)
-				return
-			}
-			go func() {
-				if err := watcher.Start(ctx); err != nil {
-					s.logger.Error("cert watcher stopped", "error", err)
-				}
-			}()
-			srv.TLSConfig = &tls.Config{GetCertificate: watcher.GetCertificate}
-			serveErr = srv.ServeTLS(ln, "", "")
-		} else {
-			serveErr = srv.Serve(ln)
+	var watcher *certwatcher.CertWatcher
+	if s.cfg.Server.TLSCertFile != "" {
+		var err error
+		watcher, err = certwatcher.New(s.cfg.Server.TLSCertFile, s.cfg.Server.TLSKeyFile)
+		if err != nil {
+			return fmt.Errorf("failed to initialize cert watcher: %w", err)
 		}
-		if !errors.Is(serveErr, http.ErrServerClosed) {
-			errCh <- fmt.Errorf("server error: %w", serveErr)
+		go func() {
+			if err := watcher.Start(ctx); err != nil {
+				s.logger.Error("cert watcher stopped", "error", err)
+			}
+		}()
+	}
+
+	go func() {
+		s.logger.Info("api server starting", "addr", ln.Addr().String(), "tls", watcher != nil)
+		if watcher != nil {
+			srv.TLSConfig = &tls.Config{GetCertificate: watcher.GetCertificate}
+			if err := srv.ServeTLS(ln, "", ""); !errors.Is(err, http.ErrServerClosed) {
+				errCh <- fmt.Errorf("server error: %w", err)
+			}
+		} else {
+			if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
+				errCh <- fmt.Errorf("server error: %w", err)
+			}
 		}
 		close(errCh)
 	}()

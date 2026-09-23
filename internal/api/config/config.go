@@ -30,7 +30,6 @@ type ServerConfig struct {
 	ShutdownTimeout string
 	LogLevel        string
 	UIAssetPath     string
-	TLSEnabled      bool
 	TLSCertFile     string
 	TLSKeyFile      string
 }
@@ -95,7 +94,6 @@ type ParsedServerConfig struct {
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
-	TLSEnabled      bool
 	TLSCertFile     string
 	TLSKeyFile      string
 }
@@ -166,7 +164,7 @@ func (c ServerConfig) validate() (ParsedServerConfig, error) {
 	if c.Addr == "" {
 		return ParsedServerConfig{}, fmt.Errorf("addr must not be empty")
 	}
-	if c.TLSEnabled {
+	if c.TLSCertFile != "" || c.TLSKeyFile != "" {
 		if c.TLSCertFile == "" {
 			return ParsedServerConfig{}, fmt.Errorf("tls-cert-file must not be empty when tls is enabled")
 		}
@@ -199,7 +197,6 @@ func (c ServerConfig) validate() (ParsedServerConfig, error) {
 		ReadTimeout:     read,
 		WriteTimeout:    write,
 		ShutdownTimeout: shutdown,
-		TLSEnabled:      c.TLSEnabled,
 		TLSCertFile:     c.TLSCertFile,
 		TLSKeyFile:      c.TLSKeyFile,
 	}, nil
