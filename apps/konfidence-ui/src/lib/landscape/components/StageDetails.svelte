@@ -1,7 +1,11 @@
 <script lang="ts">
+    import "@ui5/webcomponents/dist/Icon.js";
+    import "@ui5/webcomponents-icons/dist/error.js";
+    import "@ui5/webcomponents-icons/dist/question-mark.js";
     import {
         Breadcrumbs,
         Button,
+        EmptyState,
         OrbitLoader,
         PageHeader,
     } from "@konfidence/design-system/components";
@@ -46,19 +50,29 @@
 {#if status === "loading"}
     <OrbitLoader label="Loading stage details" />
 {:else if status === "error" && errorStatus !== 404}
-    <section role="alert">
-        <h1>Stage details could not be loaded</h1>
-        <p>{error}</p>
-        <Button onclick={onRetry}>Retry</Button>
-    </section>
+    <EmptyState
+        tone="error"
+        title="Stage details could not be loaded"
+        description={error}
+    >
+        {#snippet icon()}<ui5-icon name="error" aria-hidden="true"></ui5-icon>{/snippet}
+        {#snippet action()}
+            <Button variant="secondary" onclick={onRetry}><span>Retry</span
+                ></Button>
+        {/snippet}
+    </EmptyState>
 {:else if !landscape || !stage || status === "error"}
-    <section>
-        <h1>Stage not found</h1>
-        <p>
-            The requested landscape or stage is not available in this project.
-        </p>
-        <Button href={backHref}>Back to landscapes</Button>
-    </section>
+    <EmptyState
+        tone="empty"
+        title="Stage not found"
+        description="The requested landscape or stage is not available in this project."
+    >
+        {#snippet icon()}<ui5-icon name="question-mark" aria-hidden="true"
+            ></ui5-icon>{/snippet}
+        {#snippet action()}
+            <Button href={backHref}><span>Back to landscapes</span></Button>
+        {/snippet}
+    </EmptyState>
 {:else}
     <PageHeader title={stage.name}>
         {#snippet eyebrow()}
