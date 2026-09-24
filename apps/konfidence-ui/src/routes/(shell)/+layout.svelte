@@ -14,6 +14,7 @@
     import ProjectsContent from "$lib/projects/components/ProjectsContent.svelte";
     import ProjectSelector from "$lib/shell/ProjectSelector.svelte";
     import SideNav from "$lib/shell/SideNav.svelte";
+    import ThemeSwitcher from "$lib/shell/ThemeSwitcher.svelte";
     import UserMenu from "$lib/shell/UserMenu.svelte";
 
     /**
@@ -91,6 +92,7 @@
                         <ProjectSelector />
                     {/snippet}
                     {#snippet actions()}
+                        <ThemeSwitcher />
                         <UserMenu />
                     {/snippet}
                 </TopBar>
