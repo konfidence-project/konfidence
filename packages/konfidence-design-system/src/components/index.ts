@@ -7,6 +7,7 @@ export type { BreadcrumbItem } from "./Breadcrumbs/types.js";
 export { default as Button } from "./Button/Button.svelte";
 export { default as EmptyState } from "./EmptyState/EmptyState.svelte";
 export { default as IconButton } from "./IconButton/IconButton.svelte";
+export { default as Link } from "./Link/Link.svelte";
 export { Menu } from "./Menu/index.js";
 export { default as NavGroup } from "./NavGroup/NavGroup.svelte";
 export { default as NavItem } from "./NavItem/NavItem.svelte";
