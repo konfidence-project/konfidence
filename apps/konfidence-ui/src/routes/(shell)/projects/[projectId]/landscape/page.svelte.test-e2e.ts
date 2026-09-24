@@ -74,9 +74,12 @@ test("opens and reloads real mock details without nesting main landmarks", async
   await page.getByRole("link", { name: /View details for stage dev-eu10/ }).click();
 
   await expect(page.getByRole("heading", { level: 1, name: "dev-eu10" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Target version" })).toBeVisible();
-  await expect(page.getByText("Deploying vector").first()).toBeVisible();
-  await expect(page.getByText("dev-eu10-v5", { exact: true })).toBeVisible();
+  const targetVersion = page.getByRole("region", { name: "Target version" });
+  const activeVersion = page.getByRole("region", { name: "Active version" });
+  await expect(targetVersion.getByText("Deploying vector", { exact: true })).toBeVisible();
+  await expect(targetVersion.getByText("dev-eu10-v6", { exact: true })).toBeVisible();
+  await expect(activeVersion.getByText("Ready", { exact: true })).toBeVisible();
+  await expect(activeVersion.getByText("dev-eu10-v5", { exact: true })).toBeVisible();
   await expect(page.locator("main")).toHaveCount(1);
   await page.reload();
   await expect(page.locator("main")).toHaveCount(1);
@@ -85,6 +88,46 @@ test("opens and reloads real mock details without nesting main landmarks", async
     .getByRole("link", { name: "Landscapes" })
     .click();
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
+});
+
+test("renders a pending target without an active version", async ({ page }) => {
+  const target = "/projects/payments-platform/landscape/development/stages/dev-canary";
+  await signIn(page, target, target);
+
+  await expect(page.getByRole("heading", { level: 1, name: "DEV-canary" })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Target version" })
+      .getByText("Pending deployment", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Active version" }).getByText("No active version yet."),
+  ).toBeVisible();
+});
+
+test("recovers from a stage detail API error", async ({ page }) => {
+  let failing = true;
+  await page.route(LANDSCAPES_API, (route) =>
+    route.fulfill({ json: { data: [{ id: "primary", name: "Primary" }] } }),
+  );
+  await page.route(STAGES_API, (route) =>
+    failing
+      ? route.fulfill({
+          json: { error: { code: "503", message: "Unavailable" } },
+          status: 503,
+        })
+      : route.fulfill({ json: { data: [stage] } }),
+  );
+  const target = "/projects/payments-platform/landscape/primary/stages/dev-api";
+  await signIn(page, target, target);
+
+  await expect(
+    page.getByRole("heading", { name: "Stage details could not be loaded" }),
+  ).toBeVisible();
+  failing = false;
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "dev-api" })).toBeVisible();
+  await expect(page.getByText("registry.example:5000//delivery/vector:main")).toBeVisible();
 });
 
 test("renders the real degraded mock scenario as retryable", async ({ page }) => {
@@ -301,4 +344,10 @@ test("opens at a readable zoom and reveals offscreen stages for keyboard navigat
   expect((await last.boundingBox())!.width).toBeGreaterThan(200);
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { level: 1, name: "prod-legacy" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Target version" }).getByText("Failed", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Active version" }).getByText("Ready", { exact: true }),
+  ).toBeVisible();
 });
