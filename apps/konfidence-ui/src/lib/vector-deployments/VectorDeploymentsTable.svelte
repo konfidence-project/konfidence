@@ -11,7 +11,7 @@
         TableRow,
     } from "@konfidence/design-system/components";
     import { resolve } from "$app/paths";
-    import { VECTOR_DEPLOYMENT_PARAM } from "$lib/artifact-deployments/params";
+    import { VECTOR_DEPLOYMENT_PARAM } from "$lib/deployments/params";
     import LinkCell from "$lib/components/table-cells/LinkCell.svelte";
     import StatusCell from "$lib/components/table-cells/StatusCell.svelte";
     import { toStore } from "svelte/store";

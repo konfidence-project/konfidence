@@ -15,8 +15,10 @@
 
     import VectorDeploymentDetail from "./VectorDeploymentDetail.svelte";
     import VectorDeploymentsTable from "./VectorDeploymentsTable.svelte";
-    import {toVectorDeploymentRows} from "./deployments.js";
-    import {useDeploymentFilters} from "./useDeploymentFilters.svelte.js";
+    import {matchesQuery, matchesStatus, toVectorDeploymentRows} from "./deployments.js";
+    import type {VectorDeploymentRow, VectorDeploymentStatus} from "./deployments.js";
+    import {useDeploymentFilters} from "$lib/deployments/useDeploymentFilters.svelte.js";
+    import {LANDSCAPE_PARAM} from "$lib/deployments/params.js";
 
     type Landscape = components["schemas"]["Landscape"];
     type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
@@ -53,9 +55,10 @@
         toVectorDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
     );
 
-    const filters = useDeploymentFilters({
+    const filters = useDeploymentFilters<VectorDeploymentRow, VectorDeploymentStatus>({
+        dimensions: [{ param: LANDSCAPE_PARAM, value: () => selectedLandscapeId }],
+        matchers: { matchesQuery, matchesStatus },
         rows: () => rows,
-        selectedLandscapeId: () => selectedLandscapeId,
     });
 
     const labelTextClass =
@@ -103,7 +106,7 @@
                 <span class={labelTextClass}>Landscape</span>
                 <Select
                         value={selectedLandscapeId ?? ""}
-                        onchange={(event) => filters.changeLandscape(event.currentTarget.value)}
+                        onchange={(event) => filters.changeDimension(LANDSCAPE_PARAM, event.currentTarget.value)}
                         disabled={landscapes.length === 0}
                         aria-label="Filter by landscape"
                         data-testid="vectordeployment-landscape-filter"

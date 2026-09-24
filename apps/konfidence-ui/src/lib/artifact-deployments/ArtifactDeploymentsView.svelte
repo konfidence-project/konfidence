@@ -15,8 +15,10 @@
 
     import ArtifactDeploymentDetail from "./ArtifactDeploymentDetail.svelte";
     import ArtifactDeploymentsTable from "./ArtifactDeploymentsTable.svelte";
-    import { toArtifactDeploymentRows } from "./deployments.js";
-    import { useDeploymentFilters } from "./useDeploymentFilters.svelte.js";
+    import { matchesQuery, matchesStatus, toArtifactDeploymentRows } from "./deployments.js";
+    import type { ArtifactDeploymentRow, ArtifactDeploymentStatus } from "./deployments.js";
+    import { useDeploymentFilters } from "$lib/deployments/useDeploymentFilters.svelte.js";
+    import { LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "$lib/deployments/params.js";
 
     type Landscape = components["schemas"]["Landscape"];
     type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
@@ -53,10 +55,13 @@
         toArtifactDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
     );
 
-    const filters = useDeploymentFilters({
+    const filters = useDeploymentFilters<ArtifactDeploymentRow, ArtifactDeploymentStatus>({
+        dimensions: [
+            { param: LANDSCAPE_PARAM, value: () => selectedLandscapeId },
+            { param: VECTOR_DEPLOYMENT_PARAM, value: () => selectedVectorDeploymentId },
+        ],
+        matchers: { matchesQuery, matchesStatus },
         rows: () => rows,
-        selectedLandscapeId: () => selectedLandscapeId,
-        selectedVectorDeploymentId: () => selectedVectorDeploymentId,
     });
 
     const vectorOptions = $derived(
@@ -115,7 +120,7 @@
                 <span class={labelTextClass}>Landscape</span>
                 <Select
                     value={selectedLandscapeId ?? ""}
-                    onchange={(event) => filters.changeLandscape(event.currentTarget.value)}
+                    onchange={(event) => filters.changeDimension(LANDSCAPE_PARAM, event.currentTarget.value)}
                     disabled={landscapes.length === 0}
                     aria-label="Filter by landscape"
                     data-testid="artifact-landscape-filter"
@@ -130,7 +135,7 @@
                 <span class={labelTextClass}>Vector deployment</span>
                 <Select
                     value={selectedVectorDeploymentId ?? ""}
-                    onchange={(event) => filters.changeVectorDeployment(event.currentTarget.value)}
+                    onchange={(event) => filters.changeDimension(VECTOR_DEPLOYMENT_PARAM, event.currentTarget.value)}
                     disabled={vectorOptions.length === 0}
                     aria-label="Filter by vector deployment"
                     data-testid="artifact-vector-filter"
