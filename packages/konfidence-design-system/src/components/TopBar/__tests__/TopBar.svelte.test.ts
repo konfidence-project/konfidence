@@ -47,6 +47,17 @@ describe("<TopBar>", () => {
         document.documentElement.setAttribute("data-theme", "konfidence");
         document.documentElement.setAttribute("data-mode", mode);
         render(TopBarFixture, { withHamburger: layout === "mobile" });
+        if (layout === "mobile") {
+          await expect
+            .poll(() =>
+              Boolean(
+                document
+                  .querySelector<HTMLElement>('[data-testid="drawer-toggle"] ui5-icon')
+                  ?.shadowRoot?.querySelector("svg"),
+              ),
+            )
+            .toBe(true);
+        }
         await expect.element(page.getByTestId("topbar-root")).toMatchScreenshot();
       });
     }

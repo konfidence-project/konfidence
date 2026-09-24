@@ -1,28 +1,44 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
     import { goto } from "$app/navigation";
-    import type { ResolvedPathname } from "$app/types";
+    import { page } from "$app/state";
+    import { Link } from "@konfidence/design-system/components";
 
     interface Props {
         ariaLabel: string;
         children: Snippet;
-        url: ResolvedPathname;
+        url: string;
     }
     let { ariaLabel, children, url }: Props = $props();
 
-    const navigate = (event: MouseEvent): void => {
+    const external = $derived(new globalThis.URL(url, page.url).origin !== page.url.origin);
+
+    const stopRowSelection = (event: MouseEvent): void => {
         event.stopPropagation();
+    };
+
+    const navigate = (event: MouseEvent): void => {
+        stopRowSelection(event);
+        // eslint-disable-next-line svelte/no-navigation-without-resolve -- internal URLs are resolved by the call site before they reach this generic cell.
         void goto(url);
     };
 </script>
 
-<button
-    type="button"
-    class="cursor-pointer border-0 bg-transparent p-0 text-[color:var(--text-link,var(--btn-primary-fg))] underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
-    aria-label={ariaLabel}
-    onclick={navigate}
->
-    <span class="font-[family-name:var(--font-mono)] text-[length:var(--text-sm)]">
+{#if external}
+    <Link
+        href={url}
+        class="font-[family-name:var(--font-mono)] text-[length:var(--text-sm)]"
+        aria-label={ariaLabel}
+        onclick={stopRowSelection}
+    >
         {@render children()}
-    </span>
-</button>
+    </Link>
+{:else}
+    <Link
+        class="font-[family-name:var(--font-mono)] text-[length:var(--text-sm)]"
+        aria-label={ariaLabel}
+        onclick={navigate}
+    >
+        {@render children()}
+    </Link>
+{/if}
