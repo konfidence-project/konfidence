@@ -9,6 +9,7 @@
      */
 
     import type { BreadcrumbItem } from "./types.js";
+    import Link from "../Link/Link.svelte";
 
     interface Props {
         /** Ordered items, root → current. Empty arrays render nothing. */
@@ -39,8 +40,7 @@
                     {item.label}
                 </span>
             {:else}
-                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Callers pass an already-resolved URL. -->
-                <a href={item.href}>{item.label}</a>
+                <Link class="crumbs__link" href={item.href}>{item.label}</Link>
             {/if}
         {/each}
     </nav>
@@ -54,11 +54,11 @@
         font-size: var(--text-sm);
         color: var(--text-tertiary);
     }
-    .crumbs a {
+    .crumbs :global(.crumbs__link) {
         color: var(--text-tertiary);
         text-decoration: none;
     }
-    .crumbs a:hover {
+    .crumbs :global(.crumbs__link:hover) {
         color: var(--text-link);
     }
     .crumbs__sep {
