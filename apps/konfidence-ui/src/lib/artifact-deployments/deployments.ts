@@ -1,4 +1,5 @@
 import type { components } from "@konfidence/api-client/schema";
+import type { StatusTone } from "$lib/components/table-cells/status-cell.types.js";
 
 type ApiLandscape = components["schemas"]["Landscape"];
 type ApiStage = components["schemas"]["Stage"];
@@ -80,7 +81,7 @@ const STATUS_LABEL: Record<ArtifactDeploymentStatus, string> = {
   Ready: "Ready",
 };
 
-const STATUS_TONE: Record<ArtifactDeploymentStatus, string> = {
+const STATUS_TONE: Record<ArtifactDeploymentStatus, StatusTone> = {
   AppHealthy: "healthy",
   ArtifactDeployed: "healthy",
   ArtifactFetched: "deploying",
@@ -88,7 +89,7 @@ const STATUS_TONE: Record<ArtifactDeploymentStatus, string> = {
 };
 
 const statusLabel = (status: ArtifactDeploymentStatus): string => STATUS_LABEL[status];
-const statusTone = (status: ArtifactDeploymentStatus): string => STATUS_TONE[status];
+const statusTone = (status: ArtifactDeploymentStatus): StatusTone => STATUS_TONE[status];
 
 const matchesQuery = (row: ArtifactDeploymentRow, query: string): boolean => {
   const trimmed = query.trim().toLowerCase();
