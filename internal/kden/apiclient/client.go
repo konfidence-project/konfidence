@@ -451,7 +451,7 @@ type PostExchangeCodeV1JSONBody struct {
 
 // LoginV1Params defines parameters for LoginV1.
 type LoginV1Params struct {
-	// ReturnUrl Fully qualified URL to redirect to after login. The URL must be present in the API server allowlist.
+	// ReturnUrl Root-relative path to redirect to after login. An absolute HTTP(S) URL is accepted when its domain is configured by the API server. CLI login uses an HTTP loopback callback URL.
 	ReturnUrl string `form:"return_url" json:"return_url"`
 
 	// CodeChallenge PKCE S256 challenge used for CLI login.
@@ -1106,7 +1106,7 @@ func NewLoginV1Request(server string, params *LoginV1Params) (*http.Request, err
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
-		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "return_url", params.ReturnUrl, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uri"}); err != nil {
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "return_url", params.ReturnUrl, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uri-reference"}); err != nil {
 			return nil, err
 		} else {
 			for _, qp := range strings.Split(queryFrag, "&") {

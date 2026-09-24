@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
@@ -85,8 +86,24 @@ func (a *authHandler) LoginV1(ctx context.Context, request openapi.LoginV1Reques
 	}, nil
 }
 
-func allowedReturnURL(returnURL string, allowReturnURLs []string) bool {
-	return slices.Contains(allowReturnURLs, returnURL)
+func allowedReturnURL(rawURL string, allowReturnDomains []string) bool {
+	returnURL, err := url.Parse(rawURL)
+	if err != nil || rawURL == "" || strings.Contains(returnURL.Path, `\`) {
+		return false
+	}
+
+	if !returnURL.IsAbs() {
+		return returnURL.Host == "" && returnURL.Opaque == "" && strings.HasPrefix(returnURL.Path, "/") &&
+			!strings.HasPrefix(returnURL.Path, "//")
+	}
+
+	if (returnURL.Scheme != "http" && returnURL.Scheme != "https") || returnURL.Hostname() == "" || returnURL.User != nil {
+		return false
+	}
+
+	return slices.ContainsFunc(allowReturnDomains, func(domain string) bool {
+		return strings.EqualFold(returnURL.Hostname(), domain)
+	})
 }
 
 func allowedCLIReturnURL(rawURL string) bool {

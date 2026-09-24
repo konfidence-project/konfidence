@@ -28,11 +28,14 @@ paths:
       parameters:
         - name: return_url
           in: query
-          description: Fully qualified URL to redirect to after login. The URL must be present in the API server allowlist.
+          description: >
+            Root-relative path to redirect to after login. An absolute HTTP(S) URL is
+            accepted when its domain is configured by the API server. CLI login uses
+            an HTTP loopback callback URL.
           required: true
           schema:
             type: string
-            format: uri
+            format: uri-reference
         - name: code_challenge
           in: query
           description: PKCE S256 challenge used for CLI login.

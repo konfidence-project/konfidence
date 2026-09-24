@@ -205,21 +205,27 @@ func (c OIDCConfig) validate() (ParsedOIDCConfig, error) {
 		if c.RedirectURL == "" {
 			return ParsedOIDCConfig{}, fmt.Errorf("oidc-redirect-url must not be empty")
 		}
-		if len(c.AllowReturnURLs) == 0 {
-			return ParsedOIDCConfig{}, fmt.Errorf("oidc-allow-return-url must not be empty")
-		}
 	}
 
 	allowReturnURLs := make([]string, 0, len(c.AllowReturnURLs))
-	for _, returnURL := range c.AllowReturnURLs {
-		returnURL = strings.TrimSpace(returnURL)
-		parsedURL, err := url.Parse(returnURL)
-		if err != nil || !parsedURL.IsAbs() ||
-			(parsedURL.Scheme != "http" && parsedURL.Scheme != "https") ||
-			parsedURL.Hostname() == "" || parsedURL.User != nil {
-			return ParsedOIDCConfig{}, fmt.Errorf("invalid oidc-allow-return-url %q: must be a fully qualified HTTP(S) URL", returnURL)
+	for _, returnDomain := range c.AllowReturnURLs {
+		returnDomain = strings.TrimSpace(returnDomain)
+		parsedDomain, err := url.Parse("//" + returnDomain)
+		if err != nil ||
+			returnDomain == "" ||
+			parsedDomain.Hostname() == "" ||
+			parsedDomain.Host != parsedDomain.Hostname() ||
+			parsedDomain.User != nil ||
+			parsedDomain.Path != "" ||
+			parsedDomain.RawQuery != "" ||
+			parsedDomain.Fragment != "" {
+			return ParsedOIDCConfig{}, fmt.Errorf(
+				"invalid oidc-allow-return-url %q: must be a domain without scheme, port, path, query, or fragment",
+				returnDomain,
+			)
 		}
-		allowReturnURLs = append(allowReturnURLs, returnURL)
+
+		allowReturnURLs = append(allowReturnURLs, returnDomain)
 	}
 
 	jwksCacheTTL, err := time.ParseDuration(c.JWKSCacheTTL)

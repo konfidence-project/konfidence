@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 describe("login page", () => {
-  it("renders a sign-in link that targets the default return URL", async () => {
+  it("renders a sign-in link that targets the default return path", async () => {
     render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
@@ -43,12 +43,16 @@ describe("login page", () => {
 
     const link = page.getByTestId("sign-in");
     await expect.element(link).toBeVisible();
+
     const href = await link.element().getAttribute("href");
-    expect(href).toContain("/api/v1/login?return_url=");
-    expect(href).toContain(encodeURIComponent(new URL("/", globalThis.location.origin).href));
+    expect(href).not.toBeNull();
+
+    const loginUrl = new URL(href!, globalThis.location.origin);
+    expect(loginUrl.pathname).toBe("/api/v1/login");
+    expect(loginUrl.searchParams.get("return_url")).toBe("/");
   });
 
-  it("propagates a returnTo query parameter into the sign-in URL", async () => {
+  it("propagates a returnTo path into the sign-in URL", async () => {
     setLoginUrl("?returnTo=/projects/foo/landscape");
 
     render(SessionTestProvider, {
@@ -58,9 +62,26 @@ describe("login page", () => {
 
     const link = page.getByTestId("sign-in");
     const href = await link.element().getAttribute("href");
-    expect(href).toContain(
-      encodeURIComponent(new URL("/projects/foo/landscape", globalThis.location.origin).href),
-    );
+    expect(href).not.toBeNull();
+
+    const loginUrl = new URL(href!, globalThis.location.origin);
+    expect(loginUrl.searchParams.get("return_url")).toBe("/projects/foo/landscape");
+  });
+
+  it("falls back to the root path for an external returnTo target", async () => {
+    setLoginUrl("?returnTo=https%3A%2F%2Fattacker.example.com%2Fprojects");
+
+    render(SessionTestProvider, {
+      component: LoginPage,
+      session: createTestSession(),
+    });
+
+    const link = page.getByTestId("sign-in");
+    const href = await link.element().getAttribute("href");
+    expect(href).not.toBeNull();
+
+    const loginUrl = new URL(href!, globalThis.location.origin);
+    expect(loginUrl.searchParams.get("return_url")).toBe("/");
   });
 
   it("renders the error description from the callback query", async () => {

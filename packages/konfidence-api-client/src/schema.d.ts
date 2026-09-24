@@ -544,7 +544,7 @@ export interface operations {
   loginV1: {
     parameters: {
       query: {
-        /** @description Fully qualified URL to redirect to after login. The URL must be present in the API server allowlist. */
+        /** @description Root-relative path to redirect to after login. An absolute HTTP(S) URL is accepted when its domain is configured by the API server. CLI login uses an HTTP loopback callback URL. */
         return_url: string;
         /** @description PKCE S256 challenge used for CLI login. */
         code_challenge?: string;

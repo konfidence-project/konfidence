@@ -41,7 +41,7 @@ Kubernetes: `>=1.27.0-0`
 | api.ingress.enabled | bool | `false` | Create an Ingress for the API server. |
 | api.ingress.hosts | list | `[{"host":"","paths":[{"path":"/","pathType":"Prefix"}]}]` | Hosts and paths routed to the API server. `host` is required on each entry. |
 | api.ingress.tls | list | `[]` | TLS configuration of the Ingress. |
-| api.oidc.allowReturnUrls | list | `[]` | URLs the login flow may redirect back to after authentication. |
+| api.oidc.allowReturnUrls | list | `[]` | Domains permitted for absolute redirects after login. When empty, only root-relative return paths are accepted. |
 | api.oidc.authorizationURL | string | `""` | Authorization endpoint. Defaults to the discovery document when empty. |
 | api.oidc.clientId | string | `""` | OAuth client id registered at the provider. |
 | api.oidc.clientSecretRef.key | string | `"client-secret"` | Key inside that Secret holding the client secret. |
