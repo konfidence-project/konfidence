@@ -8,6 +8,7 @@ export {
   EmptyState,
   IconButton,
   isActive,
+  Link,
   Menu,
   NavGroup,
   NavItem,
