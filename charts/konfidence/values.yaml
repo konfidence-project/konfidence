@@ -132,8 +132,9 @@ api:
     # -- Redirect URL registered at the provider, ending in
     # `/api/v1/auth/callback`.
     redirectURL: ""
-    # -- URLs the login flow may redirect back to after authentication.
-    allowReturnUrls: []
+    # -- Hostnames permitted for absolute redirects after login, matched exactly
+    # on any port. When empty, only root-relative return paths are accepted.
+    allowedReturnHosts: []
     # -- Use PKCE for the authorization code flow.
     pkceEnabled: true
     # -- Lifetime of the login state parameter.

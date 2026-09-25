@@ -19,6 +19,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
@@ -67,21 +68,72 @@ describe("session store", () => {
   it("records an error when the request fails", async () => {
     mockFetchReject(new Error("network down"));
     const session = createTestSession();
-
     await session.refresh();
 
     expect(session.status).toBe("unauthenticated");
     expect(session.error).toBe("network down");
   });
 
-  it("builds the login URL from a returnTo path", () => {
+  it("uses a relative return path when the API is same-origin", () => {
+    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "/api");
     const session = createTestSession();
+    const loginUrl = new URL(session.buildLoginUrl("/projects/foo"), globalThis.location.origin);
 
-    const url = session.buildLoginUrl("/projects/foo");
+    expect(loginUrl.origin).toBe(globalThis.location.origin);
+    expect(loginUrl.pathname).toBe("/api/v1/login");
+    expect(loginUrl.searchParams.get("return_url")).toBe("/projects/foo");
+  });
 
-    expect(url).toContain("/api/v1/login?return_url=");
-    expect(url).toContain(
-      encodeURIComponent(new URL("/projects/foo", globalThis.location.origin).href),
+  it("uses the root path when no returnTo path is provided", () => {
+    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "/api");
+    const session = createTestSession();
+    const loginUrl = new URL(session.buildLoginUrl(), globalThis.location.origin);
+
+    expect(loginUrl.searchParams.get("return_url")).toBe("/");
+  });
+
+  it("uses an absolute UI return URL when the API is cross-origin", () => {
+    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "https://api.example.com/api");
+    const session = createTestSession();
+    const loginUrl = new URL(session.buildLoginUrl("/projects/foo"));
+
+    expect(loginUrl.origin).toBe("https://api.example.com");
+    expect(loginUrl.pathname).toBe("/api/v1/login");
+    expect(loginUrl.searchParams.get("return_url")).toBe(
+      new URL("/projects/foo", globalThis.location.origin).href,
+    );
+  });
+
+  it("uses a relative return path when an absolute API URL is same-origin", () => {
+    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", `${globalThis.location.origin}/api`);
+    const session = createTestSession();
+    const loginUrl = new URL(session.buildLoginUrl("/projects/foo"));
+
+    expect(loginUrl.origin).toBe(globalThis.location.origin);
+    expect(loginUrl.pathname).toBe("/api/v1/login");
+    expect(loginUrl.searchParams.get("return_url")).toBe("/projects/foo");
+  });
+
+  it.each([
+    "https://attacker.example.com/projects",
+    "//attacker.example.com/projects",
+    String.raw`/\attacker.example.com`,
+    "projects/foo",
+  ])("falls back to the root path for an unsafe returnTo value: %s", (returnTo) => {
+    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "/api");
+    const session = createTestSession();
+    const loginUrl = new URL(session.buildLoginUrl(returnTo), globalThis.location.origin);
+
+    expect(loginUrl.searchParams.get("return_url")).toBe("/");
+  });
+
+  it("uses the absolute UI root for an unsafe target with a cross-origin API", () => {
+    vi.stubEnv("VITE_KONFIDENCE_API_BASE_URL", "https://api.example.com/api");
+    const session = createTestSession();
+    const loginUrl = new URL(session.buildLoginUrl("https://attacker.example.com/projects"));
+
+    expect(loginUrl.searchParams.get("return_url")).toBe(
+      new URL("/", globalThis.location.origin).href,
     );
   });
 

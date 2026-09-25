@@ -10,7 +10,7 @@ DEPLOY_OIDC_ISSUER_URL ?=
 DEPLOY_OIDC_CLIENT_ID ?=
 DEPLOY_OIDC_REDIRECT_URL ?=
 DEPLOY_OIDC_CLIENT_SECRET ?=
-DEPLOY_OIDC_ALLOW_RETURN_URLS ?=
+DEPLOY_OIDC_ALLOWED_RETURN_HOSTS ?=
 # Non-empty mounts Caddy's local CA into the API pod, for HTTPS issuer URLs.
 DEPLOY_OIDC_TRUST_CADDY_CA ?=
 
@@ -96,7 +96,7 @@ API_OIDC_CLIENT_ID ?= konfidence
 API_OIDC_CLIENT_SECRET ?= konfidence-local-secret
 API_OIDC_SCOPES ?= openid,profile,email,groups
 API_OIDC_REDIRECT_URL ?= https://api.localhost/api/v1/auth/callback
-API_OIDC_ALLOW_RETURN_URLS ?= http://localhost:8090
+API_OIDC_ALLOWED_RETURN_HOSTS ?= localhost
 API_SESSION_STORAGE_TYPE ?= in-memory
 # Postgres from dev-up; used when API_SESSION_STORAGE_TYPE=db-pg and by dev-db-migrate.
 API_DB_CONNECTION ?= postgres://test_user:test_password@localhost:5432/kden?sslmode=disable
@@ -328,7 +328,7 @@ run-kden-api: fmt vet ## Run the kden API server locally.
 		--oidc-client-secret=$(API_OIDC_CLIENT_SECRET) \
 		--oidc-scopes=$(API_OIDC_SCOPES) \
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
-		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
+		--oidc-allowed-return-hosts=$(API_OIDC_ALLOWED_RETURN_HOSTS) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
 		--db-connection=$(API_DB_CONNECTION) \
 		--ui-asset-path=$(API_UI_ASSET_PATH)
@@ -482,7 +482,7 @@ deploy: hermit manifests ## Deploy the konfidence operator to the cluster specif
 			--set api.oidc.issuerURL=$(DEPLOY_OIDC_ISSUER_URL) \
 			--set api.oidc.clientId=$(DEPLOY_OIDC_CLIENT_ID) \
 			--set api.oidc.redirectURL=$(DEPLOY_OIDC_REDIRECT_URL) \
-			--set api.oidc.allowReturnUrls={$(DEPLOY_OIDC_ALLOW_RETURN_URLS)}"; \
+			--set api.oidc.allowedReturnHosts={$(DEPLOY_OIDC_ALLOWED_RETURN_HOSTS)}"; \
 		case "$(DEPLOY_OIDC_ISSUER_URL)" in \
 			*host.docker.internal*) \
 				echo "Resolving host.docker.internal for the API pod (kind node has no such DNS entry outside Docker Desktop)..."; \

@@ -52,8 +52,10 @@ class SessionStore {
   }
 
   buildLoginUrl(returnTo?: string): string {
-    const returnUrl = this.#buildReturnUrl(returnTo);
-    return `${resolveApiBaseUrl()}${LOGIN_API_ROUTE}?return_url=${encodeURIComponent(returnUrl)}`;
+    const apiBaseUrl = resolveApiBaseUrl();
+    const returnUrl = this.#buildReturnUrl(returnTo, apiBaseUrl);
+
+    return `${apiBaseUrl}${LOGIN_API_ROUTE}?return_url=${encodeURIComponent(returnUrl)}`;
   }
 
   signIn(returnTo?: string): void {
@@ -82,10 +84,20 @@ class SessionStore {
     await goto(LOGIN_PATH);
   }
 
-  #buildReturnUrl(returnTo: string | undefined): string {
-    const { origin } = globalThis.location;
-    const target = returnTo?.startsWith("/") === true ? returnTo : "/";
-    return new globalThis.URL(target, origin).href;
+  #buildReturnUrl(returnTo: string | undefined, apiBaseUrl: string): string {
+    const target =
+      returnTo?.startsWith("/") === true && !returnTo.startsWith("//") && !returnTo.includes("\\")
+        ? returnTo
+        : "/";
+
+    const uiOrigin = globalThis.location.origin;
+    const apiOrigin = new globalThis.URL(apiBaseUrl, uiOrigin).origin;
+
+    if (apiOrigin === uiOrigin) {
+      return target;
+    }
+
+    return new globalThis.URL(target, uiOrigin).href;
   }
 
   async #runRefresh(): Promise<void> {
