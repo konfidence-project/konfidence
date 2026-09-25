@@ -33,21 +33,21 @@ type ServerConfig struct {
 }
 
 type OIDCConfig struct {
-	Enabled          bool
-	IssuerURL        string
-	TokenURL         string
-	AuthorizationURL string
-	DeviceAuthURL    string
-	UserInfoURL      string
-	JWKSURL          string
-	JWKSCacheTTL     string
-	ClientID         string
-	ClientSecret     string
-	Scopes           string
-	RedirectURL      string
-	AllowReturnURLs  []string
-	PKCEEnabled      bool
-	StateExpiration  string
+	Enabled            bool
+	IssuerURL          string
+	TokenURL           string
+	AuthorizationURL   string
+	DeviceAuthURL      string
+	UserInfoURL        string
+	JWKSURL            string
+	JWKSCacheTTL       string
+	ClientID           string
+	ClientSecret       string
+	Scopes             string
+	RedirectURL        string
+	AllowedReturnHosts []string
+	PKCEEnabled        bool
+	StateExpiration    string
 }
 
 type SessionConfig struct {
@@ -95,21 +95,21 @@ type ParsedServerConfig struct {
 }
 
 type ParsedOIDCConfig struct {
-	Enabled          bool
-	IssuerURL        string
-	TokenURL         string
-	AuthorizationURL string
-	DeviceAuthURL    string
-	UserInfoURL      string
-	JWKSURL          string
-	JWKSCacheTTL     time.Duration
-	ClientID         string
-	ClientSecret     string
-	Scopes           []string
-	RedirectURL      string
-	AllowReturnURLs  []string
-	PKCEEnabled      bool
-	StateExpiration  time.Duration
+	Enabled            bool
+	IssuerURL          string
+	TokenURL           string
+	AuthorizationURL   string
+	DeviceAuthURL      string
+	UserInfoURL        string
+	JWKSURL            string
+	JWKSCacheTTL       time.Duration
+	ClientID           string
+	ClientSecret       string
+	Scopes             []string
+	RedirectURL        string
+	AllowedReturnHosts []string
+	PKCEEnabled        bool
+	StateExpiration    time.Duration
 }
 
 type ParsedSessionConfig struct {
@@ -207,25 +207,19 @@ func (c OIDCConfig) validate() (ParsedOIDCConfig, error) {
 		}
 	}
 
-	allowReturnURLs := make([]string, 0, len(c.AllowReturnURLs))
-	for _, returnDomain := range c.AllowReturnURLs {
-		returnDomain = strings.TrimSpace(returnDomain)
-		parsedDomain, err := url.Parse("//" + returnDomain)
-		if err != nil ||
-			returnDomain == "" ||
-			parsedDomain.Hostname() == "" ||
-			parsedDomain.Host != parsedDomain.Hostname() ||
-			parsedDomain.User != nil ||
-			parsedDomain.Path != "" ||
-			parsedDomain.RawQuery != "" ||
-			parsedDomain.Fragment != "" {
+	allowedReturnHosts := make([]string, 0, len(c.AllowedReturnHosts))
+	for _, host := range c.AllowedReturnHosts {
+		host = strings.TrimSpace(host)
+		// Hostname() drops port, userinfo, path, query and fragment, so any of them causes a mismatch.
+		parsed, err := url.Parse("//" + host)
+		if err != nil || host == "" || parsed.Hostname() != host {
 			return ParsedOIDCConfig{}, fmt.Errorf(
-				"invalid oidc-allow-return-url %q: must be a domain without scheme, port, path, query, or fragment",
-				returnDomain,
+				"invalid oidc-allowed-return-hosts entry %q: must be a hostname without scheme, port, path, query, or fragment",
+				host,
 			)
 		}
 
-		allowReturnURLs = append(allowReturnURLs, returnDomain)
+		allowedReturnHosts = append(allowedReturnHosts, host)
 	}
 
 	jwksCacheTTL, err := time.ParseDuration(c.JWKSCacheTTL)
@@ -241,7 +235,7 @@ func (c OIDCConfig) validate() (ParsedOIDCConfig, error) {
 		AuthorizationURL: c.AuthorizationURL, DeviceAuthURL: c.DeviceAuthURL,
 		UserInfoURL: c.UserInfoURL, JWKSURL: c.JWKSURL, ClientID: c.ClientID,
 		ClientSecret: c.ClientSecret, Scopes: mergeScopes(parseCommaSeparatedList(c.Scopes)),
-		RedirectURL: c.RedirectURL, AllowReturnURLs: allowReturnURLs,
+		RedirectURL: c.RedirectURL, AllowedReturnHosts: allowedReturnHosts,
 		PKCEEnabled: c.PKCEEnabled, StateExpiration: stateExpiration,
 		JWKSCacheTTL: jwksCacheTTL,
 	}, nil

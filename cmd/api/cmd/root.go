@@ -108,9 +108,8 @@ func init() {
 		"External identity provider client scopes. Env: API_OIDC_SCOPES")
 	rootCmd.Flags().StringVar(&cfg.OIDC.RedirectURL, "oidc-redirect-url", envOr("API_OIDC_REDIRECT_URL", ""),
 		"OAuth redirect URL for the API authentication flow. Env: API_OIDC_REDIRECT_URL")
-	rootCmd.Flags().StringSliceVar(&cfg.OIDC.AllowReturnURLs, "oidc-allow-return-urls", envList("API_OIDC_ALLOW_RETURN_URLS"),
-		"Domains allowed for absolute return URLs after login. Relative paths are always allowed. Env: API_OIDC_ALLOW_RETURN_URLS",
-	)
+	rootCmd.Flags().StringSliceVar(&cfg.OIDC.AllowedReturnHosts, "oidc-allowed-return-hosts", envList("API_OIDC_ALLOWED_RETURN_HOSTS"),
+		"Exact hostnames (any port) allowed in absolute return URLs after login. Root-relative paths are always allowed. Env: API_OIDC_ALLOWED_RETURN_HOSTS")
 	rootCmd.Flags().BoolVar(&cfg.OIDC.PKCEEnabled, "oidc-pkce-enabled", envBoolOr("API_OIDC_PKCE_ENABLED", true),
 		"Enable PKCE for the OIDC authentication flow. Env: API_OIDC_PKCE_ENABLED")
 	rootCmd.Flags().StringVar(&cfg.OIDC.StateExpiration, "oidc-state-expiration", envOr("API_OIDC_STATE_EXPIRATION", "15m"),

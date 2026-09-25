@@ -48,7 +48,7 @@ func (a *authHandler) LoginV1(ctx context.Context, request openapi.LoginV1Reques
 	}
 
 	if codeChallenge == "" {
-		if !allowedReturnURL(request.Params.ReturnUrl, a.config.OIDC.AllowReturnURLs) {
+		if !allowedReturnURL(request.Params.ReturnUrl, a.config.OIDC.AllowedReturnHosts) {
 			a.logger.WarnContext(ctx, "return URL is not allowed", "return_url", request.Params.ReturnUrl)
 			return openapi.LoginV1400JSONResponse{
 				BadRequestJSONResponse: apierror.NewBadRequestResponse("return URL is not allowed"),
@@ -86,23 +86,23 @@ func (a *authHandler) LoginV1(ctx context.Context, request openapi.LoginV1Reques
 	}, nil
 }
 
-func allowedReturnURL(rawURL string, allowReturnDomains []string) bool {
+func allowedReturnURL(rawURL string, allowedReturnHosts []string) bool {
 	returnURL, err := url.Parse(rawURL)
-	if err != nil || rawURL == "" || strings.Contains(returnURL.Path, `\`) {
+	// browsers treat a backslash like a slash, so /\evil.example.com becomes protocol-relative
+	if err != nil || strings.Contains(returnURL.Path, `\`) {
 		return false
 	}
 
 	if !returnURL.IsAbs() {
-		return returnURL.Host == "" && returnURL.Opaque == "" && strings.HasPrefix(returnURL.Path, "/") &&
-			!strings.HasPrefix(returnURL.Path, "//")
+		return returnURL.Host == "" && strings.HasPrefix(returnURL.Path, "/") && !strings.HasPrefix(returnURL.Path, "//")
 	}
 
-	if (returnURL.Scheme != "http" && returnURL.Scheme != "https") || returnURL.Hostname() == "" || returnURL.User != nil {
+	if (returnURL.Scheme != "http" && returnURL.Scheme != "https") || returnURL.User != nil {
 		return false
 	}
 
-	return slices.ContainsFunc(allowReturnDomains, func(domain string) bool {
-		return strings.EqualFold(returnURL.Hostname(), domain)
+	return slices.ContainsFunc(allowedReturnHosts, func(host string) bool {
+		return strings.EqualFold(returnURL.Hostname(), host)
 	})
 }
 
