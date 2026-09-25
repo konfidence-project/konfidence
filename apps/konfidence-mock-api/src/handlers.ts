@@ -36,27 +36,12 @@ const delay = (): Promise<void> => {
   return wait(duration);
 };
 
+// Resolving against a fixed origin catches `//host` and `/\host`, which browsers treat as protocol-relative.
 const relativePath = (value: string | undefined, whenInvalid: string): string => {
-  if (value === undefined || !value.startsWith("/")) {
+  if (value?.startsWith("/") !== true || URL.parse(value, MOCK_ORIGIN)?.origin !== MOCK_ORIGIN) {
     throw httpError(400, whenInvalid);
   }
-
-  try {
-    const parsed = new URL(value, MOCK_ORIGIN);
-    const decodedPath = decodeURIComponent(parsed.pathname);
-
-    if (
-      parsed.origin !== MOCK_ORIGIN ||
-      decodedPath.startsWith("//") ||
-      decodedPath.includes("\\")
-    ) {
-      throw httpError(400, whenInvalid);
-    }
-
-    return value;
-  } catch {
-    throw httpError(400, whenInvalid);
-  }
+  return value;
 };
 
 const inLandscape = <Item extends { landscapeId?: string }>(

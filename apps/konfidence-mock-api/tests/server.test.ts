@@ -310,6 +310,7 @@ test.each([
   "https://attacker.example.com/projects",
   "//attacker.example.com/projects",
   String.raw`/\attacker.example.com`,
+  "//[",
 ])("rejects an unsafe login return URL: %s", async (returnUrl) => {
   const response = await get(`/api/v1/login?return_url=${encodeURIComponent(returnUrl)}`);
 
