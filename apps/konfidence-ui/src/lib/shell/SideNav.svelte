@@ -30,7 +30,6 @@
         }
         return {
             artifactDeployments: resolve("/(shell)/projects/[projectId]/artifact-deployments", { projectId }),
-            errorDemo: resolve("/(shell)/projects/[projectId]/error", { projectId }),
             landscape: resolve("/(shell)/projects/[projectId]/landscape", { projectId }),
             vectorDeployments: resolve("/(shell)/projects/[projectId]/vector-deployments", { projectId }),
         };
@@ -72,17 +71,6 @@
             onclick={closeDrawer}
         >
             Artifact Deployments
-        </NavItem>
-    </NavGroup>
-    <NavGroup label="Demo">
-        <NavItem
-            href={destinations.errorDemo}
-            active={isActive(activePath, destinations.errorDemo)}
-            icon="error"
-            data-testid="nav-error"
-            onclick={closeDrawer}
-        >
-            Error page
         </NavItem>
     </NavGroup>
     {/if}
