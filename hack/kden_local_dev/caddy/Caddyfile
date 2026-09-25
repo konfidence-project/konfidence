@@ -1,25 +1,47 @@
 auth.localhost {
+	tls /certs/local-dev.pem /certs/local-dev-key.pem
 	reverse_proxy authelia:9091
+}
+
+ui.localhost {
+	tls /certs/local-dev.pem /certs/local-dev-key.pem
+	reverse_proxy host.docker.internal:5173
 }
 
 # Lets pods inside a kind cluster reach Authelia via the same hostname Docker
 # Desktop already exposes to containers.
 host.docker.internal {
+	tls /certs/local-dev.pem /certs/local-dev-key.pem
 	reverse_proxy authelia:9091
 }
 
 api.localhost {
-	@callback path */auth/callback*
-    redir @callback http://localhost:8090{uri} permanent
+	tls /certs/local-dev.pem /certs/local-dev-key.pem
+
+	@ui_origin header Origin https://ui.localhost
+	header @ui_origin {
+		Access-Control-Allow-Origin https://ui.localhost
+		Access-Control-Allow-Credentials true
+		Access-Control-Allow-Headers "Authorization, Content-Type"
+		Access-Control-Allow-Methods "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS"
+		Vary Origin
+	}
+
+	@ui_preflight {
+		method OPTIONS
+		header Origin https://ui.localhost
+	}
+	respond @ui_preflight 204
 
 	reverse_proxy host.docker.internal:8090 {
 		header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
 	}
 }
 
 id.localhost {
+	tls /certs/local-dev.pem /certs/local-dev-key.pem
 	reverse_proxy host.docker.internal:8092
 }

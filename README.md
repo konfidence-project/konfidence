@@ -57,6 +57,8 @@ and a kind cluster for testing the chart and images. The full guide, organised b
 change has to reach, is in the
 [Extend & Customize section of the docs](https://konfidence.cloud/docs/extend-customize/).
 
+Local service credentials are generated automatically under the ignored `local/` directory when a target needs them.
+
 ## Dashboard Development
 
 The production dashboard lives in `apps/konfidence-ui`. Activate Hermit and install the workspace dependencies before starting it:
@@ -67,7 +69,7 @@ pnpm install
 pnpm ui:dev:mock
 ```
 
-This starts the dashboard and the OpenAPI-validated mock server together. The development server proxies `/api/v1` requests to the mock API at `http://127.0.0.1:8091`. To develop against the Go API instead, run `make run-kden-api` and point the proxy at it with `KONFIDENCE_API_URL=http://127.0.0.1:8090 pnpm ui:dev`.
+This starts the dashboard and the OpenAPI-validated mock server together. The dashboard calls the mock API directly at `http://127.0.0.1:8091/api`. To develop against another API, set `VITE_KONFIDENCE_API_BASE_URL` to its public API base URL before running `pnpm ui:dev`.
 
 The design system in `packages/konfidence-design-system` is a workspace package that the dashboard imports from source, so changes to it show up live in the same development server.
 

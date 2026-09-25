@@ -18,12 +18,37 @@ const DOCS_BANNER = `document.addEventListener("DOMContentLoaded", () => {
 });
 `;
 
+const UI_ORIGINS = new Set([
+  "http://127.0.0.1:4173",
+  "http://127.0.0.1:5173",
+  "http://localhost:4173",
+  "http://localhost:5173",
+]);
+const HTTP_NO_CONTENT = 204;
+
 const createMockServer = async (): Promise<FastifyInstance> => {
   const server = fastify({
     ajv: { customOptions: { coerceTypes: false, validateFormats: false } },
   });
 
   server.addHook("onRequest", delay);
+  server.addHook("onRequest", async (request, reply) => {
+    const { origin } = request.headers;
+    if (!origin || !UI_ORIGINS.has(origin)) {
+      return;
+    }
+
+    reply.headers({
+      "access-control-allow-credentials": "true",
+      "access-control-allow-headers": "Authorization, Content-Type",
+      "access-control-allow-methods": "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS",
+      "access-control-allow-origin": origin,
+      vary: "Origin",
+    });
+    if (request.method === "OPTIONS") {
+      return reply.code(HTTP_NO_CONTENT).send();
+    }
+  });
 
   server.setErrorHandler((error: FastifyError, _request, reply) => {
     const status = error.statusCode ?? 500;

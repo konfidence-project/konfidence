@@ -1,0 +1,58 @@
+server:
+  address: 'tcp://0.0.0.0:9091'
+
+log:
+  level: debug
+
+authentication_backend:
+  file:
+    path: /config/users.yml
+    password:
+      algorithm: 'argon2'
+  password_reset:
+    disable: true
+
+access_control:
+  default_policy: 'one_factor'
+
+session:
+  secret: ''
+  same_site: 'lax'
+  cookies:
+    - domain: 'auth.localhost'
+      authelia_url: 'https://auth.localhost'
+    - domain: 'host.docker.internal'
+      authelia_url: 'https://host.docker.internal'
+
+notifier:
+  filesystem:
+    filename: /dev/null
+
+storage:
+  encryption_key: ''
+  local:
+    path: '/config/db.sqlite3'
+
+identity_providers:
+  oidc:
+    hmac_secret: ''
+    enforce_pkce: always
+    jwks:
+      - key_id: 'local-key'
+        algorithm: 'RS256'
+        use: 'sig'
+        key: ''
+    clients:
+      - client_id: konfidence
+        client_secret: ''
+        public: false
+        authorization_policy: one_factor
+        redirect_uris:
+          - https://api.localhost/api/v1/auth/callback
+        grant_types:
+          - 'authorization_code'
+          - 'refresh_token'
+        scopes: [openid, profile, email, groups, offline_access]
+        token_endpoint_auth_method: 'client_secret_basic'
+        response_types:
+          - 'code'
