@@ -65,7 +65,7 @@ func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) err
 		}
 		go func() {
 			if err := watcher.Start(ctx); err != nil {
-				s.logger.Error("cert watcher stopped", "error", err)
+				errCh <- fmt.Errorf("cert watcher failed: %w", err)
 			}
 		}()
 	}
