@@ -10,6 +10,7 @@ DEPLOY_OIDC_ISSUER_URL ?=
 DEPLOY_OIDC_CLIENT_ID ?=
 DEPLOY_OIDC_REDIRECT_URL ?=
 DEPLOY_OIDC_CLIENT_SECRET ?=
+DEPLOY_OIDC_CLIENT_SECRET_FILE ?=
 DEPLOY_OIDC_ALLOW_RETURN_URLS ?=
 # Non-empty mounts the local mkcert CA into the API pod for HTTPS issuer URLs.
 DEPLOY_OIDC_TRUST_LOCAL_CA ?=
@@ -79,6 +80,7 @@ HELM           ?= helm
 GOOSE          ?= goose
 HELM_DOCS      ?= helm-docs
 SQLC           ?= sqlc
+YQ             ?= yq
 OAPI_CODEGEN   ?= go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
 OPENAPI_SPEC   ?= api/openapi.yaml
 
@@ -93,15 +95,12 @@ DOCKER_GOARCH ?= $(shell go env GOARCH)
 API_OIDC_ENABLED ?= false
 API_OIDC_ISSUER_URL ?= https://auth.localhost
 API_OIDC_CLIENT_ID ?= konfidence
-API_OIDC_CLIENT_SECRET ?= konfidence-local-secret
 API_OIDC_SCOPES ?= openid,profile,email,groups
 API_OIDC_REDIRECT_URL ?= https://api.localhost/api/v1/auth/callback
 API_OIDC_ALLOW_RETURN_URLS ?= https://ui.localhost/
-API_SESSION_COOKIE_SECURE ?= false
-API_SESSION_COOKIE_SAME_SITE ?= SameSiteStrictMode
+API_SESSION_COOKIE_SECURE ?= true
+API_SESSION_COOKIE_SAME_SITE ?= None
 API_SESSION_STORAGE_TYPE ?= in-memory
-# Postgres from dev-up; used when API_SESSION_STORAGE_TYPE=db-pg and by dev-db-migrate.
-API_DB_CONNECTION ?= postgres://test_user:test_password@localhost:5432/kden?sslmode=disable
 # Set to a dashboard build (apps/konfidence-ui/build) to serve it from the API server.
 API_UI_ASSET_PATH ?=
 
@@ -322,27 +321,39 @@ run: manifests generate fmt vet ## Run the konfidence operator from your host.
 	go run ./cmd/konfidence/main.go
 
 .PHONY: run-kden-api
-run-kden-api: fmt vet ## Run the kden API server locally.
+RUN_KDEN_API_SECRET_DEP := $(if $(filter true,$(API_OIDC_ENABLED)),dev-secrets,$(if $(filter db-pg,$(API_SESSION_STORAGE_TYPE)),dev-secrets,))
+run-kden-api: $(RUN_KDEN_API_SECRET_DEP) fmt vet ## Run the kden API server locally.
+	@if [ "$(API_OIDC_ENABLED)" = "true" ]; then \
+		API_OIDC_CLIENT_SECRET="$$(cat "$(DEV_SECRET_DIR)/oidc-client-secret")"; \
+		export API_OIDC_CLIENT_SECRET; \
+	fi; \
+	if [ "$(API_SESSION_STORAGE_TYPE)" = "db-pg" ]; then \
+		API_DB_CONNECTION="postgres://test_user:$$(cat "$(DEV_SECRET_DIR)/postgres-password")@localhost:5432/kden?sslmode=disable"; \
+		export API_DB_CONNECTION; \
+	fi; \
 	go run ./cmd/api/main.go \
 		--oidc-enabled=$(API_OIDC_ENABLED) \
 		--oidc-issuer-url=$(API_OIDC_ISSUER_URL) \
 		--oidc-client-id=$(API_OIDC_CLIENT_ID) \
-		--oidc-client-secret=$(API_OIDC_CLIENT_SECRET) \
 		--oidc-scopes=$(API_OIDC_SCOPES) \
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-allow-return-urls=$(API_OIDC_ALLOW_RETURN_URLS) \
 		--session-cookie-secure=$(API_SESSION_COOKIE_SECURE) \
 		--session-cookie-same-site=$(API_SESSION_COOKIE_SAME_SITE) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
-		--db-connection=$(API_DB_CONNECTION) \
 		--ui-asset-path=$(API_UI_ASSET_PATH)
 
 ##@ Local Development
 
 DEV_COMPOSE_FILE ?= hack/kden_local_dev/docker-compose.yml
+DEV_LOCAL_DIR ?= $(REPO_ROOT)/local
+DEV_SECRET_DIR ?= $(DEV_LOCAL_DIR)/secrets
 DEV_UI_API_URL ?= https://api.localhost/api
 DEV_TLS_DIR ?= $(REPO_ROOT)/local/tls
-DEV_UI_API_URL ?= https://api.localhost/api
+
+.PHONY: dev-secrets
+dev-secrets: hermit ## Generate local credentials and runtime configuration when missing.
+	@LOCAL_DIR="$(DEV_LOCAL_DIR)" CONTAINER_TOOL="$(CONTAINER_TOOL)" YQ="$(YQ)" ./hack/kden_local_dev/setup-secrets.sh
 
 .PHONY: dev-tls
 dev-tls: hermit ## Install the mkcert CA and generate certificates for local HTTPS endpoints.
@@ -363,7 +374,7 @@ dev-registry: ## Start a local OCI registry at localhost:5001.
 	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) KUBECTL=$(KUBECTL) ./hack/kind/dev-cluster.sh registry
 
 .PHONY: dev-up
-dev-up: dev-tls ## Start trusted-HTTPS local dependencies and Postgres for the API server.
+dev-up: dev-secrets dev-tls ## Start trusted-HTTPS local dependencies and Postgres for the API server.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) up -d
 
 .PHONY: dev-down
@@ -375,12 +386,14 @@ dev-logs: ## Tail logs from local dev dependencies.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) logs -f
 
 .PHONY: dev-reset
-dev-reset: ## Stop local dev dependencies and delete their container data.
+dev-reset: dev-secrets ## Stop local dev dependencies and delete their data and generated credentials.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) down -v
+	@LOCAL_DIR="$(DEV_LOCAL_DIR)" ./hack/kden_local_dev/setup-secrets.sh reset
 
 .PHONY: dev-db-migrate
-dev-db-migrate: hermit ## Apply the API server's migrations to the Postgres from dev-up.
-	$(GOOSE) -dir cmd/api/db/migration postgres "$(API_DB_CONNECTION)" up
+dev-db-migrate: dev-secrets ## Apply the API server's migrations to the Postgres from dev-up.
+	@$(GOOSE) -dir cmd/api/db/migration postgres \
+		"postgres://:test_user$$(cat "$(DEV_SECRET_DIR)/postgres-password")@localhost:5432/kden?sslmode=disable" up
 
 .PHONY: dev-cluster
 dev-cluster: hermit ## Create a local kind cluster wired to the local OCI registry (starts it if needed).
@@ -463,9 +476,17 @@ deploy: hermit manifests ## Deploy the konfidence operator to the cluster specif
 			exit 1; \
 		fi; \
 	fi; \
-	if [ -n "$(DEPLOY_OIDC_CLIENT_SECRET)" ]; then \
+	OIDC_CLIENT_SECRET="$(DEPLOY_OIDC_CLIENT_SECRET)"; \
+	if [ -n "$(DEPLOY_OIDC_CLIENT_SECRET_FILE)" ]; then \
+		if [ ! -r "$(DEPLOY_OIDC_CLIENT_SECRET_FILE)" ]; then \
+			echo "OIDC client secret file is not readable: $(DEPLOY_OIDC_CLIENT_SECRET_FILE)" >&2; \
+			exit 1; \
+		fi; \
+		OIDC_CLIENT_SECRET=$$(<"$(DEPLOY_OIDC_CLIENT_SECRET_FILE)"); \
+	fi; \
+	if [ -n "$$OIDC_CLIENT_SECRET" ]; then \
 		echo "Creating API OIDC client secret in namespace '$(NAMESPACE)'..."; \
-		printf '%s' "$(DEPLOY_OIDC_CLIENT_SECRET)" | kubectl create secret generic konfidence-api-oidc \
+		printf '%s' "$$OIDC_CLIENT_SECRET" | kubectl create secret generic konfidence-api-oidc \
 			--from-file=client-secret=/dev/stdin \
 			--namespace=$(NAMESPACE) \
 			--dry-run=client -o yaml | kubectl apply -f - >/dev/null; \

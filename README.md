@@ -57,6 +57,8 @@ and a kind cluster for testing the chart and images. The full guide, organised b
 change has to reach, is in the
 [Extend & Customize section of the docs](https://konfidence.cloud/docs/extend-customize/).
 
+Local service credentials are generated automatically under the ignored `local/` directory when a target needs them.
+
 ## Dashboard Development
 
 The production dashboard lives in `apps/konfidence-ui`. Activate Hermit and install the workspace dependencies before starting it:

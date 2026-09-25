@@ -1,0 +1,30 @@
+users:
+  alice:
+    displayname: 'Alice Sarah Watson'
+    email: 'alice@example.com'
+    password: ''
+    preferred_username: Alice
+    given_name: Alice
+    middle_name: Sarah
+    family_name: Watson
+    groups:
+      - admins
+      - developers
+  devin:
+    displayname: 'Devin'
+    email: 'devin@example.com'
+    password: ''
+    preferred_username: Devin
+    given_name: Devin
+    family_name: Developer
+    groups:
+      - developers
+  primo:
+    displayname: 'Primo'
+    email: 'primo@example.com'
+    password: ''
+    preferred_username: Primo
+    given_name: Primo
+    family_name: Product
+    groups:
+      - productmanagers

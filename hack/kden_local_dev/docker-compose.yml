@@ -7,8 +7,8 @@ services:
     image: authelia/authelia:4.39.20
     container_name: authelia
     volumes:
-      - ./authelia/configuration.yml:/config/configuration.yml
-      - ./authelia/users.yml:/config/users.yml
+      - ../../local/generated/authelia/configuration.yml:/config/configuration.yml:ro
+      - ../../local/generated/authelia/users.yml:/config/users.yml:ro
     ports:
       - "9091:9091"
     environment:
@@ -42,8 +42,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: test_user
-      POSTGRES_PASSWORD: test_password
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_DB: kden
+    secrets:
+      - postgres_password
     ports:
       - "5432:5432"
     volumes:
@@ -53,3 +55,7 @@ volumes:
   caddy_data:
   caddy_config:
   postgres_kden_data:
+
+secrets:
+  postgres_password:
+    file: ../../local/secrets/postgres-password
