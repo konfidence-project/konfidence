@@ -16,6 +16,7 @@ import (
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/landscape"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/project"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vector"
+	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vectordeployment"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/vectorpromotion"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/version"
 	kdenauth "github.com/konfidence-project/konfidence/internal/kden/auth"
@@ -134,6 +135,7 @@ func initCmd() {
 	rootCmd.AddCommand(vector.NewVectorCmd())
 	rootCmd.AddCommand(project.NewProjectCmd(appConfig))
 	rootCmd.AddCommand(landscape.NewLandscapeCmd(appConfig))
+	rootCmd.AddCommand(vectordeployment.NewVectorDeploymentCmd(appConfig))
 	rootCmd.AddCommand(vectorpromotion.NewVectorPromotionCmd(appConfig))
 
 	loginCmd, err := auth.NewLoginCmd(appConfig)
