@@ -41,8 +41,8 @@ const createMockServer = async (): Promise<FastifyInstance> => {
     specification: { baseDir: dirname(OPENAPI_PATH), path: OPENAPI_PATH },
   });
 
-  server.get("/docs/login", (request, reply) => {
-    const returnUrl = `http://${request.headers.host ?? "127.0.0.1"}/docs/`;
+  server.get("/docs/login", (_request, reply) => {
+    const returnUrl = "/docs/";
     return reply.redirect(`/api/v1/login?return_url=${encodeURIComponent(returnUrl)}`);
   });
 

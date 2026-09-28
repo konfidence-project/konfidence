@@ -33,85 +33,95 @@ func (s *recordingStateStore) Consume(_ context.Context, _ string) (*oidc.StateD
 }
 
 var _ = Describe("Allowed return URL", func() {
-	allowReturnURLs := []string{
-		"https://dashboard.example.com/callback",
-		"http://localhost:3000/auth?source=kden",
+	allowedReturnHosts := []string{
+		"dashboard.example.com",
+		"localhost",
 	}
 
-	DescribeTable("checks exact allowlist membership",
+	DescribeTable("validates return URLs",
 		func(returnURL string, expected bool) {
-			Expect(allowedReturnURL(returnURL, allowReturnURLs)).
+			Expect(allowedReturnURL(returnURL, allowedReturnHosts)).
 				To(Equal(expected))
 		},
-		Entry(
-			"allows the configured dashboard callback",
-			"https://dashboard.example.com/callback",
-			true,
-		),
-		Entry(
-			"allows the configured local callback including its query",
-			"http://localhost:3000/auth?source=kden",
-			true,
-		),
-		Entry(
-			"rejects a different path",
-			"https://dashboard.example.com/other",
-			false,
-		),
-		Entry(
-			"rejects a different host",
-			"https://other.example.com/callback",
-			false,
-		),
-		Entry(
-			"rejects a different query",
-			"http://localhost:3000/auth?source=attacker",
-			false,
-		),
-		Entry("rejects a relative URL", "/projects", false),
+		Entry("allows a root-relative path", "/projects", true),
+		Entry("allows a relative path with query and fragment", "/projects?id=1#status", true),
+		Entry("allows any path on a configured host", "https://dashboard.example.com/projects/foo", true),
+		Entry("allows HTTP on a configured host", "http://localhost/login", true),
+		Entry("matches hosts case-insensitively", "https://DASHBOARD.EXAMPLE.COM/projects", true),
+		Entry("rejects a different host", "https://other.example.com/projects", false),
+		Entry("rejects a subdomain", "https://sub.dashboard.example.com/projects", false),
+		Entry("rejects a host suffix attack", "https://dashboard.example.com.attacker.test/projects", false),
+		Entry("rejects credentials", "https://user:password@dashboard.example.com/projects", false),
+		Entry("rejects an unsupported scheme", "ftp://dashboard.example.com/projects", false),
+		Entry("rejects a protocol-relative URL", "//attacker.example.com/projects", false),
+		Entry("rejects a backslash redirect", `/\attacker.example.com`, false),
+		Entry("rejects an encoded backslash redirect", "/%5cattacker.example.com", false),
+		Entry("rejects a path without a leading slash", "projects", false),
+		Entry("rejects a query without a path", "?project=foo", false),
 		Entry("rejects an empty URL", "", false),
+	)
+
+	DescribeTable("allows only root-relative paths when no hosts are configured",
+		func(returnURL string, expected bool) {
+			Expect(allowedReturnURL(returnURL, nil)).
+				To(Equal(expected))
+		},
+		Entry("allows a root-relative path", "/projects/foo", true),
+		Entry("allows a root-relative path with query and fragment", "/projects/foo?tab=status#current", true),
+		Entry("rejects an absolute URL", "https://dashboard.example.com/projects/foo", false),
+		Entry("rejects a protocol-relative URL", "//dashboard.example.com/projects/foo", false),
 	)
 })
 
 var _ = Describe("LoginV1", func() {
-	It("rejects an unlisted UI return URL without storing state", func() {
-		stateStore := &recordingStateStore{}
+	newHandler := func(allowedReturnHosts []string, stateStore oidc.StateStore) *authHandler {
 		parsed := config.Parsed{
-			Session: config.ParsedSessionConfig{
-				Expiration: 2 * time.Minute,
-			},
+			OIDC:    config.ParsedOIDCConfig{AllowedReturnHosts: allowedReturnHosts},
+			Session: config.ParsedSessionConfig{Expiration: 2 * time.Minute},
 		}
 
-		handler := newAuthHandler(
+		return newAuthHandler(
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 			*oidc.NewOIDCClient(oidc.Config{}),
 			stateStore,
 			oidc.NewExchangeCacheStore(5*time.Minute),
 			session.NewInMemoryStore(parsed),
-			config.Parsed{
-				OIDC: config.ParsedOIDCConfig{
-					AllowReturnURLs: []string{
-						"https://dashboard.example.com/callback",
-					},
-				},
-			},
+			parsed,
 		)
+	}
 
-		response, err := handler.LoginV1(
-			context.Background(),
-			openapi.LoginV1RequestObject{
-				Params: openapi.LoginV1Params{
-					ReturnUrl: "https://attacker.example.com/callback",
-				},
-			},
-		)
-
+	login := func(handler *authHandler, returnURL string) openapi.LoginV1ResponseObject {
+		response, err := handler.LoginV1(context.Background(), openapi.LoginV1RequestObject{
+			Params: openapi.LoginV1Params{ReturnUrl: returnURL},
+		})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(response).To(BeAssignableToTypeOf(
-			openapi.LoginV1400JSONResponse{},
-		))
+		return response
+	}
+
+	It("rejects an absolute UI return URL on an unlisted host without storing state", func() {
+		stateStore := &recordingStateStore{}
+		handler := newHandler([]string{"dashboard.example.com"}, stateStore)
+
+		response := login(handler, "https://attacker.example.com/callback")
+
+		Expect(response).To(BeAssignableToTypeOf(openapi.LoginV1400JSONResponse{}))
 		Expect(stateStore.saved).To(BeNil())
 	})
+
+	DescribeTable("accepts and stores the UI return URL",
+		func(allowedReturnHosts []string, returnURL string) {
+			stateStore := &recordingStateStore{}
+			handler := newHandler(allowedReturnHosts, stateStore)
+
+			response := login(handler, returnURL)
+
+			Expect(response).To(BeAssignableToTypeOf(openapi.LoginV1302Response{}))
+			Expect(stateStore.saved).NotTo(BeNil())
+			Expect(stateStore.saved.ReturnURL).To(Equal(returnURL))
+		},
+		Entry("relative path without configured hosts", nil, "/projects/foo?tab=status#current"),
+		Entry("absolute URL on a configured host", []string{"dashboard.example.com"}, "https://dashboard.example.com/projects/foo"),
+	)
 
 	var _ = Describe("CLI return URL validation", func() {
 		DescribeTable("validates loopback callback URLs",

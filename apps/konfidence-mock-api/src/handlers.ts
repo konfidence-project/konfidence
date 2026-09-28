@@ -8,6 +8,7 @@ const MOCK_SESSION = "mock-session";
 const MOCK_CODE = "mock-code";
 const HTTP_NO_CONTENT = 204;
 const COOKIE_OPTIONS = { httpOnly: true, path: "/", sameSite: "lax" } as const;
+const MOCK_ORIGIN = "https://mock-api.invalid";
 
 type Query<Name extends keyof operations> = NonNullable<operations[Name]["parameters"]["query"]>;
 type MockHandler = (
@@ -35,13 +36,14 @@ const delay = (): Promise<void> => {
   return wait(duration);
 };
 
-const absoluteUrl = (value: string | undefined, whenInvalid: string): string => {
-  try {
-    return new URL(String(value)).href;
-  } catch {
+// Resolving against a fixed origin catches `//host` and `/\host`, which browsers treat as protocol-relative.
+const relativePath = (value: string | undefined, whenInvalid: string): string => {
+  if (value?.startsWith("/") !== true || URL.parse(value, MOCK_ORIGIN)?.origin !== MOCK_ORIGIN) {
     throw httpError(400, whenInvalid);
   }
+  return value;
 };
+
 const inLandscape = <Item extends { landscapeId?: string }>(
   items: Item[],
   landscapeId?: string,
@@ -97,7 +99,7 @@ const operationHandlers = {
     }
     return reply
       .setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS)
-      .redirect(absoluteUrl(state, "Invalid authentication state"));
+      .redirect(relativePath(state, "Invalid authentication state"));
   },
   getIdentityV1: (request, reply) => {
     const { projects, user } = scenarioFor(request);
@@ -144,7 +146,7 @@ const operationHandlers = {
     reply.send({ data: projectFor(request).vectorPromotionConfigs }),
   loginV1: (request, reply) => {
     const { return_url: returnUrl } = request.query as Query<"loginV1">;
-    const state = encodeURIComponent(absoluteUrl(returnUrl, "Invalid return URL"));
+    const state = encodeURIComponent(relativePath(returnUrl, "Invalid return URL"));
     return reply.redirect(`/api/v1/auth/callback?code=${MOCK_CODE}&state=${state}`);
   },
   logoutV1: (_request, reply) => reply.clearCookie(SESSION_COOKIE, COOKIE_OPTIONS).send(),

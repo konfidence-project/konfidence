@@ -38,10 +38,10 @@ func TestLoadOIDCClientSecret(t *testing.T) {
 }
 
 func TestEnvList(t *testing.T) {
-	t.Setenv("API_OIDC_ALLOW_RETURN_URLS", "https://one.example.com/callback,https://two.example.com/login")
+	t.Setenv("API_OIDC_ALLOWED_RETURN_HOSTS", "one.example.com,two.example.com")
 
-	values := envList("API_OIDC_ALLOW_RETURN_URLS")
-	if len(values) != 2 || values[0] != "https://one.example.com/callback" || values[1] != "https://two.example.com/login" {
+	values := envList("API_OIDC_ALLOWED_RETURN_HOSTS")
+	if len(values) != 2 || values[0] != "one.example.com" || values[1] != "two.example.com" {
 		t.Fatalf("unexpected values: %#v", values)
 	}
 }

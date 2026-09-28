@@ -21,11 +21,11 @@ var _ = Describe("Config.Validate", func() {
 				Enabled:   true,
 				IssuerURL: "http://localhost:5556/oauth", ClientID: "konfidence", ClientSecret: "secret",
 				Scopes: "openid,customScope", RedirectURL: "http://localhost:8090/api/v1/auth/callback",
-				AllowReturnURLs: []string{"https://dashboard.example.com/callback", "http://localhost:3000/auth"},
-				UserInfoURL:     "http://localhost:5556/userinfo",
-				JWKSURL:         "http://localhost:5556/jwks",
-				JWKSCacheTTL:    "15m",
-				PKCEEnabled:     true, StateExpiration: "15m",
+				AllowedReturnHosts: []string{"dashboard.example.com", "localhost"},
+				UserInfoURL:        "http://localhost:5556/userinfo",
+				JWKSURL:            "http://localhost:5556/jwks",
+				JWKSCacheTTL:       "15m",
+				PKCEEnabled:        true, StateExpiration: "15m",
 			},
 			Session: config.SessionConfig{
 				StorageType:     "db-pg",
@@ -50,7 +50,7 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.OIDC.ClientSecret).To(Equal("secret"))
 		Expect(parsed.OIDC.Scopes).To(ConsistOf([]string{"openid", "profile", "customScope"}))
 		Expect(parsed.OIDC.RedirectURL).To(Equal("http://localhost:8090/api/v1/auth/callback"))
-		Expect(parsed.OIDC.AllowReturnURLs).To(Equal([]string{"https://dashboard.example.com/callback", "http://localhost:3000/auth"}))
+		Expect(parsed.OIDC.AllowedReturnHosts).To(Equal([]string{"dashboard.example.com", "localhost"}))
 		Expect(parsed.OIDC.UserInfoURL).To(Equal("http://localhost:5556/userinfo"))
 		Expect(parsed.OIDC.JWKSURL).To(Equal("http://localhost:5556/jwks"))
 		Expect(parsed.OIDC.JWKSCacheTTL).To(Equal(15 * time.Minute))
@@ -140,19 +140,48 @@ var _ = Describe("Config.Validate", func() {
 		Expect(err).To(MatchError(ContainSubstring("log-level")))
 	})
 
-	DescribeTable("rejects invalid OIDC return URL allowlist entries",
-		func(returnURL string) {
+	DescribeTable("rejects invalid OIDC return host entries",
+		func(returnHost string) {
 			c := valid()
-			c.OIDC.AllowReturnURLs = []string{returnURL}
+			c.OIDC.AllowedReturnHosts = []string{returnHost}
 			_, err := c.Validate()
-			Expect(err).To(MatchError(ContainSubstring("oidc-allow-return-url")))
+			Expect(err).To(MatchError(
+				ContainSubstring("oidc-allowed-return-hosts"),
+			))
 		},
-		Entry("relative URL", "/callback"),
-		Entry("missing host", "https:///callback"),
-		Entry("port without hostname", "https://:8443/callback"),
-		Entry("unsupported scheme", "ftp://example.com/callback"),
-		Entry("credentials", "https://user:password@example.com/callback"),
+		Entry("empty entry", ""),
+		Entry("whitespace-only entry", "   "),
+		Entry("absolute HTTPS URL", "https://dashboard.example.com"),
+		Entry("absolute HTTP URL", "http://localhost"),
+		Entry("path", "dashboard.example.com/projects"),
+		Entry("query", "dashboard.example.com?source=login"),
+		Entry("fragment", "dashboard.example.com#login"),
+		Entry("credentials", "user:password@dashboard.example.com"),
+		Entry("port", "dashboard.example.com:8443"),
 	)
+
+	It("allows OIDC return hosts to be omitted", func() {
+		c := valid()
+		c.OIDC.AllowedReturnHosts = nil
+		parsed, err := c.Validate()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(parsed.OIDC.AllowedReturnHosts).To(BeEmpty())
+	})
+
+	It("trims whitespace from OIDC return hosts", func() {
+		c := valid()
+		c.OIDC.AllowedReturnHosts = []string{
+			" dashboard.example.com ",
+			" localhost ",
+		}
+
+		parsed, err := c.Validate()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(parsed.OIDC.AllowedReturnHosts).To(Equal([]string{
+			"dashboard.example.com",
+			"localhost",
+		}))
+	})
 
 	It("allows OIDC provider settings to be omitted when OIDC is disabled", func() {
 		c := valid()
@@ -178,7 +207,6 @@ var _ = Describe("Config.Validate", func() {
 		Entry("oidc-client-id", "oidc-client-id", func(c *config.Config) { c.OIDC.ClientID = "" }),
 		Entry("oidc-client-secret", "oidc-client-secret", func(c *config.Config) { c.OIDC.ClientSecret = "" }),
 		Entry("oidc-redirect-url", "oidc-redirect-url", func(c *config.Config) { c.OIDC.RedirectURL = "" }),
-		Entry("oidc-allow-return-url", "oidc-allow-return-url", func(c *config.Config) { c.OIDC.AllowReturnURLs = nil }),
 		Entry("session-cookie-name", "session-cookie-name", func(c *config.Config) { c.Session.Cookie.Name = "" }),
 	)
 
@@ -191,8 +219,9 @@ var _ = Describe("Config.Validate", func() {
 				AuthorizationURL: "https://idp.example.com/auth", DeviceAuthURL: "https://idp.example.com/device",
 				UserInfoURL: "https://idp.example.com/userinfo", JWKSURL: "https://idp.example.com/jwks",
 				JWKSCacheTTL: "15m", ClientID: "konfidence", ClientSecret: "secret",
-				RedirectURL: "https://konfidence.example.com/auth/callback", AllowReturnURLs: []string{"https://dashboard.example.com/auth/callback"},
-				StateExpiration: "5m",
+				RedirectURL:        "https://konfidence.example.com/auth/callback",
+				AllowedReturnHosts: []string{"dashboard.example.com"},
+				StateExpiration:    "5m",
 			},
 			Session: config.SessionConfig{
 				StorageType:     "in-memory",
@@ -212,7 +241,7 @@ var _ = Describe("Config.Validate", func() {
 		Expect(parsed.OIDC.DeviceAuthURL).To(Equal("https://idp.example.com/device"))
 		Expect(parsed.OIDC.UserInfoURL).To(Equal("https://idp.example.com/userinfo"))
 		Expect(parsed.OIDC.JWKSURL).To(Equal("https://idp.example.com/jwks"))
-		Expect(parsed.OIDC.AllowReturnURLs).To(Equal([]string{"https://dashboard.example.com/auth/callback"}))
+		Expect(parsed.OIDC.AllowedReturnHosts).To(Equal([]string{"dashboard.example.com"}))
 		Expect(parsed.OIDC.StateExpiration.Minutes()).To(Equal(5.0))
 		Expect(parsed.Session.Cookie.Name).To(Equal("custom-session"))
 		Expect(parsed.Session.Cookie.HTTPOnly).To(BeFalse())

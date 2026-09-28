@@ -52,12 +52,16 @@ const adminStageIds = [
   "prod-legacy",
 ];
 
-test("logs in through the callback and sets a session cookie", async () => {
-  const returnUrl = "http://127.0.0.1:4173/projects";
+test("logs in through the callback, sets a session cookie and returns to the requested path", async () => {
+  const returnUrl = "/projects";
   const login = await get(`/api/v1/login?return_url=${encodeURIComponent(returnUrl)}`);
+
   expect(login.status).toBe(302);
 
-  const callback = await get(login.headers.get("location")!);
+  const callbackLocation = login.headers.get("location");
+  expect(callbackLocation).not.toBeNull();
+
+  const callback = await get(callbackLocation!);
   expect(callback.status).toBe(302);
   expect(callback.headers.get("location")).toBe(returnUrl);
   expect(callback.headers.get("set-cookie")).toContain(SESSION);
@@ -295,13 +299,34 @@ test("clears the session cookie on logout", async () => {
   expect(logout.headers.get("set-cookie")).toContain("Max-Age=0");
 });
 
-test("rejects a login without a usable return URL", async () => {
-  const missing = await get("/api/v1/login");
-  expect(missing.status).toBe(400);
+test("rejects a login without a return URL", async () => {
+  const response = await get("/api/v1/login");
 
-  const malformed = await get("/api/v1/login?return_url=nowhere");
-  expect(malformed.status).toBe(400);
+  expect(response.status).toBe(400);
 });
+
+test.each([
+  "nowhere",
+  "https://attacker.example.com/projects",
+  "//attacker.example.com/projects",
+  String.raw`/\attacker.example.com`,
+  "//[",
+])("rejects an unsafe login return URL: %s", async (returnUrl) => {
+  const response = await get(`/api/v1/login?return_url=${encodeURIComponent(returnUrl)}`);
+
+  expect(response.status).toBe(400);
+});
+
+test.each(["https://attacker.example.com/projects", "//attacker.example.com/projects", "projects"])(
+  "rejects an unsafe authentication callback state: %s",
+  async (state) => {
+    const response = await get(
+      `/api/v1/auth/callback?code=mock-code&state=${encodeURIComponent(state)}`,
+    );
+
+    expect(response.status).toBe(400);
+  },
+);
 
 test("reports a login the identity provider denied", async () => {
   const denied = await get(
