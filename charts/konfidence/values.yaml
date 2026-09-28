@@ -159,6 +159,13 @@ api:
     cleanupInterval: 15m
 
   database:
+    # Postgres used when `api.session.storageType` is `db-pg`.
+    connectionSecretRef:
+      # -- Name of the Secret in the release namespace holding the Postgres
+      # connection string. Required when `api.session.storageType` is `db-pg`.
+      name: ""
+      # -- Key inside that Secret holding the connection string.
+      key: db-connection
     # -- Maximum number of open connections.
     maxConns: 10
     # -- Minimum number of idle connections kept open.
@@ -168,17 +175,21 @@ api:
     # -- Maximum idle time of a connection.
     maxConnIdleTime: 5m
 
-  # Database migration job run as a Helm pre-install/pre-upgrade hook.
-  # Enable when session-storage-type is "db-pg" to apply schema migrations
-  # automatically before the API server starts.
+  # Schema migrations, run as a Helm pre-install/pre-upgrade Job whenever
+  # `api.session.storageType` is `db-pg`.
   migrations:
-    # -- When true, runs a Helm pre-install/pre-upgrade Job that applies all pending schema migrations before the API server starts. Enable when `api.session.storageType` is `db-pg`.
-    enabled: false
-    # -- Secret containing the Postgres connection string. The key within the Secret defaults to `db-connection` and must match the `--db-connection` flag the migration Job uses.
-    dbConnectionSecretRef:
+    # -- Run the migration Job. Disable only when you apply migrations
+    # outside the chart.
+    enabled: true
+    connectionSecretRef:
+      # -- Secret holding the connection string for migrations. Empty uses
+      # `api.database.connectionSecretRef`. Set it when migrations need a
+      # role with DDL privileges that the API itself must not have.
       name: ""
-      key: db-connection
-    # -- Helm hook weight controlling execution order relative to other pre-install/pre-upgrade hooks. Lower values run first.
+      # -- Key inside that Secret. Empty uses `api.database.connectionSecretRef.key`.
+      key: ""
+    # -- Helm hook weight relative to other pre-install/pre-upgrade hooks.
+    # Lower values run first.
     hookWeight: "0"
     # -- Resource requests and limits for the migration Job container.
     resources: {}

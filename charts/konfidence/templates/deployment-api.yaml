@@ -72,8 +72,16 @@ spec:
             {{- with .Values.api.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- if or .Values.api.oidc.enabled .Values.api.env }}
+          {{- $db := eq .Values.api.session.storageType "db-pg" }}
+          {{- if or .Values.api.oidc.enabled $db .Values.api.env }}
           env:
+            {{- if $db }}
+            - name: API_DB_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "api.database.connectionSecretRef.name is required when api.session.storageType is db-pg" .Values.api.database.connectionSecretRef.name }}
+                  key: {{ required "api.database.connectionSecretRef.key is required" .Values.api.database.connectionSecretRef.key }}
+            {{- end }}
             {{- if .Values.api.oidc.enabled }}
             - name: API_OIDC_CLIENT_SECRET
               valueFrom:

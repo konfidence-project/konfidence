@@ -25,6 +25,8 @@ Kubernetes: `>=1.27.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Affinity rules for the controller Pod. |
+| api.database.connectionSecretRef.key | string | `"db-connection"` | Key inside that Secret holding the connection string. |
+| api.database.connectionSecretRef.name | string | `""` | Name of the Secret in the release namespace holding the Postgres connection string. Required when `api.session.storageType` is `db-pg`. |
 | api.database.maxConnIdleTime | string | `"5m"` | Maximum idle time of a connection. |
 | api.database.maxConnLifetime | string | `"30m"` | Maximum lifetime of a connection. |
 | api.database.maxConns | int | `10` | Maximum number of open connections. |
@@ -41,9 +43,10 @@ Kubernetes: `>=1.27.0-0`
 | api.ingress.enabled | bool | `false` | Create an Ingress for the API server. |
 | api.ingress.hosts | list | `[{"host":"","paths":[{"path":"/","pathType":"Prefix"}]}]` | Hosts and paths routed to the API server. `host` is required on each entry. |
 | api.ingress.tls | list | `[]` | TLS configuration of the Ingress. |
-| api.migrations.dbConnectionSecretRef | object | `{"key":"db-connection","name":""}` | Secret containing the Postgres connection string. The key within the Secret defaults to `db-connection` and must match the `--db-connection` flag the migration Job uses. |
-| api.migrations.enabled | bool | `false` | When true, runs a Helm pre-install/pre-upgrade Job that applies all pending schema migrations before the API server starts. Enable when `api.session.storageType` is `db-pg`. |
-| api.migrations.hookWeight | string | `"0"` | Helm hook weight controlling execution order relative to other pre-install/pre-upgrade hooks. Lower values run first. |
+| api.migrations.connectionSecretRef.key | string | `""` | Key inside that Secret. Empty uses `api.database.connectionSecretRef.key`. |
+| api.migrations.connectionSecretRef.name | string | `""` | Secret holding the connection string for migrations. Empty uses `api.database.connectionSecretRef`. Set it when migrations need a role with DDL privileges that the API itself must not have. |
+| api.migrations.enabled | bool | `true` | Run the migration Job. Disable only when you apply migrations outside the chart. |
+| api.migrations.hookWeight | string | `"0"` | Helm hook weight relative to other pre-install/pre-upgrade hooks. Lower values run first. |
 | api.migrations.resources | object | `{}` | Resource requests and limits for the migration Job container. |
 | api.oidc.allowedReturnHosts | list | `[]` | Hostnames permitted for absolute redirects after login, matched exactly on any port. When empty, only root-relative return paths are accepted. |
 | api.oidc.authorizationURL | string | `""` | Authorization endpoint. Defaults to the discovery document when empty. |

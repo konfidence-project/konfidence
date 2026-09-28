@@ -1,4 +1,6 @@
-{{- if and .Values.api.enabled .Values.api.migrations.enabled -}}
+{{- if and .Values.api.enabled .Values.api.migrations.enabled (eq .Values.api.session.storageType "db-pg") -}}
+{{- $ref := .Values.api.database.connectionSecretRef }}
+{{- $override := .Values.api.migrations.connectionSecretRef }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -41,8 +43,8 @@ spec:
             - name: API_DB_CONNECTION
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "api.migrations.dbConnectionSecretRef.name is required when api.migrations.enabled is true" .Values.api.migrations.dbConnectionSecretRef.name }}
-                  key: {{ required "api.migrations.dbConnectionSecretRef.key is required when api.migrations.enabled is true" .Values.api.migrations.dbConnectionSecretRef.key }}
+                  name: {{ required "api.database.connectionSecretRef.name is required when api.session.storageType is db-pg" ($override.name | default $ref.name) }}
+                  key: {{ required "api.database.connectionSecretRef.key is required" ($override.key | default $ref.key) }}
           resources:
             {{- toYaml .Values.api.migrations.resources | nindent 12 }}
           securityContext:
