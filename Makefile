@@ -76,7 +76,6 @@ CONTROLLER_GEN ?= controller-gen
 ENVTEST        ?= setup-envtest
 GOLANGCI_LINT   = golangci-lint
 HELM           ?= helm
-GOOSE          ?= goose
 HELM_DOCS      ?= helm-docs
 SQLC           ?= sqlc
 OAPI_CODEGEN   ?= go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
@@ -288,7 +287,7 @@ test-kden-cli: hermit ## Run unit tests for the kden CLI.
 
 .PHONY: test-api
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
-	$(GINKGO) --coverprofile=cover-api.out -v ./internal/api/... ./internal/kden/apiclient/...
+	$(GINKGO) --coverprofile=cover-api.out -v ./cmd/api/... ./internal/api/... ./internal/kden/apiclient/...
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
@@ -370,7 +369,7 @@ dev-reset: ## Stop local dev dependencies and delete their data (Postgres conten
 
 .PHONY: dev-db-migrate
 dev-db-migrate: hermit ## Apply the API server's migrations to the Postgres from dev-up.
-	$(GOOSE) -dir cmd/api/db/migration postgres "$(API_DB_CONNECTION)" up
+	go run ./cmd/api/main.go migrate up --db-connection="$(API_DB_CONNECTION)"
 
 .PHONY: dev-cluster
 dev-cluster: hermit ## Create a local kind cluster wired to the local OCI registry (starts it if needed).
