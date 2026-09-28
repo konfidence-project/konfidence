@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import SelectFixture from "./SelectFixture.svelte";
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 
 describe("<Select>", () => {
   it("renders every option passed as children", async () => {

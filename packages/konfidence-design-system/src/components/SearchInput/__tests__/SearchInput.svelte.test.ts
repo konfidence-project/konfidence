@@ -4,7 +4,7 @@ import { render } from "vitest-browser-svelte";
 
 import SearchInput from "../SearchInput.svelte";
 import SearchInputFixture from "./SearchInputFixture.svelte";
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 
 describe("<SearchInput>", () => {
   it("renders a searchbox with the default placeholder", async () => {
@@ -27,7 +27,7 @@ describe("<SearchInput>", () => {
   describe("state screenshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     for (const mode of ["light", "dark"]) {
@@ -36,7 +36,7 @@ describe("<SearchInput>", () => {
         it(`renders the ${mode} ${state} state`, async () => {
           await page.viewport(400, 160);
           document.documentElement.setAttribute("data-theme", "konfidence");
-          document.documentElement.setAttribute("data-mode", mode);
+          document.documentElement.classList.toggle("dark", mode === "dark");
           render(SearchInputFixture, { value });
           await expect
             .element(page.getByRole("searchbox", { name: "Search artifact deployments" }))

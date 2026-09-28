@@ -2,9 +2,9 @@
     import "../app.css";
 
     import type { Snippet } from "svelte";
-    import { Brandbar } from "@konfidence/design-system/components";
+    import { Brandbar, ColorModeSelect } from "@konfidence/design-system/components";
     import { resolve } from "$app/paths";
-    import { themeStore } from "$lib/theme";
+    import { ModeWatcher, mode, setMode, userPrefersMode } from "mode-watcher";
 
     interface Props {
         children?: Snippet;
@@ -14,15 +14,9 @@
 
     const MAIN_ID = "preview-main";
 
-    const MODE_LABEL: Record<"light" | "dark" | "system", string> = {
-        dark: "Dark",
-        light: "Light",
-        system: "System",
-    };
-
-    const nextMode = $derived(themeStore.mode === "dark" ? "light" : "dark");
-    const modeLabel = $derived(MODE_LABEL[themeStore.mode]);
 </script>
+
+<ModeWatcher defaultTheme="konfidence" />
 
 <a class="preview-skip-link" href={`#${MAIN_ID}`}>Skip to main content</a>
 
@@ -33,21 +27,8 @@
             <strong>Konfidence</strong>
             <span class="preview-topbar__dim">Design System</span>
         </a>
-        <nav class="preview-topbar__nav" aria-label="Design system">
-            <a href={resolve("/")}>Overview</a>
-            <a href={resolve("/design-system")}>Style guide</a>
-        </nav>
         <div class="preview-topbar__actions">
-            <button
-                type="button"
-                class="preview-toggle"
-                onclick={() => themeStore.setMode(nextMode)}
-                aria-label="Toggle color mode (currently {modeLabel})"
-                title="Toggle color mode"
-            >
-                <span class="preview-toggle__label">Mode</span>
-                <span class="preview-toggle__value">{modeLabel}</span>
-            </button>
+            <ColorModeSelect value={userPrefersMode.current} resolvedMode={mode.current} onValueChange={setMode} />
         </div>
     </header>
 
@@ -120,61 +101,11 @@
         font-size: var(--text-sm);
     }
 
-    .preview-topbar__nav {
-        display: flex;
-        gap: 4px;
-        margin-left: 12px;
-    }
-
-    .preview-topbar__nav a {
-        padding: 6px 10px;
-        border-radius: 6px;
-        color: var(--text-secondary);
-        text-decoration: none;
-        font-size: var(--text-sm);
-    }
-
-    .preview-topbar__nav a:hover {
-        background: var(--surface-subtle);
-        color: var(--text-primary);
-    }
-
     .preview-topbar__actions {
         margin-left: auto;
         display: inline-flex;
         align-items: center;
         gap: 8px;
-    }
-
-    .preview-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 10px;
-        border-radius: 999px;
-        border: 1px solid var(--border-subtle);
-        background: var(--surface-default);
-        color: var(--text-secondary);
-        font-size: var(--text-meta);
-        font-weight: var(--weight-semibold, 600);
-        cursor: pointer;
-        transition: background var(--motion-fast) var(--ease);
-    }
-
-    .preview-toggle:hover {
-        background: var(--surface-subtle);
-        color: var(--text-primary);
-    }
-
-    .preview-toggle__label {
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--text-tertiary, var(--text-secondary));
-    }
-
-    .preview-toggle__value {
-        color: var(--text-primary);
-        text-transform: capitalize;
     }
 
     .preview-main {

@@ -17,6 +17,10 @@ export default defineConfig({
   },
   overrides: [
     {
+      files: ["e2e/**/*.ts"],
+      rules: { "eslint/max-statements": "off" },
+    },
+    {
       files: ["src/**/*.svelte", "src/**/*.svelte.ts"],
       globals: {
         $derived: "readonly",
@@ -46,18 +50,6 @@ export default defineConfig({
       rules: {
         "eslint/capitalized-comments": "off",
         "unicorn/require-module-specifiers": "off",
-      },
-    },
-    {
-      files: ["src/lib/theme/**/*.ts", "src/lib/theme/**/*.svelte.ts"],
-      rules: {
-        // The theme resolver + store bridge the DOM, localStorage,
-        // history, and matchMedia — a handful of statements is
-        // unavoidable and splitting them into helpers would obscure
-        // the linear control flow more than it clarifies.
-        "eslint/max-statements": "off",
-        // `history.replaceState(null, ...)` is required by the API.
-        "unicorn/no-null": "off",
       },
     },
   ],

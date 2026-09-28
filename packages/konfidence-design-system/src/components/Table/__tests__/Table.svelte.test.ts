@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import TableFixture from "./TableFixture.svelte";
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 
 describe("<Table>", () => {
   it("renders header and body content", async () => {
@@ -38,14 +38,14 @@ describe("<Table>", () => {
   describe("mode screenshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     for (const mode of ["light", "dark"]) {
       it(`renders the populated table in ${mode} mode`, async () => {
         await page.viewport(600, 240);
         document.documentElement.setAttribute("data-theme", "konfidence");
-        document.documentElement.setAttribute("data-mode", mode);
+        document.documentElement.classList.toggle("dark", mode === "dark");
         render(TableFixture);
         await expect.element(page.getByTestId("table-frame")).toMatchScreenshot();
       });

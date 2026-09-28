@@ -2,13 +2,13 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import SidebarFixture from "./SidebarFixture.svelte";
 
 describe("<Sidebar>", () => {
   afterEach(() => {
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.removeAttribute("data-mode");
+    document.documentElement.classList.remove("dark");
   });
 
   it("renders default slot content", async () => {
@@ -35,7 +35,7 @@ describe("<Sidebar>", () => {
       it(`renders ${mode} ${withMobileSwitcher ? "with mobile switcher" : "default"}`, async () => {
         await page.viewport(260, 440);
         document.documentElement.setAttribute("data-theme", "konfidence");
-        document.documentElement.setAttribute("data-mode", mode);
+        document.documentElement.classList.toggle("dark", mode === "dark");
         render(SidebarFixture, { withMobileSwitcher });
         await expect.element(page.getByTestId("sidebar-root")).toMatchScreenshot();
       });

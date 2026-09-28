@@ -27,6 +27,7 @@
     "ds-preview:lint": "pnpm --filter konfidence-design-preview lint",
     "ds-preview:lint:fix": "pnpm --filter konfidence-design-preview lint:fix",
     "ds-preview:start": "pnpm --filter konfidence-design-preview start",
+    "ds-preview:test:e2e": "pnpm --filter konfidence-design-preview test:e2e",
     "ds-preview:verify": "pnpm --filter konfidence-design-preview verify",
     "mock-api:all": "pnpm --filter konfidence-mock-api all",
     "mock-api:dev": "pnpm --filter konfidence-mock-api dev",

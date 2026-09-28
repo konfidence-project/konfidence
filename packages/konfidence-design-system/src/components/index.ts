@@ -5,6 +5,8 @@ export { default as Brandbar } from "./Brandbar/Brandbar.svelte";
 export { default as Breadcrumbs } from "./Breadcrumbs/Breadcrumbs.svelte";
 export type { BreadcrumbItem } from "./Breadcrumbs/types.js";
 export { default as Button } from "./Button/Button.svelte";
+export { default as ColorModeSelect } from "./ColorModeSelect/ColorModeSelect.svelte";
+export type { ColorMode } from "./ColorModeSelect/types.js";
 export { default as EmptyState } from "./EmptyState/EmptyState.svelte";
 export { default as IconButton } from "./IconButton/IconButton.svelte";
 export { Menu } from "./Menu/index.js";

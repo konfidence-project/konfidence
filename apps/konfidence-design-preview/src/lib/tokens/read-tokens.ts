@@ -100,9 +100,9 @@ const TAG_COLORS: readonly string[] = [
   "cyan",
   "blue",
   "violet",
-  "purple",
+  "indigo",
   "pink",
-  "brown",
+  "slate",
 ];
 
 const GRADIENTS: readonly { name: string; cssVar: string; label: string }[] = [

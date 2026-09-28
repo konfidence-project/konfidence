@@ -17,7 +17,7 @@ test("redirects an authenticated visitor with multiple projects to the chooser",
 
   await expect(page.getByRole("heading", { name: "Choose a project" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "konfidence");
-  await expect(page.locator("html")).toHaveAttribute("data-mode", "light");
+  await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
 });
 
 test("serves the SPA document for a deep link", async ({ request }) => {
@@ -25,4 +25,29 @@ test("serves the SPA document for a deep link", async ({ request }) => {
 
   expect(response.status()).toBe(HTTP_OK);
   expect(await response.text()).toContain('<div style="display: contents">');
+});
+
+test("system tracks OS changes but explicit dark stays dark", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/login");
+  await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("mode-watcher-mode")))
+    .toBe("system");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
+
+  await page.evaluate(() => localStorage.setItem("mode-watcher-mode", "dark"));
+  await page.reload();
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("mode-watcher-mode")))
+    .toBe("dark");
+  await page.goto("/login");
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
 });

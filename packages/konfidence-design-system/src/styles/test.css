@@ -1,0 +1,7 @@
+/* Browser component tests need the same Tailwind sources as the apps. */
+@import "tailwindcss";
+@source "../components";
+@import "@skeletonlabs/skeleton";
+@import "@skeletonlabs/skeleton-svelte";
+@custom-variant dark (&:where(.dark, .dark *));
+@import "./index.css";

@@ -2,7 +2,7 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import ButtonFixture from "./ButtonFixture.svelte";
 
 const VARIANT_CLASSES = {
@@ -72,7 +72,7 @@ describe("<Button>", () => {
   describe("variant snapshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     for (const mode of ["light", "dark"]) {
@@ -80,7 +80,7 @@ describe("<Button>", () => {
         it(`matches the ${mode} ${variant} screenshot`, async () => {
           await page.viewport(320, 240);
           document.documentElement.setAttribute("data-theme", "konfidence");
-          document.documentElement.setAttribute("data-mode", mode);
+          document.documentElement.classList.toggle("dark", mode === "dark");
           render(ButtonFixture, { label: "Deploy", variant });
           await expect.element(page.getByRole("button", { name: "Deploy" })).toMatchScreenshot();
         });

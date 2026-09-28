@@ -4,7 +4,7 @@
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
     import { AppShell, TopBar } from "@konfidence/design-system/components";
-    import { isDarkMode, themeStore } from "$lib/theme";
+    import { mode } from "mode-watcher";
     import {
         EMBEDDED_ON,
         EMBEDDED_QUERY,
@@ -14,6 +14,7 @@
     import ProjectsContent from "$lib/projects/components/ProjectsContent.svelte";
     import ProjectSelector from "$lib/shell/ProjectSelector.svelte";
     import SideNav from "$lib/shell/SideNav.svelte";
+    import ThemeSwitcher from "$lib/shell/ThemeSwitcher.svelte";
     import UserMenu from "$lib/shell/UserMenu.svelte";
 
     /**
@@ -41,9 +42,8 @@
     );
     const shellLayout = $derived(canvasPage ? "canvas" : "scroll");
 
-    const isDark = $derived(isDarkMode(themeStore.mode));
     const logoSrc = $derived(
-        isDark ? "/logos/logo-dark.svg" : "/logos/logo-light.svg",
+        mode.current === "dark" ? "/logos/logo-dark.svg" : "/logos/logo-light.svg",
     );
 
     beforeNavigate((navigation) => {
@@ -91,6 +91,7 @@
                         <ProjectSelector />
                     {/snippet}
                     {#snippet actions()}
+                        <ThemeSwitcher />
                         <UserMenu />
                     {/snippet}
                 </TopBar>
