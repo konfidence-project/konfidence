@@ -10,8 +10,7 @@
         PageHeader,
     } from "@konfidence/design-system/components";
     import type { BreadcrumbItem } from "@konfidence/design-system/components";
-    import type { Landscape, Stage } from "$lib/landscape/landscapeApi";
-    import type { LandscapeDataStatus } from "$lib/landscape/landscapeData.svelte";
+    import type { Landscape, Stage } from "$lib/konfidence-api/types";
     import StageVersionDetails from "$lib/landscape/components/StageVersionDetails.svelte";
 
     interface Props {
@@ -20,7 +19,7 @@
         errorStatus?: number;
         landscape?: Landscape;
         stage?: Stage;
-        status: LandscapeDataStatus;
+        status: "loading" | "ready" | "error";
         onRetry: () => void;
     }
     let {

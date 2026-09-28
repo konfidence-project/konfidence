@@ -1,6 +1,7 @@
 import type { paths } from "@konfidence/api-client/schema";
 import type { ApiClient } from "$lib/konfidence-api/client";
-import type { Project, ProjectsStatus } from "$lib/projects/projectContext";
+import type { ProjectsStatus } from "$lib/projects/projectContext";
+import type { Project } from "$lib/konfidence-api/types";
 
 const PROJECTS_ROUTE = "/v1/projects" satisfies keyof paths;
 

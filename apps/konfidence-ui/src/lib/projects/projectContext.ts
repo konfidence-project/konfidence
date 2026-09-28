@@ -1,7 +1,5 @@
 import { createContext } from "svelte";
-import type { components } from "@konfidence/api-client/schema";
-
-type Project = components["schemas"]["Project"];
+import type { Project } from "$lib/konfidence-api/types";
 
 interface ProjectsContext {
   readonly projects: readonly Project[];
@@ -18,4 +16,4 @@ type ProjectsStatus = "idle" | "loading" | "ready" | "error";
 const [useProjects, provideProjects] = createContext<ProjectsContext>();
 
 export { provideProjects, useProjects };
-export type { Project, ProjectsStatus, ProjectsContext };
+export type { ProjectsStatus, ProjectsContext };

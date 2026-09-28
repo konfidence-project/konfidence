@@ -47,7 +47,6 @@ export default defineConfig({
     },
     {
       files: [
-        "src/lib/landscape/landscapeApi.ts",
         "src/lib/landscape/stageGrouping.ts",
         "src/lib/landscape/stageStatus.ts",
         "src/lib/projects/persistProjectPreference.ts",

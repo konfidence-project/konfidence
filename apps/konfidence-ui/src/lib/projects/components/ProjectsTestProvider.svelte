@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Project } from "$lib/projects/projectContext";
+    import type { Project } from "$lib/konfidence-api/types";
     import { provideProjects } from "$lib/projects/projectContext";
     import ProjectSelection from "$lib/projects/components/ProjectSelection.svelte";
 

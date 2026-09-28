@@ -6,7 +6,7 @@
         useLandscapes,
         useStages,
         useVectorDeployments,
-    } from "$lib/deployments/queries.svelte.js";
+    } from "$lib/queries.svelte.js";
 
     let { data }: PageProps = $props();
 
@@ -21,11 +21,24 @@
         projectId: data.projectId,
     }));
 
-    // Vector deployments is the primary resource for this view: its error drives
-    // the page-level error state.
-    const loading = $derived(vectorDeploymentsQuery.loading);
-    const error = $derived(vectorDeploymentsQuery.error);
-    const hasLoaded = $derived(vectorDeploymentsQuery.data !== undefined);
+    const loading = $derived(
+        landscapesQuery.loading ||
+            stagesQuery.loading ||
+            artifactDeploymentsQuery.loading ||
+            vectorDeploymentsQuery.loading,
+    );
+    const error = $derived(
+        vectorDeploymentsQuery.error ??
+            landscapesQuery.error ??
+            stagesQuery.error ??
+            artifactDeploymentsQuery.error,
+    );
+    const hasLoaded = $derived(
+        landscapesQuery.data !== undefined &&
+            stagesQuery.data !== undefined &&
+            artifactDeploymentsQuery.data !== undefined &&
+            vectorDeploymentsQuery.data !== undefined,
+    );
 
     const reload = (): void => {
         landscapesQuery.reload();
@@ -46,6 +59,6 @@
     selectedLandscapeId={data.landscapeId}
     {loading}
     {hasLoaded}
-    {error}
+    error={error?.message}
     onRetry={reload}
 />
