@@ -34,6 +34,7 @@ type authFlowHandler interface {
 type apiHandler struct {
 	authFlowHandler
 	projectHandler
+	logger *slog.Logger
 }
 
 var _ openapi.StrictServerInterface = (*apiHandler)(nil)
@@ -68,6 +69,7 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 	api := &apiHandler{
 		authFlowHandler: authFlow,
 		projectHandler:  *project,
+		logger:          logger,
 	}
 
 	return middleware.Authenticator(logger, sessionStore, authRepo, cfg, api.handler())
@@ -76,9 +78,22 @@ func NewAPIHandler(logger *slog.Logger, k8sClient client.Client, oidcClient oidc
 func (s *apiHandler) handler() http.Handler {
 	errHandler := func(w http.ResponseWriter, r *http.Request, err error) {
 		if apiErr := apierror.As(err); apiErr != nil {
+			if apiErr.Err != nil {
+				s.logger.Error("request failed",
+					"method", r.Method,
+					"path", r.URL.Path,
+					"code", apiErr.Code,
+					"error", apiErr.Err.Error(),
+				)
+			}
 			apierror.Write(w, apiErr)
 			return
 		}
+		s.logger.Error("unhandled error",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"error", err.Error(),
+		)
 		apierror.WriteInternal(w)
 	}
 
