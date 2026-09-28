@@ -144,4 +144,19 @@ var _ = Describe("list command", func() {
 		Expect(err.Error()).To(ContainSubstring(UnexpectedErrorMsg))
 		ExpectRequest(requests, http.MethodGet, testListPath)
 	})
+
+	It("propagates unauthorized responses to the root handler", func() {
+		server.Config.Handler = http.HandlerFunc(func(
+			writer http.ResponseWriter,
+			request *http.Request,
+		) {
+			requests <- request
+			writer.WriteHeader(http.StatusUnauthorized)
+		})
+
+		err := executeListCommand(appConfig)
+
+		Expect(errors.Is(err, kdenauth.ErrUnauthorized)).To(BeTrue())
+		ExpectRequest(requests, http.MethodGet, testListPath)
+	})
 })

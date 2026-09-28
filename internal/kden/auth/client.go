@@ -128,15 +128,16 @@ const loginFailurePage = `<!DOCTYPE html>
 `
 
 type Client struct {
-	apiEndpoint     string
-	apiURL          *url.URL
-	apiClient       *kdenapi.ClientWithResponses
-	httpClient      *http.Client
-	cookieJar       http.CookieJar
-	cookieStore     CookieStore
-	openURL         func(string) error
-	loginTimeout    time.Duration
-	usesAccessToken bool
+	*kdenapi.ClientWithResponses
+	apiEndpoint          string
+	apiURL               *url.URL
+	authenticationClient *kdenapi.ClientWithResponses
+	httpClient           *http.Client
+	cookieJar            http.CookieJar
+	cookieStore          CookieStore
+	openURL              func(string) error
+	loginTimeout         time.Duration
+	usesAccessToken      bool
 }
 
 type loginResult struct {
@@ -165,10 +166,7 @@ func NewClient(apiEndpoint string, accessToken string, store CookieStore,
 		},
 	}
 
-	options := []kdenapi.ClientOption{
-		kdenapi.WithHTTPClient(httpClient),
-	}
-
+	var options []kdenapi.ClientOption
 	if accessToken != "" {
 		options = append(options, kdenapi.WithRequestEditorFn(
 			func(_ context.Context, req *http.Request) error {
@@ -179,21 +177,35 @@ func NewClient(apiEndpoint string, accessToken string, store CookieStore,
 	}
 
 	// create the kden api client
-	api, err := kdenapi.NewClientWithResponses(apiEndpoint, options...)
+	apiOptions := append(
+		[]kdenapi.ClientOption{
+			kdenapi.WithHTTPClient(unauthorizedDoer{doer: httpClient, usesAccessToken: accessToken != ""})},
+		options...,
+	)
+
+	api, err := kdenapi.NewClientWithResponses(apiEndpoint, apiOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("creating API client failed: %w", err)
 	}
 
+	// create a separate client for authentication
+	authenticationOptions := append([]kdenapi.ClientOption{kdenapi.WithHTTPClient(httpClient)}, options...)
+	authenticationClient, err := kdenapi.NewClientWithResponses(apiEndpoint, authenticationOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("creating authentication API client failed: %w", err)
+	}
+
 	client := &Client{
-		apiEndpoint:     apiEndpoint,
-		apiURL:          apiURL,
-		apiClient:       api,
-		httpClient:      httpClient,
-		cookieJar:       jar,
-		cookieStore:     store,
-		openURL:         browser.OpenURL,
-		loginTimeout:    loginTimeout,
-		usesAccessToken: accessToken != "",
+		ClientWithResponses:  api,
+		apiEndpoint:          apiEndpoint,
+		apiURL:               apiURL,
+		authenticationClient: authenticationClient,
+		httpClient:           httpClient,
+		cookieJar:            jar,
+		cookieStore:          store,
+		openURL:              browser.OpenURL,
+		loginTimeout:         loginTimeout,
+		usesAccessToken:      accessToken != "",
 	}
 
 	if !client.usesAccessToken {
@@ -208,11 +220,6 @@ func NewClient(apiEndpoint string, accessToken string, store CookieStore,
 	}
 
 	return client, nil
-}
-
-// KdenApiClient returns the kden api client
-func (c *Client) KdenApiClient() *kdenapi.ClientWithResponses {
-	return c.apiClient
 }
 
 // Invalidate invalidates the session cookie in the cookie jar
@@ -304,7 +311,7 @@ func (c *Client) Login(ctx context.Context) error {
 
 	// initiate login
 	challenge := oauth2.S256ChallengeFromVerifier(verifier)
-	loginResponse, err := c.apiClient.LoginV1WithResponse(ctx, &kdenapi.LoginV1Params{
+	loginResponse, err := c.authenticationClient.LoginV1WithResponse(ctx, &kdenapi.LoginV1Params{
 		ReturnUrl:     callbackURL,
 		CodeChallenge: &challenge,
 	})
@@ -350,7 +357,7 @@ func (c *Client) Login(ctx context.Context) error {
 	}
 
 	// use exchange code and verifier to retrieve session cookie
-	exchangeResponse, err := c.apiClient.PostExchangeCodeV1WithResponse(
+	exchangeResponse, err := c.authenticationClient.PostExchangeCodeV1WithResponse(
 		ctx,
 		kdenapi.PostExchangeCodeV1JSONRequestBody{
 			Code:     exchangeCode,
@@ -407,7 +414,7 @@ func (c *Client) Logout(ctx context.Context) error {
 
 	// ignore response code here, either the user was logged in (results in 200)
 	// or 401 is returned if the user was not logged in or the session already expired
-	_, err := c.apiClient.LogoutV1WithResponse(ctx)
+	_, err := c.authenticationClient.LogoutV1WithResponse(ctx)
 	if err != nil {
 		return fmt.Errorf("logout of Konfidence API failed: %w", err)
 	}
@@ -505,7 +512,7 @@ func (c *Client) hasValidSession(ctx context.Context) (bool, error) {
 		)
 	}
 
-	response, err := c.apiClient.GetIdentityV1WithResponse(ctx)
+	response, err := c.authenticationClient.GetIdentityV1WithResponse(ctx)
 	if err != nil {
 		return false, fmt.Errorf("checking current session failed: %w", err)
 	}

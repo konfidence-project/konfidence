@@ -1,12 +1,10 @@
 package vectordeployment
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/konfidence-project/konfidence/cmd/kden/cmd/auth"
 	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/output"
@@ -32,11 +30,7 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 				return fmt.Errorf("failed initializing API client: %w", err)
 			}
 
-			response, err := auth.RequestWithAuthRetry(cmd.Context(), authClient,
-				func(ctx context.Context) (*apiclient.ListVectorDeploymentsV1Response, error) {
-					return authClient.KdenApiClient().ListVectorDeploymentsV1WithResponse(ctx, projectId, params)
-				})
-
+			response, err := authClient.ListVectorDeploymentsV1WithResponse(cmd.Context(), projectId, params)
 			if err != nil {
 				return fmt.Errorf("listing vector deployments failed: %w", err)
 			}
@@ -53,9 +47,6 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 
 				output.PrintMessage(formatted)
 				return nil
-
-			case http.StatusUnauthorized:
-				return errors.New("api rejected the newly established session")
 
 			case http.StatusForbidden:
 				return errors.New(response.JSON403.Error.Message)

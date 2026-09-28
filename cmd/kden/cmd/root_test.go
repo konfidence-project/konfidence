@@ -2,7 +2,12 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
+	"log/slog"
 
+	kdenauth "github.com/konfidence-project/konfidence/internal/kden/auth"
+	kdenlog "github.com/konfidence-project/konfidence/internal/kden/log"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cobra"
@@ -92,5 +97,42 @@ var _ = Describe("resolveAccessToken", func() {
 		token, err := resolveAccessToken(cmd)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(token).To(Equal("env-test"))
+	})
+})
+
+var _ = Describe("handleExecutionError", func() {
+	It("logs sign-in instructions at info level and returns success", func() {
+		output := new(bytes.Buffer)
+		previousLogger := slog.Default()
+		DeferCleanup(func() {
+			slog.SetDefault(previousLogger)
+		})
+
+		kdenlog.InitLogger(slog.NewTextHandler(output, nil))
+		commandErr := fmt.Errorf("listing projects failed: %w", kdenauth.ErrUnauthorized)
+
+		err := handleExecutionError(commandErr)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(output.String()).To(ContainSubstring("level=INFO"))
+		Expect(output.String()).To(ContainSubstring("Authentication required. Run 'kden login' to sign in."))
+		Expect(output.String()).NotTo(ContainSubstring("level=ERROR"))
+	})
+
+	It("reports rejected access tokens without suggesting browser login", func() {
+		commandErr := fmt.Errorf("listing projects failed: %w", kdenauth.ErrAccessTokenRejected)
+
+		err := handleExecutionError(commandErr)
+		Expect(err).To(MatchError("authenticating with access token failed. token was rejected"))
+	})
+
+	It("returns unrelated errors unchanged", func() {
+		commandErr := errors.New("request failed")
+
+		err := handleExecutionError(commandErr)
+		Expect(err).To(BeIdenticalTo(commandErr))
+	})
+
+	It("accepts a nil error", func() {
+		Expect(handleExecutionError(nil)).NotTo(HaveOccurred())
 	})
 })

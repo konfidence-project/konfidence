@@ -1,13 +1,10 @@
 package vectorpromotion
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/konfidence-project/konfidence/cmd/kden/cmd/auth"
-	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/output"
 	"github.com/spf13/cobra"
@@ -27,10 +24,7 @@ func NewApproveCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 				return fmt.Errorf("failed initializing API client: %w", err)
 			}
 
-			response, err := auth.RequestWithAuthRetry(cmd.Context(), authClient,
-				func(ctx context.Context) (*apiclient.ApproveVectorPromotionV1Response, error) {
-					return authClient.KdenApiClient().ApproveVectorPromotionV1WithResponse(ctx, projectId, vectorPromotionId)
-				})
+			response, err := authClient.ApproveVectorPromotionV1WithResponse(cmd.Context(), projectId, vectorPromotionId)
 			if err != nil {
 				return fmt.Errorf("approving vector promotion failed: %w", err)
 			}
@@ -39,9 +33,6 @@ func NewApproveCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 			case http.StatusNoContent:
 				output.PrintMessage(fmt.Sprintf("Vector promotion %s approved successfully", vectorPromotionId))
 				return nil
-
-			case http.StatusUnauthorized:
-				return errors.New("api rejected the newly established session")
 
 			case http.StatusForbidden:
 				return errors.New(response.JSON403.Error.Message)

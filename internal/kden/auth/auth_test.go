@@ -335,15 +335,13 @@ var _ = Describe("Client access-token authentication", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(client.UsesAccessToken()).To(BeTrue())
 
-		response, err := client.KdenApiClient().
-			GetIdentityV1WithResponse(context.Background())
-
-		Expect(err).NotTo(HaveOccurred())
-		Expect(response.StatusCode()).To(Equal(http.StatusUnauthorized))
+		response, err := client.GetIdentityV1WithResponse(context.Background())
+		Expect(response).To(BeNil())
+		Expect(errors.Is(err, ErrAccessTokenRejected)).To(BeTrue())
 		Expect(<-authorization).To(Equal("Bearer access-token"))
 	})
 
-	It("does not add an authorization header without a token", func() {
+	It("returns unauthorized without an access token", func() {
 		authorization := make(chan string, 1)
 
 		server := httptest.NewServer(http.HandlerFunc(func(
@@ -365,10 +363,9 @@ var _ = Describe("Client access-token authentication", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(client.UsesAccessToken()).To(BeFalse())
 
-		_, err = client.KdenApiClient().
-			GetIdentityV1WithResponse(context.Background())
-
-		Expect(err).NotTo(HaveOccurred())
+		response, err := client.GetIdentityV1WithResponse(context.Background())
+		Expect(response).To(BeNil())
+		Expect(errors.Is(err, ErrUnauthorized)).To(BeTrue())
 		Expect(<-authorization).To(BeEmpty())
 	})
 
