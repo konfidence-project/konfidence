@@ -62,6 +62,7 @@ func (f *fakeAuthHandler) AuthCallbackV1(ctx context.Context, request openapi.Au
 	sess := &session.Session{
 		Groups: staticAdminGroups,
 	}
+	sess.Subject = staticAdminSubject
 	sess.Name = &name
 	sess.Email = &email
 	sess.GivenName = &givenName

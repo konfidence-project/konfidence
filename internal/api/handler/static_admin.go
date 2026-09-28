@@ -5,6 +5,7 @@ const (
 	staticAdminEmail      = "admin@local"
 	staticAdminGivenName  = "Local"
 	staticAdminFamilyName = "Admin"
+	staticAdminSubject    = "admin@local"
 )
 
 // staticAdminGroups are the hardcoded IDP groups injected when OIDC is disabled.
