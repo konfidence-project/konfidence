@@ -41,7 +41,7 @@ cluster_name=${KIND_CLUSTER_NAME:-konfidence-quickstart}
 
 # Override chart versions through their environment variables.
 # Each chart provides the matching container image tags.
-konfidence_version=${KONFIDENCE_VERSION:-0.0.0-9ad19ece419ba7c6f9ff1c1e0dc6a6891c8eeb15}
+konfidence_version=${KONFIDENCE_VERSION:-0.0.0-23251c4988a86dad2af74aceee2e6b2007fa8cb4}
 kubernetes_landscape_orchestrator_version=${KUBERNETES_LANDSCAPE_ORCHESTRATOR_VERSION:-0.0.0-7daa9ddd7ed219f0d1e98922aac384ec31174747}
 vector_data_service_version=${VECTOR_DATA_SERVICE_VERSION:-0.0.0-4f194adf3c2e211514d41c59d1a446275bb093e3}
 namespace=konfidence-system
