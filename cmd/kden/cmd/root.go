@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/artifact"
+	"github.com/konfidence-project/konfidence/cmd/kden/cmd/artifactdeployment"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/auth"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/completion"
 	"github.com/konfidence-project/konfidence/cmd/kden/cmd/config"
@@ -139,6 +140,7 @@ func initCmd() {
 	rootCmd.AddCommand(stage.NewStageCmd(appConfig))
 	rootCmd.AddCommand(vectordeployment.NewVectorDeploymentCmd(appConfig))
 	rootCmd.AddCommand(vectorpromotion.NewVectorPromotionCmd(appConfig))
+	rootCmd.AddCommand(artifactdeployment.NewArtifactDeploymentCmd(appConfig))
 
 	loginCmd, err := auth.NewLoginCmd(appConfig)
 	if err != nil {
