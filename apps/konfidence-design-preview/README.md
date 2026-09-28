@@ -1,7 +1,7 @@
 # `konfidence-design-preview`
 
-Locally-startable interactive explorer for the Konfidence design
-system. Mirrors the section layout of the reference
+Single-page interactive explorer for the Konfidence design system.
+The component catalog opens directly at `/`. Mirrors the section layout of the reference
 `konfidence-design/konfidence-design-system/design-system.html` and
 renders live components from `@konfidence/design-system` alongside
 placeholder cards for primitives that have not yet been ported into
@@ -31,24 +31,24 @@ Also available at the workspace root as `pnpm ds-preview:<script>`:
 - `pnpm lint` / `pnpm lint:fix` — oxlint (+ eslint for Svelte templates).
 - `pnpm fmt` / `pnpm fmt:check` — oxfmt.
 - `pnpm verify` — run all of the above in check-only mode.
+- `pnpm test:e2e` — exercise mode selection, OS changes, persistence,
+  and checked menu items in the built preview app.
 
 ## Structure
 
 ```
 src/
-├─ app.html                    # inline theme/mode resolver (pre-paint)
+├─ app.html                    # client-rendered SvelteKit app template
 ├─ app.css                     # Tailwind → Skeleton → @custom-variant dark → @konfidence/design-system/styles
 ├─ lib/
-│  ├─ theme/                   # ThemeStore (light/dark/system) — copied from apps/konfidence-ui/src/lib/theme
 │  ├─ tokens/read-tokens.ts    # variable-name tables for the Foundations sections
 │  └─ gallery/
 │     ├─ Section.svelte, Sample.svelte, NotYetImplemented.svelte, ColorSwatch.svelte, RampGrid.svelte
 │     └─ sections/             # one file per section of the reference gallery
 └─ routes/
-   ├─ +layout.svelte           # top brandbar, mode toggle, skip link
-   ├─ +layout.ts               # csr = true, prerender = true
-   ├─ +page.svelte             # landing (mirrors konfidence-design/index.html)
-   └─ design-system/+page.svelte
+   ├─ +layout.svelte           # top brandbar, color mode selector, skip link
+   ├─ +layout.ts               # ssr = false, prerender = true
+   └─ +page.svelte             # component catalog and section navigation
 ```
 
 ## Conventions
@@ -56,6 +56,10 @@ src/
 - The app consumes `@konfidence/design-system` via `workspace:*`. It
   imports the same `styles/index.css` entry and applies the same
   `@custom-variant dark` bridge as `apps/konfidence-ui/src/app.css`.
+- Stock `ModeWatcher` starts in System mode and stores preferences under
+  `mode-watcher-mode`. It manages `data-theme` using the `konfidence` default
+  and applies `.dark` for the resolved appearance. This SPA uses `ssr=false`;
+  it does not guarantee mode initialization before first paint.
 - Foundation swatches (`Colors.svelte`, `Typography.svelte`) reference
   design tokens by name via `var(--…)`, so the browser reads the value
   live from `packages/konfidence-design-system/src/styles/tokens.css`.

@@ -15,6 +15,7 @@ on:
       - pnpm-workspace.yaml
       - tsconfig.json
       - apps/konfidence-mock-api/**
+      - apps/konfidence-design-preview/**
       - apps/konfidence-ui/**
       - packages/konfidence-api-client/**
       - packages/konfidence-design-system/**
@@ -33,6 +34,7 @@ on:
       - pnpm-workspace.yaml
       - tsconfig.json
       - apps/konfidence-mock-api/**
+      - apps/konfidence-design-preview/**
       - apps/konfidence-ui/**
       - packages/konfidence-api-client/**
       - packages/konfidence-design-system/**
@@ -70,7 +72,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run checks
-        run: pnpm ds:verify && pnpm api-client:verify && pnpm ui:verify && pnpm mock-api:verify
+        run: pnpm ds:verify && pnpm ds-preview:verify && pnpm api-client:verify && pnpm ui:verify && pnpm mock-api:verify
 
   test-mock-api:
     name: Test Mock API
@@ -155,6 +157,9 @@ jobs:
       - name: Run end-to-end tests
         run: pnpm ui:test:e2e
 
+      - name: Run design preview end-to-end tests
+        run: pnpm ds-preview:test:e2e
+
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
@@ -180,5 +185,8 @@ jobs:
       - name: Build dashboard SPA
         run: pnpm ui:build
 
+      - name: Build design preview SPA
+        run: pnpm ds-preview:build
+
       - name: Verify static output
-        run: test -f apps/konfidence-ui/build/index.html
+        run: test -f apps/konfidence-ui/build/index.html && test -f apps/konfidence-design-preview/build/index.html

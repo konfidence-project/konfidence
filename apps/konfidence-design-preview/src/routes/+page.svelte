@@ -1,142 +1,141 @@
 <script lang="ts">
-    import { Button } from "@konfidence/design-system/components";
-    import { base, resolve } from "$app/paths";
+    import ActivityFeed from "$lib/gallery/sections/ActivityFeed.svelte";
+    import Atoms from "$lib/gallery/sections/Atoms.svelte";
+    import Buttons from "$lib/gallery/sections/Buttons.svelte";
+    import Charts from "$lib/gallery/sections/Charts.svelte";
+    import Colors from "$lib/gallery/sections/Colors.svelte";
+    import DataBlocks from "$lib/gallery/sections/DataBlocks.svelte";
+    import Feedback from "$lib/gallery/sections/Feedback.svelte";
+    import Forms from "$lib/gallery/sections/Forms.svelte";
+    import Hero from "$lib/gallery/sections/Hero.svelte";
+    import Icons from "$lib/gallery/sections/Icons.svelte";
+    import Lists from "$lib/gallery/sections/Lists.svelte";
+    import LogsAndCode from "$lib/gallery/sections/LogsAndCode.svelte";
+    import MessageStrips from "$lib/gallery/sections/MessageStrips.svelte";
+    import Misc from "$lib/gallery/sections/Misc.svelte";
+    import Navigation from "$lib/gallery/sections/Navigation.svelte";
+    import Overlays from "$lib/gallery/sections/Overlays.svelte";
+    import Pipeline from "$lib/gallery/sections/Pipeline.svelte";
+    import Shell from "$lib/gallery/sections/Shell.svelte";
+    import ShellPatterns from "$lib/gallery/sections/ShellPatterns.svelte";
+    import Signature from "$lib/gallery/sections/Signature.svelte";
+    import StatusBadges from "$lib/gallery/sections/StatusBadges.svelte";
+    import Tags from "$lib/gallery/sections/Tags.svelte";
+    import Typography from "$lib/gallery/sections/Typography.svelte";
+
+    const TOC: readonly { id: string; label: string; status: "implemented" | "partial" | "placeholder" }[] = [
+        { id: "signature", label: "Signature", status: "implemented" },
+        { id: "foundation-colors", label: "Colors", status: "implemented" },
+        { id: "foundation-tags", label: "Tags", status: "placeholder" },
+        { id: "foundation-typography", label: "Typography", status: "implemented" },
+        { id: "foundation-atoms", label: "Atoms", status: "placeholder" },
+        { id: "icons", label: "Icons", status: "implemented" },
+        { id: "buttons", label: "Buttons", status: "implemented" },
+        { id: "status-badges", label: "Status badges", status: "implemented" },
+        { id: "forms", label: "Forms", status: "partial" },
+        { id: "navigation", label: "Navigation", status: "partial" },
+        { id: "shell", label: "App shell", status: "implemented" },
+        { id: "shell-patterns", label: "Shell patterns", status: "partial" },
+        { id: "data-blocks", label: "Data blocks", status: "partial" },
+        { id: "lists", label: "Lists", status: "placeholder" },
+        { id: "pipeline", label: "Pipeline", status: "partial" },
+        { id: "hero", label: "Page header", status: "partial" },
+        { id: "logs-code", label: "Logs & code", status: "placeholder" },
+        { id: "feedback", label: "Feedback", status: "partial" },
+        { id: "message-strips", label: "Message strips", status: "placeholder" },
+        { id: "activity-feed", label: "Activity feed", status: "placeholder" },
+        { id: "charts", label: "Charts", status: "placeholder" },
+        { id: "misc", label: "Misc.", status: "partial" },
+        { id: "overlays", label: "Overlays", status: "partial" },
+    ];
 </script>
 
-<div class="hero">
-    <img class="hero__logo" src={`${base}/logos/icon.svg`} alt="" aria-hidden="true" />
-    <h1 class="hero__title">
-        Design with <span class="hero__accent">Konfidence</span>
-    </h1>
-    <p class="hero__lead">
-        A locally-startable, interactive explorer for the Konfidence design system. Browse every
-        design token, component and pattern shipped by <code>@konfidence/design-system</code> —
-        live-rendered from the same source the dashboard consumes.
-    </p>
-    <div class="hero__ctas">
-        <Button variant="primary" href={resolve("/design-system")}>Explore the style guide</Button>
-        <Button
-            variant="ghost"
-            href="https://github.com/konfidence-project/konfidence"
-            target="_blank"
-            rel="noopener"
-        >
-            Source
-        </Button>
+<div class="page">
+    <aside class="toc" aria-label="Sections">
+        <p class="toc__title">Sections</p>
+        <nav>
+            <ol>
+                {#each TOC as entry (entry.id)}
+                    <li>
+                        <a href={`#${entry.id}`}>
+                            <span>{entry.label}</span>
+                            <span class="toc__dot" data-status={entry.status} aria-hidden="true"></span>
+                        </a>
+                    </li>
+                {/each}
+            </ol>
+        </nav>
+        <div class="toc__legend">
+            <span><span class="toc__dot" data-status="implemented"></span>Live</span>
+            <span><span class="toc__dot" data-status="partial"></span>Partial</span>
+            <span><span class="toc__dot" data-status="placeholder"></span>Pending</span>
+        </div>
+    </aside>
+
+    <div class="gallery">
+        <header class="gallery__header">
+            <p class="gallery__eyebrow">Style guide</p>
+            <h1 class="gallery__title">Konfidence design system</h1>
+            <p class="gallery__lead">
+                Explore the design tokens, components and patterns below. Pending components
+                include a list of planned primitives and a link to the roadmap.
+            </p>
+        </header>
+
+        <Signature />
+        <Colors />
+        <Tags />
+        <Typography />
+        <Atoms />
+        <Icons />
+        <Buttons />
+        <StatusBadges />
+        <Forms />
+        <Navigation />
+        <Shell />
+        <ShellPatterns />
+        <DataBlocks />
+        <Lists />
+        <Pipeline />
+        <Hero />
+        <LogsAndCode />
+        <Feedback />
+        <MessageStrips />
+        <ActivityFeed />
+        <Charts />
+        <Misc />
+        <Overlays />
     </div>
 </div>
 
-<div class="cards">
-    <a class="card" href={resolve("/design-system")}>
-        <span class="card__eyebrow">Style guide</span>
-        <span class="card__title">All components</span>
-        <span class="card__desc">
-            Every shipped component in <code>@konfidence/design-system</code> — buttons, icons, app
-            shell, status badges, menus, orbit loader — alongside the foundations they build on
-            (colors, gradients, typography, spacing, radii).
-        </span>
-    </a>
-    <a
-        class="card"
-        href="https://github.com/konfidence-project/konfidence/tree/main/packages/konfidence-design-system"
-        target="_blank"
-        rel="noopener"
-    >
-        <span class="card__eyebrow">Docs</span>
-        <span class="card__title">Package README</span>
-        <span class="card__desc">
-            Install, wire the stylesheet, contribute new components. The design-system package's
-            README documents the roadmap and contribution rules.
-        </span>
-    </a>
-</div>
-
 <style>
-    .hero {
-        position: relative;
-        padding: 64px 32px 48px;
-        text-align: center;
-        border-radius: 20px;
-        background: var(--gradient-hero-bg, var(--surface-subtle));
-        border: 1px solid var(--border-subtle);
-        overflow: hidden;
-    }
-
-    .hero__logo {
-        display: block;
-        width: 72px;
-        height: 72px;
-        margin: 0 auto 16px;
-    }
-
-    .hero__title {
-        margin: 0 0 12px;
-        font-size: var(--text-hero, 48px);
-        font-weight: var(--weight-display, 600);
-        letter-spacing: -1.5px;
-        color: var(--text-primary);
-    }
-
-    .hero__accent {
-        background: var(--gradient-planet, linear-gradient(180deg, #ffcb49, #ff960c));
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-    }
-
-    .hero__lead {
-        margin: 0 auto 24px;
-        max-width: 620px;
-        color: var(--text-secondary);
-        font-size: var(--text-body);
-        line-height: 1.6;
-    }
-
-    .hero__lead code,
-    .card__desc code {
-        font-family: var(--font-mono);
-        font-size: 0.9em;
-        padding: 1px 5px;
-        border-radius: 4px;
-        background: var(--surface-subtle);
-        color: var(--text-primary);
-    }
-
-    .hero__ctas {
-        display: inline-flex;
-        gap: 12px;
-    }
-
-    .cards {
+    .page {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 16px;
-        margin-top: 32px;
+        grid-template-columns: 220px 1fr;
+        gap: 32px;
+        align-items: start;
     }
 
-    .card {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding: 20px;
-        border: 1px solid var(--border-subtle);
-        border-radius: 14px;
-        background: var(--surface-default);
-        color: var(--text-primary);
-        text-decoration: none;
-        transition:
-            transform var(--motion-fast, 120ms) var(--ease, ease),
-            box-shadow var(--motion-base, 200ms) var(--ease, ease),
-            border-color var(--motion-fast, 120ms) var(--ease, ease);
+    @media (max-width: 900px) {
+        .page {
+            grid-template-columns: 1fr;
+        }
+        .toc {
+            position: static !important;
+        }
     }
 
-    .card:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-md, 0 6px 22px rgba(0, 0, 0, 0.06));
-        border-color: var(--accent-primary, var(--amber-500));
+    .toc {
+        position: sticky;
+        top: 68px;
+        max-height: calc(100vh - 88px);
+        overflow-y: auto;
+        padding: 8px 4px 8px 0;
     }
 
-    .card__eyebrow {
+    .toc__title {
+        margin: 0 0 8px;
+        padding: 0 8px;
         font-size: var(--text-meta);
         font-weight: var(--weight-semibold, 600);
         text-transform: uppercase;
@@ -144,14 +143,91 @@
         color: var(--text-tertiary, var(--text-secondary));
     }
 
-    .card__title {
-        font-size: var(--text-h3, 18px);
-        font-weight: var(--weight-display, 600);
+    .toc nav ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
     }
 
-    .card__desc {
+    .toc nav a {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 6px;
         color: var(--text-secondary);
+        text-decoration: none;
         font-size: var(--text-sm);
-        line-height: 1.55;
+    }
+
+    .toc nav a:hover {
+        background: var(--surface-subtle);
+        color: var(--text-primary);
+    }
+
+    .toc__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        background: var(--text-tertiary, var(--text-secondary));
+    }
+
+    .toc__dot[data-status="implemented"] {
+        background: var(--status-healthy-solid, #17b26a);
+    }
+
+    .toc__dot[data-status="partial"] {
+        background: var(--status-warning-solid, #f79009);
+    }
+
+    .toc__dot[data-status="placeholder"] {
+        background: var(--border-default, var(--border-subtle));
+    }
+
+    .toc__legend {
+        margin-top: 16px;
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: var(--text-meta);
+        color: var(--text-tertiary, var(--text-secondary));
+    }
+
+    .toc__legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .gallery__header {
+        margin-bottom: 32px;
+    }
+
+    .gallery__eyebrow {
+        margin: 0 0 6px;
+        font-size: var(--text-meta);
+        font-weight: var(--weight-semibold, 600);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-tertiary, var(--text-secondary));
+    }
+
+    .gallery__title {
+        margin: 0 0 12px;
+        font-size: var(--text-display, 36px);
+        font-weight: var(--weight-display, 600);
+        letter-spacing: -1px;
+        color: var(--text-primary);
+    }
+
+    .gallery__lead {
+        margin: 0;
+        max-width: 720px;
+        color: var(--text-secondary);
+        font-size: var(--text-body);
+        line-height: 1.6;
     }
 </style>

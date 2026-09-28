@@ -5,7 +5,7 @@ import { render } from "vitest-browser-svelte";
 import StageCardFixture from "./StageCardFixture.svelte";
 import type { StagePhaseItem } from "../../StagePhase/types.js";
 import type { StageCardStatusRole } from "../types.js";
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 
 const VECTOR = "registry.example.com/payments:1.0.0";
 const LONG_VECTOR = `registry.example.com:5000/konfidence/payments/international-reconciliation@sha256:${"abcdef0123456789".repeat(4)}`;
@@ -188,7 +188,7 @@ describe("<StageCard>", () => {
   describe("variant screenshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     for (const mode of ["light", "dark"]) {
@@ -196,7 +196,7 @@ describe("<StageCard>", () => {
         it(`renders ${mode} ${name}`, async () => {
           await page.viewport(304, 300);
           document.documentElement.setAttribute("data-theme", "konfidence");
-          document.documentElement.setAttribute("data-mode", mode);
+          document.documentElement.classList.toggle("dark", mode === "dark");
           render(StageCardFixture, propsFor(scenario));
           await expect.element(page.getByRole("link")).toMatchScreenshot();
         });
@@ -205,7 +205,7 @@ describe("<StageCard>", () => {
       it(`renders ${mode} selected`, async () => {
         await page.viewport(304, 300);
         document.documentElement.setAttribute("data-theme", "konfidence");
-        document.documentElement.setAttribute("data-mode", mode);
+        document.documentElement.classList.toggle("dark", mode === "dark");
         render(StageCardFixture, { ...propsFor(scenarios.deploying), selected: true });
         await expect.element(page.getByRole("link")).toMatchScreenshot();
       });

@@ -9,6 +9,7 @@
     "build": "vite build",
     "start": "vite preview",
     "preview": "vite preview",
+    "test:e2e": "playwright test",
     "prepare": "svelte-kit sync",
     "check": "svelte-kit sync && tsgo -p ./tsconfig.json --noEmit",
     "check:svelte": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -26,9 +27,11 @@
     "@skeletonlabs/skeleton": "^5.0.0",
     "@skeletonlabs/skeleton-svelte": "^5.0.0",
     "@ui5/webcomponents": "^2.26.0",
-    "@ui5/webcomponents-icons": "^2.26.0"
+    "@ui5/webcomponents-icons": "^2.26.0",
+    "mode-watcher": "^1.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "catalog:",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",

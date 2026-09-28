@@ -2,13 +2,13 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import AppShellFixture from "./AppShellFixture.svelte";
 
 describe("<AppShell>", () => {
   afterEach(() => {
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.removeAttribute("data-mode");
+    document.documentElement.classList.remove("dark");
   });
 
   it("renders the topbar, sidebar, and main slot content", async () => {
@@ -64,7 +64,7 @@ describe("<AppShell>", () => {
     it(`renders ${mode} desktop`, async () => {
       await page.viewport(1024, 640);
       document.documentElement.setAttribute("data-theme", "konfidence");
-      document.documentElement.setAttribute("data-mode", mode);
+      document.documentElement.classList.toggle("dark", mode === "dark");
       render(AppShellFixture);
       await expect.element(page.getByTestId("shell-root")).toMatchScreenshot();
     });
@@ -72,7 +72,7 @@ describe("<AppShell>", () => {
     it(`renders ${mode} mobile with the drawer opened`, async () => {
       await page.viewport(400, 640);
       document.documentElement.setAttribute("data-theme", "konfidence");
-      document.documentElement.setAttribute("data-mode", mode);
+      document.documentElement.classList.toggle("dark", mode === "dark");
       render(AppShellFixture);
       const trigger = document.querySelector<HTMLButtonElement>('[data-testid="drawer-toggle"]');
       trigger?.click();

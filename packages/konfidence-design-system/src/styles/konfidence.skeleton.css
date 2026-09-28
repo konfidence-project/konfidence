@@ -1,5 +1,4 @@
-/* Konfidence Skeleton theme. Activated by `<html data-theme="konfidence">`.
-   Light and dark mode are selected via `data-mode` (see tokens.css). */
+/* Konfidence Skeleton palette. Appearance is selected by the root .dark class. */
 [data-theme="konfidence"] {
   /* primary — amber */
   --color-primary-50: #fff8ec;
@@ -181,14 +180,14 @@
   --radius-base: 10px;
   --radius-container: 14px;
   --spacing: 4px;
-  --border-width-default: 1px;
-  --heading-font-family:
+  --default-border-width: 1px;
+  --typo-heading--font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --heading-font-weight: 600;
-  --base-font-family:
+  --typo-heading--font-weight: 600;
+  --typo-base--font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --base-font-color: #1a1815;
-  --base-font-color-dark: #ede8de;
+  --typo-base--color-light: #1a1815;
+  --typo-base--color-dark: #ede8de;
   --color-root-bg-light: #fdfcfa;
   --color-root-bg-dark: #14110b;
 

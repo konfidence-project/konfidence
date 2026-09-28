@@ -71,19 +71,6 @@ export default defineConfig({
         "unicorn/no-null": "off",
       },
     },
-    {
-      files: ["src/lib/theme/**/*.ts", "src/lib/theme/**/*.svelte.ts"],
-      rules: {
-        // The theme resolver + store bridge the DOM, localStorage,
-        // history, and matchMedia — a handful of statements is
-        // unavoidable and splitting them into helpers would obscure
-        // the linear control flow more than it clarifies.
-        "eslint/max-statements": "off",
-        // `history.replaceState(null, ...)` is required by the API
-        // (undefined would serialise as the string "undefined").
-        "unicorn/no-null": "off",
-      },
-    },
   ],
   plugins: ["typescript", "unicorn", "oxc", "eslint", "import"],
   rules: {

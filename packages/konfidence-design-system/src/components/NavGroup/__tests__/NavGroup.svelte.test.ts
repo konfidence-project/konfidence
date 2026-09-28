@@ -2,13 +2,13 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import NavGroupFixture from "./NavGroupFixture.svelte";
 
 describe("<NavGroup>", () => {
   afterEach(() => {
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.removeAttribute("data-mode");
+    document.documentElement.classList.remove("dark");
   });
 
   it("renders the label and children", async () => {
@@ -30,7 +30,7 @@ describe("<NavGroup>", () => {
     it(`renders in ${mode} mode`, async () => {
       await page.viewport(240, 200);
       document.documentElement.setAttribute("data-theme", "konfidence");
-      document.documentElement.setAttribute("data-mode", mode);
+      document.documentElement.classList.toggle("dark", mode === "dark");
       render(NavGroupFixture);
       await expect.element(page.getByTestId("nav-group-root")).toMatchScreenshot();
     });

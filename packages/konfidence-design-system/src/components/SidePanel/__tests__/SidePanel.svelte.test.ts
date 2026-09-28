@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
 import SidePanelFixture from "./SidePanelFixture.svelte";
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 
 describe("<SidePanel>", () => {
   it("stays closed until asked to open", async () => {
@@ -41,14 +41,14 @@ describe("<SidePanel>", () => {
   describe("mode screenshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     for (const mode of ["light", "dark"]) {
       it(`renders the open drawer in ${mode} mode`, async () => {
         await page.viewport(560, 480);
         document.documentElement.setAttribute("data-theme", "konfidence");
-        document.documentElement.setAttribute("data-mode", mode);
+        document.documentElement.classList.toggle("dark", mode === "dark");
         render(SidePanelFixture, {
           open: true,
           title: "payments-api@3.4.1",
