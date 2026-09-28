@@ -408,8 +408,6 @@ func (h *projectHandler) ApproveVectorPromotionV1(ctx context.Context,
 		return openapi.ApproveVectorPromotionV1204Response{}, nil
 	case errors.Is(err, vectorpromotiondomain.ErrVectorPromotionNotFound):
 		return nil, apierror.NewNotFound("vectorPromotion", request.VectorPromotionId)
-	case errors.Is(err, vectorpromotiondomain.ErrApproverMissing):
-		return nil, apierror.NewUnauthorized()
 	case errors.Is(err, vectorpromotiondomain.ErrPromotionSuperseded),
 		errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
 		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired):
