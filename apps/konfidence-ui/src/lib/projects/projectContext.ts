@@ -6,7 +6,7 @@ interface ProjectsContext {
   readonly selectedProject?: Project;
   readonly status: ProjectsStatus;
   readonly error?: string;
-  retry: () => Promise<void>;
+  retry: () => void;
   selectProject: (projectId: string) => Promise<void>;
   getEntryProject: () => Project | undefined;
 }

@@ -1,11 +1,9 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
-    import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { useSession } from "$lib/auth/session.svelte";
-    import { getApiClient } from "$lib/konfidence-api/client-instance";
-    import { ProjectsStore } from "$lib/projects/projects.svelte";
+    import { useProjects as useProjectsQuery } from "$lib/queries.svelte";
     import { provideProjects } from "$lib/projects/projectContext";
     import { persistProjectPreferenceToSessionStorage, readLastProject } from "$lib/projects/persistProjectPreference";
     import { projectLandscapeUrl } from "$lib/projects/url";
@@ -15,26 +13,35 @@
     let { children }: Props = $props();
 
     const session = useSession();
-    const projectStore = new ProjectsStore(getApiClient());
+    const query = useProjectsQuery(() => session.user?.email ?? "", {
+        enabled: () => session.status === "authenticated",
+    });
+    const projects = $derived(query.data ?? []);
+    const status = $derived.by(() => {
+        if (session.status !== "authenticated") { return "idle"; }
+        if (query.loading) { return "loading"; }
+        if (query.error) { return "error"; }
+        return "ready";
+    });
 
     const projectIdFromUrl = $derived(page.params.projectId as string | undefined);
     const selectedProject = $derived(
-        projectStore.status === "ready"
-            ? projectStore.projects.find((project) => project.id === projectIdFromUrl)
+        status === "ready"
+            ? projects.find((project) => project.id === projectIdFromUrl)
             : undefined,
     );
 
     const getEntryProject = () => {
-        if (projectStore.status !== "ready") {
+        if (status !== "ready") {
             return undefined;
         }
         const rememberedId = session.user ? readLastProject(session.user.email) : undefined;
-        return projectStore.projects.find((project) => project.id === rememberedId)
-            ?? (projectStore.projects.length === 1 ? projectStore.projects[0] : undefined);
+        return projects.find((project) => project.id === rememberedId)
+            ?? (projects.length === 1 ? projects[0] : undefined);
     };
 
     const selectProject = async (projectId: string): Promise<void> => {
-        if (projectStore.status !== "ready" || !projectStore.projects.some((project) => project.id === projectId)) {
+        if (status !== "ready" || !projects.some((project) => project.id === projectId)) {
             return;
         }
         // eslint-disable-next-line svelte/no-navigation-without-resolve -- the shared helper resolves this typed application route.
@@ -42,17 +49,13 @@
     };
 
     provideProjects({
-        get error() { return projectStore.error; },
+        get error() { return query.error?.message; },
         getEntryProject,
-        get projects() { return projectStore.projects; },
-        retry: () => projectStore.refresh(),
+        get projects() { return projects; },
+        retry: () => query.reload(),
         selectProject,
         get selectedProject() { return selectedProject; },
-        get status() { return projectStore.status; },
-    });
-
-    onMount(() => {
-        void projectStore.refresh();
+        get status() { return status; },
     });
 
     $effect(() => {

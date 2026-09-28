@@ -14,6 +14,11 @@ const switchToIdentity = async (page: Page): Promise<void> => {
 };
 
 test("shows the chooser and switches between two projects", async ({ page }) => {
+  let requests = 0;
+  await page.route(PROJECTS_API, (route) => {
+    requests += 1;
+    return route.continue();
+  });
   await signIn(page, "/projects");
   await expect(page.getByRole("link", { name: "Payments Platform" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Identity Service" })).toBeVisible();
@@ -29,6 +34,7 @@ test("shows the chooser and switches between two projects", async ({ page }) => 
   await expect(page.locator(".topbar").getByTestId("project-switch")).toContainText(
     "Identity Service",
   );
+  expect(requests).toBe(1);
 });
 
 test("automatically opens the only accessible project", async ({ page }) => {
@@ -84,6 +90,20 @@ test("retries a failed project request", async ({ page }) => {
 
   await expect(page).toHaveURL("/projects");
   await expect(page.getByTestId("no-projects")).toBeVisible();
+});
+
+test("retries a rejected project request", async ({ page }) => {
+  let attempts = 0;
+  await page.route(PROJECTS_API, (route) => {
+    attempts += 1;
+    return attempts === 1 ? route.abort("failed") : route.fulfill({ json: { data: [] } });
+  });
+  await page.goto("/");
+  await page.getByTestId("sign-in").click();
+  await expect(page.getByRole("heading", { name: "Projects could not be loaded" })).toBeVisible();
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.getByTestId("no-projects")).toBeVisible();
+  expect(attempts).toBe(2);
 });
 
 test("keeps an unavailable deep link and recovers to the chooser", async ({ page }) => {

@@ -4,6 +4,7 @@ import { getApiClient } from "$lib/konfidence-api/client-instance";
 import type {
   ArtifactDeployment,
   Landscape,
+  Project,
   Stage,
   VectorDeployment,
 } from "$lib/konfidence-api/types";
@@ -30,9 +31,25 @@ interface ArtifactDeploymentFilter extends LandscapeFilter {
 
 // fail(...) populates the query error state for API failures.
 const LANDSCAPES_UNAVAILABLE = "Landscapes are currently unavailable.";
+const PROJECTS_UNAVAILABLE = "Projects are currently unavailable.";
 const STAGES_UNAVAILABLE = "Stages are currently unavailable.";
 const VECTOR_DEPLOYMENTS_UNAVAILABLE = "Vector deployments are currently unavailable.";
 const ARTIFACT_DEPLOYMENTS_UNAVAILABLE = "Artifact deployments are currently unavailable.";
+
+const useProjects = createQuery<QueryError, string, readonly Project[]>(
+  (email) => ["projects", email],
+  async (_email, signal) => {
+    try {
+      const { data, error, response } = await getApiClient().GET("/v1/projects", { signal });
+      if (error || !response.ok || !data?.data) {
+        return fail<QueryError>({ message: PROJECTS_UNAVAILABLE, status: response.status });
+      }
+      return succeed<readonly Project[]>(data.data);
+    } catch {
+      return fail<QueryError>({ message: PROJECTS_UNAVAILABLE });
+    }
+  },
+);
 
 const useLandscapes = createQuery<QueryError, ProjectScope, readonly Landscape[]>(
   (param) => ["projects", param.projectId, "landscapes"],
@@ -144,4 +161,4 @@ const useArtifactDeployments = createQuery<
   },
 );
 
-export { useArtifactDeployments, useLandscapes, useStages, useVectorDeployments };
+export { useArtifactDeployments, useLandscapes, useProjects, useStages, useVectorDeployments };
