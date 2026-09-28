@@ -1,0 +1,71 @@
+/* Semantic utilities shared by the dashboard, preview and component tests.
+ * Inline aliases resolve the current light/dark token at the element rather
+ * than baking a light-mode value into the generated utility. */
+@theme inline {
+  /* Deliberately do not redefine Tailwind/Skeleton's 14px text-sm. */
+  --color-content-primary: var(--text-primary);
+  --color-content-secondary: var(--text-secondary);
+  --color-content-tertiary: var(--text-tertiary);
+  --color-content-disabled: var(--text-disabled);
+  --color-content-inverse: var(--text-inverse);
+  --color-content-on-accent: var(--text-on-accent);
+  --color-content-link: var(--text-link);
+  --color-surface-default: var(--surface-default);
+  --color-surface-canvas: var(--surface-canvas);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-card: var(--surface-card);
+  --color-outline-subtle: var(--border-subtle);
+  --color-outline-default: var(--border-default);
+  --color-outline-strong: var(--border-strong);
+  --color-outline-focus: var(--border-focus);
+  --color-selection-bg: var(--selection-bg);
+  --color-selection-fg: var(--selection-fg);
+  --color-status-healthy-fg: var(--status-healthy-fg);
+  --color-status-healthy-bg: var(--status-healthy-bg);
+  --color-status-healthy-solid: var(--status-healthy-solid);
+  --color-status-warning-fg: var(--status-warning-fg);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-warning-solid: var(--status-warning-solid);
+  --color-status-degraded-fg: var(--status-degraded-fg);
+  --color-status-degraded-bg: var(--status-degraded-bg);
+  --color-status-degraded-solid: var(--status-degraded-solid);
+  --color-status-error-fg: var(--status-error-fg);
+  --color-status-error-bg: var(--status-error-bg);
+  --color-status-error-solid: var(--status-error-solid);
+  --color-status-promoting-fg: var(--status-promoting-fg);
+  --color-status-promoting-bg: var(--status-promoting-bg);
+  --color-status-promoting-solid: var(--status-promoting-solid);
+  --color-status-deploying-fg: var(--status-deploying-fg);
+  --color-status-deploying-bg: var(--status-deploying-bg);
+  --color-status-deploying-solid: var(--status-deploying-solid);
+  --color-status-queued-fg: var(--status-queued-fg);
+  --color-status-queued-bg: var(--status-queued-bg);
+  --color-status-queued-solid: var(--status-queued-solid);
+  --text-ui-sm: var(--text-sm);
+  --text-ui-body: var(--text-body);
+  --text-ui-h1: var(--text-h1);
+  --text-ui-h2: var(--text-h2);
+  --text-ui-h3: var(--text-h3);
+  --text-ui-display: var(--text-display);
+  --radius-control: var(--radius-md);
+  --radius-card: var(--radius-lg);
+  --radius-pill-ui: var(--radius-pill);
+  --shadow-elevation-xs: var(--shadow-xs);
+  --shadow-elevation-sm: var(--shadow-sm);
+  --shadow-elevation-md: var(--shadow-md);
+  --shadow-elevation-lg: var(--shadow-lg);
+  --spacing-icon-sm: var(--icon-sm);
+  --spacing-icon-md: var(--icon-md);
+  --spacing-icon-2xl: var(--icon-2xl);
+  --font-weight-ui-semibold: var(--weight-semibold);
+  --font-weight-ui-display: var(--weight-display);
+  --font-weight-ui-bold: var(--weight-bold);
+  --font-ui-mono: var(--font-mono);
+}
+
+/* Preserve --text-meta in the plain-CSS token export. A same-name @theme
+ * alias would reference itself; this one utility reads the token directly. */
+@utility text-meta {
+  font-size: var(--text-meta);
+}

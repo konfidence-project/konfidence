@@ -52,115 +52,48 @@
         class: className,
     }: Props = $props();
 
-    const containerClass = $derived.by(() => {
-        const parts = ["stage-progress"];
-        if (size === "compact") {
-            parts.push("stage-progress--compact");
-        } else if (size === "lg") {
-            parts.push("stage-progress--lg");
-        }
-        if (className) {
-            parts.push(className);
-        }
-        return parts.join(" ");
-    });
+    const FILL_CLASSES = {
+        active: "w-full bg-[image:var(--progress-active)]",
+        done: "w-full bg-[image:var(--progress-done)]",
+        failed: "w-full bg-[image:var(--progress-failed)]",
+        pending: "w-0",
+    } as const;
+
+    const LABEL_CLASSES = {
+        active: "text-status-deploying-fg font-ui-semibold",
+        done: "text-status-healthy-fg font-[var(--weight-medium)]",
+        failed: "text-status-error-fg font-ui-semibold",
+        pending: "text-content-tertiary",
+    } as const;
 </script>
 
 <div
-    class={containerClass}
+    class={[
+        "stage-progress flex flex-nowrap items-start",
+        size === "compact" ? "stage-progress--compact gap-1" : "gap-[5px]",
+        size === "lg" && "stage-progress--lg",
+        className,
+    ]}
     role={ariaLabel ? "group" : undefined}
     aria-label={ariaLabel}
 >
     {#each phases as phase, index (index)}
         <div
-            class={`stage-progress__seg stage-progress__seg--${phase.state}`}
+            class={["stage-progress__seg min-w-0 flex-[1_1_0]", `stage-progress__seg--${phase.state}`]}
             data-state={phase.state}
             aria-current={phase.state === "active" ? "step" : undefined}
         >
-            <div class="stage-progress__bar"><span></span></div>
+            <div class={[
+                "stage-progress__bar overflow-hidden rounded-pill-ui bg-[var(--track)]",
+                size === "compact" ? "h-[5px]" : size === "lg" ? "h-2.5" : "h-[7px]",
+            ]}><span class={["block h-full rounded-pill-ui", FILL_CLASSES[phase.state]]}></span></div>
             {#if size !== "compact"}
-                <div class="stage-progress__label">{phase.label}</div>
+                <div class={[
+                    "stage-progress__label flex items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap",
+                    size === "lg" ? "mt-2 text-ui-sm" : "mt-1.5 text-meta",
+                    LABEL_CLASSES[phase.state],
+                ]}>{phase.label}</div>
             {/if}
         </div>
     {/each}
 </div>
-
-<style>
-    .stage-progress {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        align-items: flex-start;
-        gap: 5px;
-    }
-    .stage-progress__seg {
-        flex: 1 1 0;
-        min-width: 0;
-    }
-    .stage-progress__bar {
-        height: 7px;
-        border-radius: var(--radius-pill);
-        background: var(--track);
-        overflow: hidden;
-    }
-    .stage-progress__bar span {
-        display: block;
-        height: 100%;
-        width: 0;
-        border-radius: var(--radius-pill);
-    }
-    .stage-progress__seg--done .stage-progress__bar span {
-        width: 100%;
-        background: var(--progress-done);
-    }
-    .stage-progress__seg--active .stage-progress__bar span {
-        width: 100%;
-        background: var(--progress-active);
-    }
-    .stage-progress__seg--failed .stage-progress__bar span {
-        width: 100%;
-        background: var(--progress-failed);
-    }
-    .stage-progress__seg--pending .stage-progress__bar span {
-        width: 0;
-    }
-
-    .stage-progress__label {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: var(--text-meta);
-        color: var(--text-tertiary);
-        margin-top: 6px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .stage-progress__seg--done .stage-progress__label {
-        color: var(--status-healthy-fg);
-        font-weight: var(--weight-medium);
-    }
-    .stage-progress__seg--active .stage-progress__label {
-        color: var(--status-deploying-fg);
-        font-weight: var(--weight-semibold);
-    }
-    .stage-progress__seg--failed .stage-progress__label {
-        color: var(--status-error-fg);
-        font-weight: var(--weight-semibold);
-    }
-
-    /* Density variants. */
-    .stage-progress--compact {
-        gap: 4px;
-    }
-    .stage-progress--compact .stage-progress__bar {
-        height: 5px;
-    }
-    .stage-progress--lg .stage-progress__bar {
-        height: 10px;
-    }
-    .stage-progress--lg .stage-progress__label {
-        font-size: var(--text-sm);
-        margin-top: 8px;
-    }
-</style>

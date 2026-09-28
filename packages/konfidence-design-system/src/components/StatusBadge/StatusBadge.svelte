@@ -6,8 +6,8 @@
          * Status identifier. Free-form on purpose: the API owns the
          * vocabulary (`healthy`, `deploying`, …) and this component is
          * a passive dispatcher — it appends the value to the badge
-         * class so styling comes from the scoped `.badge--<status>`
-         * rules below. Unknown values render as an unstyled `.badge`
+         * class so styling comes from the known-status utility map.
+         * Unknown values render as an unstyled `.badge`
          * with a `data-status` for debugging.
          */
         status: string;
@@ -25,76 +25,23 @@
     let { status, showDot = true, class: className, children }: Props = $props();
 
     const BASE_CLASS =
-        "badge inline-flex items-center gap-1.5 whitespace-nowrap rounded-[var(--badge-radius)] border border-transparent pt-[var(--badge-py)] pb-[var(--badge-py)] pr-[var(--badge-px)] pl-2 text-[length:var(--text-meta)] font-semibold leading-[1.4]";
+        "badge inline-flex items-center gap-1.5 whitespace-nowrap rounded-[var(--badge-radius)] border border-transparent pt-[var(--badge-py)] pb-[var(--badge-py)] pr-[var(--badge-px)] pl-2 text-meta font-semibold leading-[1.4]";
 
-    const composedClass = $derived(
-        className
-            ? `${BASE_CLASS} badge--${status} ${className}`
-            : `${BASE_CLASS} badge--${status}`,
-    );
+    const STATUS_CLASSES: Record<string, { badge: string; dot: string }> = {
+        degraded: { badge: "text-status-degraded-fg bg-status-degraded-bg", dot: "bg-status-degraded-solid" },
+        deploying: { badge: "text-status-deploying-fg bg-status-deploying-bg", dot: "bg-status-deploying-solid" },
+        error: { badge: "text-status-error-fg bg-status-error-bg", dot: "bg-status-error-solid" },
+        healthy: { badge: "text-status-healthy-fg bg-status-healthy-bg", dot: "bg-status-healthy-solid" },
+        promoting: { badge: "text-status-promoting-fg bg-status-promoting-bg", dot: "bg-status-promoting-solid" },
+        queued: { badge: "text-status-queued-fg bg-status-queued-bg", dot: "bg-status-queued-solid" },
+        warning: { badge: "text-status-warning-fg bg-status-warning-bg", dot: "bg-status-warning-solid" },
+    };
+
 </script>
 
-<span class={composedClass} data-status={status}>
+<span class={[BASE_CLASS, `badge--${status}`, STATUS_CLASSES[status]?.badge, className]} data-status={status}>
     {#if showDot}
-        <span class="dot size-2 shrink-0 rounded-full" aria-hidden="true"></span>
+        <span class={["dot size-2 shrink-0 rounded-full", STATUS_CLASSES[status]?.dot]} aria-hidden="true"></span>
     {/if}
     {@render children()}
 </span>
-
-<style>
-    .badge--healthy {
-        color: var(--status-healthy-fg);
-        background: var(--status-healthy-bg);
-    }
-    .badge--healthy .dot {
-        background: var(--status-healthy-solid);
-    }
-
-    .badge--warning {
-        color: var(--status-warning-fg);
-        background: var(--status-warning-bg);
-    }
-    .badge--warning .dot {
-        background: var(--status-warning-solid);
-    }
-
-    .badge--degraded {
-        color: var(--status-degraded-fg);
-        background: var(--status-degraded-bg);
-    }
-    .badge--degraded .dot {
-        background: var(--status-degraded-solid);
-    }
-
-    .badge--error {
-        color: var(--status-error-fg);
-        background: var(--status-error-bg);
-    }
-    .badge--error .dot {
-        background: var(--status-error-solid);
-    }
-
-    .badge--promoting {
-        color: var(--status-promoting-fg);
-        background: var(--status-promoting-bg);
-    }
-    .badge--promoting .dot {
-        background: var(--status-promoting-solid);
-    }
-
-    .badge--deploying {
-        color: var(--status-deploying-fg);
-        background: var(--status-deploying-bg);
-    }
-    .badge--deploying .dot {
-        background: var(--status-deploying-solid);
-    }
-
-    .badge--queued {
-        color: var(--status-queued-fg);
-        background: var(--status-queued-bg);
-    }
-    .badge--queued .dot {
-        background: var(--status-queued-solid);
-    }
-</style>

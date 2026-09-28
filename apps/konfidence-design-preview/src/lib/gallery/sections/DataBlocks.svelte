@@ -88,12 +88,12 @@
     subtitle="Real <Table> family from @konfidence/design-system — sortable headers, keyboard-selectable rows, sticky header, embedded <StatusBadge>. KPI tiles, phases, timelines, diff rows are still on the roadmap."
     status="partial"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample
             title="Sortable, selectable table"
             description="Click any row to select it; click a header to cycle its sort. Uses <TableHeaderCell onsort>, <TableRow onselect>, and <StatusBadge> for the state column."
         >
-            <div class="table-wrap">
+            <div class="table-wrap w-full">
                 <Table caption="Artifact deployments">
                     {#snippet header()}
                         <TableRow>
@@ -132,7 +132,7 @@
                 </Table>
             </div>
             {#if selectedId}
-                <p class="log">Selected: <b>{selectedId}</b></p>
+                <p class="log m-0 rounded-md bg-surface-subtle px-2 py-[3px] font-ui-mono text-meta text-content-secondary">Selected: <b>{selectedId}</b></p>
             {/if}
         </Sample>
 
@@ -149,25 +149,3 @@
         />
     </div>
 </Section>
-
-<style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .table-wrap {
-        width: 100%;
-    }
-
-    .log {
-        margin: 0;
-        font-family: var(--font-mono);
-        font-size: var(--text-meta);
-        color: var(--text-secondary);
-        padding: 3px 8px;
-        border-radius: 6px;
-        background: var(--surface-subtle);
-    }
-</style>

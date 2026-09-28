@@ -41,7 +41,7 @@
 
 <dialog
     bind:this={dialog}
-    class="fixed inset-y-0 right-0 left-auto m-0 h-[100dvh] max-h-[100dvh] w-[min(28rem,100vw)] max-w-[100vw] flex-col overflow-hidden border-0 border-l border-l-[color:var(--border-subtle)] bg-[color:var(--surface-default)] p-0 text-[color:var(--text-primary)] shadow-[-8px_0_24px_rgba(0,0,0,0.12)] backdrop:bg-[rgba(20,17,11,0.32)] [&:not([open])]:hidden [&[open]]:flex"
+    class="fixed inset-y-0 right-0 left-auto m-0 h-[100dvh] max-h-[100dvh] w-[min(28rem,100vw)] max-w-[100vw] flex-col overflow-hidden border-0 border-l border-l-outline-subtle bg-surface-default p-0 text-content-primary shadow-[-8px_0_24px_rgba(0,0,0,0.12)] backdrop:bg-[rgba(20,17,11,0.32)] [&:not([open])]:hidden [&[open]]:flex"
     aria-label={title}
     data-testid="side-panel"
     onclose={requestClose}
@@ -50,12 +50,12 @@
     <header
         class="flex items-center justify-between gap-2 border-b border-[color:var(--border-subtle)] px-5 py-4"
     >
-        <h2 class="m-0 text-[length:var(--text-h3)] font-semibold text-[color:var(--text-primary)]">
+        <h2 class="m-0 text-ui-h3 font-semibold text-content-primary">
             {title}
         </h2>
         <button
             type="button"
-            class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-[color:var(--text-tertiary)] hover:bg-[color:var(--surface-sunken)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:h-[var(--icon-md)] [&_ui5-icon]:w-[var(--icon-md)]"
+            class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:size-icon-md"
             aria-label="Close details"
             onclick={requestClose}
             data-testid="side-panel-close"
@@ -68,7 +68,7 @@
     </div>
     {#if footer}
         <footer
-            class="border-t border-[color:var(--border-subtle)] bg-[color:var(--surface-subtle)] px-5 py-3"
+            class="border-t border-outline-subtle bg-surface-subtle px-5 py-3"
         >
             {@render footer()}
         </footer>

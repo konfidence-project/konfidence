@@ -40,22 +40,22 @@
     subtitle="Real <StageCard> and <StagePhase> from @konfidence/design-system, at every state the dashboard renders. Higher-order composition primitives (promotion, timeline) still on the roadmap."
     status="partial"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample
             title="StagePhase — sizes"
             description="Density variants: compact (in-card, no labels), default (7 px bar + labels), lg (10 px bar)."
         >
-            <div class="phase-grid">
+            <div class="phase-grid grid w-full grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
                 <div>
-                    <p class="phase-caption">compact</p>
+                    <p class="phase-caption mb-1.5 text-meta tracking-[0.04em] text-content-tertiary uppercase">compact</p>
                     <StagePhase phases={PHASES_ACTIVE} size="compact" ariaLabel="compact deploy" />
                 </div>
                 <div>
-                    <p class="phase-caption">default</p>
+                    <p class="phase-caption mb-1.5 text-meta tracking-[0.04em] text-content-tertiary uppercase">default</p>
                     <StagePhase phases={PHASES_ACTIVE} ariaLabel="default deploy" />
                 </div>
                 <div>
-                    <p class="phase-caption">lg</p>
+                    <p class="phase-caption mb-1.5 text-meta tracking-[0.04em] text-content-tertiary uppercase">lg</p>
                     <StagePhase phases={PHASES_ACTIVE} size="lg" ariaLabel="large deploy" />
                 </div>
             </div>
@@ -65,25 +65,25 @@
             title="StagePhase — states"
             description="all-pending → deploy-active → migrate-active → all-done → failed."
         >
-            <div class="phase-grid">
+            <div class="phase-grid grid w-full grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
                 <div>
-                    <p class="phase-caption">all pending</p>
+                    <p class="phase-caption mb-1.5 text-meta tracking-[0.04em] text-content-tertiary uppercase">all pending</p>
                     <StagePhase phases={PHASES_PENDING} ariaLabel="all pending" />
                 </div>
                 <div>
-                    <p class="phase-caption">deploy active</p>
+                    <p class="phase-caption mb-1.5 text-meta tracking-[0.04em] text-content-tertiary uppercase">deploy active</p>
                     <StagePhase phases={PHASES_DEPLOY_ACTIVE} ariaLabel="deploy active" />
                 </div>
                 <div>
-                    <p class="phase-caption">migrate active</p>
+                    <p class="phase-caption mb-1.5 text-meta tracking-[0.04em] text-content-tertiary uppercase">migrate active</p>
                     <StagePhase phases={PHASES_ACTIVE} ariaLabel="migrate active" />
                 </div>
                 <div>
-                    <p class="phase-caption">all done</p>
+                    <p class="phase-caption mb-1.5 text-meta tracking-[0.04em] text-content-tertiary uppercase">all done</p>
                     <StagePhase phases={PHASES_DONE} ariaLabel="all done" />
                 </div>
                 <div>
-                    <p class="phase-caption">failed</p>
+                    <p class="phase-caption mb-1.5 text-meta tracking-[0.04em] text-content-tertiary uppercase">failed</p>
                     <StagePhase phases={PHASES_FAILED} ariaLabel="failed" />
                 </div>
             </div>
@@ -93,7 +93,7 @@
             title="StageCard — grid"
             description="Data-block card used by the landscape overview. Colour rail encodes status; the mini phase strip inside repeats the current pipeline state."
         >
-            <div class="stage-grid">
+            <div class="stage-grid grid w-full grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
                 <StageCard
                     title="prod"
                     href="#pipeline"
@@ -167,33 +167,3 @@
         />
     </div>
 </Section>
-
-<style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .phase-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
-        width: 100%;
-    }
-
-    .phase-caption {
-        margin: 0 0 6px;
-        font-size: var(--text-meta);
-        color: var(--text-tertiary, var(--text-secondary));
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-
-    .stage-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 16px;
-        width: 100%;
-    }
-</style>

@@ -11,7 +11,7 @@
     subtitle="Real <Breadcrumbs> from @konfidence/design-system, plus placeholders for the remaining in-page navigation primitives (tabs, segmented, filterbar)."
     status="partial"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample
             title="Breadcrumbs — three crumbs"
             description="Last crumb is always non-interactive with aria-current=page; intermediate crumbs may omit `href` to render as plain text."
@@ -49,11 +49,3 @@
         />
     </div>
 </Section>
-
-<style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-</style>

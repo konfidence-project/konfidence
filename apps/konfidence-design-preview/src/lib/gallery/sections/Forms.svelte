@@ -22,10 +22,10 @@
     subtitle="Real <SearchInput> and <Select> from @konfidence/design-system. Additional form primitives are still on the roadmap."
     status="partial"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample title="SearchInput" description="Debounced-ready search field with SAP-Icons `search` glyph and a clear button.">
             <SearchInput bind:value={search} placeholder="Search artifacts…" />
-            <span class="log">value = <b>{search || "(empty)"}</b></span>
+            <span class="log rounded-md bg-surface-subtle px-2 py-[3px] font-ui-mono text-meta text-content-secondary">value = <b>{search || "(empty)"}</b></span>
         </Sample>
 
         <Sample title="SearchInput (disabled)">
@@ -46,7 +46,7 @@
                 {/each}
             </Select>
 
-            <span class="log">stage = <b>{stage}</b> · region = <b>{region || "(none)"}</b></span>
+            <span class="log rounded-md bg-surface-subtle px-2 py-[3px] font-ui-mono text-meta text-content-secondary">stage = <b>{stage}</b> · region = <b>{region || "(none)"}</b></span>
         </Sample>
 
         <NotYetImplemented
@@ -61,20 +61,3 @@
         />
     </div>
 </Section>
-
-<style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .log {
-        font-family: var(--font-mono);
-        font-size: var(--text-meta);
-        color: var(--text-secondary);
-        padding: 3px 8px;
-        border-radius: 6px;
-        background: var(--surface-subtle);
-    }
-</style>

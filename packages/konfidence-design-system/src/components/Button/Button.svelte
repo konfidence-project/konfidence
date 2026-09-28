@@ -36,18 +36,15 @@
         secondary: "btn btn--secondary",
     };
 
-    const composedClass = $derived(
-        className ? `${VARIANT_CLASS[variant]} ${className}` : VARIANT_CLASS[variant],
-    );
 </script>
 
 {#if "href" in rest && rest.href !== undefined}
-    <a class={composedClass} {...rest as HTMLAnchorAttributes}>
+    <a class={[VARIANT_CLASS[variant], className]} {...rest as HTMLAnchorAttributes}>
         {#if icon}<ui5-icon class="btn__icon" name={icon}></ui5-icon>{/if}
         {@render children?.()}
     </a>
 {:else}
-    <button class={composedClass} type={(rest as HTMLButtonAttributes).type ?? "button"} {...rest as HTMLButtonAttributes}>
+    <button class={[VARIANT_CLASS[variant], className]} type={(rest as HTMLButtonAttributes).type ?? "button"} {...rest as HTMLButtonAttributes}>
         {#if icon}<ui5-icon class="btn__icon" name={icon}></ui5-icon>{/if}
         {@render children?.()}
     </button>

@@ -62,7 +62,7 @@
 </script>
 
 <a
-    class="skip-link absolute top-3 left-3 z-[500] -translate-y-[200%] rounded-[var(--radius-md)] border border-[var(--border-focus)] bg-[var(--surface-default)] py-1.5 px-2.5 text-[length:var(--text-sm)] text-[var(--text-primary)] focus-visible:translate-y-0"
+    class="skip-link absolute top-3 left-3 z-[500] -translate-y-[200%] rounded-control border border-outline-focus bg-surface-default py-1.5 px-2.5 text-ui-sm text-content-primary focus-visible:translate-y-0"
     href={`#${mainId}`}
 >Skip to main content</a>
 <div
@@ -79,12 +79,25 @@
             layout === "canvas" && "min-h-0",
         ]}
     >
-        <aside class="app-shell__sidebar flex flex-col overflow-y-auto" data-open={drawerOpen ? "true" : "false"}>
+        <aside
+            class={[
+                "app-shell__sidebar flex flex-col overflow-y-auto [&>.sidebar]:flex-1",
+                "max-md:fixed max-md:inset-[60px_0_0_0] max-md:z-[400] max-md:w-[260px] max-md:max-w-[80vw]",
+                "max-md:transition-transform max-md:duration-[var(--motion-base)] max-md:ease-[cubic-bezier(var(--ease-out))]",
+                "max-md:data-[open=false]:-translate-x-full max-md:data-[open=true]:translate-x-0",
+            ]}
+            data-open={drawerOpen ? "true" : "false"}
+        >
             {@render sidebar({ closeDrawer })}
         </aside>
         <button
             type="button"
-            class="app-shell__scrim"
+            class={[
+                "app-shell__scrim hidden max-md:fixed max-md:inset-[60px_0_0_0] max-md:z-[399] max-md:block",
+                "max-md:bg-[var(--scrim,rgba(0,0,0,0.4))] max-md:opacity-0 max-md:pointer-events-none",
+                "max-md:transition-opacity max-md:duration-[var(--motion-base)] max-md:ease-[cubic-bezier(var(--ease))]",
+                "max-md:data-[open=true]:opacity-100 max-md:data-[open=true]:pointer-events-auto",
+            ]}
             data-open={drawerOpen ? "true" : "false"}
             aria-label="Close navigation"
             tabindex={drawerOpen ? 0 : -1}
@@ -101,40 +114,3 @@
         </main>
     </div>
 </div>
-
-<style>
-    .app-shell__sidebar :global(> .sidebar) {
-        flex: 1;
-    }
-    .app-shell__scrim {
-        display: none;
-    }
-    @media (max-width: 767px) {
-        .app-shell__sidebar {
-            position: fixed;
-            inset: 60px 0 0 0;
-            width: 260px;
-            max-width: 80vw;
-            z-index: 400;
-            transform: translateX(-100%);
-            transition: transform var(--motion-base) cubic-bezier(var(--ease-out));
-        }
-        .app-shell__sidebar[data-open="true"] {
-            transform: translateX(0);
-        }
-        .app-shell__scrim {
-            position: fixed;
-            inset: 60px 0 0 0;
-            background: var(--scrim, rgba(0, 0, 0, 0.4));
-            z-index: 399;
-            display: block;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity var(--motion-base) cubic-bezier(var(--ease));
-        }
-        .app-shell__scrim[data-open="true"] {
-            opacity: 1;
-            pointer-events: auto;
-        }
-    }
-</style>
