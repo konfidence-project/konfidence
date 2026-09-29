@@ -71,10 +71,11 @@ func init() {
 	utilruntime.Must(konfidence.AddToScheme(scheme))
 
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newMigrateCmd())
 
 	rootCmd.Flags().StringVar(&cfg.Server.Addr, "addr", envOr("API_ADDR", ":8090"),
 		"TCP address the API server listens on. Env: API_ADDR")
-	rootCmd.Flags().StringVar(&cfg.Server.LogLevel, "log-level", envOr("API_LOG_LEVEL", "info"),
+	rootCmd.PersistentFlags().StringVar(&cfg.Server.LogLevel, "log-level", envOr("API_LOG_LEVEL", "info"),
 		"Log level (debug, info, warn, error). Env: API_LOG_LEVEL")
 	rootCmd.Flags().StringVar(&cfg.Server.UIAssetPath, "ui-asset-path", envOr("API_UI_ASSET_PATH", ""),
 		"Path to the directory containing dashboard UI assets. Env: API_UI_ASSET_PATH")
@@ -128,7 +129,7 @@ func init() {
 		"Session storage backend (in-memory, db-pg). Env: API_SESSION_STORAGE_TYPE")
 	rootCmd.Flags().StringVar(&cfg.Session.CleanupInterval, "session-cleanup-interval", envOr("API_SESSION_CLEANUP_INTERVAL", "15m"),
 		"Expired database session cleanup interval. Env: API_SESSION_CLEANUP_INTERVAL")
-	rootCmd.Flags().StringVar(&cfg.Database.Connection, "db-connection", envOr("API_DB_CONNECTION", ""),
+	rootCmd.PersistentFlags().StringVar(&cfg.Database.Connection, "db-connection", envOr("API_DB_CONNECTION", ""),
 		"API DB connection string. Env: API_DB_CONNECTION")
 	rootCmd.Flags().Int32Var(&cfg.Database.MaxConns, "db-max-conns", envInt32Or("API_DB_MAX_CONNS", 10),
 		"Maximum number of database pool connections. Env: API_DB_MAX_CONNS")
