@@ -69,4 +69,21 @@ var _ = Describe("FormatTable", func() {
 		err := pretty.FormatTable(bad, nil)
 		Expect(err).To(MatchError(ContainSubstring("boom")))
 	})
+
+	It("renders each section under its heading", func() {
+		sectioned := func(_ interface{}) *pretty.TableData {
+			cols := []table.Column{{Title: "Promotion ID", Width: 20}, {Title: "Detail", Width: 20}}
+			return &pretty.TableData{Sections: []pretty.TableSection{
+				{Heading: "config-a (src → tgt)", Columns: cols, Rows: []table.Row{{"promo-1", "detail-a"}}},
+				{Heading: "config-b (src → tgt)", Columns: cols, Rows: []table.Row{{"promo-2", "detail-b"}}},
+			}}
+		}
+
+		out := captureStdout(func() { _ = pretty.FormatTable(sectioned, nil) })
+
+		Expect(out).To(ContainSubstring("config-a (src → tgt)"))
+		Expect(out).To(ContainSubstring("config-b (src → tgt)"))
+		Expect(out).To(ContainSubstring("promo-1"))
+		Expect(out).To(ContainSubstring("promo-2"))
+	})
 })
