@@ -14,7 +14,7 @@ const VARIANT_CLASSES = {
 
 describe("<Button>", () => {
   it("renders a <button> with the primary class by default", async () => {
-    render(ButtonFixture, { label: "Deploy" });
+    await render(ButtonFixture, { label: "Deploy" });
     const el = page.getByRole("button", { name: "Deploy" });
     await expect.element(el).toHaveClass("btn");
     await expect.element(el).toHaveClass("btn--primary");
@@ -25,30 +25,30 @@ describe("<Button>", () => {
     string,
   ][]) {
     it(`maps variant ${variant} to class ${cls}`, async () => {
-      render(ButtonFixture, { label: "Go", variant });
+      await render(ButtonFixture, { label: "Go", variant });
       await expect.element(page.getByRole("button", { name: "Go" })).toHaveClass(cls);
     });
   }
 
   it("renders as an anchor when href is provided", async () => {
-    render(ButtonFixture, { href: "/", label: "Home", variant: "secondary" });
+    await render(ButtonFixture, { href: "/", label: "Home", variant: "secondary" });
     const link = page.getByRole("link", { name: "Home" });
     await expect.element(link).toHaveAttribute("href", "/");
     await expect.element(link).toHaveClass("btn--secondary");
   });
 
   it("forwards aria-label", async () => {
-    render(ButtonFixture, { "aria-label": "Confirm deploy", label: "Deploy" });
+    await render(ButtonFixture, { "aria-label": "Confirm deploy", label: "Deploy" });
     await expect.element(page.getByRole("button", { name: "Confirm deploy" })).toBeInTheDocument();
   });
 
   it("does not fire onclick when disabled", async () => {
-    render(ButtonFixture, { disabled: true, label: "Deploy" });
+    await render(ButtonFixture, { disabled: true, label: "Deploy" });
     await expect.element(page.getByRole("button", { name: "Deploy" })).toBeDisabled();
   });
 
   it("defaults type=button to avoid accidental form submission", async () => {
-    render(ButtonFixture, { label: "Deploy" });
+    await render(ButtonFixture, { label: "Deploy" });
     await expect
       .element(page.getByRole("button", { name: "Deploy" }))
       .toHaveAttribute("type", "button");
@@ -66,7 +66,7 @@ describe("<Button>", () => {
           await page.viewport(320, 240);
           document.documentElement.setAttribute("data-theme", "konfidence");
           document.documentElement.setAttribute("data-mode", mode);
-          render(ButtonFixture, { label: "Deploy", variant });
+          await render(ButtonFixture, { label: "Deploy", variant });
           await expect.element(page.getByRole("button", { name: "Deploy" })).toMatchScreenshot();
         });
       }

@@ -24,7 +24,7 @@ describe("projects page", () => {
     });
     navigation.goto.mockReturnValue(pendingNavigation);
 
-    render(ProjectsPageTestProvider, {
+    await render(ProjectsPageTestProvider, {
       projects: [{ id: "payments", name: "Payments" }],
     });
 

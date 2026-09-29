@@ -10,19 +10,19 @@ const TONES = ["empty", "info", "error"] as const;
 
 describe("<EmptyState>", () => {
   it("renders as a status region by default", async () => {
-    render(EmptyState, { title: "No results" });
+    await render(EmptyState, { title: "No results" });
     const status = page.getByRole("status");
     await expect.element(status).toBeInTheDocument();
     await expect.element(status).toHaveTextContent("No results");
   });
 
   it("renders as an alert when tone is error", async () => {
-    render(EmptyState, { title: "Something broke", tone: "error" });
+    await render(EmptyState, { title: "Something broke", tone: "error" });
     await expect.element(page.getByRole("alert")).toHaveTextContent("Something broke");
   });
 
   it("surfaces the description when supplied", async () => {
-    render(EmptyState, {
+    await render(EmptyState, {
       description: "Try clearing filters.",
       title: "No results",
     });
@@ -41,7 +41,7 @@ describe("<EmptyState>", () => {
           await page.viewport(360, 260);
           document.documentElement.setAttribute("data-theme", "konfidence");
           document.documentElement.setAttribute("data-mode", mode);
-          render(EmptyStateFixture, {
+          await render(EmptyStateFixture, {
             description:
               tone === "error"
                 ? "Artifact deployments are currently unavailable."

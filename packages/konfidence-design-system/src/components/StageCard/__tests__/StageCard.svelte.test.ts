@@ -149,7 +149,7 @@ const propsFor = (scenario: Scenario) => ({
 
 describe("<StageCard>", () => {
   it("renders as a labelled anchor pointing at href", async () => {
-    render(StageCardFixture, propsFor(scenarios.deploying));
+    await render(StageCardFixture, propsFor(scenarios.deploying));
     const link = page.getByRole("link", {
       name: "View details for stage dev-api in Primary, Dev",
     });
@@ -157,7 +157,7 @@ describe("<StageCard>", () => {
   });
 
   it("exposes the status role via the data-status attribute", async () => {
-    const rendered = render(StageCardFixture, propsFor(scenarios.deploying));
+    const rendered = await render(StageCardFixture, propsFor(scenarios.deploying));
     const link = page.getByRole("link").element() as HTMLElement;
     expect(link.getAttribute("data-status")).toBe("deploying");
     await rendered.rerender(propsFor(scenarios.failed));
@@ -169,19 +169,19 @@ describe("<StageCard>", () => {
   });
 
   it("renders the live pill only when `live` is true", async () => {
-    const rendered = render(StageCardFixture, propsFor(scenarios.active));
+    const rendered = await render(StageCardFixture, propsFor(scenarios.active));
     await expect.element(page.getByText("live", { exact: true })).toBeVisible();
     await rendered.rerender({ ...propsFor(scenarios.deploying), live: false });
     await expect.element(page.getByText("live", { exact: true })).not.toBeInTheDocument();
   });
 
   it("falls back to a placeholder when targetVector is missing", async () => {
-    render(StageCardFixture, propsFor(scenarios["active only"]));
+    await render(StageCardFixture, propsFor(scenarios["active only"]));
     await expect.element(page.getByText("No target version yet")).toBeVisible();
   });
 
   it("labels the phase strip via `phaseAriaLabel`", async () => {
-    render(StageCardFixture, propsFor(scenarios.failed));
+    await render(StageCardFixture, propsFor(scenarios.failed));
     await expect.element(page.getByRole("group", { exact: true, name: "Failed" })).toBeVisible();
   });
 
@@ -197,7 +197,7 @@ describe("<StageCard>", () => {
           await page.viewport(304, 300);
           document.documentElement.setAttribute("data-theme", "konfidence");
           document.documentElement.setAttribute("data-mode", mode);
-          render(StageCardFixture, propsFor(scenario));
+          await render(StageCardFixture, propsFor(scenario));
           await expect.element(page.getByRole("link")).toMatchScreenshot();
         });
       }
@@ -206,7 +206,7 @@ describe("<StageCard>", () => {
         await page.viewport(304, 300);
         document.documentElement.setAttribute("data-theme", "konfidence");
         document.documentElement.setAttribute("data-mode", mode);
-        render(StageCardFixture, { ...propsFor(scenarios.deploying), selected: true });
+        await render(StageCardFixture, { ...propsFor(scenarios.deploying), selected: true });
         await expect.element(page.getByRole("link")).toMatchScreenshot();
       });
     }

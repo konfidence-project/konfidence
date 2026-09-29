@@ -23,7 +23,7 @@ const statuses = [
 
 describe("<StageVersionDetails>", () => {
   it("renders the version metadata in an accessible section", async () => {
-    render(StageVersionDetails, { label: "Target", version });
+    await render(StageVersionDetails, { label: "Target", version });
 
     const section = page.getByRole("region", { name: "Target version" });
     await expect.element(section).toBeVisible();
@@ -36,7 +36,7 @@ describe("<StageVersionDetails>", () => {
 
   for (const [status, label, badge] of statuses) {
     it(`renders ${status} as ${label}`, async () => {
-      render(StageVersionDetails, {
+      await render(StageVersionDetails, {
         label: "Target",
         version: { ...version, status },
       });
@@ -49,7 +49,7 @@ describe("<StageVersionDetails>", () => {
 
   for (const label of ["Target", "Active"]) {
     it(`renders the missing ${label.toLowerCase()} version state`, async () => {
-      render(StageVersionDetails, { label });
+      await render(StageVersionDetails, { label });
 
       await expect.element(page.getByText(`No ${label.toLowerCase()} version yet.`)).toBeVisible();
     });

@@ -8,23 +8,23 @@ import PageHeaderFixture from "./PageHeaderFixture.svelte";
 import "../../../../../../apps/konfidence-ui/src/app.css";
 
 describe("<PageHeader>", () => {
-  it("renders the title as an h1 with the DS display recipe", () => {
-    render(PageHeader, { title: "Landscapes" });
+  it("renders the title as an h1 with the DS display recipe", async () => {
+    await render(PageHeader, { title: "Landscapes" });
     const heading = document.querySelector('[data-testid="page-heading"]');
     expect(heading).not.toBeNull();
     expect(heading?.tagName).toBe("H1");
     expect(heading?.textContent?.trim()).toBe("Landscapes");
   });
 
-  it("forwards id onto the h1 so callers can wire aria-labelledby", () => {
+  it("forwards id onto the h1 so callers can wire aria-labelledby", async () => {
     const id = "artifact-view-title";
-    render(PageHeader, { id, title: "Artifact Deployments" });
+    await render(PageHeader, { id, title: "Artifact Deployments" });
     const heading = document.getElementById(id);
     expect(heading?.tagName).toBe("H1");
   });
 
   it("shows the description under the title when provided", async () => {
-    render(PageHeader, {
+    await render(PageHeader, {
       description: "Inspect the deployments backing this project.",
       title: "Artifact Deployments",
     });
@@ -33,11 +33,11 @@ describe("<PageHeader>", () => {
       .toBeVisible();
   });
 
-  it("renders the eyebrow snippet above the title", () => {
+  it("renders the eyebrow snippet above the title", async () => {
     const eyebrow = createRawSnippet(() => ({
       render: () => '<nav data-testid="eyebrow-content">Landscapes / dev-api</nav>',
     }));
-    render(PageHeader, { eyebrow, title: "dev-api" });
+    await render(PageHeader, { eyebrow, title: "dev-api" });
     const eye = document.querySelector('[data-testid="eyebrow-content"]');
     const heading = document.querySelector('[data-testid="page-heading"]');
     expect(eye).not.toBeNull();
@@ -47,11 +47,11 @@ describe("<PageHeader>", () => {
     );
   });
 
-  it("renders the actions snippet next to the title", () => {
+  it("renders the actions snippet next to the title", async () => {
     const actions = createRawSnippet(() => ({
       render: () => '<button data-testid="primary-action">Promote</button>',
     }));
-    render(PageHeader, { actions, title: "Overview" });
+    await render(PageHeader, { actions, title: "Overview" });
     expect(document.querySelector('[data-testid="primary-action"]')).not.toBeNull();
   });
 
@@ -101,7 +101,7 @@ describe("<PageHeader>", () => {
           await page.viewport(720, 220);
           document.documentElement.setAttribute("data-theme", "konfidence");
           document.documentElement.setAttribute("data-mode", mode);
-          render(PageHeaderFixture, {
+          await render(PageHeaderFixture, {
             actions: scenario.withActions ? actionSnippet : undefined,
             description: scenario.description,
             eyebrow: scenario.withEyebrow ? eyebrowSnippet : undefined,

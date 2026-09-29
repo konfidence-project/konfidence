@@ -30,14 +30,14 @@ const baseProps = {
 
 describe("<StageDetails>", () => {
   it("renders the loading state", async () => {
-    render(StageDetails, { ...baseProps, status: "loading" });
+    await render(StageDetails, { ...baseProps, status: "loading" });
 
     await expect.element(page.getByRole("status")).toHaveTextContent("Loading stage details");
   });
 
   it("renders a retryable API error", async () => {
     const onRetry = vi.fn();
-    render(StageDetails, {
+    await render(StageDetails, {
       ...baseProps,
       error: "API request failed with status 503",
       errorStatus: 503,
@@ -46,14 +46,14 @@ describe("<StageDetails>", () => {
     });
 
     const alert = page.getByRole("alert");
-    await expect.element(alert).toHaveTextContent("Stage details could not be loaded");
-    await expect.element(alert).toHaveTextContent("API request failed with status 503");
+    await expect.element(alert).toMatchTextContent("Stage details could not be loaded");
+    await expect.element(alert).toMatchTextContent("API request failed with status 503");
     await page.getByRole("button", { name: "Retry" }).click();
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
   it("renders a 404 as not found without a retry action", async () => {
-    render(StageDetails, {
+    await render(StageDetails, {
       ...baseProps,
       errorStatus: 404,
       landscape,
@@ -69,7 +69,7 @@ describe("<StageDetails>", () => {
   });
 
   it("renders missing stage data as not found", async () => {
-    render(StageDetails, {
+    await render(StageDetails, {
       ...baseProps,
       landscape,
       status: "ready",
@@ -79,7 +79,7 @@ describe("<StageDetails>", () => {
   });
 
   it("renders breadcrumbs and both stage versions when ready", async () => {
-    render(StageDetails, {
+    await render(StageDetails, {
       ...baseProps,
       landscape,
       stage,
@@ -91,8 +91,8 @@ describe("<StageDetails>", () => {
     await expect
       .element(breadcrumbs.getByRole("link", { name: "Landscapes" }))
       .toHaveAttribute("href", baseProps.backHref);
-    await expect.element(breadcrumbs).toHaveTextContent(landscape.name);
-    await expect.element(breadcrumbs).toHaveTextContent(stage.name);
+    await expect.element(breadcrumbs).toMatchTextContent(landscape.name);
+    await expect.element(breadcrumbs).toMatchTextContent(stage.name);
     await expect.element(page.getByRole("region", { name: "Target version" })).toBeVisible();
     await expect.element(page.getByRole("region", { name: "Active version" })).toBeVisible();
     await expect.element(page.getByText("Deploying vector", { exact: true })).toBeVisible();

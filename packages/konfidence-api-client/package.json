@@ -9,7 +9,7 @@
     "./schema": "./src/schema.d.ts"
   },
   "scripts": {
-    "check": "tsgo -p ./tsconfig.json --noEmit",
+    "check": "node ./node_modules/typescript-native/bin/tsc -p ./tsconfig.json --noEmit",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "lint": "oxlint",
@@ -19,10 +19,10 @@
     "openapi-fetch": "^0.17.0"
   },
   "devDependencies": {
-    "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "openapi-typescript": "^7.13.0",
-    "oxfmt": "^0.65.0",
-    "oxlint": "^1.80.0",
-    "typescript": "^6.0.3"
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
+    "typescript": "^6.0.3",
+    "typescript-native": "npm:typescript@^7.0.2"
   }
 }

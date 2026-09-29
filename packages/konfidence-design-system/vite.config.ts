@@ -9,7 +9,6 @@ export default defineConfig({
     expect: { requireAssertions: true },
     projects: [
       {
-        extends: "./vite.config.ts",
         test: {
           browser: {
             enabled: true,
@@ -22,7 +21,6 @@ export default defineConfig({
         },
       },
       {
-        extends: "./vite.config.ts",
         test: {
           environment: "node",
           exclude: ["src/**/*.svelte.test.{js,ts}"],

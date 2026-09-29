@@ -9,7 +9,7 @@ vi.mock("$app/state", () => ({
 
 describe("project selection", () => {
   it("renders accessible project links and preserves embedded mode", async () => {
-    render(ProjectsTestProvider, {
+    await render(ProjectsTestProvider, {
       projects: [
         { id: "payments", name: "Payments" },
         { id: "identity", name: "Identity" },

@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe("login page", () => {
   it("renders a sign-in link that targets the default return path", async () => {
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
     });
@@ -55,7 +55,7 @@ describe("login page", () => {
   it("propagates a returnTo path into the sign-in URL", async () => {
     setLoginUrl("?returnTo=/projects/foo/landscape");
 
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
     });
@@ -71,7 +71,7 @@ describe("login page", () => {
   it("falls back to the root path for an external returnTo target", async () => {
     setLoginUrl("?returnTo=https%3A%2F%2Fattacker.example.com%2Fprojects");
 
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
     });
@@ -87,7 +87,7 @@ describe("login page", () => {
   it("renders the error description from the callback query", async () => {
     setLoginUrl("?error=access_denied&error_description=Login%20denied");
 
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
     });
@@ -98,7 +98,7 @@ describe("login page", () => {
   it("falls back to the error code when no description is provided", async () => {
     setLoginUrl("?error=access_denied");
 
-    render(SessionTestProvider, {
+    await render(SessionTestProvider, {
       component: LoginPage,
       session: createTestSession(),
     });
