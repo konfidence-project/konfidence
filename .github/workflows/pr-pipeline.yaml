@@ -28,7 +28,9 @@ jobs:
 
   codeql-status:
     name: CodeQL Status
-    if: github.event_name == 'pull_request'
+    # CodeQL default setup does not analyze Dependabot-triggered PRs, so the
+    # CodeQL check stays NEUTRAL and this job would time out.
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       security-events: read
