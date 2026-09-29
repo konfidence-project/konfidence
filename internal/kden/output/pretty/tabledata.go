@@ -19,10 +19,13 @@ var (
 func GetModelFuncMap() map[string]ModelFunc {
 	once.Do(func() {
 		modelFuncMap = map[string]ModelFunc{
-			"validate":       validateModelFunc,
-			"project-list":   projectListModelFunc,
-			"landscape-list": landscapeListModelFunc,
-			"version":        versionModelFunc,
+			"validate":                     validateModelFunc,
+			"project-list":                 projectListModelFunc,
+			"landscape-list":               landscapeListModelFunc,
+			"stage-list":                   stageListModelFunc,
+			"vector-deployment-list":       vectorDeploymentListModelFunc,
+			"vector-promotion-config-list": vectorPromotionConfigListModelFunc,
+			"version":                      versionModelFunc,
 		}
 	})
 	return modelFuncMap
@@ -60,6 +63,13 @@ func mapRows[T any](items []T, mapper func(T) table.Row) []table.Row {
 // updateHint is the footer under the version table. It mirrors the install
 // one-liner in cmd/kden/cmd/version; keep the two in sync if the URL changes.
 const updateHint = "To update, re-run: curl -fsSL https://konfidence.cloud/install.sh | sh"
+
+// Column titles reused across list tables (extracted so goconst stays happy
+// once the same title appears in several model funcs).
+const (
+	columnName   = "Name"
+	columnStatus = "Status"
+)
 
 func versionModelFunc(data interface{}) *TableData {
 	tableData := buildTableData[build.Info](data, "version",
@@ -104,7 +114,7 @@ func projectListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.ProjectList](data, "project-list",
 		[]table.Column{
 			{Title: "ID", Width: 40},
-			{Title: "Name", Width: 40},
+			{Title: columnName, Width: 40},
 		},
 		func(list *apiclient.ProjectList) []table.Row {
 			return mapRows(list.Data, func(p apiclient.Project) table.Row {
@@ -118,7 +128,7 @@ func landscapeListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.LandscapeList](data, "landscape-list",
 		[]table.Column{
 			{Title: "ID", Width: 40},
-			{Title: "Name", Width: 40},
+			{Title: columnName, Width: 40},
 		},
 		func(list *apiclient.LandscapeList) []table.Row {
 			return mapRows(list.Data, func(l apiclient.Landscape) table.Row {
@@ -126,4 +136,83 @@ func landscapeListModelFunc(data interface{}) *TableData {
 			})
 		},
 	)
+}
+
+func stageListModelFunc(data interface{}) *TableData {
+	return buildTableData[*apiclient.StageList](data, "stage-list",
+		[]table.Column{
+			{Title: "ID", Width: 40},
+			{Title: columnName, Width: 30},
+			{Title: "Landscape", Width: 30},
+			{Title: "Active Version", Width: 40},
+			{Title: columnStatus, Width: 20},
+		},
+		func(list *apiclient.StageList) []table.Row {
+			return mapRows(list.Data, func(s apiclient.Stage) table.Row {
+				activeVersion, status := "-", "-"
+				if s.ActiveStageVersion != nil {
+					activeVersion = s.ActiveStageVersion.Id
+					status = string(s.ActiveStageVersion.Status)
+				}
+				return table.Row{s.Id, s.Name, s.LandscapeId, activeVersion, status}
+			})
+		},
+	)
+}
+
+func vectorDeploymentListModelFunc(data interface{}) *TableData {
+	return buildTableData[*apiclient.VectorDeploymentList](data, "vector-deployment-list",
+		[]table.Column{
+			{Title: "ID", Width: 40},
+			{Title: "Stage", Width: 30},
+			{Title: "Landscape", Width: 30},
+			{Title: columnStatus, Width: 20},
+			{Title: "Vector", Width: 40},
+		},
+		func(list *apiclient.VectorDeploymentList) []table.Row {
+			return mapRows(list.Data, func(d apiclient.VectorDeployment) table.Row {
+				return table.Row{
+					d.Id, d.StageId, d.LandscapeId, string(d.Status),
+					fmt.Sprintf("%s:%s", d.Vector.ComponentName, d.Vector.ComponentVersion),
+				}
+			})
+		},
+	)
+}
+
+// vectorPromotionConfigListModelFunc flattens the nested config→promotions
+// structure into one row per promotion instance, repeating the parent config id
+// on each row. A config with no promotions still emits a single row (promotion
+// columns blank) so the config stays visible in the table.
+func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
+	list, errData := parseData[*apiclient.VectorPromotionConfigList](data, "vector-promotion-config-list")
+	if errData != nil {
+		return errData
+	}
+
+	columns := []table.Column{
+		{Title: "Config ID", Width: 40},
+		{Title: "Promotion ID", Width: 40},
+		{Title: "Source", Width: 24},
+		{Title: "Target", Width: 24},
+		{Title: "Vector", Width: 30},
+		{Title: columnStatus, Width: 16},
+	}
+
+	rows := make([]table.Row, 0)
+	for _, cfg := range list.Data {
+		if len(cfg.Promotions) == 0 {
+			rows = append(rows, table.Row{cfg.Id, "-", cfg.Source.Name, cfg.Target.Name, "-", "-"})
+			continue
+		}
+		for _, p := range cfg.Promotions {
+			status := "-"
+			if p.Status != nil {
+				status = string(*p.Status)
+			}
+			rows = append(rows, table.Row{cfg.Id, p.Id, p.Source.Name, p.Target.Name, p.Vector, status})
+		}
+	}
+
+	return &TableData{Columns: columns, Rows: rows}
 }
