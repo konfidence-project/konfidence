@@ -7,6 +7,7 @@ import {
   statusTone,
   toVectorDeploymentRows,
 } from "./deployments.js";
+import { attempt } from "../result.js";
 
 type ApiArtifactDeployment = components["schemas"]["ArtifactDeployment"];
 type ApiLandscape = components["schemas"]["Landscape"];
@@ -116,6 +117,21 @@ describe("toVectorDeploymentRows", () => {
 
   it("emits an empty list when the API returns no vector deployments", () => {
     expect(build([])).toEqual([]);
+  });
+
+  it("allows unexpected mapping errors to be captured", () => {
+    const malformedVector = {
+      ...vector({
+        id: "vector-dev-us30-1",
+        landscapeId: "development",
+        stageId: "dev-us30",
+      }),
+      vector: null,
+    } as unknown as ApiVectorDeployment;
+
+    const result = attempt(() => build([malformedVector]));
+
+    expect(result).toMatchObject({ ok: false, error: expect.any(TypeError) });
   });
 });
 

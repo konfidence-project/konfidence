@@ -7,6 +7,7 @@ import {
   statusTone,
   toArtifactDeploymentRows,
 } from "./deployments.js";
+import { attempt } from "../result.js";
 
 type ApiArtifactDeployment = components["schemas"]["ArtifactDeployment"];
 type ApiLandscape = components["schemas"]["Landscape"];
@@ -161,6 +162,33 @@ describe("toArtifactDeploymentRows", () => {
 
   it("emits an empty list when the API returns nothing", () => {
     expect(build([])).toEqual([]);
+  });
+});
+
+describe("artifact deployment row errors", () => {
+  it("captures unexpected mapping errors", () => {
+    const source = {
+      ...deployment({
+        componentName: "payments-api",
+        componentVersion: "3.4.1",
+        id: "a-4",
+        landscapeId: "development",
+        stageIds: ["dev-us30"],
+        vectorDeploymentIds: [],
+      }),
+      vectorDeploymentIds: null,
+    } as unknown as ApiArtifactDeployment;
+
+    const result = attempt(() =>
+      toArtifactDeploymentRows({
+        artifactDeployments: [source],
+        landscapes,
+        stages,
+        vectorDeployments: vectors,
+      }),
+    );
+
+    expect(result).toMatchObject({ ok: false, error: expect.any(TypeError) });
   });
 });
 

@@ -17,6 +17,7 @@
     import ArtifactDeploymentsTable from "./ArtifactDeploymentsTable.svelte";
     import { toArtifactDeploymentRows } from "./deployments.js";
     import { useDeploymentFilters } from "./useDeploymentFilters.svelte.js";
+    import { attempt } from "$lib/result.js";
 
     type Landscape = components["schemas"]["Landscape"];
     type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
@@ -49,8 +50,17 @@
         onRetry,
     }: Props = $props();
 
-    const rows = $derived(
-        toArtifactDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
+    const rowResult = $derived(
+        attempt(() =>
+            toArtifactDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
+        ),
+    );
+    const rows = $derived(rowResult.ok ? rowResult.value : []);
+    const viewError = $derived(
+        error ??
+            (rowResult.ok
+                ? undefined
+                : "The server returned artifact deployment data in an unexpected format."),
     );
 
     const filters = useDeploymentFilters({
@@ -82,7 +92,7 @@
         title="Artifact Deployments"
     />
 
-    {#if hasLoaded && !error}
+    {#if hasLoaded && !viewError}
         <div
             class="flex flex-wrap items-end gap-3 rounded-[var(--card-radius)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-subtle)] px-4 py-3"
             data-testid="artifact-view-filters"
@@ -165,9 +175,9 @@
         <div class="flex justify-center py-12" data-testid="artifact-view-loading">
             <OrbitLoader label="Loading artifact deployments…" />
         </div>
-    {:else if error}
+    {:else if viewError}
         <div data-testid="artifact-view-error">
-            <EmptyState tone="error" title="Failed to load artifact deployments" description={error}>
+            <EmptyState tone="error" title="Failed to load artifact deployments" description={viewError}>
                 {#snippet icon()}
                     <ui5-icon name="error" aria-hidden="true"></ui5-icon>
                 {/snippet}
