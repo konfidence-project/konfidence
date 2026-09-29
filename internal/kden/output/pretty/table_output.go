@@ -5,10 +5,7 @@ import (
 )
 
 // FormatTable renders a static table for the given command and prints it to
-// stdout. The output is one-shot (no scrolling, no interaction), so it renders
-// the view directly instead of running a bubbletea program — that avoids the
-// terminal-probe escape sequences and scroll-help line a full TUI would emit for
-// what is really a plain table.
+// stdout. The output is rendered directly without a TUI lifecycle.
 func FormatTable(modelFunc ModelFunc, modelFuncData interface{}) error {
 	data := modelFunc(modelFuncData)
 	if data.Err != nil {
