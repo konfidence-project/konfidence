@@ -97,7 +97,8 @@ func executeWith(ctx context.Context) error {
 func handleExecutionError(err error) error {
 	switch {
 	case errors.Is(err, kdenauth.ErrAccessTokenRejected):
-		return errors.New("authenticating with access token failed. token was rejected")
+		return errors.New("authentication failed: the configured access token was rejected by the" +
+			" Konfidence API; provide a valid token using --access-token or KDEN_ACCESS_TOKEN")
 	case errors.Is(err, kdenauth.ErrUnauthorized):
 		log.Info("Authentication required. Run 'kden login' to sign in.")
 		return nil

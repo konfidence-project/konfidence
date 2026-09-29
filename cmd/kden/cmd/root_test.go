@@ -122,7 +122,8 @@ var _ = Describe("handleExecutionError", func() {
 		commandErr := fmt.Errorf("listing projects failed: %w", kdenauth.ErrAccessTokenRejected)
 
 		err := handleExecutionError(commandErr)
-		Expect(err).To(MatchError("authenticating with access token failed. token was rejected"))
+		Expect(err).To(MatchError("authentication failed: the configured access token was rejected by the" +
+			" Konfidence API; provide a valid token using --access-token or KDEN_ACCESS_TOKEN"))
 	})
 
 	It("returns unrelated errors unchanged", func() {
