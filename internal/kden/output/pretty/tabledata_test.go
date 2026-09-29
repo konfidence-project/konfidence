@@ -12,8 +12,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// Column titles shared across the list-table specs, extracted so goconst does
-// not flag the repeated literals once several tables reuse the same titles.
 const (
 	colName   = "Name"
 	colStatus = "Status"
@@ -294,33 +292,43 @@ var _ = Describe("GetModelFuncMap", func() {
 			},
 		}}
 
-		It("returns one row per promotion and a placeholder row for configs without promotions", func() {
+		It("returns one section per config with a heading and a row per promotion", func() {
 			result := pretty.GetModelFuncMap()["vector-promotion-config-list"](configList)
 
 			cfgA := configList.Data[0]
 			p1, p2 := cfgA.Promotions[0], cfgA.Promotions[1]
 			cfgB := configList.Data[1]
-			Expect(result.Err).NotTo(HaveOccurred())
-			Expect(result.Columns).To(Equal([]table.Column{
-				{Title: "Config ID", Width: 40},
+			promotionColumns := []table.Column{
 				{Title: "Promotion ID", Width: 40},
 				{Title: "Source", Width: 24},
 				{Title: "Target", Width: 24},
 				{Title: "Vector", Width: 30},
 				{Title: colStatus, Width: 16},
-			}))
-			Expect(result.Rows).To(Equal([]table.Row{
-				{cfgA.Id, p1.Id, p1.Source.Name, p1.Target.Name, p1.Vector, string(*p1.Status)},
-				{cfgA.Id, p2.Id, p2.Source.Name, p2.Target.Name, p2.Vector, "-"},
-				{cfgB.Id, "-", cfgB.Source.Name, cfgB.Target.Name, "-", "-"},
+			}
+
+			Expect(result.Err).NotTo(HaveOccurred())
+			Expect(result.Sections).To(Equal([]pretty.TableSection{
+				{
+					Heading: fmt.Sprintf("%s (%s → %s)", cfgA.Id, cfgA.Source.Name, cfgA.Target.Name),
+					Columns: promotionColumns,
+					Rows: []table.Row{
+						{p1.Id, p1.Source.Name, p1.Target.Name, p1.Vector, string(*p1.Status)},
+						{p2.Id, p2.Source.Name, p2.Target.Name, p2.Vector, "-"},
+					},
+				},
+				{
+					Heading: fmt.Sprintf("%s (%s → %s)", cfgB.Id, cfgB.Source.Name, cfgB.Target.Name),
+					Columns: promotionColumns,
+					Rows:    []table.Row{},
+				},
 			}))
 		})
 
-		It("returns empty rows for an empty list", func() {
+		It("returns no sections for an empty list", func() {
 			result := pretty.GetModelFuncMap()["vector-promotion-config-list"](&apiclient.VectorPromotionConfigList{})
 
 			Expect(result.Err).NotTo(HaveOccurred())
-			Expect(result.Rows).To(BeEmpty())
+			Expect(result.Sections).To(BeEmpty())
 		})
 
 		It("rejects an unexpected response type", func() {

@@ -64,8 +64,6 @@ func mapRows[T any](items []T, mapper func(T) table.Row) []table.Row {
 // one-liner in cmd/kden/cmd/version; keep the two in sync if the URL changes.
 const updateHint = "To update, re-run: curl -fsSL https://konfidence.cloud/install.sh | sh"
 
-// Column titles reused across list tables (extracted so goconst stays happy
-// once the same title appears in several model funcs).
 const (
 	columnName   = "Name"
 	columnStatus = "Status"
@@ -180,10 +178,6 @@ func vectorDeploymentListModelFunc(data interface{}) *TableData {
 	)
 }
 
-// vectorPromotionConfigListModelFunc flattens the nested config→promotions
-// structure into one row per promotion instance, repeating the parent config id
-// on each row. A config with no promotions still emits a single row (promotion
-// columns blank) so the config stays visible in the table.
 func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
 	list, errData := parseData[*apiclient.VectorPromotionConfigList](data, "vector-promotion-config-list")
 	if errData != nil {
@@ -191,7 +185,6 @@ func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
 	}
 
 	columns := []table.Column{
-		{Title: "Config ID", Width: 40},
 		{Title: "Promotion ID", Width: 40},
 		{Title: "Source", Width: 24},
 		{Title: "Target", Width: 24},
@@ -199,20 +192,22 @@ func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
 		{Title: columnStatus, Width: 16},
 	}
 
-	rows := make([]table.Row, 0)
+	sections := make([]TableSection, 0, len(list.Data))
 	for _, cfg := range list.Data {
-		if len(cfg.Promotions) == 0 {
-			rows = append(rows, table.Row{cfg.Id, "-", cfg.Source.Name, cfg.Target.Name, "-", "-"})
-			continue
-		}
+		rows := make([]table.Row, 0, len(cfg.Promotions))
 		for _, p := range cfg.Promotions {
 			status := "-"
 			if p.Status != nil {
 				status = string(*p.Status)
 			}
-			rows = append(rows, table.Row{cfg.Id, p.Id, p.Source.Name, p.Target.Name, p.Vector, status})
+			rows = append(rows, table.Row{p.Id, p.Source.Name, p.Target.Name, p.Vector, status})
 		}
+		sections = append(sections, TableSection{
+			Heading: fmt.Sprintf("%s (%s → %s)", cfg.Id, cfg.Source.Name, cfg.Target.Name),
+			Columns: columns,
+			Rows:    rows,
+		})
 	}
 
-	return &TableData{Columns: columns, Rows: rows}
+	return &TableData{Sections: sections}
 }
