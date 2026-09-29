@@ -122,7 +122,7 @@ func Configure(cmd *cobra.Command) error {
 	err := k.Load(confmap.Provider(map[string]interface{}{
 		"log-level":       "info",
 		"log-format":      "pretty",
-		"output":          "json",
+		"output":          "pretty",
 		"api-endpoint":    "http://localhost:8090/api",
 		"login-timeout":   "2m",
 		"request-timeout": "30s",

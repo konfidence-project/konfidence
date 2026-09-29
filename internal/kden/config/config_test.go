@@ -15,6 +15,7 @@ import (
 var cmd *cobra.Command
 var configFilePath string
 var jsonLiteral = "json"
+var prettyLiteral = "pretty"
 
 var (
 	fileLogLevel  = "info"
@@ -69,12 +70,12 @@ var _ = BeforeEach(func() {
 
 var _ = Describe("Configure", func() {
 	Context("with default configuration", func() {
-		It("should return log-level 'error', log-format 'pretty', output `json`", func() {
+		It("should return log-level 'info', log-format 'pretty', output 'pretty'", func() {
 			err := Configure(cmd)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(Config.LogLevel).To(Equal("info"))
-			Expect(Config.LogFormat).To(Equal("pretty"))
-			Expect(Config.Output).To(Equal(jsonLiteral))
+			Expect(Config.LogFormat).To(Equal(prettyLiteral))
+			Expect(Config.Output).To(Equal(prettyLiteral))
 		})
 	})
 
@@ -176,8 +177,8 @@ var _ = Describe("Configure", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(Config.LogLevel).To(Equal("info"))
-			Expect(Config.LogFormat).To(Equal("pretty"))
-			Expect(Config.Output).To(Equal(jsonLiteral))
+			Expect(Config.LogFormat).To(Equal(prettyLiteral))
+			Expect(Config.Output).To(Equal(prettyLiteral))
 		})
 	})
 })

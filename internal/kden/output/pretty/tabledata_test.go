@@ -14,10 +14,18 @@ import (
 var _ = Describe("GetModelFuncMap", func() {
 
 	Describe("GetModelFuncMap", func() {
-		It("should contain the validate key", func() {
+		It("contains every command that resolves pretty output", func() {
 			m := pretty.GetModelFuncMap()
 			Expect(m).NotTo(BeNil())
 			Expect(m).To(HaveKey("validate"))
+			Expect(m).To(HaveKey("artifact-deployment-list"))
+			Expect(m).To(HaveKey("project-list"))
+			Expect(m).To(HaveKey("landscape-list"))
+			Expect(m).To(HaveKey("stage-list"))
+			Expect(m).To(HaveKey("vector-deployment-list"))
+			Expect(m).To(HaveKey("vector-promotion-config"))
+			Expect(m).To(HaveKey("vector-promotion-config-list"))
+			Expect(m).To(HaveKey("version"))
 		})
 	})
 
@@ -253,6 +261,97 @@ var _ = Describe("GetModelFuncMap", func() {
 			result := pretty.GetModelFuncMap()["vector-deployment-list"]("not a deployment list")
 
 			Expect(result.Err).To(MatchError(ContainSubstring(fmt.Sprintf("expected %T", (*apiclient.VectorDeploymentList)(nil)))))
+		})
+	})
+
+	Describe("artifact deployment list model function", func() {
+		deploymentList := &apiclient.ArtifactDeploymentList{Data: []apiclient.ArtifactDeployment{
+			{
+				Id:                  "ad-a",
+				LandscapeId:         "landscape-a",
+				Status:              "Ready",
+				StageIds:            []apiclient.StageId{"stage-a", "stage-b"},
+				VectorDeploymentIds: []apiclient.VectorDeploymentId{"vd-a", "vd-b"},
+				Artifact: apiclient.ArtifactReference{
+					ComponentName:    "artifact",
+					ComponentVersion: "1.2.3",
+					Repository:       "repo.example.com/artifacts",
+				},
+			},
+		}}
+
+		It("returns a row per deployment with artifact and relationship fields", func() {
+			result := pretty.GetModelFuncMap()["artifact-deployment-list"](deploymentList)
+
+			d := deploymentList.Data[0]
+			Expect(result.Err).NotTo(HaveOccurred())
+			Expect(result.Columns).To(Equal([]pretty.Column{
+				{Title: pretty.ColumnID, Width: 40},
+				{Title: pretty.ColumnLandscape, Width: 30},
+				{Title: pretty.ColumnStatus, Width: 20},
+				{Title: "Artifact", Width: 40},
+				{Title: "Stages", Width: 40},
+				{Title: "Vector Deployments", Width: 40},
+			}))
+			Expect(result.Rows).To(Equal([]pretty.Row{
+				{d.Id, d.LandscapeId, string(d.Status), "artifact:1.2.3", "stage-a, stage-b", "vd-a, vd-b"},
+			}))
+		})
+
+		It("returns empty rows for an empty list", func() {
+			result := pretty.GetModelFuncMap()["artifact-deployment-list"](&apiclient.ArtifactDeploymentList{})
+
+			Expect(result.Err).NotTo(HaveOccurred())
+			Expect(result.Rows).To(BeEmpty())
+		})
+
+		It("rejects an unexpected response type", func() {
+			result := pretty.GetModelFuncMap()["artifact-deployment-list"]("not a deployment list")
+
+			Expect(result.Err).To(MatchError(ContainSubstring(fmt.Sprintf("expected %T", (*apiclient.ArtifactDeploymentList)(nil)))))
+		})
+	})
+
+	Describe("vector promotion config model function", func() {
+		promoting := apiclient.VectorPromotionStatus("Promoting")
+		config := &apiclient.VectorPromotionConfig{
+			Id:     "cfg-a",
+			Source: apiclient.PromotionSourceReference{Name: "src-a"},
+			Target: apiclient.PromotionTargetReference{Name: "tgt-a"},
+			Promotions: []apiclient.VectorPromotion{
+				{
+					Id:     "promo-1",
+					Source: apiclient.PromotionSourceReference{Name: "psrc-1"},
+					Target: apiclient.PromotionTargetReference{Name: "ptgt-1"},
+					Vector: "1.0.0",
+					Status: &promoting,
+				},
+			},
+		}
+
+		It("returns one section for the config with one row per promotion", func() {
+			result := pretty.GetModelFuncMap()["vector-promotion-config"](config)
+
+			Expect(result.Err).NotTo(HaveOccurred())
+			Expect(result.Sections).To(Equal([]pretty.TableSection{
+				{
+					Heading: "cfg-a (src-a → tgt-a)",
+					Columns: []pretty.Column{
+						{Title: pretty.ColumnID, Width: 40},
+						{Title: "Source", Width: 24},
+						{Title: "Target", Width: 24},
+						{Title: pretty.ColumnVector, Width: 30},
+						{Title: pretty.ColumnStatus, Width: 16},
+					},
+					Rows: []pretty.Row{{"promo-1", "psrc-1", "ptgt-1", "1.0.0", "Promoting"}},
+				},
+			}))
+		})
+
+		It("rejects an unexpected response type", func() {
+			result := pretty.GetModelFuncMap()["vector-promotion-config"]("not a promotion config")
+
+			Expect(result.Err).To(MatchError(ContainSubstring(fmt.Sprintf("expected %T", (*apiclient.VectorPromotionConfig)(nil)))))
 		})
 	})
 
