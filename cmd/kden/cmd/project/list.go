@@ -1,13 +1,10 @@
 package project
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/konfidence-project/konfidence/cmd/kden/cmd/auth"
-	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/output"
 	"github.com/spf13/cobra"
@@ -23,11 +20,7 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 			if err != nil {
 				return fmt.Errorf("failed initializing API client: %w", err)
 			}
-			response, err := auth.RequestWithAuthRetry(cmd.Context(), authClient,
-				func(ctx context.Context) (*apiclient.ListProjectsV1Response, error) {
-					return authClient.KdenApiClient().
-						ListProjectsV1WithResponse(ctx)
-				})
+			response, err := authClient.ListProjectsV1WithResponse(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("listing projects failed: %w", err)
 			}
@@ -44,9 +37,6 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 
 				output.PrintMessage(formatted)
 				return nil
-
-			case http.StatusUnauthorized:
-				return errors.New("api rejected the newly established session")
 
 			default:
 				return fmt.Errorf(

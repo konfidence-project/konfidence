@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -40,9 +41,11 @@ Example usage:
 var appConfig = &cfg.AppConfig{}
 
 var rootCmd = &cobra.Command{
-	Use:   cfg.RootCommandName,
-	Short: "Kden CLI tool for working with Konfidence",
-	Long:  rootCmdDescription,
+	Use:           cfg.RootCommandName,
+	Short:         "Kden CLI tool for working with Konfidence",
+	Long:          rootCmdDescription,
+	SilenceErrors: true,
+	SilenceUsage:  true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		err := cfg.Configure(cmd)
 		if err != nil {
@@ -85,11 +88,23 @@ var rootCmd = &cobra.Command{
 
 		setup.Syscalls(cmd)
 	},
-	SilenceErrors: true,
 }
 
 func executeWith(ctx context.Context) error {
-	return rootCmd.ExecuteContext(ctx)
+	return handleExecutionError(rootCmd.ExecuteContext(ctx))
+}
+
+func handleExecutionError(err error) error {
+	switch {
+	case errors.Is(err, kdenauth.ErrAccessTokenRejected):
+		return errors.New("authentication failed: the configured access token was rejected by the" +
+			" Konfidence API; provide a valid token using --access-token or KDEN_ACCESS_TOKEN")
+	case errors.Is(err, kdenauth.ErrUnauthorized):
+		log.Info("Authentication required. Run 'kden login' to sign in.")
+		return nil
+	default:
+		return err
+	}
 }
 
 func GetRootCommand() *cobra.Command {
