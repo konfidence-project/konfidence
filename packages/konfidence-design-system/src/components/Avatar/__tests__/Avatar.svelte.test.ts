@@ -12,13 +12,13 @@ describe("<Avatar>", () => {
   });
 
   it("renders the initials", async () => {
-    render(AvatarFixture, { initials: "RB" });
+    await render(AvatarFixture, { initials: "RB" });
     const el = document.querySelector<HTMLElement>('[aria-label="Alex Admin"]');
     expect(el?.textContent?.trim()).toBe("RB");
   });
 
   it("adds the orbit class when orbit=true", async () => {
-    render(AvatarFixture, { orbit: true });
+    await render(AvatarFixture, { orbit: true });
     const el = document.querySelector<HTMLElement>(".avatar");
     expect(el?.classList.contains("avatar--orbit")).toBe(true);
   });
@@ -29,7 +29,7 @@ describe("<Avatar>", () => {
         await page.viewport(160, 160);
         document.documentElement.setAttribute("data-theme", "konfidence");
         document.documentElement.setAttribute("data-mode", mode);
-        render(AvatarFixture, { initials: "AK", orbit });
+        await render(AvatarFixture, { initials: "AK", orbit });
         const avatar = document.querySelector<HTMLElement>('[aria-label="Alex Admin"]');
         if (avatar) {
           await expect.element(avatar).toMatchScreenshot();

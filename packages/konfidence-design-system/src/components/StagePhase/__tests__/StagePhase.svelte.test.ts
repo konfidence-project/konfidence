@@ -13,8 +13,8 @@ const DEFAULT_PHASES: StagePhaseItem[] = [
 ];
 
 describe("<StagePhase>", () => {
-  it("renders one segment per phase, in order", () => {
-    render(StagePhaseFixture, { phases: DEFAULT_PHASES });
+  it("renders one segment per phase, in order", async () => {
+    await render(StagePhaseFixture, { phases: DEFAULT_PHASES });
     const segments = document.querySelectorAll(".stage-progress__seg");
     expect(segments.length).toBe(3);
     expect(segments[0].getAttribute("data-state")).toBe("done");
@@ -22,8 +22,8 @@ describe("<StagePhase>", () => {
     expect(segments[2].getAttribute("data-state")).toBe("pending");
   });
 
-  it("applies state-specific modifier classes", () => {
-    render(StagePhaseFixture, {
+  it("applies state-specific modifier classes", async () => {
+    await render(StagePhaseFixture, {
       phases: [
         { label: "one", state: "done" },
         { label: "two", state: "active" },
@@ -38,27 +38,27 @@ describe("<StagePhase>", () => {
     expect(fourth.classList.contains("stage-progress__seg--pending")).toBe(true);
   });
 
-  it("marks the active segment with aria-current=step", () => {
-    render(StagePhaseFixture, { phases: DEFAULT_PHASES });
+  it("marks the active segment with aria-current=step", async () => {
+    await render(StagePhaseFixture, { phases: DEFAULT_PHASES });
     const active = document.querySelector('[aria-current="step"]');
     expect(active).not.toBeNull();
     expect(active?.classList.contains("stage-progress__seg--active")).toBe(true);
   });
 
-  it("hides labels in compact size", () => {
-    render(StagePhaseFixture, { phases: DEFAULT_PHASES, size: "compact" });
+  it("hides labels in compact size", async () => {
+    await render(StagePhaseFixture, { phases: DEFAULT_PHASES, size: "compact" });
     expect(document.querySelector(".stage-progress--compact")).not.toBeNull();
     expect(document.querySelectorAll(".stage-progress__label").length).toBe(0);
   });
 
-  it("shows labels in default and large sizes", () => {
-    render(StagePhaseFixture, { phases: DEFAULT_PHASES, size: "lg" });
+  it("shows labels in default and large sizes", async () => {
+    await render(StagePhaseFixture, { phases: DEFAULT_PHASES, size: "lg" });
     expect(document.querySelector(".stage-progress--lg")).not.toBeNull();
     expect(document.querySelectorAll(".stage-progress__label").length).toBe(3);
   });
 
   it("exposes the strip as a labelled group when ariaLabel is provided", async () => {
-    render(StagePhaseFixture, {
+    await render(StagePhaseFixture, {
       ariaLabel: "Deploying vector",
       phases: DEFAULT_PHASES,
     });
@@ -111,7 +111,7 @@ describe("<StagePhase>", () => {
             await page.viewport(360, 80);
             document.documentElement.setAttribute("data-theme", "konfidence");
             document.documentElement.setAttribute("data-mode", mode);
-            render(StagePhaseFixture, { phases, size });
+            await render(StagePhaseFixture, { phases, size });
             await expect.element(page.getByTestId("stage-phase-root")).toMatchScreenshot();
           });
         }

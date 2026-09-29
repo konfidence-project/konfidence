@@ -50,7 +50,7 @@ const scenarios: Record<string, Stage> = {
 };
 
 it("keeps the active version visible when a new target fails and responds to prop changes", async () => {
-  const rendered = render(LandscapeStageCard, { ...props, stage: scenarios.failed });
+  const rendered = await render(LandscapeStageCard, { ...props, stage: scenarios.failed });
   const link = page.getByRole("link", {
     name: "View details for stage dev-api in Primary, Dev",
   });
@@ -64,7 +64,7 @@ it("keeps the active version visible when a new target fails and responds to pro
 });
 
 it("advances the active phase as the target status progresses", async () => {
-  const rendered = render(LandscapeStageCard, { ...props, stage: scenarios.deploying });
+  const rendered = await render(LandscapeStageCard, { ...props, stage: scenarios.deploying });
   const card = page.getByRole("link").element();
   const activeSeg = () => card.querySelector(".stage-progress__seg--active");
   expect(activeSeg()?.textContent?.trim()).toBe("Deploy");
@@ -79,7 +79,7 @@ it("advances the active phase as the target status progresses", async () => {
 });
 
 it("colours the top stripe from the target status", async () => {
-  const rendered = render(LandscapeStageCard, { ...props, stage: scenarios.deploying });
+  const rendered = await render(LandscapeStageCard, { ...props, stage: scenarios.deploying });
   const link = page.getByRole("link").element() as HTMLElement;
   expect(link.getAttribute("data-status")).toBe("deploying");
   await rendered.rerender({ ...props, stage: scenarios.failed });

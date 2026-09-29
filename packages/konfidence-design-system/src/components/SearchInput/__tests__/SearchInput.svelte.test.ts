@@ -8,19 +8,19 @@ import "../../../../../../apps/konfidence-ui/src/app.css";
 
 describe("<SearchInput>", () => {
   it("renders a searchbox with the default placeholder", async () => {
-    render(SearchInput, { "aria-label": "Search deployments" });
+    await render(SearchInput, { "aria-label": "Search deployments" });
     const box = page.getByRole("searchbox", { name: "Search deployments" });
     await expect.element(box).toBeInTheDocument();
     await expect.element(box).toHaveAttribute("placeholder", "Search\u2026");
   });
 
   it("shows the clear button when a value is present", async () => {
-    render(SearchInput, { "aria-label": "s", value: "hello" });
+    await render(SearchInput, { "aria-label": "s", value: "hello" });
     await expect.element(page.getByTestId("search-clear")).toBeInTheDocument();
   });
 
   it("hides the clear button when the value is empty", async () => {
-    render(SearchInput, { "aria-label": "s" });
+    await render(SearchInput, { "aria-label": "s" });
     await expect.element(page.getByTestId("search-clear")).not.toBeInTheDocument();
   });
 
@@ -37,7 +37,7 @@ describe("<SearchInput>", () => {
           await page.viewport(400, 160);
           document.documentElement.setAttribute("data-theme", "konfidence");
           document.documentElement.setAttribute("data-mode", mode);
-          render(SearchInputFixture, { value });
+          await render(SearchInputFixture, { value });
           await expect
             .element(page.getByRole("searchbox", { name: "Search artifact deployments" }))
             .toMatchScreenshot();

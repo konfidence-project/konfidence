@@ -12,7 +12,7 @@ describe("<IconButton>", () => {
   });
 
   it("renders a button with the icon", async () => {
-    render(IconButtonFixture);
+    await render(IconButtonFixture);
     const btn = page.getByRole("button", { name: "Notifications" });
     await expect.element(btn).toBeInTheDocument();
     await customElements.whenDefined("ui5-icon");
@@ -23,20 +23,20 @@ describe("<IconButton>", () => {
   });
 
   it("renders a badge when provided", async () => {
-    render(IconButtonFixture, { badge: 3 });
+    await render(IconButtonFixture, { badge: 3 });
     const badge = document.querySelector<HTMLElement>(".icon-btn__badge");
     expect(badge?.textContent).toBe("3");
   });
 
   it("clamps large badge values", async () => {
     const OVERFLOW_COUNT = 150;
-    render(IconButtonFixture, { badge: OVERFLOW_COUNT });
+    await render(IconButtonFixture, { badge: OVERFLOW_COUNT });
     const badge = document.querySelector<HTMLElement>(".icon-btn__badge");
     expect(badge?.textContent).toBe("99+");
   });
 
   it("defaults to type=button", async () => {
-    render(IconButtonFixture);
+    await render(IconButtonFixture);
     await expect
       .element(page.getByRole("button", { name: "Notifications" }))
       .toHaveAttribute("type", "button");
@@ -48,7 +48,7 @@ describe("<IconButton>", () => {
         await page.viewport(120, 96);
         document.documentElement.setAttribute("data-theme", "konfidence");
         document.documentElement.setAttribute("data-mode", mode);
-        render(IconButtonFixture, { badge: withBadge ? 3 : undefined });
+        await render(IconButtonFixture, { badge: withBadge ? 3 : undefined });
         await expect
           .element(page.getByRole("button", { name: "Notifications" }))
           .toMatchScreenshot();

@@ -135,7 +135,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vitest-attachments
-          path: apps/konfidence-ui/.vitest-attachments/
+          path: apps/konfidence-ui/.vitest/attachments/
           if-no-files-found: ignore
           retention-days: 7
 

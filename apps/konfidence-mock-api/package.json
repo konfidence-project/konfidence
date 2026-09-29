@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "all": "pnpm verify && pnpm test",
-    "check": "tsgo -p ./tsconfig.json --noEmit",
+    "check": "node ./node_modules/typescript-native/bin/tsc -p ./tsconfig.json --noEmit",
     "dev": "tsx watch src/main.ts",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
@@ -18,17 +18,17 @@
     "@fastify/cookie": "^11.1.2",
     "@fastify/swagger": "^9.8.1",
     "@fastify/swagger-ui": "^6.1.1",
-    "fastify": "^5.12.1",
-    "fastify-openapi-glue": "^4.11.4"
+    "fastify": "^5.12.5",
+    "fastify-openapi-glue": "^4.11.5"
   },
   "devDependencies": {
     "@konfidence/api-client": "workspace:*",
-    "@types/node": "26.4.0",
-    "@typescript/native-preview": "7.0.0-dev.20260707.2",
-    "oxfmt": "^0.65.0",
-    "oxlint": "^1.80.0",
-    "tsx": "4.23.13",
+    "@types/node": "26.6.2",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
+    "tsx": "4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "4.1.11"
+    "typescript-native": "npm:typescript@^7.0.2",
+    "vitest": "5.0.2"
   }
 }

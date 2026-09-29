@@ -7,7 +7,7 @@ import "../../../../../../apps/konfidence-ui/src/app.css";
 
 describe("<Select>", () => {
   it("renders every option passed as children", async () => {
-    render(SelectFixture);
+    await render(SelectFixture);
     const combo = page.getByRole("combobox", { name: "Filter by status" });
     await expect.element(combo).toBeInTheDocument();
     await expect.element(page.getByRole("option", { name: "All statuses" })).toBeInTheDocument();
@@ -16,13 +16,13 @@ describe("<Select>", () => {
   });
 
   it("reflects the bound value", async () => {
-    render(SelectFixture, { value: "deployed" });
+    await render(SelectFixture, { value: "deployed" });
     const combo = page.getByRole("combobox", { name: "Filter by status" });
     await expect.element(combo).toHaveValue("deployed");
   });
 
   it("is disabled when the disabled prop is set", async () => {
-    render(SelectFixture, { disabled: true });
+    await render(SelectFixture, { disabled: true });
     const combo = page.getByRole("combobox", { name: "Filter by status" });
     await expect.element(combo).toBeDisabled();
   });

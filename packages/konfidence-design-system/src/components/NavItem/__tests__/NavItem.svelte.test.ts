@@ -12,35 +12,35 @@ describe("<NavItem>", () => {
   });
 
   it("renders an anchor with the href", async () => {
-    render(NavItemFixture, { href: "/foo", label: "Landscape" });
+    await render(NavItemFixture, { href: "/foo", label: "Landscape" });
     await expect
       .element(page.getByRole("link", { name: "Landscape" }))
       .toHaveAttribute("href", "/foo");
   });
 
   it("applies .nav-item--active and aria-current when active", async () => {
-    render(NavItemFixture, { active: true, label: "Landscape" });
+    await render(NavItemFixture, { active: true, label: "Landscape" });
     const link = document.querySelector<HTMLAnchorElement>("a.nav-item");
     expect(link?.classList.contains("nav-item--active")).toBe(true);
     expect(link?.getAttribute("aria-current")).toBe("page");
   });
 
   it("renders a leading icon when set", async () => {
-    render(NavItemFixture, { icon: "grid", label: "Landscape" });
+    await render(NavItemFixture, { icon: "grid", label: "Landscape" });
     await customElements.whenDefined("ui5-icon");
     const icon = document.querySelector<HTMLElement & { name?: string }>("a.nav-item ui5-icon");
     expect(icon?.name).toBe("grid");
   });
 
   it("renders a trailing badge when set", async () => {
-    render(NavItemFixture, { badge: 3, label: "Promotions" });
+    await render(NavItemFixture, { badge: 3, label: "Promotions" });
     const badge = document.querySelector<HTMLElement>("a.nav-item .nav-item__badge");
     expect(badge?.textContent).toBe("3");
   });
 
   it("clamps large badge values", async () => {
     const OVERFLOW_COUNT = 150;
-    render(NavItemFixture, { badge: OVERFLOW_COUNT, label: "Feed" });
+    await render(NavItemFixture, { badge: OVERFLOW_COUNT, label: "Feed" });
     const badge = document.querySelector<HTMLElement>("a.nav-item .nav-item__badge");
     expect(badge?.textContent).toBe("99+");
   });
@@ -58,7 +58,7 @@ describe("<NavItem>", () => {
             icon: variant === "with-icon" ? ("grid" as const) : undefined,
             label: "Landscape",
           };
-          render(NavItemFixture, props);
+          await render(NavItemFixture, props);
           await expect.element(page.getByRole("link", { name: /Landscape/ })).toMatchScreenshot();
         });
       }

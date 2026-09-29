@@ -7,13 +7,13 @@ import BreadcrumbsFixture from "./BreadcrumbsFixture.svelte";
 import "../../../../../../apps/konfidence-ui/src/app.css";
 
 describe("<Breadcrumbs>", () => {
-  it("renders nothing when items is empty", () => {
-    render(Breadcrumbs, { items: [] });
+  it("renders nothing when items is empty", async () => {
+    await render(Breadcrumbs, { items: [] });
     expect(document.querySelector('[data-testid="breadcrumbs"]')).toBeNull();
   });
 
-  it("renders each item as a link except the last one", () => {
-    render(Breadcrumbs, {
+  it("renders each item as a link except the last one", async () => {
+    await render(Breadcrumbs, {
       items: [
         { href: "/root", label: "Landscapes" },
         { href: "/root/primary", label: "Primary" },
@@ -30,8 +30,8 @@ describe("<Breadcrumbs>", () => {
     expect(current?.getAttribute("aria-current")).toBe("page");
   });
 
-  it("renders intermediate items without href as plain spans", () => {
-    render(Breadcrumbs, {
+  it("renders intermediate items without href as plain spans", async () => {
+    await render(Breadcrumbs, {
       items: [{ href: "/root", label: "Landscapes" }, { label: "Primary" }, { label: "dev-api" }],
     });
     const nav = document.querySelector('[data-testid="breadcrumbs"]');
@@ -40,8 +40,8 @@ describe("<Breadcrumbs>", () => {
     expect(links[0].textContent?.trim()).toBe("Landscapes");
   });
 
-  it("inserts a separator between crumbs", () => {
-    render(Breadcrumbs, {
+  it("inserts a separator between crumbs", async () => {
+    await render(Breadcrumbs, {
       items: [
         { href: "/root", label: "Landscapes" },
         { href: "/root/primary", label: "Primary" },
@@ -56,7 +56,7 @@ describe("<Breadcrumbs>", () => {
   });
 
   it("exposes the trail as a Breadcrumb landmark", async () => {
-    render(Breadcrumbs, { items: [{ label: "Root" }] });
+    await render(Breadcrumbs, { items: [{ label: "Root" }] });
     await expect.element(page.getByRole("navigation", { name: "Breadcrumb" })).toBeVisible();
   });
 
@@ -82,7 +82,7 @@ describe("<Breadcrumbs>", () => {
           await page.viewport(480, 80);
           document.documentElement.setAttribute("data-theme", "konfidence");
           document.documentElement.setAttribute("data-mode", mode);
-          render(BreadcrumbsFixture, { items });
+          await render(BreadcrumbsFixture, { items });
           await expect.element(page.getByTestId("breadcrumbs-root")).toMatchScreenshot();
         });
       }

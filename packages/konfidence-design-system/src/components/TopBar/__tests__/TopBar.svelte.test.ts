@@ -14,14 +14,14 @@ describe("<TopBar>", () => {
   });
 
   it("renders logo, switcher, and actions slots", async () => {
-    render(TopBarFixture);
+    await render(TopBarFixture);
     expect(document.querySelector<HTMLElement>(".topbar__logo")?.textContent).toBe("Konfidence");
     expect(document.querySelector<HTMLElement>('[aria-label="Change project"]')).not.toBeNull();
     expect(document.querySelector<HTMLElement>('[aria-label="User menu"]')).not.toBeNull();
   });
 
   it("hides the hamburger by default", async () => {
-    render(TopBarFixture);
+    await render(TopBarFixture);
     const trigger = document.querySelector<HTMLElement>('[data-testid="drawer-toggle"]');
     expect(trigger).toBeNull();
   });
@@ -29,7 +29,7 @@ describe("<TopBar>", () => {
   it("renders the hamburger and fires the callback on click", async () => {
     const spy = vi.fn();
     // Bypass the test container so we can pass a live callback that's actually invoked.
-    render(TopBar, {
+    await render(TopBar, {
       actions: (() => "actions") as never,
       logo: (() => "logo") as never,
       onHamburger: spy,
@@ -46,7 +46,7 @@ describe("<TopBar>", () => {
         await page.viewport(layout === "desktop" ? 720 : 400, 96);
         document.documentElement.setAttribute("data-theme", "konfidence");
         document.documentElement.setAttribute("data-mode", mode);
-        render(TopBarFixture, { withHamburger: layout === "mobile" });
+        await render(TopBarFixture, { withHamburger: layout === "mobile" });
         await expect.element(page.getByTestId("topbar-root")).toMatchScreenshot();
       });
     }
