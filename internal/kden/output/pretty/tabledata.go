@@ -65,8 +65,11 @@ func mapRows[T any](items []T, mapper func(T) table.Row) []table.Row {
 const updateHint = "To update, re-run: curl -fsSL https://konfidence.cloud/install.sh | sh"
 
 const (
-	columnName   = "Name"
-	columnStatus = "Status"
+	ColumnID        = "ID"
+	ColumnName      = "Name"
+	ColumnStatus    = "Status"
+	ColumnLandscape = "Landscape"
+	ColumnVector    = "Vector"
 )
 
 func versionModelFunc(data interface{}) *TableData {
@@ -111,8 +114,8 @@ func validateModelFunc(data interface{}) *TableData {
 func projectListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.ProjectList](data, "project-list",
 		[]table.Column{
-			{Title: "ID", Width: 40},
-			{Title: columnName, Width: 40},
+			{Title: ColumnID, Width: 40},
+			{Title: ColumnName, Width: 40},
 		},
 		func(list *apiclient.ProjectList) []table.Row {
 			return mapRows(list.Data, func(p apiclient.Project) table.Row {
@@ -125,8 +128,8 @@ func projectListModelFunc(data interface{}) *TableData {
 func landscapeListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.LandscapeList](data, "landscape-list",
 		[]table.Column{
-			{Title: "ID", Width: 40},
-			{Title: columnName, Width: 40},
+			{Title: ColumnID, Width: 40},
+			{Title: ColumnName, Width: 40},
 		},
 		func(list *apiclient.LandscapeList) []table.Row {
 			return mapRows(list.Data, func(l apiclient.Landscape) table.Row {
@@ -139,11 +142,11 @@ func landscapeListModelFunc(data interface{}) *TableData {
 func stageListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.StageList](data, "stage-list",
 		[]table.Column{
-			{Title: "ID", Width: 40},
-			{Title: columnName, Width: 30},
-			{Title: "Landscape", Width: 30},
+			{Title: ColumnID, Width: 40},
+			{Title: ColumnName, Width: 30},
+			{Title: ColumnLandscape, Width: 30},
 			{Title: "Active Version", Width: 40},
-			{Title: columnStatus, Width: 20},
+			{Title: ColumnStatus, Width: 20},
 		},
 		func(list *apiclient.StageList) []table.Row {
 			return mapRows(list.Data, func(s apiclient.Stage) table.Row {
@@ -161,11 +164,11 @@ func stageListModelFunc(data interface{}) *TableData {
 func vectorDeploymentListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.VectorDeploymentList](data, "vector-deployment-list",
 		[]table.Column{
-			{Title: "ID", Width: 40},
+			{Title: ColumnID, Width: 40},
 			{Title: "Stage", Width: 30},
-			{Title: "Landscape", Width: 30},
-			{Title: columnStatus, Width: 20},
-			{Title: "Vector", Width: 40},
+			{Title: ColumnLandscape, Width: 30},
+			{Title: ColumnStatus, Width: 20},
+			{Title: ColumnVector, Width: 40},
 		},
 		func(list *apiclient.VectorDeploymentList) []table.Row {
 			return mapRows(list.Data, func(d apiclient.VectorDeployment) table.Row {
@@ -185,11 +188,11 @@ func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
 	}
 
 	columns := []table.Column{
-		{Title: "Promotion ID", Width: 40},
+		{Title: ColumnID, Width: 40},
 		{Title: "Source", Width: 24},
 		{Title: "Target", Width: 24},
-		{Title: "Vector", Width: 30},
-		{Title: columnStatus, Width: 16},
+		{Title: ColumnVector, Width: 30},
+		{Title: ColumnStatus, Width: 16},
 	}
 
 	sections := make([]TableSection, 0, len(list.Data))

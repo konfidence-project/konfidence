@@ -12,11 +12,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const (
-	colName   = "Name"
-	colStatus = "Status"
-)
-
 var _ = Describe("GetModelFuncMap", func() {
 
 	Describe("GetModelFuncMap", func() {
@@ -119,8 +114,8 @@ var _ = Describe("GetModelFuncMap", func() {
 
 			Expect(result.Err).NotTo(HaveOccurred())
 			Expect(result.Columns).To(Equal([]table.Column{
-				{Title: "ID", Width: 40},
-				{Title: colName, Width: 40},
+				{Title: pretty.ColumnID, Width: 40},
+				{Title: pretty.ColumnName, Width: 40},
 			}))
 			Expect(result.Rows).To(Equal([]table.Row{
 				{projectList.Data[0].Id, projectList.Data[0].Name},
@@ -154,8 +149,8 @@ var _ = Describe("GetModelFuncMap", func() {
 
 			Expect(result.Err).NotTo(HaveOccurred())
 			Expect(result.Columns).To(Equal([]table.Column{
-				{Title: "ID", Width: 40},
-				{Title: colName, Width: 40},
+				{Title: pretty.ColumnID, Width: 40},
+				{Title: pretty.ColumnName, Width: 40},
 			}))
 			Expect(result.Rows).To(Equal([]table.Row{
 				{landscapeList.Data[0].Id, landscapeList.Data[0].Name},
@@ -189,11 +184,11 @@ var _ = Describe("GetModelFuncMap", func() {
 
 			Expect(result.Err).NotTo(HaveOccurred())
 			Expect(result.Columns).To(Equal([]table.Column{
-				{Title: "ID", Width: 40},
-				{Title: colName, Width: 30},
-				{Title: "Landscape", Width: 30},
+				{Title: pretty.ColumnID, Width: 40},
+				{Title: pretty.ColumnName, Width: 30},
+				{Title: pretty.ColumnLandscape, Width: 30},
 				{Title: "Active Version", Width: 40},
-				{Title: colStatus, Width: 20},
+				{Title: pretty.ColumnStatus, Width: 20},
 			}))
 			Expect(result.Rows).To(Equal([]table.Row{
 				{stageList.Data[0].Id, stageList.Data[0].Name, stageList.Data[0].LandscapeId, activeVersion.Id, string(activeVersion.Status)},
@@ -237,11 +232,11 @@ var _ = Describe("GetModelFuncMap", func() {
 			d := deploymentList.Data[0]
 			Expect(result.Err).NotTo(HaveOccurred())
 			Expect(result.Columns).To(Equal([]table.Column{
-				{Title: "ID", Width: 40},
+				{Title: pretty.ColumnID, Width: 40},
 				{Title: "Stage", Width: 30},
-				{Title: "Landscape", Width: 30},
-				{Title: colStatus, Width: 20},
-				{Title: "Vector", Width: 40},
+				{Title: pretty.ColumnLandscape, Width: 30},
+				{Title: pretty.ColumnStatus, Width: 20},
+				{Title: pretty.ColumnVector, Width: 40},
 			}))
 			Expect(result.Rows).To(Equal([]table.Row{
 				{d.Id, d.StageId, d.LandscapeId, string(d.Status), fmt.Sprintf("%s:%s", d.Vector.ComponentName, d.Vector.ComponentVersion)},
@@ -299,11 +294,11 @@ var _ = Describe("GetModelFuncMap", func() {
 			p1, p2 := cfgA.Promotions[0], cfgA.Promotions[1]
 			cfgB := configList.Data[1]
 			promotionColumns := []table.Column{
-				{Title: "Promotion ID", Width: 40},
+				{Title: pretty.ColumnID, Width: 40},
 				{Title: "Source", Width: 24},
 				{Title: "Target", Width: 24},
-				{Title: "Vector", Width: 30},
-				{Title: colStatus, Width: 16},
+				{Title: pretty.ColumnVector, Width: 30},
+				{Title: pretty.ColumnStatus, Width: 16},
 			}
 
 			Expect(result.Err).NotTo(HaveOccurred())
