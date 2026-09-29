@@ -4,7 +4,7 @@
         OrbitLoader,
         PageHeader,
     } from "@konfidence/design-system/components";
-    import type { Landscape, Stage } from "$lib/konfidence-api/types";
+    import type { Landscape, Stage, VectorPromotionConfig } from "$lib/konfidence-api/types";
     import LandscapeFlow from "$lib/landscape/components/LandscapeFlow.svelte";
 
     interface Props {
@@ -12,6 +12,7 @@
         status: "loading" | "ready" | "error";
         landscapes: readonly Landscape[];
         stages: readonly Stage[];
+        promotionConfigs: readonly VectorPromotionConfig[];
         projectId: string;
         embedded: boolean;
         onRetry: () => void;
@@ -21,6 +22,7 @@
         status,
         landscapes,
         stages,
+        promotionConfigs,
         projectId,
         embedded,
         onRetry,
@@ -36,7 +38,7 @@
     <div class="px-6 pt-6">
         <PageHeader
             id="landscape-title"
-            title="Landscapes"
+            title="Landscape"
         />
     </div>
     {#if status === "loading"}
@@ -52,7 +54,7 @@
             <p>{error}</p>
             <Button onclick={onRetry}>Retry</Button>
         </div>
-    {:else if landscapes.length === 0 && stages.length === 0}
+    {:else if landscapes.length === 0}
         <div
             class="place-self-center p-6 text-center text-content-secondary"
         >
@@ -60,6 +62,12 @@
             <p>This project has no landscapes or stages to display.</p>
         </div>
     {:else}
-        <LandscapeFlow {landscapes} {stages} {projectId} {embedded} />
+        <LandscapeFlow
+            {landscapes}
+            {stages}
+            {promotionConfigs}
+            {projectId}
+            {embedded}
+        />
     {/if}
 </section>

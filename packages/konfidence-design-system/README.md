@@ -101,6 +101,7 @@ manage mode or storage itself.
 | `SidePanel`                                          | Tailwind utilities                               | Right-anchored detail drawer built on native `<dialog>` (focus trap + `Esc` close).                                              |
 | `StatusBadge`                                        | `.badge`, `.badge--<status>`                     | Passes `status` through to the class list; the API owns the vocabulary.                                                          |
 | `Table` + `TableRow`, `TableCell`, `TableHeaderCell` | Tailwind utilities                               | Scrollable, sticky-header data-table primitives; `TableRow` accepts an `onselect` callback for click / Enter / Space activation. |
+| `StageCard` + `StageCardPlaceholder`                 | (Tailwind arbitrary-value utilities)             | Fixed-height promotion-graph card; `StageCardPlaceholder` is its dashed empty counterpart (title + optional eyebrow + message).  |
 
 ```svelte
 <script lang="ts">
