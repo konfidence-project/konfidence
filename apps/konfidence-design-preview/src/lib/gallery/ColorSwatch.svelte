@@ -16,29 +16,15 @@
     let { name, value, label, translucent = false }: Props = $props();
 </script>
 
-<div class="swatch" class:swatch--translucent={translucent}>
-    <div class="swatch__chip" style:background={value}></div>
-    <div class="swatch__meta">
-        <span class="swatch__label">{label ?? name}</span>
-        <code class="swatch__code">{name}</code>
+<div class={["swatch flex min-w-[100px] flex-col gap-1.5", translucent && "swatch--translucent"]}>
+    <div class="swatch__chip aspect-[3/2] rounded-lg border border-outline-subtle shadow-elevation-xs" style:background={value}></div>
+    <div class="swatch__meta flex flex-col gap-0.5">
+        <span class="swatch__label text-meta font-ui-semibold text-content-primary">{label ?? name}</span>
+        <code class="swatch__code font-ui-mono text-[11px] text-content-tertiary [overflow-wrap:anywhere]">{name}</code>
     </div>
 </div>
 
 <style>
-    .swatch {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 100px;
-    }
-
-    .swatch__chip {
-        aspect-ratio: 3 / 2;
-        border-radius: 8px;
-        border: 1px solid var(--border-subtle);
-        box-shadow: var(--shadow-xs);
-    }
-
     .swatch--translucent .swatch__chip {
         background-color: transparent;
         background-image:
@@ -54,22 +40,4 @@
             -6px 0;
     }
 
-    .swatch__meta {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    .swatch__label {
-        font-size: var(--text-meta);
-        font-weight: var(--weight-semibold, 600);
-        color: var(--text-primary);
-    }
-
-    .swatch__code {
-        font-family: var(--font-mono);
-        font-size: 11px;
-        color: var(--text-tertiary, var(--text-secondary));
-        overflow-wrap: anywhere;
-    }
 </style>

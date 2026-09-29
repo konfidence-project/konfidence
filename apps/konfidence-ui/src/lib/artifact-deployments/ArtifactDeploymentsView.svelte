@@ -70,7 +70,7 @@
     );
 
     const labelTextClass =
-        "text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]";
+        "text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary";
 </script>
 
 <section
@@ -84,7 +84,7 @@
 
     {#if hasLoaded && !error}
         <div
-            class="flex flex-wrap items-end gap-3 rounded-[var(--card-radius)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-subtle)] px-4 py-3"
+            class="flex flex-wrap items-end gap-3 rounded-[var(--card-radius)] border border-outline-subtle bg-surface-subtle px-4 py-3"
             data-testid="artifact-view-filters"
         >
             <div class="flex min-w-[16rem] grow-[2] basis-[20rem] flex-col gap-1">
@@ -146,7 +146,7 @@
                 <button
                     type="button"
                     class={[
-                        "cursor-pointer border border-transparent bg-transparent px-1.5 py-2 text-[length:var(--text-sm)] leading-[1.4] text-[color:var(--text-link,var(--btn-primary-fg))] underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none",
+                        "cursor-pointer border border-transparent bg-transparent px-1.5 py-2 text-ui-sm leading-[1.4] text-content-link underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none",
                         !filters.anyFiltersActive && "invisible pointer-events-none",
                     ]}
                     onclick={filters.clearFilters}
@@ -205,7 +205,7 @@
     {:else}
         <div class="flex flex-col gap-2">
             <p
-                class="m-0 text-[length:var(--text-sm)] text-[color:var(--text-tertiary)]"
+                class="m-0 text-ui-sm text-content-tertiary"
                 aria-live="polite"
                 data-testid="artifact-view-count"
             >
@@ -213,14 +213,14 @@
             </p>
             {#if filters.visibleRows.length === 0}
                 <div
-                    class="flex flex-col items-center gap-2 rounded-[var(--card-radius)] border border-dashed border-[color:var(--border-default)] px-6 py-12 text-center text-[color:var(--text-secondary)]"
+                    class="flex flex-col items-center gap-2 rounded-[var(--card-radius)] border border-dashed border-outline-default px-6 py-12 text-center text-content-secondary"
                     role="status"
                     data-testid="artifact-table-no-results"
                 >
                     <p class="m-0">No artifact deployments match the current filters.</p>
                     <button
                         type="button"
-                        class="cursor-pointer border-0 bg-transparent text-[color:var(--text-link,var(--btn-primary-fg))] underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+                        class="cursor-pointer border-0 bg-transparent text-content-link underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
                         onclick={filters.clearFilters}
                     >
                         Clear filters

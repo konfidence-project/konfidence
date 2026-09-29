@@ -37,51 +37,13 @@
     subtitle="Curated SAP-Icons v5 subset (Apache-2.0), rendered on demand via the `<ui5-icon>` web component (no DS-level wrapper)."
     status="implemented"
 >
-    <p class="count">{ICON_NAMES.length} icons in the curated subset</p>
-    <div class="grid">
+    <p class="count mb-3 text-meta text-content-secondary">{ICON_NAMES.length} icons in the curated subset</p>
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">
         {#each ICON_NAMES as name (name)}
-            <div class="cell">
+            <div class="cell flex flex-col items-center gap-1.5 rounded-lg border border-outline-subtle bg-surface-default px-2 py-2.5 [&_code]:text-center [&_code]:font-ui-mono [&_code]:text-[11px] [&_code]:text-content-tertiary [&_ui5-icon.icon]:size-6 [&_ui5-icon.icon]:text-content-primary">
                 <ui5-icon class="icon" {name}></ui5-icon>
                 <code>{name}</code>
             </div>
         {/each}
     </div>
 </Section>
-
-<style>
-    .count {
-        margin: 0 0 12px;
-        font-size: var(--text-meta);
-        color: var(--text-secondary);
-    }
-
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 12px;
-    }
-
-    .cell {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        padding: 10px 8px;
-        border: 1px solid var(--border-subtle);
-        border-radius: 8px;
-        background: var(--surface-default);
-    }
-
-    .cell :global(ui5-icon.icon) {
-        width: 24px;
-        height: 24px;
-        color: var(--text-primary);
-    }
-
-    .cell code {
-        font-family: var(--font-mono);
-        font-size: 11px;
-        color: var(--text-tertiary, var(--text-secondary));
-        text-align: center;
-    }
-</style>

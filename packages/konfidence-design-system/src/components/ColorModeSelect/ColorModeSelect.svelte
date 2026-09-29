@@ -44,7 +44,7 @@
                         value={option.value}
                         checked={value === option.value}
                         onCheckedChange={(checked) => { if (checked) onValueChange(option.value); }}
-                        class="menu__item flex w-full cursor-pointer items-center gap-2.5 rounded-[var(--radius-sm)] border-none bg-transparent px-2.5 py-2 text-left text-[length:var(--text-sm)] text-[var(--text-primary)] hover:bg-[var(--surface-sunken)] data-highlighted:bg-[var(--surface-sunken)] aria-checked:bg-[var(--selection-bg)] aria-checked:text-[var(--selection-fg)]"
+                        class="menu__item flex w-full cursor-pointer items-center gap-2.5 rounded-[var(--radius-sm)] border-none bg-transparent px-2.5 py-2 text-left text-ui-sm text-content-primary hover:bg-surface-sunken data-highlighted:bg-surface-sunken aria-checked:bg-selection-bg aria-checked:text-selection-fg"
                     >
                         <ui5-icon class="size-4 text-current" name={option.icon}></ui5-icon>
                         {option.label}

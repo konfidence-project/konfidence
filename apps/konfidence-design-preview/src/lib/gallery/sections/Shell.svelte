@@ -68,12 +68,12 @@
     subtitle="AppShell + TopBar + Sidebar (from #893). Project switcher, user menu, and sidebar navigation are wired up with dummy data — try clicking around."
     status="implemented"
 >
-    <div class="shell-frame">
+    <div class="shell-frame min-h-[480px] max-h-[640px] resize-y overflow-hidden rounded-xl border border-outline-subtle">
         <AppShell>
             {#snippet topbar({ toggleDrawer }: { toggleDrawer: () => void })}
                 <TopBar onHamburger={toggleDrawer}>
                     {#snippet logo()}
-                        <span class="shell-logo">Konfidence</span>
+                        <span class="shell-logo inline-flex items-center font-ui-bold tracking-[-0.02em] text-content-primary">Konfidence</span>
                     {/snippet}
                     {#snippet switcher()}
                         <Menu
@@ -178,79 +178,21 @@
             {/snippet}
 
             {#snippet main()}
-                <section class="shell-main">
-                    <p class="shell-main__eyebrow">
+                <section class="shell-main px-7 py-8">
+                    <p class="shell-main__eyebrow mb-1 text-meta font-ui-semibold tracking-[0.06em] text-content-tertiary uppercase">
                         {selectedProject.name} · {selectedNav.label}
                     </p>
-                    <h1 class="shell-main__title">{selectedNav.label}</h1>
-                    <p class="shell-main__lead">
+                    <h1 class="shell-main__title mb-2 text-ui-h1 font-ui-display tracking-[-0.5px] text-content-primary">{selectedNav.label}</h1>
+                    <p class="shell-main__lead m-0 max-w-[640px] text-ui-sm text-content-secondary">
                         Live application shell — real routing intent, real drawer behavior, real
                         design-system components. Pick a project in the topbar switcher, tap a
                         nav item, or open the user menu on the right.
                     </p>
                     {#if userMenuLog}
-                        <p class="shell-main__log">{userMenuLog}</p>
+                        <p class="shell-main__log mt-3 rounded-lg border border-dashed border-outline-subtle bg-surface-subtle px-3 py-2 font-ui-mono text-meta text-content-primary">{userMenuLog}</p>
                     {/if}
                 </section>
             {/snippet}
         </AppShell>
     </div>
 </Section>
-
-<style>
-    .shell-frame {
-        border: 1px solid var(--border-subtle);
-        border-radius: 12px;
-        overflow: hidden;
-        min-height: 480px;
-        max-height: 640px;
-        resize: vertical;
-    }
-
-    .shell-logo {
-        display: inline-flex;
-        align-items: center;
-        font-weight: var(--weight-bold, 700);
-        color: var(--text-primary);
-        letter-spacing: -0.02em;
-    }
-
-    .shell-main {
-        padding: 32px 28px;
-    }
-
-    .shell-main__eyebrow {
-        margin: 0 0 4px;
-        font-size: var(--text-meta);
-        font-weight: var(--weight-semibold, 600);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--text-tertiary, var(--text-secondary));
-    }
-
-    .shell-main__title {
-        margin: 0 0 8px;
-        font-size: var(--text-h1);
-        font-weight: var(--weight-display, 600);
-        color: var(--text-primary);
-        letter-spacing: -0.5px;
-    }
-
-    .shell-main__lead {
-        margin: 0;
-        color: var(--text-secondary);
-        max-width: 640px;
-        font-size: var(--text-sm);
-    }
-
-    .shell-main__log {
-        margin: 12px 0 0;
-        padding: 8px 12px;
-        border: 1px dashed var(--border-subtle);
-        border-radius: 8px;
-        background: var(--surface-subtle);
-        color: var(--text-primary);
-        font-family: var(--font-mono);
-        font-size: var(--text-meta);
-    }
-</style>

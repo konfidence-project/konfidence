@@ -16,14 +16,14 @@
     subtitle="Real <PageHeader> from @konfidence/design-system — title, optional description, optional eyebrow (breadcrumbs, back link), optional right-aligned actions. Higher-density object headers with KPIs still pending."
     status="partial"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample title="Title only">
-            <PageHeader class="page-header-demo" title="Projects" />
+            <PageHeader class="page-header-demo w-full" title="Projects" />
         </Sample>
 
         <Sample title="Title + description">
             <PageHeader
-                class="page-header-demo"
+                class="page-header-demo w-full"
                 title="Artifact deployments"
                 description="Inspect the artifact deployments backing this project's vectors, stages, and landscapes."
             />
@@ -33,7 +33,7 @@
             title="With eyebrow (breadcrumbs)"
             description="Eyebrow slot renders above the title — typically breadcrumbs or a back link."
         >
-            <PageHeader class="page-header-demo" title="checkout">
+            <PageHeader class="page-header-demo w-full" title="checkout">
                 {#snippet eyebrow()}
                     <Breadcrumbs
                         items={[
@@ -50,7 +50,7 @@
             description="Actions slot renders right-aligned on the title row; wraps to a new row on narrow viewports."
         >
             <PageHeader
-                class="page-header-demo"
+                class="page-header-demo w-full"
                 title="Landscapes"
                 description="Every landscape the current project can deploy into."
             >
@@ -63,7 +63,7 @@
 
         <Sample title="All slots">
             <PageHeader
-                class="page-header-demo"
+                class="page-header-demo w-full"
                 title="prod"
                 description="EU · 3 stages · deployed 12m ago"
             >
@@ -91,20 +91,3 @@
         />
     </div>
 </Section>
-
-<style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    /*
-     * The <Sample> body wraps children with `flex-wrap` and `align-items: center`;
-     * a full-width PageHeader wants block-level flow instead so the title spans
-     * the sample and the actions cluster stays on the right.
-     */
-    :global(.page-header-demo) {
-        width: 100%;
-    }
-</style>

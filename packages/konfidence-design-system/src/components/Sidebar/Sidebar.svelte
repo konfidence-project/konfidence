@@ -22,7 +22,7 @@
 </script>
 
 <nav
-    class="sidebar flex flex-col border-r border-[var(--border-subtle)] bg-[var(--surface-default)] py-4 px-3"
+    class="sidebar flex flex-col border-r border-outline-subtle bg-surface-default py-4 px-3"
     aria-label="Primary"
 >
     {#if mobileSwitcher}
@@ -31,7 +31,7 @@
     {@render children()}
     {#if footer}
         <div
-            class="sidebar__footer mt-auto flex items-center gap-2 border-t border-[var(--border-subtle)] p-3 text-[length:var(--text-meta)] text-[var(--text-tertiary)]"
+            class="sidebar__footer mt-auto flex items-center gap-2 border-t border-outline-subtle p-3 text-meta text-content-tertiary"
         >{@render footer()}</div>
     {/if}
 </nav>

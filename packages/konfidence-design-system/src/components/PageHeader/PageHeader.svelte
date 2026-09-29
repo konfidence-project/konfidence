@@ -55,14 +55,14 @@
         <div class="min-w-0">
             <h1
                 {id}
-                class="m-0 text-[length:var(--text-h1)] font-[weight:var(--weight-display)] tracking-[var(--tracking-h1)] leading-tight text-[color:var(--text-primary)] [overflow-wrap:anywhere]"
+                class="m-0 text-ui-h1 font-ui-display tracking-[var(--tracking-h1)] leading-tight text-content-primary [overflow-wrap:anywhere]"
                 data-testid="page-heading"
             >
                 {title}
             </h1>
             {#if description}
                 <p
-                    class="m-0 mt-0.5 text-[length:var(--text-sm)] text-[color:var(--text-secondary)]"
+                    class="m-0 mt-0.5 text-ui-sm text-content-secondary"
                 >
                     {description}
                 </p>

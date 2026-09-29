@@ -29,12 +29,6 @@
         ...rest
     }: Props = $props();
 
-    const composedClass = $derived(
-        className
-            ? `icon-btn relative flex size-9 cursor-pointer items-center justify-center rounded-[var(--radius-md)] border border-transparent bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--motion-fast)] ease-[cubic-bezier(var(--ease))] hover:bg-[var(--surface-sunken)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] ${className}`
-            : "icon-btn relative flex size-9 cursor-pointer items-center justify-center rounded-[var(--radius-md)] border border-transparent bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--motion-fast)] ease-[cubic-bezier(var(--ease))] hover:bg-[var(--surface-sunken)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]",
-    );
-
     const BADGE_MAX = 99;
     const badgeLabel = $derived.by((): string | undefined => {
         if (badge === undefined) {
@@ -44,11 +38,11 @@
     });
 </script>
 
-<button class={composedClass} {type} aria-label={ariaLabel} {...rest}>
+<button class={["icon-btn relative flex size-9 cursor-pointer items-center justify-center rounded-control border border-transparent bg-transparent text-content-secondary transition-colors duration-[var(--motion-fast)] ease-[cubic-bezier(var(--ease))] hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-outline-focus", className]} {type} aria-label={ariaLabel} {...rest}>
     <ui5-icon class="size-5 text-current" name={icon}></ui5-icon>
     {#if badgeLabel !== undefined}
         <span
-            class="icon-btn__badge absolute top-[3px] right-[3px] flex h-4 min-w-4 items-center justify-center rounded-[var(--radius-pill)] border-2 border-[var(--surface-default)] bg-[var(--status-error-solid)] px-1 text-[10px] font-bold text-white"
+            class="icon-btn__badge absolute top-[3px] right-[3px] flex h-4 min-w-4 items-center justify-center rounded-pill-ui border-2 border-surface-default bg-status-error-solid px-1 text-[10px] font-bold text-white"
         >{badgeLabel}</span>
     {/if}
 </button>

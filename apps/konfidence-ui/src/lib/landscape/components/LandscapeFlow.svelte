@@ -84,7 +84,7 @@
 
 <div
     bind:clientWidth={canvasWidth}
-    class="h-full min-h-0 min-w-0 bg-[var(--surface-canvas)] [&_.svelte-flow]:[--xy-background-color:var(--surface-canvas)] [&_.svelte-flow]:[--xy-controls-button-background-color:var(--surface-default)] [&_.svelte-flow]:[--xy-controls-button-color:var(--text-primary)] [&_.svelte-flow]:[--xy-controls-button-border-color:var(--border-subtle)]"
+    class="h-full min-h-0 min-w-0 bg-surface-canvas [&_.svelte-flow]:[--xy-background-color:var(--surface-canvas)] [&_.svelte-flow]:[--xy-controls-button-background-color:var(--surface-default)] [&_.svelte-flow]:[--xy-controls-button-color:var(--text-primary)] [&_.svelte-flow]:[--xy-controls-button-border-color:var(--border-subtle)]"
     data-testid="landscape-flow"
 >
     {#if canvasWidth > 0}

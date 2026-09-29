@@ -13,9 +13,9 @@
     subtitle="Real <EmptyState> from @konfidence/design-system (all three tones). Toasts and skeleton loaders are still on the roadmap."
     status="partial"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample title="EmptyState — empty tone" description="Neutral, `role='status'`, polite live region.">
-            <div class="tone-frame">
+            <div class="tone-frame w-full rounded-[10px] border border-outline-subtle bg-surface-subtle">
                 <EmptyState
                     title="No artifact deployments"
                     description="Once artifacts are promoted through the pipeline they will show up here."
@@ -31,7 +31,7 @@
         </Sample>
 
         <Sample title="EmptyState — info tone">
-            <div class="tone-frame">
+            <div class="tone-frame w-full rounded-[10px] border border-outline-subtle bg-surface-subtle">
                 <EmptyState
                     tone="info"
                     title="Nothing matches those filters"
@@ -45,7 +45,7 @@
         </Sample>
 
         <Sample title="EmptyState — error tone" description="Uses `role='alert'` + assertive live region.">
-            <div class="tone-frame">
+            <div class="tone-frame w-full rounded-[10px] border border-outline-subtle bg-surface-subtle">
                 <EmptyState
                     tone="error"
                     title="Failed to load deployments"
@@ -67,18 +67,3 @@
         />
     </div>
 </Section>
-
-<style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .tone-frame {
-        width: 100%;
-        border: 1px solid var(--border-subtle);
-        border-radius: 10px;
-        background: var(--surface-subtle);
-    }
-</style>

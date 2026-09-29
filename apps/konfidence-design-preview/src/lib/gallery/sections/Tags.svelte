@@ -10,10 +10,10 @@
     subtitle="Twelve accessible tag palettes. Each color also carries a distinct icon (double-coding) in the reference design."
     status="placeholder"
 >
-    <div class="preview">
+    <div class="preview mb-4 flex flex-wrap gap-2">
         {#each TAG_COLORS as color (color)}
             <span
-                class="tag"
+                class="tag inline-flex items-center rounded-full border border-transparent px-2.5 py-[3px] text-meta font-ui-semibold capitalize"
                 style:background="var(--tag-{color}-bg, var(--surface-subtle))"
                 style:color="var(--tag-{color}-fg, var(--text-secondary))"
                 style:border-color="var(--tag-{color}-bd, var(--border-subtle))"
@@ -28,23 +28,3 @@
         planned={["<Tag color size icon>", "<MetaTag>", "Tag double-coding (icon + color)"]}
     />
 </Section>
-
-<style>
-    .preview {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 16px;
-    }
-
-    .tag {
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 10px;
-        border-radius: 999px;
-        border: 1px solid transparent;
-        font-size: var(--text-meta);
-        font-weight: var(--weight-semibold, 600);
-        text-transform: capitalize;
-    }
-</style>

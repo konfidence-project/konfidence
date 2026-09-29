@@ -3,14 +3,12 @@
  *
  * Consumers import this once (typically from their app's `app.css`) AFTER
  * Tailwind and Skeleton have been imported. The order below is deliberate:
- * design tokens first, Skeleton theme override next. Component-specific CSS
- * (the `.btn`, `.badge`, `.avatar`, `.nav-item`, `.menu*`, `.app-shell*`, …
- * rules that used to live in a shared `konfidence.custom.css`) now lives in
- * each component's own scoped <style> block, colocated with the markup it
- * styles.
+ * design tokens first, semantic Tailwind utilities next, Skeleton theme last.
+ * Components use utilities with small scoped CSS blocks for complex styling.
  */
 
 @import "./tokens.css";
+@import "./konfidence.theme.css";
 @import "./konfidence.skeleton.css";
 
 html,

@@ -11,13 +11,9 @@
     }
 
     let { more, children, class: className }: Props = $props();
-
-    const composedClass = $derived(
-        className ? `avatar-group inline-flex ${className}` : "avatar-group inline-flex",
-    );
 </script>
 
-<div class={composedClass}>
+<div class={["avatar-group inline-flex", className]}>
     {@render children()}
     {#if more}
         <span class="avatar-group__more">{@render more()}</span>

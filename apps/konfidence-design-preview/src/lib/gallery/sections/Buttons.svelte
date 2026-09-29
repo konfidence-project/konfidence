@@ -10,7 +10,7 @@
     subtitle="Real <Button> and <IconButton> components from @konfidence/design-system."
     status="implemented"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample title="Variants" description="Primary should appear at most once per screen.">
             <Button variant="primary">Primary</Button>
             <Button variant="secondary">Secondary</Button>
@@ -54,11 +54,3 @@
         </Sample>
     </div>
 </Section>
-
-<style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-</style>
