@@ -5,6 +5,7 @@
 
     interface Props {
         title: string;
+        landscapeName?: string;
         href: string;
         ariaLabel: string;
         statusRole: StageCardStatusRole;
@@ -18,6 +19,7 @@
 
     let {
         title,
+        landscapeName,
         href,
         ariaLabel,
         statusRole,
@@ -56,12 +58,22 @@
     ></span>
 
     <header class="flex items-baseline gap-3">
-        <h4
-            class="m-0 truncate text-[length:var(--text-body)] font-bold"
-            {title}
-        >
-            {title}
-        </h4>
+        <div class="flex min-w-0 flex-col gap-0.5">
+            {#if landscapeName}
+                <span
+                    class="truncate text-[length:var(--text-meta)] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"
+                    title={landscapeName}
+                >
+                    {landscapeName}
+                </span>
+            {/if}
+            <h4
+                class="m-0 truncate text-[length:var(--text-body)] font-bold"
+                {title}
+            >
+                {title}
+            </h4>
+        </div>
         {#if live}
             <span
                 class="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[length:var(--text-meta)] font-semibold text-[var(--status-healthy-fg)]"
