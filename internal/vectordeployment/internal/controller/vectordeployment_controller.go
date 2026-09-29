@@ -314,6 +314,20 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			log.Info("ArtifactDeployment found, update existing one", "name", deploymentName)
 		}
 
+		labelsChanged := false
+		if artifactDeployment.Labels == nil {
+			artifactDeployment.Labels = make(map[string]string)
+		}
+		for key, value := range map[string]string{
+			pkgctrl.LandscapeNameLabel:        landscapeName,
+			pkgctrl.VectorDeploymentNameLabel: vectorDeployment.Name,
+		} {
+			if artifactDeployment.Labels[key] != value {
+				artifactDeployment.Labels[key] = value
+				labelsChanged = true
+			}
+		}
+
 		var ownerRef *metav1.OwnerReference = nil
 		for _, ref := range artifactDeployment.OwnerReferences {
 			if ref.UID == vectorDeployment.UID {
@@ -328,14 +342,16 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				return false, fmt.Errorf("unable to add vectorDeployment owner reference to artifactDeployment: %w", err)
 			}
 
+		} else {
+			log.Info("ArtifactDeployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", artifactDeployment.Name)
+		}
+		if ownerRef == nil || labelsChanged {
 			if err := r.Update(ctx, artifactDeployment); err != nil {
-				return false, fmt.Errorf("failed to set owner reference for ArtifactDeployment %q: %w", artifactDeployment.Name, err)
+				return false, fmt.Errorf("failed to update metadata for ArtifactDeployment %q: %w", artifactDeployment.Name, err)
 			}
 			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal,
 				"ArtifactDeploymentUpdated", "ArtifactDeploymentUpdated",
-				fmt.Sprintf("Updated owner reference for ArtifactDeployment %s", artifactDeployment.Name))
-		} else {
-			log.Info("ArtifactDeployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", artifactDeployment.Name)
+				fmt.Sprintf("Updated metadata for ArtifactDeployment %s", artifactDeployment.Name))
 		}
 
 		// Update the artifact deployment to the status map of the VectorDeployment. Carry the collision salt
@@ -445,6 +461,11 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(
 		} else {
 			log.Info("VectorAssignment found, update existing one", "name", assignmentName)
 		}
+		if vectorAssignment.Labels == nil {
+			vectorAssignment.Labels = make(map[string]string)
+		}
+		labelsChanged := vectorAssignment.Labels[pkgctrl.ArtifactReferenceLabel] != artifactDeployment.Name
+		vectorAssignment.Labels[pkgctrl.ArtifactReferenceLabel] = artifactDeployment.Name
 
 		var ownerRef *metav1.OwnerReference = nil
 		for _, ref := range vectorAssignment.OwnerReferences {
@@ -460,14 +481,16 @@ func (r *VectorDeploymentReconciler) handleVectorAssignments(
 				return false, fmt.Errorf("unable to add vectorDeployment owner reference to vectorAssignment: %w", err)
 			}
 
+		} else {
+			log.Info("Vector deployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", vectorAssignment.Name)
+		}
+		if ownerRef == nil || labelsChanged {
 			if err := r.Update(ctx, vectorAssignment); err != nil {
-				return false, fmt.Errorf("failed to set owner reference for VectorAssignment %q: %w", vectorAssignment.Name, err)
+				return false, fmt.Errorf("failed to update metadata for VectorAssignment %q: %w", vectorAssignment.Name, err)
 			}
 			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal,
 				"VectorAssignmentUpdated", "VectorAssignmentUpdated",
-				fmt.Sprintf("Updated owner reference for VectorAssignment %s", vectorAssignment.Name))
-		} else {
-			log.Info("Vector deployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", vectorAssignment.Name)
+				fmt.Sprintf("Updated metadata for VectorAssignment %s", vectorAssignment.Name))
 		}
 
 		// Update the artifact assignment to the status map of the VectorDeployment

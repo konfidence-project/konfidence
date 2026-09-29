@@ -86,6 +86,17 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			// mark vectorDeployment as ready
+			vectorDeployment.Labels = map[string]string{"custom-label": "preserved"}
+			Expect(k8sClient.Update(ctx, vectorDeployment)).To(Succeed())
+			Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
+			stageVersion.Annotations = map[string]string{"test.konfidence.cloud/reconcile": "labels"}
+			Expect(k8sClient.Update(ctx, stageVersion)).To(Succeed())
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, vectorDeploymentLookupKey, vectorDeployment)).To(Succeed())
+				g.Expect(vectorDeployment.Labels).To(HaveKeyWithValue(pkgctrl.StageVersionNameLabel, StageVersionDev))
+				g.Expect(vectorDeployment.Labels).To(HaveKeyWithValue("custom-label", "preserved"))
+			}, timeout, interval).Should(Succeed())
+
 			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 				Type:               konfidence.VectorReadyCondition,
 				Status:             metav1.ConditionTrue,

@@ -174,6 +174,12 @@ func (r *StageVersionReconciler) getOrCreateVectorDeployment(ctx context.Context
 	}
 
 	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, vectorDeployment, func() error {
+		if vectorDeployment.Labels == nil {
+			vectorDeployment.Labels = make(map[string]string)
+		}
+		for key, value := range getVectorDeploymentLabels(stageVersion) {
+			vectorDeployment.Labels[key] = value
+		}
 		// check if vectorDeployment has stageVersion owner ref
 		if err := SetOwnerReference(stageVersion, vectorDeployment, r.Scheme, false); err != nil {
 			return fmt.Errorf("unable to check vectorDeployment owner reference: %w", err)

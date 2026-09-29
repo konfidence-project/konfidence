@@ -274,6 +274,24 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, konfidence.VectorAssignmentsCreatedCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 
+		By("Restoring the artifact reference label on an existing VectorAssignment")
+		assignment := &konfidence.VectorAssignment{}
+		assignmentKey := types.NamespacedName{Name: vectorAssignmentName, Namespace: testNamespace}
+		gomega.Expect(k8sClient.Get(ctx, assignmentKey, assignment)).To(gomega.Succeed())
+		assignment.Labels = map[string]string{"custom-label": "preserved"}
+		gomega.Expect(k8sClient.Update(ctx, assignment)).To(gomega.Succeed())
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ocmName, Namespace: testNamespace}, actualVectorDeployment)).To(gomega.Succeed())
+		if actualVectorDeployment.Annotations == nil {
+			actualVectorDeployment.Annotations = make(map[string]string)
+		}
+		actualVectorDeployment.Annotations["test.konfidence.cloud/reconcile-assignment"] = "restore-label"
+		gomega.Expect(k8sClient.Update(ctx, actualVectorDeployment)).To(gomega.Succeed())
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, assignmentKey, assignment)).To(gomega.Succeed())
+			g.Expect(assignment.Labels).To(gomega.HaveKeyWithValue(pkgctrl.ArtifactReferenceLabel, artifactDeployment.Name))
+			g.Expect(assignment.Labels).To(gomega.HaveKeyWithValue("custom-label", "preserved"))
+		}, timeout, interval).Should(gomega.Succeed())
+
 		By("Verifying ArtifactDeployment has owner reference pointing to VectorDeployment")
 		gomega.Eventually(func(g gomega.Gomega) {
 			ad := &konfidence.ArtifactDeployment{}
@@ -289,6 +307,33 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 				}
 			}
 			g.Expect(foundOwner).To(gomega.BeTrue(), "ArtifactDeployment should have VectorDeployment as owner")
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Restoring missing and outdated labels on an existing ArtifactDeployment")
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name: artifactDeployment.Name, Namespace: testNamespace,
+		}, artifactDeployment)).To(gomega.Succeed())
+		artifactDeployment.Labels = map[string]string{
+			pkgctrl.VectorDeploymentNameLabel: "old-name",
+			"custom-label":                    "preserved",
+		}
+		gomega.Expect(k8sClient.Update(ctx, artifactDeployment)).To(gomega.Succeed())
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{
+			Name: ocmName, Namespace: testNamespace,
+		}, actualVectorDeployment)).To(gomega.Succeed())
+		if actualVectorDeployment.Annotations == nil {
+			actualVectorDeployment.Annotations = make(map[string]string)
+		}
+		actualVectorDeployment.Annotations["test.konfidence.cloud/reconcile"] = "restore-labels"
+		gomega.Expect(k8sClient.Update(ctx, actualVectorDeployment)).To(gomega.Succeed())
+		gomega.Eventually(func(g gomega.Gomega) {
+			ad := &konfidence.ArtifactDeployment{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name: artifactDeployment.Name, Namespace: testNamespace,
+			}, ad)).To(gomega.Succeed())
+			g.Expect(ad.Labels).To(gomega.HaveKeyWithValue(pkgctrl.LandscapeNameLabel, landscapeName))
+			g.Expect(ad.Labels).To(gomega.HaveKeyWithValue(pkgctrl.VectorDeploymentNameLabel, ocmName))
+			g.Expect(ad.Labels).To(gomega.HaveKeyWithValue("custom-label", "preserved"))
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying VectorAssignment has controller owner reference pointing to VectorDeployment")
