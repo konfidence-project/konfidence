@@ -3,7 +3,6 @@ package pretty_test
 import (
 	"fmt"
 
-	"charm.land/bubbles/v2/table"
 	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
 	"github.com/konfidence-project/konfidence/internal/kden/output/pretty"
 	"github.com/konfidence-project/konfidence/internal/kden/validation/output"
@@ -44,8 +43,8 @@ var _ = Describe("GetModelFuncMap", func() {
 
 				Expect(result.Err).ToNot(HaveOccurred())
 				Expect(result.Rows).To(HaveLen(len(validationErrors)))
-				Expect(result.Rows[0]).To(Equal(table.Row{validationErrors[0].File, validationErrors[0].Path, validationErrors[0].Message}))
-				Expect(result.Rows[1]).To(Equal(table.Row{validationErrors[1].File, validationErrors[1].Path, validationErrors[1].Message}))
+				Expect(result.Rows[0]).To(Equal(pretty.Row{validationErrors[0].File, validationErrors[0].Path, validationErrors[0].Message}))
+				Expect(result.Rows[1]).To(Equal(pretty.Row{validationErrors[1].File, validationErrors[1].Path, validationErrors[1].Message}))
 			})
 
 			It("returns empty rows for an empty slice", func() {
@@ -81,11 +80,11 @@ var _ = Describe("GetModelFuncMap", func() {
 			result := pretty.GetModelFuncMap()["version"](info)
 
 			Expect(result.Err).NotTo(HaveOccurred())
-			Expect(result.Columns).To(Equal([]table.Column{
+			Expect(result.Columns).To(Equal([]pretty.Column{
 				{Title: "Field", Width: 12},
 				{Title: "Value", Width: 60},
 			}))
-			Expect(result.Rows).To(Equal([]table.Row{
+			Expect(result.Rows).To(Equal([]pretty.Row{
 				{"Version", info.Version},
 				{"Commit", info.Commit},
 				{"Go", info.GoVersion},
@@ -113,11 +112,11 @@ var _ = Describe("GetModelFuncMap", func() {
 			result := pretty.GetModelFuncMap()["project-list"](projectList)
 
 			Expect(result.Err).NotTo(HaveOccurred())
-			Expect(result.Columns).To(Equal([]table.Column{
+			Expect(result.Columns).To(Equal([]pretty.Column{
 				{Title: pretty.ColumnID, Width: 40},
 				{Title: pretty.ColumnName, Width: 40},
 			}))
-			Expect(result.Rows).To(Equal([]table.Row{
+			Expect(result.Rows).To(Equal([]pretty.Row{
 				{projectList.Data[0].Id, projectList.Data[0].Name},
 				{projectList.Data[1].Id, projectList.Data[1].Name},
 			}))
@@ -148,11 +147,11 @@ var _ = Describe("GetModelFuncMap", func() {
 			result := pretty.GetModelFuncMap()["landscape-list"](landscapeList)
 
 			Expect(result.Err).NotTo(HaveOccurred())
-			Expect(result.Columns).To(Equal([]table.Column{
+			Expect(result.Columns).To(Equal([]pretty.Column{
 				{Title: pretty.ColumnID, Width: 40},
 				{Title: pretty.ColumnName, Width: 40},
 			}))
-			Expect(result.Rows).To(Equal([]table.Row{
+			Expect(result.Rows).To(Equal([]pretty.Row{
 				{landscapeList.Data[0].Id, landscapeList.Data[0].Name},
 				{landscapeList.Data[1].Id, landscapeList.Data[1].Name},
 			}))
@@ -183,14 +182,14 @@ var _ = Describe("GetModelFuncMap", func() {
 			result := pretty.GetModelFuncMap()["stage-list"](stageList)
 
 			Expect(result.Err).NotTo(HaveOccurred())
-			Expect(result.Columns).To(Equal([]table.Column{
+			Expect(result.Columns).To(Equal([]pretty.Column{
 				{Title: pretty.ColumnID, Width: 40},
 				{Title: pretty.ColumnName, Width: 30},
 				{Title: pretty.ColumnLandscape, Width: 30},
 				{Title: "Active Version", Width: 40},
 				{Title: pretty.ColumnStatus, Width: 20},
 			}))
-			Expect(result.Rows).To(Equal([]table.Row{
+			Expect(result.Rows).To(Equal([]pretty.Row{
 				{stageList.Data[0].Id, stageList.Data[0].Name, stageList.Data[0].LandscapeId, activeVersion.Id, string(activeVersion.Status)},
 				{stageList.Data[1].Id, stageList.Data[1].Name, stageList.Data[1].LandscapeId, "-", "-"},
 			}))
@@ -201,7 +200,7 @@ var _ = Describe("GetModelFuncMap", func() {
 			result := pretty.GetModelFuncMap()["stage-list"](&apiclient.StageList{Data: []apiclient.Stage{stage}})
 
 			Expect(result.Err).NotTo(HaveOccurred())
-			Expect(result.Rows).To(Equal([]table.Row{{stage.Id, stage.Name, stage.LandscapeId, "-", "-"}}))
+			Expect(result.Rows).To(Equal([]pretty.Row{{stage.Id, stage.Name, stage.LandscapeId, "-", "-"}}))
 		})
 
 		It("returns empty rows for an empty list", func() {
@@ -231,14 +230,14 @@ var _ = Describe("GetModelFuncMap", func() {
 
 			d := deploymentList.Data[0]
 			Expect(result.Err).NotTo(HaveOccurred())
-			Expect(result.Columns).To(Equal([]table.Column{
+			Expect(result.Columns).To(Equal([]pretty.Column{
 				{Title: pretty.ColumnID, Width: 40},
 				{Title: "Stage", Width: 30},
 				{Title: pretty.ColumnLandscape, Width: 30},
 				{Title: pretty.ColumnStatus, Width: 20},
 				{Title: pretty.ColumnVector, Width: 40},
 			}))
-			Expect(result.Rows).To(Equal([]table.Row{
+			Expect(result.Rows).To(Equal([]pretty.Row{
 				{d.Id, d.StageId, d.LandscapeId, string(d.Status), fmt.Sprintf("%s:%s", d.Vector.ComponentName, d.Vector.ComponentVersion)},
 			}))
 		})
@@ -293,7 +292,7 @@ var _ = Describe("GetModelFuncMap", func() {
 			cfgA := configList.Data[0]
 			p1, p2 := cfgA.Promotions[0], cfgA.Promotions[1]
 			cfgB := configList.Data[1]
-			promotionColumns := []table.Column{
+			promotionColumns := []pretty.Column{
 				{Title: pretty.ColumnID, Width: 40},
 				{Title: "Source", Width: 24},
 				{Title: "Target", Width: 24},
@@ -306,7 +305,7 @@ var _ = Describe("GetModelFuncMap", func() {
 				{
 					Heading: fmt.Sprintf("%s (%s → %s)", cfgA.Id, cfgA.Source.Name, cfgA.Target.Name),
 					Columns: promotionColumns,
-					Rows: []table.Row{
+					Rows: []pretty.Row{
 						{p1.Id, p1.Source.Name, p1.Target.Name, p1.Vector, string(*p1.Status)},
 						{p2.Id, p2.Source.Name, p2.Target.Name, p2.Vector, "-"},
 					},
@@ -314,7 +313,7 @@ var _ = Describe("GetModelFuncMap", func() {
 				{
 					Heading: fmt.Sprintf("%s (%s → %s)", cfgB.Id, cfgB.Source.Name, cfgB.Target.Name),
 					Columns: promotionColumns,
-					Rows:    []table.Row{},
+					Rows:    []pretty.Row{},
 				},
 			}))
 		})

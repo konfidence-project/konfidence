@@ -7,8 +7,6 @@ import (
 	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
 	"github.com/konfidence-project/konfidence/internal/kden/validation/output"
 	"github.com/konfidence-project/konfidence/pkg/build"
-
-	"charm.land/bubbles/v2/table"
 )
 
 var (
@@ -41,7 +39,7 @@ func parseData[T any](data interface{}, command string) (T, *TableData) {
 	return v, nil
 }
 
-func buildTableData[T any](data interface{}, command string, columns []table.Column, rowMapper func(T) []table.Row) *TableData {
+func buildTableData[T any](data interface{}, command string, columns []Column, rowMapper func(T) []Row) *TableData {
 	v, errData := parseData[T](data, command)
 	if errData != nil {
 		return errData
@@ -52,8 +50,8 @@ func buildTableData[T any](data interface{}, command string, columns []table.Col
 	}
 }
 
-func mapRows[T any](items []T, mapper func(T) table.Row) []table.Row {
-	rows := make([]table.Row, 0, len(items))
+func mapRows[T any](items []T, mapper func(T) Row) []Row {
+	rows := make([]Row, 0, len(items))
 	for _, item := range items {
 		rows = append(rows, mapper(item))
 	}
@@ -74,12 +72,12 @@ const (
 
 func versionModelFunc(data interface{}) *TableData {
 	tableData := buildTableData[build.Info](data, "version",
-		[]table.Column{
+		[]Column{
 			{Title: "Field", Width: 12},
 			{Title: "Value", Width: 60},
 		},
-		func(info build.Info) []table.Row {
-			return []table.Row{
+		func(info build.Info) []Row {
+			return []Row{
 				{"Version", info.Version},
 				{"Commit", info.Commit},
 				{"Go", info.GoVersion},
@@ -98,14 +96,14 @@ func versionModelFunc(data interface{}) *TableData {
 
 func validateModelFunc(data interface{}) *TableData {
 	return buildTableData[[]output.SchemaValidationError](data, "validate",
-		[]table.Column{
+		[]Column{
 			{Title: "File", Width: 40},
 			{Title: "Path", Width: 80},
 			{Title: "Message", Width: 80},
 		},
-		func(msg []output.SchemaValidationError) []table.Row {
-			return mapRows(msg, func(e output.SchemaValidationError) table.Row {
-				return table.Row{e.File, e.Path, e.Message}
+		func(msg []output.SchemaValidationError) []Row {
+			return mapRows(msg, func(e output.SchemaValidationError) Row {
+				return Row{e.File, e.Path, e.Message}
 			})
 		},
 	)
@@ -113,13 +111,13 @@ func validateModelFunc(data interface{}) *TableData {
 
 func projectListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.ProjectList](data, "project-list",
-		[]table.Column{
+		[]Column{
 			{Title: ColumnID, Width: 40},
 			{Title: ColumnName, Width: 40},
 		},
-		func(list *apiclient.ProjectList) []table.Row {
-			return mapRows(list.Data, func(p apiclient.Project) table.Row {
-				return table.Row{p.Id, p.Name}
+		func(list *apiclient.ProjectList) []Row {
+			return mapRows(list.Data, func(p apiclient.Project) Row {
+				return Row{p.Id, p.Name}
 			})
 		},
 	)
@@ -127,13 +125,13 @@ func projectListModelFunc(data interface{}) *TableData {
 
 func landscapeListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.LandscapeList](data, "landscape-list",
-		[]table.Column{
+		[]Column{
 			{Title: ColumnID, Width: 40},
 			{Title: ColumnName, Width: 40},
 		},
-		func(list *apiclient.LandscapeList) []table.Row {
-			return mapRows(list.Data, func(l apiclient.Landscape) table.Row {
-				return table.Row{l.Id, l.Name}
+		func(list *apiclient.LandscapeList) []Row {
+			return mapRows(list.Data, func(l apiclient.Landscape) Row {
+				return Row{l.Id, l.Name}
 			})
 		},
 	)
@@ -141,21 +139,21 @@ func landscapeListModelFunc(data interface{}) *TableData {
 
 func stageListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.StageList](data, "stage-list",
-		[]table.Column{
+		[]Column{
 			{Title: ColumnID, Width: 40},
 			{Title: ColumnName, Width: 30},
 			{Title: ColumnLandscape, Width: 30},
 			{Title: "Active Version", Width: 40},
 			{Title: ColumnStatus, Width: 20},
 		},
-		func(list *apiclient.StageList) []table.Row {
-			return mapRows(list.Data, func(s apiclient.Stage) table.Row {
+		func(list *apiclient.StageList) []Row {
+			return mapRows(list.Data, func(s apiclient.Stage) Row {
 				activeVersion, status := "-", "-"
 				if s.ActiveStageVersion != nil {
 					activeVersion = s.ActiveStageVersion.Id
 					status = string(s.ActiveStageVersion.Status)
 				}
-				return table.Row{s.Id, s.Name, s.LandscapeId, activeVersion, status}
+				return Row{s.Id, s.Name, s.LandscapeId, activeVersion, status}
 			})
 		},
 	)
@@ -163,16 +161,16 @@ func stageListModelFunc(data interface{}) *TableData {
 
 func vectorDeploymentListModelFunc(data interface{}) *TableData {
 	return buildTableData[*apiclient.VectorDeploymentList](data, "vector-deployment-list",
-		[]table.Column{
+		[]Column{
 			{Title: ColumnID, Width: 40},
 			{Title: "Stage", Width: 30},
 			{Title: ColumnLandscape, Width: 30},
 			{Title: ColumnStatus, Width: 20},
 			{Title: ColumnVector, Width: 40},
 		},
-		func(list *apiclient.VectorDeploymentList) []table.Row {
-			return mapRows(list.Data, func(d apiclient.VectorDeployment) table.Row {
-				return table.Row{
+		func(list *apiclient.VectorDeploymentList) []Row {
+			return mapRows(list.Data, func(d apiclient.VectorDeployment) Row {
+				return Row{
 					d.Id, d.StageId, d.LandscapeId, string(d.Status),
 					fmt.Sprintf("%s:%s", d.Vector.ComponentName, d.Vector.ComponentVersion),
 				}
@@ -187,7 +185,7 @@ func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
 		return errData
 	}
 
-	columns := []table.Column{
+	columns := []Column{
 		{Title: ColumnID, Width: 40},
 		{Title: "Source", Width: 24},
 		{Title: "Target", Width: 24},
@@ -197,13 +195,13 @@ func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
 
 	sections := make([]TableSection, 0, len(list.Data))
 	for _, cfg := range list.Data {
-		rows := make([]table.Row, 0, len(cfg.Promotions))
+		rows := make([]Row, 0, len(cfg.Promotions))
 		for _, p := range cfg.Promotions {
 			status := "-"
 			if p.Status != nil {
 				status = string(*p.Status)
 			}
-			rows = append(rows, table.Row{p.Id, p.Source.Name, p.Target.Name, p.Vector, status})
+			rows = append(rows, Row{p.Id, p.Source.Name, p.Target.Name, p.Vector, status})
 		}
 		sections = append(sections, TableSection{
 			Heading: fmt.Sprintf("%s (%s → %s)", cfg.Id, cfg.Source.Name, cfg.Target.Name),
