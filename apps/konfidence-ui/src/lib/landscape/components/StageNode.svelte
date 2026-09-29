@@ -1,11 +1,11 @@
 <script lang="ts">
     import type { Node, NodeProps } from "@xyflow/svelte";
-    import { useSvelteFlow } from "@xyflow/svelte";
+    import { Handle, Position, useSvelteFlow } from "@xyflow/svelte";
     import type { Stage } from "$lib/konfidence-api/types";
     import LandscapeStageCard from "$lib/landscape/components/LandscapeStageCard.svelte";
 
     type StageNode = Node<
-        { stage: Stage; landscapeName: string; category: string; href: string },
+        { stage: Stage; landscapeName: string; href: string },
         "stage"
     >;
     let { data, id }: NodeProps<StageNode> = $props();
@@ -32,5 +32,22 @@
   commits to a pan.
 -->
 <div onfocusin={revealFocusedCard}>
+    <!--
+      Promotion edges connect stages left -> right. The handles are
+      the required anchor points for those edges; they are presentational only
+      (the graph is read-only) so they are hidden and inert.
+    -->
+    <Handle
+        type="target"
+        position={Position.Left}
+        isConnectable={false}
+        style="opacity: 0; pointer-events: none;"
+    />
     <LandscapeStageCard {...data} />
+    <Handle
+        type="source"
+        position={Position.Right}
+        isConnectable={false}
+        style="opacity: 0; pointer-events: none;"
+    />
 </div>

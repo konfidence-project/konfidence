@@ -7,6 +7,7 @@ import type {
   Project,
   Stage,
   VectorDeployment,
+  VectorPromotionConfig,
 } from "$lib/konfidence-api/types";
 
 interface ProjectScope {
@@ -35,6 +36,7 @@ const PROJECTS_UNAVAILABLE = "Projects are currently unavailable.";
 const STAGES_UNAVAILABLE = "Stages are currently unavailable.";
 const VECTOR_DEPLOYMENTS_UNAVAILABLE = "Vector deployments are currently unavailable.";
 const ARTIFACT_DEPLOYMENTS_UNAVAILABLE = "Artifact deployments are currently unavailable.";
+const VECTOR_PROMOTIONS_UNAVAILABLE = "Vector promotions are currently unavailable.";
 
 const useProjects = createQuery<QueryError, string, readonly Project[]>(
   (email) => ["projects", email],
@@ -161,4 +163,39 @@ const useArtifactDeployments = createQuery<
   },
 );
 
-export { useArtifactDeployments, useLandscapes, useProjects, useStages, useVectorDeployments };
+const useVectorPromotionConfigs = createQuery<
+  QueryError,
+  ProjectScope,
+  readonly VectorPromotionConfig[]
+>(
+  (param) => ["projects", param.projectId, "vectorPromotionConfigs"],
+  async ({ projectId }, signal) => {
+    try {
+      const { data, error, response } = await getApiClient().GET(
+        "/v1/projects/{projectId}/vectorPromotionConfigs",
+        {
+          params: { path: { projectId } },
+          signal,
+        },
+      );
+      if (error || !response.ok || !data?.data) {
+        return fail<QueryError>({
+          message: VECTOR_PROMOTIONS_UNAVAILABLE,
+          status: response.status,
+        });
+      }
+      return succeed<readonly VectorPromotionConfig[]>(data.data);
+    } catch {
+      return fail<QueryError>({ message: VECTOR_PROMOTIONS_UNAVAILABLE });
+    }
+  },
+);
+
+export {
+  useArtifactDeployments,
+  useLandscapes,
+  useProjects,
+  useStages,
+  useVectorDeployments,
+  useVectorPromotionConfigs,
+};

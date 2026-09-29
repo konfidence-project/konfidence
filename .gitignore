@@ -79,5 +79,6 @@ build/
 
 # Vitest failure attachments (screenshots, traces)
 .vitest-attachments/
+.vitest/
 
 /AGENTS.md

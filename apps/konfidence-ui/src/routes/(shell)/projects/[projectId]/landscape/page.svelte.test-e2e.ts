@@ -4,6 +4,7 @@ import { signIn, useScenario } from "../../../../../../e2e/helpers";
 
 const LANDSCAPES_API = "**/api/v1/projects/payments-platform/landscapes";
 const STAGES_API = "**/api/v1/projects/payments-platform/stages*";
+const PROMOTIONS_API = "**/api/v1/projects/payments-platform/vectorPromotionConfigs";
 const stage = {
   activeStageVersion: {
     id: "dev-api-old",
@@ -27,6 +28,7 @@ const mockOverview = async (page: Page): Promise<void> => {
     route.fulfill({ json: { data: [{ id: "primary", name: "Primary" }] } }),
   );
   await page.route(STAGES_API, (route) => route.fulfill({ json: { data: [stage] } }));
+  await page.route(PROMOTIONS_API, (route) => route.fulfill({ json: { data: [] } }));
 };
 
 // Pointer offsets for the drag-stability check on a stage card.
@@ -44,6 +46,11 @@ test("renders the admin mock landscape data on one flow canvas", async ({ page }
   await expect(page.getByRole("heading", { level: 1, name: "Landscapes" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2 })).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 3 })).toHaveCount(0);
+  // The landscape name is shown on each stage card (the fix for names never
+  // being displayed).
+  await expect(
+    page.getByRole("link", { name: /View details for stage dev-us30 in Development/ }),
+  ).toBeVisible();
   await expect(
     page
       .getByRole("link", { name: /View details for stage dev-rollback/ })
@@ -57,7 +64,11 @@ test("renders the admin mock landscape data on one flow canvas", async ({ page }
   await expect(page.getByRole("link", { name: /View details for stage dev-new/ })).toContainText(
     "No target version yet",
   );
-  await expect(page.locator(".svelte-flow__edge")).toHaveCount(0);
+  // Landscapes with no stages (Sandbox, Staging) still appear as placeholders.
+  await expect(page.getByLabel("Landscape Staging has no stages yet")).toBeVisible();
+  await expect(page.getByLabel("Landscape Sandbox has no stages yet")).toBeVisible();
+  // Promotion configs drive the dev->test->prod edges between stage cards.
+  await expect(page.locator(".svelte-flow__edge").first()).toBeVisible();
 });
 
 test("shows the empty overview for the empty mock project", async ({ page }) => {
@@ -150,6 +161,7 @@ test("retries after a landscape network failure", async ({ page }) => {
       : route.fulfill({ json: { data: [{ id: "primary", name: "Primary" }] } }),
   );
   await page.route(STAGES_API, (route) => route.fulfill({ json: { data: [stage] } }));
+  await page.route(PROMOTIONS_API, (route) => route.fulfill({ json: { data: [] } }));
   const target = "/projects/payments-platform/landscape";
   await signIn(page, target, target);
 
@@ -210,6 +222,7 @@ test("recovers from an overview API error and fits a mobile viewport", async ({ 
       : route.fulfill({ json: { data: [{ id: "primary", name: "Primary" }] } }),
   );
   await page.route(STAGES_API, (route) => route.fulfill({ json: { data: [stage] } }));
+  await page.route(PROMOTIONS_API, (route) => route.fulfill({ json: { data: [] } }));
   await page.setViewportSize({ height: 800, width: 375 });
   await signIn(
     page,
@@ -273,8 +286,10 @@ for (const embedded of [false, true]) {
   }
 }
 
-// oxlint-disable-next-line eslint/max-statements -- Compare column positions, API order, and qualified links across landscapes.
-test("stacks stages across landscapes in top-aligned category columns", async ({ page }) => {
+// oxlint-disable-next-line eslint/max-statements -- Compare promotion-graph columns, stacking order, and qualified links across landscapes.
+test("lays out stages by promotion depth from dev on the left to prod on the right", async ({
+  page,
+}) => {
   await page.route(LANDSCAPES_API, (route) =>
     route.fulfill({
       json: {
@@ -289,10 +304,37 @@ test("stacks stages across landscapes in top-aligned category columns", async ({
     route.fulfill({
       json: {
         data: [
-          stage,
-          { ...stage, landscapeId: "secondary" },
-          { ...stage, id: "dev-second", name: "dev-second" },
+          // The dev-api -> test-api -> prod-api chain forms a three-stage
+          // promotion flow.
+          { ...stage, id: "dev-api", name: "dev-api" },
           { ...stage, id: "test-api", name: "test-api" },
+          { ...stage, id: "prod-api", name: "prod-api" },
+          // The dev-alone stage has no promotions, so it stays in the origin
+          // column and stacks above dev-api (alphabetical order within a column).
+          { ...stage, id: "dev-alone", name: "dev-alone" },
+          // A stage in another landscape with no promotions also starts at the
+          // origin column.
+          { ...stage, id: "other-api", landscapeId: "secondary", name: "other-api" },
+        ],
+      },
+    }),
+  );
+  await page.route(PROMOTIONS_API, (route) =>
+    route.fulfill({
+      json: {
+        data: [
+          {
+            id: "dev-to-test",
+            promotions: [],
+            source: { kind: "Stage", landscape: "primary", name: "dev-api" },
+            target: { kind: "Stage", landscape: "primary", name: "test-api" },
+          },
+          {
+            id: "test-to-prod",
+            promotions: [],
+            source: { kind: "Stage", landscape: "primary", name: "test-api" },
+            target: { kind: "Stage", landscape: "primary", name: "prod-api" },
+          },
         ],
       },
     }),
@@ -302,33 +344,43 @@ test("stacks stages across landscapes in top-aligned category columns", async ({
     "/projects/payments-platform/landscape",
     "/projects/payments-platform/landscape",
   );
-  const primary = page.getByRole("link", {
+  const dev = page.getByRole("link", {
     exact: true,
-    name: "View details for stage dev-api in Primary, Dev",
+    name: "View details for stage dev-api in Primary",
   });
-  const secondary = page.getByRole("link", {
+  const testCard = page.getByRole("link", {
     exact: true,
-    name: "View details for stage dev-api in Secondary, Dev",
+    name: "View details for stage test-api in Primary",
   });
-  await expect(secondary).toBeVisible();
-  const first = await primary.boundingBox();
-  const second = await secondary.boundingBox();
-  expect(first!.x).toBeCloseTo(second!.x, 0);
-  expect(second!.y).toBeGreaterThan(first!.y + first!.height);
-  await expect(secondary).toHaveAttribute(
+  const prod = page.getByRole("link", {
+    exact: true,
+    name: "View details for stage prod-api in Primary",
+  });
+  await expect(dev).toBeVisible();
+  const devBox = (await dev.boundingBox())!;
+  const testBox = (await testCard.boundingBox())!;
+  const prodBox = (await prod.boundingBox())!;
+  // Promotion flow reads left-to-right: dev < test < prod on the x-axis.
+  expect(testBox.x).toBeGreaterThan(devBox.x + devBox.width);
+  expect(prodBox.x).toBeGreaterThan(testBox.x + testBox.width);
+  // Unpromoted stages share the origin column (same x as dev-api) and stack
+  // vertically in alphabetical order, so dev-alone sits above dev-api.
+  const alone = await page
+    .getByRole("link", { name: /View details for stage dev-alone/ })
+    .boundingBox();
+  expect(alone!.x).toBeCloseTo(devBox.x, 0);
+  expect(alone!.y).toBeLessThan(devBox.y);
+  // The stage from another landscape is qualified by its landscape name.
+  const other = page.getByRole("link", {
+    exact: true,
+    name: "View details for stage other-api in Secondary",
+  });
+  await expect(other).toHaveAttribute(
     "href",
-    "/projects/payments-platform/landscape/secondary/stages/dev-api",
+    "/projects/payments-platform/landscape/secondary/stages/other-api",
   );
-  const next = await page
-    .getByRole("link", { name: /View details for stage dev-second/ })
-    .boundingBox();
-  expect(next!.y).toBeGreaterThan(second!.y + second!.height);
-  const testStage = await page
-    .getByRole("link", { name: /View details for stage test-api/ })
-    .boundingBox();
-  expect(testStage!.y).toBeCloseTo(first!.y, 0);
-  expect(testStage!.x).toBeGreaterThan(first!.x + first!.width);
-  await expect(page.locator(".svelte-flow__node-landscape")).toHaveCount(0);
+  // Promotion edges are rendered between the chained stages.
+  await expect(page.locator(".svelte-flow__edge")).toHaveCount(2);
 });
 
 test("keeps overview stages after client navigation through filtered landscape details", async ({
@@ -353,14 +405,15 @@ test("keeps overview stages after client navigation through filtered landscape d
       },
     });
   });
+  await page.route(PROMOTIONS_API, (route) => route.fulfill({ json: { data: [] } }));
   const target = "/projects/payments-platform/landscape";
   await signIn(page, target, target);
 
   const primary = page.getByRole("link", {
-    name: "View details for stage dev-api in Primary, Dev",
+    name: "View details for stage dev-api in Primary",
   });
   const secondary = page.getByRole("link", {
-    name: "View details for stage dev-api in Secondary, Dev",
+    name: "View details for stage dev-api in Secondary",
   });
   await expect(primary).toBeVisible();
   await expect(secondary).toBeVisible();
@@ -386,9 +439,8 @@ test("opens at a readable zoom and reveals offscreen stages for keyboard navigat
     "/projects/payments-platform/landscape",
     "/projects/payments-platform/landscape",
   );
-  const first = page.getByRole("link", {
-    name: /View details for stage dev-us30/,
-  });
+  // The top-left card (first in DOM order) opens within the readable viewport.
+  const first = page.getByRole("link", { name: /View details for stage/ }).first();
   await expect(first).toBeInViewport();
   const readableWidth = (await first.boundingBox())!.width;
   expect(readableWidth).toBeGreaterThan(200);

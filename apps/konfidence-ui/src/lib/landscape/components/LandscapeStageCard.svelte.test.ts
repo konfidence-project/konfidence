@@ -18,7 +18,6 @@ const stage: Stage = {
   name: "dev-api",
 };
 const props = {
-  category: "Dev",
   href: "/projects/payments/landscape/primary/stages/dev-api",
   landscapeName: "Primary",
 };
@@ -51,7 +50,7 @@ const scenarios: Record<string, Stage> = {
 it("keeps the active version visible when a new target fails and responds to prop changes", async () => {
   const rendered = render(LandscapeStageCard, { ...props, stage: scenarios.failed });
   const link = page.getByRole("link", {
-    name: "View details for stage dev-api in Primary, Dev",
+    name: "View details for stage dev-api in Primary",
   });
   await expect.element(link).toHaveAttribute("href", props.href);
   await expect.element(page.getByRole("group", { exact: true, name: "Failed" })).toBeVisible();
@@ -60,6 +59,11 @@ it("keeps the active version visible when a new target fails and responds to pro
   await rendered.rerender({ ...props, stage: scenarios.active });
   await expect.element(page.getByText("live", { exact: true })).toBeVisible();
   await expect.element(page.getByText("Matches target")).toBeVisible();
+});
+
+it("shows the landscape name on the card", async () => {
+  render(LandscapeStageCard, { ...props, stage: scenarios.active });
+  await expect.element(page.getByText("Primary", { exact: true })).toBeVisible();
 });
 
 it("advances the active phase as the target status progresses", async () => {
