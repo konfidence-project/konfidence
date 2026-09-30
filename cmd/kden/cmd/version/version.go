@@ -28,14 +28,14 @@ func NewVersionCmd() *cobra.Command {
 				return nil
 			}
 
-			formatted, err := output.ResolveFormat(info, "version")
+			formatted, err := output.ResolveFormat(info, table(info))
 			if err != nil {
 				return fmt.Errorf("formatting version failed: %w", err)
 			}
 
 			if output.FormattedOutput(strings.ToLower(cfg.Config.Output)) == output.TablePrettyOutputFormat {
-				// The pretty table renders itself to stdout (and carries the update
-				// hint as its footer), so there's nothing more to print here.
+				// The pretty table carries the update hint as its footer.
+				_, _ = fmt.Fprint(cmd.OutOrStdout(), formatted)
 				return nil
 			}
 

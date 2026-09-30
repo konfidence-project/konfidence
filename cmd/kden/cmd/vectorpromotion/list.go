@@ -32,7 +32,7 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 				if response.JSON200 == nil {
 					return errors.New("vector promotion configs response did not contain a body")
 				}
-				formatted, err := output.ResolveFormat(response.JSON200, "vector-promotion-config-list")
+				formatted, err := output.ResolveFormat(response.JSON200, configListTable(response.JSON200))
 				if err != nil {
 					return fmt.Errorf("formatting vector promotion configs failed: %w", err)
 				}

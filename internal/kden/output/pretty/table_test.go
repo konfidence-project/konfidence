@@ -1,9 +1,6 @@
 package pretty_test
 
 import (
-	"errors"
-	"io"
-	"os"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -13,29 +10,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func captureStdout(fn func()) string {
-	original := os.Stdout
-
-	reader, writer, err := os.Pipe()
-	Expect(err).NotTo(HaveOccurred())
-
-	os.Stdout = writer
-	defer func() {
-		os.Stdout = original
-	}()
-
-	fn()
-
-	Expect(writer.Close()).To(Succeed())
-
-	output, err := io.ReadAll(reader)
-	Expect(err).NotTo(HaveOccurred())
-
-	return string(output)
-}
-
-var _ = Describe("FormatTable", func() {
-	twoColumns := func(_ interface{}) *pretty.TableData {
+var _ = Describe("RenderTable", func() {
+	twoColumns := func() *pretty.TableData {
 		return &pretty.TableData{
 			Columns: []pretty.Column{
 				{Title: "Field", Width: 12},
@@ -50,13 +26,9 @@ var _ = Describe("FormatTable", func() {
 	}
 
 	It("renders headers, rows, and the footer", func() {
-		var formatErr error
+		output, err := pretty.RenderTable(twoColumns())
 
-		output := captureStdout(func() {
-			formatErr = pretty.FormatTable(twoColumns, nil)
-		})
-
-		Expect(formatErr).NotTo(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 		Expect(output).To(ContainSubstring("Field"))
 		Expect(output).To(ContainSubstring("Value"))
 		Expect(output).To(ContainSubstring("Version"))
@@ -65,10 +37,9 @@ var _ = Describe("FormatTable", func() {
 	})
 
 	It("renders a borderless table", func() {
-		output := captureStdout(func() {
-			Expect(pretty.FormatTable(twoColumns, nil)).To(Succeed())
-		})
+		output, err := pretty.RenderTable(twoColumns())
 
+		Expect(err).NotTo(HaveOccurred())
 		Expect(output).NotTo(ContainSubstring("|"))
 		Expect(output).NotTo(ContainSubstring("+"))
 		Expect(output).NotTo(ContainSubstring("┌"))
@@ -76,18 +47,16 @@ var _ = Describe("FormatTable", func() {
 	})
 
 	It("does not emit TUI navigation help", func() {
-		output := captureStdout(func() {
-			Expect(pretty.FormatTable(twoColumns, nil)).To(Succeed())
-		})
+		output, err := pretty.RenderTable(twoColumns())
 
+		Expect(err).NotTo(HaveOccurred())
 		Expect(output).NotTo(ContainSubstring("↑/k"))
 	})
 
 	It("does not pad rows to their maximum configured widths", func() {
-		output := captureStdout(func() {
-			Expect(pretty.FormatTable(twoColumns, nil)).To(Succeed())
-		})
+		output, err := pretty.RenderTable(twoColumns())
 
+		Expect(err).NotTo(HaveOccurred())
 		for _, line := range strings.Split(output, "\n") {
 			Expect(len(line)).To(BeNumerically("<", 100))
 		}
@@ -99,67 +68,54 @@ var _ = Describe("FormatTable", func() {
 			cellPadding = 2
 		)
 
-		longValue := func(_ interface{}) *pretty.TableData {
-			return &pretty.TableData{
-				Columns: []pretty.Column{
-					{Title: "Field", Width: columnWidth},
-				},
-				Rows: []pretty.Row{
-					{"a value longer than ten characters"},
-				},
-			}
-		}
-
-		output := captureStdout(func() {
-			Expect(pretty.FormatTable(longValue, nil)).To(Succeed())
+		output, err := pretty.RenderTable(&pretty.TableData{
+			Columns: []pretty.Column{
+				{Title: "Field", Width: columnWidth},
+			},
+			Rows: []pretty.Row{
+				{"a value longer than ten characters"},
+			},
 		})
 
+		Expect(err).NotTo(HaveOccurred())
 		for line := range strings.SplitSeq(strings.TrimSpace(output), "\n") {
 			visibleWidth := text.StringWidthWithoutEscSequences(line)
 			Expect(visibleWidth).To(BeNumerically("<=", columnWidth+cellPadding))
 		}
 	})
 
-	It("surfaces model errors", func() {
-		badModel := func(_ any) *pretty.TableData {
-			return &pretty.TableData{Err: errors.New("boom")}
-		}
+	It("requires table data", func() {
+		_, err := pretty.RenderTable(nil)
 
-		err := pretty.FormatTable(badModel, nil)
-		Expect(err).To(MatchError(ContainSubstring("boom")))
+		Expect(err).To(MatchError("pretty output requires table data"))
 	})
 
 	It("renders each section under its heading", func() {
-		sectioned := func(_ any) *pretty.TableData {
-			columns := []pretty.Column{
-				{Title: "Promotion ID", Width: 20},
-				{Title: "Detail", Width: 20},
-			}
-
-			return &pretty.TableData{
-				Sections: []pretty.TableSection{
-					{
-						Heading: "config-a (src → tgt)",
-						Columns: columns,
-						Rows: []pretty.Row{
-							{"promo-1", "detail-a"},
-						},
-					},
-					{
-						Heading: "config-b (src → tgt)",
-						Columns: columns,
-						Rows: []pretty.Row{
-							{"promo-2", "detail-b"},
-						},
-					},
-				},
-			}
+		columns := []pretty.Column{
+			{Title: "Promotion ID", Width: 20},
+			{Title: "Detail", Width: 20},
 		}
 
-		output := captureStdout(func() {
-			Expect(pretty.FormatTable(sectioned, nil)).To(Succeed())
+		output, err := pretty.RenderTable(&pretty.TableData{
+			Sections: []pretty.TableSection{
+				{
+					Heading: "config-a (src → tgt)",
+					Columns: columns,
+					Rows: []pretty.Row{
+						{"promo-1", "detail-a"},
+					},
+				},
+				{
+					Heading: "config-b (src → tgt)",
+					Columns: columns,
+					Rows: []pretty.Row{
+						{"promo-2", "detail-b"},
+					},
+				},
+			},
 		})
 
+		Expect(err).NotTo(HaveOccurred())
 		Expect(output).To(ContainSubstring("config-a (src → tgt)"))
 		Expect(output).To(ContainSubstring("config-b (src → tgt)"))
 		Expect(output).To(ContainSubstring("promo-1"))
