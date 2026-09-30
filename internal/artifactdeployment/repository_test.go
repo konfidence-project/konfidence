@@ -297,3 +297,44 @@ func TestListForScopeResolvesStageIdsAndVectorDeploymentIds(t *testing.T) {
 		t.Fatalf("expected vector deployment %q, got %q", vectorDeploymentId, resolved[0].VectorDeploymentIds[0])
 	}
 }
+
+func TestListForScopeResolvesVectorDeploymentIdsFromOwnerRefs(t *testing.T) {
+	landscape := landscapeResource(landscapeId, landscapeNamespace)
+	stageVersionA := stageVersionResource("sv-1", landscapeNamespace, stageId)
+	stageVersionB := stageVersionResource("sv-2", landscapeNamespace, "stage-prod")
+	vectorDeploymentA := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
+	vectorDeploymentB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-2")
+
+	// One ArtifactDeployment reused by two VectorDeployments: an owner reference
+	// per VectorDeployment, but the label records only one.
+	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId)
+	ad.OwnerReferences = append(ad.OwnerReferences, metav1.OwnerReference{
+		Kind: konfidence.VectorDeploymentKind,
+		Name: vectorDeploymentB.Name,
+	})
+
+	k8s := fake.NewClientBuilder().
+		WithScheme(projectScheme(t)).
+		WithObjects(landscape, stageVersionA, stageVersionB, vectorDeploymentA, vectorDeploymentB, ad).
+		Build()
+
+	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(context.Background(), projectNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(resolved) != 1 {
+		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
+	}
+
+	if len(resolved[0].VectorDeploymentIds) != 2 {
+		t.Fatalf("expected 2 vector deployment IDs, got %d: %v",
+			len(resolved[0].VectorDeploymentIds), resolved[0].VectorDeploymentIds)
+	}
+	if resolved[0].VectorDeploymentIds[0] != vectorDeploymentId {
+		t.Fatalf("expected vector deployment %q, got %q", vectorDeploymentId, resolved[0].VectorDeploymentIds[0])
+	}
+	if resolved[0].VectorDeploymentIds[1] != vectorDeploymentB.Name {
+		t.Fatalf("expected vector deployment %q, got %q", vectorDeploymentB.Name, resolved[0].VectorDeploymentIds[1])
+	}
+}

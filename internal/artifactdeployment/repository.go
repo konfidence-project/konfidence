@@ -143,10 +143,15 @@ func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts
 	return resolved, nil
 }
 
+// extractVectorDeploymentIds returns every owning VectorDeployment. An
+// ArtifactDeployment reused across stages has one owner reference per
+// VectorDeployment, so owner refs (not the single-valued label) are the source.
 func extractVectorDeploymentIds(ad *konfidence.ArtifactDeployment) []string {
 	var vectorDeploymentIds []string
-	if vdName, ok := ad.Labels[utils.VectorDeploymentNameLabel]; ok {
-		vectorDeploymentIds = append(vectorDeploymentIds, vdName)
+	for _, ownerRef := range ad.OwnerReferences {
+		if ownerRef.Kind == konfidence.VectorDeploymentKind {
+			vectorDeploymentIds = append(vectorDeploymentIds, ownerRef.Name)
+		}
 	}
 	return vectorDeploymentIds
 }
