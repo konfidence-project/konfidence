@@ -9,6 +9,12 @@ const MOCK_CODE = "mock-code";
 const HTTP_NO_CONTENT = 204;
 const COOKIE_OPTIONS = { httpOnly: true, path: "/", sameSite: "lax" } as const;
 const MOCK_ORIGIN = "https://mock-api.invalid";
+const UI_ORIGINS = new Set([
+  "http://127.0.0.1:4173",
+  "http://127.0.0.1:5173",
+  "http://localhost:4173",
+  "http://localhost:5173",
+]);
 
 type Query<Name extends keyof operations> = NonNullable<operations[Name]["parameters"]["query"]>;
 type MockHandler = (
@@ -36,12 +42,20 @@ const delay = (): Promise<void> => {
   return wait(duration);
 };
 
-// Resolving against a fixed origin catches `//host` and `/\host`, which browsers treat as protocol-relative.
-const relativePath = (value: string | undefined, whenInvalid: string): string => {
-  if (value?.startsWith("/") !== true || URL.parse(value, MOCK_ORIGIN)?.origin !== MOCK_ORIGIN) {
+const validatedReturnUrl = (value: string | undefined, whenInvalid: string): string => {
+  const parsed = value ? (URL.parse(value, MOCK_ORIGIN) ?? undefined) : undefined;
+  const safeRelativePath = value?.startsWith("/") === true && parsed?.origin === MOCK_ORIGIN;
+  const allowedUiUrl =
+    parsed !== undefined &&
+    (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+    parsed.username === "" &&
+    parsed.password === "" &&
+    UI_ORIGINS.has(parsed.origin);
+
+  if (!safeRelativePath && !allowedUiUrl) {
     throw httpError(400, whenInvalid);
   }
-  return value;
+  return value!;
 };
 
 const inLandscape = <Item extends { landscapeId?: string }>(
@@ -99,7 +113,7 @@ const operationHandlers = {
     }
     return reply
       .setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS)
-      .redirect(relativePath(state, "Invalid authentication state"));
+      .redirect(validatedReturnUrl(state, "Invalid authentication state"));
   },
   getIdentityV1: (request, reply) => {
     const { projects, user } = scenarioFor(request);
@@ -146,7 +160,7 @@ const operationHandlers = {
     reply.send({ data: projectFor(request).vectorPromotionConfigs }),
   loginV1: (request, reply) => {
     const { return_url: returnUrl } = request.query as Query<"loginV1">;
-    const state = encodeURIComponent(relativePath(returnUrl, "Invalid return URL"));
+    const state = encodeURIComponent(validatedReturnUrl(returnUrl, "Invalid return URL"));
     return reply.redirect(`/api/v1/auth/callback?code=${MOCK_CODE}&state=${state}`);
   },
   logoutV1: (_request, reply) => reply.clearCookie(SESSION_COOKIE, COOKIE_OPTIONS).send(),
@@ -162,4 +176,4 @@ const securityHandlers = {
   },
 };
 
-export { delay, operationHandlers, securityHandlers };
+export { delay, operationHandlers, securityHandlers, UI_ORIGINS };
