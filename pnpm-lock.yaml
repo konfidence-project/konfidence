@@ -70,8 +70,8 @@ importers:
   apps/konfidence-ui:
     dependencies:
       '@humanspeak/svelte-headless-table':
-        specifier: ^6.3.0
-        version: 6.3.0(svelte@5.57.1(@typescript-eslint/types@8.70.1))
+        specifier: ^6.4.0
+        version: 6.4.0(svelte@5.57.1(@typescript-eslint/types@8.70.1))
       '@konfidence/api-client':
         specifier: workspace:*
         version: link:../../packages/konfidence-api-client
@@ -513,8 +513,8 @@ packages:
     resolution: {integrity: sha512-im7GIIpgjdD6Fx68xCeiXw3XiDv30/WMRAaodMm+ep0ptYfEUd0cdNeTAylHGIRTJIeByKFHdTmPjAktyDM/JQ==}
     engines: {node: '>=20.19.0'}
 
-  '@humanspeak/svelte-headless-table@6.3.0':
-    resolution: {integrity: sha512-Zcl3YIGb/DT6JOR7Hd/JD6qmCuohHfuaeY5AkekMh82qZNqFLXu5Eo43T7Jix1H9KkziUYfuwy6UamrpvwG6WQ==}
+  '@humanspeak/svelte-headless-table@6.4.0':
+    resolution: {integrity: sha512-/b31VZGJIVQ1bD8vYWtgIwOSvkbmF4x6AqcuS7og5yXdE4kr+Ddbl4E1cDjXCniDZ3DAxY95dHsDv9nTqoYXbw==}
     peerDependencies:
       svelte: ^5.30.0
 
@@ -3106,7 +3106,7 @@ snapshots:
 
   '@humanspeak/memory-cache@1.2.0': {}
 
-  '@humanspeak/svelte-headless-table@6.3.0(svelte@5.57.1(@typescript-eslint/types@8.70.1))':
+  '@humanspeak/svelte-headless-table@6.4.0(svelte@5.57.1(@typescript-eslint/types@8.70.1))':
     dependencies:
       '@humanspeak/memory-cache': 1.2.0
       svelte: 5.57.1(@typescript-eslint/types@8.70.1)
