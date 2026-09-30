@@ -2,7 +2,7 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import ButtonFixture from "./ButtonFixture.svelte";
 
 const VARIANT_CLASSES = {
@@ -54,10 +54,25 @@ describe("<Button>", () => {
       .toHaveAttribute("type", "button");
   });
 
+  it("renders a ui5-icon when the icon prop is set", async () => {
+    render(ButtonFixture, { icon: "add", label: "Add" });
+    await expect.element(page.getByRole("button", { name: "Add" })).toBeInTheDocument();
+    await customElements.whenDefined("ui5-icon");
+    const icon = document.querySelector<HTMLElement & { name?: string }>("button.btn ui5-icon");
+    expect(icon?.getAttribute("name")).toBe("add");
+  });
+
+  it("renders no icon element when icon prop is omitted", async () => {
+    render(ButtonFixture, { label: "Deploy" });
+    await expect.element(page.getByRole("button", { name: "Deploy" })).toBeInTheDocument();
+    const icon = document.querySelector("button.btn ui5-icon");
+    expect(icon).toBeNull();
+  });
+
   describe("variant snapshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     for (const mode of ["light", "dark"]) {
@@ -65,7 +80,7 @@ describe("<Button>", () => {
         it(`matches the ${mode} ${variant} screenshot`, async () => {
           await page.viewport(320, 240);
           document.documentElement.setAttribute("data-theme", "konfidence");
-          document.documentElement.setAttribute("data-mode", mode);
+          document.documentElement.classList.toggle("dark", mode === "dark");
           await render(ButtonFixture, { label: "Deploy", variant });
           await expect.element(page.getByRole("button", { name: "Deploy" })).toMatchScreenshot();
         });

@@ -5,7 +5,7 @@ import { createRawSnippet } from "svelte";
 
 import PageHeader from "../PageHeader.svelte";
 import PageHeaderFixture from "./PageHeaderFixture.svelte";
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 
 describe("<PageHeader>", () => {
   it("renders the title as an h1 with the DS display recipe", async () => {
@@ -58,7 +58,7 @@ describe("<PageHeader>", () => {
   describe("variant screenshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     const eyebrowSnippet = createRawSnippet(() => ({
@@ -100,7 +100,7 @@ describe("<PageHeader>", () => {
         it(`renders ${mode} ${name}`, async () => {
           await page.viewport(720, 220);
           document.documentElement.setAttribute("data-theme", "konfidence");
-          document.documentElement.setAttribute("data-mode", mode);
+          document.documentElement.classList.toggle("dark", mode === "dark");
           await render(PageHeaderFixture, {
             actions: scenario.withActions ? actionSnippet : undefined,
             description: scenario.description,

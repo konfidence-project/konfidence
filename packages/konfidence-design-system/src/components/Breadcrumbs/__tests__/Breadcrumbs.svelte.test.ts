@@ -4,7 +4,7 @@ import { render } from "vitest-browser-svelte";
 
 import Breadcrumbs from "../Breadcrumbs.svelte";
 import BreadcrumbsFixture from "./BreadcrumbsFixture.svelte";
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 
 describe("<Breadcrumbs>", () => {
   it("renders nothing when items is empty", async () => {
@@ -63,7 +63,7 @@ describe("<Breadcrumbs>", () => {
   describe("variant screenshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     const scenarios = {
@@ -81,7 +81,7 @@ describe("<Breadcrumbs>", () => {
         it(`renders ${mode} ${name}`, async () => {
           await page.viewport(480, 80);
           document.documentElement.setAttribute("data-theme", "konfidence");
-          document.documentElement.setAttribute("data-mode", mode);
+          document.documentElement.classList.toggle("dark", mode === "dark");
           await render(BreadcrumbsFixture, { items });
           await expect.element(page.getByTestId("breadcrumbs-root")).toMatchScreenshot();
         });

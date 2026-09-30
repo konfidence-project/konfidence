@@ -4,7 +4,7 @@ import { render } from "vitest-browser-svelte";
 
 import EmptyState from "../EmptyState.svelte";
 import EmptyStateFixture from "./EmptyStateFixture.svelte";
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 
 const TONES = ["empty", "info", "error"] as const;
 
@@ -32,7 +32,7 @@ describe("<EmptyState>", () => {
   describe("tone screenshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     for (const mode of ["light", "dark"]) {
@@ -40,7 +40,7 @@ describe("<EmptyState>", () => {
         it(`renders the ${mode} ${tone} tone`, async () => {
           await page.viewport(360, 260);
           document.documentElement.setAttribute("data-theme", "konfidence");
-          document.documentElement.setAttribute("data-mode", mode);
+          document.documentElement.classList.toggle("dark", mode === "dark");
           await render(EmptyStateFixture, {
             description:
               tone === "error"

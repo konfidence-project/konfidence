@@ -2,13 +2,13 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import AvatarFixture from "./AvatarFixture.svelte";
 
 describe("<Avatar>", () => {
   afterEach(() => {
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.removeAttribute("data-mode");
+    document.documentElement.classList.remove("dark");
   });
 
   it("renders the initials", async () => {
@@ -28,7 +28,7 @@ describe("<Avatar>", () => {
       it(`renders ${mode} ${orbit ? "orbit" : "default"}`, async () => {
         await page.viewport(160, 160);
         document.documentElement.setAttribute("data-theme", "konfidence");
-        document.documentElement.setAttribute("data-mode", mode);
+        document.documentElement.classList.toggle("dark", mode === "dark");
         await render(AvatarFixture, { initials: "AK", orbit });
         const avatar = document.querySelector<HTMLElement>('[aria-label="Alex Admin"]');
         if (avatar) {
