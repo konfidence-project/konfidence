@@ -4,13 +4,12 @@
         OrbitLoader,
         PageHeader,
     } from "@konfidence/design-system/components";
-    import type { Landscape, Stage } from "$lib/landscape/landscapeApi";
-    import type { LandscapeDataStatus } from "$lib/landscape/landscapeData.svelte";
+    import type { Landscape, Stage } from "$lib/konfidence-api/types";
     import LandscapeFlow from "$lib/landscape/components/LandscapeFlow.svelte";
 
     interface Props {
         error?: string;
-        status: LandscapeDataStatus;
+        status: "loading" | "ready" | "error";
         landscapes: readonly Landscape[];
         stages: readonly Stage[];
         projectId: string;

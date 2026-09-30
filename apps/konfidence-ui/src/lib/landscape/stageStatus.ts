@@ -1,6 +1,4 @@
-import type { Stage } from "$lib/landscape/landscapeApi";
-
-type StageVersion = NonNullable<Stage["targetStageVersion"]>;
+import type { StageVersion } from "$lib/konfidence-api/types";
 
 // Badge tones this feature relies on. Keep in sync with the `.badge--<tone>`
 // classes exposed by `<StatusBadge>` in the design system.
@@ -22,4 +20,4 @@ const stageStatuses: Record<StageVersion["status"], StageStatusEntry> = {
 };
 
 export { stageStatuses };
-export type { StageBadgeTone, StageStatusEntry, StageVersion };
+export type { StageBadgeTone, StageStatusEntry };

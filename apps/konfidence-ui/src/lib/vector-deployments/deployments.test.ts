@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { components } from "@konfidence/api-client/schema";
+import type {
+  ArtifactDeployment as ApiArtifactDeployment,
+  Landscape as ApiLandscape,
+  Stage as ApiStage,
+  VectorDeployment as ApiVectorDeployment,
+} from "$lib/konfidence-api/types";
 import {
   matchesQuery,
   matchesStatus,
@@ -7,11 +12,6 @@ import {
   statusTone,
   toVectorDeploymentRows,
 } from "./deployments.js";
-
-type ApiArtifactDeployment = components["schemas"]["ArtifactDeployment"];
-type ApiLandscape = components["schemas"]["Landscape"];
-type ApiStage = components["schemas"]["Stage"];
-type ApiVectorDeployment = components["schemas"]["VectorDeployment"];
 
 const REPOSITORY = "ghcr.io/konfidence/mock";
 

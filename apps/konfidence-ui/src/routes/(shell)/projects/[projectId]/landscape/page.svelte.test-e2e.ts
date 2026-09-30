@@ -142,6 +142,24 @@ test("renders the real degraded mock scenario as retryable", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
 
+test("retries after a landscape network failure", async ({ page }) => {
+  let failing = true;
+  await page.route(LANDSCAPES_API, (route) =>
+    failing
+      ? route.abort("failed")
+      : route.fulfill({ json: { data: [{ id: "primary", name: "Primary" }] } }),
+  );
+  await page.route(STAGES_API, (route) => route.fulfill({ json: { data: [stage] } }));
+  const target = "/projects/payments-platform/landscape";
+  await signIn(page, target, target);
+
+  await expect(page.getByRole("heading", { name: "Landscape could not be loaded" })).toBeVisible();
+  await expect(page.getByText("Landscapes are currently unavailable.")).toBeVisible();
+  failing = false;
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.getByRole("link", { name: /View details for stage dev-api/ })).toBeVisible();
+});
+
 // oxlint-disable-next-line eslint/max-statements -- One journey verifies overview-to-detail keyboard navigation, node stability, reload/back behavior.
 test("groups stages and opens a real detail route with the keyboard", async ({ page }) => {
   await mockOverview(page);
@@ -181,12 +199,7 @@ test("groups stages and opens a real detail route with the keyboard", async ({ p
 });
 
 test("recovers from an overview API error and fits a mobile viewport", async ({ page }) => {
-  // The +page.ts loader fires an API call at load-time — including
-  // during the pre-auth navigation that happens inside `signIn()`. Using
-  // a simple attempts counter would burn the 503 on that discarded pre-
-  // auth load; drive the mock via an explicit phase flag instead so the
-  // 503 lands on the authenticated landscape render, and the retry-click
-  // resolves against the success payload.
+  // Keep the response failing until the retry click, regardless of requests during sign-in.
   let failing = true;
   await page.route(LANDSCAPES_API, (route) =>
     failing
@@ -316,6 +329,52 @@ test("stacks stages across landscapes in top-aligned category columns", async ({
   expect(testStage!.y).toBeCloseTo(first!.y, 0);
   expect(testStage!.x).toBeGreaterThan(first!.x + first!.width);
   await expect(page.locator(".svelte-flow__node-landscape")).toHaveCount(0);
+});
+
+test("keeps overview stages after client navigation through filtered landscape details", async ({
+  page,
+}) => {
+  await page.route(LANDSCAPES_API, (route) =>
+    route.fulfill({
+      json: {
+        data: [
+          { id: "primary", name: "Primary" },
+          { id: "secondary", name: "Secondary" },
+        ],
+      },
+    }),
+  );
+  await page.route(STAGES_API, (route) => {
+    const landscapeId = new URL(route.request().url()).searchParams.get("landscapeId");
+    const stages = [stage, { ...stage, landscapeId: "secondary" }];
+    return route.fulfill({
+      json: {
+        data: landscapeId ? stages.filter((item) => item.landscapeId === landscapeId) : stages,
+      },
+    });
+  });
+  const target = "/projects/payments-platform/landscape";
+  await signIn(page, target, target);
+
+  const primary = page.getByRole("link", {
+    name: "View details for stage dev-api in Primary, Dev",
+  });
+  const secondary = page.getByRole("link", {
+    name: "View details for stage dev-api in Secondary, Dev",
+  });
+  await expect(primary).toBeVisible();
+  await expect(secondary).toBeVisible();
+  await secondary.click();
+  await expect(page.getByRole("heading", { level: 1, name: "dev-api" })).toBeVisible();
+  await expect(page.getByText("Secondary", { exact: true })).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Landscapes" })
+    .click();
+  await expect(primary).toBeVisible();
+  await expect(secondary).toBeVisible();
+  await primary.click();
+  await expect(page.getByText("Primary", { exact: true })).toBeVisible();
 });
 
 // oxlint-disable-next-line eslint/max-statements -- Verify initial readability, explicit fit, and keyboard recovery to an offscreen stage.

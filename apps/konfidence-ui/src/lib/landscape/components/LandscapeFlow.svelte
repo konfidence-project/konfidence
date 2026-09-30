@@ -3,7 +3,7 @@
     import "@xyflow/svelte/dist/style.css";
     import { Controls, PanOnScrollMode, SvelteFlow } from "@xyflow/svelte";
     import type { Node } from "@xyflow/svelte";
-    import type { Landscape, Stage } from "$lib/landscape/landscapeApi";
+    import type { Landscape, Stage } from "$lib/konfidence-api/types";
     import { groupStages } from "$lib/landscape/stageGrouping";
     import { stageDetailsUrl } from "$lib/projects/url";
     import { isDarkMode, themeStore } from "$lib/theme";

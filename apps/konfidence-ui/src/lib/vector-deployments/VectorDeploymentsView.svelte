@@ -2,7 +2,7 @@
     import "@ui5/webcomponents-icons/dist/product.js";
     import "@ui5/webcomponents-icons/dist/error.js";
     import "@ui5/webcomponents/dist/Icon.js";
-    import type {components} from "@konfidence/api-client/schema";
+    import type {ArtifactDeployment, Landscape, Stage, VectorDeployment} from "$lib/konfidence-api/types";
     import {
         Button,
         EmptyState,
@@ -20,10 +20,6 @@
     import {useDeploymentFilters} from "$lib/deployments/useDeploymentFilters.svelte.js";
     import {LANDSCAPE_PARAM} from "$lib/deployments/params.js";
 
-    type Landscape = components["schemas"]["Landscape"];
-    type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
-    type Stage = components["schemas"]["Stage"];
-    type VectorDeployment = components["schemas"]["VectorDeployment"];
 
     interface Props {
         projectId: string;
@@ -213,7 +209,7 @@
 </section>
 
 <SidePanel
-        open={filters.panelOpen}
+        open={filters.panelOpen && !loading && !error}
         title={filters.selected ? `${filters.selected.stageName}/${filters.selected.id}` : "Vector deployment"}
         onClose={filters.closePanel}
 >
