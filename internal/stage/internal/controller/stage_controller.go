@@ -223,6 +223,12 @@ func (r *StageReconciler) getOrCreateStageVersion(ctx context.Context, stage *ko
 	}
 
 	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, stageVersion, func() error {
+		if stageVersion.Labels == nil {
+			stageVersion.Labels = make(map[string]string)
+		}
+		for key, value := range getStageVersionLabels(stage) {
+			stageVersion.Labels[key] = value
+		}
 		if err := SetOwnerReference(stage, stageVersion, r.Scheme, true); err != nil {
 			return fmt.Errorf("unable to check stageVersion owner reference: %w", err)
 		}
