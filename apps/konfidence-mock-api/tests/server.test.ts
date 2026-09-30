@@ -67,6 +67,21 @@ test("logs in through the callback, sets a session cookie and returns to the req
   expect(callback.headers.get("set-cookie")).toContain(SESSION);
 });
 
+test("returns to the E2E dashboard after login", async () => {
+  const returnUrl = "http://127.0.0.1:4173/projects";
+  const login = await get(`/api/v1/login?return_url=${encodeURIComponent(returnUrl)}`);
+
+  expect(login.status).toBe(302);
+
+  const callbackLocation = login.headers.get("location");
+  expect(callbackLocation).not.toBeNull();
+
+  const callback = await get(callbackLocation!);
+  expect(callback.status).toBe(302);
+  expect(callback.headers.get("location")).toBe(returnUrl);
+  expect(callback.headers.get("set-cookie")).toContain(SESSION);
+});
+
 test("requires a session cookie", async () => {
   const response = await fetch(`${baseUrl}/api/v1/projects`);
   expect(response.status).toBe(401);

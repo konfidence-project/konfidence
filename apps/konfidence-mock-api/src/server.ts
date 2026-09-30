@@ -5,7 +5,7 @@ import fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import openapiGlue from "fastify-openapi-glue";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { delay, operationHandlers, securityHandlers } from "./handlers.js";
+import { delay, operationHandlers, securityHandlers, UI_ORIGINS } from "./handlers.js";
 
 const OPENAPI_PATH = fileURLToPath(new URL("../../../api/openapi.yaml", import.meta.url));
 
@@ -18,12 +18,6 @@ const DOCS_BANNER = `document.addEventListener("DOMContentLoaded", () => {
 });
 `;
 
-const UI_ORIGINS = new Set([
-  "http://127.0.0.1:4173",
-  "http://127.0.0.1:5173",
-  "http://localhost:4173",
-  "http://localhost:5173",
-]);
 const HTTP_NO_CONTENT = 204;
 
 const createMockServer = async (): Promise<FastifyInstance> => {
