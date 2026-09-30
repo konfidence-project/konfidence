@@ -1,6 +1,4 @@
-import type { components } from "@konfidence/api-client/schema";
-
-type ApiIdentity = components["schemas"]["Identity"];
+import type { Identity as ApiIdentity } from "$lib/konfidence-api/types";
 
 type AuthRole = string;
 
@@ -31,4 +29,4 @@ const toAuthUser = (identity: ApiIdentity): AuthUser => ({
 });
 
 export { toAuthUser };
-export type { ApiIdentity, AuthRole, AuthState, AuthStatus, AuthUser };
+export type { AuthRole, AuthState, AuthStatus, AuthUser };

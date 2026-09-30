@@ -93,6 +93,9 @@ importers:
       '@xyflow/svelte':
         specifier: ^1.7.0
         version: 1.7.0(svelte@5.57.1(@typescript-eslint/types@8.70.1))
+      svelte-tiny-query:
+        specifier: ^2.1.0
+        version: 2.1.0(svelte@5.57.1(@typescript-eslint/types@8.70.1))
     devDependencies:
       '@playwright/test':
         specifier: 'catalog:'
@@ -2623,6 +2626,11 @@ packages:
     peerDependenciesMeta:
       svelte:
         optional: true
+
+  svelte-tiny-query@2.1.0:
+    resolution: {integrity: sha512-+zxiswsCepP/j13ZbNOAhVRSuTleakfH0o1cDqtGJc7BnCsIvD/3CO0bIHvs2HLMou0RXGDxQRZ9qT9pxJfooA==}
+    peerDependencies:
+      svelte: ^5.35.0
 
   svelte@5.57.1:
     resolution: {integrity: sha512-Uqj49lWKB+iSSnneuwiYYJ7MZgkB+eXr0LXBhv4uDuAkXqnWmq65Sxflfvp0Lc6MdKjMUxGaeOKWJqz5SNiVIA==}
@@ -5277,6 +5285,10 @@ snapshots:
       postcss-selector-parser: 7.1.5
       semver: 7.8.5
     optionalDependencies:
+      svelte: 5.57.1(@typescript-eslint/types@8.70.1)
+
+  svelte-tiny-query@2.1.0(svelte@5.57.1(@typescript-eslint/types@8.70.1)):
+    dependencies:
       svelte: 5.57.1(@typescript-eslint/types@8.70.1)
 
   svelte@5.57.1(@typescript-eslint/types@8.70.1):

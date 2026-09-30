@@ -1,10 +1,12 @@
-import { getContext, setContext } from "svelte";
+import { getContext, setContext, tick } from "svelte";
+import { invalidateQueries } from "svelte-tiny-query";
 import type { AuthStatus, AuthUser } from "$lib/auth/types";
 import { toAuthUser } from "$lib/auth/types";
 import type { ApiClient } from "$lib/konfidence-api/client";
 import { resolveApiBaseUrl } from "$lib/konfidence-api/client";
 import { goto } from "$app/navigation";
 import { HTTP_UNAUTHORIZED } from "$lib/http-status";
+import { AUTHENTICATED_QUERY_ROOT } from "$lib/queries.svelte";
 import type { paths } from "@konfidence/api-client/schema";
 
 // SvelteKit UI routes (not part of the OpenAPI surface).
@@ -36,6 +38,7 @@ class SessionStore {
 
   readonly #client: ApiClient;
   #inflight: Promise<void> | undefined = undefined;
+  #pendingCacheClear: Promise<void> | undefined = undefined;
 
   constructor(client: ApiClient) {
     this.#client = client;
@@ -43,8 +46,7 @@ class SessionStore {
 
   /** Called by the API client middleware when it sees a 401 response. */
   handleUnauthorized(): void {
-    this.user = undefined;
-    this.status = "unauthenticated";
+    void this.#setUnauthenticated();
   }
 
   clearError(): void {
@@ -78,9 +80,8 @@ class SessionStore {
     } catch {
       // Ignore logout failures; local state is cleared regardless.
     }
-    this.user = undefined;
-    this.status = "unauthenticated";
     this.error = undefined;
+    await this.#setUnauthenticated();
     await goto(LOGIN_PATH);
   }
 
@@ -103,27 +104,54 @@ class SessionStore {
   async #runRefresh(): Promise<void> {
     try {
       const result = await this.#client.GET(IDENTITY_API_ROUTE);
-      this.#applyIdentity(result);
+      await this.#applyIdentity(result);
     } catch (fetchError) {
-      this.user = undefined;
-      this.status = "unauthenticated";
       this.error = fetchError instanceof Error ? fetchError.message : "Failed to reach the API";
+      await this.#setUnauthenticated();
     } finally {
       this.#inflight = undefined;
     }
   }
 
-  #applyIdentity(result: IdentityResult): void {
+  async #applyIdentity(result: IdentityResult): Promise<void> {
     if (result.data) {
       this.user = toAuthUser(result.data);
       this.status = "authenticated";
       return;
     }
-    this.user = undefined;
-    this.status = "unauthenticated";
     if (result.response.status !== HTTP_UNAUTHORIZED) {
       this.error = `Unable to load identity (status ${result.response.status})`;
     }
+    await this.#setUnauthenticated();
+  }
+
+  async #setUnauthenticated(): Promise<void> {
+    if (this.status === "unauthenticated") {
+      if (this.#pendingCacheClear) {
+        await this.#pendingCacheClear;
+      }
+      return;
+    }
+
+    this.#clearAuthenticatedSession();
+
+    const cacheClear = this.#clearAuthenticatedQueryCache();
+    this.#pendingCacheClear = cacheClear;
+    try {
+      await cacheClear;
+    } finally {
+      this.#pendingCacheClear = undefined;
+    }
+  }
+
+  async #clearAuthenticatedQueryCache(): Promise<void> {
+    await tick();
+    invalidateQueries([AUTHENTICATED_QUERY_ROOT], { force: true });
+  }
+
+  #clearAuthenticatedSession(): void {
+    this.user = undefined;
+    this.status = "unauthenticated";
   }
 }
 

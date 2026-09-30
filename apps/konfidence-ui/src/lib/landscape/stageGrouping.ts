@@ -1,4 +1,4 @@
-import type { Stage } from "$lib/landscape/landscapeApi";
+import type { Stage } from "$lib/konfidence-api/types";
 
 // TODO: prefix-based grouping; revisit to derive from landscape.
 type StageGroups = Record<"dev" | "test" | "prod" | "other", Stage[]>;

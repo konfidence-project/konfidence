@@ -4,8 +4,7 @@
         StageCardStatusRole,
         StagePhaseItem,
     } from "@konfidence/design-system/components";
-    import type { Stage } from "$lib/landscape/landscapeApi";
-    import type { StageVersion } from "$lib/landscape/stageStatus";
+    import type { Stage, StageVersion } from "$lib/konfidence-api/types";
     import { stageStatuses } from "$lib/landscape/stageStatus";
 
     interface Props {

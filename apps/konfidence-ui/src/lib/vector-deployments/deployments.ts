@@ -1,10 +1,10 @@
-import type { components } from "@konfidence/api-client/schema";
+import type {
+  ArtifactDeployment as ApiArtifactDeployment,
+  Landscape as ApiLandscape,
+  Stage as ApiStage,
+  VectorDeployment as ApiVectorDeployment,
+} from "$lib/konfidence-api/types";
 import type { StatusTone } from "$lib/components/table-cells/status-cell.types.js";
-
-type ApiLandscape = components["schemas"]["Landscape"];
-type ApiStage = components["schemas"]["Stage"];
-type ApiVectorDeployment = components["schemas"]["VectorDeployment"];
-type ApiArtifactDeployment = components["schemas"]["ArtifactDeployment"];
 
 interface VectorDeploymentRow {
   id: string;

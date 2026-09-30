@@ -2,7 +2,7 @@
     import "@ui5/webcomponents-icons/dist/product.js";
     import "@ui5/webcomponents-icons/dist/error.js";
     import "@ui5/webcomponents/dist/Icon.js";
-    import type {components} from "@konfidence/api-client/schema";
+    import type {ArtifactDeployment, Landscape, Stage, VectorDeployment} from "$lib/konfidence-api/types";
     import {
         Button,
         EmptyState,
@@ -15,13 +15,11 @@
 
     import VectorDeploymentDetail from "./VectorDeploymentDetail.svelte";
     import VectorDeploymentsTable from "./VectorDeploymentsTable.svelte";
-    import {toVectorDeploymentRows} from "./deployments.js";
-    import {useDeploymentFilters} from "./useDeploymentFilters.svelte.js";
+    import {matchesQuery, matchesStatus, toVectorDeploymentRows} from "./deployments.js";
+    import type {VectorDeploymentRow, VectorDeploymentStatus} from "./deployments.js";
+    import {useDeploymentFilters} from "$lib/deployments/useDeploymentFilters.svelte.js";
+    import {LANDSCAPE_PARAM} from "$lib/deployments/params.js";
 
-    type Landscape = components["schemas"]["Landscape"];
-    type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
-    type Stage = components["schemas"]["Stage"];
-    type VectorDeployment = components["schemas"]["VectorDeployment"];
 
     interface Props {
         projectId: string;
@@ -53,9 +51,10 @@
         toVectorDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
     );
 
-    const filters = useDeploymentFilters({
+    const filters = useDeploymentFilters<VectorDeploymentRow, VectorDeploymentStatus>({
+        dimensions: [{ param: LANDSCAPE_PARAM, value: () => selectedLandscapeId }],
+        matchers: { matchesQuery, matchesStatus },
         rows: () => rows,
-        selectedLandscapeId: () => selectedLandscapeId,
     });
 
     const labelTextClass =
@@ -103,7 +102,7 @@
                 <span class={labelTextClass}>Landscape</span>
                 <Select
                         value={selectedLandscapeId ?? ""}
-                        onchange={(event) => filters.changeLandscape(event.currentTarget.value)}
+                        onchange={(event) => filters.changeDimension(LANDSCAPE_PARAM, event.currentTarget.value)}
                         disabled={landscapes.length === 0}
                         aria-label="Filter by landscape"
                         data-testid="vectordeployment-landscape-filter"
@@ -210,7 +209,7 @@
 </section>
 
 <SidePanel
-        open={filters.panelOpen}
+        open={filters.panelOpen && !loading && !error}
         title={filters.selected ? `${filters.selected.stageName}/${filters.selected.id}` : "Vector deployment"}
         onClose={filters.closePanel}
 >

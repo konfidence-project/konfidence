@@ -230,6 +230,39 @@ test.describe("vector deployments", () => {
     await expect(page).toHaveURL(VECTOR_DEPLOYMENTS_PATH);
   });
 
+  test("retries a rejected deployment request", async ({ page }) => {
+    let failNext = true;
+    await page.route("**/v1/projects/*/vectorDeployments*", async (route) => {
+      if (failNext) {
+        failNext = false;
+        await route.abort("failed");
+      } else {
+        await route.continue();
+      }
+    });
+    await gotoVectorDeployments(page);
+    await expect(page.getByTestId("vectordeployment-view-error")).toBeVisible();
+    await page.getByTestId("vectordeployment-view-retry").click();
+    await expect(page.getByTestId("vectordeployment-row")).toHaveCount(EXPECTED_ROW_COUNT);
+  });
+
+  test("blocks the table when stages fail and recovers on retry", async ({ page }) => {
+    let failNext = true;
+    await page.route("**/v1/projects/*/stages*", async (route) => {
+      if (failNext) {
+        failNext = false;
+        await route.fulfill({ body: "Unavailable", status: 500 });
+      } else {
+        await route.continue();
+      }
+    });
+    await gotoVectorDeployments(page);
+    await expect(page.getByTestId("vectordeployment-view-error")).toBeVisible();
+    await expect(page.getByTestId("vectordeployment-row")).toHaveCount(0);
+    await page.getByTestId("vectordeployment-view-retry").click();
+    await expect(page.getByTestId("vectordeployment-row")).toHaveCount(EXPECTED_ROW_COUNT);
+  });
+
   test("shows an error state and retry action when the API fails", async ({ page }) => {
     await setScenario(page, "degraded");
     await gotoVectorDeployments(page);
