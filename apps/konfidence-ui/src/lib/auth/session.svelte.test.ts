@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as SvelteTinyQuery from "svelte-tiny-query";
 import { HTTP_INTERNAL_SERVER_ERROR, HTTP_OK, HTTP_UNAUTHORIZED } from "$lib/http-status";
 import {
   createTestSession,
@@ -7,15 +8,23 @@ import {
   mockFetchOnce,
   mockFetchReject,
 } from "$lib/auth/session.test-helpers";
+import { AUTHENTICATED_QUERY_ROOT } from "$lib/queries.svelte";
 
 const gotoMock = vi.fn(async (_target: string): Promise<void> => undefined);
+const invalidateQueriesMock = vi.fn();
 
 vi.mock("$app/navigation", () => ({
   goto: (target: string) => gotoMock(target),
 }));
+vi.mock("svelte-tiny-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof SvelteTinyQuery>()),
+  invalidateQueries: (key: string[], options?: { force?: boolean }) =>
+    invalidateQueriesMock(key, options),
+}));
 
 beforeEach(() => {
   gotoMock.mockClear();
+  invalidateQueriesMock.mockClear();
 });
 
 afterEach(() => {
@@ -51,6 +60,8 @@ describe("session store", () => {
     expect(session.status).toBe("unauthenticated");
     expect(session.user).toBeUndefined();
     expect(session.error).toBeUndefined();
+    expect(invalidateQueriesMock).toHaveBeenCalledOnce();
+    expect(invalidateQueriesMock).toHaveBeenCalledWith([AUTHENTICATED_QUERY_ROOT], { force: true });
   });
 
   it("records an error on unexpected non-OK responses", async () => {
@@ -72,6 +83,19 @@ describe("session store", () => {
 
     expect(session.status).toBe("unauthenticated");
     expect(session.error).toBe("network down");
+    expect(invalidateQueriesMock).toHaveBeenCalledWith([AUTHENTICATED_QUERY_ROOT], { force: true });
+  });
+
+  it("clears authenticated query data when an API request becomes unauthorized", async () => {
+    const session = createTestSession();
+
+    session.handleUnauthorized();
+
+    await vi.waitFor(() => {
+      expect(invalidateQueriesMock).toHaveBeenCalledWith([AUTHENTICATED_QUERY_ROOT], {
+        force: true,
+      });
+    });
   });
 
   it("uses a relative return path when the API is same-origin", () => {
@@ -146,5 +170,6 @@ describe("session store", () => {
     expect(gotoMock).toHaveBeenCalledWith("/login");
     expect(session.user).toBeUndefined();
     expect(session.status).toBe("unauthenticated");
+    expect(invalidateQueriesMock).toHaveBeenCalledWith([AUTHENTICATED_QUERY_ROOT], { force: true });
   });
 });

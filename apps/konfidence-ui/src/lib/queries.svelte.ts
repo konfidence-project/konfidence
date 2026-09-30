@@ -29,6 +29,8 @@ interface ArtifactDeploymentFilter extends LandscapeFilter {
   vectorDeploymentId?: string;
 }
 
+const AUTHENTICATED_QUERY_ROOT = "authenticated";
+
 // fail(...) populates the query error state for API failures.
 const LANDSCAPES_UNAVAILABLE = "Landscapes are currently unavailable.";
 const PROJECTS_UNAVAILABLE = "Projects are currently unavailable.";
@@ -37,7 +39,7 @@ const VECTOR_DEPLOYMENTS_UNAVAILABLE = "Vector deployments are currently unavail
 const ARTIFACT_DEPLOYMENTS_UNAVAILABLE = "Artifact deployments are currently unavailable.";
 
 const useProjects = createQuery<QueryError, string, readonly Project[]>(
-  (email) => ["projects", email],
+  (email) => [AUTHENTICATED_QUERY_ROOT, "projects", email],
   async (_email, signal) => {
     try {
       const { data, error, response } = await getApiClient().GET("/v1/projects", { signal });
@@ -52,7 +54,7 @@ const useProjects = createQuery<QueryError, string, readonly Project[]>(
 );
 
 const useLandscapes = createQuery<QueryError, ProjectScope, readonly Landscape[]>(
-  (param) => ["projects", param.projectId, "landscapes"],
+  (param) => [AUTHENTICATED_QUERY_ROOT, "projects", param.projectId, "landscapes"],
   async ({ projectId }, signal) => {
     try {
       const { data, error, response } = await getApiClient().GET(
@@ -75,8 +77,8 @@ const useLandscapes = createQuery<QueryError, ProjectScope, readonly Landscape[]
 const useStages = createQuery<QueryError, LandscapeFilter, readonly Stage[]>(
   (param) =>
     param.landscapeId
-      ? ["projects", param.projectId, "stages", param.landscapeId]
-      : ["projects", param.projectId, "stages"],
+      ? [AUTHENTICATED_QUERY_ROOT, "projects", param.projectId, "stages", param.landscapeId]
+      : [AUTHENTICATED_QUERY_ROOT, "projects", param.projectId, "stages"],
   async ({ projectId, landscapeId }, signal) => {
     try {
       const { data, error, response } = await getApiClient().GET(
@@ -97,7 +99,13 @@ const useStages = createQuery<QueryError, LandscapeFilter, readonly Stage[]>(
 );
 
 const useVectorDeployments = createQuery<QueryError, LandscapeFilter, readonly VectorDeployment[]>(
-  (param) => ["projects", param.projectId, "vectorDeployments", param.landscapeId ?? ""],
+  (param) => [
+    AUTHENTICATED_QUERY_ROOT,
+    "projects",
+    param.projectId,
+    "vectorDeployments",
+    param.landscapeId ?? "",
+  ],
   async ({ projectId, landscapeId }, signal) => {
     try {
       const { data, error, response } = await getApiClient().GET(
@@ -129,6 +137,7 @@ const useArtifactDeployments = createQuery<
   readonly ArtifactDeployment[]
 >(
   (param) => [
+    AUTHENTICATED_QUERY_ROOT,
     "projects",
     param.projectId,
     "artifactDeployments",
@@ -161,4 +170,11 @@ const useArtifactDeployments = createQuery<
   },
 );
 
-export { useArtifactDeployments, useLandscapes, useProjects, useStages, useVectorDeployments };
+export {
+  AUTHENTICATED_QUERY_ROOT,
+  useArtifactDeployments,
+  useLandscapes,
+  useProjects,
+  useStages,
+  useVectorDeployments,
+};
