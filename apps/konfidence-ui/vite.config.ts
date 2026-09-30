@@ -25,6 +25,11 @@ export default defineConfig({
     tailwindcss(),
     sveltekit(),
   ],
+  server: {
+    proxy: {
+      "/api/v1": process.env.KONFIDENCE_API_URL ?? "http://127.0.0.1:8091",
+    },
+  },
   test: {
     expect: { requireAssertions: true },
     projects: [
