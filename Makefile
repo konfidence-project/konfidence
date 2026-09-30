@@ -11,8 +11,9 @@ DEPLOY_OIDC_CLIENT_ID ?=
 DEPLOY_OIDC_REDIRECT_URL ?=
 DEPLOY_OIDC_CLIENT_SECRET ?=
 DEPLOY_OIDC_ALLOWED_RETURN_HOSTS ?=
-# Non-empty mounts Caddy's local CA into the API pod, for HTTPS issuer URLs.
-DEPLOY_OIDC_TRUST_CADDY_CA ?=
+DEPLOY_OIDC_CLIENT_SECRET_FILE ?=
+# Non-empty mounts the local mkcert CA into the API pod for HTTPS issuer URLs.
+DEPLOY_OIDC_TRUST_LOCAL_CA ?=
 
 # kind cluster name; must match hack/kind/dev-cluster.sh's CLUSTER_NAME.
 KIND_CLUSTER_NAME ?= konfidence-dev
@@ -61,8 +62,11 @@ OPERATOR_SUITE_DIRS = $(shell find internal -maxdepth 2 -name setup.go -exec dir
 
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
-# Kubeconfig written by dev-apiserver; export KUBECONFIG to it for run, run-kden-api and kden.
+# Kubeconfig written by dev-kube-apiserver; export KUBECONFIG to it for run, run-kden-api and kden.
 ENVTEST_KUBECONFIG ?= $(REPO_ROOT)/.tmp/envtest.kubeconfig
+# Per-machine local certificates; local/ is ignored by Git.
+DEV_CERT_DIR ?= $(REPO_ROOT)/local/certs
+export DEV_CERT_DIR
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
@@ -88,19 +92,10 @@ API_IMAGE      = $(REGISTRY)/api:$(TAG)
 ## GOARCH for locally-built container images; defaults to the host's.
 DOCKER_GOARCH ?= $(shell go env GOARCH)
 
-## Local API server config; OIDC on requires trusting Caddy's CA in your OS store.
-API_OIDC_ENABLED ?= false
-API_OIDC_ISSUER_URL ?= https://auth.localhost
-API_OIDC_CLIENT_ID ?= konfidence
-API_OIDC_CLIENT_SECRET ?= konfidence-local-secret
-API_OIDC_SCOPES ?= openid,profile,email,groups
-API_OIDC_REDIRECT_URL ?= https://api.localhost/api/v1/auth/callback
-API_OIDC_ALLOWED_RETURN_HOSTS ?= localhost
-API_SESSION_STORAGE_TYPE ?= in-memory
-# Postgres from dev-up; used when API_SESSION_STORAGE_TYPE=db-pg and by dev-db-migrate.
-API_DB_CONNECTION ?= postgres://test_user:test_password@localhost:5432/kden?sslmode=disable
-# Set to a dashboard build (apps/konfidence-ui/build) to serve it from the API server.
-API_UI_ASSET_PATH ?=
+## Local Konfidence config; command-line Make variables override this file.
+DEV_KONFIDENCE_ENV_FILE ?= hack/kden_local_dev/konfidence.env
+include $(DEV_KONFIDENCE_ENV_FILE)
+export VITE_KONFIDENCE_API_BASE_URL
 
 .PHONY: all
 all: api build
@@ -320,29 +315,28 @@ run: manifests generate fmt vet ## Run the konfidence operator from your host.
 
 .PHONY: run-kden-api
 run-kden-api: fmt vet ## Run the kden API server locally.
-	go run ./cmd/api/main.go \
+	@API_OIDC_CLIENT_SECRET="$(API_OIDC_CLIENT_SECRET)" API_DB_CONNECTION="$(API_DB_CONNECTION)" go run ./cmd/api/main.go \
 		--oidc-enabled=$(API_OIDC_ENABLED) \
 		--oidc-issuer-url=$(API_OIDC_ISSUER_URL) \
 		--oidc-client-id=$(API_OIDC_CLIENT_ID) \
-		--oidc-client-secret=$(API_OIDC_CLIENT_SECRET) \
 		--oidc-scopes=$(API_OIDC_SCOPES) \
 		--oidc-redirect-url=$(API_OIDC_REDIRECT_URL) \
 		--oidc-allowed-return-hosts=$(API_OIDC_ALLOWED_RETURN_HOSTS) \
+		--session-cookie-secure=$(API_SESSION_COOKIE_SECURE) \
+		--session-cookie-same-site=$(API_SESSION_COOKIE_SAME_SITE) \
 		--session-storage-type=$(API_SESSION_STORAGE_TYPE) \
-		--db-connection=$(API_DB_CONNECTION) \
 		--ui-asset-path=$(API_UI_ASSET_PATH)
 
 ##@ Local Development
 
 DEV_COMPOSE_FILE ?= hack/kden_local_dev/docker-compose.yml
-DEV_UI_API_URL ?= https://api.localhost/api
 
 .PHONY: dev-ui
 dev-ui: hermit ## Run Vite for access through the local Caddy HTTPS proxy.
-	VITE_KONFIDENCE_API_BASE_URL="$(DEV_UI_API_URL)" pnpm --filter konfidence-ui dev --host 0.0.0.0
+	pnpm --filter konfidence-ui dev --host 0.0.0.0
 
-.PHONY: dev-apiserver
-dev-apiserver: hermit manifests setup-envtest ## Run a standalone envtest apiserver with the CRDs installed; no cluster needed.
+.PHONY: dev-kube-apiserver
+dev-kube-apiserver: hermit manifests setup-envtest ## Run a local Kubernetes API server with the CRDs installed; no cluster needed.
 	go build -o $(LOCALBIN)/envtest-apiserver ./hack/envtest
 	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
 		$(LOCALBIN)/envtest-apiserver --crd-dir $(CRD_DIR) --kubeconfig $(ENVTEST_KUBECONFIG)
@@ -352,8 +346,12 @@ dev-registry: ## Start a local OCI registry at localhost:5001.
 	@CONTAINER_TOOL=$(CONTAINER_TOOL) KIND=$(KIND) KUBECTL=$(KUBECTL) ./hack/kind/dev-cluster.sh registry
 
 .PHONY: dev-up
-dev-up: ## Start the local identity provider (Authelia behind Caddy) and Postgres for the API server.
+dev-up: dev-certs ## Generate certificates and start HTTPS local dependencies and Postgres.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) up -d
+
+.PHONY: dev-certs
+dev-certs: hermit ## Generate and trust per-machine local development certificates.
+	@./hack/kden_local_dev/setup-certs.sh
 
 .PHONY: dev-down
 dev-down: ## Stop local dev dependencies started by dev-up.
@@ -364,7 +362,7 @@ dev-logs: ## Tail logs from local dev dependencies.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) logs -f
 
 .PHONY: dev-reset
-dev-reset: ## Stop local dev dependencies and delete their data (Postgres content, Caddy CA).
+dev-reset: ## Stop local dev dependencies and delete their data.
 	$(CONTAINER_TOOL) compose -f $(DEV_COMPOSE_FILE) down -v
 
 .PHONY: dev-db-migrate
@@ -452,18 +450,29 @@ deploy: hermit manifests ## Deploy the konfidence operator to the cluster specif
 			exit 1; \
 		fi; \
 	fi; \
-	if [ -n "$(DEPLOY_OIDC_CLIENT_SECRET)" ]; then \
+	OIDC_CLIENT_SECRET="$(DEPLOY_OIDC_CLIENT_SECRET)"; \
+	if [ -n "$(DEPLOY_OIDC_CLIENT_SECRET_FILE)" ]; then \
+		if [ ! -r "$(DEPLOY_OIDC_CLIENT_SECRET_FILE)" ]; then \
+			echo "OIDC client secret file is not readable: $(DEPLOY_OIDC_CLIENT_SECRET_FILE)" >&2; \
+			exit 1; \
+		fi; \
+		OIDC_CLIENT_SECRET=$$(<"$(DEPLOY_OIDC_CLIENT_SECRET_FILE)"); \
+	fi; \
+	if [ -n "$$OIDC_CLIENT_SECRET" ]; then \
 		echo "Creating API OIDC client secret in namespace '$(NAMESPACE)'..."; \
-		printf '%s' "$(DEPLOY_OIDC_CLIENT_SECRET)" | kubectl create secret generic konfidence-api-oidc \
+		printf '%s' "$$OIDC_CLIENT_SECRET" | kubectl create secret generic konfidence-api-oidc \
 			--from-file=client-secret=/dev/stdin \
 			--namespace=$(NAMESPACE) \
 			--dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
 		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS --set api.oidc.clientSecretRef.name=konfidence-api-oidc --set api.oidc.clientSecretRef.key=client-secret"; \
 	fi; \
-	if [ -n "$(DEPLOY_OIDC_TRUST_CADDY_CA)" ]; then \
-		echo "Trusting Caddy's local CA in namespace '$(NAMESPACE)'..."; \
-		$(CONTAINER_TOOL) exec caddy cat /data/caddy/pki/authorities/local/root.crt /data/caddy/pki/authorities/local/intermediate.crt | \
-			kubectl create configmap konfidence-dev-ca --from-file=ca-certificates.crt=/dev/stdin \
+	if [ -n "$(DEPLOY_OIDC_TRUST_LOCAL_CA)" ]; then \
+		if [ ! -s "$(DEV_CERT_DIR)/rootCA.pem" ]; then \
+			echo "Local development CA not found. Run 'make dev-certs' first." >&2; \
+			exit 1; \
+		fi; \
+		echo "Trusting the local development CA in namespace '$(NAMESPACE)'..."; \
+		kubectl create configmap konfidence-dev-ca --from-file=ca-certificates.crt="$(DEV_CERT_DIR)/rootCA.pem" \
 				--namespace=$(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
 		HELM_EXTRA_ARGS="$$HELM_EXTRA_ARGS \
 			--set api.volumes[0].name=dev-ca \
