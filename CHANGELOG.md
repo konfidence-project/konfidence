@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.0-alpha.2](https://github.com/konfidence-project/konfidence/compare/0.1.0-alpha.1...0.1.0-alpha.2) (2026-10-01)
+
+
+### Features
+
+* **design-preview:** interactive local design-system explorer ([#281](https://github.com/konfidence-project/konfidence/issues/281)) ([92313ad](https://github.com/konfidence-project/konfidence/commit/92313ad5c151db830140b86e26a301992950dab3))
+* serve components using mkcert created TLS keys at local dev setup ([#302](https://github.com/konfidence-project/konfidence/issues/302)) ([4d036d8](https://github.com/konfidence-project/konfidence/commit/4d036d8e0e974e01a7a4b84f2a2985e0d07a3e56))
+
+
+### Bug Fixes
+
+* **.env.development:** use localhost api base url ([#350](https://github.com/konfidence-project/konfidence/issues/350)) ([4a70c41](https://github.com/konfidence-project/konfidence/commit/4a70c41d58b22ad9ab7bde2cb661564f3cbfe051))
+* change default kden output to pretty ([#340](https://github.com/konfidence-project/konfidence/issues/340)) ([bcb7640](https://github.com/konfidence-project/konfidence/commit/bcb76404e1e12803b47913ec210603c109cacc42))
+* fixed returnURL validation at mock-api for frontend e2e tests ([#345](https://github.com/konfidence-project/konfidence/issues/345)) ([f69115d](https://github.com/konfidence-project/konfidence/commit/f69115d2b4a6df614995aa331914c37cf0ee4c35))
+
+
+### Maintenance
+
+* **deps:** bump @humanspeak/svelte-headless-table from 6.3.0 to 6.4.0 in the npm-minor-patch group ([#349](https://github.com/konfidence-project/konfidence/issues/349)) ([8fdb3f9](https://github.com/konfidence-project/konfidence/commit/8fdb3f9d7c8992cd4df939872b3059158cacd080))
+
 ## [0.1.0-alpha.1](https://github.com/konfidence-project/konfidence/compare/0.0.1-alpha.1...0.1.0-alpha.1) (2026-09-30)
 
 
