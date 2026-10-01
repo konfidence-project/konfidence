@@ -4,6 +4,7 @@
     import type { Snippet } from "svelte";
     import { fade } from "svelte/transition";
     import { OrbitLoader } from "@konfidence/design-system/components";
+    import { ModeWatcher } from "mode-watcher";
     import { goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
@@ -40,6 +41,8 @@
         }
     });
 </script>
+
+<ModeWatcher defaultTheme="konfidence" />
 
 {#if showChildren}
     <div in:fade={{ duration: 160 }}>

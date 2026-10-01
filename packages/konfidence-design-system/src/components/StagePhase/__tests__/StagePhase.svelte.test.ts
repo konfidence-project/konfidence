@@ -4,7 +4,7 @@ import { render } from "vitest-browser-svelte";
 
 import StagePhaseFixture from "./StagePhaseFixture.svelte";
 import type { StagePhaseItem } from "../types.js";
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 
 const DEFAULT_PHASES: StagePhaseItem[] = [
   { label: "Deploy", state: "done" },
@@ -68,7 +68,7 @@ describe("<StagePhase>", () => {
   describe("variant screenshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
-      document.documentElement.removeAttribute("data-mode");
+      document.documentElement.classList.remove("dark");
     });
 
     const scenarios: Record<string, StagePhaseItem[]> = {
@@ -110,7 +110,7 @@ describe("<StagePhase>", () => {
           it(`renders ${mode} ${size} ${name}`, async () => {
             await page.viewport(360, 80);
             document.documentElement.setAttribute("data-theme", "konfidence");
-            document.documentElement.setAttribute("data-mode", mode);
+            document.documentElement.classList.toggle("dark", mode === "dark");
             await render(StagePhaseFixture, { phases, size });
             await expect.element(page.getByTestId("stage-phase-root")).toMatchScreenshot();
           });

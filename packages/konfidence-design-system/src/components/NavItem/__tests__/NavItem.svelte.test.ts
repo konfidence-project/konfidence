@@ -2,13 +2,13 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import NavItemFixture from "./NavItemFixture.svelte";
 
 describe("<NavItem>", () => {
   afterEach(() => {
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.removeAttribute("data-mode");
+    document.documentElement.classList.remove("dark");
   });
 
   it("renders an anchor with the href", async () => {
@@ -51,7 +51,7 @@ describe("<NavItem>", () => {
         it(`renders ${mode} ${variant}`, async () => {
           await page.viewport(280, 60);
           document.documentElement.setAttribute("data-theme", "konfidence");
-          document.documentElement.setAttribute("data-mode", mode);
+          document.documentElement.classList.toggle("dark", mode === "dark");
           const props = {
             active: variant === "active",
             badge: variant === "with-badge" ? 3 : undefined,

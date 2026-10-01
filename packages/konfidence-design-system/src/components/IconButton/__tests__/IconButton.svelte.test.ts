@@ -2,13 +2,13 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import IconButtonFixture from "./IconButtonFixture.svelte";
 
 describe("<IconButton>", () => {
   afterEach(() => {
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.removeAttribute("data-mode");
+    document.documentElement.classList.remove("dark");
   });
 
   it("renders a button with the icon", async () => {
@@ -47,7 +47,7 @@ describe("<IconButton>", () => {
       it(`renders ${mode} ${withBadge ? "with badge" : "default"}`, async () => {
         await page.viewport(120, 96);
         document.documentElement.setAttribute("data-theme", "konfidence");
-        document.documentElement.setAttribute("data-mode", mode);
+        document.documentElement.classList.toggle("dark", mode === "dark");
         await render(IconButtonFixture, { badge: withBadge ? 3 : undefined });
         await expect
           .element(page.getByRole("button", { name: "Notifications" }))

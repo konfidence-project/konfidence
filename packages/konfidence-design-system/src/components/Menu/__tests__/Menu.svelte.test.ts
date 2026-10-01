@@ -2,13 +2,13 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import MenuFixture from "./MenuFixture.svelte";
 
 describe("<Menu>", () => {
   afterEach(() => {
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.removeAttribute("data-mode");
+    document.documentElement.classList.remove("dark");
   });
 
   it("renders items with the .menu__item class", async () => {
@@ -43,7 +43,7 @@ describe("<Menu>", () => {
         it(`renders ${mode} ${variant}`, async () => {
           await page.viewport(320, 400);
           document.documentElement.setAttribute("data-theme", "konfidence");
-          document.documentElement.setAttribute("data-mode", mode);
+          document.documentElement.classList.toggle("dark", mode === "dark");
           await render(MenuFixture, { variant });
           await expect.element(page.getByTestId("menu-root")).toMatchScreenshot();
         });

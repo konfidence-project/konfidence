@@ -1,0 +1,9 @@
+# Vite build output
+.svelte-kit
+build
+test-results
+playwright-report
+node_modules
+
+# OS
+.DS_Store

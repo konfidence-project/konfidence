@@ -38,19 +38,9 @@
 
 <style>
     :global(.menu__item--active) {
-        background: var(--amber-50);
-        color: var(--amber-800);
+        background: var(--selection-bg);
+        color: var(--selection-fg);
         font-weight: var(--weight-semibold);
-    }
-    :global([data-mode="dark"] .menu__item--active) {
-        background: rgba(255, 181, 48, 0.12);
-        color: var(--amber-300);
-    }
-    @media (prefers-color-scheme: dark) {
-        :global([data-mode="system"] .menu__item--active) {
-            background: rgba(255, 181, 48, 0.12);
-            color: var(--amber-300);
-        }
     }
     :global(.menu__item--danger) {
         color: var(--status-error-fg);

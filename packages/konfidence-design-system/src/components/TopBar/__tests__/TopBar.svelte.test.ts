@@ -2,7 +2,7 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import Avatar from "../../Avatar/Avatar.svelte";
 import TopBar from "../TopBar.svelte";
 import TopBarFixture from "./TopBarFixture.svelte";
@@ -10,7 +10,7 @@ import TopBarFixture from "./TopBarFixture.svelte";
 describe("<TopBar>", () => {
   afterEach(() => {
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.removeAttribute("data-mode");
+    document.documentElement.classList.remove("dark");
   });
 
   it("renders logo, switcher, and actions slots", async () => {
@@ -45,7 +45,7 @@ describe("<TopBar>", () => {
       it(`renders ${mode} ${layout}`, async () => {
         await page.viewport(layout === "desktop" ? 720 : 400, 96);
         document.documentElement.setAttribute("data-theme", "konfidence");
-        document.documentElement.setAttribute("data-mode", mode);
+        document.documentElement.classList.toggle("dark", mode === "dark");
         await render(TopBarFixture, { withHamburger: layout === "mobile" });
         await expect.element(page.getByTestId("topbar-root")).toMatchScreenshot();
       });

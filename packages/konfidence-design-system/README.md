@@ -4,10 +4,8 @@ Konfidence dashboard design system. Layered on top of Tailwind CSS v4 and
 Skeleton v5, provides:
 
 - **Design tokens** — colour ramps, spacing, typography, motion, radii,
-  semantic tokens. Light-mode tokens live on `:root`; dark-mode tokens
-  apply under `[data-mode="dark"]` on any element under
-  `<html data-theme="konfidence">`, plus `[data-mode="system"]` inside
-  a `@media (prefers-color-scheme: dark)` block (Skeleton pattern).
+  semantic tokens. Light tokens live on `:root`; dark tokens apply on
+  `<html data-theme="konfidence" class="dark">`.
 - **Skeleton theme** — colour ramps for `data-theme="konfidence"`.
 - **Component CSS** — colocated in each component's own scoped
   `<style>` block (see `Button.svelte`, `StatusBadge.svelte`, …) rather
@@ -45,16 +43,7 @@ imports them first, then layers the Konfidence styles on top:
 @import "tailwindcss";
 @import "@skeletonlabs/skeleton";
 @import "@skeletonlabs/skeleton-svelte";
-@custom-variant dark {
-  &:where([data-mode="dark"], [data-mode="dark"] *) {
-    @slot;
-  }
-  @media (prefers-color-scheme: dark) {
-    &:where([data-mode="system"], [data-mode="system"] *) {
-      @slot;
-    }
-  }
-}
+@custom-variant dark (&:where(.dark, .dark *));
 @import "@konfidence/design-system/styles";
 ```
 
@@ -63,18 +52,13 @@ fit (`@konfidence/design-system/styles/tokens`, `/styles/skeleton`).
 
 ## Wire the theme bootstrap
 
-Theme resolution and persistence live in the consuming application
-(the design system stays runtime-free) — see
-`apps/konfidence-ui/src/lib/theme/` for the reference wiring:
-
-- a synchronous inline `<script>` in `app.html` that resolves the
-  theme before the first paint (so reloads never flash the wrong
-  theme), and
-- a reactive `ThemeStore` used at runtime to read/toggle/persist the
-  theme.
-
-The `data-theme="konfidence"` + `data-mode` selectors shipped here
-are the contract those runtimes target.
+The consuming app owns mode resolution and persistence. With mode-watcher,
+mount `<ModeWatcher defaultTheme="konfidence" />` in the root layout. It
+manages `data-theme` and toggles the root `.dark` class for resolved
+appearance, including when the user chooses system mode.
+`ColorModeSelect` accepts the selected `value`, an `onValueChange` callback,
+and an optional resolved `resolvedMode` for its trigger icon. It does not
+manage mode or storage itself.
 
 ## Components
 

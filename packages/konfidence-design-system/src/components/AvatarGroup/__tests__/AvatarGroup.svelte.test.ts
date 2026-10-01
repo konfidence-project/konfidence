@@ -2,13 +2,13 @@ import { page } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 
-import "../../../../../../apps/konfidence-ui/src/app.css";
+import "../../../styles/test.css";
 import AvatarGroupFixture from "./AvatarGroupFixture.svelte";
 
 describe("<AvatarGroup>", () => {
   afterEach(() => {
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.removeAttribute("data-mode");
+    document.documentElement.classList.remove("dark");
   });
 
   it("renders child avatars and the more slot", async () => {
@@ -22,7 +22,7 @@ describe("<AvatarGroup>", () => {
     it(`renders in ${mode} mode`, async () => {
       await page.viewport(220, 96);
       document.documentElement.setAttribute("data-theme", "konfidence");
-      document.documentElement.setAttribute("data-mode", mode);
+      document.documentElement.classList.toggle("dark", mode === "dark");
       await render(AvatarGroupFixture);
       const group = document.querySelector<HTMLElement>(".avatar-group");
       if (group) {

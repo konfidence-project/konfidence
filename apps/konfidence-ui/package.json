@@ -34,6 +34,7 @@
     "@ui5/webcomponents": "^2.27.2",
     "@ui5/webcomponents-icons": "^2.27.2",
     "@xyflow/svelte": "^1.7.0",
+    "mode-watcher": "^1.1.0",
     "svelte-tiny-query": "^2.1.0"
   },
   "devDependencies": {

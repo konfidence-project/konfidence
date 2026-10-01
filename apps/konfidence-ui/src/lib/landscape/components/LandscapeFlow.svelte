@@ -6,7 +6,7 @@
     import type { Landscape, Stage } from "$lib/konfidence-api/types";
     import { groupStages } from "$lib/landscape/stageGrouping";
     import { stageDetailsUrl } from "$lib/projects/url";
-    import { isDarkMode, themeStore } from "$lib/theme";
+    import { mode } from "mode-watcher";
     import LandscapeCanvasResize from "$lib/landscape/components/LandscapeCanvasResize.svelte";
     import StageNode from "$lib/landscape/components/StageNode.svelte";
 
@@ -79,7 +79,7 @@
         );
     });
 
-    const colorMode = $derived(isDarkMode(themeStore.mode) ? "dark" : "light");
+    const colorMode = $derived(mode.current === "dark" ? "dark" : "light");
 </script>
 
 <div
