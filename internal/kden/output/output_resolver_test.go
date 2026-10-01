@@ -3,7 +3,7 @@ package output_test
 import (
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/output"
-	valout "github.com/konfidence-project/konfidence/internal/kden/validation/output"
+	"github.com/konfidence-project/konfidence/internal/kden/output/pretty"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -13,7 +13,7 @@ var _ = Describe("format output", func() {
 		DescribeTable("should work correctly with valid encoded object",
 			func(outputFormat string, encodedObject []byte) {
 				cfg.Config.Output = outputFormat
-				_, err := output.ResolveFormat(encodedObject, "")
+				_, err := output.ResolveFormat(encodedObject, nil)
 
 				Expect(err).NotTo(HaveOccurred())
 			},
@@ -23,23 +23,22 @@ var _ = Describe("format output", func() {
 			Entry("with valid YAML to JSON format", "json", []byte("test: test")),
 		)
 
-		DescribeTable("should work correctly with valid table",
-			func(outputFormat string, command string, data interface{}) {
-				cfg.Config.Output = outputFormat
-				_, err := output.ResolveFormat(data, command)
+		It("should work correctly with valid table data", func() {
+			cfg.Config.Output = "pretty"
+			result, err := output.ResolveFormat(struct{}{}, &pretty.TableData{
+				Columns: []pretty.Column{{Title: "Column", Width: 20}},
+				Rows:    []pretty.Row{{"value"}},
+			})
 
-				Expect(err).NotTo(HaveOccurred())
-			},
-			Entry("with valid validation errors and pretty table", "pretty", "validate", []valout.SchemaValidationError{
-				{File: "a.yaml", Path: "/spec/name", Message: "required"},
-				{File: "b.yaml", Path: "/spec/kind", Message: "invalid enum value"},
-			}),
-		)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(ContainSubstring("Column"))
+			Expect(result).To(ContainSubstring("value"))
+		})
 
 		DescribeTable("should throw error with invalid encoded object",
 			func(outputFormat string, encodedObject []byte, errorMessage string) {
 				cfg.Config.Output = outputFormat
-				_, err := output.ResolveFormat(encodedObject, "")
+				_, err := output.ResolveFormat(encodedObject, nil)
 
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(errorMessage))
@@ -50,5 +49,13 @@ var _ = Describe("format output", func() {
 			Entry("with invalid object input", "yaml", []byte("{\"test\": \"t\"est\"}"),
 				"error occurred during parse of object to map: {\"test\": \"t\"est\"} : yaml: did not find expected ',' or '}'"),
 		)
+
+		It("requires table data for pretty output", func() {
+			cfg.Config.Output = "pretty"
+
+			_, err := output.ResolveFormat(struct{}{}, nil)
+
+			Expect(err).To(MatchError("pretty output requires table data"))
+		})
 	})
 })

@@ -40,7 +40,7 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 				if response.JSON200 == nil {
 					return errors.New("stages response did not contain a body")
 				}
-				formatted, err := output.ResolveFormat(response.JSON200, "stage-list")
+				formatted, err := output.ResolveFormat(response.JSON200, listTable(response.JSON200))
 				if err != nil {
 					return fmt.Errorf("formatting stages failed: %w", err)
 				}

@@ -39,7 +39,7 @@ var Converters = map[FormattedOutput]Converter{
 	YamlOutputFormat: &yaml.YAMLConverter{},
 }
 
-func ResolveFormat(data interface{}, command string) (string, error) {
+func ResolveFormat(data interface{}, tableData *pretty.TableData) (string, error) {
 	if data == nil {
 		return "", fmt.Errorf("error while resolving output format with no data")
 	}
@@ -49,12 +49,11 @@ func ResolveFormat(data interface{}, command string) (string, error) {
 		return "", fmt.Errorf("plain output is only supported by the version command")
 	}
 	if outputFormat == TablePrettyOutputFormat {
-		modelFunc, ok := pretty.GetModelFuncMap()[command]
-		if !ok {
-			return "", fmt.Errorf("error while resolving command %s invocation", command)
+		rendered, err := pretty.RenderTable(tableData)
+		if err != nil {
+			return "", err
 		}
-
-		return "", pretty.FormatTable(modelFunc, data)
+		return rendered + "\n", nil
 	}
 
 	formatted, ok := Formatters[outputFormat]

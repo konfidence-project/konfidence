@@ -40,7 +40,7 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 				if response.JSON200 == nil {
 					return errors.New("vector deployments response did not contain a body")
 				}
-				formatted, err := output.ResolveFormat(response.JSON200, "vector-deployment-list")
+				formatted, err := output.ResolveFormat(response.JSON200, listTable(response.JSON200))
 				if err != nil {
 					return fmt.Errorf("formatting vector deployments failed: %w", err)
 				}

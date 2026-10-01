@@ -53,7 +53,7 @@ func RunValidate(filePaths []string, cfg ValidateConfig) error {
 	}
 
 	if len(schemaValidationErrors) > 0 {
-		result, err := output.ResolveFormat(schemaValidationErrors, cfg.CmdDisplayName)
+		result, err := output.ResolveFormat(schemaValidationErrors, schemaValidationErrorsTable(schemaValidationErrors))
 		if err != nil {
 			return fmt.Errorf("failed to resolve output format for validate command: %w", err)
 		}

@@ -32,7 +32,7 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 				if response.JSON200 == nil {
 					return errors.New("landscapes response did not contain a body")
 				}
-				formatted, err := output.ResolveFormat(response.JSON200, "landscape-list")
+				formatted, err := output.ResolveFormat(response.JSON200, listTable(response.JSON200))
 				if err != nil {
 					return fmt.Errorf("formatting landscapes failed: %w", err)
 				}

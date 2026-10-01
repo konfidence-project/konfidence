@@ -26,7 +26,6 @@ type TableData struct {
 	Sections []TableSection
 
 	Footer string
-	Err    error
 }
 
 type TableSection struct {
@@ -34,8 +33,6 @@ type TableSection struct {
 	Columns []Column
 	Rows    []Row
 }
-
-type ModelFunc func(data interface{}) *TableData
 
 func renderTable(data *TableData) string {
 	var view string
