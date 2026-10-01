@@ -23,6 +23,20 @@ const (
 
 	// ArtifactDeploymentReadyCondition indicates that the resource was successfully reconciled.
 	ArtifactDeploymentReadyCondition = "Ready"
+
+	// ArtifactDeploymentStalledReasonManifestMissing indicates that the Konfidence manifest is absent from the artifact.
+	// A transient fetch failure is not this reason.
+	ArtifactDeploymentStalledReasonManifestMissing = "ManifestMissing"
+
+	// ArtifactDeploymentStalledReasonNoDeploymentClassAvailable indicates that no DeploymentClass matches the artifact.
+	ArtifactDeploymentStalledReasonNoDeploymentClassAvailable = "NoDeploymentClassAvailable"
+
+	// ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing indicates that DeploymentTarget credentials are absent.
+	// This should be set deadline-based, since secrets often arrive asynchronously.
+	ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing = "DeploymentTargetSecretsMissing"
+
+	// ArtifactDeploymentStalledReasonDeploymentResultNotUnique indicates that two DeploymentResults share a (name, type).
+	ArtifactDeploymentStalledReasonDeploymentResultNotUnique = "DeploymentResultNotUnique"
 )
 
 // ArtifactDeploymentSpec defines the desired state of an ArtifactDeployment. It describes the artifact to be deployed,

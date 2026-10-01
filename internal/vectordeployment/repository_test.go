@@ -147,7 +147,7 @@ func TestStateFromConditions(t *testing.T) {
 			conditions: []metav1.Condition{{
 				Type:   konfidence.StalledCondition,
 				Status: metav1.ConditionTrue,
-				Reason: konfidence.StalledReasonChildArtifactDeploymentStalled,
+				Reason: konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled,
 			}},
 			want: vectordeployment.StateDeploymentFailed,
 		},
