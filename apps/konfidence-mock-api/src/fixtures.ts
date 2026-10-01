@@ -64,6 +64,8 @@ const landscapes: Landscape[] = [
   { id: "test", name: "Test" },
   { id: "production", name: "Production" },
   { id: "sandbox", name: "Sandbox" },
+  // Intentionally stage-less to exercise the empty-landscape placeholder path.
+  { id: "staging", name: "Staging" },
 ];
 
 const vectorDeployments: VectorDeployment[] = rows.map((row) => ({

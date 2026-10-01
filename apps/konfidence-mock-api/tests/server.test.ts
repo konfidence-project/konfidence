@@ -120,7 +120,7 @@ test("lists empty collections for a project without resources", async () => {
   await expect(stages.json()).resolves.toEqual({ data: [] });
 });
 
-test("lists every landscape of the admin project, including one without stages", async () => {
+test("lists every landscape of the admin project, including ones without stages", async () => {
   const response = await get("/api/v1/projects/payments-platform/landscapes");
   expect(response.status).toBe(200);
   await expect(response.json()).resolves.toEqual({
@@ -129,6 +129,7 @@ test("lists every landscape of the admin project, including one without stages",
       { id: "test", name: "Test" },
       { id: "production", name: "Production" },
       { id: "sandbox", name: "Sandbox" },
+      { id: "staging", name: "Staging" },
     ],
   });
 });

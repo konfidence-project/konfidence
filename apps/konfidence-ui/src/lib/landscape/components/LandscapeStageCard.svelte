@@ -10,17 +10,10 @@
     interface Props {
         stage: Stage;
         landscapeName: string;
-        category?: string;
         href: string;
         selected?: boolean;
     }
-    let {
-        stage,
-        landscapeName,
-        category,
-        href,
-        selected = false,
-    }: Props = $props();
+    let { stage, landscapeName, href, selected = false }: Props = $props();
 
     const target = $derived(stage.targetStageVersion);
     const active = $derived(stage.activeStageVersion);
@@ -106,12 +99,13 @@
             : (active?.id ?? "Nothing active yet"),
     );
     const ariaLabel = $derived(
-        `View details for stage ${stage.name} in ${landscapeName}${category ? `, ${category}` : ""}`,
+        `View details for stage ${stage.name} in ${landscapeName}`,
     );
 </script>
 
 <StageCard
     title={stage.name}
+    {landscapeName}
     {href}
     {ariaLabel}
     {statusRole}
