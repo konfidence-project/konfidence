@@ -123,7 +123,7 @@ func initCmd() {
 	rootCmd.PersistentFlags().String(
 		"output",
 		"",
-		"Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'")
+		"Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)")
 	rootCmd.PersistentFlags().String(
 		"api-endpoint",
 		"",

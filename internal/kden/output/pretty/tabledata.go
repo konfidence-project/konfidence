@@ -2,6 +2,7 @@ package pretty
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
@@ -18,10 +19,12 @@ func GetModelFuncMap() map[string]ModelFunc {
 	once.Do(func() {
 		modelFuncMap = map[string]ModelFunc{
 			"validate":                     validateModelFunc,
+			"artifact-deployment-list":     artifactDeploymentListModelFunc,
 			"project-list":                 projectListModelFunc,
 			"landscape-list":               landscapeListModelFunc,
 			"stage-list":                   stageListModelFunc,
 			"vector-deployment-list":       vectorDeploymentListModelFunc,
+			"vector-promotion-config":      vectorPromotionConfigModelFunc,
 			"vector-promotion-config-list": vectorPromotionConfigListModelFunc,
 			"version":                      versionModelFunc,
 		}
@@ -179,11 +182,50 @@ func vectorDeploymentListModelFunc(data interface{}) *TableData {
 	)
 }
 
+func artifactDeploymentListModelFunc(data interface{}) *TableData {
+	return buildTableData[*apiclient.ArtifactDeploymentList](data, "artifact-deployment-list",
+		[]Column{
+			{Title: ColumnID, Width: 40},
+			{Title: ColumnLandscape, Width: 30},
+			{Title: ColumnStatus, Width: 20},
+			{Title: "Artifact", Width: 40},
+			{Title: "Stages", Width: 40},
+			{Title: "Vector Deployments", Width: 40},
+		},
+		func(list *apiclient.ArtifactDeploymentList) []Row {
+			return mapRows(list.Data, func(d apiclient.ArtifactDeployment) Row {
+				return Row{
+					d.Id,
+					d.LandscapeId,
+					string(d.Status),
+					formatComponentReference(d.Artifact),
+					strings.Join(d.StageIds, ", "),
+					strings.Join(d.VectorDeploymentIds, ", "),
+				}
+			})
+		},
+	)
+}
+
+func vectorPromotionConfigModelFunc(data interface{}) *TableData {
+	config, errData := parseData[*apiclient.VectorPromotionConfig](data, "vector-promotion-config")
+	if errData != nil {
+		return errData
+	}
+
+	return vectorPromotionConfigTableData([]apiclient.VectorPromotionConfig{*config})
+}
+
 func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
 	list, errData := parseData[*apiclient.VectorPromotionConfigList](data, "vector-promotion-config-list")
 	if errData != nil {
 		return errData
 	}
+
+	return vectorPromotionConfigTableData(list.Data)
+}
+
+func vectorPromotionConfigTableData(configs []apiclient.VectorPromotionConfig) *TableData {
 
 	columns := []Column{
 		{Title: ColumnID, Width: 40},
@@ -193,8 +235,8 @@ func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
 		{Title: ColumnStatus, Width: 16},
 	}
 
-	sections := make([]TableSection, 0, len(list.Data))
-	for _, cfg := range list.Data {
+	sections := make([]TableSection, 0, len(configs))
+	for _, cfg := range configs {
 		rows := make([]Row, 0, len(cfg.Promotions))
 		for _, p := range cfg.Promotions {
 			status := "-"
@@ -211,4 +253,8 @@ func vectorPromotionConfigListModelFunc(data interface{}) *TableData {
 	}
 
 	return &TableData{Sections: sections}
+}
+
+func formatComponentReference(ref apiclient.ComponentReference) string {
+	return fmt.Sprintf("%s:%s", ref.ComponentName, ref.ComponentVersion)
 }

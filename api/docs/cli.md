@@ -31,7 +31,7 @@ Example usage:
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -74,7 +74,7 @@ kden artifact [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -115,7 +115,7 @@ kden artifact alias <source-ref> <alias> [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -148,7 +148,7 @@ kden artifact push [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -189,7 +189,7 @@ kden artifact sign [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -221,7 +221,7 @@ kden artifact validate [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -252,7 +252,7 @@ kden artifact-deployment [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -291,7 +291,7 @@ kden artifact-deployment list [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -364,7 +364,7 @@ kden completion [bash|zsh|fish|powershell]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -404,7 +404,7 @@ kden config [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -457,7 +457,7 @@ kden config set <configuration_property> <value> [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -501,7 +501,7 @@ kden config unset <configuration_property> [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -532,7 +532,7 @@ kden landscape [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -569,7 +569,7 @@ kden landscape list [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -604,7 +604,7 @@ kden login [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -639,7 +639,7 @@ kden logout [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -670,7 +670,7 @@ kden project [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -706,7 +706,7 @@ kden project list [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -737,7 +737,7 @@ kden stage [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -775,7 +775,7 @@ kden stage list [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -806,7 +806,7 @@ kden vector [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -843,7 +843,7 @@ kden vector push [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -884,7 +884,7 @@ kden vector sign [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -916,7 +916,7 @@ kden vector validate [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -947,7 +947,7 @@ kden vector-deployment [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -985,7 +985,7 @@ kden vector-deployment list [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -1016,7 +1016,7 @@ kden vector-promotion [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -1055,7 +1055,7 @@ kden vector-promotion approve <vectorPromotionId> [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -1092,7 +1092,7 @@ kden vector-promotion get [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
@@ -1128,7 +1128,7 @@ kden vector-promotion list [flags]
       --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
       --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
       --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
-      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty'
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
       --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
 ```
 
