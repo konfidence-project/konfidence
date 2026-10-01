@@ -12,33 +12,3 @@ const StalledCondition = "Stalled"
 
 // StalledReasonNotStalled is the reason carried by Stalled=False.
 const StalledReasonNotStalled = "NotStalled"
-
-// Stalled reasons written by the VectorDeployment controller.
-const (
-	// StalledReasonArtifactDeploymentNamingCollision: a deterministic ArtifactDeployment
-	// name still collides after the collisionCount salt is exhausted. Ordinary collisions
-	// self-heal by bumping the salt.
-	StalledReasonArtifactDeploymentNamingCollision = "ArtifactDeploymentNamingCollision"
-
-	// StalledReasonChildArtifactDeploymentStalled: an ArtifactDeployment of this vector is
-	// itself stalled. Child name and reason are in the message.
-	StalledReasonChildArtifactDeploymentStalled = "ChildArtifactDeploymentStalled"
-)
-
-// Stalled reasons written by the runtime-specific deployer that owns an ArtifactDeployment.
-// Declared here so both sides bind to one contract. Nothing in this repository sets them.
-const (
-	// StalledReasonManifestMissing: the Konfidence manifest is absent from the artifact.
-	// A transient fetch failure is not this reason.
-	StalledReasonManifestMissing = "ManifestMissing"
-
-	// StalledReasonNoDeploymentClassAvailable: no DeploymentClass matches the artifact.
-	StalledReasonNoDeploymentClassAvailable = "NoDeploymentClassAvailable"
-
-	// StalledReasonDeploymentTargetSecretsMissing: DeploymentTarget credentials are absent.
-	// Deadline-based, since secrets often arrive asynchronously.
-	StalledReasonDeploymentTargetSecretsMissing = "DeploymentTargetSecretsMissing"
-
-	// StalledReasonDeploymentResultNotUnique: two DeploymentResults share a (name, type).
-	StalledReasonDeploymentResultNotUnique = "DeploymentResultNotUnique"
-)

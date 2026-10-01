@@ -298,7 +298,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				if collisionCount >= 5 {
 					log.Error(nil, msg, "name", deploymentName, "collisionCount", collisionCount)
 					// Salting has stopped helping, so requeueing cannot resolve this.
-					setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision,
+					setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision,
 						fmt.Sprintf("%s (giving up after %d salts)", msg, collisionCount))
 					return false, fmt.Errorf("%s (giving up after %d salts)", msg, collisionCount)
 				}
@@ -410,7 +410,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 
 	// Surface a blocked child, otherwise the vector sits at Ready=False with no explanation.
 	if child, ok := pickStalledChild(stalledChildren); ok {
-		setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled,
+		setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled,
 			stalledChildMessage(child, len(stalledChildren)))
 	}
 

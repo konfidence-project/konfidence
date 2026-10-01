@@ -46,7 +46,7 @@ var _ = Describe("Stalled condition", func() {
 				ObservedGeneration: 1,
 			})
 
-			setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision, "collision")
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision, "collision")
 
 			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.StalledCondition)).To(BeTrue())
 			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeFalse())
@@ -56,8 +56,8 @@ var _ = Describe("Stalled condition", func() {
 		It("should keep a single entry across a reason transition", func() {
 			vectorDeployment := newVectorDeployment(1)
 
-			setStalled(vectorDeployment, konfidence.StalledReasonArtifactDeploymentNamingCollision, "collision")
-			setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision, "collision")
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled, "child blocked")
 
 			var count int
 			for _, condition := range vectorDeployment.Status.Conditions {
@@ -66,13 +66,13 @@ var _ = Describe("Stalled condition", func() {
 				}
 			}
 			Expect(count).To(Equal(1))
-			Expect(stalledCondition(vectorDeployment).Reason).To(Equal(konfidence.StalledReasonChildArtifactDeploymentStalled))
+			Expect(stalledCondition(vectorDeployment).Reason).To(Equal(konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled))
 		})
 
 		It("should flip back to False once the cause resolves", func() {
 			vectorDeployment := newVectorDeployment(1)
 
-			setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled, "child blocked")
 			clearStalled(vectorDeployment)
 
 			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
@@ -82,7 +82,7 @@ var _ = Describe("Stalled condition", func() {
 		// detectably stale rather than read as a fresh verdict on the new spec.
 		It("should carry the generation the stall was computed from", func() {
 			vectorDeployment := newVectorDeployment(7)
-			setStalled(vectorDeployment, konfidence.StalledReasonChildArtifactDeploymentStalled, "child blocked")
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled, "child blocked")
 
 			vectorDeployment.Generation = 8
 
@@ -116,7 +116,7 @@ var _ = Describe("Stalled condition", func() {
 			Entry("when stalled", []metav1.Condition{{
 				Type:    konfidence.StalledCondition,
 				Status:  metav1.ConditionTrue,
-				Reason:  konfidence.StalledReasonManifestMissing,
+				Reason:  konfidence.ArtifactDeploymentStalledReasonManifestMissing,
 				Message: "no konfidence manifest",
 			}}, true),
 		)
@@ -124,9 +124,9 @@ var _ = Describe("Stalled condition", func() {
 		// The named child must not depend on observation order, or the message flaps.
 		It("should pick the same child regardless of input order", func() {
 			forward := []stalledChild{
-				{name: artifactName, reason: konfidence.StalledReasonManifestMissing},
-				{name: "artifact-b", reason: konfidence.StalledReasonDeploymentResultNotUnique},
-				{name: "artifact-c", reason: konfidence.StalledReasonManifestMissing},
+				{name: artifactName, reason: konfidence.ArtifactDeploymentStalledReasonManifestMissing},
+				{name: "artifact-b", reason: konfidence.ArtifactDeploymentStalledReasonDeploymentResultNotUnique},
+				{name: "artifact-c", reason: konfidence.ArtifactDeploymentStalledReasonManifestMissing},
 			}
 			reversed := []stalledChild{forward[2], forward[1], forward[0]}
 
@@ -147,13 +147,13 @@ var _ = Describe("Stalled condition", func() {
 		It("should name the child and its reason in the message", func() {
 			child := stalledChild{
 				name:    artifactName,
-				reason:  konfidence.StalledReasonManifestMissing,
+				reason:  konfidence.ArtifactDeploymentStalledReasonManifestMissing,
 				message: "no konfidence manifest in artifact",
 			}
 
 			Expect(stalledChildMessage(child, 1)).To(SatisfyAll(
 				ContainSubstring(artifactName),
-				ContainSubstring(konfidence.StalledReasonManifestMissing),
+				ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing),
 			))
 			Expect(stalledChildMessage(child, 3)).To(ContainSubstring("3 artifact deployments are stalled"))
 		})

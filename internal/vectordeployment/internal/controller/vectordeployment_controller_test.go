@@ -584,7 +584,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		meta.SetStatusCondition(&child.Status.Conditions, metav1.Condition{
 			Type:               konfidence.StalledCondition,
 			Status:             metav1.ConditionTrue,
-			Reason:             konfidence.StalledReasonManifestMissing,
+			Reason:             konfidence.ArtifactDeploymentStalledReasonManifestMissing,
 			Message:            "no konfidence manifest in artifact",
 			ObservedGeneration: child.Generation,
 		})
@@ -598,9 +598,9 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
 			g.Expect(condition).ToNot(gomega.BeNil())
 			g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionTrue))
-			g.Expect(condition.Reason).To(gomega.Equal(konfidence.StalledReasonChildArtifactDeploymentStalled))
+			g.Expect(condition.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled))
 			g.Expect(condition.Message).To(gomega.ContainSubstring(childName))
-			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.StalledReasonManifestMissing))
+			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing))
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying Ready is False while Stalled is True")

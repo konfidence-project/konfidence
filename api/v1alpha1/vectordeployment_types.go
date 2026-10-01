@@ -24,6 +24,14 @@ const (
 
 	// VectorReadyCondition indicates that the vector deployment is ready for use.
 	VectorReadyCondition = "Ready"
+
+	// VectorDeploymentStalledReasonArtifactDeploymentNamingCollision indicates that a deterministic ArtifactDeployment
+	// name still collides after the collisionCount salt is exhausted. Ordinary collisions self-heal by bumping the salt.
+	VectorDeploymentStalledReasonArtifactDeploymentNamingCollision = "ArtifactDeploymentNamingCollision"
+
+	// VectorDeploymentStalledReasonChildArtifactDeploymentStalled indicates that an ArtifactDeployment belonging to this
+	// VectorDeployment is itself stalled. The child name and reason are carried in the condition message.
+	VectorDeploymentStalledReasonChildArtifactDeploymentStalled = "ChildArtifactDeploymentStalled"
 )
 
 // VectorDeploymentSpec defines the desired state of a VectorDeployment.
