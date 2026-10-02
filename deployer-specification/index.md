@@ -26,11 +26,30 @@ Resource-specific sections use this template:
 
 ## 3. DeploymentClass: registration and dispatch
 
+What is a deployment class?
+- maps what controller should be responsible for reconciling which ArtifactDeployments
+- ArtifactDeployment specifies deployment class in `ArtifactDeployment.spec.manifest.type` (rename to ArtifactDeployment.spec.manifest.deploymentClassName`?)
+- DeploymentTarget provides landscape specific configuration for a deployment class specified in `DeploymentTarget.spec.deploymentClassName`
+
+```yaml
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentClass
+metadata:
+  name: <deployment-class-name>
+spec:
+  controller: <controller-name>
+```
+
 * **Ownership and resource selection:** Deployer installs one or more cluster-scoped `DeploymentClass` resources. `spec.controller` identifies the responsible controller; `ArtifactDeployment.spec.manifest.type` and `DeploymentTarget.spec.deploymentClassName` select the class. Deployer MUST only reconcile resources for its classes.
-* **Interpretation of inputs / generic fields:** Class name identifies the deployment type. Class spec is immutable; decide how ownership changes are handled if a class is removed and recreated.
+* **Interpretation of inputs / generic fields:** 
+  - Class name identifies the deployment type (make explicit by renaming `type` to `deploymentClassName` in ArtifactDeployment?)
+  - Class `spec.controller` is immutable
 * **Processing and guarantees, failure/retry handling:** Define what happens when a class or controller is missing, including resources created before the deployer is installed. Installation order should not require recreating those resources.
+  - ArtifactDeployments created before their referenced DeploymentClass is available will stay in state "DeploymentClass not found" until the DeploymentClass is created
+  - Once an ArtifactDeployment has found its referenced DeploymentClass, the "DeploymentClass not found" error cannot occur, as deletion of the DeploymentClass is prevented (see "Resource deletion and undeployment")
+  - A missing controller cannot be detected. If the referenced controller in the DeploymentClass is not installed or crashes, this will not be reflected on any status
 * **Status reporting via conditions:** No `DeploymentClass` status exists today. Decide how core and users detect availability; the conditions on dependent resources need clear ownership and fallback behavior.
-* **Resource deletion and undeployment:** Specify whether class removal affects existing deployments and who cleans up runtime resources if the deployer is unavailable.
+* **Resource deletion and undeployment:** Konfidence ensures a DeploymentClass can only be deleted if there are no ArtifactDeployments referencing it (using a finalizer). Therefore, no handling of DeploymentClass deletion is required in the Deployer.
 * **Optional behavior:** Decide whether capabilities are advertised per class and how unsupported capabilities are represented.
 
 ## 4. DeploymentTarget: destination and connection
