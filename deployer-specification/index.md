@@ -31,7 +31,6 @@ Resource-specific sections use this template:
 What is a deployment class?
 - maps what controller should be responsible for reconciling which ArtifactDeployments
 - ArtifactDeployment specifies deployment class in `ArtifactDeployment.spec.manifest.type` (rename to ArtifactDeployment.spec.manifest.deploymentClassName`?)
-- DeploymentTarget provides landscape specific configuration for a deployment class specified in `DeploymentTarget.spec.deploymentClassName`
 
 ```yaml
 apiVersion: konfidence.cloud/v1alpha1
@@ -40,6 +39,8 @@ metadata:
   name: <deployment-class-name>
 spec:
   controller: <controller-name>
+status:
+  selected: true
 ```
 
 * **Ownership and resource selection:** Deployer installs one or more cluster-scoped `DeploymentClass` resources. `spec.controller` identifies the responsible controller; `ArtifactDeployment.spec.manifest.type` and `DeploymentTarget.spec.deploymentClassName` select the class. Deployer MUST only reconcile resources for its classes.
@@ -47,17 +48,47 @@ spec:
   - Class name identifies the deployment type (make explicit by renaming `type` to `deploymentClassName` in ArtifactDeployment?)
   - Class `spec.controller` is immutable
 * **Processing and guarantees, failure/retry handling:** 
-  - A missing controller cannot be detected. If the referenced controller in the DeploymentClass is not installed or crashes, this will not be reflected on any status
-* **Status reporting via conditions:** No `DeploymentClass` status exists today. Decide how core and users detect availability; the conditions on dependent resources need clear ownership and fallback behavior.
-* **Resource deletion and undeployment:** Konfidence ensures a DeploymentClass can only be deleted if there are no ArtifactDeployments referencing it (using a finalizer). Therefore, no handling of DeploymentClass deletion is required in the Deployer.
-* **Optional behavior:** Decide whether capabilities are advertised per class and how unsupported capabilities are represented.
+  - No failure/retry handling is required for the deployment class
+* **Status reporting via conditions:** 
+  - The `status.selected` field MUST be set to `true` by the deployer for a DeploymentClass it selects, indicating that it is reconciling ArtifactDeployments with that deployment class.
+* **Resource deletion and undeployment:** Konfidence ensures a DeploymentClass with `status.selected` set to `true` can only be deleted if there are no ArtifactDeployments referencing it. Therefore, handling of DeploymentClass deletion is not required in the deployer.
 
 ## 4. DeploymentTarget: destination and connection
+
+What is a deployment target?
+- DeploymentTarget provides landscape specific configuration for a deployment class specified in `DeploymentTarget.spec.deploymentClassName`
+- The exact configuration is dependent on the deployer (for example connection details to the target)
+
+```yaml
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: <deployment-target-name>
+  namespace: <landscape-namespace>
+spec:
+  deploymentClassName: <deployment-class-name>
+  connection:
+    type: <connection-type> # defined by deployer
+    ref:
+      # deployer specifies which resource kinds must be referenced
+      apiGroup:
+      kind:
+      name:
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    reason: Accepted
+```
 
 * **Ownership and resource selection:** Namespaced `DeploymentTarget` references a `DeploymentClass`; the class's deployer handles the target. Define how an artifact selects a target within its landscape. KLO currently expects exactly one ready target per class and namespace; decide whether this is a general rule.
 * **Interpretation of inputs / generic fields:** `spec.connection.type` and optional `ref` are generic. Deployer defines supported connection types, validates referenced resources, and interprets their contents; the destination need not be Kubernetes.
 * **Processing and guarantees, failure/retry handling:** Define when a target is usable and how changes to connection settings, credentials, URLs, or referenced objects affect existing deployments. Distinguish invalid configuration from transient loss of connectivity.
+  - The connection settings are mutable but the user must not change the actual target (e.g the target Kubernetes cluster or target S3 bucket). Therefore, the deployer does not have to deal with transferring already deployed artifacts to another target. The Deployer MUST handle changes to other chandes to the connection settings like updated credentials.
 * **Status reporting via conditions:** Define what `Ready` means (accepted configuration or verified reachability), who writes it, and how loss of readiness affects dependent artifacts. Core currently reports a missing class on the target's `Ready` condition; resolve ownership of that condition.
+  - The deployer that is selected by the referenced DeploymentClass MUST set the Ready condition with Reason `"Accpeted"` once it has accepted the resource. What "accepted" means is up to the deployer. It may include connectivity checks or simply validate the configuration.
+  - If the deployer does not accept the DeploymentTarget due to errors in the connection configuration, the deployer MUST set the Ready condition to `"False"` with reason `ConnectionInvalid`
+  - If the DeploymentTarget is invalid, the deployer stops performing any actions for ArtifactDeployments using that deployment class
 * **Resource deletion and undeployment:** Define the effect of removing a target while artifacts still use it, including cleanup on a remote runtime.
 * **Optional behavior:** Class-specific connection configuration can be supported without adding runtime-specific fields to the generic contract; specify how it is declared and validated.
 
