@@ -44,9 +44,7 @@ spec:
 * **Interpretation of inputs / generic fields:** 
   - Class name identifies the deployment type (make explicit by renaming `type` to `deploymentClassName` in ArtifactDeployment?)
   - Class `spec.controller` is immutable
-* **Processing and guarantees, failure/retry handling:** Define what happens when a class or controller is missing, including resources created before the deployer is installed. Installation order should not require recreating those resources.
-  - ArtifactDeployments created before their referenced DeploymentClass is available will stay in state "DeploymentClass not found" until the DeploymentClass is created
-  - Once an ArtifactDeployment has found its referenced DeploymentClass, the "DeploymentClass not found" error cannot occur, as deletion of the DeploymentClass is prevented (see "Resource deletion and undeployment")
+* **Processing and guarantees, failure/retry handling:** 
   - A missing controller cannot be detected. If the referenced controller in the DeploymentClass is not installed or crashes, this will not be reflected on any status
 * **Status reporting via conditions:** No `DeploymentClass` status exists today. Decide how core and users detect availability; the conditions on dependent resources need clear ownership and fallback behavior.
 * **Resource deletion and undeployment:** Konfidence ensures a DeploymentClass can only be deleted if there are no ArtifactDeployments referencing it (using a finalizer). Therefore, no handling of DeploymentClass deletion is required in the Deployer.
@@ -66,6 +64,8 @@ spec:
 * **Ownership and resource selection:** Core creates or reuses `ArtifactDeployment`; `spec.manifest.type` selects the class responsible for deploying it. Other deployers MUST NOT write its status or manage its runtime instance.
 * **Interpretation of inputs / generic fields:** Immutable spec contains the artifact manifest and OCM component/resources. Each class documents which resource types and payloads it accepts. `taskManifests` is outside this chapter's deployment contract.
 * **Processing and guarantees, failure/retry handling:** Define fetching, deployment, and health independently of Flux or Kubernetes workloads. Reconciliation MUST be idempotent; define responses to invalid artifacts, missing targets, unsupported types, and transient failures.
+  - ArtifactDeployments created before their referenced DeploymentClass is available will stay in state "DeploymentClass not found" until the DeploymentClass is created
+  - Once an ArtifactDeployment has found its referenced DeploymentClass, the "DeploymentClass not found" error cannot occur, as deletion of the DeploymentClass is prevented (see "Resource deletion and undeployment")
 * **Status reporting via conditions:** Define the meanings and required transitions for `ArtifactFetched`, `ArtifactDeployed`, `AppHealthy`, `DeploymentResultCreated`, and `Ready`, including whether conditions are required when no health check or results exist. A failed prerequisite must not leave a misleading `Ready=True`.
 * **Resource deletion and undeployment:** Define cleanup responsibility, ordering, and completion when runtime resources are on another cluster or platform.
 * **Optional behavior:** Decide whether health checks, results, and reuse can be omitted by a class, and what core then needs to consider an artifact ready.
