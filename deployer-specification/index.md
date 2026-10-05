@@ -23,35 +23,89 @@ Resource-specific sections use this template:
 * processing and guarantees, failure/retry handling
 * Status reporting via conditions 
 * resource deletion and undeployment
-* Optional behavior 
+* Optional behavior
+
+## 3. DeploymentClass
 
 
-## 3. DeploymentClass: registration and dispatch
-
-What is a deployment class?
-- maps what controller should be responsible for reconciling which ArtifactDeployments
-- ArtifactDeployment specifies deployment class in `ArtifactDeployment.spec.manifest.type` (rename to ArtifactDeployment.spec.manifest.deploymentClassName`?)
+A `DeploymentClass` declares an artifact deployment capability and identifies the controller responsible for it.
+It is cluster-scoped.
 
 ```yaml
 apiVersion: konfidence.cloud/v1alpha1
 kind: DeploymentClass
 metadata:
-  name: <deployment-class-name>
+  name: myclass.example.com
 spec:
-  controller: <controller-name>
-status:
-  selected: true
+  controller: example.com/my-deployer
 ```
 
-* **Ownership and resource selection:** Deployer installs one or more cluster-scoped `DeploymentClass` resources. `spec.controller` identifies the responsible controller; `ArtifactDeployment.spec.manifest.type` and `DeploymentTarget.spec.deploymentClassName` select the class. Deployer MUST only reconcile resources for its classes.
-* **Interpretation of inputs / generic fields:** 
-  - Class name identifies the deployment type (make explicit by renaming `type` to `deploymentClassName` in ArtifactDeployment?)
-  - Class `spec.controller` is immutable
-* **Processing and guarantees, failure/retry handling:** 
-  - No failure/retry handling is required for the deployment class
-* **Status reporting via conditions:** 
-  - The `status.selected` field MUST be set to `true` by the deployer for a DeploymentClass it selects, indicating that it is reconciling ArtifactDeployments with that deployment class.
-* **Resource deletion and undeployment:** Konfidence ensures a DeploymentClass with `status.selected` set to `true` can only be deleted if there are no ArtifactDeployments referencing it. Therefore, handling of DeploymentClass deletion is not required in the deployer.
+### 3.1 Ownership and resource selection
+
+A deployer MUST provide exactly one `DeploymentClass` for each artifact deployment class it implements.
+A deployer SHOULD come with at least one `DeploymentClass`.
+
+[//]: # (TODO should we include following sentence or not?)
+Installation of the `DeploymentClass` SHOULD be performed by packaging rather than by a controller at runtime.
+Before reconciling any resource, the deployer MUST verify that the referenced `DeploymentClass` exists and that its `spec.controller` equals the identifier of the reconciling controller.
+It MUST NOT reconcile a resource whose class names another controller, even if the class name is otherwise recognized by the deployer.
+Other resources referencing the `DeploymentClass` may already exist when the class is installed.
+
+The deployer MUST use the `DeploymentClass.metadata.name` as the class identifier.
+Other resources select it through a `spec.deploymentClassName` field.
+These references MUST be matched exactly to the class name.
+
+[//]: # (TODO rename ArtifactDeployment.spec.manifest.type to ArtifactDeployment.spec.deploymentClassName)
+
+
+
+### 3.2 Interpretation of inputs / generic fields
+
+[//]: # (TODO does it make sense to keep the spec.controller field? className is already vendor-specific, so class-to-controller mapping is useless)
+The deployer MUST set `DeploymentClass.spec.controller` to the stable identifier used by its own reconcilers.
+It MUST NOT use a different identifier for resources handled by the same registered controller.
+It is immutable and MUST NOT change once the `DeploymentClass` was initially applied to the Konfidence control plane.
+
+[//]: # (TODO DeploymentClass.spec should be mutable, spec.controller should be immutable)
+
+`DeploymentClass.spec.controller` SHOULD be prefixed by a vendor-owned domain (e.g. `example.com/my-deployer`).
+This is to avoid collisions of deployers tackling similar deployment artifacts.
+
+Class providers SHOULD use deployment class names that distinguish their deployment types and vendor, for example `myclass.example.com`.
+In this case `myclass` should describe the type of artifact being deployed, and `example.com` is a vendor-owned domain.
+
+### 3.3 Processing and guarantees, failure/retry handling
+
+When a `DeploymentClass` matching a previously created resource becomes available, a running deployer MUST reconcile those resources without requiring it to be deleted and recreated.
+A newly installed deployer MUST also process existing resources of its classes after startup.
+
+If a `DeploymentClass` is absent or belongs to another controller, the deployer MUST NOT reconcile the referenced resource or write its status.
+Konfidence's core controllers contain handling of orphaned resources if a `DeploymentClass` becomes unavailable while still referenced by other resources.
+
+### 3.4 Status reporting via conditions
+
+`DeploymentClass` has no status subresource. Its existence and `spec.controller` express registration without the need to report controller status.
+
+### 3.5 Resource deletion and undeployment
+
+A deployer MUST NOT infer that existing resources have been deleted merely because their `DeploymentClass` is absent.
+If the class is recreated with the same name and controller identifier, the deployer MUST reconcile matching resources again.
+
+`DeploymentClass` deletion is NOT prohibited while references to it exist.
+Deployers MAY use finalizers to clean up deployment state and update status conditions on related resources if an owned `DeploymentClass` is deleted.
+They MUST NOT delete the related resources referencing the deleted `DeploymentClass`.
+
+[//]: # (TODO: define proper cleanup behavior)
+
+### 3.6 Optional behavior
+
+A deployer MAY provide more than one `DeploymentClass` that share the same controller identifier in `DeploymentClass.spec.controller`.
+Each class MUST independently satisfy the requirements described earlier.
+
+### Open questions
+* how to advertise capabilities (e.g. S3 deployer can handle ArtifactDeployments, but not TaskExecutions)
+* consider controller health? should core check that and apply fallback behavior if unhealthy?
+* how to handle edge case of ownership handover? should we give any guarantees for that process?
 
 ## 4. DeploymentTarget: destination and connection
 
@@ -93,6 +147,9 @@ status:
 * **Optional behavior:** Class-specific connection configuration can be supported without adding runtime-specific fields to the generic contract; specify how it is declared and validated.
 
 ## 5. ArtifactDeployment: deploying an artifact
+
+[//]: # (TODO deployer spec must require deployers to specify how their artifacts look like; deployer is not only a k8s-controller but also some info/tooling to create artifacts)
+idea: "plugin" architecture for our CLI, deployer must provide some info on what it expects for its artifacts; maybe just resource validation (e.g. helm artifact must include exactly one helm resource in its OCM component)
 
 * **Ownership and resource selection:** Core creates or reuses `ArtifactDeployment`; `spec.manifest.type` selects the class responsible for deploying it. Other deployers MUST NOT write its status or manage its runtime instance.
 * **Interpretation of inputs / generic fields:** Immutable spec contains the artifact manifest and OCM component/resources. Each class documents which resource types and payloads it accepts. `taskManifests` is outside this chapter's deployment contract.
