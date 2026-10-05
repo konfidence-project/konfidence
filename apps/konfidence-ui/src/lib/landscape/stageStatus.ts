@@ -1,7 +1,7 @@
 import type { StageVersion } from "$lib/konfidence-api/types";
 
-// Badge tones this feature relies on. Keep in sync with the `.badge--<tone>`
-// classes exposed by `<StatusBadge>` in the design system.
+// Badge tones this feature relies on. Keep in sync with StatusBadge's
+// static utility-class map; `.badge--<tone>` remains a public class hook.
 type StageBadgeTone = "deploying" | "error" | "healthy" | "queued";
 
 interface StageStatusEntry {

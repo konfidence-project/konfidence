@@ -54,17 +54,17 @@
         />
         <h1 class="sr-only">Sign in to Konfidence</h1>
         <div
-            class="mb-3 text-[color:var(--text-primary)] font-[family-name:var(--font-mono)] font-[weight:var(--weight-bold)] uppercase tracking-[0.14em] [font-size:var(--text-sm)]"
+            class="mb-3 text-content-primary font-mono font-bold uppercase tracking-[0.14em] text-compact"
         >
             Reliable · Reproducible · Sovereign
         </div>
-        <div class="mb-8 text-[color:var(--text-secondary)] [font-size:var(--text-body)]">
+        <div class="mb-8 text-content-secondary text-body">
             Sign in to your delivery workspace.
         </div>
 
         {#if errorMessage}
             <p
-                class="mb-6 max-w-[420px] rounded-[var(--radius-md)] border border-[color:var(--status-error-bg)] bg-[color:var(--status-error-bg)] px-5 py-3 text-[color:var(--status-error-fg)] [font-size:var(--text-sm)]"
+                class="mb-6 max-w-[420px] rounded-base border border-status-error-bg bg-status-error-bg px-5 py-3 text-status-error-fg text-compact"
                 role="alert"
                 data-testid="login-error"
             >
@@ -74,7 +74,7 @@
 
         <Button
             variant="primary"
-            class="min-w-[340px] px-6 py-4 [font-size:var(--text-body)]"
+            class="min-w-[340px] px-6 py-4 [font-size:var(--font-size-body)]"
             href={loginUrl}
             rel="external"
             data-testid="sign-in"
@@ -91,7 +91,7 @@
         </Button>
     </main>
     <footer
-        class="p-6 text-center text-[color:var(--text-tertiary)] [font-size:var(--text-meta)]"
+        class="p-6 text-center text-content-tertiary text-meta"
     >
         Part of the Apeiro Reference Architecture
     </footer>

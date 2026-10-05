@@ -6,11 +6,6 @@
 
     let { class: className, ...rest }: SkSeparatorProps = $props();
 
-    const composedClass = $derived(
-        className
-            ? `menu__sep my-2 h-px bg-[var(--border-subtle)] ${className}`
-            : "menu__sep my-2 h-px bg-[var(--border-subtle)]",
-    );
 </script>
 
-<SkMenu.Separator class={composedClass} {...rest} />
+<SkMenu.Separator class={["menu__sep my-2 h-px bg-[var(--border-subtle)]", className]} {...rest} />

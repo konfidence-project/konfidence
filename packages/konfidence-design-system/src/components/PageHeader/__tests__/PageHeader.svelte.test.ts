@@ -63,11 +63,11 @@ describe("<PageHeader>", () => {
 
     const eyebrowSnippet = createRawSnippet(() => ({
       render: () =>
-        '<nav aria-label="Breadcrumb" style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--text-tertiary);"><a href="#" style="color:var(--text-tertiary);text-decoration:none;">Landscapes</a><span style="color:var(--border-strong);">/</span><a href="#" style="color:var(--text-tertiary);text-decoration:none;">Primary</a><span style="color:var(--border-strong);">/</span><span style="color:var(--text-primary);font-weight:500;">dev-api</span></nav>',
+        '<nav aria-label="Breadcrumb" style="display:flex;align-items:center;gap:6px;font-size:var(--font-size-compact);color:var(--text-tertiary);"><a href="#" style="color:var(--text-tertiary);text-decoration:none;">Landscapes</a><span style="color:var(--border-strong);">/</span><a href="#" style="color:var(--text-tertiary);text-decoration:none;">Primary</a><span style="color:var(--border-strong);">/</span><span style="color:var(--text-primary);font-weight:500;">dev-api</span></nav>',
     }));
     const actionSnippet = createRawSnippet(() => ({
       render: () =>
-        '<button type="button" style="border:1px solid var(--border-default);background:var(--surface-default);color:var(--text-primary);border-radius:10px;padding:8px 16px;font-weight:600;font-size:var(--text-sm);">Promote</button>',
+        '<button type="button" style="border:1px solid var(--border-default);background:var(--surface-default);color:var(--text-primary);border-radius:10px;padding:8px 16px;font-weight:600;font-size:var(--font-size-compact);">Promote</button>',
     }));
 
     const scenarios: Record<

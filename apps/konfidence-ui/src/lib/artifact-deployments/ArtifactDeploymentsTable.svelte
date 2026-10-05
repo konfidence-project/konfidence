@@ -68,7 +68,7 @@
                             >
                                 <Render of={cell.render()} />
                                 <ui5-icon
-                                    class="h-[var(--icon-sm)] w-[var(--icon-sm)] text-[color:var(--text-tertiary)]"
+                                    class="size-icon-sm text-content-tertiary"
                                     name={sortIcon(props.sort.order)}
                                     aria-hidden="true"
                                 ></ui5-icon>

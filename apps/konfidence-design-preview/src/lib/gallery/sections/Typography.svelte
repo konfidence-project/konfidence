@@ -10,22 +10,22 @@
     subtitle="System font stack, tabular numerals, negative tracking on display sizes."
     status="implemented"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample title="Type scale" description="Rendered live from --text-* tokens.">
-            <div class="type-scale">
+            <div class="type-scale flex w-full flex-col gap-2.5">
                 {#each TYPE_SCALE as item (item.name)}
-                    <div class="type-scale__row">
-                        <span class="type-scale__sample" style:font-size={item.cssVar}
+                    <div class="type-scale__row flex items-baseline gap-4">
+                        <span class="type-scale__sample font-display tracking-[-0.5px] text-content-primary" style:font-size={item.cssVar}
                             >{item.sample}</span
                         >
-                        <code>{item.name}</code>
+                        <code class="font-mono text-meta text-content-tertiary">{item.name}</code>
                     </div>
                 {/each}
             </div>
         </Sample>
 
         <Sample title="Tabular numerals" description="font-feature-settings: 'tnum' on all metrics.">
-            <table class="numeric-table">
+            <table class="numeric-table border-collapse [font-variant-numeric:tabular-nums] [&_td]:border-b [&_td]:border-outline-subtle [&_td]:px-4 [&_td]:py-1.5 [&_td]:text-compact [&_td]:text-content-primary [&_td:last-child]:text-right [&_td:last-child]:font-semibold">
                 <tbody>
                     <tr>
                         <td>Deployments</td>
@@ -44,11 +44,11 @@
         </Sample>
 
         <Sample title="Spacing scale" description="Powers of 2 blended with fibonacci-ish jumps.">
-            <div class="spacing">
+            <div class="spacing flex w-full flex-col gap-1.5">
                 {#each SPACING_STEPS as step (step)}
-                    <div class="spacing__row">
-                        <div class="spacing__bar" style:width="var(--space-{step})"></div>
-                        <code>--space-{step}</code>
+                    <div class="spacing__row flex items-center gap-3">
+                        <div class="spacing__bar h-2.5 rounded-xs bg-[var(--accent-primary,var(--amber-500))]" style:width="var(--space-{step})"></div>
+                        <code class="font-mono text-meta text-content-tertiary">--space-{step}</code>
                     </div>
                 {/each}
             </div>
@@ -58,126 +58,19 @@
             title="Radii"
             description="Signature radii 10 / 14 / 20 give Konfidence its slightly softer geometry. `--radius-pill` is a shape token, not a scale step — it clamps to a stadium on elongated elements."
         >
-            <div class="radii">
+            <div class="radii flex flex-wrap gap-3">
                 {#each RADIUS_STEPS as step (step)}
                     <div
-                        class="radii__tile"
-                        class:radii__tile--pill={step === "pill"}
+                        class={[
+                            "radii__tile flex h-[72px] items-end justify-center border border-outline-default bg-surface-subtle p-1.5",
+                            step === "pill" ? "radii__tile--pill w-40" : "w-[72px]",
+                        ]}
                         style:border-radius="var(--radius-{step})"
                     >
-                        <code>--radius-{step}</code>
+                        <code class="font-mono text-xs text-content-tertiary">--radius-{step}</code>
                     </div>
                 {/each}
             </div>
         </Sample>
     </div>
 </Section>
-
-<style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .type-scale {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
-    }
-
-    .type-scale__row {
-        display: flex;
-        align-items: baseline;
-        gap: 16px;
-    }
-
-    .type-scale__sample {
-        font-weight: var(--weight-display, 600);
-        color: var(--text-primary);
-        letter-spacing: -0.5px;
-    }
-
-    .type-scale__row code {
-        font-family: var(--font-mono);
-        color: var(--text-tertiary, var(--text-secondary));
-        font-size: 12px;
-    }
-
-    .numeric-table {
-        font-variant-numeric: tabular-nums;
-        border-collapse: collapse;
-    }
-
-    .numeric-table td {
-        padding: 6px 16px;
-        border-bottom: 1px solid var(--border-subtle);
-        color: var(--text-primary);
-        font-size: var(--text-sm);
-    }
-
-    .numeric-table td:last-child {
-        text-align: right;
-        font-weight: var(--weight-semibold, 600);
-    }
-
-    .spacing {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        width: 100%;
-    }
-
-    .spacing__row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .spacing__bar {
-        height: 10px;
-        background: var(--accent-primary, var(--amber-500));
-        border-radius: 3px;
-    }
-
-    .spacing__row code {
-        font-family: var(--font-mono);
-        font-size: 12px;
-        color: var(--text-tertiary, var(--text-secondary));
-    }
-
-    .radii {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-
-    .radii__tile {
-        width: 72px;
-        height: 72px;
-        border: 1px solid var(--border-default, var(--border-subtle));
-        background: var(--surface-subtle);
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        padding: 6px;
-    }
-
-    /*
-     * `--radius-pill` is a shape token — it clamps whatever container
-     * it's applied to into a stadium. On a square that collapses to a
-     * circle, which is technically correct but visually indistinguish-
-     * able from `--radius-full` and hides the intent. Render the pill
-     * tile as an elongated rectangle so it actually looks like a pill.
-     */
-    .radii__tile--pill {
-        width: 160px;
-    }
-
-    .radii__tile code {
-        font-family: var(--font-mono);
-        font-size: 10px;
-        color: var(--text-tertiary, var(--text-secondary));
-    }
-</style>

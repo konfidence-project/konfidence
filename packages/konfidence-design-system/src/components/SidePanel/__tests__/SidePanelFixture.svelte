@@ -19,11 +19,11 @@
 <SidePanel bind:open {title} {onClose}>
     {#if showBody}
         <div style="display: flex; flex-direction: column; gap: 12px;">
-            <p data-testid="panel-body" style="margin: 0; font-size: var(--text-sm); color: var(--text-primary);">
+            <p data-testid="panel-body" style="margin: 0; font-size: var(--font-size-compact); color: var(--text-primary);">
                 Inspect the artifact and its landscape / stage / vector relationships.
             </p>
             <dl
-                style="display: grid; grid-template-columns: 8rem 1fr; gap: 8px 12px; margin: 0; font-size: var(--text-sm);"
+                style="display: grid; grid-template-columns: 8rem 1fr; gap: 8px 12px; margin: 0; font-size: var(--font-size-compact);"
             >
                 <dt style="color: var(--text-tertiary);">Component</dt>
                 <dd style="margin: 0;">payments-api</dd>
@@ -35,7 +35,7 @@
         </div>
     {/if}
     {#snippet footer()}
-        <span data-testid="panel-footer" style="font-size: var(--text-sm); color: var(--text-tertiary);"
+        <span data-testid="panel-footer" style="font-size: var(--font-size-compact); color: var(--text-tertiary);"
             >footer</span
         >
     {/snippet}

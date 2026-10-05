@@ -13,11 +13,11 @@
 <div class="flex flex-col gap-5">
     <section class="flex flex-col gap-2" aria-label="VectorDeployment">
         <h3
-            class="m-0 text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]"
+            class="m-0 text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary"
         >
             Vector deployment
         </h3>
-        <dl class="m-0 grid grid-cols-[minmax(0,8rem)_1fr] gap-x-3 gap-y-2 text-[length:var(--text-sm)]">
+        <dl class="m-0 grid grid-cols-[minmax(0,8rem)_1fr] gap-x-3 gap-y-2 text-compact">
             <dt class="text-[color:var(--text-tertiary)]">Component</dt>
             <dd class="m-0 break-words text-[color:var(--text-primary)]">{row.component}</dd>
             <dt class="text-[color:var(--text-tertiary)]">Version</dt>
@@ -44,11 +44,11 @@
 
     <section class="flex flex-col gap-2" aria-label="Landscape">
         <h3
-            class="m-0 text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]"
+            class="m-0 text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary"
         >
             Landscape
         </h3>
-        <p class="m-0 flex flex-col gap-0.5 text-[length:var(--text-sm)] text-[color:var(--text-primary)]">
+        <p class="m-0 flex flex-col gap-0.5 text-compact text-content-primary">
             <span>{row.landscape}</span>
             {#if row.landscape !== row.landscapeId}
                 <span class="font-[family-name:var(--font-mono)] text-[color:var(--text-tertiary)]">{row.landscapeId}</span>
@@ -58,12 +58,12 @@
 
     <section class="flex flex-col gap-2" aria-label="Stage">
         <h3
-            class="m-0 text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]"
+            class="m-0 text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary"
         >
             Stage
         </h3>
 
-        <p class="m-0 flex flex-col gap-0.5 text-[length:var(--text-sm)] text-[color:var(--text-primary)]">
+        <p class="m-0 flex flex-col gap-0.5 text-compact text-content-primary">
             <span>{row.stageName}</span>
             {#if row.stageName !== row.stageId}
                 <span class="font-[family-name:var(--font-mono)] text-[color:var(--text-tertiary)]">{row.stageId}</span>

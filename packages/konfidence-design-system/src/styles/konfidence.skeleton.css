@@ -1,52 +1,52 @@
 /* Konfidence Skeleton palette. Appearance is selected by the root .dark class. */
 [data-theme="konfidence"] {
   /* primary — amber */
-  --color-primary-50: #fff8ec;
+  --color-primary-50: var(--amber-50);
   --color-primary-contrast-50: #1a1815;
-  --color-primary-100: #ffefd0;
+  --color-primary-100: var(--amber-100);
   --color-primary-contrast-100: #1a1815;
-  --color-primary-200: #ffdd9e;
+  --color-primary-200: var(--amber-200);
   --color-primary-contrast-200: #1a1815;
-  --color-primary-300: #ffcb6b;
+  --color-primary-300: var(--amber-300);
   --color-primary-contrast-300: #1a1815;
-  --color-primary-400: #ffb530;
+  --color-primary-400: var(--amber-400);
   --color-primary-contrast-400: #1a1815;
-  --color-primary-500: #f59e0b;
+  --color-primary-500: var(--amber-500);
   --color-primary-contrast-500: #1a1815;
-  --color-primary-600: #d6820b;
+  --color-primary-600: var(--amber-600);
   --color-primary-contrast-600: #ffffff;
-  --color-primary-700: #a9640a;
+  --color-primary-700: var(--amber-700);
   --color-primary-contrast-700: #ffffff;
-  --color-primary-800: #7c4a0c;
+  --color-primary-800: var(--amber-800);
   --color-primary-contrast-800: #ffffff;
-  --color-primary-900: #573410;
+  --color-primary-900: var(--amber-900);
   --color-primary-contrast-900: #ffffff;
-  --color-primary-950: #573410;
+  --color-primary-950: var(--amber-900);
   --color-primary-contrast-950: #ffffff;
   --color-primary-contrast-dark: #1a1815;
   --color-primary-contrast-light: #ffffff;
   /* secondary — teal */
-  --color-secondary-50: #ecfafe;
+  --color-secondary-50: var(--teal-50);
   --color-secondary-contrast-50: #1a1815;
-  --color-secondary-100: #cff1fa;
+  --color-secondary-100: var(--teal-100);
   --color-secondary-contrast-100: #1a1815;
-  --color-secondary-200: #9fe0f3;
+  --color-secondary-200: var(--teal-200);
   --color-secondary-contrast-200: #1a1815;
-  --color-secondary-300: #63c9e7;
+  --color-secondary-300: var(--teal-300);
   --color-secondary-contrast-300: #1a1815;
-  --color-secondary-400: #33b0d6;
+  --color-secondary-400: var(--teal-400);
   --color-secondary-contrast-400: #ffffff;
-  --color-secondary-500: #1ba0c9;
+  --color-secondary-500: var(--teal-500);
   --color-secondary-contrast-500: #ffffff;
-  --color-secondary-600: #1583a8;
+  --color-secondary-600: var(--teal-600);
   --color-secondary-contrast-600: #ffffff;
-  --color-secondary-700: #146a87;
+  --color-secondary-700: var(--teal-700);
   --color-secondary-contrast-700: #ffffff;
-  --color-secondary-800: #16566e;
+  --color-secondary-800: var(--teal-800);
   --color-secondary-contrast-800: #ffffff;
-  --color-secondary-900: #16485c;
+  --color-secondary-900: var(--teal-900);
   --color-secondary-contrast-900: #ffffff;
-  --color-secondary-950: #16485c;
+  --color-secondary-950: var(--teal-900);
   --color-secondary-contrast-950: #ffffff;
   --color-secondary-contrast-dark: #1a1815;
   --color-secondary-contrast-light: #ffffff;
@@ -177,24 +177,24 @@
   --color-surface-contrast-light: #ffffff;
 
   /* base */
-  --radius-base: 10px;
-  --radius-container: 14px;
-  --spacing: 4px;
+  --radius-base: var(--radius-md);
+  --radius-container: var(--radius-lg);
+  --spacing: var(--space-1);
   --default-border-width: 1px;
-  --typo-heading--font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --typo-heading--font-weight: 600;
-  --typo-base--font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --typo-base--color-light: #1a1815;
-  --typo-base--color-dark: #ede8de;
-  --color-root-bg-light: #fdfcfa;
-  --color-root-bg-dark: #14110b;
+  --typo-heading--font-family: var(--font-sans);
+  --typo-heading--font-weight: var(--weight-semibold);
+  --typo-base--font-family: var(--font-sans);
+  /* These must be explicit mode sources, not active semantic tokens: light-dark()
+   * references both branches on the root regardless of the selected mode. */
+  --typo-base--color-light: var(--neutral-900);
+  --typo-base--color-dark: var(--dark-100);
+  --color-root-bg-light: var(--neutral-25);
+  --color-root-bg-dark: var(--dark-900);
 
   /* Konfidence signature (not part of the Skeleton contract) */
-  --kf-focus-ring: 0 0 0 3px rgba(255, 181, 48, 0.38);
-  --kf-shadow-md: 0 4px 8px rgba(60, 40, 10, 0.06), 0 10px 24px rgba(60, 40, 10, 0.09);
-  --kf-gradient-amber: linear-gradient(135deg, #ffcb6b 0%, #f59e0b 100%);
-  --kf-gradient-aurora: linear-gradient(120deg, #ffcb49 0%, #ff960c 42%, #1ba0c9 100%);
-  --kf-orbit-ring: #ffb530;
+  --kf-focus-ring: var(--focus-ring);
+  --kf-shadow-md: var(--shadow-md);
+  --kf-gradient-amber: var(--gradient-amber);
+  --kf-gradient-aurora: var(--gradient-aurora);
+  --kf-orbit-ring: var(--orbit-ring);
 }

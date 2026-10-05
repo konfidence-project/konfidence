@@ -8,6 +8,6 @@
 </script>
 
 <span
-    class="font-[family-name:var(--font-mono)] text-[length:var(--text-sm)] text-[color:var(--text-secondary)]"
+    class="font-mono text-compact text-content-secondary"
     >{@render children()}</span
 >

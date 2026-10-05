@@ -43,7 +43,7 @@
     subtitle="Command palette, tabs-with-overflow, status bar — plus the real components already shipped for user menu, avatar groups, and project switcher. All interactive with dummy data."
     status="partial"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample
             title="Project switcher"
             description="Real <ProjectSelection> composed with <Menu>. Click to pick a project."
@@ -73,7 +73,7 @@
                     </Menu.Content>
                 </Menu.Positioner>
             </Menu>
-            <span class="log">Active: <b>{selectedProject.name}</b></span>
+            <span class="log rounded-md bg-surface-subtle px-2 py-[3px] font-mono text-meta text-content-secondary">Active: <b>{selectedProject.name}</b></span>
         </Sample>
 
         <Sample title="Avatar & AvatarGroup">
@@ -111,7 +111,7 @@
                 </Menu.Positioner>
             </Menu>
             {#if userMenuLog}
-                <span class="log">{userMenuLog}</span>
+                <span class="log rounded-md bg-surface-subtle px-2 py-[3px] font-mono text-meta text-content-secondary">{userMenuLog}</span>
             {/if}
         </Sample>
 
@@ -126,20 +126,3 @@
         />
     </div>
 </Section>
-
-<style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .log {
-        font-family: var(--font-mono);
-        font-size: var(--text-meta);
-        color: var(--text-secondary);
-        padding: 3px 8px;
-        border-radius: 6px;
-        background: var(--surface-subtle);
-    }
-</style>

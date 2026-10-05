@@ -58,7 +58,7 @@
     });
 
     const labelTextClass =
-        "text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]";
+        "text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary";
 </script>
 
 <section
@@ -118,7 +118,7 @@
                 <button
                         type="button"
                         class={[
-                        "cursor-pointer border border-transparent bg-transparent px-1.5 py-2 text-[length:var(--text-sm)] leading-[1.4] text-[color:var(--text-link,var(--btn-primary-fg))] underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none",
+                        "cursor-pointer border border-transparent bg-transparent px-1.5 py-2 text-compact leading-[1.4] text-content-link underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none",
                         !filters.anyFiltersActive && "invisible pointer-events-none",
                     ]}
                         onclick={filters.clearFilters}
@@ -178,7 +178,7 @@
     {:else}
         <div class="flex flex-col gap-2">
             <p
-                    class="m-0 text-[length:var(--text-sm)] text-[color:var(--text-tertiary)]"
+                    class="m-0 text-compact text-content-tertiary"
                     aria-live="polite"
                     data-testid="vectordeployment-view-count"
             >

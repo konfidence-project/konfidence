@@ -10,19 +10,19 @@
     subtitle="Konfidence design language — amber-vs-teal semantics, strict colour discipline."
     status="implemented"
 >
-    <div class="grid">
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
         <Sample
             title="Amber = action"
             description="Reserved for calls-to-action, primary focus, active glow. Rendered here by the primary Button (--gradient-amber)."
         >
-            <div class="signature-row">
+            <div class="signature-row flex flex-wrap items-center gap-3">
                 <Button variant="primary">Deploy</Button>
                 <span
-                    class="signature-swatch"
+                    class="signature-swatch inline-block size-10 shrink-0 rounded-full border border-outline-subtle"
                     style="background: var(--gradient-amber)"
                     aria-hidden="true"
                 ></span>
-                <code class="signature-token">--gradient-amber</code>
+                <code class="signature-token rounded bg-surface-subtle px-1.5 py-0.5 font-mono text-meta text-content-secondary">--gradient-amber</code>
             </div>
         </Sample>
 
@@ -30,70 +30,16 @@
             title="Teal = information"
             description="Reserved for links, data points, running-state accents. Rendered here by a text link using --text-link."
         >
-            <div class="signature-row">
-                <a class="signature-link" href="#signature">View details →</a>
-                <code class="signature-token">--text-link</code>
+            <div class="signature-row flex flex-wrap items-center gap-3">
+                <a class="signature-link text-compact font-semibold text-content-link no-underline hover:underline focus-visible:underline" href="#signature">View details →</a>
+                <code class="signature-token rounded bg-surface-subtle px-1.5 py-0.5 font-mono text-meta text-content-secondary">--text-link</code>
             </div>
         </Sample>
     </div>
 
-    <p class="rule">
+    <p class="rule mt-4 border-l-[3px] border-[var(--accent-primary,var(--amber-500))] bg-surface-subtle px-3.5 py-3 text-compact text-content-secondary">
         <b>Rule:</b> amber is only used to prompt an action (primary buttons, focus glow, active
         states); teal is used for information, links, data points, and running-state accents.
         Never mix them in the same affordance — a single primary button per context.
     </p>
 </Section>
-
-<style>
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 16px;
-    }
-
-    .signature-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-
-    .signature-swatch {
-        display: inline-block;
-        width: 40px;
-        height: 40px;
-        border-radius: 999px;
-        border: 1px solid var(--border-subtle);
-        flex-shrink: 0;
-    }
-
-    .signature-link {
-        color: var(--text-link);
-        font-weight: var(--weight-semibold, 600);
-        text-decoration: none;
-        font-size: var(--text-sm);
-    }
-
-    .signature-link:hover,
-    .signature-link:focus-visible {
-        text-decoration: underline;
-    }
-
-    .signature-token {
-        font-family: var(--font-mono);
-        font-size: var(--text-meta);
-        padding: 2px 6px;
-        border-radius: 4px;
-        background: var(--surface-subtle);
-        color: var(--text-secondary);
-    }
-
-    .rule {
-        margin: 16px 0 0;
-        padding: 12px 14px;
-        border-left: 3px solid var(--accent-primary, var(--amber-500));
-        background: var(--surface-subtle);
-        color: var(--text-secondary);
-        font-size: var(--text-sm);
-    }
-</style>

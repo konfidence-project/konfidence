@@ -30,7 +30,7 @@
     ]}
 >
     <ui5-icon
-        class="text-[color:var(--text-tertiary)] h-[var(--icon-md)] w-[var(--icon-md)] shrink-0"
+        class="text-content-tertiary size-icon-md shrink-0"
         name="search"
         aria-hidden="true"
     ></ui5-icon>
@@ -40,14 +40,14 @@
         type="search"
         {placeholder}
         bind:value
-        class="w-full min-w-0 border-0 bg-transparent py-2 text-[length:var(--text-sm)] text-inherit outline-none placeholder:text-[color:var(--input-placeholder)] disabled:cursor-not-allowed [&::-webkit-search-cancel-button]:appearance-none"
+        class="w-full min-w-0 border-0 bg-transparent py-2 text-compact text-inherit outline-none placeholder:text-[color:var(--input-placeholder)] disabled:cursor-not-allowed [&::-webkit-search-cancel-button]:appearance-none"
         autocomplete="off"
         spellcheck="false"
     />
     {#if value && !disabled}
         <button
             type="button"
-            class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent px-1 py-0.5 text-base leading-none text-[color:var(--text-tertiary)] hover:bg-[color:var(--surface-sunken)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent px-1 py-0.5 text-base leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             onclick={() => (value = "")}
             aria-label="Clear search"
             data-testid="search-clear"

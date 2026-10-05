@@ -7,10 +7,9 @@ Skeleton v5, provides:
   semantic tokens. Light tokens live on `:root`; dark tokens apply on
   `<html data-theme="konfidence" class="dark">`.
 - **Skeleton theme** — colour ramps for `data-theme="konfidence"`.
-- **Component CSS** — colocated in each component's own scoped
-  `<style>` block (see `Button.svelte`, `StatusBadge.svelte`, …) rather
-  than a shared stylesheet, so a component's markup and styling stay
-  in one file.
+- **Component styling** — semantic Tailwind utilities for ordinary layout,
+  typography and color; small scoped `<style>` blocks remain for complex
+  treatments and nested component overrides.
 - **Svelte components** — Tier-1 wrappers over the CSS layer:
   `Button`, `Brandbar`, `OrbitLoader`, `StatusBadge`.
 - **Icons** — [SAP-icons](https://sap.github.io/ui5-webcomponents/nightly/v2/components/Icon/)
@@ -50,6 +49,36 @@ imports them first, then layers the Konfidence styles on top:
 Fine-grained subpaths are available if the default order does not
 fit (`@konfidence/design-system/styles/tokens`, `/styles/skeleton`).
 
+### Style ownership
+
+Keep the four stylesheets focused: `tokens.css` exports raw palette, semantic
+light/dark, status, typography, gradient and shadow values (also available
+without Tailwind via `/styles/tokens`). `konfidence.skeleton.css` configures
+Skeleton's ramps, contrast, root colors, base type, radii and spacing using
+those sources; its light/dark root values use explicit mode sources, not
+mode-switching semantic aliases. `konfidence.theme.css` maps additional
+semantic Tailwind utilities and intentional standard weight overrides to
+the tokens. `index.css` imports them and owns only shared layout/global rules;
+Skeleton's globals set the root background and body typography/color; the
+body retains its own canvas background for app-shell coverage. Keep one-off styling
+in the component instead of adding unused theme aliases.
+
+### Semantic utilities
+
+The main stylesheet imports `konfidence.theme.css` once. Its Tailwind v4
+`@theme inline` mappings resolve existing CSS tokens at the element, so
+`text-content-primary`, `bg-surface-card`, `border-outline-subtle`,
+`text-status-error-fg` and `shadow-elevation-xs` respond to the root `.dark`
+class. Use `text-meta` (12px), `text-compact` (13px), or `text-body` (14px);
+Skeleton's `text-sm` remains 14px with its own line-height. Our named sizes
+set only font-size, leaving line-height inherited unless specified. Their
+raw plain-CSS sources are `--font-size-meta`, `--font-size-compact`, and
+`--font-size-body` (likewise for headings, display and hero). Use Skeleton's
+`rounded-base` (10px) and `rounded-container` (14px), `rounded-full` for
+pills, `font-medium`/`font-semibold`/`font-bold` for shared weights,
+`font-display` for the display weight and `font-mono` for the monospace stack.
+One-off values and dynamic swatches still use CSS vars.
+
 ## Wire the theme bootstrap
 
 The consuming app owns mode resolution and persistence. With mode-watcher,
@@ -65,13 +94,13 @@ manage mode or storage itself.
 | Component                                            | CSS classes it wraps                             | Purpose                                                                                                                          |
 | ---------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | `Button`                                             | `.btn`, `.btn--{primary,secondary,ghost,danger}` | Renders `<button>` or `<a>`; forwards `disabled`, `aria-*`, click handler.                                                       |
-| `Brandbar`                                           | (Tailwind arbitrary-value utilities)             | The amber-teal aurora strip at the top of every screen.                                                                          |
-| `EmptyState`                                         | (Tailwind arbitrary-value utilities)             | Neutral shell for empty, info, and error placeholders (icon + text + action).                                                    |
-| `OrbitLoader`                                        | (Tailwind arbitrary-value utilities)             | Live-region loading indicator with an accessible label.                                                                          |
-| `SearchInput`                                        | (Tailwind arbitrary-value utilities)             | Icon-prefixed search field with inline clear button.                                                                             |
-| `SidePanel`                                          | (Tailwind arbitrary-value utilities)             | Right-anchored detail drawer built on native `<dialog>` (focus trap + `Esc` close).                                              |
+| `Brandbar`                                           | Tailwind utilities                               | The amber-teal aurora strip at the top of every screen.                                                                          |
+| `EmptyState`                                         | Tailwind utilities                               | Neutral shell for empty, info, and error placeholders (icon + text + action).                                                    |
+| `OrbitLoader`                                        | Tailwind utilities                               | Live-region loading indicator with an accessible label.                                                                          |
+| `SearchInput`                                        | Tailwind utilities                               | Icon-prefixed search field with inline clear button.                                                                             |
+| `SidePanel`                                          | Tailwind utilities                               | Right-anchored detail drawer built on native `<dialog>` (focus trap + `Esc` close).                                              |
 | `StatusBadge`                                        | `.badge`, `.badge--<status>`                     | Passes `status` through to the class list; the API owns the vocabulary.                                                          |
-| `Table` + `TableRow`, `TableCell`, `TableHeaderCell` | (Tailwind arbitrary-value utilities)             | Scrollable, sticky-header data-table primitives; `TableRow` accepts an `onselect` callback for click / Enter / Space activation. |
+| `Table` + `TableRow`, `TableCell`, `TableHeaderCell` | Tailwind utilities                               | Scrollable, sticky-header data-table primitives; `TableRow` accepts an `onselect` callback for click / Enter / Space activation. |
 
 ```svelte
 <script lang="ts">

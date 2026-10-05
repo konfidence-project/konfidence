@@ -24,19 +24,6 @@
     }: Props = $props();
 
     const interactive = $derived(onselect !== undefined);
-    const rowClass = $derived(
-        [
-            "transition-colors duration-[var(--motion-fast)]",
-            "hover:bg-[color:var(--surface-subtle)]",
-            interactive &&
-                "cursor-pointer focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--text-link,var(--btn-primary-fg))]",
-            selected && "bg-[color:var(--surface-sunken)]",
-            className,
-        ]
-            .filter(Boolean)
-            .join(" "),
-    );
-
     const handleKeydown = (event: KeyboardEvent): void => {
         if (!onselect) {
             return;
@@ -49,7 +36,13 @@
 </script>
 
 <tr
-    class={rowClass}
+    class={[
+        "transition-colors duration-[var(--motion-fast)]",
+        "hover:bg-surface-subtle",
+        interactive && "cursor-pointer focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--text-link,var(--btn-primary-fg))]",
+        selected && "bg-surface-sunken",
+        className,
+    ]}
     tabindex={interactive ? 0 : undefined}
     aria-selected={interactive ? selected : undefined}
     onclick={onselect}

@@ -18,7 +18,7 @@
 
 <div
     class={[
-        "flex flex-col items-center justify-center gap-2 px-6 py-10 text-center text-[color:var(--text-secondary)]",
+        "flex flex-col items-center justify-center gap-2 px-6 py-10 text-center text-content-secondary",
         className,
     ]}
     {role}
@@ -26,7 +26,7 @@
 >
     {#if icon}
         <div
-            class="text-[color:var(--text-tertiary)] [&_ui5-icon]:h-[var(--icon-2xl)] [&_ui5-icon]:w-[var(--icon-2xl)]"
+            class="text-content-tertiary [&_ui5-icon]:size-icon-2xl"
             aria-hidden="true"
         >
             {@render icon()}
@@ -34,12 +34,12 @@
     {/if}
     <h2
         class={[
-            "m-0 text-[length:var(--text-h3)] font-semibold",
-            tone === "error" ? "text-[color:var(--btn-danger-fg)]" : "text-[color:var(--text-primary)]",
+            "m-0 text-h3 font-semibold",
+            tone === "error" ? "text-[color:var(--btn-danger-fg)]" : "text-content-primary",
         ]}
     >{title}</h2>
     {#if description}
-        <p class="m-0 max-w-[40ch] text-[length:var(--text-sm)]">{description}</p>
+        <p class="m-0 max-w-[40ch] text-compact">{description}</p>
     {/if}
     {#if action}
         <div class="mt-3">{@render action()}</div>

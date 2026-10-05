@@ -53,22 +53,15 @@
         ...rest
     }: Props = $props();
 
-    const composedClass = $derived(
-        [
-            "avatar flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-[image:var(--gradient-teal)] p-0 text-[length:var(--text-meta)] font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]",
-            orbit
-                ? "avatar--orbit relative before:absolute before:-inset-[3px] before:rounded-full before:border-[1.5px] before:border-[var(--orbit-ring)] before:opacity-40 before:content-['']"
-                : "",
-            typeof className === "string" && className.length > 0 ? className : "",
-        ]
-            .filter(Boolean)
-            .join(" "),
-    );
 </script>
 
 <svelte:element
     this={as}
-    class={composedClass}
+    class={[
+        "avatar flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-[image:var(--gradient-teal)] p-0 text-meta font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-outline-focus",
+        orbit && "avatar--orbit relative before:absolute before:-inset-[3px] before:rounded-full before:border-[1.5px] before:border-[var(--orbit-ring)] before:opacity-40 before:content-['']",
+        typeof className === "string" && className.length > 0 && className,
+    ]}
     aria-label={ariaLabel}
     {...as === "button" ? { type: "button" } : {}}
     {...rest}
@@ -79,5 +72,3 @@
         {initials ?? ""}
     {/if}
 </svelte:element>
-
-

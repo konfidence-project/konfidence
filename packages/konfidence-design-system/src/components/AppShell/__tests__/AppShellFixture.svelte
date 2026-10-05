@@ -63,7 +63,7 @@
         {#snippet main()}
             <section style="padding: var(--space-4);">
                 <h1
-                    style="color: var(--text-primary); font-size: var(--text-h2); margin: 0;"
+                    style="color: var(--text-primary); font-size: var(--font-size-h2); margin: 0;"
                 >
                     Landscape
                 </h1>

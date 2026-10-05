@@ -14,20 +14,20 @@
     subtitle="Real <SidePanel> from @konfidence/design-system (right-anchored `<dialog>` with backdrop). Modal dialogs and master-detail with resizer are still on the roadmap."
     status="partial"
 >
-    <div class="stack">
+    <div class="stack flex flex-col gap-5">
         <Sample
             title="SidePanel — details drawer"
             description="Right-anchored, modal, dismissable via backdrop, ESC, or the close button."
         >
             <Button variant="primary" onclick={() => (panelOpen = true)}>Open details</Button>
             <SidePanel bind:open={panelOpen} title="Deployment d-001">
-                <p class="paragraph">
+                <p class="paragraph mb-3 text-compact leading-[1.5] text-content-secondary">
                     Konfidence's <code>&lt;SidePanel&gt;</code> renders a native
                     <code>&lt;dialog&gt;</code> element opened via
                     <code>showModal()</code>, so the browser handles the focus trap,
                     <kbd>Esc</kbd> to close, and the tinted backdrop.
                 </p>
-                <p class="paragraph">
+                <p class="paragraph mb-3 text-compact leading-[1.5] text-content-secondary">
                     Pass a <code>footer</code> snippet for confirm/dismiss actions.
                 </p>
             </SidePanel>
@@ -39,12 +39,12 @@
         >
             <Button variant="secondary" onclick={() => (footerOpen = true)}>Open with footer</Button>
             <SidePanel bind:open={footerOpen} title="Confirm deployment">
-                <p class="paragraph">
+                <p class="paragraph mb-3 text-compact leading-[1.5] text-content-secondary">
                     You are about to promote <b>kden-api v1.5.0-rc.1</b> to <b>staging</b>.
                     This is a demo dialog — nothing will actually change.
                 </p>
                 {#snippet footer()}
-                    <div class="footer">
+                    <div class="footer flex justify-end gap-2">
                         <Button variant="ghost" onclick={() => (footerOpen = false)}>Cancel</Button>
                         <Button variant="primary" onclick={() => (footerOpen = false)}>Promote</Button>
                     </div>
@@ -60,19 +60,6 @@
 </Section>
 
 <style>
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .paragraph {
-        margin: 0 0 12px;
-        color: var(--text-secondary);
-        font-size: var(--text-sm);
-        line-height: 1.5;
-    }
-
     .paragraph code,
     .paragraph kbd {
         font-family: var(--font-mono);
@@ -81,11 +68,5 @@
         border-radius: 4px;
         background: var(--surface-subtle);
         color: var(--text-primary);
-    }
-
-    .footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
     }
 </style>

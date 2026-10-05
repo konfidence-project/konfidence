@@ -35,12 +35,6 @@
         ...rest
     }: Props = $props();
 
-    const composedClass = $derived([
-        "nav-item relative mb-px flex items-center gap-2.5 rounded-[var(--radius-md)] py-2 px-3 text-[length:var(--text-sm)] font-medium text-[var(--text-secondary)] no-underline cursor-pointer hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)]",
-        active ? "nav-item--active" : "",
-        className ?? "",
-    ].filter(Boolean).join(" "));
-
     const BADGE_MAX = 99;
     const badgeLabel = $derived.by((): string | undefined => {
         if (badge === undefined) {
@@ -51,7 +45,11 @@
 </script>
 
 <a
-    class={composedClass}
+    class={[
+        "nav-item relative mb-px flex items-center gap-2.5 rounded-base py-2 px-3 text-compact no-underline cursor-pointer not-[.nav-item--active]:hover:bg-surface-sunken not-[.nav-item--active]:hover:text-content-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-outline-focus",
+        active ? "nav-item--active bg-selection-bg text-selection-fg font-semibold before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-[image:var(--gradient-amber)] before:content-['']" : "font-medium text-content-secondary",
+        className,
+    ]}
     {href}
     aria-current={active ? "page" : undefined}
     {...rest}
@@ -62,25 +60,7 @@
     <span>{@render children()}</span>
     {#if badgeLabel !== undefined}
         <span
-            class="nav-item__badge ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-[var(--radius-pill)] bg-[var(--status-error-bg)] px-[5px] text-[10px] font-bold text-[var(--status-error-fg)]"
+            class="nav-item__badge ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-status-error-bg px-[5px] text-xs font-bold text-status-error-fg"
         >{badgeLabel}</span>
     {/if}
 </a>
-
-<style>
-    .nav-item--active {
-        background: var(--selection-bg);
-        color: var(--selection-fg);
-        font-weight: var(--weight-semibold);
-    }
-    .nav-item--active::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 6px;
-        bottom: 6px;
-        width: 3px;
-        border-radius: var(--radius-pill);
-        background: var(--gradient-amber);
-    }
-</style>

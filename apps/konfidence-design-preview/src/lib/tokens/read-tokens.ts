@@ -116,14 +116,14 @@ const GRADIENTS: readonly { name: string; cssVar: string; label: string }[] = [
 ];
 
 const TYPE_SCALE: readonly { name: string; cssVar: string; sample: string }[] = [
-  { cssVar: "var(--text-hero)", name: "--text-hero", sample: "Hero" },
-  { cssVar: "var(--text-display)", name: "--text-display", sample: "Display" },
-  { cssVar: "var(--text-h1)", name: "--text-h1", sample: "Heading 1" },
-  { cssVar: "var(--text-h2)", name: "--text-h2", sample: "Heading 2" },
-  { cssVar: "var(--text-h3)", name: "--text-h3", sample: "Heading 3" },
-  { cssVar: "var(--text-body)", name: "--text-body", sample: "Body text" },
-  { cssVar: "var(--text-sm)", name: "--text-sm", sample: "Small text" },
-  { cssVar: "var(--text-meta)", name: "--text-meta", sample: "META" },
+  { cssVar: "var(--font-size-hero)", name: "--font-size-hero", sample: "Hero" },
+  { cssVar: "var(--font-size-display)", name: "--font-size-display", sample: "Display" },
+  { cssVar: "var(--font-size-h1)", name: "--font-size-h1", sample: "Heading 1" },
+  { cssVar: "var(--font-size-h2)", name: "--font-size-h2", sample: "Heading 2" },
+  { cssVar: "var(--font-size-h3)", name: "--font-size-h3", sample: "Heading 3" },
+  { cssVar: "var(--font-size-body)", name: "--font-size-body", sample: "Body text" },
+  { cssVar: "var(--font-size-compact)", name: "--font-size-compact", sample: "Small text" },
+  { cssVar: "var(--font-size-meta)", name: "--font-size-meta", sample: "META" },
 ];
 
 const SPACING_STEPS: readonly (number | string)[] = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24];

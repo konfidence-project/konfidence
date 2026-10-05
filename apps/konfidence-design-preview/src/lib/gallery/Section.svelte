@@ -18,91 +18,22 @@
     };
 </script>
 
-<section id={id} class="gallery-section" data-status={status}>
-    <header class="gallery-section__header">
-        <div class="gallery-section__titles">
-            <h2 class="gallery-section__title">{title}</h2>
+<section id={id} class="gallery-section mb-12 scroll-mt-24 rounded-container border border-outline-subtle bg-surface-card px-6 pt-6 pb-7 shadow-elevation-xs" data-status={status}>
+    <header class="mb-5 flex items-start justify-between gap-4 border-b border-outline-subtle pb-3">
+        <div>
+            <h2 class="m-0 text-h2 font-display tracking-[-0.5px] text-content-primary">{title}</h2>
             {#if subtitle}
-                <p class="gallery-section__subtitle">{subtitle}</p>
+                <p class="mt-1 max-w-[720px] text-compact text-content-secondary">{subtitle}</p>
             {/if}
         </div>
-        <span class="gallery-section__badge" data-status={status}>{STATUS_LABEL[status]}</span>
+        <span class={[
+            "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-meta font-semibold tracking-[0.02em] uppercase",
+            status === "implemented" && "border-transparent bg-status-healthy-bg text-status-healthy-fg",
+            status === "partial" && "border-transparent bg-status-warning-bg text-status-warning-fg",
+            status === "placeholder" && "border-outline-subtle bg-surface-sunken text-content-tertiary",
+        ]} data-status={status}>{STATUS_LABEL[status]}</span>
     </header>
-    <div class="gallery-section__body">
+    <div>
         {@render children()}
     </div>
 </section>
-
-<style>
-    .gallery-section {
-        margin: 0 0 48px;
-        padding: 24px 24px 28px;
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg, 14px);
-        background: var(--surface-card, var(--surface-default));
-        box-shadow: var(--shadow-xs);
-        /*
-         * Offset in-page anchor jumps so section headings clear the
-         * sticky brandbar + topbar (~90px total). Kept slightly loose
-         * to leave breathing room above the heading.
-         */
-        scroll-margin-top: 96px;
-    }
-
-    .gallery-section__header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 20px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .gallery-section__title {
-        margin: 0;
-        font-size: var(--text-h2);
-        font-weight: var(--weight-display, 600);
-        color: var(--text-primary);
-        letter-spacing: -0.5px;
-    }
-
-    .gallery-section__subtitle {
-        margin: 4px 0 0;
-        font-size: var(--text-sm);
-        color: var(--text-secondary);
-        max-width: 720px;
-    }
-
-    .gallery-section__badge {
-        flex-shrink: 0;
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 10px;
-        border-radius: var(--radius-pill, 999px);
-        border: 1px solid var(--border-subtle);
-        background: var(--surface-subtle);
-        color: var(--text-secondary);
-        font-size: var(--text-meta);
-        font-weight: var(--weight-semibold, 600);
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-    }
-
-    .gallery-section__badge[data-status="implemented"] {
-        background: var(--status-healthy-bg, rgba(23, 178, 106, 0.1));
-        color: var(--status-healthy-fg, #067647);
-        border-color: transparent;
-    }
-
-    .gallery-section__badge[data-status="partial"] {
-        background: var(--status-warning-bg, rgba(247, 144, 9, 0.12));
-        color: var(--status-warning-fg, #b54708);
-        border-color: transparent;
-    }
-
-    .gallery-section__badge[data-status="placeholder"] {
-        background: var(--surface-sunken);
-        color: var(--text-tertiary, var(--text-secondary));
-    }
-</style>
