@@ -1,0 +1,40 @@
+{
+  "name": "konfidence-cli-pages",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "svelte-kit sync && node ./node_modules/typescript-native/bin/tsc --noEmit && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "oxlint && eslint \"src/**/*.svelte\"",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "verify": "pnpm check && pnpm lint && pnpm fmt:check",
+    "test": "pnpm build && playwright test",
+    "screenshots:regenerate": "pnpm build && playwright test --update-snapshots"
+  },
+  "dependencies": {
+    "@konfidence/design-system": "workspace:*",
+    "@skeletonlabs/skeleton": "^5.0.0",
+    "@skeletonlabs/skeleton-svelte": "^5.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "26.6.3",
+    "@typescript-eslint/parser": "^8.70.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-svelte": "^3.23.0",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "typescript-native": "npm:typescript@^7.0.2",
+    "vite": "^8.3.1"
+  }
+}

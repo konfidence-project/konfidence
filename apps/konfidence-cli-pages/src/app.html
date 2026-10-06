@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-theme="konfidence">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // The temporary callback origin has no dashboard theme preference.
+      (() => {
+        const preference = window.matchMedia("(prefers-color-scheme: dark)");
+        const update = () => {
+          document.documentElement.classList.toggle("dark", preference.matches);
+          document.documentElement.style.colorScheme = preference.matches ? "dark" : "light";
+        };
+        update();
+        preference.addEventListener("change", update);
+      })();
+    </script>
+    %sveltekit.head%
+  </head>
+  <body>
+    <div style="display: contents">%sveltekit.body%</div>
+    <script>
+      // Browsers may refuse to close a CLI-opened tab; instructions remain visible.
+      window.setTimeout(() => window.close(), 5000);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+@import "tailwindcss" source(none);
+@source "./routes";
+@source "../../../packages/konfidence-design-system/src/components/Brandbar/Brandbar.svelte";
+@source "../../../packages/konfidence-design-system/src/components/BrandLogo/BrandLogo.svelte";
+@custom-variant dark (&:where(.dark, .dark *));
+@import "@konfidence/design-system/styles/tokens";
+
+html,
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}

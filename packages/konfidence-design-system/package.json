@@ -16,6 +16,11 @@
       "types": "./src/components/index.ts",
       "default": "./src/components/index.ts"
     },
+    "./components/BrandLogo": {
+      "svelte": "./src/components/BrandLogo/BrandLogo.svelte",
+      "types": "./src/components/BrandLogo/index.ts",
+      "default": "./src/components/BrandLogo/BrandLogo.svelte"
+    },
     "./styles": "./src/styles/index.css",
     "./styles/tokens": "./src/styles/tokens.css",
     "./styles/skeleton": "./src/styles/konfidence.skeleton.css"
