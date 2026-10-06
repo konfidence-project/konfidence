@@ -107,6 +107,124 @@ Each class MUST independently satisfy the requirements described earlier.
 * consider controller health? should core check that and apply fallback behavior if unhealthy?
 * how to handle edge case of ownership handover? should we give any guarantees for that process?
 
+---
+
+## 3A. Alternative proposal: remove DeploymentClass resource, deployers reconcile artifactTypes directly 
+
+```yaml
+apiVersion: konfidence.cloud/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: helm-production
+  namespace: kden-l-prod-fz8g86s6
+spec:
+  artifactType: konfidence.cloud/helm:v1 # replaces for deploymentClassName
+  connection:
+    type: kubeconfig
+    ref:
+      kind: Secret
+      name: production-kubeconfig
+  configuration: {} # already proposed by https://github.com/konfidence-project/konfidence/issues/217
+status:
+  controller: konfidence.cloud/kubernetes-landscape-orchestrator:v1.2.3 # only informational
+  capabilities: {} # to be defined 
+  conditions: # proposed status, define which conditions we really need (Ready, Healthy, ConfigValid, Error) 
+  - type: Ready   
+    status: "True"
+    reason: Accepted
+```
+
+### 3A.1 Ownership and resource selection
+
+An artifact type MUST follow this Backus–Naur-form grammar:
+
+```bnf
+<artifact-type> ::= <domain> "/" <type> ":" <version>
+<domain>        ::= <label> "." <label> | <label> "." <domain>
+<type>          ::= <label>
+<label>         ::= <alphanumeric> | <alphanumeric> <label-middle> <alphanumeric>
+<label-middle>  ::= "" | <label-character> <label-middle>
+<label-character> ::= <alphanumeric> | "-"
+<alphanumeric>  ::= <lowercase-letter> | <digit>
+<lowercase-letter> ::= "a" | ... | "z"
+<digit>         ::= "0" | ... | "9"
+<version>       ::= "v" <positive-integer>
+<positive-integer> ::= <nonzero-digit> | <nonzero-digit> <digits>
+<digits>        ::= <digit> | <digit> <digits>
+<nonzero-digit> ::= "1" | ... | "9"
+```
+
+For example, `example.com/mytype:v1` identifies contract version `v1` of the artifact type `mytype` under `example.com`.
+
+The `<domain>` MUST be controlled by the maintainer of the deployer and it MUST be a valid lowercase DNS name according to [RFC 1035](https://www.rfc-editor.org/info/rfc1035/).
+Its purpose is to namespace artifact types so that independent deployer providers can use the same descriptive type without claiming the same identifier.
+
+The `<type>` SHOULD describe the artifact format or deployment mechanism in one concise label, such as `helm` or `kustomize`.
+It identifies what the deployer is expected to find inside the artifact or how the content in the artifact is packaged. 
+
+The `<version>` identifies the contract for interpreting that artifact type including its expected payload.
+Versions MUST start at `v1` and increase for each incompatible contract change.
+Changes to the artifact's schema, that an older deployer cannot safely interpret, require incrementing the version.
+
+A deployer MUST match the complete artifact type, including its version, when deciding whether it understands an artifact.
+It MUST reconcile only resources whose `spec.artifactType` matches one of those artifact types exactly.
+Deployers MUST reject resources whose `spec.artifactType` matches domain and type, but not version.
+Reject means write a status condition `Ready=False` with reason `Unsupported`. (or a status condition `DeployerVersionMismatch=True`?)
+
+One deployer MAY explicitly support several versions simultaneously so existing immutable artifacts can continue to deploy while new artifacts adopt a newer contract.
+
+Deployers MUST ignore resources whose `spec.artifactType` contain domain or type unknown to the deployer. 
+
+A deployer SHOULD document the exact type strings it supports, the artifact payloads it accepts, and how to configure a target for each type.
+
+### 3A.2 Target configuration
+
+[//]: # (TODO replace `DeploymentTarget.spec.deploymentClassName` with `spec.artifactType` )
+[//]: # (TODO how to deal with versions in deploymenttargets? just ignore for now?)
+`DeploymentTarget.spec.artifactType` identifies the artifact type supported by that target in its landscape.
+The deployer MUST select targets by `domain/type` string, ignoring the version part of the identifier. 
+
+Deployers can expect that there is either zero or one `DeploymentTarget` resource in a single landscape.
+Support for multiple `DeploymentTargets` in a single landscape is still undecided and may come with a later version of this specification. 
+
+The deployer MUST validate and interpret `spec.connection`. 
+`spec.connection.type` contains a type hint that tells the deployer what to expect and how to interpret the contents of the resource referenced in `spec.connection.ref`.
+A deployer MUST support at least one type of connection, and it SHOULD document which types it supports and how to configure them. 
+If the connection type or referenced resource is not valid or not known to the deployer, it MUST write a status condition `InvalidConnection=True` and `Ready=False`. 
+
+[//]: # (TODO: how to handle changes in connection? rotating credentials is fine, changing the target cluster is disaster. We cannot generically distinguish those cases. )
+
+`DeploymentTarget.spec.configuration` contains schemaless configuration to be interpreted by the deployer. 
+It may contain configuration values to consider for the deployment itself, such as timeouts, retries, drift detection, rollback and undeployment behavior.  
+It MUST validate the configuration with its own schema and set a condition `InvalidConfiguration=True` and `Ready=False` if the validation fails.
+
+Global defaults for configuration MAY be supplied by the deployer's installation configuration.
+Those default will be applied to all landscapes in all projects of a Konfidence installation.
+The deployer SHOULD document the configuration schema, defaults, and handling of mutable settings such as timeouts and credentials.
+
+### 3A.3 Deployment and version upgrades
+
+A newly installed or restarted deployer MUST discover and reconcile existing resources of its supported artifact types.
+If a deployer's supported type set changes, it MUST reconsider affected existing resources.
+One deployer MAY support several versions of the same artifact type at once.
+
+[//]: # (TODO discuss this idea)
+A deployer MUST preserve the meaning of already-created immutable `ArtifactDeployment` by recording the used deployer version into the status of the resource.
+An upgrade MUST NOT silently reinterpret an existing artifact as a newer type or move it to another target.
+
+### 3A.4 Status and deployer availability
+
+[//]: # (TODO can we require ping / credentials check for Ready=True condition? some deployers may not be able to perform that check explicitly; maybe with dummy deployment?)
+For a supported `DeploymentTarget.spec.artifactType`, the deployer MUST report whether it accepts the target through its `Ready` condition.
+The `Ready=True` condition is only set when the deployer fully validated the `DeploymentTarget` resource and it expects deployments to this target to succeed. 
+For the same domain and type with an unsupported version, the rejection conditions proposed in section 3A.1 apply.
+For an unknown domain or type, the deployer ignores the resource and MUST NOT write its status.
+
+`DeploymentTarget.status.controller` identifies the deployer that last wrote status and MAY be used for diagnosis.
+The shape and meaning of `status.capabilities` are not yet defined.
+
+---
+
 ## 4. DeploymentTarget: destination and connection
 
 What is a deployment target?
