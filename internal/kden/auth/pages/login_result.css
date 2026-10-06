@@ -1,268 +1,69 @@
-:root {
-    color-scheme: light dark;
-
-    --surface-canvas: #fdfcfa;
-    --surface-card: #ffffff;
-    --text-primary: #1a1815;
-    --text-secondary: #5c584f;
-    --text-tertiary: #7c776d;
-    --border-subtle: #e5e2dc;
-
-    --amber-300: #ffcb6b;
-    --amber-400: #ffb530;
-    --amber-500: #f59e0b;
-    --teal-500: #1ba0c9;
-    --teal-600: #1583a8;
-
-    --status-healthy-fg: #067647;
-    --status-healthy-bg: #dcfae6;
-    --status-error-fg: #b42318;
-    --status-error-bg: #fee4e2;
-
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono",
-    Menlo, Consolas, monospace;
-
-    --gradient-hero-bg: linear-gradient(
-            150deg,
-            #fffaf2 0%,
-            #fbfaf6 45%,
-            #f4f6f5 100%
-    );
-    --gradient-aurora: linear-gradient(
-            120deg,
-            #ffcb49 0%,
-            #ff960c 42%,
-            #1ba0c9 100%
-    );
-
-    --card-shadow:
-            0 8px 16px rgba(60, 40, 10, 0.07),
-            0 20px 44px rgba(60, 40, 10, 0.12);
-}
-
 * {
     box-sizing: border-box;
 }
 
-html,
 body {
     margin: 0;
-    min-height: 100%;
-}
-
-body {
-    min-height: 100vh;
-    background: var(--gradient-hero-bg);
-    color: var(--text-primary);
+    background: var(--surface-canvas);
     font-family: var(--font-sans), sans-serif;
-    -webkit-font-smoothing: antialiased;
 }
 
-.brandbar {
-    width: 100%;
-    height: 4px;
-    background: var(--gradient-aurora);
-}
-
-.shell {
+.status {
     display: flex;
-    min-height: calc(100vh - 4px);
-    flex-direction: column;
-}
-
-@supports (height: 100dvh) {
-    .shell {
-        min-height: calc(100dvh - 4px);
-    }
-}
-
-.content {
-    display: flex;
-    flex: 1;
+    min-height: 100vh;
     align-items: center;
     justify-content: center;
-    padding: 48px 24px 32px;
-}
-
-.card {
-    width: min(100%, 480px);
-    padding: 40px;
-    border: 1px solid var(--border-subtle);
-    border-radius: 20px;
-    background: var(--surface-card);
-    box-shadow: var(--card-shadow);
+    flex-direction: column;
+    gap: var(--space-8);
+    padding: var(--space-6);
     text-align: center;
 }
 
+@supports (height: 100dvh) {
+    .status {
+        min-height: 100dvh;
+    }
+}
+
 .brand {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 36px;
+    gap: var(--space-3);
 }
 
 .brand__mark {
-    width: 38px;
-    height: 38px;
-    fill: var(--amber-400);
+    width: 40px;
+    height: 40px;
+    fill: var(--accent-primary);
 }
 
 .brand__name {
     color: var(--text-primary);
-    font-size: 21px;
-    font-weight: 700;
-    letter-spacing: -0.4px;
-}
-
-.status-icon {
-    display: flex;
-    width: 64px;
-    height: 64px;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 24px;
-    border-radius: 999px;
-    animation: status-in 420ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.status-icon svg {
-    width: 32px;
-    height: 32px;
-}
-
-.result--success .status-icon {
-    background: var(--status-healthy-bg);
-    color: var(--status-healthy-fg);
-}
-
-.result--failure .status-icon {
-    background: var(--status-error-bg);
-    color: var(--status-error-fg);
-}
-
-.eyebrow {
-    margin: 0 0 12px;
-    color: var(--text-tertiary);
-    font-family: var(--font-mono), monospace;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    line-height: 1.5;
-    text-transform: uppercase;
+    font-size: var(--text-h2);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-h2);
 }
 
 h1 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 28px;
-    font-weight: 600;
-    letter-spacing: -0.6px;
-    line-height: 1.2;
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-h1);
+    font-weight: var(--weight-display);
+    letter-spacing: var(--tracking-h1);
+    line-height: var(--leading-normal);
+}
+
+.result--success h1 {
+    color: var(--status-healthy-fg);
+}
+
+.result--failure h1 {
+    color: var(--status-error-fg);
 }
 
 .message {
-    margin: 16px auto 0;
+    max-width: 420px;
+    margin: 0;
     color: var(--text-secondary);
-    font-size: 15px;
-    line-height: 1.6;
-}
-
-.instruction {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin-top: 28px;
-    padding: 14px 16px;
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    background: var(--surface-canvas);
-    color: var(--text-secondary);
-    font-size: 13px;
-    line-height: 1.5;
-    text-align: left;
-}
-
-.instruction svg {
-    width: 18px;
-    height: 18px;
-    flex: 0 0 auto;
-    margin-top: 1px;
-    color: var(--teal-600);
-}
-
-footer {
-    padding: 24px;
-    color: var(--text-tertiary);
-    font-size: 12px;
-    text-align: center;
-}
-
-@keyframes status-in {
-    from {
-        opacity: 0;
-        transform: scale(0.8);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@media (max-width: 520px) {
-    .content {
-        align-items: flex-start;
-        padding: 32px 16px 24px;
-    }
-
-    .card {
-        padding: 32px 24px;
-        border-radius: 14px;
-    }
-
-    .brand {
-        margin-bottom: 28px;
-    }
-
-    h1 {
-        font-size: 24px;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --surface-canvas: #14110b;
-        --surface-card: #1b1710;
-        --text-primary: #ede8de;
-        --text-secondary: #bdb4a2;
-        --text-tertiary: #9b917e;
-        --border-subtle: #362f23;
-
-        --status-healthy-fg: #6ee7b0;
-        --status-healthy-bg: rgba(23, 178, 106, 0.16);
-        --status-error-fg: #ff9b92;
-        --status-error-bg: rgba(240, 68, 56, 0.16);
-
-        --gradient-hero-bg: radial-gradient(
-                120% 130% at 82% -10%,
-                #22283a 0%,
-                #14110b 55%
-        );
-
-        --card-shadow:
-                0 8px 16px rgba(0, 0, 0, 0.5),
-                0 20px 44px rgba(0, 0, 0, 0.6);
-    }
-
-    .instruction svg {
-        color: #63c9e7;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .status-icon {
-        animation: none;
-    }
+    font-size: var(--text-body);
+    line-height: var(--leading-normal);
 }

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	_ "embed"
 	"html/template"
+
+	designsystem "github.com/konfidence-project/konfidence/packages/konfidence-design-system"
 )
 
 //go:embed pages/login_result.gohtml
@@ -19,7 +21,6 @@ var loginResultPageTemplate = template.Must(
 type loginResultPageData struct {
 	Successful             bool
 	Title                  string
-	Eyebrow                string
 	Heading                string
 	Message                string
 	CloseDelayMilliseconds int
@@ -30,7 +31,6 @@ var (
 	loginSuccessPage = mustRenderLoginResultPage(loginResultPageData{
 		Successful:             true,
 		Title:                  "Konfidence Login Successful",
-		Eyebrow:                "Authentication complete",
 		Heading:                "Login successful",
 		Message:                "Your identity has been verified.",
 		CloseDelayMilliseconds: 5000,
@@ -39,15 +39,16 @@ var (
 	loginFailurePage = mustRenderLoginResultPage(loginResultPageData{
 		Successful:             false,
 		Title:                  "Konfidence Login Failed",
-		Eyebrow:                "Authentication failed",
-		Heading:                "We couldn't sign you in",
+		Heading:                "Login failed",
 		Message:                "Authentication could not be completed. Check your terminal for details.",
 		CloseDelayMilliseconds: 5000,
 	})
 )
 
 func mustRenderLoginResultPage(data loginResultPageData) string {
-	data.Styles = template.CSS(loginResultPageStyles)
+	data.Styles = template.CSS(
+		designsystem.TokensCSS() + "\n" + loginResultPageStyles,
+	)
 
 	var page bytes.Buffer
 	if err := loginResultPageTemplate.Execute(&page, data); err != nil {

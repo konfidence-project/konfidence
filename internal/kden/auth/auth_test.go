@@ -238,7 +238,6 @@ var _ = Describe("Login callback handler", func() {
 		Expect(body).To(ContainSubstring(`<html lang="en" class="result result--success">`))
 		Expect(body).To(ContainSubstring("<title>Konfidence Login Successful</title>"))
 		Expect(body).To(ContainSubstring("Login successful"))
-		Expect(body).To(ContainSubstring("Konfidence"))
 		Expect(body).To(ContainSubstring("Your identity has been verified."))
 		Expect(body).To(ContainSubstring("5000"))
 
@@ -265,8 +264,8 @@ var _ = Describe("Login callback handler", func() {
 		body := response.Body.String()
 		Expect(body).To(ContainSubstring(`<html lang="en" class="result result--failure">`))
 		Expect(body).To(ContainSubstring("<title>Konfidence Login Failed</title>"))
-		Expect(body).To(ContainSubstring("We couldn&#39;t sign you in"))
-		Expect(body).To(ContainSubstring("Authentication could not be completed."))
+		Expect(body).To(ContainSubstring("Login failed"))
+		Expect(body).To(ContainSubstring("Authentication could not be completed. Check your terminal for details."))
 		Expect(body).To(ContainSubstring("5000"))
 
 		result := <-results
