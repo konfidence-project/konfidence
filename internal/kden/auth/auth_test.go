@@ -260,8 +260,6 @@ var _ = Describe("Login callback handler", func() {
 			ServeHTTP(response, request)
 
 		Expect(response.Code).To(Equal(http.StatusUnauthorized))
-
-		Expect(response.Code).To(Equal(http.StatusUnauthorized))
 		Expect(response.Header().Get("Content-Type")).To(Equal("text/html; charset=utf-8"))
 
 		body := response.Body.String()
