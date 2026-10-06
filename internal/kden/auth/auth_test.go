@@ -224,9 +224,22 @@ var _ = Describe("Login callback handler", func() {
 
 		Expect(response.Code).To(Equal(http.StatusOK))
 		Expect(response.Header().Get("Cache-Control")).To(Equal("no-store"))
+		Expect(response.Header().Get("Content-Type")).
+			To(Equal("text/html; charset=utf-8"))
 		Expect(response.Header().Get("X-Frame-Options")).To(Equal("DENY"))
-		Expect(response.Header().Get("Content-Security-Policy")).
-			To(ContainSubstring("style-src 'self' 'unsafe-inline'"))
+
+		contentSecurityPolicy := response.Header().Get("Content-Security-Policy")
+		Expect(contentSecurityPolicy).To(ContainSubstring("default-src 'none'"))
+		Expect(contentSecurityPolicy).To(ContainSubstring("style-src 'unsafe-inline'"))
+		Expect(contentSecurityPolicy).To(ContainSubstring("script-src 'unsafe-inline'"))
+		Expect(contentSecurityPolicy).To(ContainSubstring("frame-ancestors 'none'"))
+
+		body := response.Body.String()
+		Expect(body).To(ContainSubstring(`<html lang="en" class="result result--success">`))
+		Expect(body).To(ContainSubstring("<title>Konfidence Login Successful</title>"))
+		Expect(body).To(ContainSubstring("Login successful"))
+		Expect(body).To(ContainSubstring("Your identity has been verified."))
+		Expect(body).To(ContainSubstring("5000"))
 
 		result := <-results
 		Expect(result.err).NotTo(HaveOccurred())
@@ -246,6 +259,14 @@ var _ = Describe("Login callback handler", func() {
 			ServeHTTP(response, request)
 
 		Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		Expect(response.Header().Get("Content-Type")).To(Equal("text/html; charset=utf-8"))
+
+		body := response.Body.String()
+		Expect(body).To(ContainSubstring(`<html lang="en" class="result result--failure">`))
+		Expect(body).To(ContainSubstring("<title>Konfidence Login Failed</title>"))
+		Expect(body).To(ContainSubstring("Login failed"))
+		Expect(body).To(ContainSubstring("Authentication could not be completed. Check your terminal for details."))
+		Expect(body).To(ContainSubstring("5000"))
 
 		result := <-results
 		Expect(result.err).To(MatchError(

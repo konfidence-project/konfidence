@@ -21,112 +21,6 @@ const (
 	callbackPath             = "/callback"
 )
 
-const loginSuccessPage = `<!DOCTYPE html>
-<html>
-<head>
-    <title>Konfidence Login Successful</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f9f9f9; }
-        .card { background: white; padding: 30px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1 { color: #2e7d32; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>✓ Login Successful</h1>
-        <p>You can now safely close this browser window and return to your terminal.</p>
-    </div>
-    <script>
-        setTimeout(() => {
-            window.open('', '_self').close();
-        }, 1000);
-    </script>
-</body>
-</html>`
-
-const loginFailurePage = `<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konfidence Login Failed</title>
-    <style>
-        :root {
-            --error-color: #d32f2f;
-            --bg-color: #fcf8f8;
-            --text-color: #333333;
-            --card-bg: #ffffff;
-        }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            text-align: center; 
-            padding: 50px 20px; 
-            background-color: var(--bg-color); 
-            color: var(--text-color);
-        }
-        .card { 
-            background: var(--card-bg); 
-            padding: 40px 30px; 
-            border-radius: 12px; 
-            display: inline-block; 
-            max-width: 450px;
-            width: 100%;
-            box-shadow: 0 10px 25px rgba(211, 47, 47, 0.1); 
-            border: 1px solid rgba(211, 47, 47, 0.2);
-        }
-        .icon {
-            font-size: 48px;
-            color: var(--error-color);
-            margin-bottom: 15px;
-        }
-        h1 { 
-            color: var(--error-color); 
-            font-size: 24px;
-            margin-top: 0;
-            margin-bottom: 10px;
-        }
-        p {
-            font-size: 16px;
-            line-height: 1.5;
-            color: #555;
-            margin-bottom: 25px;
-        }
-        .error-details {
-            background: #f5f5f5;
-            padding: 12px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 13px;
-            color: #666;
-            text-align: left;
-            word-break: break-all;
-            border-left: 4px solid var(--error-color);
-            margin-bottom: 25px;
-        }
-        .instructions {
-            font-weight: bold;
-            color: var(--text-color);
-        }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <div class="icon">✕</div>
-        <h1>Login failed</h1>
-        <p>Authentication process could not be completed. See terminal for details.</p>
-
-        <p class="instructions">You can now close this browser window and return to your terminal.</p>
-    </div>
-
-    <script>
-        setTimeout(() => {
-            window.open('', '_self').close();
-        }, 5000);
-    </script>
-</body>
-</html>
-`
-
 type Client struct {
 	*kdenapi.ClientWithResponses
 	apiEndpoint          string
@@ -550,12 +444,18 @@ func writeLoginResultPage(
 ) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Security-Policy",
-		"default-src 'none'; script-src 'unsafe-inline'")
+	w.Header().Set(
+		"Content-Security-Policy",
+		"default-src 'none'; "+
+			"style-src 'unsafe-inline'; "+
+			"script-src 'unsafe-inline'; "+
+			"base-uri 'none'; "+
+			"form-action 'none'; "+
+			"frame-ancestors 'none'",
+	)
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "DENY")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline';")
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(page))
 }
