@@ -40,7 +40,8 @@ set -eu
 cluster_name=${KIND_CLUSTER_NAME:-konfidence-quickstart}
 
 # Override chart versions through their environment variables.
-# Each chart provides the matching container image tags.
+# Each chart provides the matching container image tags. The Vector Data
+# Service version is only printed for the per-landscape install.
 konfidence_version=${KONFIDENCE_VERSION:-0.0.0-23251c4988a86dad2af74aceee2e6b2007fa8cb4}
 kubernetes_landscape_orchestrator_version=${KUBERNETES_LANDSCAPE_ORCHESTRATOR_VERSION:-0.0.0-7daa9ddd7ed219f0d1e98922aac384ec31174747}
 vector_data_service_version=${VECTOR_DATA_SERVICE_VERSION:-0.0.0-4f194adf3c2e211514d41c59d1a446275bb093e3}
@@ -90,14 +91,44 @@ install_components() {
     --namespace "$namespace" \
     --create-namespace \
     --wait
+}
 
-  # Applications use the Vector Data Service to read configuration and
-  # deployment results for a vector at runtime.
-  helm upgrade --install vector-data-service oci://ghcr.io/konfidence-project/charts/vector-data-service \
-    --version "$vector_data_service_version" \
-    --namespace "$namespace" \
-    --create-namespace \
-    --wait
+# The Vector Data Service runs per landscape, so it can only be installed
+# after the user has created landscapes. Tracing is switched off so the
+# guidance is not buried in printf traces.
+print_next_steps() {
+  { set +x; } 2>/dev/null
+  cat <<EOF
+
+Konfidence is installed in the cluster "$cluster_name".
+
+Next steps:
+
+1. Create a project, its landscapes and an environment, for example with
+   the example app:
+
+     kubectl apply -k 'https://github.com/konfidence-project/example-app/hack/quickstart/project?ref=main'
+     kubectl apply -k 'https://github.com/konfidence-project/example-app/hack/quickstart/landscapes?ref=main'
+     kubectl apply -k 'https://github.com/konfidence-project/example-app/hack/quickstart/environment?ref=main'
+
+2. Install the Vector Data Service into every landscape namespace
+   (kden-l-<landscape>). Applications use it to read configuration and
+   deployment results for a vector at runtime:
+
+     for ns in kden-l-dev kden-l-prod; do
+       helm upgrade --install vector-data-service oci://ghcr.io/konfidence-project/charts/vector-data-service \\
+         --version $vector_data_service_version \\
+         --namespace "\$ns" --wait
+     done
+
+3. Open the dashboard:
+
+     kubectl -n $namespace port-forward svc/konfidence-api 8090:8090
+
+   Then open http://localhost:8090 and select "Continue with SSO".
+
+Full guide: https://konfidence.cloud/docs/getting-started/quickstart
+EOF
 }
 
 # Delete the selected kind cluster and all workloads and data stored in it.
@@ -120,6 +151,7 @@ case "${1:-install}" in
     set -x
     create_cluster
     install_components
+    print_next_steps
     ;;
   uninstall)
     set -x
