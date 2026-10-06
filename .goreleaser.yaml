@@ -25,6 +25,7 @@ before:
     - go mod tidy
     - ./bin/pnpm install --frozen-lockfile
     - ./bin/pnpm ui:build
+    - ./bin/pnpm cli-pages:build
 
 builds:
   - id: konfidence

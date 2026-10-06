@@ -307,6 +307,7 @@ build-operator: hermit ## Build the konfidence operator binary.
 
 .PHONY: build-kden-cli
 build-kden-cli: hermit ## Build the kden cli binary.
+	pnpm cli-pages:build
 	GORELEASER_CURRENT_TAG=dev goreleaser build --clean --snapshot --single-target --skip=before --id kden -o bin/kden
 
 .PHONY: run

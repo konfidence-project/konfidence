@@ -4,6 +4,12 @@
   "scripts": {
     "all": "pnpm --filter konfidence-ui all",
     "api-client:verify": "pnpm --filter @konfidence/api-client verify",
+    "cli-pages:build": "pnpm --filter konfidence-cli-pages build",
+    "cli-pages:check:generated": "pnpm cli-pages:build && bash hack/check-cli-pages.sh",
+    "cli-pages:verify": "pnpm --filter konfidence-cli-pages verify",
+    "cli-pages:test": "pnpm --filter konfidence-cli-pages test",
+    "cli-pages:screenshots:generate": "bash hack/generate-screenshots.sh apps/konfidence-cli-pages",
+    "cli-pages:screenshots:check": "bash hack/check-screenshots.sh apps/konfidence-cli-pages",
     "ds:all": "pnpm --filter @konfidence/design-system verify && pnpm --filter @konfidence/design-system test",
     "ds:check": "pnpm --filter @konfidence/design-system check",
     "ds:check:svelte": "pnpm --filter @konfidence/design-system check:svelte",

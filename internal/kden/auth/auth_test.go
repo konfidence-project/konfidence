@@ -234,12 +234,8 @@ var _ = Describe("Login callback handler", func() {
 		Expect(contentSecurityPolicy).To(ContainSubstring("script-src 'unsafe-inline'"))
 		Expect(contentSecurityPolicy).To(ContainSubstring("frame-ancestors 'none'"))
 
-		body := response.Body.String()
-		Expect(body).To(ContainSubstring(`<html lang="en" class="result result--success">`))
-		Expect(body).To(ContainSubstring("<title>Konfidence Login Successful</title>"))
-		Expect(body).To(ContainSubstring("Login successful"))
-		Expect(body).To(ContainSubstring("Your identity has been verified."))
-		Expect(body).To(ContainSubstring("5000"))
+		Expect(response.Body.String()).To(Equal(loginSuccessPage))
+		Expect(loginSuccessPage).To(ContainSubstring("Login successful"))
 
 		result := <-results
 		Expect(result.err).NotTo(HaveOccurred())
@@ -261,12 +257,8 @@ var _ = Describe("Login callback handler", func() {
 		Expect(response.Code).To(Equal(http.StatusUnauthorized))
 		Expect(response.Header().Get("Content-Type")).To(Equal("text/html; charset=utf-8"))
 
-		body := response.Body.String()
-		Expect(body).To(ContainSubstring(`<html lang="en" class="result result--failure">`))
-		Expect(body).To(ContainSubstring("<title>Konfidence Login Failed</title>"))
-		Expect(body).To(ContainSubstring("Login failed"))
-		Expect(body).To(ContainSubstring("Authentication could not be completed. Check your terminal for details."))
-		Expect(body).To(ContainSubstring("5000"))
+		Expect(response.Body.String()).To(Equal(loginFailurePage))
+		Expect(loginFailurePage).To(ContainSubstring("Login failed"))
 
 		result := <-results
 		Expect(result.err).To(MatchError(
