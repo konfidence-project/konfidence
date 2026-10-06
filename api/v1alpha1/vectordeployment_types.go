@@ -32,9 +32,9 @@ const (
 	// name still collides after the collisionCount salt is exhausted. Ordinary collisions self-heal by bumping the salt.
 	VectorDeploymentStalledReasonArtifactDeploymentNamingCollision = "ArtifactDeploymentNamingCollision"
 
-	// VectorDeploymentStalledReasonChildArtifactDeploymentStalled indicates that an ArtifactDeployment belonging to this
-	// VectorDeployment is itself stalled. The child name and reason are carried in the condition message.
-	VectorDeploymentStalledReasonChildArtifactDeploymentStalled = "ChildArtifactDeploymentStalled"
+	// VectorDeploymentStalledReasonArtifactDeploymentStalled indicates that an ArtifactDeployment belonging to this
+	// VectorDeployment is itself stalled.
+	VectorDeploymentStalledReasonArtifactDeploymentStalled = "ArtifactDeploymentStalled"
 )
 
 // VectorDeploymentSpec defines the desired state of a VectorDeployment.

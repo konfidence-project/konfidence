@@ -226,7 +226,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	var (
 		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifactReferences))
 		deploymentResults            = make(map[string]konfidence.ComponentDeploymentResults)
-		stalledChildren              []stalledChild
+		stalledArtifactDeployments   []stalledArtifactDeployment
 	)
 	allReady := true
 
@@ -379,9 +379,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			allReady = false
 		}
 
-		// Collect rather than report inline, so the named child does not depend on vector order.
-		if child, ok := collectStalledChild(artifactDeployment); ok {
-			stalledChildren = append(stalledChildren, child)
+		// Collect rather than report inline, so the named ArtifactDeployment does not depend on vector order.
+		if stalledArtifactDeployment, ok := collectStalledArtifactDeployment(artifactDeployment); ok {
+			stalledArtifactDeployments = append(stalledArtifactDeployments, stalledArtifactDeployment)
 		}
 	}
 
@@ -408,10 +408,10 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		LastTransitionTime: metav1.Now(),
 	})
 
-	// Surface a blocked child, otherwise the vector sits at Ready=False with no explanation.
-	if child, ok := pickStalledChild(stalledChildren); ok {
-		setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled,
-			stalledChildMessage(child, len(stalledChildren)))
+	// Surface a stalled ArtifactDeployment, otherwise the vector sits at Ready=False with no explanation.
+	if stalledArtifactDeployment, ok := pickStalledArtifactDeployment(stalledArtifactDeployments); ok {
+		setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled,
+			stalledArtifactDeploymentMessage(stalledArtifactDeployment, len(stalledArtifactDeployments)))
 	}
 
 	if allReady {

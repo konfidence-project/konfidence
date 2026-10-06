@@ -9,8 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// stalledChild is an ArtifactDeployment reporting Stalled=True.
-type stalledChild struct {
+// stalledArtifactDeployment is an ArtifactDeployment reporting Stalled=True.
+type stalledArtifactDeployment struct {
 	name    string
 	reason  string
 	message string
@@ -47,34 +47,34 @@ func clearStalled(vectorDeployment *konfidence.VectorDeployment) {
 	})
 }
 
-// collectStalledChild returns the child's stall details if it reports Stalled=True.
-func collectStalledChild(artifactDeployment *konfidence.ArtifactDeployment) (stalledChild, bool) {
+// collectStalledArtifactDeployment returns the ArtifactDeployment's stall details if it reports Stalled=True.
+func collectStalledArtifactDeployment(artifactDeployment *konfidence.ArtifactDeployment) (stalledArtifactDeployment, bool) {
 	condition := meta.FindStatusCondition(artifactDeployment.Status.Conditions, konfidence.StalledCondition)
 	if condition == nil || condition.Status != metav1.ConditionTrue {
-		return stalledChild{}, false
+		return stalledArtifactDeployment{}, false
 	}
 
-	return stalledChild{
+	return stalledArtifactDeployment{
 		name:    artifactDeployment.Name,
 		reason:  condition.Reason,
 		message: condition.Message,
 	}, true
 }
 
-// pickStalledChild chooses which child the parent names. Lowest name wins: arbitrary, but
-// stable, so the message does not flap as children reconcile in informer order.
-func pickStalledChild(children []stalledChild) (stalledChild, bool) {
-	if len(children) == 0 {
-		return stalledChild{}, false
+// pickStalledArtifactDeployment chooses which ArtifactDeployment the parent names. Lowest name wins: arbitrary, but
+// stable, so the message does not flap as ArtifactDeployments reconcile in informer order.
+func pickStalledArtifactDeployment(artifactDeployments []stalledArtifactDeployment) (stalledArtifactDeployment, bool) {
+	if len(artifactDeployments) == 0 {
+		return stalledArtifactDeployment{}, false
 	}
 
-	sort.Slice(children, func(i, j int) bool { return children[i].name < children[j].name })
+	sort.Slice(artifactDeployments, func(i, j int) bool { return artifactDeployments[i].name < artifactDeployments[j].name })
 
-	return children[0], true
+	return artifactDeployments[0], true
 }
 
-func stalledChildMessage(child stalledChild, total int) string {
-	message := fmt.Sprintf("ArtifactDeployment %s is stalled (%s): %s", child.name, child.reason, child.message)
+func stalledArtifactDeploymentMessage(artifactDeployment stalledArtifactDeployment, total int) string {
+	message := fmt.Sprintf("ArtifactDeployment %s is stalled (%s): %s", artifactDeployment.name, artifactDeployment.reason, artifactDeployment.message)
 	if total > 1 {
 		message = fmt.Sprintf("%s; %d artifact deployments are stalled", message, total)
 	}

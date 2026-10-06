@@ -570,52 +570,52 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionFalse))
 		}, timeout, interval).Should(gomega.Succeed())
 
-		By("Waiting for the child ArtifactDeployment to be created")
+		By("Waiting for the ArtifactDeployment to be created")
 		artifactDeploymentList := &konfidence.ArtifactDeploymentList{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.List(ctx, artifactDeploymentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
 			g.Expect(artifactDeploymentList.Items).To(gomega.HaveLen(1))
 		}, timeout, interval).Should(gomega.Succeed())
-		childName := artifactDeploymentList.Items[0].Name
+		artifactDeploymentName := artifactDeploymentList.Items[0].Name
 
-		By("Marking the child ArtifactDeployment as stalled, as a deployer would")
-		child := &konfidence.ArtifactDeployment{}
-		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: childName, Namespace: testNamespace}, child)).To(gomega.Succeed())
-		meta.SetStatusCondition(&child.Status.Conditions, metav1.Condition{
+		By("Marking the ArtifactDeployment as stalled, as a deployer would")
+		artifactDeployment := &konfidence.ArtifactDeployment{}
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
+		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
 			Type:               konfidence.StalledCondition,
 			Status:             metav1.ConditionTrue,
 			Reason:             konfidence.ArtifactDeploymentStalledReasonManifestMissing,
 			Message:            "no konfidence manifest in artifact",
-			ObservedGeneration: child.Generation,
+			ObservedGeneration: artifactDeployment.Generation,
 		})
-		gomega.Expect(k8sClient.Status().Update(ctx, child)).To(gomega.Succeed())
+		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
 
 		// The update above touches only status, so this also proves the Owns watch delivers
 		// status changes.
-		By("Verifying the parent goes Stalled=True naming the blocked child")
+		By("Verifying the parent goes Stalled=True naming the stalled ArtifactDeployment")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
 			condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
 			g.Expect(condition).ToNot(gomega.BeNil())
 			g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionTrue))
-			g.Expect(condition.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled))
-			g.Expect(condition.Message).To(gomega.ContainSubstring(childName))
+			g.Expect(condition.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled))
+			g.Expect(condition.Message).To(gomega.ContainSubstring(artifactDeploymentName))
 			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing))
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying Ready is False while Stalled is True")
 		gomega.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeFalse())
 
-		By("Clearing the stall on the child")
-		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: childName, Namespace: testNamespace}, child)).To(gomega.Succeed())
-		meta.SetStatusCondition(&child.Status.Conditions, metav1.Condition{
+		By("Clearing the stall on the ArtifactDeployment")
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
+		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
 			Type:               konfidence.StalledCondition,
 			Status:             metav1.ConditionFalse,
 			Reason:             konfidence.StalledReasonNotStalled,
 			Message:            "No blocking condition detected",
-			ObservedGeneration: child.Generation,
+			ObservedGeneration: artifactDeployment.Generation,
 		})
-		gomega.Expect(k8sClient.Status().Update(ctx, child)).To(gomega.Succeed())
+		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
 
 		By("Verifying the parent recovers to Stalled=False once the cause is gone")
 		gomega.Eventually(func(g gomega.Gomega) {

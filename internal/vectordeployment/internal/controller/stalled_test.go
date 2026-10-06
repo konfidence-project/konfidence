@@ -60,7 +60,7 @@ var _ = Describe("Stalled condition", func() {
 			vectorDeployment := newVectorDeployment(1)
 
 			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision, "collision")
-			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled, "child blocked")
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
 
 			var count int
 			for _, condition := range vectorDeployment.Status.Conditions {
@@ -69,13 +69,13 @@ var _ = Describe("Stalled condition", func() {
 				}
 			}
 			Expect(count).To(Equal(1))
-			Expect(stalledCondition(vectorDeployment).Reason).To(Equal(konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled))
+			Expect(stalledCondition(vectorDeployment).Reason).To(Equal(konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled))
 		})
 
 		It("should flip back to False once the cause resolves", func() {
 			vectorDeployment := newVectorDeployment(1)
 
-			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled, "child blocked")
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
 			clearStalled(vectorDeployment)
 
 			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
@@ -85,7 +85,7 @@ var _ = Describe("Stalled condition", func() {
 		// detectably stale rather than read as a fresh verdict on the new spec.
 		It("should carry the generation the stall was computed from", func() {
 			vectorDeployment := newVectorDeployment(7)
-			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonChildArtifactDeploymentStalled, "child blocked")
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
 
 			vectorDeployment.Generation = 8
 
@@ -96,18 +96,18 @@ var _ = Describe("Stalled condition", func() {
 		})
 	})
 
-	Context("aggregating stalled children", func() {
-		DescribeTable("should recognise a stalled child",
+	Context("aggregating stalled ArtifactDeployments", func() {
+		DescribeTable("should recognise a stalled ArtifactDeployment",
 			func(conditions []metav1.Condition, expectStalled bool) {
 				artifactDeployment := &konfidence.ArtifactDeployment{}
 				artifactDeployment.Name = artifactName
 				artifactDeployment.Status.Conditions = conditions
 
-				child, ok := collectStalledChild(artifactDeployment)
+				stalledArtifactDeployment, ok := collectStalledArtifactDeployment(artifactDeployment)
 
 				Expect(ok).To(Equal(expectStalled))
 				if expectStalled {
-					Expect(child.name).To(Equal(artifactName))
+					Expect(stalledArtifactDeployment.name).To(Equal(artifactName))
 				}
 			},
 			Entry("with no conditions", nil, false),
@@ -124,18 +124,18 @@ var _ = Describe("Stalled condition", func() {
 			}}, true),
 		)
 
-		// The named child must not depend on observation order, or the message flaps.
-		It("should pick the same child regardless of input order", func() {
-			forward := []stalledChild{
+		// The named ArtifactDeployment must not depend on observation order, or the message flaps.
+		It("should pick the same ArtifactDeployment regardless of input order", func() {
+			forward := []stalledArtifactDeployment{
 				{name: artifactName, reason: konfidence.ArtifactDeploymentStalledReasonManifestMissing},
 				{name: "artifact-b", reason: konfidence.ArtifactDeploymentStalledReasonDeploymentResultNotUnique},
 				{name: "artifact-c", reason: konfidence.ArtifactDeploymentStalledReasonManifestMissing},
 			}
-			reversed := []stalledChild{forward[2], forward[1], forward[0]}
+			reversed := []stalledArtifactDeployment{forward[2], forward[1], forward[0]}
 
-			first, ok := pickStalledChild(forward)
+			first, ok := pickStalledArtifactDeployment(forward)
 			Expect(ok).To(BeTrue())
-			second, ok := pickStalledChild(reversed)
+			second, ok := pickStalledArtifactDeployment(reversed)
 			Expect(ok).To(BeTrue())
 
 			Expect(first.name).To(Equal(second.name))
@@ -143,22 +143,22 @@ var _ = Describe("Stalled condition", func() {
 		})
 
 		It("should pick nothing from an empty set", func() {
-			_, ok := pickStalledChild(nil)
+			_, ok := pickStalledArtifactDeployment(nil)
 			Expect(ok).To(BeFalse())
 		})
 
-		It("should name the child and its reason in the message", func() {
-			child := stalledChild{
+		It("should name the ArtifactDeployment and its reason in the message", func() {
+			stalledArtifactDeployment := stalledArtifactDeployment{
 				name:    artifactName,
 				reason:  konfidence.ArtifactDeploymentStalledReasonManifestMissing,
 				message: "no konfidence manifest in artifact",
 			}
 
-			Expect(stalledChildMessage(child, 1)).To(SatisfyAll(
+			Expect(stalledArtifactDeploymentMessage(stalledArtifactDeployment, 1)).To(SatisfyAll(
 				ContainSubstring(artifactName),
 				ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing),
 			))
-			Expect(stalledChildMessage(child, 3)).To(ContainSubstring("3 artifact deployments are stalled"))
+			Expect(stalledArtifactDeploymentMessage(stalledArtifactDeployment, 3)).To(ContainSubstring("3 artifact deployments are stalled"))
 		})
 	})
 })
