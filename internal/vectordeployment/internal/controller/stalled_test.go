@@ -54,7 +54,7 @@ var _ = Describe("Stalled condition", func() {
 			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeFalse())
 			readyCondition := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)
 			Expect(readyCondition.Reason).To(Equal(konfidence.VectorReadyReasonStalled))
-			Expect(readyCondition.Message).To(Equal("Vector Stalled"))
+			Expect(readyCondition.Message).To(Equal("collision"))
 		})
 
 		// A reason change while still True must update in place, not drop and re-add the entry.

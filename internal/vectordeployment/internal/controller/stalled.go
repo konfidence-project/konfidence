@@ -30,7 +30,7 @@ func setStalled(vectorDeployment *konfidence.VectorDeployment, reason, message s
 		Type:               konfidence.VectorReadyCondition,
 		Status:             metav1.ConditionFalse,
 		Reason:             konfidence.VectorReadyReasonStalled,
-		Message:            "Vector Stalled",
+		Message:            message,
 		ObservedGeneration: vectorDeployment.Generation,
 	})
 }
