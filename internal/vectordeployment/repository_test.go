@@ -160,14 +160,14 @@ func TestStateFromConditions(t *testing.T) {
 			want: vectordeployment.StateDeployingVector,
 		},
 		{
-			// Ready wins: a Stalled entry left over from an earlier pass must not
-			// downgrade a vector that has since reached Ready.
-			name: "ready outranks a stale stalled entry",
+			// Stalled wins: Ready is never reset, so a vector that was ready and then
+			// stalled must still report the stall.
+			name: "stalled outranks ready",
 			conditions: []metav1.Condition{
 				{Type: konfidence.StalledCondition, Status: metav1.ConditionTrue},
 				{Type: konfidence.VectorReadyCondition, Status: metav1.ConditionTrue},
 			},
-			want: vectordeployment.StateDeploymentReady,
+			want: vectordeployment.StateDeploymentFailed,
 		},
 	}
 
