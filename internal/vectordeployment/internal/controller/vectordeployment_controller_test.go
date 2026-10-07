@@ -623,6 +623,10 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
 			g.Expect(condition).ToNot(gomega.BeNil())
 			g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionFalse))
+			ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
+			if ready != nil {
+				g.Expect(ready.Reason).ToNot(gomega.Equal(konfidence.VectorReadyReasonStalled))
+			}
 		}, timeout, interval).Should(gomega.Succeed())
 	})
 })

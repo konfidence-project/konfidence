@@ -83,6 +83,28 @@ var _ = Describe("Stalled condition", func() {
 			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
 		})
 
+		It("should drop the Ready=False that the stall left behind once it resolves", func() {
+			vectorDeployment := newVectorDeployment(1)
+
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
+			clearStalled(vectorDeployment)
+
+			Expect(meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeNil())
+		})
+
+		It("should leave a Ready condition it did not write alone", func() {
+			vectorDeployment := newVectorDeployment(1)
+			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+				Type:   konfidence.VectorReadyCondition,
+				Status: metav1.ConditionTrue,
+				Reason: konfidence.VectorReadyCondition,
+			})
+
+			clearStalled(vectorDeployment)
+
+			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeTrue())
+		})
+
 		// Spec fixed, generation bumped, controller not run yet: the condition must stay
 		// detectably stale rather than read as a fresh verdict on the new spec.
 		It("should carry the generation the stall was computed from", func() {

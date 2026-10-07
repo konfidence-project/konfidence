@@ -45,6 +45,12 @@ func clearStalled(vectorDeployment *konfidence.VectorDeployment) {
 		Message:            "No blocking condition detected",
 		ObservedGeneration: vectorDeployment.Generation,
 	})
+
+	// setStalled is the only writer of Ready=False, so without this its Ready=False would outlive the stall.
+	ready := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)
+	if ready != nil && ready.Reason == konfidence.VectorReadyReasonStalled {
+		meta.RemoveStatusCondition(&vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)
+	}
 }
 
 // reportStalledArtifactDeployments sets or clears Stalled from this reconcile's ArtifactDeployments. Deciding once,
