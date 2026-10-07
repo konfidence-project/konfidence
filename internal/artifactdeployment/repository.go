@@ -22,7 +22,8 @@ type ResolvedArtifactDeployment struct {
 }
 
 type Repository interface {
-	Get(ctx context.Context, name string) (*konfidence.ArtifactDeployment, error)
+	Get(ctx context.Context, name string) (*konfidence.ArtifactDeployment, error) // do we need this?
+	GetForScope(ctx context.Context, scoped landscapedomain.ScopedLandscape, name string) (*ResolvedArtifactDeployment, error)
 	ListForScope(ctx context.Context, namespace string, opts ...ListOption) ([]ResolvedArtifactDeployment, error)
 }
 
@@ -61,6 +62,48 @@ func (r *k8sRepository) Get(ctx context.Context, name string) (*konfidence.Artif
 	}
 
 	return &artifactDeployment, nil
+}
+
+func (r *k8sRepository) GetForScope(ctx context.Context, scoped landscapedomain.ScopedLandscape, name string) (*ResolvedArtifactDeployment, error) {
+	var ad konfidence.ArtifactDeployment
+	if err := r.reader.Get(ctx, types.NamespacedName{
+		Namespace: scoped.Namespace,
+		Name:      name,
+	}, &ad); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("getting artifact deployment %q in namespace %q: %w", name, scoped.Namespace, err)
+	}
+
+	var stageVersions konfidence.StageVersionList
+	if err := r.reader.List(ctx, &stageVersions, client.InNamespace(scoped.Namespace)); err != nil {
+		return nil, fmt.Errorf("listing stage versions in namespace %q: %w", scoped.Namespace, err)
+	}
+
+	var vectorDeployments konfidence.VectorDeploymentList
+	if err := r.reader.List(ctx, &vectorDeployments, client.InNamespace(scoped.Namespace)); err != nil {
+		return nil, fmt.Errorf("listing vector deployments in namespace %q: %w", scoped.Namespace, err)
+	}
+
+	stageVersionByName := make(map[string]*konfidence.StageVersion, len(stageVersions.Items))
+	for i := range stageVersions.Items {
+		sv := &stageVersions.Items[i]
+		stageVersionByName[sv.Name] = sv
+	}
+
+	vectorDeploymentByName := make(map[string]*konfidence.VectorDeployment, len(vectorDeployments.Items))
+	for i := range vectorDeployments.Items {
+		vd := &vectorDeployments.Items[i]
+		vectorDeploymentByName[vd.Name] = vd
+	}
+
+	return &ResolvedArtifactDeployment{
+		ArtifactDeployment:  ad,
+		LandscapeId:         scoped.Landscape.Name,
+		StageIds:            extractStageIds(&ad, vectorDeploymentByName, stageVersionByName),
+		VectorDeploymentIds: extractVectorDeploymentIds(&ad),
+	}, nil
 }
 
 func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts ...ListOption) ([]ResolvedArtifactDeployment, error) {

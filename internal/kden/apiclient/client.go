@@ -402,11 +402,23 @@ type VectorPromotionId = string
 // VectorReference defines model for VectorReference.
 type VectorReference = ComponentReference
 
+// ArtifactDeploymentPathId defines model for ArtifactDeploymentPathId.
+type ArtifactDeploymentPathId = string
+
+// LandscapePathId defines model for LandscapePathId.
+type LandscapePathId = string
+
 // LandscapeQueryId defines model for LandscapeQueryId.
 type LandscapeQueryId = string
 
 // ProjectPathId defines model for ProjectPathId.
 type ProjectPathId = string
+
+// StagePathId defines model for StagePathId.
+type StagePathId = string
+
+// VectorDeploymentPathId defines model for VectorDeploymentPathId.
+type VectorDeploymentPathId = string
 
 // VectorDeploymentQueryId defines model for VectorDeploymentQueryId.
 type VectorDeploymentQueryId = string
@@ -623,6 +635,27 @@ type ClientInterface interface {
 	// Corresponds with GET /v1/projects/{projectId}/landscapes (the `ListLandscapesV1` operationId).
 	ListLandscapesV1(ctx context.Context, projectId ProjectPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetArtifactDeploymentV1 Get a single artifactDeployment for a project and landscape
+	//
+	// Returns a single artifactDeployment resource for a project and landscape.
+	//
+	// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId} (the `GetArtifactDeploymentV1` operationId).
+	GetArtifactDeploymentV1(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, artifactDeploymentId ArtifactDeploymentPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetStageV1 Get a single stage for a project
+	//
+	// Returns a single stage resource for a project.
+	//
+	// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId} (the `GetStageV1` operationId).
+	GetStageV1(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, stageId StagePathId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetVectorDeploymentV1 Get a single vectorDeployment for a project and landscape
+	//
+	// Returns a single vectorDeployment resource for a project and landscape.
+	//
+	// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId} (the `GetVectorDeploymentV1` operationId).
+	GetVectorDeploymentV1(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, vectorDeploymentId VectorDeploymentPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListStagesV1 List all stages for a project
 	//
 	// Returns all stage resources for a project. Can be filtered by landscape: a landscapeId that does not name a landscape of the project is reported as 404, while a landscape that exists but holds no stages returns an empty list.
@@ -813,6 +846,57 @@ func (c *Client) ListArtifactDeploymentsV1(ctx context.Context, projectId Projec
 // Corresponds with GET /v1/projects/{projectId}/landscapes (the `ListLandscapesV1` operationId).
 func (c *Client) ListLandscapesV1(ctx context.Context, projectId ProjectPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListLandscapesV1Request(c.Server, projectId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetArtifactDeploymentV1 Get a single artifactDeployment for a project and landscape
+//
+// Returns a single artifactDeployment resource for a project and landscape.
+//
+// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId} (the `GetArtifactDeploymentV1` operationId).
+func (c *Client) GetArtifactDeploymentV1(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, artifactDeploymentId ArtifactDeploymentPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetArtifactDeploymentV1Request(c.Server, projectId, landscapeId, artifactDeploymentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetStageV1 Get a single stage for a project
+//
+// Returns a single stage resource for a project.
+//
+// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId} (the `GetStageV1` operationId).
+func (c *Client) GetStageV1(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, stageId StagePathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetStageV1Request(c.Server, projectId, landscapeId, stageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetVectorDeploymentV1 Get a single vectorDeployment for a project and landscape
+//
+// Returns a single vectorDeployment resource for a project and landscape.
+//
+// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId} (the `GetVectorDeploymentV1` operationId).
+func (c *Client) GetVectorDeploymentV1(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, vectorDeploymentId VectorDeploymentPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetVectorDeploymentV1Request(c.Server, projectId, landscapeId, vectorDeploymentId)
 	if err != nil {
 		return nil, err
 	}
@@ -1301,6 +1385,150 @@ func NewListLandscapesV1Request(server string, projectId ProjectPathId) (*http.R
 	return req, nil
 }
 
+// NewGetArtifactDeploymentV1Request constructs an http.Request for the GetArtifactDeploymentV1 method
+func NewGetArtifactDeploymentV1Request(server string, projectId ProjectPathId, landscapeId LandscapePathId, artifactDeploymentId ArtifactDeploymentPathId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "projectId", projectId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "landscapeId", landscapeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "artifactDeploymentId", artifactDeploymentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/landscapes/%s/artifactDeployments/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetStageV1Request constructs an http.Request for the GetStageV1 method
+func NewGetStageV1Request(server string, projectId ProjectPathId, landscapeId LandscapePathId, stageId StagePathId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "projectId", projectId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "landscapeId", landscapeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "stageId", stageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/landscapes/%s/stages/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetVectorDeploymentV1Request constructs an http.Request for the GetVectorDeploymentV1 method
+func NewGetVectorDeploymentV1Request(server string, projectId ProjectPathId, landscapeId LandscapePathId, vectorDeploymentId VectorDeploymentPathId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "projectId", projectId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "landscapeId", landscapeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "vectorDeploymentId", vectorDeploymentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/landscapes/%s/vectorDeployments/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListStagesV1Request constructs an http.Request for the ListStagesV1 method
 func NewListStagesV1Request(server string, projectId ProjectPathId, params *ListStagesV1Params) (*http.Request, error) {
 	var err error
@@ -1704,6 +1932,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /v1/projects/{projectId}/landscapes (the `ListLandscapesV1` operationId).
 	ListLandscapesV1WithResponse(ctx context.Context, projectId ProjectPathId, reqEditors ...RequestEditorFn) (*ListLandscapesV1Response, error)
+
+	// GetArtifactDeploymentV1WithResponse Get a single artifactDeployment for a project and landscape
+	//
+	// Returns a single artifactDeployment resource for a project and landscape.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId} (the `GetArtifactDeploymentV1` operationId).
+	GetArtifactDeploymentV1WithResponse(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, artifactDeploymentId ArtifactDeploymentPathId, reqEditors ...RequestEditorFn) (*GetArtifactDeploymentV1Response, error)
+
+	// GetStageV1WithResponse Get a single stage for a project
+	//
+	// Returns a single stage resource for a project.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId} (the `GetStageV1` operationId).
+	GetStageV1WithResponse(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, stageId StagePathId, reqEditors ...RequestEditorFn) (*GetStageV1Response, error)
+
+	// GetVectorDeploymentV1WithResponse Get a single vectorDeployment for a project and landscape
+	//
+	// Returns a single vectorDeployment resource for a project and landscape.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId} (the `GetVectorDeploymentV1` operationId).
+	GetVectorDeploymentV1WithResponse(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, vectorDeploymentId VectorDeploymentPathId, reqEditors ...RequestEditorFn) (*GetVectorDeploymentV1Response, error)
 
 	// ListStagesV1WithResponse List all stages for a project
 	//
@@ -2223,6 +2478,213 @@ func (r ListLandscapesV1Response) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListLandscapesV1Response) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetArtifactDeploymentV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ArtifactDeployment
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalError
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetArtifactDeploymentV1Response) GetJSON200() *ArtifactDeployment {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetArtifactDeploymentV1Response) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetArtifactDeploymentV1Response) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetArtifactDeploymentV1Response) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetArtifactDeploymentV1Response) GetJSON500() *InternalError {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r GetArtifactDeploymentV1Response) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetArtifactDeploymentV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetArtifactDeploymentV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetArtifactDeploymentV1Response) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetStageV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Stage
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalError
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetStageV1Response) GetJSON200() *Stage {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetStageV1Response) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetStageV1Response) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetStageV1Response) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetStageV1Response) GetJSON500() *InternalError {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r GetStageV1Response) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetStageV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetStageV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetStageV1Response) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetVectorDeploymentV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *VectorDeployment
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalError
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetVectorDeploymentV1Response) GetJSON200() *VectorDeployment {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetVectorDeploymentV1Response) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetVectorDeploymentV1Response) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetVectorDeploymentV1Response) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetVectorDeploymentV1Response) GetJSON500() *InternalError {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r GetVectorDeploymentV1Response) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetVectorDeploymentV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetVectorDeploymentV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetVectorDeploymentV1Response) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -2778,6 +3240,51 @@ func (c *ClientWithResponses) ListLandscapesV1WithResponse(ctx context.Context, 
 	return ParseListLandscapesV1Response(rsp)
 }
 
+// GetArtifactDeploymentV1WithResponse Get a single artifactDeployment for a project and landscape
+//
+// Returns a single artifactDeployment resource for a project and landscape.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId} (the `GetArtifactDeploymentV1` operationId).
+func (c *ClientWithResponses) GetArtifactDeploymentV1WithResponse(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, artifactDeploymentId ArtifactDeploymentPathId, reqEditors ...RequestEditorFn) (*GetArtifactDeploymentV1Response, error) {
+	rsp, err := c.GetArtifactDeploymentV1(ctx, projectId, landscapeId, artifactDeploymentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetArtifactDeploymentV1Response(rsp)
+}
+
+// GetStageV1WithResponse Get a single stage for a project
+//
+// Returns a single stage resource for a project.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId} (the `GetStageV1` operationId).
+func (c *ClientWithResponses) GetStageV1WithResponse(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, stageId StagePathId, reqEditors ...RequestEditorFn) (*GetStageV1Response, error) {
+	rsp, err := c.GetStageV1(ctx, projectId, landscapeId, stageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetStageV1Response(rsp)
+}
+
+// GetVectorDeploymentV1WithResponse Get a single vectorDeployment for a project and landscape
+//
+// Returns a single vectorDeployment resource for a project and landscape.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId} (the `GetVectorDeploymentV1` operationId).
+func (c *ClientWithResponses) GetVectorDeploymentV1WithResponse(ctx context.Context, projectId ProjectPathId, landscapeId LandscapePathId, vectorDeploymentId VectorDeploymentPathId, reqEditors ...RequestEditorFn) (*GetVectorDeploymentV1Response, error) {
+	rsp, err := c.GetVectorDeploymentV1(ctx, projectId, landscapeId, vectorDeploymentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetVectorDeploymentV1Response(rsp)
+}
+
 // ListStagesV1WithResponse List all stages for a project
 //
 // Returns all stage resources for a project. Can be filtered by landscape: a landscapeId that does not name a landscape of the project is reported as 404, while a landscape that exists but holds no stages returns an empty list.
@@ -3221,6 +3728,168 @@ func ParseListLandscapesV1Response(rsp *http.Response) (*ListLandscapesV1Respons
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest LandscapeList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetArtifactDeploymentV1Response parses an HTTP response from a GetArtifactDeploymentV1WithResponse call
+func ParseGetArtifactDeploymentV1Response(rsp *http.Response) (*GetArtifactDeploymentV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetArtifactDeploymentV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ArtifactDeployment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetStageV1Response parses an HTTP response from a GetStageV1WithResponse call
+func ParseGetStageV1Response(rsp *http.Response) (*GetStageV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetStageV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Stage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetVectorDeploymentV1Response parses an HTTP response from a GetVectorDeploymentV1WithResponse call
+func ParseGetVectorDeploymentV1Response(rsp *http.Response) (*GetVectorDeploymentV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetVectorDeploymentV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VectorDeployment
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

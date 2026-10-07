@@ -407,11 +407,23 @@ type VectorPromotionId = string
 // VectorReference defines model for VectorReference.
 type VectorReference = ComponentReference
 
+// ArtifactDeploymentPathId defines model for ArtifactDeploymentPathId.
+type ArtifactDeploymentPathId = string
+
+// LandscapePathId defines model for LandscapePathId.
+type LandscapePathId = string
+
 // LandscapeQueryId defines model for LandscapeQueryId.
 type LandscapeQueryId = string
 
 // ProjectPathId defines model for ProjectPathId.
 type ProjectPathId = string
+
+// StagePathId defines model for StagePathId.
+type StagePathId = string
+
+// VectorDeploymentPathId defines model for VectorDeploymentPathId.
+type VectorDeploymentPathId = string
 
 // VectorDeploymentQueryId defines model for VectorDeploymentQueryId.
 type VectorDeploymentQueryId = string
@@ -513,6 +525,15 @@ type ServerInterface interface {
 	// ListLandscapesV1 List all landscapes for a specific project
 	// (GET /v1/projects/{projectId}/landscapes)
 	ListLandscapesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId)
+	// GetArtifactDeploymentV1 Get a single artifactDeployment for a project and landscape
+	// (GET /v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId})
+	GetArtifactDeploymentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, landscapeId LandscapePathId, artifactDeploymentId ArtifactDeploymentPathId)
+	// GetStageV1 Get a single stage for a project
+	// (GET /v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId})
+	GetStageV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, landscapeId LandscapePathId, stageId StagePathId)
+	// GetVectorDeploymentV1 Get a single vectorDeployment for a project and landscape
+	// (GET /v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId})
+	GetVectorDeploymentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, landscapeId LandscapePathId, vectorDeploymentId VectorDeploymentPathId)
 	// ListStagesV1 List all stages for a project
 	// (GET /v1/projects/{projectId}/stages)
 	ListStagesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListStagesV1Params)
@@ -582,6 +603,24 @@ func (_ Unimplemented) ListArtifactDeploymentsV1(w http.ResponseWriter, r *http.
 // ListLandscapesV1 List all landscapes for a specific project
 // (GET /v1/projects/{projectId}/landscapes)
 func (_ Unimplemented) ListLandscapesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetArtifactDeploymentV1 Get a single artifactDeployment for a project and landscape
+// (GET /v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId})
+func (_ Unimplemented) GetArtifactDeploymentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, landscapeId LandscapePathId, artifactDeploymentId ArtifactDeploymentPathId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetStageV1 Get a single stage for a project
+// (GET /v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId})
+func (_ Unimplemented) GetStageV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, landscapeId LandscapePathId, stageId StagePathId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetVectorDeploymentV1 Get a single vectorDeployment for a project and landscape
+// (GET /v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId})
+func (_ Unimplemented) GetVectorDeploymentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, landscapeId LandscapePathId, vectorDeploymentId VectorDeploymentPathId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -876,6 +915,138 @@ func (siw *ServerInterfaceWrapper) ListLandscapesV1(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListLandscapesV1(w, r, projectId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetArtifactDeploymentV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetArtifactDeploymentV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "landscapeId" -------------
+	var landscapeId LandscapePathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "landscapeId", chi.URLParam(r, "landscapeId"), &landscapeId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "landscapeId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "artifactDeploymentId" -------------
+	var artifactDeploymentId ArtifactDeploymentPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artifactDeploymentId", chi.URLParam(r, "artifactDeploymentId"), &artifactDeploymentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artifactDeploymentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetArtifactDeploymentV1(w, r, projectId, landscapeId, artifactDeploymentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetStageV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetStageV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "landscapeId" -------------
+	var landscapeId LandscapePathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "landscapeId", chi.URLParam(r, "landscapeId"), &landscapeId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "landscapeId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "stageId" -------------
+	var stageId StagePathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "stageId", chi.URLParam(r, "stageId"), &stageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "stageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetStageV1(w, r, projectId, landscapeId, stageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetVectorDeploymentV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetVectorDeploymentV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "landscapeId" -------------
+	var landscapeId LandscapePathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "landscapeId", chi.URLParam(r, "landscapeId"), &landscapeId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "landscapeId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "vectorDeploymentId" -------------
+	var vectorDeploymentId VectorDeploymentPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "vectorDeploymentId", chi.URLParam(r, "vectorDeploymentId"), &vectorDeploymentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "vectorDeploymentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVectorDeploymentV1(w, r, projectId, landscapeId, vectorDeploymentId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1238,7 +1409,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/v1/projects/{projectId}/stages", wrapper.ListStagesV1)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId}", wrapper.GetStageV1)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectorDeployments", wrapper.ListVectorDeploymentsV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId}", wrapper.GetVectorDeploymentV1)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectorPromotionConfigs", wrapper.ListVectorPromotionConfigsV1)
@@ -1254,6 +1431,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/v1/projects/{projectId}/artifactDeployments", wrapper.ListArtifactDeploymentsV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId}", wrapper.GetArtifactDeploymentV1)
 	})
 
 	return r
@@ -1726,6 +1906,246 @@ func (response ListLandscapesV1404JSONResponse) VisitListLandscapesV1Response(w 
 type ListLandscapesV1500JSONResponse struct{ InternalErrorJSONResponse }
 
 func (response ListLandscapesV1500JSONResponse) VisitListLandscapesV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactDeploymentV1RequestObject struct {
+	ProjectId            ProjectPathId            `json:"projectId"`
+	LandscapeId          LandscapePathId          `json:"landscapeId"`
+	ArtifactDeploymentId ArtifactDeploymentPathId `json:"artifactDeploymentId"`
+}
+
+type GetArtifactDeploymentV1ResponseObject interface {
+	VisitGetArtifactDeploymentV1Response(w http.ResponseWriter) error
+}
+
+type GetArtifactDeploymentV1200JSONResponse ArtifactDeployment
+
+func (response GetArtifactDeploymentV1200JSONResponse) VisitGetArtifactDeploymentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactDeploymentV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetArtifactDeploymentV1401JSONResponse) VisitGetArtifactDeploymentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactDeploymentV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetArtifactDeploymentV1403JSONResponse) VisitGetArtifactDeploymentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactDeploymentV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetArtifactDeploymentV1404JSONResponse) VisitGetArtifactDeploymentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactDeploymentV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetArtifactDeploymentV1500JSONResponse) VisitGetArtifactDeploymentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStageV1RequestObject struct {
+	ProjectId   ProjectPathId   `json:"projectId"`
+	LandscapeId LandscapePathId `json:"landscapeId"`
+	StageId     StagePathId     `json:"stageId"`
+}
+
+type GetStageV1ResponseObject interface {
+	VisitGetStageV1Response(w http.ResponseWriter) error
+}
+
+type GetStageV1200JSONResponse Stage
+
+func (response GetStageV1200JSONResponse) VisitGetStageV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStageV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetStageV1401JSONResponse) VisitGetStageV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStageV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetStageV1403JSONResponse) VisitGetStageV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStageV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetStageV1404JSONResponse) VisitGetStageV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStageV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetStageV1500JSONResponse) VisitGetStageV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDeploymentV1RequestObject struct {
+	ProjectId          ProjectPathId          `json:"projectId"`
+	LandscapeId        LandscapePathId        `json:"landscapeId"`
+	VectorDeploymentId VectorDeploymentPathId `json:"vectorDeploymentId"`
+}
+
+type GetVectorDeploymentV1ResponseObject interface {
+	VisitGetVectorDeploymentV1Response(w http.ResponseWriter) error
+}
+
+type GetVectorDeploymentV1200JSONResponse VectorDeployment
+
+func (response GetVectorDeploymentV1200JSONResponse) VisitGetVectorDeploymentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDeploymentV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetVectorDeploymentV1401JSONResponse) VisitGetVectorDeploymentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDeploymentV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetVectorDeploymentV1403JSONResponse) VisitGetVectorDeploymentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDeploymentV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetVectorDeploymentV1404JSONResponse) VisitGetVectorDeploymentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDeploymentV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetVectorDeploymentV1500JSONResponse) VisitGetVectorDeploymentV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2244,6 +2664,15 @@ type StrictServerInterface interface {
 	// ListLandscapesV1 List all landscapes for a specific project
 	// (GET /v1/projects/{projectId}/landscapes)
 	ListLandscapesV1(ctx context.Context, request ListLandscapesV1RequestObject) (ListLandscapesV1ResponseObject, error)
+	// GetArtifactDeploymentV1 Get a single artifactDeployment for a project and landscape
+	// (GET /v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId})
+	GetArtifactDeploymentV1(ctx context.Context, request GetArtifactDeploymentV1RequestObject) (GetArtifactDeploymentV1ResponseObject, error)
+	// GetStageV1 Get a single stage for a project
+	// (GET /v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId})
+	GetStageV1(ctx context.Context, request GetStageV1RequestObject) (GetStageV1ResponseObject, error)
+	// GetVectorDeploymentV1 Get a single vectorDeployment for a project and landscape
+	// (GET /v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId})
+	GetVectorDeploymentV1(ctx context.Context, request GetVectorDeploymentV1RequestObject) (GetVectorDeploymentV1ResponseObject, error)
 	// ListStagesV1 List all stages for a project
 	// (GET /v1/projects/{projectId}/stages)
 	ListStagesV1(ctx context.Context, request ListStagesV1RequestObject) (ListStagesV1ResponseObject, error)
@@ -2511,6 +2940,90 @@ func (sh *strictHandler) ListLandscapesV1(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// GetArtifactDeploymentV1 operation middleware
+func (sh *strictHandler) GetArtifactDeploymentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, landscapeId LandscapePathId, artifactDeploymentId ArtifactDeploymentPathId) {
+	var request GetArtifactDeploymentV1RequestObject
+
+	request.ProjectId = projectId
+	request.LandscapeId = landscapeId
+	request.ArtifactDeploymentId = artifactDeploymentId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetArtifactDeploymentV1(ctx, request.(GetArtifactDeploymentV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetArtifactDeploymentV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetArtifactDeploymentV1ResponseObject); ok {
+		if err := validResponse.VisitGetArtifactDeploymentV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetStageV1 operation middleware
+func (sh *strictHandler) GetStageV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, landscapeId LandscapePathId, stageId StagePathId) {
+	var request GetStageV1RequestObject
+
+	request.ProjectId = projectId
+	request.LandscapeId = landscapeId
+	request.StageId = stageId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetStageV1(ctx, request.(GetStageV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetStageV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetStageV1ResponseObject); ok {
+		if err := validResponse.VisitGetStageV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetVectorDeploymentV1 operation middleware
+func (sh *strictHandler) GetVectorDeploymentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, landscapeId LandscapePathId, vectorDeploymentId VectorDeploymentPathId) {
+	var request GetVectorDeploymentV1RequestObject
+
+	request.ProjectId = projectId
+	request.LandscapeId = landscapeId
+	request.VectorDeploymentId = vectorDeploymentId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVectorDeploymentV1(ctx, request.(GetVectorDeploymentV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVectorDeploymentV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetVectorDeploymentV1ResponseObject); ok {
+		if err := validResponse.VisitGetVectorDeploymentV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListStagesV1 operation middleware
 func (sh *strictHandler) ListStagesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListStagesV1Params) {
 	var request ListStagesV1RequestObject
@@ -2677,62 +3190,65 @@ func (sh *strictHandler) ApproveVectorPromotionV1(w http.ResponseWriter, r *http
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"7Fxbc9s29v8qGP7/M9vOMJKTuJ2t9slx6lQbb6O13fQh6+lA5BGFGgQYAJSj9ei77+DCOyhRsuJkNvtm",
-	"kbicy+9cgHPohyDiacYZMCWDyUOQYYFTUCDMr0vMYhnhDP6Zg1hPY/0sBhkJkinCWTAJLghVINB8jWgx",
-	"dhoHYUD0y496VhAGDKcQTILmCBktIcV6RbXO9GupBGFJsNmEwUzwPyFSM6yWvk3da1TtlGG1rDbK7Hvz",
-	"WsDHnAiIg4kSOWzf9j1EiovXkFG+ToGpAVyvWlN6mfcO3E3MTPCU613POVuQpE8i3sG98ln5Rh8orXKV",
-	"gaQNJWpPcjZ6sMw4k2CQ+wrHV/AxB6n0r4gzBcz8ibOMkgjrLcZ/Sk3hQ23Z/xewCCbB/40rqxjbt3L8",
-	"sxBcXLlN7JZNTqdshSmJkbAbo8qWRsEmDLSYKYmekKCbJZTERG53ie6JWiK1BBTlQgBTSCqsAPGFeShA",
-	"8lxEYEi+4GJO4hjY09F8FkUgJWJcIUwpv4fYUDJlCgTD1Mx/QmoYyhl8yiBSECMJYgUCgZ6FeGTkZ8n7",
-	"lasLnrP4i+gW4lJr6B5b2S00NYa03xjO1ZIL8m94QvLOcrUEptzqqDBkxAWSIKV+Bp8yYuW3KSzbmO6Z",
-	"UGSBI1X5ShOYBM9AKGLNG7sxu+gs1rqCBQhgEWiJkHjotIa73oSNCLZjicvaUM2fwglMY0M8UZDKXfOv",
-	"7QQ9NyXsEliilsHkeVh4PiwEXruVVS67flcDBHf4QG54GADL02DyoRT3BahoCdrrNrm3j7LsF8BULXVE",
-	"uwIcr4PbsO2EQ0+QG87w+26A3MH7ph4gPmi1hq0cw0dPTRdhhaNSjhVbfK6TCE2EFw5DBW7I6kiqu+Ql",
-	"kR6gx1jhwSL0WM5mh9DM+tt4rixHmx2l7xbB5MN2Ms6LRzWruzUBsPO8w2+53K8mK3joSq4c8R6EJNZp",
-	"dQYJyLgkiou1P3epi6A2Nmzt79nNJ6umN+zwBEXMarMa+zlMQUqcwG7KzQrV+C5prfGWEB8H01g7a7X2",
-	"EJ9iQr1kLnBK6LpXTwlZAet9y/peuNz9ilPn6eOYaAPDdNagqzSIzgptB7ldJszquaK2wVjo+G/R5RNh",
-	"6fC7MiT7RotCOl0Ho98UqVrp67oOxucazaJbKe/zauVGPc6sXOAIPqwS48Guyx0PD9HDrDw5DtaCA8Yj",
-	"dVBt7N3QbdIjfzf5CNIvRPcY2dvz21mWCb7C1JO7mTcQnykPryQFI1XsppuENhGYKZOHLLhIsQommgB4",
-	"pkgKPnkUO7xad3coPB1SS6yKlRtb7tRkbfmwzs1WeVyb/HxL5LsjzH/V4c7NLsE3w6rszaSJQXEYv4E0",
-	"o1iBNzmjdQe1Y5ctrqXPLjprOM+6XZaOnW12YVe9wSIB9Qj5KbOAX34Hi8st+ihxuTX2FledRJ/oLGtd",
-	"84sUWYF5WcughmV2jVmbW9+Z1F0q0DWyG6H6nBE6m0udFN8vCQV9UF0SlqAllmgOwOwUrNyhere7rh2S",
-	"Dj+a9bt5c1DoUUwYWL19NkHWhxj/ZKj5i6yubTKIEJEo4mwFItGCVLwlYaKMcBlXVsCRAC1etAY12hKh",
-	"muLsBVdftLJy88cqM/EIkcqi++A41VbbvolCfX7thP8GGAis3KJNyVTvytQBF/dvSQ1hhClIQGw7278G",
-	"QVYQI8Ep5XnrBk82DG4GLCYsqY6EkwIEobu8RnF1WNVAWYNZUGgzRHYeYYkNMBPPHMJ0epIIkHKE/kES",
-	"zWM1PrUPjJ+TdxKJnDHCkhE6s7ZeG+qsvzMWfacEZpIAU9+PkLl9mKBFTunaCABixHM1QheYUIgnSIC5",
-	"p4vRggu0wITmAlAMCiK99N8Mj5ASVdjBv1gtHnTEFYRBSwZBGLS4DMKgzU15TRIGlq4t9yVd/TZsf1Us",
-	"OCC/LMe20bj1fqMF5n6bLkjym3b7BucQu/LfAj363m2PQLLtPq19n9S9TetipRpdAKJ6Mggau8VVu2fZ",
-	"fSdWSKQJlj5oePQxTDLDIHKEQNBB3cExoVWp6ju52DPNjlNU6xA0KJt536mAVZTXj1OO8DnnFDAzmIWP",
-	"eZEVl0ckwtSPp/6wYhL0wVy0jy4NIymA/zsm2vvV/N6UzVxYCMLgFeXRnTnCXedRBBCbvx3+9cMMhDRP",
-	"b3tTrcEEt88KegVFzxYKxAVhRC5tJWSLzQ1wtU6IJXHl9AHQshXXw/1jt3S7CYM7gOwSS1W+rF+P1bSf",
-	"Nd7vYWOVZXhu2R6PqSdR8jBN1kQ0WJvbPWO7NL/NPbbGHs1HtuF3LEc5kPOtPB+tzGC8YZQLotbXeqCV",
-	"1hywAHGWq2X166JwlH///aboxTB+1bytSF0qlVkna+qW55zfEUOmaWKI7M+yjeEuBvbMDa3WwBl5C2tb",
-	"KCVswbsC++XmZoYSrOAer9Ec1L0+rp1fTse/TVFEde4rEWb2puqt1l+sOUbnV6+lzWAVUVRvVXt5Npsa",
-	"t+ROOcFzzQbPgOGMBJPg5ehk9FKjHaulkdJ49XyMc7UcR5jSOY7u9ENnk01qryACsgJpL85cfdmm7hGP",
-	"AS0ET8276esZwtomkcxNZX+RU0R5QtgI/fwpWmKWuFXsPC6Q4nfALLMgFZ5TbcsS4bJwbEVuudYmgQsQ",
-	"mqrzuaP9/XPDWtXO9OHB25hjzk77tb74F3LVmL3n2arMoRP/qCtm2yK3rQ6ZlycvfHqNiYBIIcWLO9Gi",
-	"Q6CrRtyo8Y+CMFgCjovWMR71nIPLPXJBd/RAXYN6Vtlbc5lzzhQmzIKngMb09WjrknrR05OTPn9ZCmhc",
-	"6x8yU57vntJotNiEwQ9D9mn2tdS9VzD5cBsGMk9TLNbBJHg3fX2OSsPUwSqR5jZaOzXj97T5grMpEzC4",
-	"9Jjue0xJjBVIa3HazFYgyIKAMD8EqFwwWYqULJBpaxp1rG3GpSps+JzHYCzO9aS84vF6r26TgbXRgtTB",
-	"xdFygqc6umlbfbuL7IVVYetwXvSvlM4pbmF/b9ha6e6C7ZfH4DXoCARphgqcVSCavT3/uUKS4igBhWqB",
-	"0AtXUqs79wQai8ZiINLRU8dtLTYTLVwAco4IYmMjILpwfQOqKP44pHY1fZTmqLKY7umLevf2yf1Jqb03",
-	"oBp9f7kEUQq2V0UmWG/Rj3XmFs9zwe+l1X4Z/BvJAbA444SpEM0hIfZ2T4804NFD0YLy+xF6x/oDTbm0",
-	"KPfWLlFvOsYZ6SQxvkThUjPlyxBa3HGungmg2FQydJ6kdxG1IGmDoktozhjCc8lprgDpfO676+/Rb1eX",
-	"iEiEowgyjc77JTBElEQxTzFh7gJ/QZJcQIzma8Pd2Wzqmg1HOge062t96bTILI0o55lhu2BT72RZ9eUK",
-	"1qv/YUNuf6pTXh7kgjwTZV4d+lKSVj1La/D6xQ8/omipDVD7hly6W9iSh1EPedqL/FFObPjCFH8qO8Be",
-	"/LXREXb6Mnx8mtMP0uNnNAemH0f24lNGFMEKkEkprH1vsX6eq/5s4pwCFs1g5tJzdGVRZiDraoFuyMhn",
-	"jzxXvW7ZH4AViJQw4/MrZ0HXewTjK0h5cYppkf854nFTJw/tE+WH201DTzcFf81u7R0h1bWKyJ0hFVOK",
-	"ii8piv5hiVZEkjmF8gDQCK06YniUR8ylk9n180bWeqPLVxZcNU1GpKX8KwWVjzpKGj+U36psxt3m0WFK",
-	"9MyrKVT7X1xQNULnmKE5oIX5gsVGnKq9i4vORb5f3d1OU+mLpj5xVkPGzc98dEzZMaHzPdKAOX0f9XQi",
-	"xTGB2tPee1zMnp683D2p+oTDzDjdPaP8luGoZuEDaROa+xtMCdxhdlLhvM86vFgvQXcEiH9OzDW7ML9h",
-	"qFWwcOqVGURkQaJ6r+Z+SDNF02Eos80vB/nfCcL1zyhti2LMwTbwmKZTXPfWjQZUfZIQkHGhAzWW6PTk",
-	"NHRdQPVJZk34RKQ+NuUKLTmN9fqWblle/2CGIM3UGlEilfcIRaRtfvpCnv9zmlLVpPQNm5EDRAO/+1tO",
-	"O58YZkSdWYcZlN+htzOC/0IAe/ssvmEsd/F0FFi3Kqr7YLs9db+cxFvQ/crzk/7i9jcPzA4YPgs6xw89",
-	"H/5vduO2p42h/O54B2bfgB+yT+F5t/0jhacH/DcI9jegdBJOWEL72mGOi/cu0odh3E/iI0D+BeD9BYD9",
-	"P0g38fLYa40haB677876b+bfCGx6hooP6SxVbVrNcXCJ7SV9MTTBCkbItpwSlph3VACO18+Kz91QVrV1",
-	"mepsmnENrEYLwYuT0xEqzOv05Cdb/HJn1mq2LJs/Q7RwrXsh4qL4rxHmeFoQ5237sUR9zcZ3uvsf49Rr",
-	"GKiQ8+hrNqPTk592Tyj/7c0x7M5p2lZszDfbXusz9Rx76WOhuiWs7C7KhM3+QVemMeVZX9H4unUB9J1r",
-	"wIMYnc2m3wdhkAsaTIIxzkiwud38JwAA//8=",
+	"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",
+	"AUJ0sph/7/lexmNv5k1xSrzt9fY/AQAA//8=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

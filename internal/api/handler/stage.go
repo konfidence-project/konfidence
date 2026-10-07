@@ -12,6 +12,33 @@ import (
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 )
 
+func (h *projectHandler) GetStageV1(ctx context.Context, request openapi.GetStageV1RequestObject) (openapi.GetStageV1ResponseObject, error) {
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, apierror.NewUnauthorized()
+	}
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, request.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	scope, err := h.resolveLandscapeScope(ctx, namespace, request.LandscapeId, landscapedomain.WithLandscapeId(request.LandscapeId))
+	if err != nil {
+		return nil, err
+	}
+
+	stage, err := h.stageRepo.GetForScope(ctx, scope[0], request.StageId)
+	if err != nil {
+		if errors.Is(err, stagedomain.ErrNotFound) {
+			return nil, apierror.NewNotFound("stage", request.StageId)
+		}
+		return nil, apierror.NewInternal(err)
+	}
+
+	return openapi.GetStageV1200JSONResponse(toStageResponse(*stage)), nil
+}
+
 func (h *projectHandler) ListStagesV1(ctx context.Context, req openapi.ListStagesV1RequestObject) (openapi.ListStagesV1ResponseObject, error) {
 	identity, err := session.FromContext(ctx)
 	if err != nil {
