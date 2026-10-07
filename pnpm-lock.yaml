@@ -204,8 +204,8 @@ importers:
   apps/konfidence-ui:
     dependencies:
       '@humanspeak/svelte-headless-table':
-        specifier: ^6.4.0
-        version: 6.4.0(svelte@5.57.1(@typescript-eslint/types@8.71.0))
+        specifier: ^7.0.1
+        version: 7.0.1(svelte@5.57.1(@typescript-eslint/types@8.71.0))
       '@konfidence/api-client':
         specifier: workspace:*
         version: link:../../packages/konfidence-api-client
@@ -646,12 +646,8 @@ packages:
     resolution: {integrity: sha512-ZZ1w0aoQkwuUuC7Yf+7sdeaNfqQiiLcSRbfI08oAxqLtpXQr9AIVX7Ay7HLDuiLYAaFPu8oBYNq/QIi9URHJ3Q==}
     engines: {node: '>=18.18.0'}
 
-  '@humanspeak/memory-cache@1.2.0':
-    resolution: {integrity: sha512-im7GIIpgjdD6Fx68xCeiXw3XiDv30/WMRAaodMm+ep0ptYfEUd0cdNeTAylHGIRTJIeByKFHdTmPjAktyDM/JQ==}
-    engines: {node: '>=20.19.0'}
-
-  '@humanspeak/svelte-headless-table@6.4.0':
-    resolution: {integrity: sha512-/b31VZGJIVQ1bD8vYWtgIwOSvkbmF4x6AqcuS7og5yXdE4kr+Ddbl4E1cDjXCniDZ3DAxY95dHsDv9nTqoYXbw==}
+  '@humanspeak/svelte-headless-table@7.0.1':
+    resolution: {integrity: sha512-o7uD3/UaUpB4Qc1jBixlPDDwVwpYM0dkVic1jVpxkmwc3IuXIgA1vLGYm73FBdDbbpdf2ivbRchrGWuibqzYqg==}
     peerDependencies:
       svelte: ^5.30.0
 
@@ -3306,11 +3302,8 @@ snapshots:
 
   '@humanfs/types@0.15.0': {}
 
-  '@humanspeak/memory-cache@1.2.0': {}
-
-  '@humanspeak/svelte-headless-table@6.4.0(svelte@5.57.1(@typescript-eslint/types@8.71.0))':
+  '@humanspeak/svelte-headless-table@7.0.1(svelte@5.57.1(@typescript-eslint/types@8.71.0))':
     dependencies:
-      '@humanspeak/memory-cache': 1.2.0
       svelte: 5.57.1(@typescript-eslint/types@8.71.0)
 
   '@humanwhocodes/module-importer@1.0.1': {}
