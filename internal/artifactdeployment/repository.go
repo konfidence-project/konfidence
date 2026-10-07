@@ -3,10 +3,10 @@ package artifactdeployment
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
-	utils "github.com/konfidence-project/konfidence/pkg/controller"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,17 +26,22 @@ type Repository interface {
 	ListForScope(ctx context.Context, namespace string, opts ...ListOption) ([]ResolvedArtifactDeployment, error)
 }
 
-type ListOption func(client.MatchingLabels)
+type listOptions struct {
+	landscapeID        *string
+	vectorDeploymentID *string
+}
+
+type ListOption func(*listOptions)
 
 func WithLandscapeId(id string) ListOption {
-	return func(labels client.MatchingLabels) {
-		labels[utils.LandscapeNameLabel] = id
+	return func(options *listOptions) {
+		options.landscapeID = &id
 	}
 }
 
 func WithVectorDeploymentId(id string) ListOption {
-	return func(labels client.MatchingLabels) {
-		labels[utils.VectorDeploymentNameLabel] = id
+	return func(options *listOptions) {
+		options.vectorDeploymentID = &id
 	}
 }
 
@@ -59,18 +64,12 @@ func (r *k8sRepository) Get(ctx context.Context, name string) (*konfidence.Artif
 }
 
 func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts ...ListOption) ([]ResolvedArtifactDeployment, error) {
-	resolved := make([]ResolvedArtifactDeployment, 0)
-	labelSelector := client.MatchingLabels{}
-
+	options := listOptions{}
 	for _, opt := range opts {
-		opt(labelSelector)
+		opt(&options)
 	}
 
-	var landscapeId *string
-	if landscapeNameLabel, ok := labelSelector[utils.LandscapeNameLabel]; ok {
-		landscapeId = &landscapeNameLabel
-	}
-
+	resolved := make([]ResolvedArtifactDeployment, 0)
 	var landscapes konfidence.LandscapeList
 	if err := r.reader.List(ctx, &landscapes, client.InNamespace(namespace)); err != nil {
 		return nil, fmt.Errorf("listing landscapes in namespace %q: %w", namespace, err)
@@ -78,7 +77,7 @@ func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts
 
 	var scopedLandscapes []landscapedomain.ScopedLandscape
 	for _, l := range landscapes.Items {
-		if landscapeId != nil && l.Name != *landscapeId {
+		if options.landscapeID != nil && l.Name != *options.landscapeID {
 			continue
 		}
 		if l.Status.Namespace != "" {
@@ -89,18 +88,13 @@ func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts
 		}
 	}
 
-	if landscapeId != nil && len(scopedLandscapes) == 0 {
-		return nil, fmt.Errorf("landscape %q not found", *landscapeId)
-	}
-
-	adLabelSelector := client.MatchingLabels{}
-	if vdId, ok := labelSelector[utils.VectorDeploymentNameLabel]; ok {
-		adLabelSelector[utils.VectorDeploymentNameLabel] = vdId
+	if options.landscapeID != nil && len(scopedLandscapes) == 0 {
+		return nil, fmt.Errorf("landscape %q not found", *options.landscapeID)
 	}
 
 	for _, scoped := range scopedLandscapes {
 		var artifactDeployments konfidence.ArtifactDeploymentList
-		if err := r.reader.List(ctx, &artifactDeployments, client.InNamespace(scoped.Namespace), adLabelSelector); err != nil {
+		if err := r.reader.List(ctx, &artifactDeployments, client.InNamespace(scoped.Namespace)); err != nil {
 			return nil, fmt.Errorf("listing artifact deployments in namespace %q: %w", scoped.Namespace, err)
 		}
 
@@ -127,15 +121,18 @@ func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts
 		}
 
 		for i := range artifactDeployments.Items {
-			ad := &artifactDeployments.Items[i]
-			stageIds := extractStageIds(ad, vectorDeploymentByName, stageVersionByName)
-			vectorDeploymentIds := extractVectorDeploymentIds(ad)
+			artifactDeployment := &artifactDeployments.Items[i]
+			vectorDeploymentIDs := extractVectorDeploymentIds(artifactDeployment)
+			if options.vectorDeploymentID != nil && !slices.Contains(vectorDeploymentIDs, *options.vectorDeploymentID) {
+				continue
+			}
 
+			stageIDs := extractStageIds(artifactDeployment, vectorDeploymentByName, stageVersionByName)
 			resolved = append(resolved, ResolvedArtifactDeployment{
-				ArtifactDeployment:  *ad,
+				ArtifactDeployment:  *artifactDeployment,
 				LandscapeId:         scoped.Landscape.Name,
-				StageIds:            stageIds,
-				VectorDeploymentIds: vectorDeploymentIds,
+				StageIds:            stageIDs,
+				VectorDeploymentIds: vectorDeploymentIDs,
 			})
 		}
 	}
