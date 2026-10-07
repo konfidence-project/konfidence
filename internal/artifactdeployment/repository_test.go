@@ -7,6 +7,7 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/artifactdeployment"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -67,8 +68,7 @@ func artifactDeploymentResource(name, landscapeNamespace, landscapeId,
 			Name:      name,
 			Namespace: landscapeNamespace,
 			Labels: map[string]string{
-				"konfidence.cloud/landscape-name":         landscapeId,
-				"konfidence.cloud/vector-deployment-name": vectorDeploymentId,
+				pkgctrl.LandscapeNameLabel: landscapeId,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -171,27 +171,43 @@ func TestListForScopeFilterByVectorDeployment(t *testing.T) {
 	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
 	vdA := vectorDeploymentResource("vd-a", landscapeNamespace, "sv-1")
 	vdB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-1")
-	adA := artifactDeploymentResource("ad-vd-a", landscapeNamespace, landscapeId, "vd-a")
-	adB := artifactDeploymentResource("ad-vd-b", landscapeNamespace, landscapeId, "vd-b")
+
+	sharedAD := artifactDeploymentResource("ad-shared", landscapeNamespace, landscapeId, "vd-a")
+	sharedAD.OwnerReferences = append(
+		sharedAD.OwnerReferences,
+		metav1.OwnerReference{
+			Kind: konfidence.VectorDeploymentKind,
+			Name: "vd-b",
+		},
+	)
+
+	onlyA := artifactDeploymentResource("ad-only-a", landscapeNamespace, landscapeId, "vd-a")
 
 	k8s := fake.NewClientBuilder().
 		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, vdA, vdB, adA, adB).
+		WithObjects(landscape, stageVersion, vdA, vdB, sharedAD, onlyA).
 		Build()
 
 	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(
 		context.Background(),
 		projectNamespace,
-		artifactdeployment.WithVectorDeploymentId("vd-a"),
+		artifactdeployment.WithVectorDeploymentId("vd-b"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(resolved) != 1 {
 		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
 	}
-	if resolved[0].ArtifactDeployment.Name != "ad-vd-a" {
-		t.Fatalf("expected ad-vd-a, got %q", resolved[0].ArtifactDeployment.Name)
+
+	if resolved[0].ArtifactDeployment.Name != "ad-shared" {
+		t.Fatalf("expected ad-shared, got %q", resolved[0].ArtifactDeployment.Name)
+	}
+
+	vectorDeploymentIDs := resolved[0].VectorDeploymentIds
+	if len(vectorDeploymentIDs) != 2 || vectorDeploymentIDs[0] != "vd-a" || vectorDeploymentIDs[1] != "vd-b" {
+		t.Fatalf("expected vector deployments [vd-a vd-b], got %v", vectorDeploymentIDs)
 	}
 }
 
@@ -305,8 +321,8 @@ func TestListForScopeResolvesVectorDeploymentIdsFromOwnerRefs(t *testing.T) {
 	vectorDeploymentA := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
 	vectorDeploymentB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-2")
 
-	// One ArtifactDeployment reused by two VectorDeployments: an owner reference
-	// per VectorDeployment, but the label records only one.
+	// one ArtifactDeployment reused by two VectorDeployments has one owner
+	// reference per VectorDeployment.
 	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId)
 	ad.OwnerReferences = append(ad.OwnerReferences, metav1.OwnerReference{
 		Kind: konfidence.VectorDeploymentKind,

@@ -17,8 +17,6 @@ const (
 	ProjectNameLabel = "konfidence.cloud/project"
 	// LandscapeNameLabel records the name of the Landscape.
 	LandscapeNameLabel = "konfidence.cloud/landscape"
-	// VectorDeploymentNameLabel records the name of the owning VectorDeployment.
-	VectorDeploymentNameLabel = "konfidence.cloud/vector-deployment-name"
 	// VectorDeploymentUIDLabel records the UID of the owning VectorDeployment, useful
 	// when the deployment is recreated under the same name.
 	VectorDeploymentUIDLabel = "konfidence.cloud/vector-deployment-uid"

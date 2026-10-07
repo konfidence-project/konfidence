@@ -309,14 +309,15 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(foundOwner).To(gomega.BeTrue(), "ArtifactDeployment should have VectorDeployment as owner")
 		}, timeout, interval).Should(gomega.Succeed())
 
-		By("Restoring missing and outdated labels on an existing ArtifactDeployment")
+		By("Restoring the missing landscape label on an existing ArtifactDeployment")
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: artifactDeployment.Name, Namespace: testNamespace,
 		}, artifactDeployment)).To(gomega.Succeed())
+
 		artifactDeployment.Labels = map[string]string{
-			pkgctrl.VectorDeploymentNameLabel: "old-name",
-			"custom-label":                    "preserved",
+			"custom-label": "preserved",
 		}
+
 		gomega.Expect(k8sClient.Update(ctx, artifactDeployment)).To(gomega.Succeed())
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: ocmName, Namespace: testNamespace,
@@ -331,8 +332,8 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 				Name: artifactDeployment.Name, Namespace: testNamespace,
 			}, ad)).To(gomega.Succeed())
+
 			g.Expect(ad.Labels).To(gomega.HaveKeyWithValue(pkgctrl.LandscapeNameLabel, landscapeName))
-			g.Expect(ad.Labels).To(gomega.HaveKeyWithValue(pkgctrl.VectorDeploymentNameLabel, ocmName))
 			g.Expect(ad.Labels).To(gomega.HaveKeyWithValue("custom-label", "preserved"))
 		}, timeout, interval).Should(gomega.Succeed())
 
@@ -512,7 +513,6 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(recovered.Annotations[pkgctrl.ArtifactComponentAnnotation]).To(gomega.Equal(collidingComponent))
 			g.Expect(recovered.Annotations[pkgctrl.ArtifactVersionAnnotation]).To(gomega.Equal(collidingVersion))
 			g.Expect(recovered.Labels[pkgctrl.LandscapeNameLabel]).To(gomega.Equal(landscapeName))
-			g.Expect(recovered.Labels[pkgctrl.VectorDeploymentNameLabel]).To(gomega.Equal(vectorDeployment.Name))
 			foundOwner := false
 			for _, ownerRef := range recovered.OwnerReferences {
 				if ownerRef.UID == vectorDeployment.UID {

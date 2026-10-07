@@ -318,14 +318,10 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		if artifactDeployment.Labels == nil {
 			artifactDeployment.Labels = make(map[string]string)
 		}
-		for key, value := range map[string]string{
-			pkgctrl.LandscapeNameLabel:        landscapeName,
-			pkgctrl.VectorDeploymentNameLabel: vectorDeployment.Name,
-		} {
-			if artifactDeployment.Labels[key] != value {
-				artifactDeployment.Labels[key] = value
-				labelsChanged = true
-			}
+
+		if artifactDeployment.Labels[pkgctrl.LandscapeNameLabel] != landscapeName {
+			artifactDeployment.Labels[pkgctrl.LandscapeNameLabel] = landscapeName
+			labelsChanged = true
 		}
 
 		var ownerRef *metav1.OwnerReference = nil
@@ -588,8 +584,7 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 		ann[pkgctrl.VectorDeploymentUIDAnnotation] = *uid
 	}
 	labels := map[string]string{
-		pkgctrl.LandscapeNameLabel:        landscapeName,
-		pkgctrl.VectorDeploymentNameLabel: vectorDeployment.Name,
+		pkgctrl.LandscapeNameLabel: landscapeName,
 	}
 
 	return &konfidence.ArtifactDeployment{
