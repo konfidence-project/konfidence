@@ -685,13 +685,20 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying ArtifactDeployment Ready=True does not progress the vector while Stalled=True")
-		ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
-		gomega.Expect(ready).ToNot(gomega.BeNil())
-		gomega.Expect(ready.Status).To(gomega.Equal(metav1.ConditionFalse))
-		gomega.Expect(ready.Reason).To(gomega.Equal(konfidence.VectorReadyReasonStalled))
-		gomega.Expect(ready.Message).To(gomega.Equal(meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition).Message))
-		gomega.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeFalse())
-		gomega.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorDeployedCondition)).To(gomega.BeFalse())
+		gomega.Consistently(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+
+			stalledCondition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(stalledCondition).ToNot(gomega.BeNil())
+			g.Expect(stalledCondition.Status).To(gomega.Equal(metav1.ConditionTrue))
+
+			ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
+			g.Expect(ready).ToNot(gomega.BeNil())
+			g.Expect(ready.Status).To(gomega.Equal(metav1.ConditionFalse))
+			g.Expect(ready.Reason).To(gomega.Equal(konfidence.VectorReadyReasonStalled))
+			g.Expect(ready.Message).To(gomega.Equal(stalledCondition.Message))
+			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorDeployedCondition)).To(gomega.BeFalse())
+		}, time.Second, interval).Should(gomega.Succeed())
 
 		By("Marking the ArtifactDeployment as successfully reconciled")
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
