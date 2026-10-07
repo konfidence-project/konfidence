@@ -588,7 +588,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			Spec:       konfidence.VectorDeploymentSpec{Vector: vectorReference},
 		})).To(gomega.Succeed())
 
-		By("Verifying it goes Stalled=True with the naming collision reason and Ready=False")
+		By("Verifying it goes Stalled=True with the naming collision reason")
 		actual := &konfidence.VectorDeployment{}
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: exhaustedOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
@@ -596,10 +596,6 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(stalled).ToNot(gomega.BeNil())
 			g.Expect(stalled.Status).To(gomega.Equal(metav1.ConditionTrue))
 			g.Expect(stalled.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision))
-			ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
-			g.Expect(ready).ToNot(gomega.BeNil())
-			g.Expect(ready.Status).To(gomega.Equal(metav1.ConditionFalse))
-			g.Expect(ready.Reason).To(gomega.Equal(konfidence.VectorReadyReasonStalled))
 		}, exhaustedTimeout, interval).Should(gomega.Succeed())
 	})
 
@@ -685,11 +681,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(stalledCondition).ToNot(gomega.BeNil())
 			g.Expect(stalledCondition.Status).To(gomega.Equal(metav1.ConditionTrue))
 
-			ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
-			g.Expect(ready).ToNot(gomega.BeNil())
-			g.Expect(ready.Status).To(gomega.Equal(metav1.ConditionFalse))
-			g.Expect(ready.Reason).To(gomega.Equal(konfidence.VectorReadyReasonStalled))
-			g.Expect(ready.Message).To(gomega.Equal(stalledCondition.Message))
+			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeFalse())
 			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorDeployedCondition)).To(gomega.BeFalse())
 		}, time.Second, interval).Should(gomega.Succeed())
 

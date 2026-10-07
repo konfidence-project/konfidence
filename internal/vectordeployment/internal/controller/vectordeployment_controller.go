@@ -295,7 +295,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				if collisionCount >= 5 {
 					log.Error(nil, msg, "name", deploymentName, "collisionCount", collisionCount)
 					// Salting has stopped helping, so requeueing cannot resolve this.
-					setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision,
+					setStalledCondition(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision,
 						fmt.Sprintf("%s (giving up after %d salts)", msg, collisionCount))
 					return false, fmt.Errorf("%s (giving up after %d salts)", msg, collisionCount)
 				}
@@ -372,7 +372,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				deploymentResults[artifactRef.Component] = artifactDeployment.Status.DeploymentResults
 			}
 		}
-		if !isArtifactDeploymentReady(artifactDeployment) {
+		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.ArtifactDeploymentReadyCondition) {
 			allReady = false
 		}
 
@@ -402,7 +402,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		LastTransitionTime: metav1.Now(),
 	})
 
-	reportStalledArtifactDeployments(vectorDeployment, artifactDeployments)
+	reconcileStalledStatusWithDeployments(vectorDeployment, artifactDeployments)
 
 	if allReady {
 		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
