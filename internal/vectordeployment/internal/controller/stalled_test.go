@@ -2,6 +2,8 @@
 package controller
 
 import (
+	"time"
+
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -140,6 +142,34 @@ var _ = Describe("Stalled condition", func() {
 
 			Expect(first.name).To(Equal(second.name))
 			Expect(first.name).To(Equal(artifactName))
+		})
+
+		It("should keep lastTransitionTime while the same stall persists across reconciles", func() {
+			vectorDeployment := newVectorDeployment(1)
+			stalledArtifactDeployment := &konfidence.ArtifactDeployment{}
+			stalledArtifactDeployment.Name = artifactName
+			stalledArtifactDeployment.Status.Conditions = []metav1.Condition{{
+				Type:   konfidence.StalledCondition,
+				Status: metav1.ConditionTrue,
+				Reason: konfidence.ArtifactDeploymentStalledReasonManifestMissing,
+			}}
+
+			reportStalledArtifactDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{stalledArtifactDeployment})
+			since := metav1.NewTime(time.Now().Add(-time.Hour))
+			stalledCondition(vectorDeployment).LastTransitionTime = since
+
+			reportStalledArtifactDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{stalledArtifactDeployment})
+
+			Expect(stalledCondition(vectorDeployment).LastTransitionTime).To(Equal(since))
+		})
+
+		It("should clear Stalled when no ArtifactDeployment is stalled", func() {
+			vectorDeployment := newVectorDeployment(1)
+			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
+
+			reportStalledArtifactDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{{}})
+
+			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
 		})
 
 		It("should pick nothing from an empty set", func() {

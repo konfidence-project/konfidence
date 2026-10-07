@@ -74,9 +74,6 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	originalVectorDeployment := vectorDeployment.DeepCopy()
 	patch := client.MergeFrom(originalVectorDeployment)
 
-	// Default to not stalled; blocking causes below overwrite it before their status patch.
-	clearStalled(vectorDeployment)
-
 	vectorRef, err := compref.Parse(vectorDeployment.Spec.Vector)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to parse vector reference %s: %w", vectorDeployment.Spec.Vector, err)
@@ -226,7 +223,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	var (
 		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifactReferences))
 		deploymentResults            = make(map[string]konfidence.ComponentDeploymentResults)
-		stalledArtifactDeployments   []stalledArtifactDeployment
+		artifactDeployments          []*konfidence.ArtifactDeployment
 	)
 	allReady := true
 
@@ -379,10 +376,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			allReady = false
 		}
 
-		// Collect rather than report inline, so the named ArtifactDeployment does not depend on vector order.
-		if stalledArtifactDeployment, ok := collectStalledArtifactDeployment(artifactDeployment); ok {
-			stalledArtifactDeployments = append(stalledArtifactDeployments, stalledArtifactDeployment)
-		}
+		artifactDeployments = append(artifactDeployments, artifactDeployment)
 	}
 
 	// Write local maps back to status. Assign nil when empty so that the
@@ -408,11 +402,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		LastTransitionTime: metav1.Now(),
 	})
 
-	// Surface a stalled ArtifactDeployment, otherwise the vector sits at Ready=False with no explanation.
-	if stalledArtifactDeployment, ok := pickStalledArtifactDeployment(stalledArtifactDeployments); ok {
-		setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled,
-			stalledArtifactDeploymentMessage(stalledArtifactDeployment, len(stalledArtifactDeployments)))
-	}
+	reportStalledArtifactDeployments(vectorDeployment, artifactDeployments)
 
 	if allReady {
 		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{

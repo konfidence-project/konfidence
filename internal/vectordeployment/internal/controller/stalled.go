@@ -35,8 +35,8 @@ func setStalled(vectorDeployment *konfidence.VectorDeployment, reason, message s
 	})
 }
 
-// clearStalled records that this reconcile found nothing blocking. Called on every pass so
-// absence of the condition means only that the object was never reconciled.
+// clearStalled records that this reconcile found nothing blocking. Called on every pass that gets through the
+// ArtifactDeployments, so a healthy vector carries Stalled=False rather than no condition at all.
 func clearStalled(vectorDeployment *konfidence.VectorDeployment) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StalledCondition,
@@ -45,6 +45,26 @@ func clearStalled(vectorDeployment *konfidence.VectorDeployment) {
 		Message:            "No blocking condition detected",
 		ObservedGeneration: vectorDeployment.Generation,
 	})
+}
+
+// reportStalledArtifactDeployments sets or clears Stalled from this reconcile's ArtifactDeployments. Deciding once,
+// rather than clearing up front and setting later, keeps lastTransitionTime from resetting on every reconcile.
+func reportStalledArtifactDeployments(vectorDeployment *konfidence.VectorDeployment, artifactDeployments []*konfidence.ArtifactDeployment) {
+	var stalled []stalledArtifactDeployment
+	for _, artifactDeployment := range artifactDeployments {
+		if stalledArtifactDeployment, ok := collectStalledArtifactDeployment(artifactDeployment); ok {
+			stalled = append(stalled, stalledArtifactDeployment)
+		}
+	}
+
+	picked, ok := pickStalledArtifactDeployment(stalled)
+	if !ok {
+		clearStalled(vectorDeployment)
+		return
+	}
+
+	setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled,
+		stalledArtifactDeploymentMessage(picked, len(stalled)))
 }
 
 // collectStalledArtifactDeployment returns the ArtifactDeployment's stall details if it reports Stalled=True.
