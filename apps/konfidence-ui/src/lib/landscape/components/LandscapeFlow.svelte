@@ -1,40 +1,61 @@
 <script lang="ts">
     /* oxlint-disable eslint/id-length -- SvelteFlow positions use x and y coordinates. */
     import "@xyflow/svelte/dist/style.css";
-    import { Controls, PanOnScrollMode, SvelteFlow } from "@xyflow/svelte";
-    import type { Node } from "@xyflow/svelte";
-    import type { Landscape, Stage } from "$lib/konfidence-api/types";
-    import { groupStages } from "$lib/landscape/stageGrouping";
+    import {
+        Controls,
+        PanOnScrollMode,
+        Position,
+        SvelteFlow,
+    } from "@xyflow/svelte";
+    import type { Edge, Node } from "@xyflow/svelte";
+    import type { Landscape, Stage, VectorPromotionConfig } from "$lib/konfidence-api/types";
+    import { buildLandscapeGraph, stageKey } from "$lib/landscape/landscapeGraph";
     import { stageDetailsUrl } from "$lib/projects/url";
     import { mode } from "mode-watcher";
     import LandscapeCanvasResize from "$lib/landscape/components/LandscapeCanvasResize.svelte";
+    import LandscapeEmptyNode from "$lib/landscape/components/LandscapeEmptyNode.svelte";
     import StageNode from "$lib/landscape/components/StageNode.svelte";
 
     interface Props {
         landscapes: readonly Landscape[];
         stages: readonly Stage[];
+        promotionConfigs: readonly VectorPromotionConfig[];
         projectId: string;
         embedded: boolean;
     }
-    let { landscapes, stages, projectId, embedded }: Props = $props();
+    let {
+        landscapes,
+        stages,
+        promotionConfigs,
+        projectId,
+        embedded,
+    }: Props = $props();
 
-    const nodeTypes = { stage: StageNode };
+    const nodeTypes = {
+        "landscape-empty": LandscapeEmptyNode,
+        stage: StageNode,
+    };
     // Cards have a fixed height with bounded vector previews; full references are on the details page.
     const CARD_WIDTH = 304;
     const CARD_HEIGHT = 256;
     const GAP = 24;
-    const CATEGORY_GAP = 80;
-    const categories = ["dev", "test", "prod", "other"] as const;
-    const CONTENT_WIDTH =
-        categories.length * (CARD_WIDTH + CATEGORY_GAP) - CATEGORY_GAP;
+    // Columns are spaced like the former category columns, leaving room for the
+    // dev(left)->prod(right) promotion edges drawn between them.
+    const COLUMN_GAP = 80;
     const MIN_READABLE_ZOOM = 0.75;
     let canvasWidth = $state(0);
+
+    const graph = $derived(
+        buildLandscapeGraph(landscapes, stages, promotionConfigs),
+    );
+    const contentWidth = $derived(
+        Math.max(1, graph.columnCount) * (CARD_WIDTH + COLUMN_GAP) - COLUMN_GAP,
+    );
     const readableZoom = (width: number): number =>
         Math.max(
             MIN_READABLE_ZOOM,
-            Math.min(1, (width - GAP - GAP) / CONTENT_WIDTH),
+            Math.min(1, (width - GAP - GAP) / contentWidth),
         );
-    const labels = { dev: "Dev", other: "Other", prod: "Prod", test: "Test" };
     const defaults = {
         connectable: false,
         deletable: false,
@@ -43,43 +64,51 @@
         selectable: false,
     };
 
-    const nodes = $derived.by((): Node[] => {
-        const grouped = groupStages(stages);
-        const landscapeNames = new Map(
-            landscapes.map(({ id, name }) => [id, name]),
-        );
+    const columnX = (column: number): number => column * (CARD_WIDTH + COLUMN_GAP);
+    const rowY = (row: number): number => row * (CARD_HEIGHT + GAP);
 
-        // Each category is a column; API order sets the vertical card positions within it.
-        return categories.flatMap((category, column) =>
-            // oxlint-disable-next-line oxc/no-map-spread -- Each stage needs an independent node with shared interaction defaults.
-            grouped[category].map((stage, row) => ({
-                ...defaults,
-                data: {
-                    category: labels[category],
-                    href: stageDetailsUrl({
-                        embedded,
-                        landscapeId: stage.landscapeId,
-                        projectId,
-                        stageId: stage.id,
-                    }),
-                    landscapeName:
-                        landscapeNames.get(stage.landscapeId) ??
-                        `Unknown landscape (${stage.landscapeId})`,
-                    stage,
-                },
-                height: CARD_HEIGHT,
-                id: JSON.stringify(["stage", stage.landscapeId, stage.id]),
-                position: {
-                    x: column * (CARD_WIDTH + CATEGORY_GAP),
-                    y: row * (CARD_HEIGHT + GAP),
-                },
-                type: "stage",
-                width: CARD_WIDTH,
-            })),
-        );
+    const nodes = $derived.by((): Node[] => {
+        const stageNodes: Node[] = graph.stages.map((placement) => ({
+            ...defaults,
+            data: {
+                href: stageDetailsUrl({
+                    embedded,
+                    landscapeId: placement.landscapeId,
+                    projectId,
+                    stageId: placement.stage.id,
+                }),
+                landscapeName: placement.landscapeName,
+                stage: placement.stage,
+            },
+            height: CARD_HEIGHT,
+            id: stageKey(placement.landscapeId, placement.stage.name),
+            position: { x: columnX(placement.column), y: rowY(placement.row) },
+            sourcePosition: Position.Right,
+            targetPosition: Position.Left,
+            type: "stage",
+            width: CARD_WIDTH,
+        }));
+        const emptyNodes: Node[] = graph.emptyLandscapes.map((placement) => ({
+            ...defaults,
+            data: { landscapeName: placement.landscapeName },
+            height: CARD_HEIGHT,
+            id: JSON.stringify(["landscape-empty", placement.landscapeId]),
+            position: { x: columnX(placement.column), y: rowY(placement.row) },
+            type: "landscape-empty",
+            width: CARD_WIDTH,
+        }));
+        return [...stageNodes, ...emptyNodes];
     });
 
     const colorMode = $derived(mode.current === "dark" ? "dark" : "light");
+    const edges = $derived.by((): Edge[] =>
+        graph.edges.map((edge) => ({
+            id: edge.id,
+            source: edge.sourceStageKey,
+            target: edge.targetStageKey,
+        })),
+    );
+
 </script>
 
 <div
@@ -96,7 +125,7 @@
                 y: GAP,
                 zoom: readableZoom(canvasWidth),
             }}
-            edges={[]}
+            {edges}
             {colorMode}
             minZoom={0.1}
             maxZoom={1.5}
@@ -115,7 +144,7 @@
             <Controls showLock={false} />
             <LandscapeCanvasResize
                 {canvasWidth}
-                contentWidth={CONTENT_WIDTH}
+                {contentWidth}
                 gap={GAP}
                 minReadableZoom={MIN_READABLE_ZOOM}
             />
