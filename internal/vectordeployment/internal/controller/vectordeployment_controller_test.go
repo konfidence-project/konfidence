@@ -603,8 +603,13 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing))
 		}, timeout, interval).Should(gomega.Succeed())
 
-		By("Verifying Ready is False while Stalled is True")
-		gomega.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeFalse())
+		// The child is never Ready in this spec, so only an explicit Ready=False/Stalled proves setStalled wrote it.
+		By("Verifying the stall wrote Ready=False")
+		ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
+		gomega.Expect(ready).ToNot(gomega.BeNil())
+		gomega.Expect(ready.Status).To(gomega.Equal(metav1.ConditionFalse))
+		gomega.Expect(ready.Reason).To(gomega.Equal(konfidence.VectorReadyReasonStalled))
+		gomega.Expect(ready.Message).To(gomega.Equal(meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition).Message))
 
 		By("Clearing the stall on the ArtifactDeployment")
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
@@ -623,7 +628,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
 			g.Expect(condition).ToNot(gomega.BeNil())
 			g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionFalse))
-			ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
+			ready = meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
 			if ready != nil {
 				g.Expect(ready.Reason).ToNot(gomega.Equal(konfidence.VectorReadyReasonStalled))
 			}

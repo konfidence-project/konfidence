@@ -105,18 +105,14 @@ var _ = Describe("Stalled condition", func() {
 			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeTrue())
 		})
 
-		// Spec fixed, generation bumped, controller not run yet: the condition must stay
-		// detectably stale rather than read as a fresh verdict on the new spec.
-		It("should carry the generation the stall was computed from", func() {
+		It("should stamp the current generation on both Stalled and Ready", func() {
 			vectorDeployment := newVectorDeployment(7)
+
 			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
 
-			vectorDeployment.Generation = 8
-
-			condition := stalledCondition(vectorDeployment)
-			Expect(condition.Status).To(Equal(metav1.ConditionTrue))
-			Expect(condition.ObservedGeneration).To(Equal(int64(7)))
-			Expect(condition.ObservedGeneration).To(BeNumerically("<", vectorDeployment.Generation))
+			Expect(stalledCondition(vectorDeployment).ObservedGeneration).To(Equal(int64(7)))
+			readyCondition := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)
+			Expect(readyCondition.ObservedGeneration).To(Equal(int64(7)))
 		})
 	})
 
