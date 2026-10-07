@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@konfidence/design-system": "workspace:*",
-    "@skeletonlabs/skeleton": "^5.0.0",
-    "@skeletonlabs/skeleton-svelte": "^5.0.0"
+    "@skeletonlabs/skeleton": "^5.0.1",
+    "@skeletonlabs/skeleton-svelte": "^5.0.1"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",

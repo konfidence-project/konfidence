@@ -6,7 +6,7 @@ packages:
   - packages/*
 catalog:
   playwright: &playwright-version 1.62.1
-  "@playwright/test": *playwright-version
+  "@playwright/test": 1.62.1
   "@vitest/browser-playwright": 5.0.2
 # image-size <=2.0.2 (build-time transitive of less) has no patched release;
 # drop these ignores once upstream ships a fix.
@@ -22,3 +22,8 @@ allowBuilds:
   esbuild: true
   protobufjs: false
   ssh2: false
+minimumReleaseAgeExclude:
+  - brace-expansion@2.1.5 || 2.1.6 || 2.1.7
+  - source-map-js@1.2.2
+  - postcss-selector-parser@7.1.6
+  - tinypool@2.1.1 || 2.1.2
