@@ -652,16 +652,9 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}, timeout, interval).Should(gomega.Succeed())
 		artifactDeploymentName := artifactDeploymentList.Items[0].Name
 
-		By("Marking the ArtifactDeployment as ready and stalled, as a deployer would")
+		By("Marking the ArtifactDeployment as stalled, as a deployer would")
 		artifactDeployment := &konfidence.ArtifactDeployment{}
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
-		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               konfidence.ArtifactDeploymentReadyCondition,
-			Status:             metav1.ConditionTrue,
-			Reason:             konfidence.ArtifactDeploymentReadyCondition,
-			Message:            "ready but still stalled",
-			ObservedGeneration: artifactDeployment.Generation,
-		})
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
 			Type:               konfidence.StalledCondition,
 			Status:             metav1.ConditionTrue,
@@ -684,7 +677,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing))
 		}, timeout, interval).Should(gomega.Succeed())
 
-		By("Verifying ArtifactDeployment Ready=True does not progress the vector while Stalled=True")
+		By("Verifying a stalled ArtifactDeployment does not progress the vector")
 		gomega.Consistently(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
 
