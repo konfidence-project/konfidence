@@ -22,50 +22,26 @@
 
 {#if items.length > 0}
     <nav
-        class={["crumbs", className].filter(Boolean).join(" ")}
+        class={["crumbs flex items-center gap-1.5 text-compact text-content-tertiary", className]}
         aria-label="Breadcrumb"
         data-testid="breadcrumbs"
     >
         {#each items as item, index (index)}
             {@const isLast = index === items.length - 1}
             {#if index > 0}
-                <span class="crumbs__sep" aria-hidden="true">/</span>
+                <span class="crumbs__sep text-outline-strong" aria-hidden="true">/</span>
             {/if}
             {#if isLast || !item.href}
                 <span
-                    class={isLast ? "crumbs__current" : undefined}
+                    class={isLast ? "crumbs__current font-[var(--weight-medium)] text-content-primary" : undefined}
                     aria-current={isLast ? "page" : undefined}
                 >
                     {item.label}
                 </span>
             {:else}
                 <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Callers pass an already-resolved URL. -->
-                <a href={item.href}>{item.label}</a>
+                <a class="text-content-tertiary no-underline hover:text-content-link" href={item.href}>{item.label}</a>
             {/if}
         {/each}
     </nav>
 {/if}
-
-<style>
-    .crumbs {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: var(--text-sm);
-        color: var(--text-tertiary);
-    }
-    .crumbs a {
-        color: var(--text-tertiary);
-        text-decoration: none;
-    }
-    .crumbs a:hover {
-        color: var(--text-link);
-    }
-    .crumbs__sep {
-        color: var(--border-strong);
-    }
-    .crumbs__current {
-        color: var(--text-primary);
-        font-weight: var(--weight-medium);
-    }
-</style>

@@ -22,7 +22,7 @@
     aria-label={ariaLabel}
     onclick={navigate}
 >
-    <span class="font-[family-name:var(--font-mono)] text-[length:var(--text-sm)]">
+    <span class="font-mono text-compact">
         {@render children()}
     </span>
 </button>

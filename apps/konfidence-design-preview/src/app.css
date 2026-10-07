@@ -15,18 +15,3 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @import "@konfidence/design-system/styles";
-
-/*
- * Smooth-scroll in-page anchor jumps so the TOC in the style guide
- * eases to the target section instead of snapping. Individual sections
- * set `scroll-margin-top` to clear the sticky topbar.
- */
-html {
-  scroll-behavior: smooth;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-}

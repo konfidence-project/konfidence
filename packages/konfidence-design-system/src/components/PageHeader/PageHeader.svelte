@@ -9,10 +9,10 @@
      *   • eyebrow  — snippet rendered ABOVE the title (breadcrumbs,
      *                back link, category label…)
      *   • title    — the H1 text; typography is locked to the DS
-     *                display recipe (--text-h1 + --weight-display +
+     *                display recipe (--font-size-h1 + --weight-display +
      *                --tracking-h1)
      *   • description — optional paragraph directly under the title,
-     *                   in --text-sm / --text-secondary
+     *                   in --font-size-compact / --text-secondary
      *   • actions  — snippet rendered to the right of the title row
      *                (primary button, filter buttons…)
      *
@@ -55,14 +55,14 @@
         <div class="min-w-0">
             <h1
                 {id}
-                class="m-0 text-[length:var(--text-h1)] font-[weight:var(--weight-display)] tracking-[var(--tracking-h1)] leading-tight text-[color:var(--text-primary)] [overflow-wrap:anywhere]"
+                class="m-0 text-h1 font-display tracking-[var(--tracking-h1)] leading-tight text-content-primary [overflow-wrap:anywhere]"
                 data-testid="page-heading"
             >
                 {title}
             </h1>
             {#if description}
                 <p
-                    class="m-0 mt-0.5 text-[length:var(--text-sm)] text-[color:var(--text-secondary)]"
+                    class="m-0 mt-0.5 text-compact text-content-secondary"
                 >
                     {description}
                 </p>

@@ -28,7 +28,7 @@
 </script>
 
 <div
-    class="topbar flex h-14 items-center gap-4 border-b border-[var(--border-subtle)] bg-[var(--surface-default)] px-4"
+    class="topbar flex h-14 items-center gap-4 border-b border-outline-subtle bg-surface-default px-4"
 >
     {#if onHamburger}
         <IconButton

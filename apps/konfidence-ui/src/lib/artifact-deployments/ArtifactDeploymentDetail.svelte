@@ -13,28 +13,28 @@
 <div class="flex flex-col gap-5">
     <section class="flex flex-col gap-2" aria-label="Artifact">
         <h3
-            class="m-0 text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]"
+            class="m-0 text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary"
         >
             Artifact
         </h3>
-        <dl class="m-0 grid grid-cols-[minmax(0,8rem)_1fr] gap-x-3 gap-y-2 text-[length:var(--text-sm)]">
-            <dt class="text-[color:var(--text-tertiary)]">Component</dt>
-            <dd class="m-0 break-words text-[color:var(--text-primary)]">{row.component}</dd>
-            <dt class="text-[color:var(--text-tertiary)]">Version</dt>
-            <dd class="m-0 break-words font-[family-name:var(--font-mono)] text-[color:var(--text-primary)]">
+        <dl class="m-0 grid grid-cols-[minmax(0,8rem)_1fr] gap-x-3 gap-y-2 text-compact">
+            <dt class="text-content-tertiary">Component</dt>
+            <dd class="m-0 break-words text-content-primary">{row.component}</dd>
+            <dt class="text-content-tertiary">Version</dt>
+            <dd class="m-0 break-words font-mono text-content-primary">
                 {row.version}
             </dd>
-            <dt class="text-[color:var(--text-tertiary)]">Repository</dt>
-            <dd class="m-0 break-words font-[family-name:var(--font-mono)] text-[color:var(--text-primary)]">
+            <dt class="text-content-tertiary">Repository</dt>
+            <dd class="m-0 break-words font-mono text-content-primary">
                 {row.repository}
             </dd>
-            <dt class="text-[color:var(--text-tertiary)]">Status</dt>
-            <dd class="m-0 text-[color:var(--text-primary)]">
+            <dt class="text-content-tertiary">Status</dt>
+            <dd class="m-0 text-content-primary">
                 <StatusBadge status={statusTone(row.status)}>{statusLabel(row.status)}</StatusBadge>
             </dd>
-            <dt class="text-[color:var(--text-tertiary)]">Deployment id</dt>
+            <dt class="text-content-tertiary">Deployment id</dt>
             <dd
-                class="m-0 break-words font-[family-name:var(--font-mono)] text-[color:var(--text-primary)]"
+                class="m-0 break-words font-mono text-content-primary"
                 data-testid="artifact-detail-id"
             >
                 {row.id}
@@ -44,38 +44,38 @@
 
     <section class="flex flex-col gap-2" aria-label="Landscape">
         <h3
-            class="m-0 text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]"
+            class="m-0 text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary"
         >
             Landscape
         </h3>
-        <p class="m-0 flex flex-col gap-0.5 text-[length:var(--text-sm)] text-[color:var(--text-primary)]">
+        <p class="m-0 flex flex-col gap-0.5 text-compact text-content-primary">
             <span>{row.landscape}</span>
             {#if row.landscape !== row.landscapeId}
-                <span class="font-[family-name:var(--font-mono)] text-[color:var(--text-tertiary)]">{row.landscapeId}</span>
+                <span class="font-mono text-content-tertiary">{row.landscapeId}</span>
             {/if}
         </p>
     </section>
 
     <section class="flex flex-col gap-2" aria-label="Stages">
         <h3
-            class="m-0 text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]"
+            class="m-0 text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary"
         >
             Stages ({row.stageNames.length})
         </h3>
         {#if row.stageNames.length === 0}
-            <p class="m-0 text-[length:var(--text-sm)] text-[color:var(--text-tertiary)]">
+            <p class="m-0 text-compact text-content-tertiary">
                 No stages linked.
             </p>
         {:else}
             <ul class="m-0 flex flex-col gap-2 p-0 list-none" data-testid="artifact-detail-stages">
                 {#each row.stageNames as name, index (row.stageIds[index] ?? name)}
                     <li
-                        class="rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-subtle)] px-3 py-2"
+                        class="rounded-base border border-outline-subtle bg-surface-subtle px-3 py-2"
                     >
                         <div class="flex flex-col items-start gap-1">
                             <span>{name}</span>
                             {#if name !== row.stageIds[index]}
-                                <span class="font-[family-name:var(--font-mono)] text-[color:var(--text-tertiary)]"
+                                <span class="font-mono text-content-tertiary"
                                     >{row.stageIds[index]}</span
                                 >
                             {/if}
@@ -88,12 +88,12 @@
 
     <section class="flex flex-col gap-2" aria-label="Vector deployments">
         <h3
-            class="m-0 text-[length:var(--text-meta)] font-semibold uppercase tracking-[0.03em] text-[color:var(--text-tertiary)]"
+            class="m-0 text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary"
         >
             Vector deployments ({row.vectorDeploymentIds.length})
         </h3>
         {#if row.vectorDeploymentIds.length === 0}
-            <p class="m-0 text-[length:var(--text-sm)] text-[color:var(--text-tertiary)]">
+            <p class="m-0 text-compact text-content-tertiary">
                 No vector deployments linked.
             </p>
         {:else}
@@ -101,10 +101,10 @@
                 {#each row.vectorDeploymentIds as id, index (id)}
                     {@const related = row.relatedVectorDeployments.find((vector) => vector.id === id)}
                     <li
-                        class="rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-subtle)] px-3 py-2"
+                        class="rounded-base border border-outline-subtle bg-surface-subtle px-3 py-2"
                     >
                         <div class="flex flex-col items-start gap-1">
-                            <span class="font-[family-name:var(--font-mono)]">{id}</span>
+                            <span class="font-mono">{id}</span>
                             {#if related}
                                 <span
                                     >{related.vector.componentName}@{related.vector.componentVersion}</span

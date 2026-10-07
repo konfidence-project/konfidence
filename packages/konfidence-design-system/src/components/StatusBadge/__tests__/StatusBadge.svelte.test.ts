@@ -5,10 +5,8 @@ import { render } from "vitest-browser-svelte";
 import StatusBadgeFixture from "./StatusBadgeFixture.svelte";
 import "../../../styles/test.css";
 
-// Statuses shipped with a `.badge--<name>` CSS rule in
-// StatusBadge.svelte's scoped <style> block. StatusBadge itself
-// accepts any string (the API owns the vocabulary); this list only
-// enumerates which values currently have a styled representation.
+// Statuses with entries in StatusBadge's static utility-class map.
+// The public API still accepts any string supplied by the caller.
 const STYLED_STATUSES = [
   "healthy",
   "warning",
@@ -31,8 +29,7 @@ describe("<StatusBadge>", () => {
   }
 
   it("passes an unknown status through to the class list and data attribute", async () => {
-    // Unknown-to-CSS statuses stay renderable — StatusBadge is a
-    // passive dispatcher, not a validator.
+    // Unknown-to-map statuses stay renderable; StatusBadge does not validate them.
     await render(StatusBadgeFixture, { label: "Rolling out", status: "rolling-out" });
     const el = page.getByText("Rolling out");
     await expect.element(el).toHaveClass("badge");

@@ -45,7 +45,7 @@
         </div>
     {:else if status === "error"}
         <div
-            class="place-self-center p-6 text-center text-[var(--text-secondary)]"
+            class="place-self-center p-6 text-center text-content-secondary"
             role="alert"
         >
             <h2>Landscape could not be loaded</h2>
@@ -54,7 +54,7 @@
         </div>
     {:else if landscapes.length === 0 && stages.length === 0}
         <div
-            class="place-self-center p-6 text-center text-[var(--text-secondary)]"
+            class="place-self-center p-6 text-center text-content-secondary"
         >
             <h2>No landscapes yet</h2>
             <p>This project has no landscapes or stages to display.</p>

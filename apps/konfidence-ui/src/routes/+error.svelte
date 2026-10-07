@@ -20,12 +20,12 @@
     class="flex min-h-[calc(100vh-4px)] flex-col items-center justify-center gap-4 bg-[image:var(--gradient-hero-bg)] p-8 text-center"
 >
     <p
-        class="m-0 text-[color:var(--text-tertiary)] font-[family-name:var(--font-mono)] font-[weight:var(--weight-bold)] uppercase tracking-[0.14em] [font-size:var(--text-sm)]"
+        class="m-0 text-content-tertiary font-mono font-bold uppercase tracking-[0.14em] text-compact"
     >
         Error {status}
     </p>
     <h1
-        class="m-0 max-w-[40ch] text-[color:var(--text-primary)] font-[weight:var(--weight-display)] [font-size:var(--text-h1)] [letter-spacing:var(--tracking-h1)]"
+        class="m-0 max-w-[40ch] text-content-primary font-display text-h1 [letter-spacing:var(--tracking-h1)]"
     >
         {message}
     </h1>

@@ -22,19 +22,14 @@
     }
 
     let { variant = "default", active = false, class: className, ...rest }: KonfidenceItemProps = $props();
-
-    const BASE_CLASS =
-        "menu__item flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border-none bg-transparent px-2.5 py-2 text-left text-[length:var(--text-sm)] text-[var(--text-primary)] no-underline cursor-pointer hover:bg-[var(--surface-sunken)] focus-visible:bg-[var(--surface-sunken)] focus-visible:outline-none data-highlighted:bg-[var(--surface-sunken)] data-highlighted:outline-none";
-
-    const composedClass = $derived([
-        BASE_CLASS,
-        variant === "danger" ? "menu__item--danger" : "",
-        active ? "menu__item--active" : "",
-        className ?? "",
-    ].filter(Boolean).join(" "));
 </script>
 
-<SkMenu.Item class={composedClass} {...rest} />
+<SkMenu.Item class={[
+    "menu__item flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border-none bg-transparent px-2.5 py-2 text-left text-compact text-content-primary no-underline cursor-pointer hover:bg-surface-sunken focus-visible:bg-surface-sunken focus-visible:outline-none data-highlighted:bg-surface-sunken data-highlighted:outline-none",
+    variant === "danger" && "menu__item--danger",
+    active && "menu__item--active",
+    className,
+]} {...rest} />
 
 <style>
     :global(.menu__item--active) {
@@ -52,7 +47,7 @@
     }
     :global(.menu__item) :global(.menu__desc) {
         display: block;
-        font-size: var(--text-meta);
+        font-size: var(--font-size-meta);
         color: var(--text-tertiary);
         font-weight: var(--weight-regular);
         margin-top: 1px;

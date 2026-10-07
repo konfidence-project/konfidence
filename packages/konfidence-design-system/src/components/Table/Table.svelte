@@ -12,11 +12,11 @@
     let { class: className, header, body, caption, ...rest }: Props = $props();
 </script>
 
-<div class="overflow-hidden rounded-[var(--card-radius)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-card)] shadow-[var(--card-shadow)]">
+<div class="overflow-hidden rounded-[var(--card-radius)] border border-outline-subtle bg-surface-card shadow-[var(--card-shadow)]">
     <div class="max-h-[min(65vh,45rem)] overflow-auto">
         <table
             class={[
-                "w-full border-collapse text-[length:var(--text-sm)] text-[color:var(--text-primary)]",
+                "w-full border-collapse text-compact text-content-primary",
                 "[font-variant-numeric:tabular-nums]",
                 className,
             ]}
@@ -30,17 +30,3 @@
         </table>
     </div>
 </div>
-
-<style>
-    .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-    }
-</style>

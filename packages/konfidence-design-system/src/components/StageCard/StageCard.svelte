@@ -42,8 +42,12 @@
 
 <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- The consumer is responsible for supplying a resolved URL. -->
 <a {href}
-    class="stage-card box-border relative flex h-64 w-full flex-col gap-3 overflow-hidden rounded-[var(--card-radius)] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 pt-[calc(var(--space-4)+3px)] text-[var(--text-primary)] no-underline shadow-[var(--shadow-sm)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--border-focus)]"
-    class:stage-card--selected={selected}
+    class={[
+        "stage-card box-border relative flex h-64 w-full flex-col gap-3 overflow-hidden rounded-[var(--card-radius)] border border-outline-subtle bg-surface-card p-4 pt-[calc(var(--space-4)+3px)] text-content-primary no-underline shadow-elevation-sm",
+        "transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-elevation-md not-[.stage-card--selected]:hover:border-outline-focus motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+        "focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-outline-focus",
+        selected && "stage-card--selected",
+    ]}
     data-status={statusRole}
     style:--stage-accent={stageAccent}
     aria-label={ariaLabel}
@@ -57,17 +61,17 @@
 
     <header class="flex items-baseline gap-3">
         <h4
-            class="m-0 truncate text-[length:var(--text-body)] font-bold"
+            class="m-0 truncate text-body font-bold"
             {title}
         >
             {title}
         </h4>
         {#if live}
             <span
-                class="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[length:var(--text-meta)] font-semibold text-[var(--status-healthy-fg)]"
+                class="ml-auto inline-flex shrink-0 items-center gap-1.5 text-meta font-semibold text-status-healthy-fg"
             >
                 <span
-                    class="size-2 shrink-0 rounded-full bg-[var(--status-healthy-solid)]"
+                    class="size-2 shrink-0 rounded-full bg-status-healthy-solid"
                     aria-hidden="true"
                 ></span>
                 live
@@ -76,28 +80,28 @@
     </header>
 
     <div class="flex min-h-14 flex-col gap-1">
-        <span class="text-[length:var(--text-meta)] text-[var(--text-tertiary)]"
+        <span class="text-meta text-content-tertiary"
             >Target vector</span
         >
         {#if targetVector}
             <span
-                class="line-clamp-2 font-[family-name:var(--font-mono)] text-[length:var(--text-sm)] leading-normal [overflow-wrap:anywhere]"
+                class="line-clamp-2 font-mono text-compact leading-normal [overflow-wrap:anywhere]"
                 title={targetVector}>{targetVector}</span
             >
         {:else}
             <span
-                class="text-[length:var(--text-sm)] text-[var(--text-secondary)]"
+                class="text-compact text-content-secondary"
                 >No target version yet</span
             >
         {/if}
     </div>
 
     <div class="flex flex-col gap-1">
-        <span class="text-[length:var(--text-meta)] text-[var(--text-tertiary)]"
+        <span class="text-meta text-content-tertiary"
             >Active version</span
         >
         <span
-            class="truncate text-[length:var(--text-sm)] text-[var(--text-secondary)]"
+            class="truncate text-compact text-content-secondary"
             title={activeVersionText}
         >
             {activeVersionText}
@@ -105,7 +109,7 @@
     </div>
 
     <footer
-        class="mt-auto border-t border-[var(--border-subtle)] pt-3"
+        class="mt-auto border-t border-outline-subtle pt-3"
         id={statusId}
     >
         <StagePhase {phases} ariaLabel={phaseAriaLabel} />
@@ -127,18 +131,5 @@
             0 0 0 3px
                 color-mix(in srgb, var(--stage-accent) 32%, transparent),
             var(--shadow-md);
-    }
-
-    .stage-card:not(.stage-card--selected):hover {
-        border-color: var(--border-focus);
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .stage-card {
-            transition: none;
-        }
-        .stage-card:hover {
-            transform: none;
-        }
     }
 </style>

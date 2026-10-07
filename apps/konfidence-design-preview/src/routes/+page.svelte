@@ -50,33 +50,38 @@
     ];
 </script>
 
-<div class="page">
-    <aside class="toc" aria-label="Sections">
-        <p class="toc__title">Sections</p>
+<div class="page grid grid-cols-[220px_1fr] items-start gap-8 [@media(max-width:900px)]:grid-cols-1">
+    <aside class="toc sticky top-[68px] max-h-[calc(100vh-88px)] overflow-y-auto py-2 pr-1 [@media(max-width:900px)]:static" aria-label="Sections">
+        <p class="toc__title mb-2 px-2 text-meta font-semibold tracking-[0.06em] text-content-tertiary uppercase">Sections</p>
         <nav>
-            <ol>
+            <ol class="m-0 list-none p-0">
                 {#each TOC as entry (entry.id)}
                     <li>
-                        <a href={`#${entry.id}`}>
+                        <a class="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-compact text-content-secondary no-underline hover:bg-surface-subtle hover:text-content-primary" href={`#${entry.id}`}>
                             <span>{entry.label}</span>
-                            <span class="toc__dot" data-status={entry.status} aria-hidden="true"></span>
+                            <span class={[
+                                "toc__dot inline-block size-2 rounded-full",
+                                entry.status === "implemented" && "bg-status-healthy-solid",
+                                entry.status === "partial" && "bg-status-warning-solid",
+                                entry.status === "placeholder" && "bg-outline-default",
+                            ]} data-status={entry.status} aria-hidden="true"></span>
                         </a>
                     </li>
                 {/each}
             </ol>
         </nav>
-        <div class="toc__legend">
-            <span><span class="toc__dot" data-status="implemented"></span>Live</span>
-            <span><span class="toc__dot" data-status="partial"></span>Partial</span>
-            <span><span class="toc__dot" data-status="placeholder"></span>Pending</span>
+        <div class="toc__legend mt-4 flex flex-col gap-1 px-2.5 py-2 text-meta text-content-tertiary [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5">
+            <span><span class="toc__dot inline-block size-2 rounded-full bg-status-healthy-solid" data-status="implemented"></span>Live</span>
+            <span><span class="toc__dot inline-block size-2 rounded-full bg-status-warning-solid" data-status="partial"></span>Partial</span>
+            <span><span class="toc__dot inline-block size-2 rounded-full bg-outline-default" data-status="placeholder"></span>Pending</span>
         </div>
     </aside>
 
     <div class="gallery">
-        <header class="gallery__header">
-            <p class="gallery__eyebrow">Style guide</p>
-            <h1 class="gallery__title">Konfidence design system</h1>
-            <p class="gallery__lead">
+        <header class="gallery__header mb-8">
+            <p class="gallery__eyebrow mb-1.5 text-meta font-semibold tracking-[0.06em] text-content-tertiary uppercase">Style guide</p>
+            <h1 class="gallery__title mb-3 text-display font-display tracking-[-1px] text-content-primary">Konfidence design system</h1>
+            <p class="gallery__lead m-0 max-w-[720px] text-body leading-[1.6] text-content-secondary">
                 Explore the design tokens, components and patterns below. Pending components
                 include a list of planned primitives and a link to the roadmap.
             </p>
@@ -107,127 +112,3 @@
         <Overlays />
     </div>
 </div>
-
-<style>
-    .page {
-        display: grid;
-        grid-template-columns: 220px 1fr;
-        gap: 32px;
-        align-items: start;
-    }
-
-    @media (max-width: 900px) {
-        .page {
-            grid-template-columns: 1fr;
-        }
-        .toc {
-            position: static !important;
-        }
-    }
-
-    .toc {
-        position: sticky;
-        top: 68px;
-        max-height: calc(100vh - 88px);
-        overflow-y: auto;
-        padding: 8px 4px 8px 0;
-    }
-
-    .toc__title {
-        margin: 0 0 8px;
-        padding: 0 8px;
-        font-size: var(--text-meta);
-        font-weight: var(--weight-semibold, 600);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--text-tertiary, var(--text-secondary));
-    }
-
-    .toc nav ol {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .toc nav a {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        padding: 6px 10px;
-        border-radius: 6px;
-        color: var(--text-secondary);
-        text-decoration: none;
-        font-size: var(--text-sm);
-    }
-
-    .toc nav a:hover {
-        background: var(--surface-subtle);
-        color: var(--text-primary);
-    }
-
-    .toc__dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        display: inline-block;
-        background: var(--text-tertiary, var(--text-secondary));
-    }
-
-    .toc__dot[data-status="implemented"] {
-        background: var(--status-healthy-solid, #17b26a);
-    }
-
-    .toc__dot[data-status="partial"] {
-        background: var(--status-warning-solid, #f79009);
-    }
-
-    .toc__dot[data-status="placeholder"] {
-        background: var(--border-default, var(--border-subtle));
-    }
-
-    .toc__legend {
-        margin-top: 16px;
-        padding: 8px 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        font-size: var(--text-meta);
-        color: var(--text-tertiary, var(--text-secondary));
-    }
-
-    .toc__legend span {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .gallery__header {
-        margin-bottom: 32px;
-    }
-
-    .gallery__eyebrow {
-        margin: 0 0 6px;
-        font-size: var(--text-meta);
-        font-weight: var(--weight-semibold, 600);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--text-tertiary, var(--text-secondary));
-    }
-
-    .gallery__title {
-        margin: 0 0 12px;
-        font-size: var(--text-display, 36px);
-        font-weight: var(--weight-display, 600);
-        letter-spacing: -1px;
-        color: var(--text-primary);
-    }
-
-    .gallery__lead {
-        margin: 0;
-        max-width: 720px;
-        color: var(--text-secondary);
-        font-size: var(--text-body);
-        line-height: 1.6;
-    }
-</style>
