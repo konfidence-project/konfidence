@@ -529,6 +529,80 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		gomega.Expect(untouched.OwnerReferences).To(gomega.BeEmpty(), "foreign ArtifactDeployment must not be adopted")
 	})
 
+	It("should report Stalled once the collision salt is exhausted", func() {
+		ctx := context.Background()
+
+		const (
+			exhaustedOcmName   = "exhausted.konfidence.cloud.example.vector-0.3.0"
+			collidingComponent = "github.com/konfidence-project/sample-service-1"
+			collidingVersion   = "0.0.1"
+			// The controller gives up when the name for salt 5 still collides. Each bump requeues after a second.
+			lastSalt         = 5
+			exhaustedTimeout = 30 * time.Second
+		)
+
+		vectorDescriptor := VectorDescriptor{
+			References: []compref.Ref{
+				{
+					Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
+					Component:  collidingComponent,
+					Version:    collidingVersion,
+				},
+			},
+			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +
+				`"version":"0.3.0","creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project",` +
+				`"resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1",` +
+				`"componentName":"github.com/konfidence-project/sample-service-1",` +
+				`"digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
+		}
+		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(vectorDescriptor, nil).AnyTimes()
+		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).
+			Return(ArtifactManifest{Type: "cloud.konfidence.flux.helm", AllowReuse: true}, nil).AnyTimes()
+
+		By("Occupying every salted name with a foreign ArtifactDeployment")
+		for salt := int32(0); salt <= lastSalt; salt++ {
+			name, _, err := ConstructArtifactDeploymentName(collidingComponent, collidingVersion, nil, salt)
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
+			gomega.Expect(k8sClient.Create(ctx, &konfidence.ArtifactDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: testNamespace,
+					Annotations: map[string]string{
+						pkgctrl.ArtifactComponentAnnotation: "github.com/konfidence-project/some-other-service",
+						pkgctrl.ArtifactVersionAnnotation:   "9.9.9",
+						pkgctrl.AllowReuseAnnotation:        "true",
+					},
+				},
+				Spec: konfidence.ArtifactDeploymentSpec{
+					Manifest:      konfidence.ArtifactManifest{Type: "cloud.konfidence.flux.helm", AllowReuse: true},
+					TaskManifests: []konfidence.TaskManifest{},
+					Component:     konfidence.OCMComponent{Name: "github.com/konfidence-project/some-other-service", Version: "9.9.9"},
+				},
+			})).To(gomega.Succeed())
+		}
+
+		By("Creating the VectorDeployment")
+		gomega.Expect(k8sClient.Create(ctx, &konfidence.VectorDeployment{
+			TypeMeta:   metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
+			ObjectMeta: metav1.ObjectMeta{Name: exhaustedOcmName, Namespace: testNamespace},
+			Spec:       konfidence.VectorDeploymentSpec{Vector: vectorReference},
+		})).To(gomega.Succeed())
+
+		By("Verifying it goes Stalled=True with the naming collision reason and Ready=False")
+		actual := &konfidence.VectorDeployment{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: exhaustedOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			stalled := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(stalled).ToNot(gomega.BeNil())
+			g.Expect(stalled.Status).To(gomega.Equal(metav1.ConditionTrue))
+			g.Expect(stalled.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision))
+			ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
+			g.Expect(ready).ToNot(gomega.BeNil())
+			g.Expect(ready.Status).To(gomega.Equal(metav1.ConditionFalse))
+			g.Expect(ready.Reason).To(gomega.Equal(konfidence.VectorReadyReasonStalled))
+		}, exhaustedTimeout, interval).Should(gomega.Succeed())
+	})
+
 	It("should surface a stalled ArtifactDeployment on the parent VectorDeployment", func() {
 		ctx := context.Background()
 
