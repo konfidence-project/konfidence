@@ -24,17 +24,17 @@
     "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "26.6.3",
-    "@typescript-eslint/parser": "^8.70.1",
-    "eslint": "^10.11.0",
+    "@types/node": "26.6.4",
+    "@typescript-eslint/parser": "^8.71.0",
+    "eslint": "^10.12.0",
     "eslint-plugin-svelte": "^3.23.0",
-    "oxfmt": "^0.70.0",
-    "oxlint": "^1.85.0",
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
     "svelte": "^5.57.1",
     "svelte-check": "^4.7.6",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "typescript-native": "npm:typescript@^7.0.2",
-    "vite": "^8.3.1"
+    "vite": "^8.3.2"
   }
 }
