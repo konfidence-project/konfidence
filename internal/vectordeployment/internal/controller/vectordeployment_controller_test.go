@@ -673,7 +673,9 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing))
 		}, timeout, interval).Should(gomega.Succeed())
 
-		By("Verifying a stalled ArtifactDeployment does not progress the vector")
+		// The child is not Ready, so the vector cannot progress either way. What the stall controls is that
+		// Stalled holds across reconciles and Ready is left alone rather than written False.
+		By("Verifying the stall holds and leaves Ready untouched")
 		gomega.Consistently(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
 
@@ -681,8 +683,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(stalledCondition).ToNot(gomega.BeNil())
 			g.Expect(stalledCondition.Status).To(gomega.Equal(metav1.ConditionTrue))
 
-			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeFalse())
-			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorDeployedCondition)).To(gomega.BeFalse())
+			g.Expect(meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeNil())
 		}, time.Second, interval).Should(gomega.Succeed())
 
 		By("Marking the ArtifactDeployment as successfully reconciled")
@@ -710,7 +711,8 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(vectorAssignmentList.Items).To(gomega.HaveLen(1))
 		}, timeout, interval).Should(gomega.Succeed())
 		vectorAssignment := &konfidence.VectorAssignment{}
-		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: vectorAssignmentList.Items[0].Name, Namespace: testNamespace}, vectorAssignment)).To(gomega.Succeed())
+		vectorAssignmentKey := types.NamespacedName{Name: vectorAssignmentList.Items[0].Name, Namespace: testNamespace}
+		gomega.Expect(k8sClient.Get(ctx, vectorAssignmentKey, vectorAssignment)).To(gomega.Succeed())
 		meta.SetStatusCondition(&vectorAssignment.Status.Conditions, metav1.Condition{
 			Type:               konfidence.VectorAssignmentReadyCondition,
 			Status:             metav1.ConditionTrue,

@@ -67,10 +67,15 @@ var _ = Describe("Stalled condition", func() {
 	Context("aggregating stalled ArtifactDeployments", func() {
 		// The named ArtifactDeployment must not depend on observation order, or the message flaps.
 		It("should pick the same ArtifactDeployment regardless of input order", func() {
+			stalledConditions := []metav1.Condition{{
+				Type:   konfidence.StalledCondition,
+				Status: metav1.ConditionTrue,
+				Reason: konfidence.ArtifactDeploymentStalledReasonManifestMissing,
+			}}
 			forward := []*konfidence.ArtifactDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: artifactName}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "artifact-b"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "artifact-c"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: artifactName}, Status: konfidence.ArtifactDeploymentStatus{Conditions: stalledConditions}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "artifact-b"}, Status: konfidence.ArtifactDeploymentStatus{Conditions: stalledConditions}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "artifact-c"}, Status: konfidence.ArtifactDeploymentStatus{Conditions: stalledConditions}},
 			}
 			reversed := []*konfidence.ArtifactDeployment{forward[2], forward[1], forward[0]}
 
