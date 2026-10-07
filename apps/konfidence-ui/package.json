@@ -29,8 +29,8 @@
     "@humanspeak/svelte-headless-table": "^6.4.0",
     "@konfidence/api-client": "workspace:*",
     "@konfidence/design-system": "workspace:*",
-    "@skeletonlabs/skeleton": "^5.0.0",
-    "@skeletonlabs/skeleton-svelte": "^5.0.0",
+    "@skeletonlabs/skeleton": "^5.0.1",
+    "@skeletonlabs/skeleton-svelte": "^5.0.1",
     "@ui5/webcomponents": "^2.27.2",
     "@ui5/webcomponents-icons": "^2.27.2",
     "@xyflow/svelte": "^1.7.0",
@@ -57,6 +57,6 @@
     "typescript-native": "npm:typescript@^7.0.2",
     "vite": "^8.3.1",
     "vitest": "^5.0.2",
-    "vitest-browser-svelte": "^3.0.0"
+    "vitest-browser-svelte": "^3.1.0"
   }
 }
