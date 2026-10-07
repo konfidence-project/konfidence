@@ -194,6 +194,21 @@ var _ = Describe("Stalled condition", func() {
 			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
 		})
 
+		DescribeTable("should not count a stalled ArtifactDeployment as ready",
+			func(ready, stalled metav1.ConditionStatus, expectReady bool) {
+				artifactDeployment := &konfidence.ArtifactDeployment{}
+				artifactDeployment.Status.Conditions = []metav1.Condition{
+					{Type: konfidence.ArtifactDeploymentReadyCondition, Status: ready, Reason: "Test"},
+					{Type: konfidence.StalledCondition, Status: stalled, Reason: "Test"},
+				}
+
+				Expect(isArtifactDeploymentReady(artifactDeployment)).To(Equal(expectReady))
+			},
+			Entry("ready and not stalled", metav1.ConditionTrue, metav1.ConditionFalse, true),
+			Entry("ready and stalled", metav1.ConditionTrue, metav1.ConditionTrue, false),
+			Entry("not ready", metav1.ConditionFalse, metav1.ConditionFalse, false),
+		)
+
 		It("should pick nothing from an empty set", func() {
 			_, ok := pickStalledArtifactDeployment(nil)
 			Expect(ok).To(BeFalse())
