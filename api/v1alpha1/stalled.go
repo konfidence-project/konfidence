@@ -3,11 +3,11 @@ package v1alpha1
 // StalledCondition reports that a resource cannot progress without manual intervention.
 // Shared by VectorDeployment and ArtifactDeployment.
 //
-// Abnormal-true: Status=True means blocked. Orthogonal to the lifecycle conditions, so a
-// resource can be mid-pipeline and stalled at once. The blocking cause is carried in Reason.
+// Abnormal-true: Status=True means blocked and Reason carries the cause. A resource can stall
+// at any point in its lifecycle. Stalled=True implies Ready=False.
 //
-// Controllers must write it on every reconcile, False when nothing blocks, so that an
-// absent Stalled means only that the object has never been reconciled.
+// Controllers write it once they have evaluated what could block, False when nothing does.
+// An absent Stalled means that evaluation has not happened yet.
 const StalledCondition = "Stalled"
 
 // StalledReasonNotStalled is the reason carried by Stalled=False.
