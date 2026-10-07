@@ -72,6 +72,13 @@ func reportStalledArtifactDeployments(vectorDeployment *konfidence.VectorDeploym
 		stalledArtifactDeploymentMessage(*picked, len(stalled)))
 }
 
+// isArtifactDeploymentReady treats a stalled ArtifactDeployment as not ready, so the vector cannot reach Ready=True
+// past one even if a deployer reports both.
+func isArtifactDeploymentReady(artifactDeployment *konfidence.ArtifactDeployment) bool {
+	return meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.ArtifactDeploymentReadyCondition) &&
+		!meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.StalledCondition)
+}
+
 // collectStalledArtifactDeployment returns the ArtifactDeployment's stall details if it reports Stalled=True.
 func collectStalledArtifactDeployment(artifactDeployment *konfidence.ArtifactDeployment) (stalledArtifactDeployment, bool) {
 	condition := meta.FindStatusCondition(artifactDeployment.Status.Conditions, konfidence.StalledCondition)
@@ -88,7 +95,6 @@ func collectStalledArtifactDeployment(artifactDeployment *konfidence.ArtifactDep
 
 // pickStalledArtifactDeployment picks the first ArtifactDeployment from the sorted list so selection is stable.
 // This is important for the message to remain consistent across reconciliations.
-// It also returns true or false to indicate whether a deployment was picked.
 func pickStalledArtifactDeployment(artifactDeployments []stalledArtifactDeployment) *stalledArtifactDeployment {
 	if len(artifactDeployments) == 0 {
 		return nil

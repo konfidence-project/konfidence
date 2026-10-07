@@ -31,7 +31,7 @@ var _ = Describe("Stalled condition", func() {
 		It("should write Stalled=False when nothing blocks", func() {
 			vectorDeployment := newVectorDeployment(3)
 
-			clearStalled(vectorDeployment)
+			clearStalledCondition(vectorDeployment)
 
 			condition := stalledCondition(vectorDeployment)
 			Expect(condition).ToNot(BeNil())
@@ -78,7 +78,7 @@ var _ = Describe("Stalled condition", func() {
 			vectorDeployment := newVectorDeployment(1)
 
 			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
-			clearStalled(vectorDeployment)
+			clearStalledCondition(vectorDeployment)
 
 			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
 		})
@@ -87,7 +87,7 @@ var _ = Describe("Stalled condition", func() {
 			vectorDeployment := newVectorDeployment(1)
 
 			setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
-			clearStalled(vectorDeployment)
+			clearStalledCondition(vectorDeployment)
 
 			Expect(meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeNil())
 		})
@@ -100,7 +100,7 @@ var _ = Describe("Stalled condition", func() {
 				Reason: konfidence.VectorReadyCondition,
 			})
 
-			clearStalled(vectorDeployment)
+			clearStalledCondition(vectorDeployment)
 
 			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeTrue())
 		})
@@ -153,10 +153,10 @@ var _ = Describe("Stalled condition", func() {
 			}
 			reversed := []stalledArtifactDeployment{forward[2], forward[1], forward[0]}
 
-			first, ok := pickStalledArtifactDeployment(forward)
-			Expect(ok).To(BeTrue())
-			second, ok := pickStalledArtifactDeployment(reversed)
-			Expect(ok).To(BeTrue())
+			first := pickStalledArtifactDeployment(forward)
+			Expect(first).ToNot(BeNil())
+			second := pickStalledArtifactDeployment(reversed)
+			Expect(second).ToNot(BeNil())
 
 			Expect(first.name).To(Equal(second.name))
 			Expect(first.name).To(Equal(artifactName))
@@ -206,8 +206,7 @@ var _ = Describe("Stalled condition", func() {
 		)
 
 		It("should pick nothing from an empty set", func() {
-			_, ok := pickStalledArtifactDeployment(nil)
-			Expect(ok).To(BeFalse())
+			Expect(pickStalledArtifactDeployment(nil)).To(BeNil())
 		})
 
 		It("should name the ArtifactDeployment and its reason in the message", func() {

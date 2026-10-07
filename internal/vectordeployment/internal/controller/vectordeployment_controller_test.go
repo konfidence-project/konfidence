@@ -652,9 +652,16 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}, timeout, interval).Should(gomega.Succeed())
 		artifactDeploymentName := artifactDeploymentList.Items[0].Name
 
-		By("Marking the ArtifactDeployment as stalled, as a deployer would")
+		By("Marking the ArtifactDeployment as ready and stalled, as a deployer would")
 		artifactDeployment := &konfidence.ArtifactDeployment{}
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
+		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+			Type:               konfidence.ArtifactDeploymentReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.ArtifactDeploymentReadyCondition,
+			Message:            "ready but still stalled",
+			ObservedGeneration: artifactDeployment.Generation,
+		})
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
 			Type:               konfidence.StalledCondition,
 			Status:             metav1.ConditionTrue,
@@ -677,15 +684,16 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing))
 		}, timeout, interval).Should(gomega.Succeed())
 
-		// The child is never Ready in this spec, so only an explicit Ready=False/Stalled proves setStalled wrote it.
-		By("Verifying the stall wrote Ready=False")
+		By("Verifying ArtifactDeployment Ready=True does not progress the vector while Stalled=True")
 		ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
 		gomega.Expect(ready).ToNot(gomega.BeNil())
 		gomega.Expect(ready.Status).To(gomega.Equal(metav1.ConditionFalse))
 		gomega.Expect(ready.Reason).To(gomega.Equal(konfidence.VectorReadyReasonStalled))
 		gomega.Expect(ready.Message).To(gomega.Equal(meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition).Message))
+		gomega.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeFalse())
+		gomega.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorDeployedCondition)).To(gomega.BeFalse())
 
-		By("Clearing the stall on the ArtifactDeployment")
+		By("Marking the ArtifactDeployment as successfully reconciled")
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
 			Type:               konfidence.StalledCondition,
@@ -694,18 +702,53 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			Message:            "No blocking condition detected",
 			ObservedGeneration: artifactDeployment.Generation,
 		})
+		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+			Type:               konfidence.ArtifactDeploymentReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.ArtifactDeploymentReadyCondition,
+			Message:            "simulated by envtest",
+			ObservedGeneration: artifactDeployment.Generation,
+		})
 		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
 
-		By("Verifying the parent recovers to Stalled=False once the cause is gone")
+		By("Marking the VectorAssignment as ready")
+		vectorAssignmentList := &konfidence.VectorAssignmentList{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.List(ctx, vectorAssignmentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
+			g.Expect(vectorAssignmentList.Items).To(gomega.HaveLen(1))
+		}, timeout, interval).Should(gomega.Succeed())
+		vectorAssignment := &konfidence.VectorAssignment{}
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: vectorAssignmentList.Items[0].Name, Namespace: testNamespace}, vectorAssignment)).To(gomega.Succeed())
+		meta.SetStatusCondition(&vectorAssignment.Status.Conditions, metav1.Condition{
+			Type:               konfidence.VectorAssignmentReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.VectorAssignmentReadyCondition,
+			Message:            "simulated by envtest",
+			ObservedGeneration: vectorAssignment.Generation,
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, vectorAssignment)).To(gomega.Succeed())
+
+		By("Marking the VectorData as ready")
+		vectorData := &konfidence.VectorData{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, vectorData)).To(gomega.Succeed())
+		}, timeout, interval).Should(gomega.Succeed())
+		meta.SetStatusCondition(&vectorData.Status.Conditions, metav1.Condition{
+			Type:               konfidence.VectorDataReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.VectorDataReasonMaterialized,
+			Message:            "simulated by envtest",
+			ObservedGeneration: vectorData.Generation,
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, vectorData)).To(gomega.Succeed())
+
+		By("Verifying the parent recovers and becomes ready once the ArtifactDeployment succeeds")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
-			condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
-			g.Expect(condition).ToNot(gomega.BeNil())
-			g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionFalse))
-			ready = meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
-			if ready != nil {
-				g.Expect(ready.Reason).ToNot(gomega.Equal(konfidence.VectorReadyReasonStalled))
-			}
+			stalledCondition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(stalledCondition).ToNot(gomega.BeNil())
+			g.Expect(stalledCondition.Status).To(gomega.Equal(metav1.ConditionFalse))
+			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 	})
 })

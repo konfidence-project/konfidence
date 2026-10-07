@@ -372,7 +372,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				deploymentResults[artifactRef.Component] = artifactDeployment.Status.DeploymentResults
 			}
 		}
-		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.ArtifactDeploymentReadyCondition) {
+		if !isArtifactDeploymentReady(artifactDeployment) {
 			allReady = false
 		}
 
@@ -402,6 +402,8 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		LastTransitionTime: metav1.Now(),
 	})
 
+	reportStalledArtifactDeployments(vectorDeployment, artifactDeployments)
+
 	if allReady {
 		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 			Type:               konfidence.VectorDeployedCondition,
@@ -411,8 +413,6 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 			ObservedGeneration: vectorDeployment.Generation,
 			LastTransitionTime: metav1.Now(),
 		})
-	} else {
-		reportStalledArtifactDeployments(vectorDeployment, artifactDeployments)
 	}
 
 	return allReady, nil
