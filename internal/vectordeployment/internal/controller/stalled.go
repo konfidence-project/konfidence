@@ -35,9 +35,8 @@ func setStalled(vectorDeployment *konfidence.VectorDeployment, reason, message s
 	})
 }
 
-// clearStalled records that this reconcile found nothing blocking. Called on every pass that gets through the
-// ArtifactDeployments, so a healthy vector carries Stalled=False rather than no condition at all.
-func clearStalled(vectorDeployment *konfidence.VectorDeployment) {
+// clearStalledCondition records that this reconcile found nothing blocking.
+func clearStalledCondition(vectorDeployment *konfidence.VectorDeployment) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StalledCondition,
 		Status:             metav1.ConditionFalse,
@@ -63,21 +62,14 @@ func reportStalledArtifactDeployments(vectorDeployment *konfidence.VectorDeploym
 		}
 	}
 
-	picked, ok := pickStalledArtifactDeployment(stalled)
-	if !ok {
-		clearStalled(vectorDeployment)
+	picked := pickStalledArtifactDeployment(stalled)
+	if picked == nil {
+		clearStalledCondition(vectorDeployment)
 		return
 	}
 
 	setStalled(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled,
-		stalledArtifactDeploymentMessage(picked, len(stalled)))
-}
-
-// isArtifactDeploymentReady treats a stalled ArtifactDeployment as not ready, so the vector cannot reach Ready=True
-// past one even if a deployer reports both.
-func isArtifactDeploymentReady(artifactDeployment *konfidence.ArtifactDeployment) bool {
-	return meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.ArtifactDeploymentReadyCondition) &&
-		!meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.StalledCondition)
+		stalledArtifactDeploymentMessage(*picked, len(stalled)))
 }
 
 // collectStalledArtifactDeployment returns the ArtifactDeployment's stall details if it reports Stalled=True.
@@ -94,16 +86,17 @@ func collectStalledArtifactDeployment(artifactDeployment *konfidence.ArtifactDep
 	}, true
 }
 
-// pickStalledArtifactDeployment chooses which ArtifactDeployment the parent names. Lowest name wins: arbitrary, but
-// stable, so the message does not flap as ArtifactDeployments reconcile in informer order.
-func pickStalledArtifactDeployment(artifactDeployments []stalledArtifactDeployment) (stalledArtifactDeployment, bool) {
+// pickStalledArtifactDeployment picks the first ArtifactDeployment from the sorted list so selection is stable.
+// This is important for the message to remain consistent across reconciliations.
+// It also returns true or false to indicate whether a deployment was picked.
+func pickStalledArtifactDeployment(artifactDeployments []stalledArtifactDeployment) *stalledArtifactDeployment {
 	if len(artifactDeployments) == 0 {
-		return stalledArtifactDeployment{}, false
+		return nil
 	}
 
 	sort.Slice(artifactDeployments, func(i, j int) bool { return artifactDeployments[i].name < artifactDeployments[j].name })
 
-	return artifactDeployments[0], true
+	return &artifactDeployments[0]
 }
 
 func stalledArtifactDeploymentMessage(artifactDeployment stalledArtifactDeployment, total int) string {
