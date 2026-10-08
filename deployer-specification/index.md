@@ -1,115 +1,104 @@
-> The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “NOT RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all capitals.
-
 # Deployer specification
 
-## 1. Scope and language
+## Preamble
 
-* Interface consists of resources in `konfidence.cloud/v1alpha1` and their status. Kubernetes is the control-plane API, even when the deployment destination is not Kubernetes.
-* Go library as convenience framework, taking care of boilerplate that will be similar for most deployers. Use of Go library is not mandatory, deployers can work without it.  
-* Spec assumes reader is familiar with Konfidence concepts
-* Use RFC 2119 wording to ensure requirement levels are correctly understood
+Status: **Draft**.
 
-## 2. Shared lifecycle and ownership
+The destination managed by a deployer can be a Kubernetes cluster or another platform.
+This specification defines the behavior expected of a deployer for the resources created by Konfidence core.
+The communication between Konfidence core and a deployer happens solely via the resources in the `konfidence.cloud/v1alpha1` control-plane API and their status.
 
-* Konfidence core create vector; deployer realizes its artifacts and related data on a target runtime
-* deployer installation + configuration: `DeploymentClass` -> `DeploymentTarget`
-* core deployment lifecycle: `VectorDeployment` -> `ArtifactDeployment` ->  deployment results -> `VectorData` 
-* core migration lifecycle: `VectorMigration` -> `TaskExecution` 
-* core activation lifecycle: `ActivationTaskRegistration` -> `ActivationTaskExecution`
+The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** in this document are to be interpreted as described in BCP 14 ([RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174)) when, and only when, they appear in all capitals.
+Open decisions and potential future changes are outlined where possible and are not conformance requirements.
 
-Resource-specific sections use this template: 
-* ownership and resource selection 
-* interpretation of inputs / generic fields
-* processing and guarantees, failure/retry handling
-* Status reporting via conditions 
-* resource deletion and undeployment
-* Optional behavior
+## 1. Artifact types and packaging contracts
 
-## 3. DeploymentClass
+### 1.1 Identifier
 
+An artifact type consists of a vendor-owned domain, a descriptive type, and a contract version:
 
-A `DeploymentClass` declares an artifact deployment capability and identifies the controller responsible for it.
-It is cluster-scoped.
-
-```yaml
-apiVersion: konfidence.cloud/v1alpha1
-kind: DeploymentClass
-metadata:
-  name: myclass.example.com
-spec:
-  controller: example.com/my-deployer
+```bnf
+<artifact-type>  ::= <type-name> ":" <version>
+<type-name>      ::= <domain> "/" <type>
+<domain>         ::= <label> "." <label> | <label> "." <domain>
+<type>           ::= <label>
+<label>          ::= <alphanumeric> | <alphanumeric> <label-middle> <alphanumeric>
+<label-middle>   ::= "" | <label-character> <label-middle>
+<label-character> ::= <alphanumeric> | "-"
+<alphanumeric>   ::= <lowercase-letter> | <digit>
+<lowercase-letter> ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
+<digit>          ::= "0" | <nonzero-digit>
+<version>        ::= "v" <positive-integer> | "v" <positive-integer> "alpha" <positive-integer> | "v" <positive-integer> "beta" <positive-integer>
+<positive-integer> ::= <nonzero-digit> | <nonzero-digit> <digits>
+<digits>         ::= <digit> | <digit> <digits>
+<nonzero-digit>  ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 ```
 
-### 3.1 Ownership and resource selection
+For example, `konfidence.cloud/helm:v1alpha1` names the first alpha version of the Helm artifact contract maintained by `konfidence.cloud`.
 
-A deployer MUST provide exactly one `DeploymentClass` for each artifact deployment class it implements.
-A deployer SHOULD come with at least one `DeploymentClass`.
+The `<domain>` MUST be a lowercase DNS name controlled by the deployer provider.
+Each domain label MUST satisfy the DNS length limit of 63 octets.
 
-[//]: # (TODO should we include following sentence or not?)
-Installation of the `DeploymentClass` SHOULD be performed by packaging rather than by a controller at runtime.
-Before reconciling any resource, the deployer MUST verify that the referenced `DeploymentClass` exists and that its `spec.controller` equals the identifier of the reconciling controller.
-It MUST NOT reconcile a resource whose class names another controller, even if the class name is otherwise recognized by the deployer.
-Other resources referencing the `DeploymentClass` may already exist when the class is installed.
+The `<type>` is a separate identifier and MUST NOT exceed 63 characters under this grammar.
+The `<type>` SHOULD describe the artifact's packaging format or deployment mechanism, such as `helm` or `kustomize`.
 
-The deployer MUST use the `DeploymentClass.metadata.name` as the class identifier.
-Other resources select it through a `spec.deploymentClassName` field.
-These references MUST be matched exactly to the class name.
+The version identifies how the artifact's deployment payload is interpreted.
+A deployer release MAY support several artifact contract versions.
 
-[//]: # (TODO rename ArtifactDeployment.spec.manifest.type to ArtifactDeployment.spec.deploymentClassName)
+Version identifiers SHOULD follow the [Kubernetes API versioning convention](https://kubernetes.io/docs/reference/using-api/#api-versioning): `v1alpha1` is alpha, `v1beta1` is beta, and `v1` is stable.
+An alpha contract MAY change without preserving compatibility.
+A beta contract SHOULD preserve compatibility as it evolves.
+A stable contract MUST preserve compatibility within its major version.
+Any incompatible change requires a new major version.
+A provider MUST use a distinct version identifier whenever the payload contract changes in a way that a deployer supporting the previous identifier cannot safely interpret.
+This also includes changes where the deployer is generally able to read the payload, but may not be able to correctly interpret the described deployment (e.g. when adding a new field).
 
+### 1.2 Artifact packaging
 
+An artifact is an OCM component version.
+Its resources MUST contain exactly one resource of type `cloud.konfidence.artifact.manifest`, and that resource MUST be named `konfidence-manifest`.
+This resource MUST contain a JSON object with a `type` property whose value is the complete artifact type, including the contract version defined in section 1.1.
 
-### 3.2 Interpretation of inputs / generic fields
+The component version MAY contain additional resources that a deployer uses to understand what needs to be deployed.
 
-[//]: # (TODO does it make sense to keep the spec.controller field? className is already vendor-specific, so class-to-controller mapping is useless)
-The deployer MUST set `DeploymentClass.spec.controller` to the stable identifier used by its own reconcilers.
-It MUST NOT use a different identifier for resources handled by the same registered controller.
-It is immutable and MUST NOT change once the `DeploymentClass` was initially applied to the Konfidence control plane.
+For example, the OCM component constructor can include:
 
-[//]: # (TODO DeploymentClass.spec should be mutable, spec.controller should be immutable)
+```yaml
+resources:
+  - name: konfidence-manifest
+    relation: local
+    type: cloud.konfidence.artifact.manifest
+    input:
+      type: file/v1
+      path: ./konfidence-manifest.json
+```
 
-`DeploymentClass.spec.controller` SHOULD be prefixed by a vendor-owned domain (e.g. `example.com/my-deployer`).
-This is to avoid collisions of deployers tackling similar deployment artifacts.
+The referenced JSON file contains the artifact's type declaration:
 
-Class providers SHOULD use deployment class names that distinguish their deployment types and vendor, for example `myclass.example.com`.
-In this case `myclass` should describe the type of artifact being deployed, and `example.com` is a vendor-owned domain.
+```json
+{
+  "type": "konfidence.cloud/kustomize:v1alpha1"
+}
+```
 
-### 3.3 Processing and guarantees, failure/retry handling
+[//]: # (TODO agree on the exact requirements to "fully support" an artifactType)
+The provider of an artifact type SHOULD document the packaging and validation requirements for each supported contract version.
+These requirements MUST identify required and optional OCM resources, their names or types, cardinality, accepted access methods, and expected payload formats.
+The provider MUST also document semantic constraints that cannot be checked from the component descriptor alone.
 
-When a `DeploymentClass` matching a previously created resource becomes available, a running deployer MUST reconcile those resources without requiring it to be deleted and recreated.
-A newly installed deployer MUST also process existing resources of its classes after startup.
+A deployer MUST validate the resources and payloads it relies on before acting on any Konfidence-created resource.
+It MUST report invalid artifacts through the corresponding resource status, as specified in the following sections.
 
-If a `DeploymentClass` is absent or belongs to another controller, the deployer MUST NOT reconcile the referenced resource or write its status.
-Konfidence's core controllers contain handling of orphaned resources if a `DeploymentClass` becomes unavailable while still referenced by other resources.
+A provider MUST publish a machine-readable schema for structural requirements on the resolved OCM component descriptor.
+The schema format, how schemas are published and selected by artifact type, and which checks can be performed before payloads are fetched remain to be defined.
+Descriptor-level validation does not replace validation of the referenced payloads by the deployer.
+A provider MAY offer tools to create or validate artifacts, including optional `kden` integration.
+Conformance MUST NOT depend on artifacts having been created with provider-specific tooling.
 
-### 3.4 Status reporting via conditions
+## 2. DeploymentTarget
 
-`DeploymentClass` has no status subresource. Its existence and `spec.controller` express registration without the need to report controller status.
-
-### 3.5 Resource deletion and undeployment
-
-A deployer MUST NOT infer that existing resources have been deleted merely because their `DeploymentClass` is absent.
-If the class is recreated with the same name and controller identifier, the deployer MUST reconcile matching resources again.
-
-`DeploymentClass` deletion is NOT prohibited while references to it exist.
-Deployers MAY use finalizers to clean up deployment state and update status conditions on related resources if an owned `DeploymentClass` is deleted.
-They MUST NOT delete the related resources referencing the deleted `DeploymentClass`.
-
-[//]: # (TODO: define proper cleanup behavior)
-
-### 3.6 Optional behavior
-
-A deployer MAY provide more than one `DeploymentClass` that share the same controller identifier in `DeploymentClass.spec.controller`.
-Each class MUST independently satisfy the requirements described earlier.
-
-### Open questions
-* how to advertise capabilities (e.g. S3 deployer can handle ArtifactDeployments, but not TaskExecutions)
-* consider controller health? should core check that and apply fallback behavior if unhealthy?
-* how to handle edge case of ownership handover? should we give any guarantees for that process?
-
----
-
-## 3A. Alternative proposal: remove DeploymentClass resource, deployers reconcile artifactTypes directly 
+A `DeploymentTarget` configures a destination for an artifact type in a landscape namespace.
+Its `spec.artifactType` contains the unversioned `<type-name>`, so one target can serve multiple versions of the same artifact contract.
 
 ```yaml
 apiVersion: konfidence.cloud/v1alpha1
@@ -117,179 +106,95 @@ kind: DeploymentTarget
 metadata:
   name: helm-production
   namespace: kden-l-prod-fz8g86s6
-spec: # should whole spec be immutable?
-  artifactType: konfidence.cloud/helm # matches all versions of this artifactType, immutable
-  # versionSelector: # optional future feature, if you want different targets for each artifactType version
-  #   - v1alpha1
+spec:
+  artifactType: konfidence.cloud/helm
   parameters:
-    apiGroup: "" # if this is immutable, how to handle upgrades of CRDs?
+    apiGroup: ""
     kind: Secret
     name: production-kubeconfig
-    
-# TODO für KLO: no parameters -> local deployment; parameters mit kubeconfig secret -> remote deployment; später evtl eigene CRD? 
 status:
-  controller: konfidence.cloud/kubernetes-landscape-orchestrator:v1.2.3 # only informational
-  supportedArtifactTypeVersions: # populated by deployer, read by konfidence core
-    - v1alpha1
-  capabilities: {} # to be defined 
-  conditions: # proposed status, define which conditions we really need (Ready, Healthy, ConfigValid, Error) 
-  - type: Ready   
-    status: "True"
-    reason: Accepted
-```
-
-### 3A.1 Ownership and resource selection
-
-An artifact type MUST follow this Backus–Naur-form grammar:
-
-```bnf
-<artifact-type> ::= <domain> "/" <type> ":" <version>
-<domain>        ::= <label> "." <label> | <label> "." <domain>
-<type>          ::= <label>
-<label>         ::= <alphanumeric> | <alphanumeric> <label-middle> <alphanumeric>
-<label-middle>  ::= "" | <label-character> <label-middle>
-<label-character> ::= <alphanumeric> | "-"
-<alphanumeric>  ::= <lowercase-letter> | <digit>
-<lowercase-letter> ::= "a" | ... | "z"
-<digit>         ::= "0" | ... | "9"
-<version>       ::= "v" <positive-integer>
-<positive-integer> ::= <nonzero-digit> | <nonzero-digit> <digits>
-<digits>        ::= <digit> | <digit> <digits>
-<nonzero-digit> ::= "1" | ... | "9"
-```
-
-For example, `example.com/mytype:v1` identifies contract version `v1` of the artifact type `mytype` under `example.com`.
-
-The `<domain>` MUST be controlled by the maintainer of the deployer and it MUST be a valid lowercase DNS name according to [RFC 1035](https://www.rfc-editor.org/info/rfc1035/).
-Its purpose is to namespace artifact types so that independent deployer providers can use the same descriptive type without claiming the same identifier.
-
-The `<type>` SHOULD describe the artifact format or deployment mechanism in one concise label, such as `helm` or `kustomize`.
-It identifies what the deployer is expected to find inside the artifact or how the content in the artifact is packaged. 
-
-[//]: # (TODO version should be arbitrary string, recommend kubernetes api versioning with maturity levels)
-The `<version>` identifies the contract for interpreting that artifact type including its expected payload.
-Versions MUST start at `v1` and increase for each incompatible contract change.
-Changes to the artifact's schema, that an older deployer cannot safely interpret, require incrementing the version.
-
-A deployer MUST match the complete artifact type, including its version, when deciding whether it understands an artifact.
-
-DeploymentTarget - without version
-ArtifactDeployment - with version
-
-[//]: # (TODO depends on versions reported in DeploymentTarget.status, must be eventually consistent)
-It MUST reconcile only ArtifactDeployment whose `spec.artifactType` matches one of those artifact types (domain+type+version) exactly.
-One deployer MAY explicitly support several versions simultaneously so existing immutable artifacts can continue to deploy while new artifacts adopt a newer contract.
-
-A deployer SHOULD document the exact type strings it supports, the artifact payloads it accepts, and how to configure a target for each type.
-Deployer MUST report supported artifactType version in DeploymentTarget.status.supportedArtifactTypeVersions
-
-
-### 3A.2 Target configuration
-
-[//]: # (TODO replace `DeploymentTarget.spec.deploymentClassName` with `spec.artifactType` )
-[//]: # (TODO how to deal with versions in deploymenttargets? just ignore for now?)
-`DeploymentTarget.spec.artifactType` identifies the artifact type supported by that target in its landscape.
-The deployer MUST select targets by `DeploymentTarget.spec.artifactType` string (domain+type, not version). 
-
-[//]: # (TODO konfidence core: admission webhook to prevent second deploymenttarget with same artifactType)
-Deployers can expect that there is either zero or one `DeploymentTarget` resource with a given artifactType in a single landscape.
-zero DeploymentTarget -> no deployment is possible
-one DeploymentTarget -> apply resources to exactly this location
-Support for multiple `DeploymentTargets` in a single landscape is still undecided and may come with a later version of this specification. 
-
-The deployer MAY use `spec.parameters` to receive configuration or connection details. 
-It MAY reference a CRD owned by the deployer or k8s-core resources like Secret/ConfigMap. 
-If the given `spec.parameters` is not valid or not known to the deployer, it MUST write a status condition `InvalidConnection=True` and `Ready=False`. 
-
-[//]: # (TODO: example: rotating credentials is fine, changing the target cluster is disaster)
-Each deployer SHOULD define which of its parameters are allowed to be changed without breaking existing deployments.
-
-[//]: # (TODO discuss with team: How should deployers deal with ongoing reconciliation? Stop after first successful deployment? Continuously reconcile and report errors when unhealthy?)
-
-Global defaults for parameters MAY be supplied by the deployer's installation configuration.
-Those default will be applied to all landscapes in all projects of a Konfidence installation.
-The deployer SHOULD document the configuration schema, defaults, and handling of mutable settings such as timeouts and credentials.
-
-### 3A.3 Deployment and version upgrades
-
-A newly installed or restarted deployer MUST discover and reconcile existing resources of its supported artifact types.
-If a deployer's supported type set changes, it MUST reconsider affected existing resources.
-One deployer MAY support several versions of the same artifact type at once.
-If deployer drops support for a version of artifactType it MUST remove that version from `status.supportedArtifactTypeVersions`.
-Deployers SHOULD NOT drop support for a artifactType version once it reached a mature state.
-Dropping support for a version MAY leave hanging resources and the user is expected to clean those up.
-
-### 3A.4 Status and deployer availability
-
-[//]: # (TODO can we require ping / credentials check for Ready=True condition? some deployers may not be able to perform that check explicitly; maybe with dummy deployment?)
-For a supported `DeploymentTarget.spec.artifactType`, the deployer MUST report whether it accepts the target through its `Ready` condition.
-The `Ready=True` condition is only set when the deployer fully validated the `DeploymentTarget` resource and it expects deployments to this target to succeed. 
-Deployer MAY perform additional checks against the DeploymentTarget (e.g. verify credentials) and set negative polarity conditions if it can detect that deployments will not be successful. 
-Those checks MUST NOT affect the Ready condition. 
-For the same domain and type with an unsupported version, the rejection conditions proposed in section 3A.1 apply.
-For an unknown artifactType, the deployer ignores the DeploymentTarget and MUST NOT write its status.
-
-[//]: # (TODO what do we do with Ready condition in konfidence core?)
-
-`DeploymentTarget.status.controller` identifies the deployer including controller names and specific version that last wrote status and MAY be used for diagnosis.
-The shape and meaning of `status.capabilities` are not yet defined.
-
----
-
-## 4. DeploymentTarget: destination and connection
-
-What is a deployment target?
-- DeploymentTarget provides landscape specific configuration for a deployment class specified in `DeploymentTarget.spec.deploymentClassName`
-- The exact configuration is dependent on the deployer (for example connection details to the target)
-
-```yaml
-apiVersion: konfidence.cloud/v1alpha1
-kind: DeploymentTarget
-metadata:
-  name: <deployment-target-name>
-  namespace: <landscape-namespace>
-spec:
-  deploymentClassName: <deployment-class-name>
-  connection:
-    type: <connection-type> # defined by deployer
-    ref:
-      # deployer specifies which resource kinds must be referenced
-      apiGroup:
-      kind:
-      name:
-status:
+  controller: konfidence.cloud/kubernetes-landscape-orchestrator:v1.2.3
+  supportedArtifactTypeVersions:
+    - v1
   conditions:
-  - type: Ready
-    status: "True"
-    reason: Accepted
+    - type: Ready
+      status: "True"
+      reason: Accepted
 ```
 
-* **Ownership and resource selection:** Namespaced `DeploymentTarget` references a `DeploymentClass`; the class's deployer handles the target. Define how an artifact selects a target within its landscape. KLO currently expects exactly one ready target per class and namespace; decide whether this is a general rule.
-* **Interpretation of inputs / generic fields:** `spec.connection.type` and optional `ref` are generic. Deployer defines supported connection types, validates referenced resources, and interprets their contents; the destination need not be Kubernetes.
-* **Processing and guarantees, failure/retry handling:** Define when a target is usable and how changes to connection settings, credentials, URLs, or referenced objects affect existing deployments. Distinguish invalid configuration from transient loss of connectivity.
-  - The connection settings are mutable but the user must not change the actual target (e.g the target Kubernetes cluster or target S3 bucket). Therefore, the deployer does not have to deal with transferring already deployed artifacts to another target. The Deployer MUST handle changes to other chandes to the connection settings like updated credentials.
-* **Status reporting via conditions:** Define what `Ready` means (accepted configuration or verified reachability), who writes it, and how loss of readiness affects dependent artifacts. Core currently reports a missing class on the target's `Ready` condition; resolve ownership of that condition.
-  - The deployer that is selected by the referenced DeploymentClass MUST set the Ready condition with Reason `"Accpeted"` once it has accepted the resource. What "accepted" means is up to the deployer. It may include connectivity checks or simply validate the configuration.
-  - If the deployer does not accept the DeploymentTarget due to errors in the connection configuration, the deployer MUST set the Ready condition to `"False"` with reason `ConnectionInvalid`
-  - If the DeploymentTarget is invalid, the deployer stops performing any actions for ArtifactDeployments using that deployment class
-* **Resource deletion and undeployment:** Define the effect of removing a target while artifacts still use it, including cleanup on a remote runtime.
-* **Optional behavior:** Class-specific connection configuration can be supported without adding runtime-specific fields to the generic contract; specify how it is declared and validated.
+### 2.1 Ownership and selection
 
-## 5. ArtifactDeployment: deploying an artifact
+A deployer MUST reconcile only targets whose `spec.artifactType` matches a `<type-name>` it supports.
+It MUST NOT update the status of targets belonging to other providers or types.
+Within a landscape namespace, at most one target for a given `<type-name>` is allowed.
+If no target exists, an artifact of that type cannot be deployed into the landscape.
 
-[//]: # (TODO deployer spec must require deployers to specify how their artifacts look like; deployer is not only a k8s-controller but also some info/tooling to create artifacts)
-idea: "plugin" architecture for our CLI, deployer must provide some info on what it expects for its artifacts; maybe just resource validation (e.g. helm artifact must include exactly one helm resource in its OCM component)
+### 2.2 Parameters and validation
 
-* **Ownership and resource selection:** Core creates or reuses `ArtifactDeployment`; `spec.manifest.type` selects the class responsible for deploying it. Other deployers MUST NOT write its status or manage its runtime instance.
-* **Interpretation of inputs / generic fields:** Immutable spec contains the artifact manifest and OCM component/resources. Each class documents which resource types and payloads it accepts. `taskManifests` is outside this chapter's deployment contract.
-* **Processing and guarantees, failure/retry handling:** Define fetching, deployment, and health independently of Flux or Kubernetes workloads. Reconciliation MUST be idempotent; define responses to invalid artifacts, missing targets, unsupported types, and transient failures.
-  - ArtifactDeployments created before their referenced DeploymentClass is available will stay in state "DeploymentClass not found" until the DeploymentClass is created
-  - Once an ArtifactDeployment has found its referenced DeploymentClass, the "DeploymentClass not found" error cannot occur, as deletion of the DeploymentClass is prevented (see "Resource deletion and undeployment")
-* **Status reporting via conditions:** Define the meanings and required transitions for `ArtifactFetched`, `ArtifactDeployed`, `AppHealthy`, `DeploymentResultCreated`, and `Ready`, including whether conditions are required when no health check or results exist. A failed prerequisite must not leave a misleading `Ready=True`.
-* **Resource deletion and undeployment:** Define cleanup responsibility, ordering, and completion when runtime resources are on another cluster or platform.
-* **Optional behavior:** Decide whether health checks, results, and reuse can be omitted by a class, and what core then needs to consider an artifact ready.
+The deployer defines the interpretation and validation of `spec.parameters`.
+Parameters MAY point to any resource a deployer needs to establish a connection to the target runtime for a deployment, including Secrets, ConfigMaps, or deployer-owned custom resources.
+It MAY use installation-wide defaults, which apply to every landscape served by that deployer.
+It MUST validate parameters before use, and it MUST NOT try to deploy to targets that have validation errors.
 
-## 6. Deployment results and deployed-instance visibility
+It SHOULD document the parameters it accepts and their defaults, and which changes can be applied to an existing target.
+Since the exact configuration for establishing a connection is left to the deployer, Konfidence cannot distinguish safe operations (like credential rotations) from harmful operations (like moving to a different cluster).
+The deployer SHOULD implement best-effort validation to prevent the user from changing parameters that may cause a service downtime for the deployed applications. 
+
+Some changes require reconciliation even when the `DeploymentTarget.spec` does not change.
+The deployer MUST re-evaluate a target when a referenced resource that it relies on changes.
+
+### 2.3 Status and supported versions
+
+The deployer MUST set the target's `Ready` condition after validating the parameters it needs to accept the target.
+`Ready=True` means the deployer accepts the target for deployment.
+This does not guarantee that a future artifact deployment will succeed.
+
+The deployer MAY perform additional connectivity or credential checks and report their results in separate deployer-owned conditions.
+It MUST set `Ready=False` with a descriptive reason and message when required parameters are invalid.
+
+The deployer MUST report the versions it can handle for the `DeploymentTarget.spec.artifactType` in `status.supportedArtifactTypeVersions`.
+Every reported version MUST correspond to a supported handler for that type and the target's configuration.
+It MUST remove a version from that list if it ceases to support it.
+
+Core MUST check that the target is ready and that the artifact's version appears in this list before treating the target as suitable for deployment.
+The deployer SHOULD publish its name and release version in `status.controller`.
+
+The exact shape of `status.capabilities` remains open for now.
+
+### 2.4 Deletion
+
+[//]: # (TODO decide what to do when DeploymentTarget is deleted)
+core will set a Stale=True / Ready=Unknown condition to ArtifactDeployment already?
+deployer either:
+* leave artifacts deployed (we might report errors in dashboard, even when apps are still running. can they be adopted when the target comes back again? )
+* undeploy artifacts (immediate service downtime)
+* prevent deletion while ArtifactDeployments exist with admission webhook in core?
+
+## 3. ArtifactDeployment
+
+Core creates an immutable `ArtifactDeployment` specification containing an artifact manifest and OCM component resources.
+The type in `spec.manifest.type` selects the responsible deployer and the corresponding target in the deployment's landscape namespace.
+A deployer acts platform-wide and declares the artifact types it supports in its own configuration.
+It is the cluster administrator's responsibility to ensure that at most one deployer reconciles a given artifact type in a control plane.
+A vendor-owned identifier prevents accidental naming conflicts, but it cannot prevent two controllers from being configured for the same type.
+The deployer MUST reconcile an `ArtifactDeployment` only when its artifact type matches a supported identifier exactly.
+It MUST leave resources belonging to other providers or types to their responsible deployers.
+An unsupported version MUST NOT be interpreted as another version of the same type.
+
+The deployer MUST reconcile supported artifacts idempotently, including those created before it was installed or while it was stopped.
+It MUST validate the payload against the documented contract for that exact artifact type and version.
+An unsupported or invalid payload MUST be reported through the artifact's status rather than deployed using assumptions from another version.
+If the target is absent, unready, or does not report support for the artifact's version, the artifact MUST NOT be deployed through that target.
+
+The deployer reports artifact fetching, deployment, application health, deployment results, and overall readiness through `ArtifactDeployment.status`.
+The meanings and transition rules for `ArtifactFetched`, `ArtifactDeployed`, `AppHealthy`, `DeploymentResultCreated`, and `Ready` require further definition.
+A deployer MUST NOT leave `Ready=True` when it knows that a prerequisite for readiness has failed.
+Whether a health check or deployment result is required for every artifact type is an open decision.
+
+The deployer MUST define how runtime resources are removed when an artifact deployment is deleted, including resources on remote runtimes.
+Task manifests attached to an artifact are outside the base artifact-deployment contract.
+
+## 4. Deployment results and deployed-instance visibility
 
 * **Ownership and resource selection:** Deployer publishes results in `ArtifactDeployment.status.deploymentResult`; core aggregates them by component in `VectorDeployment` and `VectorData`.
 * **Interpretation of inputs / generic fields:** Results contain `name`, `type`, and opaque `spec`. `(name, type)` MUST be unique per artifact; producer documents each type's payload and intended consumers. KLO's `http-k8s-service` is an example, not a universal type.
@@ -298,7 +203,7 @@ idea: "plugin" architecture for our CLI, deployer must provide some info on what
 * **Resource deletion and undeployment:** Define when results become invalid or are removed after undeployment.
 * **Optional behavior:** Decide whether publishing results is optional for a class and how an artifact with no results advances to readiness.
 
-## 7. Vector association and artifact reuse
+## 5. Vector association and artifact reuse
 
 * **Ownership and resource selection:** Core currently creates a `VectorAssignment` for each vector/artifact pair and uses `ArtifactManifest.allowReuse` when creating the `ArtifactDeployment`. One artifact may be referenced by several vectors; the class's deployer handles vector-specific work.
 * **Interpretation of inputs / generic fields:** `VectorAssignment` references the vector and artifact. When reuse is enabled, a deployer MUST NOT infer a single vector from the artifact alone.
@@ -307,7 +212,7 @@ idea: "plugin" architecture for our CLI, deployer must provide some info on what
 * **Resource deletion and undeployment:** Removing one vector MUST NOT undeploy an artifact still in use by another; define cleanup of its vector-specific state.
 * **Optional behavior:** Decide whether reuse is a class capability and whether the `VectorAssignment` CRD remains the representation of association (`konfidence` issue #83). Preserve the semantic contract if the CRD changes.
 
-## 8. VectorData: vector-scoped data
+## 6. VectorData: vector-scoped data
 
 * **Ownership and resource selection:** Core creates immutable `VectorData` per `VectorDeployment` with authored data, features, and aggregated results. Decide which implementor owns its materialization and status when several deployers/classes serve one landscape.
 * **Interpretation of inputs / generic fields:** Define the mapping from vector identity to `VectorData` and how consumers select the right vector, including when an artifact is reused. Specify behavior for missing or unknown identities; storage and distribution are runtime-specific.
@@ -316,15 +221,15 @@ idea: "plugin" architecture for our CLI, deployer must provide some info on what
 * **Resource deletion and undeployment:** Define cleanup of materialized data, including remote runtimes where Kubernetes owner references cannot cross API servers.
 * **Optional behavior:** Decide whether materialization belongs to every class, one landscape-level implementor, or a separate capability; define how an unsupported capability affects vector readiness.
 
-## 9. Cross-cutting status, reconciliation, and safety
+## 7. Cross-cutting status, reconciliation, and safety
 
 For every condition, specify its owner, meaning of `True`/`False`/`Unknown`, reason codes, `observedGeneration`, and transitions after dependencies recover or disappear. Core and deployer MUST NOT leave a stale `Ready=True` that implies a known-unavailable deployment is healthy. Distinguish retryable failures from failures requiring user action; reconcile when mutable referenced resources change, even if the owning resource's spec is immutable. Define idempotency, event/watch versus periodic resync guarantees, status-update conflicts, permissions, credential handling, and whether sensitive data may appear in status or deployment results. These rules need a condition/ownership table before this draft becomes normative.
 
-## 10. Future extension: tasks and activation
+## 8. Future extension: tasks and activation
 
 `TaskExecution`, `ActivationTaskExecution`, `VectorMigration`, and `VectorActivation` exist today; KLO implements Kubernetes Jobs and Gateway API HTTPRoutes for some executions. This draft does **not** require every deployer to perform migrations, activation, or routing. A later specification should define registration/selection of task and activation executors—possibly using a resource analogous to `DeploymentClass`—with their own status and capability contracts. The base deployment contract MUST NOT assume those operations are built into the same controller.
 
-## 11. Versioning and conformance
+## 9. Versioning and conformance
 
 Before declaring a specification version, define how it relates to CRD versions and any published Go bindings, how compatible changes are introduced, and how optional capabilities are declared. Each normative clause should receive an identifier for conformance checks. Validate the mandatory subset against KLO and a substantially different target platform; track KLO deviations as implementation gaps rather than weakening requirements to match existing behavior.
 
