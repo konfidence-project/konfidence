@@ -6,6 +6,7 @@
     import {
         Button,
         EmptyState,
+        Link,
         OrbitLoader,
         PageHeader,
         SearchInput,
@@ -144,20 +145,18 @@
             </label>
             <div class="flex min-w-0 flex-col">
                 <span class={labelTextClass} aria-hidden="true">&nbsp;</span>
-                <button
-                    type="button"
-                    class={[
-                        "cursor-pointer border border-transparent bg-transparent px-1.5 py-2 text-compact leading-[1.4] text-content-link underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none",
-                        !filters.anyFiltersActive && "invisible pointer-events-none",
-                    ]}
-                    onclick={filters.clearFilters}
-                    disabled={!filters.anyFiltersActive}
-                    aria-hidden={!filters.anyFiltersActive}
-                    tabindex={filters.anyFiltersActive ? 0 : -1}
-                    data-testid="artifact-view-clear-filters"
-                >
-                    Clear filters
-                </button>
+                <div class="flex items-center border border-transparent px-1.5 py-2 text-compact leading-[1.4]">
+                    <Link
+                        class={!filters.anyFiltersActive ? "invisible pointer-events-none" : undefined}
+                        onclick={filters.clearFilters}
+                        disabled={!filters.anyFiltersActive}
+                        aria-hidden={!filters.anyFiltersActive}
+                        tabindex={filters.anyFiltersActive ? 0 : -1}
+                        data-testid="artifact-view-clear-filters"
+                    >
+                        Clear filters
+                    </Link>
+                </div>
             </div>
         </div>
     {/if}
@@ -196,9 +195,9 @@
                 {/snippet}
                 {#snippet action()}
                     {#if filters.serverFiltersActive}
-                        <Button variant="secondary" onclick={filters.clearFilters} data-testid="artifact-view-empty-clear">
-                            <span>Clear filters</span>
-                        </Button>
+                        <Link onclick={filters.clearFilters} data-testid="artifact-view-empty-clear">
+                            Clear filters
+                        </Link>
                     {/if}
                 {/snippet}
             </EmptyState>
@@ -219,13 +218,9 @@
                     data-testid="artifact-table-no-results"
                 >
                     <p class="m-0">No artifact deployments match the current filters.</p>
-                    <button
-                        type="button"
-                        class="cursor-pointer border-0 bg-transparent text-content-link underline underline-offset-[3px] focus-visible:rounded-[var(--radius-sm)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
-                        onclick={filters.clearFilters}
-                    >
+                    <Link onclick={filters.clearFilters}>
                         Clear filters
-                    </button>
+                    </Link>
                 </div>
             {:else}
                 <ArtifactDeploymentsTable rows={filters.visibleRows} selectedId={filters.selectedId} onSelect={filters.openRow} />

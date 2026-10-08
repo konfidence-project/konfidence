@@ -9,6 +9,7 @@
      */
 
     import type { BreadcrumbItem } from "./types.js";
+    import Link from "../Link/Link.svelte";
 
     interface Props {
         /** Ordered items, root → current. Empty arrays render nothing. */
@@ -40,7 +41,9 @@
                 </span>
             {:else}
                 <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Callers pass an already-resolved URL. -->
-                <a class="text-content-tertiary no-underline hover:text-content-link" href={item.href}>{item.label}</a>
+                <Link class="text-content-tertiary no-underline hover:text-content-link" href={item.href}>
+                    {item.label}
+                </Link>
             {/if}
         {/each}
     </nav>
