@@ -177,3 +177,5 @@ func TestStateFromConditions(t *testing.T) {
 		})
 	}
 }
+
+// TODO: add tests after ginkgo migration for single resource endpoint

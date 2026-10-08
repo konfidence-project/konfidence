@@ -75,6 +75,24 @@ func toProjectResponse(p konfidence.Project) openapi.Project {
 		Name: p.Spec.DisplayName,
 	}
 }
+func (h *projectHandler) GetLandscapeV1(ctx context.Context, req openapi.GetLandscapeV1RequestObject) (openapi.GetLandscapeV1ResponseObject, error) {
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return nil, apierror.NewUnauthorized()
+	}
+
+	namespace, err := h.resolveProjectNamespace(ctx, identity, req.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	landscape, err := h.landscapeRepo.Get(ctx, namespace, req.LandscapeId)
+	if err != nil {
+		return nil, apierror.NewNotFound("landscape", req.LandscapeId)
+	}
+
+	return openapi.GetLandscapeV1200JSONResponse(toLandscapeResponse(*landscape)), nil
+}
 
 func (h *projectHandler) ListLandscapesV1(ctx context.Context, req openapi.ListLandscapesV1RequestObject) (openapi.ListLandscapesV1ResponseObject, error) {
 	identity, err := session.FromContext(ctx)

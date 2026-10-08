@@ -58,6 +58,18 @@ func (r *vectorDeploymentLandscapeRepository) Get(_ context.Context, _, _ string
 	return r.landscape, r.err
 }
 
+func (r *vectorDeploymentRepository) GetForScope(_ context.Context, _ landscapedomain.ScopedLandscape, _ string) (*vectordeployment.ResolvedVectorDeployment, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if len(r.items) == 0 {
+		return nil, vectordeployment.ErrNotFound
+	}
+	return &r.items[0], nil
+}
+
+// TODO: add tests after ginkgo migration for single resource endpoint
+
 func (r *vectorDeploymentLandscapeRepository) ListForProject(_ context.Context, _ string) ([]konfidence.Landscape, error) {
 	r.listCalls++
 	return r.landscapes, r.err
