@@ -2,11 +2,11 @@ package landscape_test
 
 import (
 	"context"
-	"errors"
-	"testing"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/landscape"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -15,13 +15,15 @@ import (
 )
 
 func newScheme() *runtime.Scheme {
-	s := runtime.NewScheme()
-	_ = clientgoscheme.AddToScheme(s)
-	_ = konfidence.AddToScheme(s)
-	return s
+	GinkgoHelper()
+	scheme := runtime.NewScheme()
+	Expect(clientgoscheme.AddToScheme(scheme)).To(Succeed())
+	Expect(konfidence.AddToScheme(scheme)).To(Succeed())
+	return scheme
 }
 
 func fakeClient(objs ...client.Object) client.Client {
+	GinkgoHelper()
 	return fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(objs...).Build()
 }
 
@@ -38,161 +40,110 @@ func scopedLandscapeFixture(name, namespace, managedNamespace string) *konfidenc
 	return l
 }
 
-func TestListForProject_ReturnsLandscapes(t *testing.T) {
-	l1 := landscapeFixture("dev", "kden-p-my-project", "Dev")
-	l2 := landscapeFixture("staging", "kden-p-my-project", "Staging")
-	repo := landscape.NewRepository(fakeClient(l1, l2))
+var _ = Describe("Repository", func() {
+	Describe("ListForProject", func() {
+		It("returns landscapes", func() {
+			repository := landscape.NewRepository(fakeClient(
+				landscapeFixture("dev", "kden-p-my-project", "Dev"),
+				landscapeFixture("staging", "kden-p-my-project", "Staging"),
+			))
 
-	result, err := repo.ListForProject(context.Background(), "kden-p-my-project")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(result) != 2 {
-		t.Errorf("expected 2 landscapes, got %d", len(result))
-	}
-}
+			result, err := repository.ListForProject(context.Background(), "kden-p-my-project")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(HaveLen(2))
+		})
 
-func TestGet(t *testing.T) {
-	want := landscapeFixture("dev", "kden-p-my-project", "Development")
-	repo := landscape.NewRepository(fakeClient(want))
+		It("returns an empty list for an empty namespace", func() {
+			result, err := landscape.NewRepository(fakeClient()).ListForProject(context.Background(), "kden-p-empty")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(BeEmpty())
+		})
 
-	got, err := repo.Get(context.Background(), "kden-p-my-project", "dev")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Name != want.Name || got.Spec.DisplayName != want.Spec.DisplayName {
-		t.Fatalf("unexpected landscape: %#v", got)
-	}
-}
+		It("only returns landscapes from the requested namespace", func() {
+			repository := landscape.NewRepository(fakeClient(
+				landscapeFixture("dev", "kden-p-project-a", "Dev A"),
+				landscapeFixture("dev", "kden-p-project-b", "Dev B"),
+			))
 
-func TestListForProject_EmptyNamespace(t *testing.T) {
-	repo := landscape.NewRepository(fakeClient())
+			result, err := repository.ListForProject(context.Background(), "kden-p-project-a")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(ConsistOf(HaveField("Name", "dev")))
+		})
+	})
 
-	result, err := repo.ListForProject(context.Background(), "kden-p-empty")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(result) != 0 {
-		t.Errorf("expected 0 landscapes, got %d", len(result))
-	}
-}
+	It("gets a landscape", func() {
+		want := landscapeFixture("dev", "kden-p-my-project", "Development")
 
-func TestListForProject_OnlyReturnsNamespacedLandscapes(t *testing.T) {
-	lA := landscapeFixture("dev", "kden-p-project-a", "Dev A")
-	lB := landscapeFixture("dev", "kden-p-project-b", "Dev B")
-	repo := landscape.NewRepository(fakeClient(lA, lB))
+		got, err := landscape.NewRepository(fakeClient(want)).Get(context.Background(), "kden-p-my-project", "dev")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(got).To(And(
+			HaveField("Name", want.Name),
+			HaveField("Spec.DisplayName", want.Spec.DisplayName),
+		))
+	})
 
-	result, err := repo.ListForProject(context.Background(), "kden-p-project-a")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(result) != 1 {
-		t.Errorf("expected 1 landscape, got %d", len(result))
-	}
-	if result[0].Name != "dev" {
-		t.Errorf("expected Name %q, got %q", "dev", result[0].Name)
-	}
-}
+	Describe("ResolveScope", func() {
+		It("returns all landscapes of a project", func() {
+			repository := landscape.NewRepository(fakeClient(
+				scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev-1234"),
+				scopedLandscapeFixture("staging", "kden-p-my-project", "kden-l-staging-5678"),
+			))
 
-func TestResolveScope_ReturnsAllLandscapesOfProject(t *testing.T) {
-	dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev-1234")
-	staging := scopedLandscapeFixture("staging", "kden-p-my-project", "kden-l-staging-5678")
-	repo := landscape.NewRepository(fakeClient(dev, staging))
+			scope, err := repository.ResolveScope(context.Background(), "kden-p-my-project")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(scope).To(ConsistOf(
+				And(HaveField("Landscape.Name", "dev"), HaveField("Namespace", "kden-l-dev-1234")),
+				And(HaveField("Landscape.Name", "staging"), HaveField("Namespace", "kden-l-staging-5678")),
+			))
+		})
 
-	scope, err := repo.ResolveScope(context.Background(), "kden-p-my-project")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(scope) != 2 {
-		t.Fatalf("expected 2 scope entries, got %d", len(scope))
-	}
-	namespaces := map[string]string{}
-	for _, s := range scope {
-		namespaces[s.Landscape.Name] = s.Namespace
-	}
-	if namespaces["dev"] != "kden-l-dev-1234" {
-		t.Errorf("expected namespace %q for dev, got %q", "kden-l-dev-1234", namespaces["dev"])
-	}
-	if namespaces["staging"] != "kden-l-staging-5678" {
-		t.Errorf("expected namespace %q for staging, got %q", "kden-l-staging-5678", namespaces["staging"])
-	}
-}
+		It("narrows the scope by landscape ID", func() {
+			repository := landscape.NewRepository(fakeClient(
+				scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev-1234"),
+				scopedLandscapeFixture("staging", "kden-p-my-project", "kden-l-staging-5678"),
+			))
 
-func TestResolveScope_WithLandscapeIdNarrowsScope(t *testing.T) {
-	dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev-1234")
-	staging := scopedLandscapeFixture("staging", "kden-p-my-project", "kden-l-staging-5678")
-	repo := landscape.NewRepository(fakeClient(dev, staging))
+			scope, err := repository.ResolveScope(context.Background(), "kden-p-my-project", landscape.WithLandscapeId("staging"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(scope).To(ConsistOf(And(
+				HaveField("Landscape.Name", "staging"),
+				HaveField("Namespace", "kden-l-staging-5678"),
+			)))
+		})
 
-	scope, err := repo.ResolveScope(context.Background(), "kden-p-my-project", landscape.WithLandscapeId("staging"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(scope) != 1 {
-		t.Fatalf("expected 1 scope entry, got %d", len(scope))
-	}
-	if scope[0].Landscape.Name != "staging" {
-		t.Errorf("expected landscape %q, got %q", "staging", scope[0].Landscape.Name)
-	}
-	if scope[0].Namespace != "kden-l-staging-5678" {
-		t.Errorf("expected namespace %q, got %q", "kden-l-staging-5678", scope[0].Namespace)
-	}
-}
+		DescribeTable("rejects an unknown landscape ID",
+			func(id string) {
+				repository := landscape.NewRepository(fakeClient(
+					scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev-1234"),
+				))
 
-func TestResolveScope_UnknownLandscapeIdReturnsNotFound(t *testing.T) {
-	dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev-1234")
-	repo := landscape.NewRepository(fakeClient(dev))
+				scope, err := repository.ResolveScope(context.Background(), "kden-p-my-project", landscape.WithLandscapeId(id))
+				Expect(err).To(MatchError(landscape.ErrLandscapeNotFound))
+				Expect(scope).To(BeNil())
+			},
+			Entry("when it does not exist", "nope"),
+			Entry("when it is empty", ""),
+		)
 
-	scope, err := repo.ResolveScope(context.Background(), "kden-p-my-project", landscape.WithLandscapeId("nope"))
-	if !errors.Is(err, landscape.ErrLandscapeNotFound) {
-		t.Fatalf("expected ErrLandscapeNotFound, got %v", err)
-	}
-	if scope != nil {
-		t.Errorf("expected no scope, got %v", scope)
-	}
-}
+		It("keeps a provisioning landscape in scope", func() {
+			repository := landscape.NewRepository(fakeClient(
+				scopedLandscapeFixture("dev", "kden-p-my-project", ""),
+			))
 
-func TestResolveScope_EmptyLandscapeIdReturnsNotFound(t *testing.T) {
-	dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev-1234")
-	repo := landscape.NewRepository(fakeClient(dev))
+			scope, err := repository.ResolveScope(context.Background(), "kden-p-my-project", landscape.WithLandscapeId("dev"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(scope).To(ConsistOf(HaveField("Namespace", "")))
+		})
 
-	scope, err := repo.ResolveScope(context.Background(), "kden-p-my-project", landscape.WithLandscapeId(""))
-	if !errors.Is(err, landscape.ErrLandscapeNotFound) {
-		t.Fatalf("expected ErrLandscapeNotFound, got %v", err)
-	}
-	if scope != nil {
-		t.Errorf("expected no scope, got %v", scope)
-	}
-}
+		It("excludes other projects", func() {
+			repository := landscape.NewRepository(fakeClient(
+				scopedLandscapeFixture("dev", "kden-p-project-a", "kden-l-dev-a"),
+				scopedLandscapeFixture("dev", "kden-p-project-b", "kden-l-dev-b"),
+			))
 
-func TestResolveScope_ProvisioningLandscapeStaysInScope(t *testing.T) {
-	provisioning := scopedLandscapeFixture("dev", "kden-p-my-project", "")
-	repo := landscape.NewRepository(fakeClient(provisioning))
-
-	scope, err := repo.ResolveScope(context.Background(), "kden-p-my-project", landscape.WithLandscapeId("dev"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(scope) != 1 {
-		t.Fatalf("expected 1 scope entry, got %d", len(scope))
-	}
-	if scope[0].Namespace != "" {
-		t.Errorf("expected empty namespace, got %q", scope[0].Namespace)
-	}
-}
-
-func TestResolveScope_OtherProjectsAreNotInScope(t *testing.T) {
-	own := scopedLandscapeFixture("dev", "kden-p-project-a", "kden-l-dev-a")
-	foreign := scopedLandscapeFixture("dev", "kden-p-project-b", "kden-l-dev-b")
-	repo := landscape.NewRepository(fakeClient(own, foreign))
-
-	scope, err := repo.ResolveScope(context.Background(), "kden-p-project-a")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(scope) != 1 {
-		t.Fatalf("expected 1 scope entry, got %d", len(scope))
-	}
-	if scope[0].Namespace != "kden-l-dev-a" {
-		t.Errorf("expected namespace %q, got %q", "kden-l-dev-a", scope[0].Namespace)
-	}
-}
+			scope, err := repository.ResolveScope(context.Background(), "kden-p-project-a")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(scope).To(ConsistOf(HaveField("Namespace", "kden-l-dev-a")))
+		})
+	})
+})

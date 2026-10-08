@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"testing"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
@@ -13,6 +12,8 @@ import (
 	"github.com/konfidence-project/konfidence/internal/artifactdeployment"
 	"github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -79,146 +80,136 @@ func adContext(projectID string) context.Context {
 		}})
 }
 
-func assertADAPIError(t *testing.T, response any, err error, status int) {
-	t.Helper()
-	if response != nil {
-		t.Fatalf("expected no response, got %T", response)
-	}
+func assertADAPIError(response any, err error, status int) {
+	GinkgoHelper()
+	Expect(response).To(BeNil())
 	apiErr := apierror.As(err)
-	if apiErr == nil || apiErr.Status != status {
-		t.Fatalf("expected API error status %d, got %v", status, err)
-	}
+	Expect(apiErr).To(HaveOccurred())
+	Expect(apiErr.Status).To(Equal(status))
 }
 
-func TestListArtifactDeploymentsV1(t *testing.T) {
-	const landscapeName = "dev"
-	landscapeID := landscapeName
-	selectedLandscape := &konfidence.Landscape{
-		ObjectMeta: metav1.ObjectMeta{Name: landscapeName},
-		Status:     konfidence.LandscapeStatus{Namespace: "landscape-dev"},
-	}
-	repository := &adRepository{items: []artifactdeployment.
-		ResolvedArtifactDeployment{{
-		ArtifactDeployment: konfidence.ArtifactDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "myapp-artifact"},
-			Spec: konfidence.ArtifactDeploymentSpec{
-				Component: konfidence.OCMComponent{
-					Name:    "acme.example/myapp",
-					Version: "1.0.0",
+var _ = Describe("ListArtifactDeploymentsV1", func() {
+	It("returns deployments for a filtered landscape", func() {
+		const landscapeName = "dev"
+		landscapeID := landscapeName
+		selectedLandscape := &konfidence.Landscape{
+			ObjectMeta: metav1.ObjectMeta{Name: landscapeName},
+			Status:     konfidence.LandscapeStatus{Namespace: "landscape-dev"},
+		}
+		repository := &adRepository{items: []artifactdeployment.
+			ResolvedArtifactDeployment{{
+			ArtifactDeployment: konfidence.ArtifactDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "myapp-artifact"},
+				Spec: konfidence.ArtifactDeploymentSpec{
+					Component: konfidence.OCMComponent{
+						Name:    "acme.example/myapp",
+						Version: "1.0.0",
+					},
 				},
 			},
-		},
-		LandscapeId:         landscapeName,
-		StageIds:            []string{"prod"},
-		VectorDeploymentIds: []string{"vd-a"},
-	}}}
-	_ = toArtifactDeploymentResponse(repository.items[0])
-	landscapeRepository := &adLandscapeRepository{scope: []landscapedomain.ScopedLandscape{{
-		Landscape: *selectedLandscape,
-		Namespace: selectedLandscape.Status.Namespace,
-	}}}
-	h := &projectHandler{
-		projectRepo: &adProjectRepository{project: &konfidence.Project{
-			ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
-			Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
-		}},
-		landscapeRepo:          landscapeRepository,
-		artifactDeploymentRepo: repository,
-	}
-
-	response, err := h.ListArtifactDeploymentsV1(adContext("project-a"),
-		openapi.ListArtifactDeploymentsV1RequestObject{
-			ProjectId: "project-a",
-			Params: openapi.ListArtifactDeploymentsV1Params{
-				LandscapeId: &landscapeID,
-			},
-		})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data := response.(openapi.ListArtifactDeploymentsV1200JSONResponse).Data
-	if len(data) != 1 {
-		t.Fatalf("expected one deployment, got %#v", data)
-	}
-	got := data[0]
-	if got.Id != "myapp-artifact" || got.LandscapeId != landscapeName ||
-		len(got.StageIds) != 1 || got.StageIds[0] != "prod" ||
-		len(got.VectorDeploymentIds) != 1 ||
-		got.VectorDeploymentIds[0] != "vd-a" ||
-		got.Artifact.ComponentName != "acme.example/myapp" ||
-		got.Artifact.ComponentVersion != "1.0.0" {
-		t.Fatalf("unexpected deployment response: %#v", got)
-	}
-}
-
-func TestListArtifactDeploymentsV1WithoutLandscapeFilter(t *testing.T) {
-	landscapes := []konfidence.Landscape{
-		{
-			ObjectMeta: metav1.ObjectMeta{Name: "dev"},
-			Status:     konfidence.LandscapeStatus{Namespace: "landscape-dev"},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{Name: "prod"},
-			Status:     konfidence.LandscapeStatus{Namespace: "landscape-prod"},
-		},
-	}
-	landscapeRepository := &adLandscapeRepository{scope: []landscapedomain.ScopedLandscape{
-		{Landscape: landscapes[0], Namespace: landscapes[0].Status.Namespace},
-		{Landscape: landscapes[1], Namespace: landscapes[1].Status.Namespace},
-	}}
-	repository := &adRepository{}
-	h := &projectHandler{
-		projectRepo: &adProjectRepository{project: &konfidence.Project{
-			ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
-			Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
-		}},
-		landscapeRepo:          landscapeRepository,
-		artifactDeploymentRepo: repository,
-	}
-
-	response, err := h.ListArtifactDeploymentsV1(adContext("project-a"),
-		openapi.ListArtifactDeploymentsV1RequestObject{ProjectId: "project-a"})
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := response.(openapi.ListArtifactDeploymentsV1200JSONResponse); !ok {
-		t.Fatalf("expected successful response, got %T", response)
-	}
-}
-
-func TestListArtifactDeploymentsV1Errors(t *testing.T) {
-	t.Run("unauthorized", func(t *testing.T) {
-		h := &projectHandler{}
-		response, err := h.ListArtifactDeploymentsV1(context.Background(),
-			openapi.ListArtifactDeploymentsV1RequestObject{})
-		assertADAPIError(t, response, err, http.StatusUnauthorized)
-	})
-
-	t.Run("forbidden", func(t *testing.T) {
-		h := &projectHandler{}
-		response, err := h.ListArtifactDeploymentsV1(adContext("other-project"),
-			openapi.ListArtifactDeploymentsV1RequestObject{
-				ProjectId: "project-a",
-			})
-		assertADAPIError(t, response, err, http.StatusForbidden)
-	})
-
-	t.Run("repository failure", func(t *testing.T) {
+			LandscapeId:         landscapeName,
+			StageIds:            []string{"prod"},
+			VectorDeploymentIds: []string{"vd-a"},
+		}}}
+		_ = toArtifactDeploymentResponse(repository.items[0])
+		landscapeRepository := &adLandscapeRepository{scope: []landscapedomain.ScopedLandscape{{
+			Landscape: *selectedLandscape,
+			Namespace: selectedLandscape.Status.Namespace,
+		}}}
 		h := &projectHandler{
 			projectRepo: &adProjectRepository{project: &konfidence.Project{
 				ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
 				Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
 			}},
-			landscapeRepo: &adLandscapeRepository{},
-			artifactDeploymentRepo: &adRepository{
-				err: errors.New("cache failure"),
-			},
+			landscapeRepo:          landscapeRepository,
+			artifactDeploymentRepo: repository,
 		}
+
 		response, err := h.ListArtifactDeploymentsV1(adContext("project-a"),
 			openapi.ListArtifactDeploymentsV1RequestObject{
 				ProjectId: "project-a",
+				Params: openapi.ListArtifactDeploymentsV1Params{
+					LandscapeId: &landscapeID,
+				},
 			})
-		assertADAPIError(t, response, err, http.StatusInternalServerError)
+		Expect(err).NotTo(HaveOccurred())
+		data := response.(openapi.ListArtifactDeploymentsV1200JSONResponse).Data
+		Expect(data).To(HaveLen(1))
+		got := data[0]
+		Expect(got.Id).To(Equal("myapp-artifact"))
+		Expect(got.LandscapeId).To(Equal(landscapeName))
+		Expect(got.StageIds).To(Equal([]string{"prod"}))
+		Expect(got.VectorDeploymentIds).To(Equal([]string{"vd-a"}))
+		Expect(got.Artifact.ComponentName).To(Equal("acme.example/myapp"))
+		Expect(got.Artifact.ComponentVersion).To(Equal("1.0.0"))
 	})
-}
+
+	It("returns deployments without a landscape filter", func() {
+		landscapes := []konfidence.Landscape{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "dev"},
+				Status:     konfidence.LandscapeStatus{Namespace: "landscape-dev"},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "prod"},
+				Status:     konfidence.LandscapeStatus{Namespace: "landscape-prod"},
+			},
+		}
+		landscapeRepository := &adLandscapeRepository{scope: []landscapedomain.ScopedLandscape{
+			{Landscape: landscapes[0], Namespace: landscapes[0].Status.Namespace},
+			{Landscape: landscapes[1], Namespace: landscapes[1].Status.Namespace},
+		}}
+		repository := &adRepository{}
+		h := &projectHandler{
+			projectRepo: &adProjectRepository{project: &konfidence.Project{
+				ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
+				Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
+			}},
+			landscapeRepo:          landscapeRepository,
+			artifactDeploymentRepo: repository,
+		}
+
+		response, err := h.ListArtifactDeploymentsV1(adContext("project-a"),
+			openapi.ListArtifactDeploymentsV1RequestObject{ProjectId: "project-a"})
+
+		Expect(err).NotTo(HaveOccurred())
+		_, ok := response.(openapi.ListArtifactDeploymentsV1200JSONResponse)
+		Expect(ok).To(BeTrue())
+	})
+
+	Context("when an error occurs", func() {
+		It("returns unauthorized without an identity", func() {
+			h := &projectHandler{}
+			response, err := h.ListArtifactDeploymentsV1(context.Background(),
+				openapi.ListArtifactDeploymentsV1RequestObject{})
+			assertADAPIError(response, err, http.StatusUnauthorized)
+		})
+
+		It("returns forbidden without access to the project", func() {
+			h := &projectHandler{}
+			response, err := h.ListArtifactDeploymentsV1(adContext("other-project"),
+				openapi.ListArtifactDeploymentsV1RequestObject{
+					ProjectId: "project-a",
+				})
+			assertADAPIError(response, err, http.StatusForbidden)
+		})
+
+		It("returns an internal server error on repository failure", func() {
+			h := &projectHandler{
+				projectRepo: &adProjectRepository{project: &konfidence.Project{
+					ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
+					Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
+				}},
+				landscapeRepo: &adLandscapeRepository{},
+				artifactDeploymentRepo: &adRepository{
+					err: errors.New("cache failure"),
+				},
+			}
+			response, err := h.ListArtifactDeploymentsV1(adContext("project-a"),
+				openapi.ListArtifactDeploymentsV1RequestObject{
+					ProjectId: "project-a",
+				})
+			assertADAPIError(response, err, http.StatusInternalServerError)
+		})
+	})
+})

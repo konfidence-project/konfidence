@@ -2,8 +2,8 @@ package controller
 
 import (
 	"context"
-	"testing"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -19,40 +19,40 @@ func (noopRecorder) Eventf(_ runtime.Object, _ runtime.Object, _, _, _, _ string
 
 var _ events.EventRecorder = noopRecorder{}
 
-func TestProcessTaskLayerIsIdempotentWithStaleCachedView(t *testing.T) {
-	g := NewWithT(t)
-	ctx := context.Background()
+var _ = Describe("Task orchestration internals", func() {
+	It("processes a task layer idempotently with a stale cached view", func() {
+		ctx := context.Background()
 
-	scheme := runtime.NewScheme()
-	g.Expect(konfidence.AddToScheme(scheme)).To(Succeed())
+		scheme := runtime.NewScheme()
+		Expect(konfidence.AddToScheme(scheme)).To(Succeed())
 
-	c := fake.NewClientBuilder().WithScheme(scheme).Build()
-	r := &TaskOrchestrationReconciler{Client: c, Scheme: scheme, Recorder: noopRecorder{}}
+		c := fake.NewClientBuilder().WithScheme(scheme).Build()
+		r := &TaskOrchestrationReconciler{Client: c, Scheme: scheme, Recorder: noopRecorder{}}
 
-	vectorMigration := &konfidence.VectorMigration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "stage-version-stage-dev-migration",
-			Namespace: "default",
-			UID:       "843c08d3-9450-4802-88e8-00a848665c67",
-		},
-	}
+		vectorMigration := &konfidence.VectorMigration{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "stage-version-stage-dev-migration",
+				Namespace: "default",
+				UID:       "843c08d3-9450-4802-88e8-00a848665c67",
+			},
+		}
 
-	layer := []konfidence.TaskManifest{
-		{Name: "task-0", Type: "k8s", Spec: runtime.RawExtension{Raw: []byte("{}")}},
-	}
+		layer := []konfidence.TaskManifest{
+			{Name: "task-0", Type: "k8s", Spec: runtime.RawExtension{Raw: []byte("{}")}},
+		}
 
-	// Empty map on both passes models a cache that never observed the first create.
-	staleView := map[string]konfidence.TaskExecution{}
-	succeeded := map[string]bool{}
+		// Empty map on both passes models a cache that never observed the first create.
+		staleView := map[string]konfidence.TaskExecution{}
+		succeeded := map[string]bool{}
 
-	_, err := r.processTaskLayer(ctx, vectorMigration, layer, staleView, succeeded)
-	g.Expect(err).NotTo(HaveOccurred())
+		_, err := r.processTaskLayer(ctx, vectorMigration, layer, staleView, succeeded)
+		Expect(err).NotTo(HaveOccurred())
 
-	_, err = r.processTaskLayer(ctx, vectorMigration, layer, staleView, succeeded)
-	g.Expect(err).NotTo(HaveOccurred())
+		_, err = r.processTaskLayer(ctx, vectorMigration, layer, staleView, succeeded)
+		Expect(err).NotTo(HaveOccurred())
 
-	var taskExecutions konfidence.TaskExecutionList
-	g.Expect(c.List(ctx, &taskExecutions)).To(Succeed())
-
-	g.Expect(taskExecutions.Items).To(HaveLen(1))
-}
+		var taskExecutions konfidence.TaskExecutionList
+		Expect(c.List(ctx, &taskExecutions)).To(Succeed())
+		Expect(taskExecutions.Items).To(HaveLen(1))
+	})
+})

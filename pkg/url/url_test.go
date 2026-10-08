@@ -1,81 +1,32 @@
-package url
+package url_test
 
 import (
-	"testing"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	urlutil "github.com/konfidence-project/konfidence/pkg/url"
 )
 
-func TestExtractHostname(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "full url",
-			input:    "https://user@test.registry.com:5100/v2/ocm/repository",
-			expected: "test.registry.com",
+var _ = Describe("URL utilities", func() {
+	DescribeTable("extracts hostnames",
+		func(input, expected string) {
+			result, _ := urlutil.ExtractHostname(input)
+			Expect(result).To(Equal(expected))
 		},
-		{
-			name:     "simple host with www prefix and no port",
-			input:    "www.registry.com",
-			expected: "registry.com",
-		},
-		{
-			name:     "invalid url",
-			input:    "?www.registry.com",
-			expected: "",
-		},
-		{
-			name:     "url with some dashes and query param",
-			input:    "http://registry-ocm.test/test?id=123",
-			expected: "registry-ocm.test",
-		},
-	}
+		Entry("full URL", "https://user@test.registry.com:5100/v2/ocm/repository", "test.registry.com"),
+		Entry("simple host with www prefix and no port", "www.registry.com", "registry.com"),
+		Entry("invalid URL", "?www.registry.com", ""),
+		Entry("URL with dashes and query parameter", "http://registry-ocm.test/test?id=123", "registry-ocm.test"),
+	)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, _ := ExtractHostname(tt.input)
-			if result != tt.expected {
-				t.Errorf("ExtractHostname(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestExtractHostnameWithOptionalPort(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "full url",
-			input:    "https://user@test.registry.com:5100/v2/ocm/repository",
-			expected: "test.registry.com:5100",
+	DescribeTable("extracts hostnames with optional ports",
+		func(input, expected string) {
+			result, _ := urlutil.ExtractHostnameWithOptionalPort(input)
+			Expect(result).To(Equal(expected))
 		},
-		{
-			name:     "simple host with www prefix and no port",
-			input:    "www.registry.com",
-			expected: "registry.com",
-		},
-		{
-			name:     "invalid url",
-			input:    "?www.registry.com",
-			expected: "",
-		},
-		{
-			name:     "url with some dashes and query param",
-			input:    "http://registry-ocm.test:8080/test?id=123",
-			expected: "registry-ocm.test:8080",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, _ := ExtractHostnameWithOptionalPort(tt.input)
-			if result != tt.expected {
-				t.Errorf("ExtractHostnameWithOptionalPort(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
+		Entry("full URL", "https://user@test.registry.com:5100/v2/ocm/repository", "test.registry.com:5100"),
+		Entry("simple host with www prefix and no port", "www.registry.com", "registry.com"),
+		Entry("invalid URL", "?www.registry.com", ""),
+		Entry("URL with dashes and query parameter", "http://registry-ocm.test:8080/test?id=123", "registry-ocm.test:8080"),
+	)
+})
