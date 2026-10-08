@@ -8,6 +8,7 @@ type Identity = components["schemas"]["Identity"];
 type VectorDeployment = components["schemas"]["VectorDeployment"];
 type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
 type VectorPromotionConfig = components["schemas"]["VectorPromotionConfig"];
+type VectorPromotion = components["schemas"]["VectorPromotion"];
 
 export type {
   ArtifactDeployment,
@@ -17,5 +18,6 @@ export type {
   Stage,
   StageVersion,
   VectorDeployment,
+  VectorPromotion,
   VectorPromotionConfig,
 };

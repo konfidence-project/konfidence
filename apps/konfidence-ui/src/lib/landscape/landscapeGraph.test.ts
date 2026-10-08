@@ -4,6 +4,7 @@ import { buildLandscapeGraph, stageKey } from "$lib/landscape/landscapeGraph";
 
 type Landscape = components["schemas"]["Landscape"];
 type Stage = components["schemas"]["Stage"];
+type VectorPromotion = components["schemas"]["VectorPromotion"];
 type VectorPromotionConfig = components["schemas"]["VectorPromotionConfig"];
 
 const landscape = (id: string, name: string): Landscape => ({ id, name });
@@ -17,12 +18,27 @@ const stage = (landscapeId: string, name: string): Stage => ({
 const config = (
   id: string,
   source: { landscape?: string; name: string },
-  target: { landscape: string; name: string },
-): VectorPromotionConfig => ({
-  id,
-  promotions: [],
-  source: { kind: source.landscape === undefined ? "VectorTemplate" : "Stage", ...source },
-  target: { kind: "Stage", ...target },
+  target: { landscape: string; name: string; promotions?: VectorPromotion[] },
+): VectorPromotionConfig => {
+  const { promotions = [], ...targetRef } = target;
+  return {
+    id,
+    promotions,
+    source: { kind: source.landscape === undefined ? "VectorTemplate" : "Stage", ...source },
+    target: { kind: "Stage", ...targetRef },
+  };
+};
+
+const promotion = (
+  sequence: number,
+  status: VectorPromotion["status"],
+): VectorPromotion => ({
+  id: `promotion-${sequence}`,
+  sequence,
+  source: { kind: "Stage", landscape: "development", name: "dev-a" },
+  status,
+  target: { kind: "Stage", landscape: "test", name: "test-a" },
+  vector: "registry//component:1.0.0",
 });
 
 describe("buildLandscapeGraph", () => {
@@ -168,5 +184,65 @@ describe("buildLandscapeGraph", () => {
   it("labels stages whose landscape is unknown instead of dropping them", () => {
     const graph = buildLandscapeGraph([], [stage("ghost", "orphan")], []);
     expect(graph.stages[0]!.landscapeName).toBe("Unknown landscape (ghost)");
+  });
+
+  it("surfaces the newest promotion status on the edge regardless of lifecycle phase", () => {
+    const graph = buildLandscapeGraph(
+      [landscape("development", "Development"), landscape("test", "Test")],
+      [stage("development", "dev-a"), stage("test", "test-a")],
+      [
+        config(
+          "dev-to-test",
+          { landscape: "development", name: "dev-a" },
+          {
+            landscape: "test",
+            name: "test-a",
+            promotions: [promotion(1, "Succeeded"), promotion(3, "Waiting"), promotion(2, "Succeeded")],
+          },
+        ),
+      ],
+    );
+    // Sequence 3 (Waiting) is the newest promotion, so it wins over the earlier
+    // Succeeded runs even though it is not terminal.
+    expect(graph.edges).toHaveLength(1);
+    expect(graph.edges[0]!.status).toBe("Waiting");
+  });
+
+  it("leaves the edge status unset when the config has no promotions", () => {
+    const graph = buildLandscapeGraph(
+      [landscape("development", "Development"), landscape("test", "Test")],
+      [stage("development", "dev-a"), stage("test", "test-a")],
+      [
+        config(
+          "dev-to-test",
+          { landscape: "development", name: "dev-a" },
+          { landscape: "test", name: "test-a", promotions: [] },
+        ),
+      ],
+    );
+    expect(graph.edges[0]!.status).toBeUndefined();
+  });
+
+  it("picks the highest-sequence status when configs collapse onto one edge", () => {
+    const graph = buildLandscapeGraph(
+      [landscape("development", "Development"), landscape("test", "Test")],
+      [stage("development", "dev-a"), stage("test", "test-a")],
+      [
+        config(
+          "older",
+          { landscape: "development", name: "dev-a" },
+          { landscape: "test", name: "test-a", promotions: [promotion(5, "Failed")] },
+        ),
+        config(
+          "newer",
+          { landscape: "development", name: "dev-a" },
+          { landscape: "test", name: "test-a", promotions: [promotion(9, "Succeeded")] },
+        ),
+      ],
+    );
+    // Both configs describe the same stage pair; the config with the highest
+    // settled sequence (9, Succeeded) decides the edge colour.
+    expect(graph.edges).toHaveLength(1);
+    expect(graph.edges[0]!.status).toBe("Succeeded");
   });
 });

@@ -61,14 +61,20 @@ test("renders the admin mock landscape data on one flow canvas", async ({ page }
       .getByRole("link", { name: /View details for stage dev-us30/ })
       .getByRole("group", { exact: true, name: "Ready" }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: /View details for stage dev-new/ })).toContainText(
-    "No target version yet",
-  );
-  // Landscapes with no stages (Sandbox, Staging) still appear as placeholders.
+  // The stage-less Staging landscape still appears as a placeholder.
   await expect(page.getByLabel("Landscape Staging has no stages yet")).toBeVisible();
-  await expect(page.getByLabel("Landscape Sandbox has no stages yet")).toBeVisible();
   // Promotion configs drive the dev->test->prod edges between stage cards.
   await expect(page.locator(".svelte-flow__edge").first()).toBeVisible();
+  // Each edge surfaces the newest promotion's lifecycle state as a labelled pill
+  // rendered in the edge-label layer (scoped so stage-card text does not match).
+  const edgeLabels = page.locator(".svelte-flow__edge-label");
+  await expect(edgeLabels.getByText("Succeeded", { exact: true })).toBeVisible();
+  await expect(edgeLabels.getByText("Blocked", { exact: true })).toBeVisible();
+  await expect(edgeLabels.getByText("Waiting", { exact: true })).toBeVisible();
+  await expect(edgeLabels.getByText("Ready", { exact: true })).toBeVisible();
+  await expect(edgeLabels.getByText("Failed", { exact: true })).toBeVisible();
+  // The upstream "Svelte Flow" attribution is suppressed.
+  await expect(page.locator(".svelte-flow__attribution")).toHaveCount(0);
 });
 
 test("shows the empty overview for the empty mock project", async ({ page }) => {
@@ -102,10 +108,10 @@ test("opens and reloads real mock details without nesting main landmarks", async
 });
 
 test("renders a pending target without an active version", async ({ page }) => {
-  const target = "/projects/payments-platform/landscape/development/stages/dev-canary";
+  const target = "/projects/payments-platform/landscape/production/stages/prod-us40";
   await signIn(page, target, target);
 
-  await expect(page.getByRole("heading", { level: 1, name: "DEV-canary" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "prod-us40" })).toBeVisible();
   await expect(
     page
       .getByRole("region", { name: "Target version" })
@@ -445,17 +451,19 @@ test("opens at a readable zoom and reveals offscreen stages for keyboard navigat
   await expect.poll(async () => (await first.boundingBox())!.width).toBeLessThan(readableWidth);
   await page.keyboard.press("Tab");
   const last = page.getByRole("link", {
-    name: /View details for stage prod-legacy/,
+    name: /View details for stage prod-us40/,
   });
   await last.focus();
   await expect(last).toBeInViewport();
   expect((await last.boundingBox())!.width).toBeGreaterThan(200);
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { level: 1, name: "prod-legacy" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "prod-us40" })).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Target version" }).getByText("Failed", { exact: true }),
+    page
+      .getByRole("region", { name: "Target version" })
+      .getByText("Pending deployment", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Active version" }).getByText("Ready", { exact: true }),
+    page.getByRole("region", { name: "Active version" }).getByText("No active version yet."),
   ).toBeVisible();
 });

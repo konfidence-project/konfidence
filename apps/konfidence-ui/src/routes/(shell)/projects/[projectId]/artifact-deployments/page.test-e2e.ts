@@ -8,7 +8,7 @@ import { signIn } from "../../../../../../e2e/helpers";
  */
 const PROJECT_ID = "payments-platform";
 const ARTIFACT_DEPLOYMENTS_PATH = `/projects/${PROJECT_ID}/artifact-deployments`;
-const EXPECTED_ROW_COUNT = 5;
+const EXPECTED_ROW_COUNT = 14;
 
 const setScenario = async (page: Page, scenario: string): Promise<void> => {
   await page.context().addCookies([
@@ -39,15 +39,15 @@ test.describe("artifact deployments", () => {
     await gotoArtifactDeployments(page);
 
     await expect(page.getByTestId("page-heading")).toHaveText("Artifact Deployments");
-    await expect(page.getByTestId("artifact-view-count")).toHaveText("5 of 5 deployments");
+    await expect(page.getByTestId("artifact-view-count")).toHaveText("14 of 14 deployments");
 
     const rows = page.getByTestId("artifact-row");
     await expect(rows).toHaveCount(EXPECTED_ROW_COUNT);
     await expect(page.locator('[data-row-id="artifact-dev-us30-1"]')).toBeVisible();
     await expect(page.locator('[data-row-id="artifact-dev-us30-2"]')).toBeVisible();
     await expect(page.locator('[data-row-id="artifact-test-eu20-1"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-test-eu20-2"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-test-eu20-3"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-prod-eu30-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-prod-us40-2"]')).toBeVisible();
   });
 
   test("narrows the table by search text", async ({ page }) => {
@@ -55,31 +55,38 @@ test.describe("artifact deployments", () => {
 
     await page.getByTestId("artifact-search").fill("payments-ui");
 
+    // The payments-ui component is the primary artifact for dev-eu10 and
+    // test-us10, and the secondary for dev-us30, test-eu20 and prod-us40.
     const rows = page.getByTestId("artifact-row");
-    await expect(rows).toHaveCount(1);
+    await expect(rows).toHaveCount(5);
     await expect(page.locator('[data-row-id="artifact-dev-us30-2"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-dev-eu10-1"]')).toBeVisible();
   });
 
   test("filters the table by status", async ({ page }) => {
     await gotoArtifactDeployments(page);
 
-    await page.getByTestId("artifact-status-filter").selectOption("ArtifactFetched");
+    await page.getByTestId("artifact-status-filter").selectOption("AppHealthy");
 
+    // Stages whose deployed version is Ready expose an AppHealthy primary
+    // artifact: dev-us30, test-eu20 and prod-eu30.
     const rows = page.getByTestId("artifact-row");
-    await expect(rows).toHaveCount(1);
-    await expect(page.locator('[data-row-id="artifact-dev-us30-2"]')).toBeVisible();
+    await expect(rows).toHaveCount(3);
+    await expect(page.locator('[data-row-id="artifact-dev-us30-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-test-eu20-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-prod-eu30-1"]')).toBeVisible();
   });
 
   test("sorts by version when the column header is activated", async ({ page }) => {
     await gotoArtifactDeployments(page);
 
-    // Only the payments-api rows share a component name; sorting by
-    // version puts the older one first when ascending.
+    // Narrow to the payments-api rows (they span several versions) and sort
+    // ascending so the lowest version floats to the top.
     await page.getByTestId("artifact-search").fill("payments-api");
     await page.getByRole("button", { name: /^Version/ }).click();
 
     const firstRow = page.getByTestId("artifact-row").first();
-    await expect(firstRow).toHaveAttribute("data-row-id", "artifact-test-eu20-1");
+    await expect(firstRow).toHaveAttribute("data-row-id", "artifact-prod-eu30-2");
   });
 
   test("opens the detail drawer and shows the resolved relationships", async ({ page }) => {
@@ -198,10 +205,10 @@ test.describe("artifact deployments", () => {
 
     await expect(page).toHaveURL(`${ARTIFACT_DEPLOYMENTS_PATH}?landscapeId=test`);
     const rows = page.getByTestId("artifact-row");
-    await expect(rows).toHaveCount(3);
+    await expect(rows).toHaveCount(4);
     await expect(page.locator('[data-row-id="artifact-test-eu20-1"]')).toBeVisible();
     await expect(page.locator('[data-row-id="artifact-test-eu20-2"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-test-eu20-3"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="artifact-test-us10-1"]')).toBeVisible();
 
     // The `landscapeId=test` query must reach the API (server-side
     // narrowing), not just filter locally.
@@ -212,7 +219,7 @@ test.describe("artifact deployments", () => {
     await gotoArtifactDeployments(page, `${ARTIFACT_DEPLOYMENTS_PATH}?landscapeId=development`);
 
     const rows = page.getByTestId("artifact-row");
-    await expect(rows).toHaveCount(2);
+    await expect(rows).toHaveCount(6);
     await expect(page.locator('[data-row-id="artifact-test-eu20-1"]')).toHaveCount(0);
     await expect(page.getByTestId("artifact-landscape-filter")).toHaveValue("development");
   });

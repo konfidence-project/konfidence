@@ -28,6 +28,21 @@ interface ScenarioFixture {
 
 const REPOSITORY = "ghcr.io/konfidence/mock";
 
+// Maps a stage version's lifecycle status onto the matching vector deployment status.
+const vectorStatusForStage = (status: StageVersion["status"]): VectorDeployment["status"] => {
+  if (status === "Ready") {
+    return "DeploymentReady";
+  }
+  if (status === "Failed") {
+    return "DeploymentFailed";
+  }
+  return "DeployingVector";
+};
+
+// Extracts the "<component>:<version>" tail from a vector reference
+// (`<repo>//<component>:<version>`) so deployments can echo the stage version.
+const vectorVersion = (vector: string): string => vector.split(":").at(-1) ?? "0.0.0";
+
 const paymentsProject = {
   id: "payments-platform",
   name: "Payments Platform",
@@ -37,48 +52,15 @@ const identityProject = {
   name: "Identity Service",
 } satisfies Project;
 
-// Vector deployments for the three original stages.
-const rows = [
-  {
-    landscape: "development",
-    stage: "dev-us30",
-    vectorStatus: "DeploymentReady",
-    version: "2026.8.5",
-  },
-  {
-    landscape: "test",
-    stage: "test-eu20",
-    vectorStatus: "DeploymentReady",
-    version: "2026.8.4",
-  },
-  {
-    landscape: "production",
-    stage: "prod-eu30",
-    vectorStatus: "DeployingVector",
-    version: "2026.8.3",
-  },
-] as const;
+// Vector + artifact deployments are derived from the stages below so the three datasets stay in sync.
 
 const landscapes: Landscape[] = [
   { id: "development", name: "Development" },
   { id: "test", name: "Test" },
   { id: "production", name: "Production" },
-  { id: "sandbox", name: "Sandbox" },
   // Intentionally stage-less to exercise the empty-landscape placeholder path.
   { id: "staging", name: "Staging" },
 ];
-
-const vectorDeployments: VectorDeployment[] = rows.map((row) => ({
-  id: `vector-${row.stage}-1`,
-  landscapeId: row.landscape,
-  stageId: row.stage,
-  status: row.vectorStatus,
-  vector: {
-    componentName: "delivery-vector",
-    componentVersion: row.version,
-    repository: REPOSITORY,
-  },
-}));
 
 const stageVersion = (
   stageId: string,
@@ -99,66 +81,34 @@ const stage = (
   versions: Pick<Stage, "activeStageVersion" | "targetStageVersion">,
 ): Stage => ({ id, landscapeId, name, ...versions });
 
-const sandboxVersion = stageVersion("sandbox", 2, "Ready", "2026.8.2");
-const devVersion = stageVersion("dev-us30", 5, "Ready", "2026.8.5");
-const testVersion = stageVersion("test-eu20", 4, "Ready", "2026.8.4");
-const prodVersion = stageVersion("prod-eu30", 3, "Ready", "2026.8.3");
-
+// A compact landscape (three dev, two test, two prod stages) exercising every promotion state.
 const stages: Stage[] = [
   stage("dev-us30", "dev-us30", "development", {
-    activeStageVersion: devVersion,
-    targetStageVersion: devVersion,
-  }),
-  stage("test-eu20", "test-eu20", "test", {
-    activeStageVersion: testVersion,
-    targetStageVersion: testVersion,
-  }),
-  stage("prod-eu30", "prod-eu30", "production", {
-    activeStageVersion: prodVersion,
-    targetStageVersion: prodVersion,
+    activeStageVersion: stageVersion("dev-us30", 5, "Ready", "2026.8.5"),
+    targetStageVersion: stageVersion("dev-us30", 5, "Ready", "2026.8.5"),
   }),
   stage("dev-eu10", "dev-eu10", "development", {
     activeStageVersion: stageVersion("dev-eu10", 5, "Ready", "2026.8.5"),
     targetStageVersion: stageVersion("dev-eu10", 6, "DeployingVector", "2026.8.6"),
   }),
-  stage("dev-canary", "DEV-canary", "development", {
-    targetStageVersion: stageVersion("dev-canary", 1, "PendingDeployment", "2026.9.0"),
-  }),
   stage("dev-rollback", "dev-rollback", "development", {
     activeStageVersion: stageVersion("dev-rollback", 1, "Ready", "2026.8.1"),
     targetStageVersion: stageVersion("dev-rollback", 2, "Failed", "2026.8.7"),
   }),
-  stage("dev-new", "dev-new", "development", {}),
-  stage("sandbox", "sandbox", "development", {
-    activeStageVersion: sandboxVersion,
-    targetStageVersion: sandboxVersion,
+  stage("test-eu20", "test-eu20", "test", {
+    activeStageVersion: stageVersion("test-eu20", 4, "Ready", "2026.8.4"),
+    targetStageVersion: stageVersion("test-eu20", 4, "Ready", "2026.8.4"),
   }),
   stage("test-us10", "test-us10", "test", {
     activeStageVersion: stageVersion("test-us10", 4, "Ready", "2026.8.4"),
     targetStageVersion: stageVersion("test-us10", 5, "MigratingVector", "2026.8.5"),
   }),
-  stage("test-hotfix", "Test-hotfix", "test", {
-    activeStageVersion: stageVersion("test-hotfix", 5, "Ready", "2026.8.5"),
-    targetStageVersion: stageVersion("test-hotfix", 6, "ActivatingVector", "2026.8.6"),
-  }),
-  stage("test-broken", "test-broken", "test", {
-    activeStageVersion: stageVersion("test-broken", 2, "Ready", "2026.7.9"),
-    targetStageVersion: stageVersion("test-broken", 3, "Failed", "2026.8.0"),
-  }),
-  stage("test-green", "test-green", "test", {
-    activeStageVersion: stageVersion("test-green", 3, "Ready", "2026.8.3"),
-    targetStageVersion: stageVersion("test-green", 4, "Ready", "2026.8.4"),
+  stage("prod-eu30", "prod-eu30", "production", {
+    activeStageVersion: stageVersion("prod-eu30", 3, "Ready", "2026.8.3"),
+    targetStageVersion: stageVersion("prod-eu30", 3, "Ready", "2026.8.3"),
   }),
   stage("prod-us40", "prod-us40", "production", {
-    activeStageVersion: stageVersion("prod-us40", 3, "Ready", "2026.8.3"),
-    targetStageVersion: stageVersion("prod-us40", 4, "ActivatingVector", "2026.8.4"),
-  }),
-  stage("prod-dr", "PROD-dr", "production", {
-    targetStageVersion: stageVersion("prod-dr", 1, "PendingDeployment", "2026.8.8"),
-  }),
-  stage("prod-legacy", "prod-legacy", "production", {
-    activeStageVersion: stageVersion("prod-legacy", 1, "Ready", "2026.6.0"),
-    targetStageVersion: stageVersion("prod-legacy", 2, "Failed", "2026.7.0"),
+    targetStageVersion: stageVersion("prod-us40", 1, "PendingDeployment", "2026.8.8"),
   }),
 ];
 
@@ -168,76 +118,106 @@ const component = (componentName: string, componentVersion: string) => ({
   repository: REPOSITORY,
 });
 
-const artifactDeployments: ArtifactDeployment[] = [
-  {
-    artifact: component("payments-api", "3.4.1"),
-    id: "artifact-dev-us30-1",
-    landscapeId: "development",
-    stageIds: ["dev-us30"],
-    status: "ArtifactDeployed",
-    vectorDeploymentIds: ["vector-dev-us30-1"],
+// The stage version actually being deployed: the in-flight target if present, else the active one.
+const deployedVersion = (item: Stage): StageVersion | undefined =>
+  item.targetStageVersion ?? item.activeStageVersion;
+
+// One vector deployment per stage with a version, so every graphed stage has a matching deployment.
+const vectorDeployments: VectorDeployment[] = stages.flatMap((item) => {
+  const version = deployedVersion(item);
+  if (version === undefined) {
+    return [];
+  }
+  return [
+    {
+      id: `vector-${item.id}-1`,
+      landscapeId: item.landscapeId,
+      stageId: item.id,
+      status: vectorStatusForStage(version.status),
+      vector: {
+        componentName: "delivery-vector",
+        componentVersion: vectorVersion(version.vector),
+        repository: REPOSITORY,
+      },
+    },
+  ];
+});
+
+// A small catalogue of app artifact component names, cycled across stages.
+const ARTIFACT_NAMES = ["payments-api", "payments-ui", "ledger-worker"] as const;
+
+const artifactStatusForStage = (
+  status: StageVersion["status"],
+): ArtifactDeployment["status"] => {
+  if (status === "Ready") {
+    return "AppHealthy";
+  }
+  if (status === "Failed") {
+    return "ArtifactFetched";
+  }
+  return "ArtifactDeployed";
+};
+
+// Two artifact deployments per vector deployment (an app plus a supporting component).
+// The component version mirrors the deployed vector version for distinct, sortable rows.
+const artifactDeployments: ArtifactDeployment[] = vectorDeployments.flatMap(
+  (deployment, index) => {
+    const stageStatus =
+      stages.find(({ id }) => id === deployment.stageId)?.targetStageVersion?.status ??
+      stages.find(({ id }) => id === deployment.stageId)?.activeStageVersion?.status ??
+      "Ready";
+    const version = deployment.vector.componentVersion;
+    const primary = component(ARTIFACT_NAMES[index % ARTIFACT_NAMES.length]!, version);
+    const secondary = component(ARTIFACT_NAMES[(index + 1) % ARTIFACT_NAMES.length]!, version);
+    return [
+      {
+        artifact: primary,
+        id: `artifact-${deployment.stageId}-1`,
+        landscapeId: deployment.landscapeId,
+        stageIds: [deployment.stageId],
+        status: artifactStatusForStage(stageStatus),
+        vectorDeploymentIds: [deployment.id],
+      },
+      {
+        artifact: secondary,
+        id: `artifact-${deployment.stageId}-2`,
+        landscapeId: deployment.landscapeId,
+        stageIds: [deployment.stageId],
+        status: "ArtifactFetched",
+        vectorDeploymentIds: [deployment.id],
+      },
+    ];
   },
-  {
-    artifact: component("payments-ui", "2.7.0"),
-    id: "artifact-dev-us30-2",
-    landscapeId: "development",
-    stageIds: ["dev-us30"],
-    status: "ArtifactFetched",
-    vectorDeploymentIds: ["vector-dev-us30-1"],
-  },
-  {
-    artifact: component("payments-api", "3.4.0"),
-    id: "artifact-test-eu20-1",
-    landscapeId: "test",
-    stageIds: ["test-eu20"],
-    status: "ArtifactDeployed",
-    vectorDeploymentIds: ["vector-test-eu20-1"],
-  },
-  {
-    artifact: component("payments-api", "3.4.1"),
-    id: "artifact-test-eu20-2",
-    landscapeId: "test",
-    stageIds: ["test-eu20"],
-    status: "AppHealthy",
-    vectorDeploymentIds: ["vector-test-eu20-1"],
-  },
-  {
-    artifact: component("payments-api", "3.4.1"),
-    id: "artifact-test-eu20-3",
-    landscapeId: "test",
-    stageIds: ["test-eu20"],
-    status: "Ready",
-    vectorDeploymentIds: ["vector-test-eu20-1"],
-  },
-];
+);
 
 const vectorPromotionConfigs: VectorPromotionConfig[] = [
   {
     id: "delivery-vector-dev-to-test",
     keepLastPromotions: 5,
-    // Ordered newest-first (descending sequence) to mirror the real API.
+    // Newest-first (descending sequence) to mirror the real API.
+    // Newest wins: Succeeded (seq 3) beats the older runs, so dev->test renders green.
     promotions: [
-      {
-        id: "promo-dev-to-test-2",
-        requireApproval: true,
-        sequence: 2,
-        source: { kind: "Stage", landscape: "development", name: "dev-us30" },
-        status: "Waiting",
-        target: { kind: "Stage", landscape: "test", name: "test-eu20" },
-        vector: `${REPOSITORY}//delivery-vector:2026.8.5`,
-      },
       {
         approval: {
           approvedAt: "2026-08-28T09:15:00Z",
           approvedBy: "alex.admin@example.com",
         },
-        id: "promo-dev-to-test-1",
+        id: "promo-dev-to-test-3",
         requireApproval: true,
-        sequence: 1,
+        sequence: 3,
         source: { kind: "Stage", landscape: "development", name: "dev-us30" },
         status: "Succeeded",
         target: { kind: "Stage", landscape: "test", name: "test-eu20" },
         vector: `${REPOSITORY}//delivery-vector:2026.8.4`,
+      },
+      {
+        id: "promo-dev-to-test-2",
+        requireApproval: true,
+        sequence: 2,
+        source: { kind: "Stage", landscape: "development", name: "dev-us30" },
+        status: "Superseded",
+        target: { kind: "Stage", landscape: "test", name: "test-eu20" },
+        vector: `${REPOSITORY}//delivery-vector:2026.8.3`,
       },
     ],
     source: { kind: "Stage", landscape: "development", name: "dev-us30" },
@@ -245,6 +225,7 @@ const vectorPromotionConfigs: VectorPromotionConfig[] = [
     ttlAfterFinished: "168h0m0s",
   },
   {
+    // Ready but cannot execute (target unresolved), so test->prod renders as Blocked (orange).
     id: "delivery-vector-test-to-prod",
     keepLastPromotions: 3,
     promotions: [
@@ -253,12 +234,77 @@ const vectorPromotionConfigs: VectorPromotionConfig[] = [
         requireApproval: false,
         sequence: 1,
         source: { kind: "Stage", landscape: "test", name: "test-eu20" },
-        status: "Ready",
+        status: "Blocked",
         target: { kind: "Stage", landscape: "production", name: "prod-eu30" },
         vector: `${REPOSITORY}//delivery-vector:2026.8.3`,
       },
     ],
     source: { kind: "Stage", landscape: "test", name: "test-eu20" },
+    target: { kind: "Stage", landscape: "production", name: "prod-eu30" },
+  },
+  {
+    // Awaiting manual approval: the dev->test edge for eu10 renders as Waiting
+    // (amber).
+    id: "delivery-vector-dev-eu10-to-test",
+    keepLastPromotions: 3,
+    promotions: [
+      {
+        id: "promo-dev-eu10-1",
+        requireApproval: true,
+        sequence: 1,
+        source: { kind: "Stage", landscape: "development", name: "dev-eu10" },
+        status: "Waiting",
+        target: { kind: "Stage", landscape: "test", name: "test-us10" },
+        vector: `${REPOSITORY}//delivery-vector:2026.8.5`,
+      },
+    ],
+    source: { kind: "Stage", landscape: "development", name: "dev-eu10" },
+    target: { kind: "Stage", landscape: "test", name: "test-us10" },
+  },
+  {
+    // Approved and queued for execution: the test->prod edge renders as Ready
+    // (purple).
+    id: "delivery-vector-test-us10-to-prod",
+    keepLastPromotions: 3,
+    promotions: [
+      {
+        id: "promo-test-us10-1",
+        requireApproval: false,
+        sequence: 1,
+        source: { kind: "Stage", landscape: "test", name: "test-us10" },
+        status: "Ready",
+        target: { kind: "Stage", landscape: "production", name: "prod-us40" },
+        vector: `${REPOSITORY}//delivery-vector:2026.8.4`,
+      },
+    ],
+    source: { kind: "Stage", landscape: "test", name: "test-us10" },
+    target: { kind: "Stage", landscape: "production", name: "prod-us40" },
+  },
+  {
+    // Last run failed: the dev->test edge for rollback renders red.
+    id: "delivery-vector-dev-rollback-to-test",
+    keepLastPromotions: 3,
+    promotions: [
+      {
+        id: "promo-dev-rollback-1",
+        requireApproval: false,
+        sequence: 1,
+        source: { kind: "Stage", landscape: "development", name: "dev-rollback" },
+        status: "Failed",
+        target: { kind: "Stage", landscape: "test", name: "test-eu20" },
+        vector: `${REPOSITORY}//delivery-vector:2026.8.0`,
+      },
+    ],
+    source: { kind: "Stage", landscape: "development", name: "dev-rollback" },
+    target: { kind: "Stage", landscape: "test", name: "test-eu20" },
+  },
+  {
+    // Configured but never run: the test->prod edge renders faint and dashed
+    // (idle).
+    id: "delivery-vector-test-us10-to-prod-eu30",
+    keepLastPromotions: 3,
+    promotions: [],
+    source: { kind: "Stage", landscape: "test", name: "test-us10" },
     target: { kind: "Stage", landscape: "production", name: "prod-eu30" },
   },
 ];

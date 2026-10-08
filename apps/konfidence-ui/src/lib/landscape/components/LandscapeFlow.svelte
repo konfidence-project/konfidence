@@ -7,13 +7,15 @@
         Position,
         SvelteFlow,
     } from "@xyflow/svelte";
-    import type { Edge, Node } from "@xyflow/svelte";
+    import type { Edge, EdgeTypes, Node } from "@xyflow/svelte";
     import type { Landscape, Stage, VectorPromotionConfig } from "$lib/konfidence-api/types";
     import { buildLandscapeGraph, stageKey } from "$lib/landscape/landscapeGraph";
+    import { promotionStatuses } from "$lib/landscape/promotionStatus";
     import { stageDetailsUrl } from "$lib/projects/url";
     import { mode } from "mode-watcher";
     import LandscapeCanvasResize from "$lib/landscape/components/LandscapeCanvasResize.svelte";
     import LandscapeEmptyNode from "$lib/landscape/components/LandscapeEmptyNode.svelte";
+    import PromotionEdge from "$lib/landscape/components/PromotionEdge.svelte";
     import StageNode from "$lib/landscape/components/StageNode.svelte";
 
     interface Props {
@@ -35,14 +37,19 @@
         "landscape-empty": LandscapeEmptyNode,
         stage: StageNode,
     };
+    const edgeTypes: EdgeTypes = {
+        promotion: PromotionEdge,
+    };
     // Cards have a fixed height with bounded vector previews; full references are on the details page.
     const CARD_WIDTH = 304;
     const CARD_HEIGHT = 256;
     const GAP = 24;
-    // Columns are spaced like the former category columns, leaving room for the
-    // dev(left)->prod(right) promotion edges drawn between them.
-    const COLUMN_GAP = 80;
+    // Columns are spaced like the former category columns, leaving generous room
+    // for the dev(left)->prod(right) promotion edges to bend fluidly between them.
+    const COLUMN_GAP = 140;
     const MIN_READABLE_ZOOM = 0.75;
+    const MIN_ZOOM = 0.1;
+    const MAX_ZOOM = 1.5;
     let canvasWidth = $state(0);
 
     const graph = $derived(
@@ -103,9 +110,12 @@
     const colorMode = $derived(mode.current === "dark" ? "dark" : "light");
     const edges = $derived.by((): Edge[] =>
         graph.edges.map((edge) => ({
+            animated: edge.status !== undefined && promotionStatuses[edge.status].animated,
+            data: { status: edge.status },
             id: edge.id,
             source: edge.sourceStageKey,
             target: edge.targetStageKey,
+            type: "promotion",
         })),
     );
 
@@ -113,13 +123,14 @@
 
 <div
     bind:clientWidth={canvasWidth}
-    class="h-full min-h-0 min-w-0 bg-surface-canvas [&_.svelte-flow]:[--xy-background-color:var(--surface-canvas)] [&_.svelte-flow]:[--xy-controls-button-background-color:var(--surface-default)] [&_.svelte-flow]:[--xy-controls-button-color:var(--text-primary)] [&_.svelte-flow]:[--xy-controls-button-border-color:var(--border-subtle)]"
+    class="h-full min-h-0 min-w-0 bg-[var(--surface-canvas)] [&_.svelte-flow]:[--xy-background-color:var(--surface-canvas)] [&_.svelte-flow]:[--xy-edge-stroke:var(--border-strong)] [&_.svelte-flow]:[--xy-controls-button-background-color:var(--surface-default)] [&_.svelte-flow]:[--xy-controls-button-color:var(--text-primary)] [&_.svelte-flow]:[--xy-controls-button-border-color:var(--border-subtle)]"
     data-testid="landscape-flow"
 >
     {#if canvasWidth > 0}
         <SvelteFlow
             {nodes}
             {nodeTypes}
+            {edgeTypes}
             initialViewport={{
                 x: GAP,
                 y: GAP,
@@ -127,8 +138,8 @@
             }}
             {edges}
             {colorMode}
-            minZoom={0.1}
-            maxZoom={1.5}
+            minZoom={MIN_ZOOM}
+            maxZoom={MAX_ZOOM}
             nodesDraggable={false}
             nodesConnectable={false}
             nodesFocusable={false}
@@ -140,6 +151,7 @@
             multiSelectionKey={null}
             panOnScroll
             panOnScrollMode={PanOnScrollMode.Free}
+            proOptions={{ hideAttribution: true }}
         >
             <Controls showLock={false} />
             <LandscapeCanvasResize

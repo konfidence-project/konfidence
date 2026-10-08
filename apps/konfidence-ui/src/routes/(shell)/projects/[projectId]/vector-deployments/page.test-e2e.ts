@@ -6,7 +6,7 @@ const PROJECT_ID = "payments-platform";
 const VECTOR_DEPLOYMENTS_PATH = `/projects/${PROJECT_ID}/vector-deployments`;
 const ARTIFACT_DEPLOYMENTS_PATH = `/projects/${PROJECT_ID}/artifact-deployments`;
 const EMPTY_VECTOR_DEPLOYMENTS_PATH = "/projects/identity-service/vector-deployments";
-const EXPECTED_ROW_COUNT = 3;
+const EXPECTED_ROW_COUNT = 7;
 
 const setScenario = async (page: Page, scenario: string): Promise<void> => {
   await page.context().addCookies([
@@ -31,7 +31,7 @@ test.describe("vector deployments", () => {
     await gotoVectorDeployments(page);
 
     await expect(page.getByTestId("page-heading")).toHaveText("Vector Deployments");
-    await expect(page.getByTestId("vectordeployment-view-count")).toHaveText("3 of 3 deployments");
+    await expect(page.getByTestId("vectordeployment-view-count")).toHaveText("7 of 7 deployments");
 
     const rows = page.getByTestId("vectordeployment-row");
     await expect(rows).toHaveCount(EXPECTED_ROW_COUNT);
@@ -53,11 +53,11 @@ test.describe("vector deployments", () => {
   test("filters the table by status", async ({ page }) => {
     await gotoVectorDeployments(page);
 
-    await page.getByTestId("vectordeployment-status-filter").selectOption("DeployingVector");
+    await page.getByTestId("vectordeployment-status-filter").selectOption("DeploymentFailed");
 
     const rows = page.getByTestId("vectordeployment-row");
     await expect(rows).toHaveCount(1);
-    await expect(page.locator('[data-row-id="vector-prod-eu30-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="vector-dev-rollback-1"]')).toBeVisible();
   });
 
   test("sorts by version when the column header is activated", async ({ page }) => {
@@ -194,7 +194,7 @@ test.describe("vector deployments", () => {
     await page.getByTestId("vectordeployment-landscape-filter").selectOption("test");
 
     await expect(page).toHaveURL(`${VECTOR_DEPLOYMENTS_PATH}?landscapeId=test`);
-    await expect(page.getByTestId("vectordeployment-row")).toHaveCount(1);
+    await expect(page.getByTestId("vectordeployment-row")).toHaveCount(2);
     await expect(page.locator('[data-row-id="vector-test-eu20-1"]')).toBeVisible();
     expect(requests.some((url) => url.includes("landscapeId=test"))).toBe(true);
   });
@@ -202,7 +202,7 @@ test.describe("vector deployments", () => {
   test("deep-links a landscape filter on first load", async ({ page }) => {
     await gotoVectorDeployments(page, `${VECTOR_DEPLOYMENTS_PATH}?landscapeId=development`);
 
-    await expect(page.getByTestId("vectordeployment-row")).toHaveCount(1);
+    await expect(page.getByTestId("vectordeployment-row")).toHaveCount(3);
     await expect(page.locator('[data-row-id="vector-dev-us30-1"]')).toBeVisible();
     await expect(page.getByTestId("vectordeployment-landscape-filter")).toHaveValue("development");
   });
@@ -221,7 +221,7 @@ test.describe("vector deployments", () => {
   test("surfaces the filter-aware empty state when a landscape has no deployments", async ({
     page,
   }) => {
-    await gotoVectorDeployments(page, `${VECTOR_DEPLOYMENTS_PATH}?landscapeId=sandbox`);
+    await gotoVectorDeployments(page, `${VECTOR_DEPLOYMENTS_PATH}?landscapeId=staging`);
 
     await expect(page.getByTestId("vectordeployment-view-empty")).toBeVisible();
     await expect(page.getByTestId("vectordeployment-view-empty-clear")).toBeVisible();

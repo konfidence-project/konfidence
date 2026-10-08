@@ -1,5 +1,37 @@
 /* oxlint-disable eslint/max-statements, typescript/prefer-for-of -- Layering is a linear fixed-point relaxation; the indexed pass counter and the accumulation steps read more clearly kept together than split apart. */
-import type { Landscape, Stage, VectorPromotionConfig } from "$lib/konfidence-api/types";
+import type {
+  Landscape,
+  Stage,
+  VectorPromotion,
+  VectorPromotionConfig,
+} from "$lib/konfidence-api/types";
+
+// The promotion state surfaced on an edge. This is the full lifecycle (not just
+// terminal states): the newest promotion by `sequence` wins, so an edge mirrors
+// whatever its latest promotion is currently doing. `undefined` means the config
+// has no promotions at all (defined but never run).
+type PromotionEdgeStatus = NonNullable<VectorPromotion["status"]>;
+
+// The newest promotion wins. Ordering is by `sequence` (the sole authoritative
+// ordinal; see VectorPromotion.sequence), so the latest promotion for a stage
+// pair always decides the edge state, regardless of its lifecycle phase.
+interface LatestPromotion {
+  sequence: number;
+  status: PromotionEdgeStatus;
+}
+
+const latestPromotion = (
+  promotions: readonly VectorPromotion[],
+): LatestPromotion | undefined =>
+  promotions.reduce<LatestPromotion | undefined>((best, promotion) => {
+    if (promotion.status === undefined) {
+      return best;
+    }
+    const sequence = promotion.sequence ?? 0;
+    return best === undefined || sequence >= best.sequence
+      ? { sequence, status: promotion.status }
+      : best;
+  }, undefined);
 
 // A stage placed on the promotion graph. `column` is the topological depth in
 // the promotion DAG (0 = origin/"dev" on the left, higher = closer to "prod" on
@@ -26,6 +58,9 @@ interface StageEdge {
   id: string;
   sourceStageKey: string;
   targetStageKey: string;
+  // The newest promotion's state for this stage pair, or undefined when no
+  // promotion has ever run. Drives edge colour, label, and animation.
+  status?: PromotionEdgeStatus;
 }
 
 interface LandscapeGraph {
@@ -116,8 +151,11 @@ const buildEdges = (
   promotionConfigs: readonly VectorPromotionConfig[],
   stageKeys: ReadonlySet<string>,
 ): StageEdge[] => {
-  const seen = new Set<string>();
-  const edges: StageEdge[] = [];
+  const edgesById = new Map<string, StageEdge>();
+  // Track the winning promotion sequence per edge so that, when several configs
+  // collapse onto the same stage pair, the latest settled promotion decides the
+  // edge status deterministically.
+  const bestSequenceById = new Map<string, number>();
   for (const config of promotionConfigs) {
     // A config carries an aggregate source->target that already describes the
     // stage relationship, so the config pair alone avoids duplicate edges per
@@ -131,13 +169,20 @@ const buildEdges = (
       isRenderableEdge(sourceStageKey, targetStageKey, stageKeys)
     ) {
       const id = `${sourceStageKey}=>${targetStageKey}`;
-      if (!seen.has(id)) {
-        seen.add(id);
-        edges.push({ id, sourceStageKey, targetStageKey });
+      const edge = edgesById.get(id) ?? { id, sourceStageKey, targetStageKey };
+      edgesById.set(id, edge);
+      // The newest promotion across all configs feeding this edge wins.
+      const latest = latestPromotion(config.promotions);
+      if (
+        latest !== undefined &&
+        latest.sequence >= (bestSequenceById.get(id) ?? Number.NEGATIVE_INFINITY)
+      ) {
+        bestSequenceById.set(id, latest.sequence);
+        edge.status = latest.status;
       }
     }
   }
-  return edges;
+  return [...edgesById.values()];
 };
 
 const placeStages = (
@@ -219,4 +264,10 @@ const buildLandscapeGraph = (
 };
 
 export { buildLandscapeGraph, stageKey };
-export type { EmptyLandscapePlacement, LandscapeGraph, StageEdge, StagePlacement };
+export type {
+  EmptyLandscapePlacement,
+  LandscapeGraph,
+  PromotionEdgeStatus,
+  StageEdge,
+  StagePlacement,
+};
