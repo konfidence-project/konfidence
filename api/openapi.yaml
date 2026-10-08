@@ -194,6 +194,31 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/projects/{projectId}/landscapes/{landscapeId}:
+    get:
+      operationId: getLandscapeV1
+      summary: Get a single landscape for a specific project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/LandscapePathId"
+      description: Returns a single landscape resources for a project.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Landscape"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /v1/projects/{projectId}/landscapes:
     get:
       operationId: listLandscapesV1

@@ -39,7 +39,8 @@ func NewRepository(reader client.Reader) Repository {
 func (r *k8sRepository) GetForScope(ctx context.Context, scoped landscapedomain.ScopedLandscape, name string) (*ResolvedStage, error) {
 	var stage konfidence.Stage
 	if err := r.reader.Get(ctx, types.NamespacedName{
-		Name: name,
+		Name:      name,
+		Namespace: scoped.Namespace,
 	}, &stage); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, ErrNotFound

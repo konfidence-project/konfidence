@@ -135,6 +135,57 @@ var _ = Describe("Repository", func() {
 			)))
 		})
 	})
+	Describe("GetForScope", func() {
+		It("returns the deployment with its landscape and stage IDs", func() {
+			scoped := scope("dev", "project-a", "landscape-dev")
+			got, err := vectordeployment.NewRepository(vectorDeploymentClient(
+				vectorDeployment("checkout-v1", "landscape-dev", "checkout-sv"),
+				stageVersion("checkout-sv", "landscape-dev", "checkout"),
+			)).GetForScope(context.Background(), scoped, "checkout-v1")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.VectorDeployment.Name).To(Equal("checkout-v1"))
+			Expect(got.LandscapeId).To(Equal("dev"))
+			Expect(got.StageId).To(Equal("checkout"))
+		})
+
+		It("returns ErrNotFound for a missing deployment", func() {
+			scoped := scope("dev", "project-a", "landscape-dev")
+			_, err := vectordeployment.NewRepository(vectorDeploymentClient()).GetForScope(
+				context.Background(), scoped, "missing",
+			)
+			Expect(err).To(MatchError(vectordeployment.ErrNotFound))
+		})
+
+		It("returns an error when the stage version is missing", func() {
+			scoped := scope("dev", "project-a", "landscape-dev")
+			_, err := vectordeployment.NewRepository(vectorDeploymentClient(
+				vectorDeployment("checkout-v1", "landscape-dev", "missing-sv"),
+			)).GetForScope(context.Background(), scoped, "checkout-v1")
+			Expect(err).To(HaveOccurred())
+			Expect(err).NotTo(MatchError(vectordeployment.ErrNotFound))
+		})
+
+		It("returns an error when the deployment has no stage version owner", func() {
+			noOwner := &konfidence.VectorDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "no-owner", Namespace: "landscape-dev"},
+				Spec:       konfidence.VectorDeploymentSpec{Vector: "https://registry.example.com/ocm//acme.example/vector:1.0.0"},
+			}
+			scoped := scope("dev", "project-a", "landscape-dev")
+			_, err := vectordeployment.NewRepository(vectorDeploymentClient(noOwner)).GetForScope(
+				context.Background(), scoped, "no-owner",
+			)
+			Expect(err).To(MatchError(ContainSubstring(`resolving stage for vector deployment "no-owner"`)))
+		})
+
+		It("does not return a deployment from another landscape namespace", func() {
+			devScope := scope("dev", "project-a", "landscape-dev")
+			_, err := vectordeployment.NewRepository(vectorDeploymentClient(
+				vectorDeployment("checkout-v1", "landscape-prod", "checkout-sv"),
+				stageVersion("checkout-sv", "landscape-prod", "checkout"),
+			)).GetForScope(context.Background(), devScope, "checkout-v1")
+			Expect(err).To(MatchError(vectordeployment.ErrNotFound))
+		})
+	})
 })
 
 var _ = Describe("StateFromConditions", func() {
