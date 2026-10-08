@@ -7,12 +7,15 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
-var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func() {
+var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, func() {
 
 	BeforeEach(func() { cleanupPromotions() })
 
@@ -99,6 +102,67 @@ var _ = Describe("VectorPromotion TTL controller tests", Ordered, Serial, func()
 				}
 			}
 			g.Expect(names).To(ConsistOf("ttl-retention-c"))
+		}, timeout, interval).Should(Succeed())
+	})
+
+	It("should supersede the oldest gated promotion beyond the outstanding retention bound", func() {
+		keep := int32(2)
+		config := createConfig("outstanding-retention-config",
+			stageSource("missing-source-stage"), stageTarget("missing-target-stage"))
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name: config.Name, Namespace: testNamespace,
+			}, config)).To(Succeed())
+			original := config.DeepCopy()
+			config.Spec.KeepOutstandingPromotions = &keep
+			g.Expect(k8sClient.Patch(ctx, config, client.MergeFrom(original))).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		oldest := createPromotionRequiringApproval("outstanding-retention-a", config.Name)
+		middle := createPromotionRequiringApproval("outstanding-retention-b", config.Name)
+		newest := createPromotionRequiringApproval("outstanding-retention-c", config.Name)
+
+		Eventually(func(g Gomega) {
+			refreshPromotion(oldest)
+			condition := meta.FindStatusCondition(oldest.Status.Conditions, konfidence.ConditionTypeSucceeded)
+			g.Expect(oldest.Status.State).To(Equal(konfidence.PromotionStateSuperseded))
+			g.Expect(condition).NotTo(BeNil())
+			g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
+			g.Expect(condition.Reason).To(Equal(konfidence.ReasonPromotionOutstandingLimitReached))
+		}, timeout, interval).Should(Succeed())
+
+		Consistently(func(g Gomega) {
+			refreshPromotion(middle)
+			refreshPromotion(newest)
+			g.Expect(promotion.IsTerminal(middle)).To(BeFalse())
+			g.Expect(promotion.IsTerminal(newest)).To(BeFalse())
+		}, 3*time.Second, interval).Should(Succeed())
+	})
+
+	It("should apply a reduced outstanding retention bound to existing promotions", func() {
+		config := createConfig("outstanding-retention-update-config",
+			stageSource("missing-source-stage"), stageTarget("missing-target-stage"))
+		oldest := createPromotionRequiringApproval("outstanding-retention-update-a", config.Name)
+		createPromotionRequiringApproval("outstanding-retention-update-b", config.Name)
+		createPromotionRequiringApproval("outstanding-retention-update-c", config.Name)
+
+		keep := int32(2)
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name: config.Name, Namespace: testNamespace,
+			}, config)).To(Succeed())
+			original := config.DeepCopy()
+			config.Spec.KeepOutstandingPromotions = &keep
+			g.Expect(k8sClient.Patch(ctx, config, client.MergeFrom(original))).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			refreshPromotion(oldest)
+			condition := meta.FindStatusCondition(oldest.Status.Conditions, konfidence.ConditionTypeSucceeded)
+			g.Expect(oldest.Status.State).To(Equal(konfidence.PromotionStateSuperseded))
+			g.Expect(condition).NotTo(BeNil())
+			g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
+			g.Expect(condition.Reason).To(Equal(konfidence.ReasonPromotionOutstandingLimitReached))
 		}, timeout, interval).Should(Succeed())
 	})
 

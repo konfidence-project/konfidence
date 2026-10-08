@@ -80,7 +80,7 @@ func DeriveState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState 
 		return konfidence.PromotionStateInProgress
 	case konfidence.ReasonPromotionTargetUnresolved:
 		return konfidence.PromotionStateBlocked
-	case konfidence.ReasonPromotionSuperseded:
+	case konfidence.ReasonPromotionSuperseded, konfidence.ReasonPromotionOutstandingLimitReached:
 		return konfidence.PromotionStateSuperseded
 	}
 	return konfidence.PromotionStateFailed
