@@ -25,15 +25,17 @@ const (
 	ArtifactDeploymentReadyCondition = "Ready"
 
 	// ArtifactDeploymentStalledReasonManifestMissing indicates that the Konfidence manifest is absent from the artifact.
+	// A transient fetch failure is not this reason.
 	ArtifactDeploymentStalledReasonManifestMissing = "ManifestMissing"
 
 	// ArtifactDeploymentStalledReasonNoDeploymentClassAvailable indicates that no DeploymentClass matches the artifact.
 	ArtifactDeploymentStalledReasonNoDeploymentClassAvailable = "NoDeploymentClassAvailable"
 
 	// ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing indicates that DeploymentTarget credentials are absent.
+	// Set it only after a deadline, since secrets often arrive asynchronously.
 	ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing = "DeploymentTargetSecretsMissing"
 
-	// ArtifactDeploymentStalledReasonDeploymentResultNotUnique indicates that the DeploymentResults are not unique.
+	// ArtifactDeploymentStalledReasonDeploymentResultNotUnique indicates that two DeploymentResults share a (name, type).
 	ArtifactDeploymentStalledReasonDeploymentResultNotUnique = "DeploymentResultNotUnique"
 )
 
