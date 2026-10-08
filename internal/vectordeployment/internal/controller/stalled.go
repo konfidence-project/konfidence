@@ -8,8 +8,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// setStalledCondition marks the vector deployment stalled.
-func setStalledCondition(vectorDeployment *konfidence.VectorDeployment, reason, message string) {
+// setStalledConditionTrue marks the vector deployment stalled.
+func setStalledConditionTrue(vectorDeployment *konfidence.VectorDeployment, reason, message string) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StalledCondition,
 		Status:             metav1.ConditionTrue,
@@ -19,8 +19,8 @@ func setStalledCondition(vectorDeployment *konfidence.VectorDeployment, reason, 
 	})
 }
 
-// clearStalledCondition records that this reconcile found nothing blocking.
-func clearStalledCondition(vectorDeployment *konfidence.VectorDeployment) {
+// setStalledConditionFalse records that this reconcile found nothing blocking.
+func setStalledConditionFalse(vectorDeployment *konfidence.VectorDeployment) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StalledCondition,
 		Status:             metav1.ConditionFalse,
@@ -37,7 +37,7 @@ func reconcileStalledStatusWithDeployments(
 	artifactDeployments []*konfidence.ArtifactDeployment) {
 	stalledDeployment := determineStalledArtifactDeployment(artifactDeployments)
 	if stalledDeployment == nil {
-		clearStalledCondition(vectorDeployment)
+		setStalledConditionFalse(vectorDeployment)
 		return
 	}
 
@@ -48,7 +48,7 @@ func reconcileStalledStatusWithDeployments(
 		}
 	}
 
-	setStalledCondition(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled,
+	setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled,
 		stalledArtifactDeploymentMessage(stalledDeployment, stalledCount))
 }
 

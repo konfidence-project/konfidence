@@ -30,7 +30,7 @@ var _ = Describe("Stalled condition", func() {
 		It("should write Stalled=False", func() {
 			vectorDeployment := newVectorDeployment(3)
 
-			clearStalledCondition(vectorDeployment)
+			setStalledConditionFalse(vectorDeployment)
 
 			condition := stalledCondition(vectorDeployment)
 			Expect(condition).ToNot(BeNil())
@@ -41,8 +41,8 @@ var _ = Describe("Stalled condition", func() {
 		It("should keep a single entry across a reason transition", func() {
 			vectorDeployment := newVectorDeployment(1)
 
-			setStalledCondition(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision, "collision")
-			setStalledCondition(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
+			setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision, "collision")
+			setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
 
 			var count int
 			for _, condition := range vectorDeployment.Status.Conditions {
@@ -57,8 +57,8 @@ var _ = Describe("Stalled condition", func() {
 		It("should flip back to False once the cause resolves", func() {
 			vectorDeployment := newVectorDeployment(1)
 
-			setStalledCondition(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
-			clearStalledCondition(vectorDeployment)
+			setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
+			setStalledConditionFalse(vectorDeployment)
 
 			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
 		})
@@ -109,7 +109,7 @@ var _ = Describe("Stalled condition", func() {
 
 		It("should clear Stalled when no ArtifactDeployment is stalled", func() {
 			vectorDeployment := newVectorDeployment(1)
-			setStalledCondition(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
+			setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
 
 			reconcileStalledStatusWithDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{{}})
 

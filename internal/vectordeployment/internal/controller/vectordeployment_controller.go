@@ -295,7 +295,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				if collisionCount >= 5 {
 					log.Error(nil, msg, "name", deploymentName, "collisionCount", collisionCount)
 					// Salting has stopped helping, so requeueing cannot resolve this.
-					setStalledCondition(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision,
+					setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision,
 						fmt.Sprintf("%s (giving up after %d salts)", msg, collisionCount))
 					return false, fmt.Errorf("%s (giving up after %d salts)", msg, collisionCount)
 				}
