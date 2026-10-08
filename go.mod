@@ -67,7 +67,7 @@ require (
 	ocm.software/open-component-model/bindings/go/transform v0.0.0-20260811140339-29bc20eb921b
 	ocm.software/open-component-model/cli v0.14.0
 	ocm.software/open-component-model/kubernetes/controller v0.15.0
-	sigs.k8s.io/controller-runtime v0.25.1
+	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/yaml v1.6.0
 )
 
