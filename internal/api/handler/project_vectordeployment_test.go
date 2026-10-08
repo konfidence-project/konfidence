@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"testing"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
@@ -13,6 +12,8 @@ import (
 	"github.com/konfidence-project/konfidence/internal/auth"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	"github.com/konfidence-project/konfidence/internal/vectordeployment"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -75,170 +76,160 @@ func vectorDeploymentContext(projectID string) context.Context {
 	}})
 }
 
-func assertVectorDeploymentAPIError(t *testing.T, response any, err error, status int) {
-	t.Helper()
-	if response != nil {
-		t.Fatalf("expected no response, got %T", response)
-	}
+func assertVectorDeploymentAPIError(response any, err error, status int) {
+	GinkgoHelper()
+	Expect(response).To(BeNil())
 	apiErr := apierror.As(err)
-	if apiErr == nil || apiErr.Status != status {
-		t.Fatalf("expected API error status %d, got %v", status, err)
-	}
+	Expect(apiErr).To(HaveOccurred())
+	Expect(apiErr.Status).To(Equal(status))
 }
 
-func TestListVectorDeploymentsV1(t *testing.T) {
-	const landscapeName = "dev"
-	landscapeID := landscapeName
-	selectedLandscape := &konfidence.Landscape{
-		ObjectMeta: metav1.ObjectMeta{Name: landscapeName},
-		Status:     konfidence.LandscapeStatus{Namespace: "landscape-dev"},
-	}
-	repository := &vectorDeploymentRepository{items: []vectordeployment.ResolvedVectorDeployment{{
-		VectorDeployment: konfidence.VectorDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "checkout-v1"},
-			Spec: konfidence.VectorDeploymentSpec{
-				Vector: "https://registry.example.com/ocm//acme.example/checkout:1.2.3",
+var _ = Describe("ListVectorDeploymentsV1", func() {
+	It("returns deployments for a filtered landscape", func() {
+		const landscapeName = "dev"
+		landscapeID := landscapeName
+		selectedLandscape := &konfidence.Landscape{
+			ObjectMeta: metav1.ObjectMeta{Name: landscapeName},
+			Status:     konfidence.LandscapeStatus{Namespace: "landscape-dev"},
+		}
+		repository := &vectorDeploymentRepository{items: []vectordeployment.ResolvedVectorDeployment{{
+			VectorDeployment: konfidence.VectorDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "checkout-v1"},
+				Spec: konfidence.VectorDeploymentSpec{
+					Vector: "https://registry.example.com/ocm//acme.example/checkout:1.2.3",
+				},
 			},
-		},
-		LandscapeId: landscapeName,
-		StageId:     "checkout",
-	}}}
-	if _, err := toVectorDeploymentResponse(repository.items[0]); err != nil {
-		t.Fatalf("test fixture cannot be mapped: %v", err)
-	}
-	landscapeRepository := &vectorDeploymentLandscapeRepository{scope: []landscapedomain.ScopedLandscape{{
-		Landscape: *selectedLandscape,
-		Namespace: selectedLandscape.Status.Namespace,
-	}}}
-	h := &projectHandler{
-		projectRepo: &vectorDeploymentProjectRepository{project: &konfidence.Project{
-			ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
-			Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
-		}},
-		landscapeRepo:        landscapeRepository,
-		vectorDeploymentRepo: repository,
-	}
-
-	response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("project-a"),
-		openapi.ListVectorDeploymentsV1RequestObject{
-			ProjectId: "project-a",
-			Params:    openapi.ListVectorDeploymentsV1Params{LandscapeId: &landscapeID},
-		})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data := response.(openapi.ListVectorDeploymentsV1200JSONResponse).Data
-	if len(data) != 1 {
-		t.Fatalf("expected one deployment, got %#v", data)
-	}
-	got := data[0]
-	if got.Id != "checkout-v1" || got.LandscapeId != landscapeName || got.StageId != "checkout" ||
-		got.Vector.Repository != "https://registry.example.com/ocm" ||
-		got.Vector.ComponentName != "acme.example/checkout" || got.Vector.ComponentVersion != "1.2.3" ||
-		got.Status != openapi.VectorDeploymentStatusDeployingVector {
-		t.Fatalf("unexpected deployment response: %#v", got)
-	}
-	if len(repository.scope) != 1 || repository.scope[0].Landscape.Name != landscapeName {
-		t.Fatalf("unexpected repository scope: %#v", repository.scope)
-	}
-	if landscapeRepository.getCalls != 0 || landscapeRepository.listCalls != 1 {
-		t.Fatalf("unexpected landscape repository calls: get=%d list=%d", landscapeRepository.getCalls, landscapeRepository.listCalls)
-	}
-}
-
-func TestListVectorDeploymentsV1WithoutLandscapeFilter(t *testing.T) {
-	landscapes := []konfidence.Landscape{
-		{ObjectMeta: metav1.ObjectMeta{Name: "dev"}, Status: konfidence.LandscapeStatus{Namespace: "landscape-dev"}},
-		{ObjectMeta: metav1.ObjectMeta{Name: "prod"}, Status: konfidence.LandscapeStatus{Namespace: "landscape-prod"}},
-	}
-	landscapeRepository := &vectorDeploymentLandscapeRepository{scope: []landscapedomain.ScopedLandscape{
-		{Landscape: landscapes[0], Namespace: landscapes[0].Status.Namespace},
-		{Landscape: landscapes[1], Namespace: landscapes[1].Status.Namespace},
-	}}
-	repository := &vectorDeploymentRepository{}
-	h := &projectHandler{
-		projectRepo: &vectorDeploymentProjectRepository{project: &konfidence.Project{
-			ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
-			Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
-		}},
-		landscapeRepo:        landscapeRepository,
-		vectorDeploymentRepo: repository,
-	}
-
-	response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("project-a"),
-		openapi.ListVectorDeploymentsV1RequestObject{ProjectId: "project-a"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := response.(openapi.ListVectorDeploymentsV1200JSONResponse); !ok {
-		t.Fatalf("expected successful response, got %T", response)
-	}
-	if len(repository.scope) != 2 || landscapeRepository.getCalls != 0 || landscapeRepository.listCalls != 1 {
-		t.Fatalf("unexpected landscape selection: %#v", repository.scope)
-	}
-}
-
-func TestListVectorDeploymentsV1Errors(t *testing.T) {
-	t.Run("unauthorized", func(t *testing.T) {
-		h := &projectHandler{}
-		response, err := h.ListVectorDeploymentsV1(context.Background(), openapi.ListVectorDeploymentsV1RequestObject{})
-		assertVectorDeploymentAPIError(t, response, err, http.StatusUnauthorized)
-	})
-
-	t.Run("forbidden", func(t *testing.T) {
-		h := &projectHandler{}
-		response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("other-project"),
-			openapi.ListVectorDeploymentsV1RequestObject{ProjectId: "project-a"})
-		assertVectorDeploymentAPIError(t, response, err, http.StatusForbidden)
-	})
-
-	t.Run("repository failure", func(t *testing.T) {
+			LandscapeId: landscapeName,
+			StageId:     "checkout",
+		}}}
+		_, err := toVectorDeploymentResponse(repository.items[0])
+		Expect(err).NotTo(HaveOccurred(), "test fixture cannot be mapped")
+		landscapeRepository := &vectorDeploymentLandscapeRepository{scope: []landscapedomain.ScopedLandscape{{
+			Landscape: *selectedLandscape,
+			Namespace: selectedLandscape.Status.Namespace,
+		}}}
 		h := &projectHandler{
 			projectRepo: &vectorDeploymentProjectRepository{project: &konfidence.Project{
 				ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
 				Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
 			}},
-			landscapeRepo:        &vectorDeploymentLandscapeRepository{},
-			vectorDeploymentRepo: &vectorDeploymentRepository{err: errors.New("cache failure")},
+			landscapeRepo:        landscapeRepository,
+			vectorDeploymentRepo: repository,
 		}
-		response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("project-a"),
-			openapi.ListVectorDeploymentsV1RequestObject{ProjectId: "project-a"})
-		assertVectorDeploymentAPIError(t, response, err, http.StatusInternalServerError)
-	})
 
-	t.Run("filtered landscape not found", func(t *testing.T) {
-		landscapeID := "missing"
-		h := &projectHandler{
-			projectRepo: &vectorDeploymentProjectRepository{project: &konfidence.Project{
-				ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
-				Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
-			}},
-			landscapeRepo: &vectorDeploymentLandscapeRepository{err: landscapedomain.ErrLandscapeNotFound},
-		}
 		response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("project-a"),
 			openapi.ListVectorDeploymentsV1RequestObject{
 				ProjectId: "project-a",
 				Params:    openapi.ListVectorDeploymentsV1Params{LandscapeId: &landscapeID},
 			})
-		assertVectorDeploymentAPIError(t, response, err, http.StatusNotFound)
+		Expect(err).NotTo(HaveOccurred())
+		data := response.(openapi.ListVectorDeploymentsV1200JSONResponse).Data
+		Expect(data).To(HaveLen(1))
+		got := data[0]
+		Expect(got.Id).To(Equal("checkout-v1"))
+		Expect(got.LandscapeId).To(Equal(landscapeName))
+		Expect(got.StageId).To(Equal("checkout"))
+		Expect(got.Vector.Repository).To(Equal("https://registry.example.com/ocm"))
+		Expect(got.Vector.ComponentName).To(Equal("acme.example/checkout"))
+		Expect(got.Vector.ComponentVersion).To(Equal("1.2.3"))
+		Expect(got.Status).To(Equal(openapi.VectorDeploymentStatusDeployingVector))
+		Expect(repository.scope).To(HaveLen(1))
+		Expect(repository.scope[0].Landscape.Name).To(Equal(landscapeName))
+		Expect(landscapeRepository.getCalls).To(BeZero())
+		Expect(landscapeRepository.listCalls).To(Equal(1))
 	})
 
-	t.Run("invalid vector reference", func(t *testing.T) {
+	It("returns deployments without a landscape filter", func() {
+		landscapes := []konfidence.Landscape{
+			{ObjectMeta: metav1.ObjectMeta{Name: "dev"}, Status: konfidence.LandscapeStatus{Namespace: "landscape-dev"}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "prod"}, Status: konfidence.LandscapeStatus{Namespace: "landscape-prod"}},
+		}
+		landscapeRepository := &vectorDeploymentLandscapeRepository{scope: []landscapedomain.ScopedLandscape{
+			{Landscape: landscapes[0], Namespace: landscapes[0].Status.Namespace},
+			{Landscape: landscapes[1], Namespace: landscapes[1].Status.Namespace},
+		}}
+		repository := &vectorDeploymentRepository{}
 		h := &projectHandler{
 			projectRepo: &vectorDeploymentProjectRepository{project: &konfidence.Project{
 				ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
 				Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
 			}},
-			landscapeRepo: &vectorDeploymentLandscapeRepository{},
-			vectorDeploymentRepo: &vectorDeploymentRepository{items: []vectordeployment.ResolvedVectorDeployment{{
-				VectorDeployment: konfidence.VectorDeployment{
-					ObjectMeta: metav1.ObjectMeta{Name: "invalid"},
-					Spec:       konfidence.VectorDeploymentSpec{Vector: "not a vector reference"},
-				},
-			}}},
+			landscapeRepo:        landscapeRepository,
+			vectorDeploymentRepo: repository,
 		}
+
 		response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("project-a"),
 			openapi.ListVectorDeploymentsV1RequestObject{ProjectId: "project-a"})
-		assertVectorDeploymentAPIError(t, response, err, http.StatusInternalServerError)
+		Expect(err).NotTo(HaveOccurred())
+		_, ok := response.(openapi.ListVectorDeploymentsV1200JSONResponse)
+		Expect(ok).To(BeTrue())
+		Expect(repository.scope).To(HaveLen(2))
+		Expect(landscapeRepository.getCalls).To(BeZero())
+		Expect(landscapeRepository.listCalls).To(Equal(1))
 	})
-}
+
+	Context("when an error occurs", func() {
+		It("returns unauthorized without an identity", func() {
+			h := &projectHandler{}
+			response, err := h.ListVectorDeploymentsV1(context.Background(), openapi.ListVectorDeploymentsV1RequestObject{})
+			assertVectorDeploymentAPIError(response, err, http.StatusUnauthorized)
+		})
+
+		It("returns forbidden without access to the project", func() {
+			h := &projectHandler{}
+			response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("other-project"),
+				openapi.ListVectorDeploymentsV1RequestObject{ProjectId: "project-a"})
+			assertVectorDeploymentAPIError(response, err, http.StatusForbidden)
+		})
+
+		It("returns an internal server error on repository failure", func() {
+			h := &projectHandler{
+				projectRepo: &vectorDeploymentProjectRepository{project: &konfidence.Project{
+					ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
+					Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
+				}},
+				landscapeRepo:        &vectorDeploymentLandscapeRepository{},
+				vectorDeploymentRepo: &vectorDeploymentRepository{err: errors.New("cache failure")},
+			}
+			response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("project-a"),
+				openapi.ListVectorDeploymentsV1RequestObject{ProjectId: "project-a"})
+			assertVectorDeploymentAPIError(response, err, http.StatusInternalServerError)
+		})
+
+		It("returns not found for a missing filtered landscape", func() {
+			landscapeID := "missing"
+			h := &projectHandler{
+				projectRepo: &vectorDeploymentProjectRepository{project: &konfidence.Project{
+					ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
+					Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
+				}},
+				landscapeRepo: &vectorDeploymentLandscapeRepository{err: landscapedomain.ErrLandscapeNotFound},
+			}
+			response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("project-a"),
+				openapi.ListVectorDeploymentsV1RequestObject{
+					ProjectId: "project-a",
+					Params:    openapi.ListVectorDeploymentsV1Params{LandscapeId: &landscapeID},
+				})
+			assertVectorDeploymentAPIError(response, err, http.StatusNotFound)
+		})
+
+		It("returns an internal server error for an invalid vector reference", func() {
+			h := &projectHandler{
+				projectRepo: &vectorDeploymentProjectRepository{project: &konfidence.Project{
+					ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
+					Status:     konfidence.ProjectStatus{Namespace: "kden-p-project-a"},
+				}},
+				landscapeRepo: &vectorDeploymentLandscapeRepository{},
+				vectorDeploymentRepo: &vectorDeploymentRepository{items: []vectordeployment.ResolvedVectorDeployment{{
+					VectorDeployment: konfidence.VectorDeployment{
+						ObjectMeta: metav1.ObjectMeta{Name: "invalid"},
+						Spec:       konfidence.VectorDeploymentSpec{Vector: "not a vector reference"},
+					},
+				}}},
+			}
+			response, err := h.ListVectorDeploymentsV1(vectorDeploymentContext("project-a"),
+				openapi.ListVectorDeploymentsV1RequestObject{ProjectId: "project-a"})
+			assertVectorDeploymentAPIError(response, err, http.StatusInternalServerError)
+		})
+	})
+})

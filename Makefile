@@ -54,11 +54,9 @@ API_PATHS = paths="./api/v1alpha1/..."
 OPERATOR_INTERNAL_DIRS = $(shell find internal -maxdepth 2 -name setup.go -exec dirname {} \; | sed 's|^|./|; s|$$|/internal/controller|' | sort)
 OPERATOR_INTERNAL_PATHS = $(foreach d,$(OPERATOR_INTERNAL_DIRS),paths="$(d)")
 
-# Ginkgo suites of the operator domains, input to test-operators. Discovered
-# separately from the controller packages above: manifests must scan every
-# controller dir, tests must run every suite dir (which may sit outside
-# internal/controller, e.g. domain roots or internal/promotion).
-OPERATOR_SUITE_DIRS = $(shell find internal -maxdepth 2 -name setup.go -exec dirname {} \; | xargs -I{} find {} -name "*suite_test.go" | xargs -n1 dirname | sort -u | sed 's|^|./|')
+# Operator domains, recursively tested by test-operators.
+OPERATOR_DOMAIN_DIRS = $(shell find internal -maxdepth 2 -name setup.go -exec dirname {} \; | sort)
+OPERATOR_TEST_PATHS = $(foreach d,$(OPERATOR_DOMAIN_DIRS),./$(d)/...)
 
 # Kubernetes / envtest versions
 ENVTEST_K8S_VERSION ?= 1.33
@@ -265,24 +263,28 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api ## Run all unit tests.
+test: hermit check-ginkgo-tests manifests generate fmt vet test-operators test-pkg test-kden-cli test-api ## Run all unit tests.
+
+.PHONY: check-ginkgo-tests
+check-ginkgo-tests: hermit ## Verify that all Go behavior tests use Ginkgo.
+	@hack/check-ginkgo-tests.sh
 
 .PHONY: test-operators
 test-operators: hermit manifests setup-envtest ginkgo ## Run unit tests for the konfidence operator.
 	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) --coverprofile=cover-operators.out -v $(OPERATOR_SUITE_DIRS) ./cmd/konfidence/...
+		$(GINKGO) --coverprofile=cover-operators.out -v ./api/... $(OPERATOR_TEST_PATHS) ./cmd/konfidence/...
 
 .PHONY: test-pkg
 test-pkg: hermit ginkgo ## Run unit tests for shared pkg packages.
 	$(GINKGO) --coverprofile=cover-pkg.out -v ./pkg/...
 
 .PHONY: test-kden-cli
-test-kden-cli: hermit ## Run unit tests for the kden CLI.
-	go test ./cmd/kden/... ./internal/kden/...
+test-kden-cli: hermit ginkgo ## Run unit tests for the kden CLI.
+	$(GINKGO) --coverprofile=cover-kden-cli.out -v ./cmd/kden/... ./internal/kden/...
 
 .PHONY: test-api
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
-	$(GINKGO) --coverprofile=cover-api.out -v ./cmd/api/... ./internal/api/... ./internal/kden/apiclient/...
+	$(GINKGO) --coverprofile=cover-api.out -v ./cmd/api/... ./internal/api/... ./internal/kden/apiclient/... ./internal/auth/... ./internal/artifactdeployment/...
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.

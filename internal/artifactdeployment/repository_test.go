@@ -2,32 +2,37 @@ package artifactdeployment_test
 
 import (
 	"context"
-	"errors"
-	"testing"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/artifactdeployment"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-var (
-	landscapeId        = "dev"
-	vectorDeploymentId = "vd-a"
-	stageId            = "stage-dev"
+const (
+	landscapeID        = "dev"
+	vectorDeploymentID = "vd-a"
+	stageID            = "stage-dev"
 	projectNamespace   = "kden-project"
 	landscapeNamespace = "kden-l-dev"
 )
 
-func projectScheme(t *testing.T) *runtime.Scheme {
-	t.Helper()
+func projectScheme() *runtime.Scheme {
+	GinkgoHelper()
 	scheme := runtime.NewScheme()
-	if err := konfidence.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
+	Expect(konfidence.AddToScheme(scheme)).To(Succeed())
 	return scheme
+}
+
+func repositoryWith(objects ...client.Object) artifactdeployment.Repository {
+	GinkgoHelper()
+	k8s := fake.NewClientBuilder().WithScheme(projectScheme()).WithObjects(objects...).Build()
+	return artifactdeployment.NewRepository(k8s)
 }
 
 func landscapeResource(name, namespace string) *konfidence.Landscape {
@@ -51,18 +56,15 @@ func vectorDeploymentResource(name, landscapeNamespace, stageVersionName string)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: landscapeNamespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					Kind: konfidence.StageVersionKind,
-					Name: stageVersionName,
-				},
-			},
+			OwnerReferences: []metav1.OwnerReference{{
+				Kind: konfidence.StageVersionKind,
+				Name: stageVersionName,
+			}},
 		},
 	}
 }
 
-func artifactDeploymentResource(name, landscapeNamespace, landscapeId,
-	vectorDeploymentId string) *konfidence.ArtifactDeployment {
+func artifactDeploymentResource(name, landscapeNamespace, landscapeId, vectorDeploymentID string) *konfidence.ArtifactDeployment {
 	return &konfidence.ArtifactDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -70,287 +72,148 @@ func artifactDeploymentResource(name, landscapeNamespace, landscapeId,
 			Labels: map[string]string{
 				pkgctrl.LandscapeNameLabel: landscapeId,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					Kind: konfidence.VectorDeploymentKind,
-					Name: vectorDeploymentId,
-				},
-			},
+			OwnerReferences: []metav1.OwnerReference{{
+				Kind: konfidence.VectorDeploymentKind,
+				Name: vectorDeploymentID,
+			}},
 		},
 	}
 }
 
-func TestRepositoryGet(t *testing.T) {
-	want := &konfidence.ArtifactDeployment{ObjectMeta: metav1.ObjectMeta{Name: "my-project"}}
-	k8s := fake.NewClientBuilder().WithScheme(projectScheme(t)).WithObjects(want).Build()
+var _ = Describe("Repository", func() {
+	It("gets an artifact deployment", func() {
+		want := &konfidence.ArtifactDeployment{ObjectMeta: metav1.ObjectMeta{Name: "my-project"}}
 
-	got, err := artifactdeployment.NewRepository(k8s).Get(context.Background(), want.Name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Name != want.Name {
-		t.Fatalf("expected artifactdeployment %q, got %q", want.Name, got.Name)
-	}
-}
-
-func TestRepositoryGetNotFound(t *testing.T) {
-	k8s := fake.NewClientBuilder().WithScheme(projectScheme(t)).Build()
-	_, err := artifactdeployment.NewRepository(k8s).Get(context.Background(), "missing")
-
-	if !errors.Is(err, artifactdeployment.ErrNotFound) {
-		t.Fatalf("expected ErrNotFound, got %v", err)
-	}
-}
-
-func TestListForScopeNoFilters(t *testing.T) {
-	landscape := landscapeResource(landscapeId, landscapeNamespace)
-	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	vectorDeployment := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
-	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId)
-
-	k8s := fake.NewClientBuilder().
-		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, vectorDeployment, ad).
-		Build()
-
-	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(context.Background(), projectNamespace)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(resolved) != 1 {
-		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
-	}
-	if resolved[0].ArtifactDeployment.Name != "ad-a" {
-		t.Fatalf("expected ad-a, got %q", resolved[0].ArtifactDeployment.Name)
-	}
-	if len(resolved[0].StageIds) != 1 || resolved[0].StageIds[0] != stageId {
-		t.Fatalf("expected stage %q, got %v", stageId, resolved[0].StageIds)
-	}
-}
-
-func TestListForScopeFilterByLandscape(t *testing.T) {
-	devLandscape := landscapeResource("dev", landscapeNamespace)
-	prodLandscape := landscapeResource("prod", "kden-l-prod")
-
-	devStageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	prodStageVersion := stageVersionResource("sv-2", "kden-l-prod", "stage-prod")
-	devVectorDeployment := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
-	prodVectorDeployment := vectorDeploymentResource(vectorDeploymentId, "kden-l-prod", "sv-2")
-
-	devAd := artifactDeploymentResource("ad-dev", landscapeNamespace, "dev", vectorDeploymentId)
-	prodAd := artifactDeploymentResource("ad-prod", "kden-l-prod", "prod", vectorDeploymentId)
-
-	k8s := fake.NewClientBuilder().
-		WithScheme(projectScheme(t)).
-		WithObjects(devLandscape, prodLandscape, devStageVersion, prodStageVersion,
-			devVectorDeployment, prodVectorDeployment, devAd, prodAd).
-		Build()
-
-	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(
-		context.Background(),
-		projectNamespace,
-		artifactdeployment.WithLandscapeId("dev"),
-	)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(resolved) != 1 {
-		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
-	}
-	if resolved[0].ArtifactDeployment.Name != "ad-dev" {
-		t.Fatalf("expected ad-dev, got %q", resolved[0].ArtifactDeployment.Name)
-	}
-	if resolved[0].LandscapeId != "dev" {
-		t.Fatalf("expected landscape dev, got %q", resolved[0].LandscapeId)
-	}
-}
-
-func TestListForScopeFilterByVectorDeployment(t *testing.T) {
-	landscape := landscapeResource(landscapeId, landscapeNamespace)
-	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	vdA := vectorDeploymentResource("vd-a", landscapeNamespace, "sv-1")
-	vdB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-1")
-
-	sharedAD := artifactDeploymentResource("ad-shared", landscapeNamespace, landscapeId, "vd-a")
-	sharedAD.OwnerReferences = append(
-		sharedAD.OwnerReferences,
-		metav1.OwnerReference{
-			Kind: konfidence.VectorDeploymentKind,
-			Name: "vd-b",
-		},
-	)
-
-	onlyA := artifactDeploymentResource("ad-only-a", landscapeNamespace, landscapeId, "vd-a")
-
-	k8s := fake.NewClientBuilder().
-		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, vdA, vdB, sharedAD, onlyA).
-		Build()
-
-	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(
-		context.Background(),
-		projectNamespace,
-		artifactdeployment.WithVectorDeploymentId("vd-b"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(resolved) != 1 {
-		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
-	}
-
-	if resolved[0].ArtifactDeployment.Name != "ad-shared" {
-		t.Fatalf("expected ad-shared, got %q", resolved[0].ArtifactDeployment.Name)
-	}
-
-	vectorDeploymentIDs := resolved[0].VectorDeploymentIds
-	if len(vectorDeploymentIDs) != 2 || vectorDeploymentIDs[0] != "vd-a" || vectorDeploymentIDs[1] != "vd-b" {
-		t.Fatalf("expected vector deployments [vd-a vd-b], got %v", vectorDeploymentIDs)
-	}
-}
-
-func TestListForScopeFilterByBoth(t *testing.T) {
-	landscape := landscapeResource(landscapeId, landscapeNamespace)
-	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	vdA := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
-	vdB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-1")
-
-	adMatch := artifactDeploymentResource("ad-match", landscapeNamespace, landscapeId, vectorDeploymentId)
-	adWrongVD := artifactDeploymentResource("ad-wrong-vd", landscapeNamespace, landscapeId, "vd-b")
-
-	k8s := fake.NewClientBuilder().
-		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, vdA, vdB, adMatch, adWrongVD).
-		Build()
-
-	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(
-		context.Background(),
-		projectNamespace,
-		artifactdeployment.WithLandscapeId(landscapeId),
-		artifactdeployment.WithVectorDeploymentId(vectorDeploymentId),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(resolved) != 1 {
-		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
-	}
-	if resolved[0].ArtifactDeployment.Name != "ad-match" {
-		t.Fatalf("expected ad-match, got %q", resolved[0].ArtifactDeployment.Name)
-	}
-}
-
-func TestListForScopeResolvesStageIds(t *testing.T) {
-	landscape := landscapeResource(landscapeId, landscapeNamespace)
-	stageVersionA := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	stageVersionB := stageVersionResource("sv-2", landscapeNamespace, "stage-preview")
-	vectorDeploymentA := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
-	vectorDeploymentB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-2")
-	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId)
-	ad.OwnerReferences = append(ad.OwnerReferences, metav1.OwnerReference{
-		Kind: konfidence.VectorDeploymentKind,
-		Name: vectorDeploymentB.Name,
+		got, err := repositoryWith(want).Get(context.Background(), want.Name)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(got.Name).To(Equal(want.Name))
 	})
 
-	k8s := fake.NewClientBuilder().
-		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersionA, stageVersionB, vectorDeploymentA, vectorDeploymentB, ad).
-		Build()
-
-	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(context.Background(), projectNamespace)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(resolved) != 1 {
-		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
-	}
-
-	if len(resolved[0].StageIds) != 2 {
-		t.Fatalf("expected 2 stage IDs, got %d", len(resolved[0].StageIds))
-	}
-	if resolved[0].StageIds[0] != stageId {
-		t.Fatalf("expected stage %q, got %q", stageId, resolved[0].StageIds[0])
-	}
-	if resolved[0].StageIds[1] != "stage-preview" {
-		t.Fatalf("expected stage %q, got %q", "stage-preview", resolved[0].StageIds[1])
-	}
-}
-
-func TestListForScopeResolvesStageIdsAndVectorDeploymentIds(t *testing.T) {
-	landscape := landscapeResource(landscapeId, landscapeNamespace)
-	stageVersion := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	vectorDeployment := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
-	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId)
-
-	k8s := fake.NewClientBuilder().
-		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersion, vectorDeployment, ad).
-		Build()
-
-	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(context.Background(), projectNamespace)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(resolved) != 1 {
-		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
-	}
-
-	if len(resolved[0].StageIds) != 1 {
-		t.Fatalf("expected 1 stage ID, got %d", len(resolved[0].StageIds))
-	}
-	if resolved[0].StageIds[0] != stageId {
-		t.Fatalf("expected stage %q, got %q", stageId, resolved[0].StageIds[0])
-	}
-
-	if len(resolved[0].VectorDeploymentIds) != 1 {
-		t.Fatalf("expected 1 vector deployment ID, got %d", len(resolved[0].VectorDeploymentIds))
-	}
-	if resolved[0].VectorDeploymentIds[0] != vectorDeploymentId {
-		t.Fatalf("expected vector deployment %q, got %q", vectorDeploymentId, resolved[0].VectorDeploymentIds[0])
-	}
-}
-
-func TestListForScopeResolvesVectorDeploymentIdsFromOwnerRefs(t *testing.T) {
-	landscape := landscapeResource(landscapeId, landscapeNamespace)
-	stageVersionA := stageVersionResource("sv-1", landscapeNamespace, stageId)
-	stageVersionB := stageVersionResource("sv-2", landscapeNamespace, "stage-prod")
-	vectorDeploymentA := vectorDeploymentResource(vectorDeploymentId, landscapeNamespace, "sv-1")
-	vectorDeploymentB := vectorDeploymentResource("vd-b", landscapeNamespace, "sv-2")
-
-	// one ArtifactDeployment reused by two VectorDeployments has one owner
-	// reference per VectorDeployment.
-	ad := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeId, vectorDeploymentId)
-	ad.OwnerReferences = append(ad.OwnerReferences, metav1.OwnerReference{
-		Kind: konfidence.VectorDeploymentKind,
-		Name: vectorDeploymentB.Name,
+	It("returns not found when getting a missing artifact deployment", func() {
+		_, err := repositoryWith().Get(context.Background(), "missing")
+		Expect(err).To(MatchError(artifactdeployment.ErrNotFound))
 	})
 
-	k8s := fake.NewClientBuilder().
-		WithScheme(projectScheme(t)).
-		WithObjects(landscape, stageVersionA, stageVersionB, vectorDeploymentA, vectorDeploymentB, ad).
-		Build()
+	Describe("ListForScope", func() {
+		It("lists without filters", func() {
+			resolved, err := repositoryWith(
+				landscapeResource(landscapeID, landscapeNamespace),
+				stageVersionResource("sv-1", landscapeNamespace, stageID),
+				vectorDeploymentResource(vectorDeploymentID, landscapeNamespace, "sv-1"),
+				artifactDeploymentResource("ad-a", landscapeNamespace, landscapeID, vectorDeploymentID),
+			).ListForScope(context.Background(), projectNamespace)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resolved).To(ConsistOf(And(
+				HaveField("ArtifactDeployment.Name", "ad-a"),
+				HaveField("StageIds", []string{stageID}),
+			)))
+		})
 
-	resolved, err := artifactdeployment.NewRepository(k8s).ListForScope(context.Background(), projectNamespace)
-	if err != nil {
-		t.Fatal(err)
-	}
+		It("filters by landscape", func() {
+			resolved, err := repositoryWith(
+				landscapeResource("dev", landscapeNamespace),
+				landscapeResource("prod", "kden-l-prod"),
+				stageVersionResource("sv-1", landscapeNamespace, stageID),
+				stageVersionResource("sv-2", "kden-l-prod", "stage-prod"),
+				vectorDeploymentResource(vectorDeploymentID, landscapeNamespace, "sv-1"),
+				vectorDeploymentResource(vectorDeploymentID, "kden-l-prod", "sv-2"),
+				artifactDeploymentResource("ad-dev", landscapeNamespace, "dev", vectorDeploymentID),
+				artifactDeploymentResource("ad-prod", "kden-l-prod", "prod", vectorDeploymentID),
+			).ListForScope(context.Background(), projectNamespace, artifactdeployment.WithLandscapeId("dev"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resolved).To(ConsistOf(And(
+				HaveField("ArtifactDeployment.Name", "ad-dev"),
+				HaveField("LandscapeId", "dev"),
+			)))
+		})
 
-	if len(resolved) != 1 {
-		t.Fatalf("expected 1 artifact deployment, got %d", len(resolved))
-	}
+		It("filters by vector deployment", func() {
+			shared := artifactDeploymentResource("ad-shared", landscapeNamespace, landscapeID, "vd-a")
+			shared.OwnerReferences = append(shared.OwnerReferences, metav1.OwnerReference{
+				Kind: konfidence.VectorDeploymentKind,
+				Name: "vd-b",
+			})
+			resolved, err := repositoryWith(
+				landscapeResource(landscapeID, landscapeNamespace),
+				stageVersionResource("sv-1", landscapeNamespace, stageID),
+				vectorDeploymentResource("vd-a", landscapeNamespace, "sv-1"),
+				vectorDeploymentResource("vd-b", landscapeNamespace, "sv-1"),
+				shared,
+				artifactDeploymentResource("ad-only-a", landscapeNamespace, landscapeID, "vd-a"),
+			).ListForScope(context.Background(), projectNamespace, artifactdeployment.WithVectorDeploymentId("vd-b"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resolved).To(ConsistOf(And(
+				HaveField("ArtifactDeployment.Name", "ad-shared"),
+				HaveField("VectorDeploymentIds", []string{"vd-a", "vd-b"}),
+			)))
+		})
 
-	if len(resolved[0].VectorDeploymentIds) != 2 {
-		t.Fatalf("expected 2 vector deployment IDs, got %d: %v",
-			len(resolved[0].VectorDeploymentIds), resolved[0].VectorDeploymentIds)
-	}
-	if resolved[0].VectorDeploymentIds[0] != vectorDeploymentId {
-		t.Fatalf("expected vector deployment %q, got %q", vectorDeploymentId, resolved[0].VectorDeploymentIds[0])
-	}
-	if resolved[0].VectorDeploymentIds[1] != vectorDeploymentB.Name {
-		t.Fatalf("expected vector deployment %q, got %q", vectorDeploymentB.Name, resolved[0].VectorDeploymentIds[1])
-	}
-}
+		It("filters by landscape and vector deployment", func() {
+			resolved, err := repositoryWith(
+				landscapeResource(landscapeID, landscapeNamespace),
+				stageVersionResource("sv-1", landscapeNamespace, stageID),
+				vectorDeploymentResource(vectorDeploymentID, landscapeNamespace, "sv-1"),
+				vectorDeploymentResource("vd-b", landscapeNamespace, "sv-1"),
+				artifactDeploymentResource("ad-match", landscapeNamespace, landscapeID, vectorDeploymentID),
+				artifactDeploymentResource("ad-wrong-vd", landscapeNamespace, landscapeID, "vd-b"),
+			).ListForScope(
+				context.Background(),
+				projectNamespace,
+				artifactdeployment.WithLandscapeId(landscapeID),
+				artifactdeployment.WithVectorDeploymentId(vectorDeploymentID),
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resolved).To(ConsistOf(HaveField("ArtifactDeployment.Name", "ad-match")))
+		})
+
+		It("resolves stage IDs", func() {
+			deployment := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeID, vectorDeploymentID)
+			deployment.OwnerReferences = append(deployment.OwnerReferences, metav1.OwnerReference{
+				Kind: konfidence.VectorDeploymentKind,
+				Name: "vd-b",
+			})
+			resolved, err := repositoryWith(
+				landscapeResource(landscapeID, landscapeNamespace),
+				stageVersionResource("sv-1", landscapeNamespace, stageID),
+				stageVersionResource("sv-2", landscapeNamespace, "stage-preview"),
+				vectorDeploymentResource(vectorDeploymentID, landscapeNamespace, "sv-1"),
+				vectorDeploymentResource("vd-b", landscapeNamespace, "sv-2"),
+				deployment,
+			).ListForScope(context.Background(), projectNamespace)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resolved).To(ConsistOf(HaveField("StageIds", []string{stageID, "stage-preview"})))
+		})
+
+		It("resolves stage and vector deployment IDs", func() {
+			resolved, err := repositoryWith(
+				landscapeResource(landscapeID, landscapeNamespace),
+				stageVersionResource("sv-1", landscapeNamespace, stageID),
+				vectorDeploymentResource(vectorDeploymentID, landscapeNamespace, "sv-1"),
+				artifactDeploymentResource("ad-a", landscapeNamespace, landscapeID, vectorDeploymentID),
+			).ListForScope(context.Background(), projectNamespace)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resolved).To(ConsistOf(And(
+				HaveField("StageIds", []string{stageID}),
+				HaveField("VectorDeploymentIds", []string{vectorDeploymentID}),
+			)))
+		})
+
+		It("resolves vector deployment IDs from owner references", func() {
+			deployment := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeID, vectorDeploymentID)
+			deployment.OwnerReferences = append(deployment.OwnerReferences, metav1.OwnerReference{
+				Kind: konfidence.VectorDeploymentKind,
+				Name: "vd-b",
+			})
+			resolved, err := repositoryWith(
+				landscapeResource(landscapeID, landscapeNamespace),
+				stageVersionResource("sv-1", landscapeNamespace, stageID),
+				stageVersionResource("sv-2", landscapeNamespace, "stage-prod"),
+				vectorDeploymentResource(vectorDeploymentID, landscapeNamespace, "sv-1"),
+				vectorDeploymentResource("vd-b", landscapeNamespace, "sv-2"),
+				deployment,
+			).ListForScope(context.Background(), projectNamespace)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resolved).To(ConsistOf(HaveField("VectorDeploymentIds", []string{vectorDeploymentID, "vd-b"})))
+		})
+	})
+})

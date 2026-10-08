@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -147,6 +148,14 @@ var _ = Describe("handler node", func() {
 	})
 
 	Describe("handle", func() {
+		BeforeEach(func() {
+			originalNoColor := color.NoColor
+			color.NoColor = true
+			DeferCleanup(func() {
+				color.NoColor = originalNoColor
+			})
+		})
+
 		Context("when the record has a timestamp, level, and output", func() {
 			It("should format the log correctly", func() {
 				handler := PrettyLogHandler{
@@ -172,7 +181,7 @@ var _ = Describe("handler node", func() {
 					preformatted:   []byte("preformatted:"),
 					unopenedGroups: []string{"group1", "group2"},
 				}
-				buf := []byte{}
+				var buf []byte
 				record := slog.Record{
 					Time:    time.Date(2023, 10, 1, 12, 0, 0, 0, time.UTC),
 					Level:   slog.LevelInfo,
