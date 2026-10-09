@@ -7,8 +7,7 @@ import (
 )
 
 // setReadyConditionFalse records which step the vector deployment is waiting on. Writing it on every incomplete
-// pass resets a Ready=True from earlier, so a vector whose ArtifactDeployment later stalls is never both Ready
-// and Stalled.
+// pass resets a Ready=True from earlier, so Ready reflects the current state.
 func setReadyConditionFalse(vectorDeployment *konfidence.VectorDeployment, reason, message string) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.VectorReadyCondition,
