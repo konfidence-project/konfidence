@@ -124,6 +124,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/projects/{projectId}/landscapes/{landscapeId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a single landscape for a specific project
+     * @description Returns a single landscape resources for a project.
+     */
+    get: operations["getLandscapeV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/projects/{projectId}/landscapes": {
     parameters: {
       query?: never;
@@ -164,6 +184,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a single stage for a project
+     * @description Returns a single stage resource for a project.
+     */
+    get: operations["getStageV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/projects/{projectId}/vectorDeployments": {
     parameters: {
       query?: never;
@@ -176,6 +216,26 @@ export interface paths {
      * @description Returns all vectorDeployments resources for a project. Can be filtered by landscape.
      */
     get: operations["listVectorDeploymentsV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a single vectorDeployment for a project and landscape
+     * @description Returns a single vectorDeployment resource for a project and landscape.
+     */
+    get: operations["getVectorDeploymentV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -276,6 +336,26 @@ export interface paths {
      * @description Returns all artifactDeployments resources for a project. Can be filtered by landscape or vectorDeployment.
      */
     get: operations["listArtifactDeploymentsV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a single artifactDeployment for a project and landscape
+     * @description Returns a single artifactDeployment resource for a project and landscape.
+     */
+    get: operations["getArtifactDeploymentV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -534,6 +614,12 @@ export interface components {
     LandscapeQueryId: string;
     /** @description Filter by vectorDeploymentId */
     VectorDeploymentQueryId: string;
+    /** @description Stage Id */
+    StagePathId: string;
+    /** @description VectorDeployment Id */
+    VectorDeploymentPathId: string;
+    /** @description ArtifactDeployment Id */
+    ArtifactDeploymentPathId: string;
   };
   requestBodies: never;
   headers: never;
@@ -692,6 +778,35 @@ export interface operations {
       500: components["responses"]["InternalError"];
     };
   };
+  getLandscapeV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description Landscape Id */
+        landscapeId: components["parameters"]["LandscapePathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Landscape"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
   listLandscapesV1: {
     parameters: {
       query?: never;
@@ -749,6 +864,37 @@ export interface operations {
       500: components["responses"]["InternalError"];
     };
   };
+  getStageV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description Landscape Id */
+        landscapeId: components["parameters"]["LandscapePathId"];
+        /** @description Stage Id */
+        stageId: components["parameters"]["StagePathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Stage"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
   listVectorDeploymentsV1: {
     parameters: {
       query?: {
@@ -771,6 +917,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["VectorDeploymentList"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getVectorDeploymentV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description Landscape Id */
+        landscapeId: components["parameters"]["LandscapePathId"];
+        /** @description VectorDeployment Id */
+        vectorDeploymentId: components["parameters"]["VectorDeploymentPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VectorDeployment"];
         };
       };
       401: components["responses"]["Unauthorized"];
@@ -916,6 +1093,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ArtifactDeploymentList"];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getArtifactDeploymentV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description Landscape Id */
+        landscapeId: components["parameters"]["LandscapePathId"];
+        /** @description ArtifactDeployment Id */
+        artifactDeploymentId: components["parameters"]["ArtifactDeploymentPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactDeployment"];
         };
       };
       401: components["responses"]["Unauthorized"];
