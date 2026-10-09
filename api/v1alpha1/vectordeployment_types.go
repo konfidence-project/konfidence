@@ -25,6 +25,15 @@ const (
 	// VectorReadyCondition indicates that the vector deployment is ready for use.
 	VectorReadyCondition = "Ready"
 
+	// VectorReadyReasonArtifactDeploymentsNotReady indicates that Ready is False while ArtifactDeployments are not ready.
+	VectorReadyReasonArtifactDeploymentsNotReady = "ArtifactDeploymentsNotReady"
+
+	// VectorReadyReasonVectorAssignmentsNotReady indicates that Ready is False while VectorAssignments are not ready.
+	VectorReadyReasonVectorAssignmentsNotReady = "VectorAssignmentsNotReady"
+
+	// VectorReadyReasonVectorDataNotReady indicates that Ready is False while the VectorData is not materialized.
+	VectorReadyReasonVectorDataNotReady = "VectorDataNotReady"
+
 	// VectorDeploymentStalledReasonArtifactDeploymentNamingCollision indicates that a deterministic ArtifactDeployment
 	// name still collides after the collisionCount salt is exhausted. Ordinary collisions self-heal by bumping the salt.
 	VectorDeploymentStalledReasonArtifactDeploymentNamingCollision = "ArtifactDeploymentNamingCollision"

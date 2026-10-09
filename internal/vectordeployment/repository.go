@@ -20,8 +20,8 @@ const (
 	StateDeploymentFailed State = "DeploymentFailed"
 )
 
-// StateFromConditions maps conditions onto the coarse state the API reports. Stalled is
-// checked first, since Ready is never reset and a vector that was ready can stall later.
+// StateFromConditions maps conditions onto the coarse state the API reports. A stalled
+// vector is never Ready, so Stalled is checked first only to be safe against stale status.
 func StateFromConditions(conditions []metav1.Condition) State {
 	if meta.IsStatusConditionTrue(conditions, konfidence.StalledCondition) {
 		return StateDeploymentFailed

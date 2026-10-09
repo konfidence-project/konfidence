@@ -100,6 +100,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	allDeploymentsReady, err := r.handleArtifactDeployments(ctx, resolvedVector.artifactRefs, vectorDeployment, log)
+	if err != nil || !allDeploymentsReady {
+		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonArtifactDeploymentsNotReady, "Waiting for the ArtifactDeployments to be ready")
+	}
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 			patchErrorMessage := "unable to update vectorDeployment status"
@@ -126,6 +129,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	allAssignmentsReady, err := r.handleVectorAssignments(ctx, vectorDeployment, log)
+	if err != nil || !allAssignmentsReady {
+		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonVectorAssignmentsNotReady, "Waiting for the VectorAssignments to be ready")
+	}
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 			patchErrorMessage := "unable to update vectorDeployment status"
@@ -183,6 +189,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 	if !vectorDataReady {
 		log.Info("waiting for VectorData to be materialized by the runtime implementor")
+		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonVectorDataNotReady, "Waiting for the VectorData to be materialized")
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w", patchError)
