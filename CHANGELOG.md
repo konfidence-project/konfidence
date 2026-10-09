@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.1.0-alpha.2](https://github.com/konfidence-project/konfidence/compare/0.1.0-alpha.1...0.1.0-alpha.2) (2026-10-09)
+
+
+### Features
+
+* **cli:** prerender login pages with the design system ([#366](https://github.com/konfidence-project/konfidence/issues/366)) ([87c852c](https://github.com/konfidence-project/konfidence/commit/87c852c06a08b25cb0814a20664f0222d1ec9112))
+* **design-preview:** interactive local design-system explorer ([#281](https://github.com/konfidence-project/konfidence/issues/281)) ([92313ad](https://github.com/konfidence-project/konfidence/commit/92313ad5c151db830140b86e26a301992950dab3))
+* report undeployable vector deployments with a Stalled condition ([#273](https://github.com/konfidence-project/konfidence/issues/273)) ([ea9ff05](https://github.com/konfidence-project/konfidence/commit/ea9ff05210cc293dce14a47c42a32d9562a20918))
+* serve components using mkcert created TLS keys at local dev setup ([#302](https://github.com/konfidence-project/konfidence/issues/302)) ([4d036d8](https://github.com/konfidence-project/konfidence/commit/4d036d8e0e974e01a7a4b84f2a2985e0d07a3e56))
+* **stalled:** add ocm related stalled conditions ([#389](https://github.com/konfidence-project/konfidence/issues/389)) ([58aab47](https://github.com/konfidence-project/konfidence/commit/58aab471c8257a8f25c30f2ee28d9c8d0148e99f))
+* **ui:** render landscape overview as a promotion graph ([#348](https://github.com/konfidence-project/konfidence/issues/348)) ([6961c4a](https://github.com/konfidence-project/konfidence/commit/6961c4abd5ab1374a3d4a8582bd6b75dd2900e89))
+* use konfidence themed cli login success/error page ([#357](https://github.com/konfidence-project/konfidence/issues/357)) ([735dbf0](https://github.com/konfidence-project/konfidence/commit/735dbf01f84401c69f83591069f83405b4eecd14))
+
+
+### Bug Fixes
+
+* **.env.development:** use localhost api base url ([#350](https://github.com/konfidence-project/konfidence/issues/350)) ([4a70c41](https://github.com/konfidence-project/konfidence/commit/4a70c41d58b22ad9ab7bde2cb661564f3cbfe051))
+* change default kden output to pretty ([#340](https://github.com/konfidence-project/konfidence/issues/340)) ([bcb7640](https://github.com/konfidence-project/konfidence/commit/bcb76404e1e12803b47913ec210603c109cacc42))
+* fixed returnURL validation at mock-api for frontend e2e tests ([#345](https://github.com/konfidence-project/konfidence/issues/345)) ([f69115d](https://github.com/konfidence-project/konfidence/commit/f69115d2b4a6df614995aa331914c37cf0ee4c35))
+* **quickstart:** install vector data service per landscape, not in konfidence-system ([#360](https://github.com/konfidence-project/konfidence/issues/360)) ([d78222a](https://github.com/konfidence-project/konfidence/commit/d78222a04f0a0ab39402cfb3c14351354122f716))
+* use ownerReferences instead of label when filtering artifactDepl… ([#370](https://github.com/konfidence-project/konfidence/issues/370)) ([698597e](https://github.com/konfidence-project/konfidence/commit/698597edf48771a4e42215c496435bb94ec1c8e8))
+
+
+### Maintenance
+
+* **deps:** bump @humanspeak/svelte-headless-table from 6.3.0 to 6.4.0 in the npm-minor-patch group ([#349](https://github.com/konfidence-project/konfidence/issues/349)) ([8fdb3f9](https://github.com/konfidence-project/konfidence/commit/8fdb3f9d7c8992cd4df939872b3059158cacd080))
+* **deps:** bump sigs.k8s.io/controller-runtime from 0.25.1 to 0.25.2 in the gomod-minor-patch group ([#377](https://github.com/konfidence-project/konfidence/issues/377)) ([40bb706](https://github.com/konfidence-project/konfidence/commit/40bb70678daf19a5019c43a011acc254d48c1aa5))
+* **deps:** bump the npm-minor-patch group with 10 updates ([#378](https://github.com/konfidence-project/konfidence/issues/378)) ([0448c7d](https://github.com/konfidence-project/konfidence/commit/0448c7d7330e410d2086d51feb393e69375648d3))
+* **deps:** fix vulnerabilities ([#368](https://github.com/konfidence-project/konfidence/issues/368)) ([07bc67b](https://github.com/konfidence-project/konfidence/commit/07bc67bd4bcb2e2efd54d6bf8492bbc60d719b43))
+
 ## [0.1.0-alpha.1](https://github.com/konfidence-project/konfidence/compare/0.0.1-alpha.1...0.1.0-alpha.1) (2026-09-30)
 
 
