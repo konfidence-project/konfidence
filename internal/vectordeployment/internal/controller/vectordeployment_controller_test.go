@@ -446,20 +446,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		gomega.Expect(saltedName).ToNot(gomega.Equal(unsaltedName))
 
-		vectorDescriptor := VectorDescriptor{
-			References: []compref.Ref{
-				{
-					Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
-					Component:  collidingComponent,
-					Version:    collidingVersion,
-				},
-			},
-			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +
-				`"version":"0.3.0","creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project",` +
-				`"resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1",` +
-				`"componentName":"github.com/konfidence-project/sample-service-1",` +
-				`"digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
-		}
+		vectorDescriptor := sampleService1VectorDescriptor()
 		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(vectorDescriptor, nil).AnyTimes()
 
 		artifactManifest := ArtifactManifest{
@@ -541,20 +528,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			exhaustedTimeout = 30 * time.Second
 		)
 
-		vectorDescriptor := VectorDescriptor{
-			References: []compref.Ref{
-				{
-					Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
-					Component:  collidingComponent,
-					Version:    collidingVersion,
-				},
-			},
-			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +
-				`"version":"0.3.0","creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project",` +
-				`"resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1",` +
-				`"componentName":"github.com/konfidence-project/sample-service-1",` +
-				`"digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
-		}
+		vectorDescriptor := sampleService1VectorDescriptor()
 		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(vectorDescriptor, nil).AnyTimes()
 		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).
 			Return(ArtifactManifest{Type: "cloud.konfidence.flux.helm", AllowReuse: true}, nil).AnyTimes()
@@ -597,6 +571,25 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(stalled.Status).To(gomega.Equal(metav1.ConditionTrue))
 			g.Expect(stalled.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision))
 		}, exhaustedTimeout, interval).Should(gomega.Succeed())
+
+		// The foreign ArtifactDeployment has no owner reference, so deleting it enqueues nothing and the
+		// retry comes from the error backoff.
+		By("Freeing the last salted name")
+		lastSaltName, _, err := ConstructArtifactDeploymentName(collidingComponent, collidingVersion, nil, lastSalt)
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		gomega.Expect(k8sClient.Delete(ctx, &konfidence.ArtifactDeployment{
+			ObjectMeta: metav1.ObjectMeta{Name: lastSaltName, Namespace: testNamespace},
+		})).To(gomega.Succeed())
+
+		By("Verifying the stall clears once the ArtifactDeployment can be created")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: exhaustedOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			stalled := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(stalled).ToNot(gomega.BeNil())
+			g.Expect(stalled.Status).To(gomega.Equal(metav1.ConditionFalse))
+			g.Expect(stalled.Reason).To(gomega.Equal(konfidence.StalledReasonNotStalled))
+			g.Expect(actual.Status.ResultingArtifactDeployments[collidingComponent].Name).To(gomega.Equal(lastSaltName))
+		}, exhaustedTimeout, interval).Should(gomega.Succeed())
 	})
 
 	It("should surface a stalled ArtifactDeployment on the parent VectorDeployment", func() {
@@ -604,20 +597,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 
 		const stalledOcmName = "stalled.konfidence.cloud.example.vector-0.3.0"
 
-		vectorDescriptor := VectorDescriptor{
-			References: []compref.Ref{
-				{
-					Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
-					Component:  "github.com/konfidence-project/sample-service-1",
-					Version:    "0.0.1",
-				},
-			},
-			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +
-				`"version":"0.3.0","creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project",` +
-				`"resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1",` +
-				`"componentName":"github.com/konfidence-project/sample-service-1",` +
-				`"digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
-		}
+		vectorDescriptor := sampleService1VectorDescriptor()
 		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(vectorDescriptor, nil).AnyTimes()
 		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).
 			Return(ArtifactManifest{Type: "cloud.konfidence.flux.helm", AllowReuse: true}, nil).AnyTimes()
@@ -673,14 +653,25 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing))
 		}, timeout, interval).Should(gomega.Succeed())
 
+		// Changing the child's message forces a reconcile, so the stall is shown to be rewritten
+		// rather than just not yet overwritten.
 		By("Verifying the stall holds across reconciles")
-		gomega.Consistently(func(g gomega.Gomega) {
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
+		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+			Type:               konfidence.StalledCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.ArtifactDeploymentStalledReasonManifestMissing,
+			Message:            "konfidence manifest still missing",
+			ObservedGeneration: artifactDeployment.Generation,
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
+		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
-
 			stalledCondition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
 			g.Expect(stalledCondition).ToNot(gomega.BeNil())
 			g.Expect(stalledCondition.Status).To(gomega.Equal(metav1.ConditionTrue))
-		}, time.Second, interval).Should(gomega.Succeed())
+			g.Expect(stalledCondition.Message).To(gomega.ContainSubstring("konfidence manifest still missing"))
+		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Marking the ArtifactDeployment as successfully reconciled")
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
@@ -761,4 +752,113 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(stalledCondition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing))
 		}, timeout, interval).Should(gomega.Succeed())
 	})
+
+	It("should report which step Ready is waiting on", func() {
+		ctx := context.Background()
+
+		const readyOcmName = "ready.konfidence.cloud.example.vector-0.3.0"
+
+		vectorDescriptor := sampleService1VectorDescriptor()
+		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(vectorDescriptor, nil).AnyTimes()
+		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).
+			Return(ArtifactManifest{Type: "cloud.konfidence.flux.helm", AllowReuse: true}, nil).AnyTimes()
+
+		gomega.Expect(k8sClient.Create(ctx, &konfidence.VectorDeployment{
+			TypeMeta:   metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
+			ObjectMeta: metav1.ObjectMeta{Name: readyOcmName, Namespace: testNamespace},
+			Spec:       konfidence.VectorDeploymentSpec{Vector: vectorReference},
+		})).To(gomega.Succeed())
+
+		actual := &konfidence.VectorDeployment{}
+		expectReadyWaitingOn := func(reason string) {
+			gomega.Eventually(func(g gomega.Gomega) {
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: readyOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+				ready := meta.FindStatusCondition(actual.Status.Conditions, konfidence.VectorReadyCondition)
+				g.Expect(ready).ToNot(gomega.BeNil())
+				g.Expect(ready.Status).To(gomega.Equal(metav1.ConditionFalse))
+				g.Expect(ready.Reason).To(gomega.Equal(reason))
+			}, timeout, interval).Should(gomega.Succeed())
+		}
+
+		By("Verifying Ready=False waits on the ArtifactDeployments")
+		expectReadyWaitingOn(konfidence.VectorReadyReasonArtifactDeploymentsNotReady)
+
+		By("Marking the ArtifactDeployment as ready")
+		artifactDeploymentList := &konfidence.ArtifactDeploymentList{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.List(ctx, artifactDeploymentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
+			g.Expect(artifactDeploymentList.Items).To(gomega.HaveLen(1))
+		}, timeout, interval).Should(gomega.Succeed())
+		artifactDeployment := &konfidence.ArtifactDeployment{}
+		gomega.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&artifactDeploymentList.Items[0]), artifactDeployment)).To(gomega.Succeed())
+		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+			Type:               konfidence.ArtifactDeploymentReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.ArtifactDeploymentReadyCondition,
+			Message:            "simulated by envtest",
+			ObservedGeneration: artifactDeployment.Generation,
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
+
+		By("Verifying Ready=False moves on to the VectorAssignments")
+		expectReadyWaitingOn(konfidence.VectorReadyReasonVectorAssignmentsNotReady)
+
+		By("Marking the VectorAssignment as ready")
+		vectorAssignmentList := &konfidence.VectorAssignmentList{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.List(ctx, vectorAssignmentList, client.InNamespace(testNamespace))).To(gomega.Succeed())
+			g.Expect(vectorAssignmentList.Items).To(gomega.HaveLen(1))
+		}, timeout, interval).Should(gomega.Succeed())
+		vectorAssignment := &konfidence.VectorAssignment{}
+		gomega.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&vectorAssignmentList.Items[0]), vectorAssignment)).To(gomega.Succeed())
+		meta.SetStatusCondition(&vectorAssignment.Status.Conditions, metav1.Condition{
+			Type:               konfidence.VectorAssignmentReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.VectorAssignmentReadyCondition,
+			Message:            "simulated by envtest",
+			ObservedGeneration: vectorAssignment.Generation,
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, vectorAssignment)).To(gomega.Succeed())
+
+		By("Verifying Ready=False moves on to the VectorData")
+		expectReadyWaitingOn(konfidence.VectorReadyReasonVectorDataNotReady)
+
+		By("Marking the VectorData as ready")
+		vectorData := &konfidence.VectorData{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: readyOcmName, Namespace: testNamespace}, vectorData)).To(gomega.Succeed())
+		}, timeout, interval).Should(gomega.Succeed())
+		meta.SetStatusCondition(&vectorData.Status.Conditions, metav1.Condition{
+			Type:               konfidence.VectorDataReadyCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.VectorDataReasonMaterialized,
+			Message:            "simulated by envtest",
+			ObservedGeneration: vectorData.Generation,
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, vectorData)).To(gomega.Succeed())
+
+		By("Verifying Ready=True once every step is done")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: readyOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeTrue())
+		}, timeout, interval).Should(gomega.Succeed())
+	})
 })
+
+// sampleService1VectorDescriptor is a vector with the single reference sample-service-1:0.0.1.
+func sampleService1VectorDescriptor() VectorDescriptor {
+	return VectorDescriptor{
+		References: []compref.Ref{
+			{
+				Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
+				Component:  "github.com/konfidence-project/sample-service-1",
+				Version:    "0.0.1",
+			},
+		},
+		DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +
+			`"version":"0.3.0","creationTime":"2025-09-22T06:32:45Z","repositoryContexts":null,"provider":"konfidence-project",` +
+			`"resources":[],"sources":[],"componentReferences":[{"name":"sample-service-1","version":"0.0.1",` +
+			`"componentName":"github.com/konfidence-project/sample-service-1",` +
+			`"digest":{"hashAlgorithm":"","normalisationAlgorithm":"","value":""}}]}}`),
+	}
+}
