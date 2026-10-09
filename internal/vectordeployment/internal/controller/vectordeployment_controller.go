@@ -81,6 +81,12 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	resolvedVector, err := r.resolveVector(ctx, vectorDeployment, *vectorRef)
 	if err != nil {
+		// The status patch further down is never reached on this path, so persist a stall here.
+		if stallOnPermanentError(vectorDeployment, err) {
+			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; %w", patchError, err)
+			}
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -245,6 +251,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		// fetch the artifact component version from OCI
 		artifactManifest, err := r.OcmAdapter.GetArtifactManifestByReference(ctx, artifactRef)
 		if err != nil {
+			stallOnPermanentError(vectorDeployment, err)
 			return false, fmt.Errorf("failed to fetch artifact component version for %q: %w", artifactRef.String(), err)
 		}
 

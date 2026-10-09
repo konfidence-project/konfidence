@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	"ocm.software/open-component-model/bindings/go/credentials"
@@ -85,8 +86,8 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 	}
 
 	if err := a.verifier.Verify(ctx, a.resolver, a.vectorSpecs, []*descruntime.Descriptor{&descriptor}); err != nil {
-		return controller.VectorDescriptor{}, fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w",
-			ref.String(), err)
+		return controller.VectorDescriptor{}, permanent(konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed,
+			fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w", ref.String(), err))
 	}
 
 	// Extract the optional, singleton vector-scoped configuration resource and strip it from the descriptor before V2
@@ -182,8 +183,8 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 	}
 
 	if err := a.verifier.Verify(ctx, a.resolver, a.artifactSpecs, []*descruntime.Descriptor{&descriptor}); err != nil {
-		return controller.ArtifactManifest{}, fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w",
-			ref.String(), err)
+		return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed,
+			fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w", ref.String(), err))
 	}
 
 	var konfidenceArtifactManifest *controller.ArtifactManifest
@@ -205,7 +206,8 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 				AllowReuse bool   `json:"allowReuse"`
 			}
 			if err := json.Unmarshal(data, &konfidenceManifestDto); err != nil {
-				return controller.ArtifactManifest{}, fmt.Errorf("failed to unmarshal manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err)
+				return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,
+					fmt.Errorf("failed to unmarshal manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err))
 			}
 
 			konfidenceArtifactManifest = &controller.ArtifactManifest{
@@ -226,8 +228,8 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 				Spec      json.RawMessage `json:"spec"`
 			}
 			if err := json.Unmarshal(data, &konfidenceTaskManifestDto); err != nil {
-				return controller.ArtifactManifest{},
-					fmt.Errorf("failed to unmarshal task manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err)
+				return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,
+					fmt.Errorf("failed to unmarshal task manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err))
 			}
 
 			taskManifests = append(taskManifests, controller.TaskManifest{
@@ -239,11 +241,13 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 
 		default:
 			if resource.Access == nil {
-				return controller.ArtifactManifest{}, fmt.Errorf("missing access spec for resource %s in component %s", resource.Name, ref.String())
+				return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,
+					fmt.Errorf("missing access spec for resource %s in component %s", resource.Name, ref.String()))
 			}
 			data, err := json.Marshal(resource.Access)
 			if err != nil {
-				return controller.ArtifactManifest{}, fmt.Errorf("failed to marshal access spec for resource %s in component %s: %w", resource.Name, ref.String(), err)
+				return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,
+					fmt.Errorf("failed to marshal access spec for resource %s in component %s: %w", resource.Name, ref.String(), err))
 			}
 
 			artifactResources = append(artifactResources, controller.OCMResource{
@@ -255,7 +259,8 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 	}
 
 	if konfidenceArtifactManifest == nil {
-		return controller.ArtifactManifest{}, fmt.Errorf("no artifact manifest found in component %s", ref.String())
+		return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestMissing,
+			fmt.Errorf("no artifact manifest found in component %s", ref.String()))
 	}
 
 	konfidenceArtifactManifest.Tasks = taskManifests
@@ -281,4 +286,8 @@ func (a Adapter) getLocalResourceBlob(ctx context.Context, ref compref.Ref, reso
 		return nil, fmt.Errorf("reading blob content: %w", err)
 	}
 	return data, nil
+}
+
+func permanent(reason string, err error) error {
+	return &controller.PermanentError{Reason: reason, Err: err}
 }

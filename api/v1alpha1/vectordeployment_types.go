@@ -38,6 +38,17 @@ const (
 	// name still collides after the collisionCount salt is exhausted. Ordinary collisions self-heal by bumping the salt.
 	VectorDeploymentStalledReasonArtifactDeploymentNamingCollision = "ArtifactDeploymentNamingCollision"
 
+	// VectorDeploymentStalledReasonManifestMissing indicates that an artifact of the vector has no Konfidence manifest.
+	VectorDeploymentStalledReasonManifestMissing = "ManifestMissing"
+
+	// VectorDeploymentStalledReasonManifestInvalid indicates that an artifact's manifest, task manifest or resource
+	// access spec cannot be read.
+	VectorDeploymentStalledReasonManifestInvalid = "ManifestInvalid"
+
+	// VectorDeploymentStalledReasonSignatureVerificationFailed indicates that the vector or an artifact failed signature
+	// verification.
+	VectorDeploymentStalledReasonSignatureVerificationFailed = "SignatureVerificationFailed"
+
 	// VectorDeploymentStalledReasonArtifactDeploymentStalled indicates that one of its ArtifactDeployments is stalled.
 	VectorDeploymentStalledReasonArtifactDeploymentStalled = "ArtifactDeploymentStalled"
 )
