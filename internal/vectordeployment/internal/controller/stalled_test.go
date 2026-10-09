@@ -26,77 +26,70 @@ var _ = Describe("Stalled condition", func() {
 		return meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.StalledCondition)
 	}
 
-	Context("writing the condition", func() {
-		It("should write Stalled=False", func() {
-			vectorDeployment := newVectorDeployment(3)
+	newArtifactDeployment := func(name string, stalled metav1.ConditionStatus) *konfidence.ArtifactDeployment {
+		artifactDeployment := &konfidence.ArtifactDeployment{}
+		artifactDeployment.Name = name
+		artifactDeployment.Status.Conditions = []metav1.Condition{{
+			Type:    konfidence.StalledCondition,
+			Status:  stalled,
+			Reason:  konfidence.ArtifactDeploymentStalledReasonManifestMissing,
+			Message: "no konfidence manifest in artifact",
+		}}
 
-			setStalledConditionFalse(vectorDeployment)
-
-			condition := stalledCondition(vectorDeployment)
-			Expect(condition).ToNot(BeNil())
-			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.ObservedGeneration).To(Equal(int64(3)))
-		})
-
-		It("should keep a single entry across a reason transition", func() {
-			vectorDeployment := newVectorDeployment(1)
-
-			setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision, "collision")
-			setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
-
-			var count int
-			for _, condition := range vectorDeployment.Status.Conditions {
-				if condition.Type == konfidence.StalledCondition {
-					count++
-				}
-			}
-			Expect(count).To(Equal(1))
-			Expect(stalledCondition(vectorDeployment).Reason).To(Equal(konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled))
-		})
-
-		It("should flip back to False once the cause resolves", func() {
-			vectorDeployment := newVectorDeployment(1)
-
-			setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
-			setStalledConditionFalse(vectorDeployment)
-
-			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
-		})
-	})
+		return artifactDeployment
+	}
 
 	Context("aggregating stalled ArtifactDeployments", func() {
 		// The named ArtifactDeployment must not depend on observation order, or the message flaps.
-		It("should pick the same ArtifactDeployment regardless of input order", func() {
-			stalledConditions := []metav1.Condition{{
-				Type:   konfidence.StalledCondition,
-				Status: metav1.ConditionTrue,
-				Reason: konfidence.ArtifactDeploymentStalledReasonManifestMissing,
-			}}
+		It("should pick the lowest stalled name regardless of input order, skipping ones that are not stalled", func() {
 			forward := []*konfidence.ArtifactDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: artifactName}, Status: konfidence.ArtifactDeploymentStatus{Conditions: stalledConditions}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "artifact-b"}, Status: konfidence.ArtifactDeploymentStatus{Conditions: stalledConditions}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "artifact-c"}, Status: konfidence.ArtifactDeploymentStatus{Conditions: stalledConditions}},
+				newArtifactDeployment("artifact-0", metav1.ConditionFalse),
+				newArtifactDeployment(artifactName, metav1.ConditionTrue),
+				newArtifactDeployment("artifact-b", metav1.ConditionTrue),
 			}
 			reversed := []*konfidence.ArtifactDeployment{forward[2], forward[1], forward[0]}
 
-			first := determineStalledArtifactDeployment(forward)
-			Expect(first).ToNot(BeNil())
-			second := determineStalledArtifactDeployment(reversed)
-			Expect(second).ToNot(BeNil())
+			Expect(determineStalledArtifactDeployment(forward).Name).To(Equal(artifactName))
+			Expect(determineStalledArtifactDeployment(reversed).Name).To(Equal(artifactName))
+		})
 
-			Expect(first.Name).To(Equal(second.Name))
-			Expect(first.Name).To(Equal(artifactName))
+		It("should name one stalled ArtifactDeployment and count only the stalled ones", func() {
+			vectorDeployment := newVectorDeployment(4)
+
+			reconcileStalledStatusWithDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{
+				newArtifactDeployment("artifact-b", metav1.ConditionTrue),
+				newArtifactDeployment(artifactName, metav1.ConditionTrue),
+				newArtifactDeployment("artifact-0", metav1.ConditionFalse),
+			})
+
+			condition := stalledCondition(vectorDeployment)
+			Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+			Expect(condition.Reason).To(Equal(konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled))
+			Expect(condition.Message).To(Equal("ArtifactDeployment artifact-a is stalled (ManifestMissing): " +
+				"no konfidence manifest in artifact; 2 artifact deployments are stalled"))
+			Expect(condition.ObservedGeneration).To(Equal(int64(4)))
+		})
+
+		// Stalled and Ready are independent: a vector can be Ready and Stalled at once.
+		It("should leave Ready alone when it reports a stall", func() {
+			vectorDeployment := newVectorDeployment(1)
+			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
+				Type:   konfidence.VectorReadyCondition,
+				Status: metav1.ConditionTrue,
+				Reason: konfidence.VectorReadyCondition,
+			})
+
+			reconcileStalledStatusWithDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{
+				newArtifactDeployment(artifactName, metav1.ConditionTrue),
+			})
+
+			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionTrue))
+			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeTrue())
 		})
 
 		It("should keep lastTransitionTime while the same stall persists across reconciles", func() {
 			vectorDeployment := newVectorDeployment(1)
-			stalledArtifactDeployment := &konfidence.ArtifactDeployment{}
-			stalledArtifactDeployment.Name = artifactName
-			stalledArtifactDeployment.Status.Conditions = []metav1.Condition{{
-				Type:   konfidence.StalledCondition,
-				Status: metav1.ConditionTrue,
-				Reason: konfidence.ArtifactDeploymentStalledReasonManifestMissing,
-			}}
+			stalledArtifactDeployment := newArtifactDeployment(artifactName, metav1.ConditionTrue)
 
 			reconcileStalledStatusWithDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{stalledArtifactDeployment})
 			since := metav1.NewTime(time.Now().Add(-time.Hour))
@@ -107,34 +100,21 @@ var _ = Describe("Stalled condition", func() {
 			Expect(stalledCondition(vectorDeployment).LastTransitionTime).To(Equal(since))
 		})
 
-		It("should clear Stalled when no ArtifactDeployment is stalled", func() {
+		It("should clear an earlier stall once no ArtifactDeployment is stalled", func() {
 			vectorDeployment := newVectorDeployment(1)
 			setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled, "artifact deployment stalled")
 
-			reconcileStalledStatusWithDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{{}})
+			reconcileStalledStatusWithDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{
+				{},
+				newArtifactDeployment(artifactName, metav1.ConditionFalse),
+			})
 
 			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionFalse))
+			Expect(stalledCondition(vectorDeployment).Reason).To(Equal(konfidence.StalledReasonNotStalled))
 		})
 
 		It("should pick nothing from an empty set", func() {
 			Expect(determineStalledArtifactDeployment(nil)).To(BeNil())
-		})
-
-		It("should name the ArtifactDeployment and its reason in the message", func() {
-			artifactDeployment := &konfidence.ArtifactDeployment{}
-			artifactDeployment.Name = artifactName
-			artifactDeployment.Status.Conditions = []metav1.Condition{{
-				Type:    konfidence.StalledCondition,
-				Status:  metav1.ConditionTrue,
-				Reason:  konfidence.ArtifactDeploymentStalledReasonManifestMissing,
-				Message: "no konfidence manifest in artifact",
-			}}
-
-			Expect(stalledArtifactDeploymentMessage(artifactDeployment, 1)).To(SatisfyAll(
-				ContainSubstring(artifactName),
-				ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing),
-			))
-			Expect(stalledArtifactDeploymentMessage(artifactDeployment, 3)).To(ContainSubstring("3 artifact deployments are stalled"))
 		})
 	})
 })

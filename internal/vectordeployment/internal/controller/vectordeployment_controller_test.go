@@ -748,7 +748,28 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 
-		By("Stalling the ArtifactDeployment again after the vector became ready")
+		By("Stalling the ArtifactDeployment while it stays Ready")
+		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
+		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+			Type:               konfidence.StalledCondition,
+			Status:             metav1.ConditionTrue,
+			Reason:             konfidence.ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing,
+			Message:            "kubeconfig Secret missing",
+			ObservedGeneration: artifactDeployment.Generation,
+		})
+		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
+
+		By("Verifying the vector is Ready and Stalled at once")
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			stalledCondition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(stalledCondition).ToNot(gomega.BeNil())
+			g.Expect(stalledCondition.Status).To(gomega.Equal(metav1.ConditionTrue))
+			g.Expect(stalledCondition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing))
+			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeTrue())
+		}, timeout, interval).Should(gomega.Succeed())
+
+		By("Taking Ready away from the stalled ArtifactDeployment")
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
 			Type:               konfidence.ArtifactDeploymentReadyCondition,
@@ -766,7 +787,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		})
 		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
 
-		By("Verifying the vector is stalled and no longer Ready")
+		By("Verifying the vector stays stalled and Ready drops to the waiting step")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
 			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.StalledCondition)).To(gomega.BeTrue())

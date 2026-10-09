@@ -160,8 +160,7 @@ func TestStateFromConditions(t *testing.T) {
 			want: vectordeployment.StateDeployingVector,
 		},
 		{
-			// Stalled wins: Ready is never reset, so a vector that was ready and then
-			// stalled must still report the stall.
+			// A vector can be Ready and Stalled at once; the stall is what needs attention.
 			name: "stalled outranks ready",
 			conditions: []metav1.Condition{
 				{Type: konfidence.StalledCondition, Status: metav1.ConditionTrue},
