@@ -1927,6 +1927,7 @@ _Appears in:_
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target references the Stage to promote to. |  |  |
 | `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished will be copied onto every VectorPromotion the drift<br />controller creates for this config. See<br />`VectorPromotionSpec.TTLAfterFinished`. |  | Optional: \{\} <br /> |
 | `keepLastPromotions` _integer_ | KeepLastPromotions bounds how many terminal VectorPromotions are<br />retained per config; the oldest beyond the bound are deleted. Retention<br />by count keeps an audit trail even when `ttlAfterFinished` is short.<br />Non-terminal promotions are never deleted and do not count toward the<br />bound. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
+| `keepOutstandingPromotions` _integer_ | KeepOutstandingPromotions bounds how many gated and not yet processed VectorPromotions are<br />retained per config; the oldest beyond the bound are set to the terminal state "Superseded". | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
 
 
 ### VectorPromotionConfigStatus
@@ -1990,7 +1991,7 @@ _Appears in:_
 | `Blocked` | PromotionStateBlocked means the promotion is ready but cannot execute<br />because its target does not resolve; see the config's Ready condition.<br /> |
 | `Succeeded` | PromotionStateSucceeded means the promotion completed successfully.<br /> |
 | `Failed` | PromotionStateFailed means the promotion reached a terminal state without success.<br /> |
-| `Superseded` | PromotionStateSuperseded means a newer promotion replaced this one.<br />Superseded promotions are locked: they can never be approved or<br />executed afterwards. The newer promotion is the one to act on.<br /> |
+| `Superseded` | PromotionStateSuperseded means a newer promotion replaced this one.<br />Superseded promotions are locked: they can never be approved or<br />executed afterward. The newer promotion is the one to act on.<br /> |
 
 
 ### VectorPromotionStatus

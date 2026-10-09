@@ -46,6 +46,13 @@ type VectorPromotionConfigSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	KeepLastPromotions *int32 `json:"keepLastPromotions,omitempty"`
+
+	// KeepOutstandingPromotions bounds how many gated and not yet processed VectorPromotions are
+	// retained per config; the oldest beyond the bound are set to the terminal state "Superseded".
+	// +kubebuilder:default=10
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	KeepOutstandingPromotions *int32 `json:"keepOutstandingPromotions,omitempty"`
 }
 
 // VectorPromotionConfigStatus defines the observed state of VectorPromotionConfig.

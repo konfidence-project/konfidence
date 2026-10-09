@@ -72,6 +72,14 @@ spec:
                 format: int32
                 minimum: 0
                 type: integer
+              keepOutstandingPromotions:
+                default: 10
+                description: |-
+                  KeepOutstandingPromotions bounds how many gated and not yet processed VectorPromotions are
+                  retained per config; the oldest beyond the bound are set to the terminal state "Superseded".
+                format: int32
+                minimum: 0
+                type: integer
               source:
                 description: Source references the resource to promote from.
                 properties:
