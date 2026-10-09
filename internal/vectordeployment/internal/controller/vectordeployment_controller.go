@@ -100,7 +100,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	allDeploymentsReady, err := r.handleArtifactDeployments(ctx, resolvedVector.artifactRefs, vectorDeployment, log)
-	if err != nil || !allDeploymentsReady {
+	if err == nil && !allDeploymentsReady {
 		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonArtifactDeploymentsNotReady, "Waiting for the ArtifactDeployments to be ready")
 	}
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
@@ -129,7 +129,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	allAssignmentsReady, err := r.handleVectorAssignments(ctx, vectorDeployment, log)
-	if err != nil || !allAssignmentsReady {
+	if err == nil && !allAssignmentsReady {
 		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonVectorAssignmentsNotReady, "Waiting for the VectorAssignments to be ready")
 	}
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
@@ -176,7 +176,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Gate VectorReady on the runtime-specific implementor having reported VectorData.Ready=True. If it is still
 	// pending (CR just created, implementor hasn't observed it yet, or the implementor is reporting a transient
-	// error), keep the VectorReady condition unset and rely on the controller's Owns(&VectorData{}) watch to retrigger
+	// error), set VectorReady=False and rely on the controller's Owns(&VectorData{}) watch to retrigger
 	// reconciliation when the implementor updates the VectorData status.
 	vectorDataReady, vdErr := r.vectorDataIsReady(ctx, vectorDeployment)
 	if vdErr != nil {
