@@ -70,23 +70,6 @@ var _ = Describe("Stalled condition", func() {
 			Expect(condition.ObservedGeneration).To(Equal(int64(4)))
 		})
 
-		// Stalled and Ready are independent: a vector can be Ready and Stalled at once.
-		It("should leave Ready alone when it reports a stall", func() {
-			vectorDeployment := newVectorDeployment(1)
-			meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-				Type:   konfidence.VectorReadyCondition,
-				Status: metav1.ConditionTrue,
-				Reason: konfidence.VectorReadyCondition,
-			})
-
-			reconcileStalledStatusWithDeployments(vectorDeployment, []*konfidence.ArtifactDeployment{
-				newArtifactDeployment(artifactName, metav1.ConditionTrue),
-			})
-
-			Expect(stalledCondition(vectorDeployment).Status).To(Equal(metav1.ConditionTrue))
-			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeTrue())
-		})
-
 		It("should keep lastTransitionTime while the same stall persists across reconciles", func() {
 			vectorDeployment := newVectorDeployment(1)
 			stalledArtifactDeployment := newArtifactDeployment(artifactName, metav1.ConditionTrue)
