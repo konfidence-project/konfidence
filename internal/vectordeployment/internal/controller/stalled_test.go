@@ -40,7 +40,6 @@ var _ = Describe("Stalled condition", func() {
 	}
 
 	Context("aggregating stalled ArtifactDeployments", func() {
-		// The named ArtifactDeployment must not depend on observation order, or the message flaps.
 		It("should pick the lowest stalled name regardless of input order, skipping ones that are not stalled", func() {
 			forward := []*konfidence.ArtifactDeployment{
 				newArtifactDeployment("artifact-0", metav1.ConditionFalse),

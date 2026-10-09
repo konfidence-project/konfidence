@@ -523,7 +523,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			exhaustedOcmName   = "exhausted.konfidence.cloud.example.vector-0.3.0"
 			collidingComponent = "github.com/konfidence-project/sample-service-1"
 			collidingVersion   = "0.0.1"
-			// The controller gives up when the name for salt 5 still collides. Each bump requeues after a second.
+			// The controller gives up at salt 5; each bump requeues after a second.
 			lastSalt         = 5
 			exhaustedTimeout = 30 * time.Second
 		)
@@ -572,8 +572,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(stalled.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision))
 		}, exhaustedTimeout, interval).Should(gomega.Succeed())
 
-		// The foreign ArtifactDeployment has no owner reference, so deleting it enqueues nothing and the
-		// retry comes from the error backoff.
+		// Nothing owns the foreign ArtifactDeployment, so the retry comes from the error backoff.
 		By("Freeing the last salted name")
 		lastSaltName, _, err := ConstructArtifactDeploymentName(collidingComponent, collidingVersion, nil, lastSalt)
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
@@ -609,8 +608,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}
 		gomega.Expect(k8sClient.Create(ctx, vectorDeployment)).To(gomega.Succeed())
 
-		// Asserting only the True case would pass against a controller that writes Stalled
-		// solely on the failure path.
+		// Checking False first catches a controller that only writes Stalled when blocked.
 		By("Verifying the parent reports Stalled=False before anything blocks")
 		actual := &konfidence.VectorDeployment{}
 		gomega.Eventually(func(g gomega.Gomega) {
@@ -640,8 +638,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		})
 		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
 
-		// The update above touches only status, so this also proves the Owns watch delivers
-		// status changes.
+		// A status-only update, so this also covers the Owns watch.
 		By("Verifying the parent goes Stalled=True naming the stalled ArtifactDeployment")
 		gomega.Eventually(func(g gomega.Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stalledOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
@@ -653,8 +650,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(condition.Message).To(gomega.ContainSubstring(konfidence.ArtifactDeploymentStalledReasonManifestMissing))
 		}, timeout, interval).Should(gomega.Succeed())
 
-		// Changing the child's message forces a reconcile, so the stall is shown to be rewritten
-		// rather than just not yet overwritten.
+		// The new message proves a reconcile ran.
 		By("Verifying the stall holds across reconciles")
 		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: artifactDeploymentName, Namespace: testNamespace}, artifactDeployment)).To(gomega.Succeed())
 		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
@@ -845,7 +841,6 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 	})
 })
 
-// sampleService1VectorDescriptor is a vector with the single reference sample-service-1:0.0.1.
 func sampleService1VectorDescriptor() VectorDescriptor {
 	return VectorDescriptor{
 		References: []compref.Ref{

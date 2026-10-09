@@ -6,8 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// setReadyConditionFalse records which step the vector deployment is waiting on. Writing it on every incomplete
-// pass resets a Ready=True from earlier, so Ready reflects the current state.
+// setReadyConditionFalse is written on every incomplete pass, so an earlier Ready=True does not linger.
 func setReadyConditionFalse(vectorDeployment *konfidence.VectorDeployment, reason, message string) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.VectorReadyCondition,

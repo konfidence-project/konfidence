@@ -8,7 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// setStalledConditionTrue marks the vector deployment stalled.
 func setStalledConditionTrue(vectorDeployment *konfidence.VectorDeployment, reason, message string) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StalledCondition,
@@ -19,7 +18,6 @@ func setStalledConditionTrue(vectorDeployment *konfidence.VectorDeployment, reas
 	})
 }
 
-// setStalledConditionFalse records that this reconcile found nothing blocking.
 func setStalledConditionFalse(vectorDeployment *konfidence.VectorDeployment) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
 		Type:               konfidence.StalledCondition,
@@ -30,8 +28,6 @@ func setStalledConditionFalse(vectorDeployment *konfidence.VectorDeployment) {
 	})
 }
 
-// reconcileStalledStatusWithDeployments reports a Stalled condition on the vector deployment if any ArtifactDeployments are stalled.
-// In case no ArtifactDeployments are stalled, it clears the Stalled condition if it exists.
 func reconcileStalledStatusWithDeployments(
 	vectorDeployment *konfidence.VectorDeployment,
 	artifactDeployments []*konfidence.ArtifactDeployment) {
@@ -52,9 +48,7 @@ func reconcileStalledStatusWithDeployments(
 		stalledArtifactDeploymentMessage(stalledDeployment, stalledCount))
 }
 
-// determineStalledArtifactDeployment picks a stalled ArtifactDeployment in a deterministic way.
-// If there are multiple stalled ArtifactDeployments, the same is chosen every time unless the list of
-// artifactDeployments itself changed.
+// determineStalledArtifactDeployment returns the stalled ArtifactDeployment with the lowest name, so the choice is stable.
 func determineStalledArtifactDeployment(artifactDeployments []*konfidence.ArtifactDeployment) *konfidence.ArtifactDeployment {
 	var picked *konfidence.ArtifactDeployment
 	for _, artifactDeployment := range artifactDeployments {
@@ -70,8 +64,10 @@ func determineStalledArtifactDeployment(artifactDeployments []*konfidence.Artifa
 }
 
 func stalledArtifactDeploymentMessage(artifactDeployment *konfidence.ArtifactDeployment, total int) string {
-	condition := meta.FindStatusCondition(artifactDeployment.Status.Conditions, konfidence.StalledCondition)
-	message := fmt.Sprintf("ArtifactDeployment %s is stalled (%s): %s", artifactDeployment.Name, condition.Reason, condition.Message)
+	message := fmt.Sprintf("ArtifactDeployment %s is stalled", artifactDeployment.Name)
+	if condition := meta.FindStatusCondition(artifactDeployment.Status.Conditions, konfidence.StalledCondition); condition != nil {
+		message = fmt.Sprintf("%s (%s): %s", message, condition.Reason, condition.Message)
+	}
 	if total > 1 {
 		message = fmt.Sprintf("%s; %d artifact deployments are stalled", message, total)
 	}
