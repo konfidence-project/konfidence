@@ -182,6 +182,14 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 			g.Expect(pkiK8sClient.Get(pkiCtx, types.NamespacedName{Name: vd.Name, Namespace: pkiTestNamespace}, actualVD)).To(gomega.Succeed())
 			g.Expect(meta.IsStatusConditionTrue(actualVD.Status.Conditions, konfidence.VectorDownloadedCondition)).To(gomega.BeFalse())
 		}, pkiNegativeWindow, pkiInterval).Should(gomega.Succeed())
+
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(pkiK8sClient.Get(pkiCtx, types.NamespacedName{Name: vd.Name, Namespace: pkiTestNamespace}, actualVD)).To(gomega.Succeed())
+			stalled := meta.FindStatusCondition(actualVD.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(stalled).ToNot(gomega.BeNil())
+			g.Expect(stalled.Status).To(gomega.Equal(metav1.ConditionTrue))
+			g.Expect(stalled.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed))
+		}, pkiTimeout, pkiInterval).Should(gomega.Succeed())
 	})
 })
 

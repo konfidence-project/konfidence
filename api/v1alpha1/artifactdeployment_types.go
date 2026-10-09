@@ -37,6 +37,10 @@ const (
 
 	// ArtifactDeploymentStalledReasonDeploymentResultNotUnique indicates that two DeploymentResults share a (name, type).
 	ArtifactDeploymentStalledReasonDeploymentResultNotUnique = "DeploymentResultNotUnique"
+
+	// ArtifactDeploymentStalledReasonResourceInvalid indicates that the artifact's deployable OCM resource is missing,
+	// ambiguous or cannot be read.
+	ArtifactDeploymentStalledReasonResourceInvalid = "ResourceInvalid"
 )
 
 // ArtifactDeploymentSpec defines the desired state of an ArtifactDeployment. It describes the artifact to be deployed,

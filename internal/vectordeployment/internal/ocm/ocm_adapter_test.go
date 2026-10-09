@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/vectordeployment/internal/controller"
 	ocmadapter "github.com/konfidence-project/konfidence/internal/vectordeployment/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/vectordeployment/internal/ocm/mocks"
 	. "github.com/onsi/ginkgo/v2"
@@ -23,6 +25,12 @@ import (
 func newTestAdapter(ctrl *gomock.Controller) (*mocks.MockClient, ocmadapter.Adapter) {
 	mock := mocks.NewMockClient(ctrl)
 	return mock, ocmadapter.NewAdapterWithClient(mock)
+}
+
+func expectPermanent(err error, reason string) {
+	var permanentErr *controller.PermanentError
+	gomega.Expect(errors.As(err, &permanentErr)).To(gomega.BeTrue(), "expected a PermanentError, got %v", err)
+	gomega.Expect(permanentErr.Reason).To(gomega.Equal(reason))
 }
 
 var _ = Describe("OcmAdapter", func() {
@@ -324,8 +332,7 @@ var _ = Describe("OcmAdapter", func() {
 
 				_, err := adapter.GetArtifactManifestByReference(ctx, artifactRef)
 
-				gomega.Expect(err).To(gomega.HaveOccurred())
-				gomega.Expect(err.Error()).To(gomega.ContainSubstring("no artifact manifest found"))
+				expectPermanent(err, konfidence.VectorDeploymentStalledReasonManifestMissing)
 			})
 		})
 
@@ -337,6 +344,8 @@ var _ = Describe("OcmAdapter", func() {
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(err.Error()).To(gomega.ContainSubstring("network timeout"))
+				var permanentErr *controller.PermanentError
+				gomega.Expect(errors.As(err, &permanentErr)).To(gomega.BeFalse(), "a failed fetch may be transient")
 			})
 		})
 
@@ -375,6 +384,32 @@ var _ = Describe("OcmAdapter", func() {
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(err.Error()).To(gomega.ContainSubstring("failed to unmarshal manifest data"))
+				expectPermanent(err, konfidence.VectorDeploymentStalledReasonManifestInvalid)
+			})
+		})
+
+		Context("when a task manifest blob contains invalid JSON", func() {
+			It("returns a permanent error", func() {
+				manifestResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "artifact-manifest"}},
+					Type:        "cloud.konfidence.artifact.manifest",
+				}
+				taskResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "migrate-db"}},
+					Type:        "cloud.konfidence.artifact.task.manifest",
+				}
+				descriptor := buildDescriptor([]descruntime.Resource{manifestResource, taskResource})
+
+				mockClient.EXPECT().Get(gomock.Any(), artifactRef).Return(descriptor, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), artifactRef, manifestResource.ToIdentity()).
+					Return(inmemory.New(bytes.NewReader([]byte(`{"type":"cloud.konfidence.flux.helm"}`))), &manifestResource, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), artifactRef, taskResource.ToIdentity()).
+					Return(inmemory.New(bytes.NewReader([]byte(`not-json`))), &taskResource, nil)
+
+				_, err := adapter.GetArtifactManifestByReference(ctx, artifactRef)
+
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("failed to unmarshal task manifest data"))
+				expectPermanent(err, konfidence.VectorDeploymentStalledReasonManifestInvalid)
 			})
 		})
 
@@ -470,6 +505,7 @@ var _ = Describe("OcmAdapter", func() {
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(err.Error()).To(gomega.ContainSubstring("missing access spec"))
+				expectPermanent(err, konfidence.VectorDeploymentStalledReasonManifestInvalid)
 			})
 		})
 	})

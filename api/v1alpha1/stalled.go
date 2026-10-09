@@ -8,3 +8,6 @@ const StalledCondition = "Stalled"
 
 // StalledReasonNotStalled is the reason carried by Stalled=False.
 const StalledReasonNotStalled = "NotStalled"
+
+// StalledReasonStalled is the reason for generic stall cases.
+const StalledReasonStalled = "Stalled"

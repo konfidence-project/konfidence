@@ -1,12 +1,24 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// stallOnPermanentError sets Stalled when err is a PermanentError and reports whether it did. Other errors may be
+// transient and are left to the retry.
+func stallOnPermanentError(vectorDeployment *konfidence.VectorDeployment, err error) bool {
+	var permanentErr *PermanentError
+	if !errors.As(err, &permanentErr) {
+		return false
+	}
+	setStalledConditionTrue(vectorDeployment, permanentErr.Reason, permanentErr.Error())
+	return true
+}
 
 func setStalledConditionTrue(vectorDeployment *konfidence.VectorDeployment, reason, message string) {
 	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{

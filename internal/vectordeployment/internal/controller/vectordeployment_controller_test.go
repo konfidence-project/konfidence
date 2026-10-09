@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -589,6 +590,88 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(stalled.Reason).To(gomega.Equal(konfidence.StalledReasonNotStalled))
 			g.Expect(actual.Status.ResultingArtifactDeployments[collidingComponent].Name).To(gomega.Equal(lastSaltName))
 		}, exhaustedTimeout, interval).Should(gomega.Succeed())
+	})
+
+	It("should report Stalled when an artifact has no Konfidence manifest", func() {
+		ctx := context.Background()
+
+		const missingManifestOcmName = "missing-manifest.konfidence.cloud.example.vector-0.3.0"
+
+		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(sampleService1VectorDescriptor(), nil).AnyTimes()
+		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).
+			Return(ArtifactManifest{}, &PermanentError{
+				Reason: konfidence.VectorDeploymentStalledReasonManifestMissing,
+				Err:    errors.New("no artifact manifest found in component sample-service-1"),
+			}).AnyTimes()
+
+		gomega.Expect(k8sClient.Create(ctx, &konfidence.VectorDeployment{
+			TypeMeta:   metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
+			ObjectMeta: metav1.ObjectMeta{Name: missingManifestOcmName, Namespace: testNamespace},
+			Spec:       konfidence.VectorDeploymentSpec{Vector: vectorReference},
+		})).To(gomega.Succeed())
+
+		actual := &konfidence.VectorDeployment{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: missingManifestOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			stalled := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(stalled).ToNot(gomega.BeNil())
+			g.Expect(stalled.Status).To(gomega.Equal(metav1.ConditionTrue))
+			g.Expect(stalled.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonManifestMissing))
+			g.Expect(stalled.Message).To(gomega.ContainSubstring("sample-service-1"))
+		}, timeout, interval).Should(gomega.Succeed())
+	})
+
+	It("should report Stalled when the vector fails signature verification", func() {
+		ctx := context.Background()
+
+		const unverifiedOcmName = "unverified.konfidence.cloud.example.vector-0.3.0"
+
+		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(VectorDescriptor{}, &PermanentError{
+			Reason: konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed,
+			Err:    errors.New(`unable to verify ocm descriptor: signature "konfidence" not found in descriptor`),
+		}).AnyTimes()
+
+		gomega.Expect(k8sClient.Create(ctx, &konfidence.VectorDeployment{
+			TypeMeta:   metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
+			ObjectMeta: metav1.ObjectMeta{Name: unverifiedOcmName, Namespace: testNamespace},
+			Spec:       konfidence.VectorDeploymentSpec{Vector: vectorReference},
+		})).To(gomega.Succeed())
+
+		actual := &konfidence.VectorDeployment{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: unverifiedOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			stalled := meta.FindStatusCondition(actual.Status.Conditions, konfidence.StalledCondition)
+			g.Expect(stalled).ToNot(gomega.BeNil())
+			g.Expect(stalled.Status).To(gomega.Equal(metav1.ConditionTrue))
+			g.Expect(stalled.Reason).To(gomega.Equal(konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed))
+			g.Expect(stalled.Message).To(gomega.ContainSubstring("not found in descriptor"))
+		}, timeout, interval).Should(gomega.Succeed())
+	})
+
+	It("should not report Stalled when fetching an artifact manifest fails", func() {
+		ctx := context.Background()
+
+		const fetchFailsOcmName = "fetch-fails.konfidence.cloud.example.vector-0.3.0"
+
+		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(sampleService1VectorDescriptor(), nil).AnyTimes()
+		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).
+			Return(ArtifactManifest{}, errors.New("registry unavailable")).AnyTimes()
+
+		gomega.Expect(k8sClient.Create(ctx, &konfidence.VectorDeployment{
+			TypeMeta:   metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
+			ObjectMeta: metav1.ObjectMeta{Name: fetchFailsOcmName, Namespace: testNamespace},
+			Spec:       konfidence.VectorDeploymentSpec{Vector: vectorReference},
+		})).To(gomega.Succeed())
+
+		actual := &konfidence.VectorDeployment{}
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: fetchFailsOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.VectorDownloadedCondition)).To(gomega.BeTrue())
+		}, timeout, interval).Should(gomega.Succeed())
+		gomega.Consistently(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: fetchFailsOcmName, Namespace: testNamespace}, actual)).To(gomega.Succeed())
+			g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.StalledCondition)).To(gomega.BeFalse())
+		}, time.Second, interval).Should(gomega.Succeed())
 	})
 
 	It("should surface a stalled ArtifactDeployment on the parent VectorDeployment", func() {

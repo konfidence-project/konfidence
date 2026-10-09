@@ -6,6 +6,17 @@ import (
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 )
 
+// PermanentError is an OCM failure that retrying the same, immutable version cannot fix. Reason is the Stalled
+// reason to report.
+type PermanentError struct {
+	Reason string
+	Err    error
+}
+
+func (e *PermanentError) Error() string { return e.Err.Error() }
+
+func (e *PermanentError) Unwrap() error { return e.Err }
+
 //go:generate go run go.uber.org/mock/mockgen -destination=./mocks/mock_ocm_port.go -package=mocks github.com/konfidence-project/konfidence/internal/vectordeployment/internal/controller VectorOcmPort
 
 // VectorOcmPort defines a subset of functionalities from the OCM library.
