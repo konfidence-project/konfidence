@@ -194,6 +194,31 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/projects/{projectId}/landscapes/{landscapeId}:
+    get:
+      operationId: getLandscapeV1
+      summary: Get a single landscape for a specific project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/LandscapePathId"
+      description: Returns a single landscape resources for a project.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Landscape"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /v1/projects/{projectId}/landscapes:
     get:
       operationId: listLandscapesV1
@@ -246,6 +271,32 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId}:
+    get:
+      operationId: getStageV1
+      summary: Get a single stage for a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/LandscapePathId"
+        - $ref: "#/components/parameters/StagePathId"
+      description: Returns a single stage resource for a project.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /v1/projects/{projectId}/vectorDeployments:
     get:
       operationId: listVectorDeploymentsV1
@@ -262,6 +313,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VectorDeploymentList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId}:
+    get:
+      operationId: getVectorDeploymentV1
+      summary: Get a single vectorDeployment for a project and landscape
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/LandscapePathId"
+        - $ref: "#/components/parameters/VectorDeploymentPathId"
+      description: Returns a single vectorDeployment resource for a project and landscape.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VectorDeployment"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -398,6 +475,32 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/projects/{projectId}/landscapes/{landscapeId}/artifactDeployments/{artifactDeploymentId}:
+    get:
+      operationId: getArtifactDeploymentV1
+      summary: Get a single artifactDeployment for a project and landscape
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/LandscapePathId"
+        - $ref: "#/components/parameters/ArtifactDeploymentPathId"
+      description: Returns a single artifactDeployment resource for a project and landscape.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtifactDeployment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   securitySchemes:
     sessionCookie:
@@ -450,6 +553,27 @@ components:
       in: query
       required: false
       description: Filter by vectorDeploymentId
+      schema:
+        type: string
+    StagePathId:
+      name: stageId
+      in: path
+      required: true
+      description: Stage Id
+      schema:
+        type: string
+    VectorDeploymentPathId:
+      name: vectorDeploymentId
+      in: path
+      required: true
+      description: VectorDeployment Id
+      schema:
+        type: string
+    ArtifactDeploymentPathId:
+      name: artifactDeploymentId
+      in: path
+      required: true
+      description: ArtifactDeployment Id
       schema:
         type: string
 

@@ -115,12 +115,48 @@ const operationHandlers = {
       .setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS)
       .redirect(validatedReturnUrl(state, "Invalid authentication state"));
   },
+  getArtifactDeploymentV1: (request, reply) => {
+    const { artifactDeploymentId } = request.params as { artifactDeploymentId: string };
+    const deployment = projectFor(request).artifactDeployments.find(
+      ({ id }) => id === artifactDeploymentId,
+    );
+    if (!deployment) {
+      throw httpError(404, "ArtifactDeployment not found");
+    }
+    return reply.send(deployment);
+  },
+  getLandscapeV1: (request, reply) => {
+    const { landscapeId } = request.params as { landscapeId: string };
+    const landscape = projectFor(request).landscapes.find(({ id }) => id === landscapeId);
+    if (!landscape) {
+      throw httpError(404, "Landscape not found");
+    }
+    return reply.send(landscape);
+  },
   getIdentityV1: (request, reply) => {
     const { projects, user } = scenarioFor(request);
     const projectRoles = Object.fromEntries(
       projects.map(({ project, roles }) => [project.id, roles]),
     );
     return reply.send({ ...user, projectRoles });
+  },
+  getStageV1: (request, reply) => {
+    const { stageId } = request.params as { stageId: string };
+    const stage = projectFor(request).stages.find(({ id }) => id === stageId);
+    if (!stage) {
+      throw httpError(404, "Stage not found");
+    }
+    return reply.send(stage);
+  },
+  getVectorDeploymentV1: (request, reply) => {
+    const { vectorDeploymentId } = request.params as { vectorDeploymentId: string };
+    const deployment = projectFor(request).vectorDeployments.find(
+      ({ id }) => id === vectorDeploymentId,
+    );
+    if (!deployment) {
+      throw httpError(404, "VectorDeployment not found");
+    }
+    return reply.send(deployment);
   },
   getVectorPromotionConfigV1: (request, reply) => {
     const { vectorPromotionConfigId } = request.params as { vectorPromotionConfigId: string };

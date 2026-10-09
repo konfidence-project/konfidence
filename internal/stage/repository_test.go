@@ -385,3 +385,5 @@ func TestListForScope_DoesNotLeakForeignNamespaces(t *testing.T) {
 		t.Errorf("foreign stage version leaked into the result: %q", resolved[0].Target.Name)
 	}
 }
+
+// TODO: add tests after ginkgo migration for single resource endpoint

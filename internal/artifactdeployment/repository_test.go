@@ -354,3 +354,5 @@ func TestListForScopeResolvesVectorDeploymentIdsFromOwnerRefs(t *testing.T) {
 		t.Fatalf("expected vector deployment %q, got %q", vectorDeploymentB.Name, resolved[0].VectorDeploymentIds[1])
 	}
 }
+
+// TODO: add tests after ginkgo migration for single resource endpoint

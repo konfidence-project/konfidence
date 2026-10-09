@@ -196,3 +196,5 @@ func TestResolveScope_OtherProjectsAreNotInScope(t *testing.T) {
 		t.Errorf("expected namespace %q, got %q", "kden-l-dev-a", scope[0].Namespace)
 	}
 }
+
+// TODO: add tests after ginkgo migration for single resource endpoint
