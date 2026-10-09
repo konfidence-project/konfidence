@@ -24,6 +24,22 @@ const (
 
 	// VectorReadyCondition indicates that the vector deployment is ready for use.
 	VectorReadyCondition = "Ready"
+
+	// VectorReadyReasonArtifactDeploymentsNotReady indicates that Ready is False while ArtifactDeployments are not ready.
+	VectorReadyReasonArtifactDeploymentsNotReady = "ArtifactDeploymentsNotReady"
+
+	// VectorReadyReasonVectorAssignmentsNotReady indicates that Ready is False while VectorAssignments are not ready.
+	VectorReadyReasonVectorAssignmentsNotReady = "VectorAssignmentsNotReady"
+
+	// VectorReadyReasonVectorDataNotReady indicates that Ready is False while the VectorData is not materialized.
+	VectorReadyReasonVectorDataNotReady = "VectorDataNotReady"
+
+	// VectorDeploymentStalledReasonArtifactDeploymentNamingCollision indicates that a deterministic ArtifactDeployment
+	// name still collides after the collisionCount salt is exhausted. Ordinary collisions self-heal by bumping the salt.
+	VectorDeploymentStalledReasonArtifactDeploymentNamingCollision = "ArtifactDeploymentNamingCollision"
+
+	// VectorDeploymentStalledReasonArtifactDeploymentStalled indicates that one of its ArtifactDeployments is stalled.
+	VectorDeploymentStalledReasonArtifactDeploymentStalled = "ArtifactDeploymentStalled"
 )
 
 // VectorDeploymentSpec defines the desired state of a VectorDeployment.
@@ -55,6 +71,8 @@ type VectorDeploymentStatus struct {
 
 	// Conditions represents the current set of status conditions for this vector
 	// deployment. These conditions track progress through the lifecycle stages.
+	// +listType=map
+	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// ResolvedVectorOcm contains the fully materialized content of the OCM ComponentVersion after it has been
@@ -103,9 +121,9 @@ type LocalObjectReference struct {
 // +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=".spec.vector",description="The deployment vector"
-// +kubebuilder:printcolumn:name="Vector-Ready",type=string,JSONPath=".status.conditions[?(@.type==\"VectorReady\")].status",description="Indicates if the vector is ready"
-// +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".status.conditions[?(@.type==\"VectorReady\")].reason",description="The reason of the VectorReady condition"
-// +kubebuilder:printcolumn:name="Message",type=string,JSONPath=".status.conditions[?(@.type==\"VectorReady\")].message",description="The message of the VectorReady condition"
+// +kubebuilder:printcolumn:name="Vector-Ready",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description="Indicates if the vector is ready"
+// +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].reason",description="The reason of the Ready condition"
+// +kubebuilder:printcolumn:name="Message",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description="The message of the Ready condition"
 //
 // VectorDeployment represents the deployment of an immutable vector of artifacts into a specific environment or stage.
 //

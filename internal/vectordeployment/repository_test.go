@@ -142,6 +142,31 @@ func TestStateFromConditions(t *testing.T) {
 			},
 			want: vectordeployment.StateDeploymentReady,
 		},
+		{
+			name: "stalled",
+			conditions: []metav1.Condition{{
+				Type:   konfidence.StalledCondition,
+				Status: metav1.ConditionTrue,
+				Reason: konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled,
+			}},
+			want: vectordeployment.StateDeploymentFailed,
+		},
+		{
+			name: "not stalled remains deploying",
+			conditions: []metav1.Condition{{
+				Type:   konfidence.StalledCondition,
+				Status: metav1.ConditionFalse,
+			}},
+			want: vectordeployment.StateDeployingVector,
+		},
+		{
+			name: "stalled outranks ready",
+			conditions: []metav1.Condition{
+				{Type: konfidence.StalledCondition, Status: metav1.ConditionTrue},
+				{Type: konfidence.VectorReadyCondition, Status: metav1.ConditionTrue},
+			},
+			want: vectordeployment.StateDeploymentFailed,
+		},
 	}
 
 	for _, tt := range tests {

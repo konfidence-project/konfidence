@@ -100,6 +100,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	allDeploymentsReady, err := r.handleArtifactDeployments(ctx, resolvedVector.artifactRefs, vectorDeployment, log)
+	if err == nil && !allDeploymentsReady {
+		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonArtifactDeploymentsNotReady, "Waiting for the ArtifactDeployments to be ready")
+	}
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 			patchErrorMessage := "unable to update vectorDeployment status"
@@ -126,6 +129,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	allAssignmentsReady, err := r.handleVectorAssignments(ctx, vectorDeployment, log)
+	if err == nil && !allAssignmentsReady {
+		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonVectorAssignmentsNotReady, "Waiting for the VectorAssignments to be ready")
+	}
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 			patchErrorMessage := "unable to update vectorDeployment status"
@@ -170,7 +176,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Gate VectorReady on the runtime-specific implementor having reported VectorData.Ready=True. If it is still
 	// pending (CR just created, implementor hasn't observed it yet, or the implementor is reporting a transient
-	// error), keep the VectorReady condition unset and rely on the controller's Owns(&VectorData{}) watch to retrigger
+	// error), set VectorReady=False and rely on the controller's Owns(&VectorData{}) watch to retrigger
 	// reconciliation when the implementor updates the VectorData status.
 	vectorDataReady, vdErr := r.vectorDataIsReady(ctx, vectorDeployment)
 	if vdErr != nil {
@@ -183,6 +189,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 	if !vectorDataReady {
 		log.Info("waiting for VectorData to be materialized by the runtime implementor")
+		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonVectorDataNotReady, "Waiting for the VectorData to be materialized")
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w", patchError)
@@ -223,6 +230,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	var (
 		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifactReferences))
 		deploymentResults            = make(map[string]konfidence.ComponentDeploymentResults)
+		artifactDeployments          []*konfidence.ArtifactDeployment
 	)
 	allReady := true
 
@@ -293,6 +301,8 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 				// not bad luck in a large hash space, so fail loudly instead of requeueing forever.
 				if collisionCount >= 5 {
 					log.Error(nil, msg, "name", deploymentName, "collisionCount", collisionCount)
+					setStalledConditionTrue(vectorDeployment, konfidence.VectorDeploymentStalledReasonArtifactDeploymentNamingCollision,
+						fmt.Sprintf("%s (giving up after %d salts)", msg, collisionCount))
 					return false, fmt.Errorf("%s (giving up after %d salts)", msg, collisionCount)
 				}
 
@@ -367,6 +377,8 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		if !meta.IsStatusConditionTrue(artifactDeployment.Status.Conditions, konfidence.ArtifactDeploymentReadyCondition) {
 			allReady = false
 		}
+
+		artifactDeployments = append(artifactDeployments, artifactDeployment)
 	}
 
 	// Write local maps back to status. Assign nil when empty so that the
@@ -391,6 +403,8 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 		ObservedGeneration: vectorDeployment.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
+
+	reconcileStalledStatusWithDeployments(vectorDeployment, artifactDeployments)
 
 	if allReady {
 		meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
