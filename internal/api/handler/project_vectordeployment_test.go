@@ -58,7 +58,8 @@ func (r *vectorDeploymentLandscapeRepository) Get(_ context.Context, _, _ string
 	return r.landscape, r.err
 }
 
-func (r *vectorDeploymentRepository) GetForScope(_ context.Context, _ landscapedomain.ScopedLandscape, _ string) (*vectordeployment.ResolvedVectorDeployment, error) {
+func (r *vectorDeploymentRepository) GetForScope(_ context.Context,
+	_ landscapedomain.ScopedLandscape, _ string) (*vectordeployment.ResolvedVectorDeployment, error) {
 	if r.err != nil {
 		return nil, r.err
 	}

@@ -125,7 +125,8 @@ func toLandscapeResponse(l konfidence.Landscape) openapi.Landscape {
 	}
 }
 
-func (h *projectHandler) GetVectorDeploymentV1(ctx context.Context, request openapi.GetVectorDeploymentV1RequestObject) (openapi.GetVectorDeploymentV1ResponseObject, error) {
+func (h *projectHandler) GetVectorDeploymentV1(ctx context.Context,
+	request openapi.GetVectorDeploymentV1RequestObject) (openapi.GetVectorDeploymentV1ResponseObject, error) {
 	identity, err := session.FromContext(ctx)
 	if err != nil {
 		return nil, apierror.NewUnauthorized()
@@ -228,7 +229,8 @@ func (h *projectHandler) resolveLandscapeScope(ctx context.Context,
 	return scope, nil
 }
 
-func (h *projectHandler) GetArtifactDeploymentV1(ctx context.Context, request openapi.GetArtifactDeploymentV1RequestObject) (openapi.GetArtifactDeploymentV1ResponseObject, error) {
+func (h *projectHandler) GetArtifactDeploymentV1(ctx context.Context,
+	request openapi.GetArtifactDeploymentV1RequestObject) (openapi.GetArtifactDeploymentV1ResponseObject, error) {
 	identity, err := session.FromContext(ctx)
 	if err != nil {
 		return nil, apierror.NewUnauthorized()

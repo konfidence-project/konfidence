@@ -272,19 +272,19 @@ var _ = Describe("GetStageV1", func() {
 	It("returns the stage by landscape and stage id", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev")
-		stage := stageFixture("alpha", "kden-l-dev", "vector:1", 1)
+		stage := stageFixture("a", "kden-l-dev", "vector:1", 1)
 		h := newProjectHandlerForTest(project, dev, stage)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
 		resp, err := h.GetStageV1(ctx, openapi.GetStageV1RequestObject{
 			ProjectId:   "my-project",
 			LandscapeId: "dev",
-			StageId:     "alpha",
+			StageId:     "a",
 		})
 		Expect(err).NotTo(HaveOccurred())
 
 		item := resp.(openapi.GetStageV1200JSONResponse)
-		Expect(item.Id).To(Equal("alpha"))
+		Expect(item.Id).To(Equal("a"))
 		Expect(item.LandscapeId).To(Equal("dev"))
 		Expect(item.TargetStageVersion).To(BeNil())
 		Expect(item.ActiveStageVersion).To(BeNil())
@@ -292,10 +292,10 @@ var _ = Describe("GetStageV1", func() {
 
 	It("returns the stage with resolved versions", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev")
-		stage := activeStageVersionFixture(stageFixture("alpha", "kden-l-dev", "vector:2", 2), "alpha-v1")
-		active := stageVersionFixture("alpha-v1", "kden-l-dev", "alpha", "vector:1", 1, konfidence.StageVersionReady)
-		target := stageVersionFixture("alpha-v2", "kden-l-dev", "alpha", "vector:2", 2,
+		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-dev")
+		stage := activeStageVersionFixture(stageFixture("a", "kden-dev", "vector:2", 2), "a-v1")
+		active := stageVersionFixture("a-v1", "kden-dev", "a", "vector:1", 1, konfidence.StageVersionReady)
+		target := stageVersionFixture("a-v2", "kden-dev", "a", "vector:2", 2,
 			konfidence.VectorDeploymentCreatedCondition)
 		h := newProjectHandlerForTest(project, dev, stage, active, target)
 
@@ -303,20 +303,20 @@ var _ = Describe("GetStageV1", func() {
 		resp, err := h.GetStageV1(ctx, openapi.GetStageV1RequestObject{
 			ProjectId:   "my-project",
 			LandscapeId: "dev",
-			StageId:     "alpha",
+			StageId:     "a",
 		})
 		Expect(err).NotTo(HaveOccurred())
 
 		item := resp.(openapi.GetStageV1200JSONResponse)
 		Expect(item.TargetStageVersion).NotTo(BeNil())
-		Expect(item.TargetStageVersion.Id).To(Equal("alpha-v2"))
+		Expect(item.TargetStageVersion.Id).To(Equal("a-v2"))
 		Expect(item.ActiveStageVersion).NotTo(BeNil())
-		Expect(item.ActiveStageVersion.Id).To(Equal("alpha-v1"))
+		Expect(item.ActiveStageVersion.Id).To(Equal("a-v1"))
 	})
 
 	It("returns 404 when the stage does not exist", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev")
+		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-dev")
 		h := newProjectHandlerForTest(project, dev)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
@@ -336,25 +336,25 @@ var _ = Describe("GetStageV1", func() {
 		resp, err := h.GetStageV1(ctx, openapi.GetStageV1RequestObject{
 			ProjectId:   "my-project",
 			LandscapeId: "nonexistent",
-			StageId:     "alpha",
+			StageId:     "a",
 		})
 		expectAPIError(resp, err, http.StatusNotFound)
 	})
 
 	It("never returns a stage from another landscape with the same name", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev")
-		prod := scopedLandscapeFixture("prod", "kden-p-my-project", "kden-l-prod")
+		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-dev")
+		prod := scopedLandscapeFixture("prod", "kden-p-my-project", "kden-prod")
 		h := newProjectHandlerForTest(project, dev, prod,
-			stageFixture("alpha", "kden-l-dev", "vector:1", 1),
-			stageFixture("alpha", "kden-l-prod", "vector:2", 1),
+			stageFixture("a", "kden-dev", "vector:1", 1),
+			stageFixture("a", "kden-prod", "vector:2", 1),
 		)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
 		resp, err := h.GetStageV1(ctx, openapi.GetStageV1RequestObject{
 			ProjectId:   "my-project",
 			LandscapeId: "dev",
-			StageId:     "alpha",
+			StageId:     "a",
 		})
 		Expect(err).NotTo(HaveOccurred())
 
@@ -367,7 +367,7 @@ var _ = Describe("GetStageV1", func() {
 		h := newProjectHandlerForTest(project)
 
 		resp, err := h.GetStageV1(context.Background(), openapi.GetStageV1RequestObject{
-			ProjectId: "my-project", LandscapeId: "dev", StageId: "alpha",
+			ProjectId: "my-project", LandscapeId: "dev", StageId: "a",
 		})
 		expectAPIError(resp, err, http.StatusUnauthorized)
 	})
@@ -378,7 +378,7 @@ var _ = Describe("GetStageV1", func() {
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"other-project": {"admin"}})
 		resp, err := h.GetStageV1(ctx, openapi.GetStageV1RequestObject{
-			ProjectId: "my-project", LandscapeId: "dev", StageId: "alpha",
+			ProjectId: "my-project", LandscapeId: "dev", StageId: "a",
 		})
 		expectAPIError(resp, err, http.StatusForbidden)
 	})
