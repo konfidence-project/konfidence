@@ -26,6 +26,9 @@ const (
 	ReasonPromotionManuallyApproved = "ManuallyApproved"
 	// ReasonPromotionSuperseded indicates a newer promotion for the same config replaced this one.
 	ReasonPromotionSuperseded = "PromotionSuperseded"
+	// ReasonPromotionOutstandingLimitReached indicates an outstanding Promotion was superseded
+	// after the limit of outstanding promotions was reached.
+	ReasonPromotionOutstandingLimitReached = "OutstandingLimitReached"
 	// ReasonPromotionTimedOut indicates the promotion stayed in progress past the
 	// execution deadline and was retired.
 	ReasonPromotionTimedOut = "PromotionTimedOut"
@@ -57,7 +60,7 @@ const (
 	PromotionStateFailed VectorPromotionState = "Failed"
 	// PromotionStateSuperseded means a newer promotion replaced this one.
 	// Superseded promotions are locked: they can never be approved or
-	// executed afterwards. The newer promotion is the one to act on.
+	// executed afterward. The newer promotion is the one to act on.
 	PromotionStateSuperseded VectorPromotionState = "Superseded"
 )
 
