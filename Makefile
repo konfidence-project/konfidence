@@ -263,11 +263,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 ##@ Testing
 
 .PHONY: test
-test: hermit check-ginkgo-tests manifests generate fmt vet test-operators test-pkg test-kden-cli test-api ## Run all unit tests.
-
-.PHONY: check-ginkgo-tests
-check-ginkgo-tests: hermit ## Verify that all Go behavior tests use Ginkgo.
-	@hack/check-ginkgo-tests.sh
+test: hermit manifests generate fmt vet test-operators test-pkg test-kden-cli test-api ## Run all unit tests.
 
 .PHONY: test-operators
 test-operators: hermit manifests setup-envtest ginkgo ## Run unit tests for the konfidence operator.

@@ -2,26 +2,31 @@ package vectordeployment_test
 
 import (
 	"context"
-	"testing"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	"github.com/konfidence-project/konfidence/internal/vectordeployment"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func vectorDeploymentClient(t *testing.T, objects ...client.Object) client.Client {
-	t.Helper()
+func vectorDeploymentClient(objects ...client.Object) client.Client {
+	GinkgoHelper()
+
 	scheme := runtime.NewScheme()
-	if err := konfidence.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
-	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+	Expect(konfidence.AddToScheme(scheme)).To(Succeed())
+
+	return fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(objects...).
+		Build()
 }
 
+//nolint:unparam
 func scope(name, projectNamespace, namespace string) landscapedomain.ScopedLandscape {
 	return landscapedomain.ScopedLandscape{
 		Landscape: konfidence.Landscape{
@@ -59,121 +64,153 @@ func stageVersion(name, namespace, stageId string) *konfidence.StageVersion {
 	}
 }
 
-func TestRepositoryList(t *testing.T) {
-	k8s := vectorDeploymentClient(t,
-		vectorDeployment("checkout-v1", "landscape-dev", "checkout-v1"),
-		stageVersion("checkout-v1", "landscape-dev", "checkout"),
-		vectorDeployment("checkout-v2", "landscape-prod", "checkout-v2"),
-		stageVersion("checkout-v2", "landscape-prod", "checkout"),
-		vectorDeployment("hidden", "landscape-other", "hidden"),
-		stageVersion("hidden", "landscape-other", "hidden"),
-	)
-	repository := vectordeployment.NewRepository(k8s)
-	dev := scope("dev", "project-a", "landscape-dev")
-	prod := scope("prod", "project-a", "landscape-prod")
+var _ = Describe("Repository", func() {
+	Describe("ListForScope", func() {
+		It("lists deployments across the requested landscapes", func() {
+			repository := vectordeployment.NewRepository(vectorDeploymentClient(
+				vectorDeployment("checkout-v1", "landscape-dev", "checkout-v1"),
+				stageVersion("checkout-v1", "landscape-dev", "checkout"),
+				vectorDeployment("checkout-v2", "landscape-prod", "checkout-v2"),
+				stageVersion("checkout-v2", "landscape-prod", "checkout"),
+				vectorDeployment("hidden", "landscape-other", "hidden"),
+				stageVersion("hidden", "landscape-other", "hidden"),
+			))
+			dev := scope("dev", "project-a", "landscape-dev")
+			prod := scope("prod", "project-a", "landscape-prod")
 
-	items, err := repository.ListForScope(context.Background(), []landscapedomain.ScopedLandscape{dev, prod})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(items) != 2 {
-		t.Fatalf("expected two deployments, got %#v", items)
-	}
+			items, err := repository.ListForScope(context.Background(), []landscapedomain.ScopedLandscape{dev, prod})
 
-	items, err = repository.ListForScope(context.Background(), []landscapedomain.ScopedLandscape{dev})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(items) != 1 || items[0].VectorDeployment.Name != "checkout-v1" ||
-		items[0].LandscapeId != "dev" || items[0].StageId != "checkout" {
-		t.Fatalf("unexpected filtered deployments: %#v", items)
-	}
-}
+			Expect(err).NotTo(HaveOccurred())
+			Expect(items).To(ConsistOf(
+				And(
+					HaveField("VectorDeployment.Name", "checkout-v1"),
+					HaveField("LandscapeId", "dev"),
+					HaveField("StageId", "checkout"),
+				),
+				And(
+					HaveField("VectorDeployment.Name", "checkout-v2"),
+					HaveField("LandscapeId", "prod"),
+					HaveField("StageId", "checkout"),
+				),
+			))
+		})
 
-func TestRepositoryListRejectsMissingStageVersion(t *testing.T) {
-	k8s := vectorDeploymentClient(t,
-		vectorDeployment("checkout-v1", "landscape-dev", "missing"),
-	)
+		It("limits deployments to the requested landscape", func() {
+			repository := vectordeployment.NewRepository(vectorDeploymentClient(
+				vectorDeployment("checkout-v1", "landscape-dev", "checkout-v1"),
+				stageVersion("checkout-v1", "landscape-dev", "checkout"),
+				vectorDeployment("checkout-v2", "landscape-prod", "checkout-v2"),
+				stageVersion("checkout-v2", "landscape-prod", "checkout"),
+			))
 
-	_, err := vectordeployment.NewRepository(k8s).ListForScope(context.Background(), []landscapedomain.ScopedLandscape{
-		scope("dev", "project-a", "landscape-dev"),
+			items, err := repository.ListForScope(
+				context.Background(),
+				[]landscapedomain.ScopedLandscape{
+					scope("dev", "project-a", "landscape-dev"),
+				},
+			)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(items).To(ConsistOf(And(
+				HaveField("VectorDeployment.Name", "checkout-v1"),
+				HaveField("LandscapeId", "dev"),
+				HaveField("StageId", "checkout"),
+			)))
+		})
+
+		It("returns an error when a stage version is missing", func() {
+			repository := vectordeployment.NewRepository(vectorDeploymentClient(
+				vectorDeployment("checkout-v1", "landscape-dev", "missing"),
+			))
+
+			_, err := repository.ListForScope(
+				context.Background(),
+				[]landscapedomain.ScopedLandscape{
+					scope("dev", "project-a", "landscape-dev"),
+				},
+			)
+
+			Expect(err).To(MatchError(ContainSubstring(
+				`resolving stage for vector deployment "checkout-v1"`,
+			)))
+		})
 	})
-	if err == nil {
-		t.Fatal("expected missing stage version error")
-	}
-}
+})
 
-func TestStateFromConditions(t *testing.T) {
-	tests := []struct {
-		name       string
-		conditions []metav1.Condition
-		want       vectordeployment.State
-	}{
-		{name: "no conditions", want: vectordeployment.StateDeployingVector},
-		{
-			name: "deployment progressing",
-			conditions: []metav1.Condition{{
+var _ = Describe("StateFromConditions", func() {
+	DescribeTable("maps conditions to deployment states",
+		func(conditions []metav1.Condition, expected vectordeployment.State) {
+			Expect(vectordeployment.StateFromConditions(conditions)).To(Equal(expected))
+		},
+		Entry("with no conditions", nil, vectordeployment.StateDeployingVector),
+		Entry(
+			"while deployment is progressing",
+			[]metav1.Condition{{
 				Type:   konfidence.VectorDownloadedCondition,
 				Status: metav1.ConditionTrue,
 			}},
-			want: vectordeployment.StateDeployingVector,
-		},
-		{
-			name: "deployment ready",
-			conditions: []metav1.Condition{{
+			vectordeployment.StateDeployingVector,
+		),
+		Entry(
+			"when deployment is ready",
+			[]metav1.Condition{{
 				Type:   konfidence.VectorReadyCondition,
 				Status: metav1.ConditionTrue,
 			}},
-			want: vectordeployment.StateDeploymentReady,
-		},
-		{
-			name: "unmet condition remains deploying",
-			conditions: []metav1.Condition{{
+			vectordeployment.StateDeploymentReady,
+		),
+		Entry(
+			"when a condition is unmet",
+			[]metav1.Condition{{
 				Type:   konfidence.VectorDataCreatedCondition,
 				Status: metav1.ConditionFalse,
 			}},
-			want: vectordeployment.StateDeployingVector,
-		},
-		{
-			name: "ready with an unmet milestone",
-			conditions: []metav1.Condition{
-				{Type: konfidence.VectorDataCreatedCondition, Status: metav1.ConditionFalse},
-				{Type: konfidence.VectorReadyCondition, Status: metav1.ConditionTrue},
+			vectordeployment.StateDeployingVector,
+		),
+		Entry(
+			"when ready despite an unmet milestone",
+			[]metav1.Condition{
+				{
+					Type:   konfidence.VectorDataCreatedCondition,
+					Status: metav1.ConditionFalse,
+				},
+				{
+					Type:   konfidence.VectorReadyCondition,
+					Status: metav1.ConditionTrue,
+				},
 			},
-			want: vectordeployment.StateDeploymentReady,
-		},
-		{
-			name: "stalled",
-			conditions: []metav1.Condition{{
+			vectordeployment.StateDeploymentReady,
+		),
+		Entry(
+			"when deployment is stalled",
+			[]metav1.Condition{{
 				Type:   konfidence.StalledCondition,
 				Status: metav1.ConditionTrue,
 				Reason: konfidence.VectorDeploymentStalledReasonArtifactDeploymentStalled,
 			}},
-			want: vectordeployment.StateDeploymentFailed,
-		},
-		{
-			name: "not stalled remains deploying",
-			conditions: []metav1.Condition{{
+			vectordeployment.StateDeploymentFailed,
+		),
+		Entry(
+			"not stalled remains deploying",
+			[]metav1.Condition{{
 				Type:   konfidence.StalledCondition,
 				Status: metav1.ConditionFalse,
 			}},
-			want: vectordeployment.StateDeployingVector,
-		},
-		{
-			name: "stalled outranks ready",
-			conditions: []metav1.Condition{
-				{Type: konfidence.StalledCondition, Status: metav1.ConditionTrue},
-				{Type: konfidence.VectorReadyCondition, Status: metav1.ConditionTrue},
+			vectordeployment.StateDeployingVector,
+		),
+		Entry(
+			"when stalled outranks ready",
+			[]metav1.Condition{
+				{
+					Type:   konfidence.StalledCondition,
+					Status: metav1.ConditionTrue,
+				},
+				{
+					Type:   konfidence.VectorReadyCondition,
+					Status: metav1.ConditionTrue,
+				},
 			},
-			want: vectordeployment.StateDeploymentFailed,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := vectordeployment.StateFromConditions(tt.conditions); got != tt.want {
-				t.Fatalf("StateFromConditions() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
+			vectordeployment.StateDeploymentFailed,
+		),
+	)
+})
