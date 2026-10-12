@@ -27,15 +27,15 @@ spec:
       name: Vector
       type: string
     - description: Indicates if the vector is ready
-      jsonPath: .status.conditions[?(@.type=="VectorReady")].status
+      jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Vector-Ready
       type: string
-    - description: The reason of the VectorReady condition
-      jsonPath: .status.conditions[?(@.type=="VectorReady")].reason
+    - description: The reason of the Ready condition
+      jsonPath: .status.conditions[?(@.type=="Ready")].reason
       name: Reason
       type: string
-    - description: The message of the VectorReady condition
-      jsonPath: .status.conditions[?(@.type=="VectorReady")].message
+    - description: The message of the Ready condition
+      jsonPath: .status.conditions[?(@.type=="Ready")].message
       name: Message
       type: string
     name: v1alpha1
@@ -151,6 +151,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               deploymentResults:
                 additionalProperties:
                   description: ComponentDeploymentResults lists the deployment results

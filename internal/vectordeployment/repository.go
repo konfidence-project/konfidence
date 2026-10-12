@@ -20,12 +20,15 @@ const (
 	StateDeploymentFailed State = "DeploymentFailed"
 )
 
+// StateFromConditions maps conditions onto the API state. Stalled wins, since a vector can be Ready and Stalled.
 func StateFromConditions(conditions []metav1.Condition) State {
+	if meta.IsStatusConditionTrue(conditions, konfidence.StalledCondition) {
+		return StateDeploymentFailed
+	}
+
 	if meta.IsStatusConditionTrue(conditions, konfidence.VectorReadyCondition) {
 		return StateDeploymentReady
 	}
-
-	// TODO: mapping to StateDeploymentFailed https://github.com/konfidence-project/konfidence/issues/167
 
 	return StateDeployingVector
 }
