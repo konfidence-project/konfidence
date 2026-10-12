@@ -1,208 +1,78 @@
-package sanitize
+package sanitize_test
 
 import (
-	"testing"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/konfidence-project/konfidence/pkg/sanitize"
 )
 
-func TestSanitizeK8sDNSLabelName(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "simple valid name",
-			input:    "my-resource",
-			expected: "my-resource",
+var _ = Describe("Kubernetes name sanitization", func() {
+	DescribeTable("sanitizes DNS label names",
+		func(input, expected string) {
+			Expect(sanitize.DNSLabelName(input)).To(Equal(expected))
 		},
-		{
-			name:     "uppercase letters",
-			input:    "MyResource",
-			expected: "myresource",
-		},
-		{
-			name:     "special characters",
-			input:    "my_resource@example.com",
-			expected: "my-resource-example-com",
-		},
-		{
-			name:     "leading and trailing invalid chars",
-			input:    "_my-resource_",
-			expected: "my-resource",
-		},
-		{
-			name:     "name too long",
-			input:    "this-is-a-very-long-name-that-exceeds-sixty-three-characters-limit",
-			expected: "this-is-a-very-long-name-that-exceeds-sixty-three-characters-li",
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: "",
-		},
-		{
-			name:     "multiple invalid characters",
-			input:    "a@#b$%c",
-			expected: "a--b--c",
-		},
-		{
-			name:     "only invalid characters",
-			input:    "@#$%^&*()",
-			expected: "",
-		},
-	}
+		Entry("simple valid name", "my-resource", "my-resource"),
+		Entry("uppercase letters", "MyResource", "myresource"),
+		Entry("special characters", "my_resource@example.com", "my-resource-example-com"),
+		Entry("leading and trailing invalid chars", "_my-resource_", "my-resource"),
+		Entry("name too long",
+			"this-is-a-very-long-name-that-exceeds-sixty-three-characters-limit",
+			"this-is-a-very-long-name-that-exceeds-sixty-three-characters-li",
+		),
+		Entry("empty string", "", ""),
+		Entry("multiple invalid characters", "a@#b$%c", "a--b--c"),
+		Entry("only invalid characters", "@#$%^&*()", ""),
+	)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := DNSLabelName(tt.input)
-			if result != tt.expected {
-				t.Errorf("SanitizeK8sDNSLabelName(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestSanitizeK8sDNSSubdomainName(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "simple valid name with dashes",
-			input:    "my-resource",
-			expected: "my-resource",
+	DescribeTable("sanitizes DNS subdomain names",
+		func(input, expected string) {
+			Expect(sanitize.DNSSubdomainName(input)).To(Equal(expected))
 		},
-		{
-			name:     "simple valid name with dots",
-			input:    "test.resource.com",
-			expected: "test.resource.com",
-		},
-		{
-			name:     "simple valid name with dashes and dots",
-			input:    "test.resource-123.com",
-			expected: "test.resource-123.com",
-		},
-		{
-			name:     "uppercase letters",
-			input:    "MyResource",
-			expected: "myresource",
-		},
-		{
-			name:     "special characters",
-			input:    "my_resource@example.com",
-			expected: "my-resource-example.com",
-		},
-		{
-			name:     "leading and trailing invalid chars",
-			input:    "-my-resource_",
-			expected: "my-resource",
-		},
-		{
-			name: "name too long",
-			input: "this-is-a-very-long-name-that-exceeds-253-characters-limit." +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit." +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit." +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit." +
+		Entry("simple valid name with dashes", "my-resource", "my-resource"),
+		Entry("simple valid name with dots", "test.resource.com", "test.resource.com"),
+		Entry("simple valid name with dashes and dots", "test.resource-123.com", "test.resource-123.com"),
+		Entry("uppercase letters", "MyResource", "myresource"),
+		Entry("special characters", "my_resource@example.com", "my-resource-example.com"),
+		Entry("leading and trailing invalid chars", "-my-resource_", "my-resource"),
+		Entry("name too long",
+			"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
 				"this-is-a-very-long-name-that-exceeds-253-characters-limit",
-			expected: "this-is-a-very-long-name-that-exceeds-253-characters-limit." +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit." +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit." +
+			"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
 				"this-is-a-very-long-name-that-exceeds-253-characters-limit.this-is-a-very-lo",
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: "",
-		},
-		{
-			name:     "multiple invalid characters",
-			input:    "a@#b$%c",
-			expected: "a--b--c",
-		},
-		{
-			name:     "only invalid characters",
-			input:    "@#$%^&*()",
-			expected: "",
-		},
-	}
+		),
+		Entry("empty string", "", ""),
+		Entry("multiple invalid characters", "a@#b$%c", "a--b--c"),
+		Entry("only invalid characters", "@#$%^&*()", ""),
+	)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := DNSSubdomainName(tt.input)
-			if result != tt.expected {
-				t.Errorf("SanitizeK8sDNSSubdomainName(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestResourceName(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "simple valid name with dashes",
-			input:    "my-resource",
-			expected: "my-resource",
+	DescribeTable("sanitizes resource names",
+		func(input, expected string) {
+			Expect(sanitize.ResourceName(input)).To(Equal(expected))
 		},
-		{
-			name:     "simple valid name with dots",
-			input:    "test.resource.com",
-			expected: "test-resource-com",
-		},
-		{
-			name:     "simple valid name with dashes and dots",
-			input:    "test.resource-123.com",
-			expected: "test-resource-123-com",
-		},
-		{
-			name:     "special characters",
-			input:    "my_resource@example.com",
-			expected: "my-resource-example-com",
-		},
-		{
-			name:     "leading and trailing invalid chars",
-			input:    "-my-resource_",
-			expected: "my-resource",
-		},
-		{
-			name: "name too long",
-			input: "this-is-a-very-long-name-that-exceeds-253-characters-limit." +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit." +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit." +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit." +
+		Entry("simple valid name with dashes", "my-resource", "my-resource"),
+		Entry("simple valid name with dots", "test.resource.com", "test-resource-com"),
+		Entry("simple valid name with dashes and dots", "test.resource-123.com", "test-resource-123-com"),
+		Entry("special characters", "my_resource@example.com", "my-resource-example-com"),
+		Entry("leading and trailing invalid chars", "-my-resource_", "my-resource"),
+		Entry("name too long",
+			"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit."+
 				"this-is-a-very-long-name-that-exceeds-253-characters-limit",
-			expected: "this-is-a-very-long-name-that-exceeds-253-characters-limit-" +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit-" +
-				"this-is-a-very-long-name-that-exceeds-253-characters-limit-" +
+			"this-is-a-very-long-name-that-exceeds-253-characters-limit-"+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit-"+
+				"this-is-a-very-long-name-that-exceeds-253-characters-limit-"+
 				"this-is-a-very-long-name-that-exceeds-253-characters-limit-this-is-a-very-lo",
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: "",
-		},
-		{
-			name:     "multiple invalid characters",
-			input:    "a@#b$%c",
-			expected: "a--b--c",
-		},
-		{
-			name:     "only invalid characters",
-			input:    "@#$%^&*()",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ResourceName(tt.input)
-			if result != tt.expected {
-				t.Errorf("ResourceName(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
+		),
+		Entry("empty string", "", ""),
+		Entry("multiple invalid characters", "a@#b$%c", "a--b--c"),
+		Entry("only invalid characters", "@#$%^&*()", ""),
+	)
+})

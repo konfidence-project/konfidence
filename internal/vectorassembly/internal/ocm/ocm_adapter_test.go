@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto"
 	"errors"
-	"testing"
 
 	mocks2 "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm/mocks"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
@@ -14,11 +13,6 @@ import (
 	norm "ocm.software/open-component-model/bindings/go/descriptor/normalisation/json/v4alpha1"
 	"ocm.software/open-component-model/bindings/go/runtime"
 )
-
-func TestOcmAdapter(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "OCM Adapter Suite")
-}
 
 var _ = Describe("Adapter", func() {
 	Describe("CreateVector", func() {

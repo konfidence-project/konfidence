@@ -5,15 +5,15 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
-	"testing"
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 const (
@@ -21,77 +21,50 @@ const (
 	jwksPath      = "/jwks"
 )
 
-func newTestOIDCTokenVerifier(
-	t *testing.T,
-	client *http.Client,
-	ttl time.Duration,
-) *oidcTokenVerifier {
-	t.Helper()
-
+func newTestOIDCTokenVerifier(client *http.Client, ttl time.Duration) *oidcTokenVerifier {
+	GinkgoHelper()
 	verifier, ok := newOIDCTokenVerifier(ttl).(*oidcTokenVerifier)
-	if !ok {
-		t.Fatal("expected *oidcTokenVerifier")
-	}
+	Expect(ok).To(BeTrue())
 	verifier.httpClient = client
-
 	return verifier
 }
 
-func newTestOIDCProvider(
-	t *testing.T,
-	publicKey *rsa.PublicKey,
-	keyID string,
-) (*httptest.Server, *atomic.Int32, *atomic.Int32) {
-	t.Helper()
-
+func newTestOIDCProvider(publicKey *rsa.PublicKey, keyID string) (*httptest.Server, *atomic.Int32, *atomic.Int32) {
+	GinkgoHelper()
 	discoveryCalls := &atomic.Int32{}
 	jwksCalls := &atomic.Int32{}
 
 	var server *httptest.Server
-	server = httptest.NewTLSServer(http.HandlerFunc(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) {
+	server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer GinkgoRecover()
 		switch r.URL.Path {
 		case discoveryPath:
 			discoveryCalls.Add(1)
 			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(discoveryDocument{
+			Expect(json.NewEncoder(w).Encode(discoveryDocument{
 				Issuer:  server.URL,
 				JWKSURI: server.URL + jwksPath,
-			}); err != nil {
-				t.Errorf("encoding discovery document: %v", err)
-			}
-
+			})).To(Succeed())
 		case jwksPath:
 			jwksCalls.Add(1)
 			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(
-				jose.JSONWebKeySet{
-					Keys: []jose.JSONWebKey{{
-						Key:       publicKey,
-						KeyID:     keyID,
-						Algorithm: string(jose.RS256),
-						Use:       "sig",
-					}},
-				},
-			); err != nil {
-				t.Errorf("encoding JWKS: %v", err)
-			}
-
+			Expect(json.NewEncoder(w).Encode(jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{{
+					Key:       publicKey,
+					KeyID:     keyID,
+					Algorithm: string(jose.RS256),
+					Use:       "sig",
+				}},
+			})).To(Succeed())
 		default:
 			http.NotFound(w, r)
 		}
 	}))
-	t.Cleanup(server.Close)
-
+	DeferCleanup(server.Close)
 	return server, discoveryCalls, jwksCalls
 }
 
-func validWorkloadClaims(
-	issuer string,
-	audience string,
-) map[string]any {
+func validWorkloadClaims(issuer, audience string) map[string]any {
 	return map[string]any{
 		"iss": issuer,
 		"aud": audience,
@@ -101,602 +74,270 @@ func validWorkloadClaims(
 	}
 }
 
-func signWorkloadToken(
-	t *testing.T,
-	privateKey *rsa.PrivateKey,
-	keyID string,
-	claims map[string]any,
-) string {
-	t.Helper()
-
+func signWorkloadToken(privateKey *rsa.PrivateKey, keyID string, claims map[string]any) string {
+	GinkgoHelper()
 	signer, err := jose.NewSigner(
-		jose.SigningKey{
-			Algorithm: jose.RS256,
-			Key:       privateKey,
-		},
-		(&jose.SignerOptions{}).
-			WithType("JWT").
-			WithHeader(jose.HeaderKey("kid"), keyID),
+		jose.SigningKey{Algorithm: jose.RS256, Key: privateKey},
+		(&jose.SignerOptions{}).WithType("JWT").WithHeader(jose.HeaderKey("kid"), keyID),
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	Expect(err).NotTo(HaveOccurred())
 	payload, err := json.Marshal(claims)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	Expect(err).NotTo(HaveOccurred())
 	signed, err := signer.Sign(payload)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	Expect(err).NotTo(HaveOccurred())
 	rawToken, err := signed.CompactSerialize()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	Expect(err).NotTo(HaveOccurred())
 	return rawToken
 }
 
-func TestOIDCTokenVerifierVerifiesAndCachesProvider(t *testing.T) {
+func generateKey() *rsa.PrivateKey {
+	GinkgoHelper()
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
+	Expect(err).NotTo(HaveOccurred())
+	return privateKey
+}
 
-	const (
-		keyID    = "test-key"
-		audience = "konfidence-api"
-	)
-
-	var discoveryCalls atomic.Int32
-	var jwksCalls atomic.Int32
-	var server *httptest.Server
-
-	server = httptest.NewTLSServer(http.HandlerFunc(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) {
-		switch r.URL.Path {
-		case "/.well-known/openid-configuration":
-			discoveryCalls.Add(1)
-			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(discoveryDocument{
-				Issuer:  server.URL,
-				JWKSURI: server.URL + jwksPath,
-			}); err != nil {
-				t.Errorf("encoding discovery document: %v", err)
-			}
-
-		case jwksPath:
-			jwksCalls.Add(1)
-			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(
-				jose.JSONWebKeySet{
+var _ = Describe("OIDC token verifier", func() {
+	It("verifies tokens and caches the provider", func() {
+		privateKey := generateKey()
+		const (
+			keyID    = "test-key"
+			audience = "konfidence-api"
+		)
+		var discoveryCalls atomic.Int32
+		var jwksCalls atomic.Int32
+		var server *httptest.Server
+		server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer GinkgoRecover()
+			switch r.URL.Path {
+			case "/.well-known/openid-configuration":
+				discoveryCalls.Add(1)
+				w.Header().Set("Content-Type", "application/json")
+				Expect(json.NewEncoder(w).Encode(discoveryDocument{
+					Issuer: server.URL, JWKSURI: server.URL + jwksPath,
+				})).To(Succeed())
+			case jwksPath:
+				jwksCalls.Add(1)
+				w.Header().Set("Content-Type", "application/json")
+				Expect(json.NewEncoder(w).Encode(jose.JSONWebKeySet{
 					Keys: []jose.JSONWebKey{{
-						Key:       &privateKey.PublicKey,
-						KeyID:     keyID,
-						Algorithm: string(jose.RS256),
-						Use:       "sig",
+						Key: &privateKey.PublicKey, KeyID: keyID,
+						Algorithm: string(jose.RS256), Use: "sig",
 					}},
-				},
-			); err != nil {
-				t.Errorf("encoding JWKS: %v", err)
+				})).To(Succeed())
+			default:
+				http.NotFound(w, r)
 			}
+		}))
+		DeferCleanup(server.Close)
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
 
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-
-	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
-	tests := []struct {
-		name        string
-		claims      map[string]any
-		wantSubject string
-	}{
-		{
-			name: "uses subject claim",
-			claims: map[string]any{
-				"iss":        server.URL,
-				"aud":        audience,
-				"sub":        "workload-subject",
-				"client_id":  "workload-client",
-				"repository": "konfidence-project/konfidence",
-				"iat":        time.Now().Add(-time.Minute).Unix(),
-				"exp":        time.Now().Add(time.Hour).Unix(),
-			},
-			wantSubject: "workload-subject",
-		},
-		{
-			name: "uses subject with cached provider",
-			claims: map[string]any{
-				"iss":        server.URL,
-				"aud":        audience,
-				"sub":        "second-workload-subject",
-				"repository": "konfidence-project/konfidence",
-				"iat":        time.Now().Add(-time.Minute).Unix(),
-				"exp":        time.Now().Add(time.Hour).Unix(),
-			},
-			wantSubject: "second-workload-subject",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			rawToken := signWorkloadToken(
-				t,
-				privateKey,
-				keyID,
-				test.claims,
-			)
-
+		for _, test := range []struct {
+			subject  string
+			clientID string
+		}{
+			{subject: "workload-subject", clientID: "workload-client"},
+			{subject: "second-workload-subject"},
+		} {
+			claims := validWorkloadClaims(server.URL, audience)
+			claims["sub"] = test.subject
+			claims["repository"] = "konfidence-project/konfidence"
+			if test.clientID != "" {
+				claims["client_id"] = test.clientID
+			}
 			token, err := verifier.Verify(
 				context.Background(),
-				rawToken,
+				signWorkloadToken(privateKey, keyID, claims),
 				server.URL+"/.well-known/openid-configuration",
 				audience,
 			)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if token.subject != test.wantSubject {
-				t.Fatalf(
-					"expected subject %q, got %q",
-					test.wantSubject,
-					token.subject,
-				)
-			}
-			if token.claims["repository"] !=
-				"konfidence-project/konfidence" {
-				t.Fatalf(
-					"unexpected claims: %v",
-					token.claims,
-				)
-			}
-		})
-	}
-
-	if got := discoveryCalls.Load(); got != 1 {
-		t.Fatalf(
-			"expected one discovery request, got %d",
-			got,
-		)
-	}
-	if got := jwksCalls.Load(); got != 1 {
-		t.Fatalf(
-			"expected one JWKS request, got %d",
-			got,
-		)
-	}
-}
-
-func TestOIDCTokenVerifierRejectsInvalidClaims(t *testing.T) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	const keyID = "test-key"
-
-	var server *httptest.Server
-	server = httptest.NewTLSServer(http.HandlerFunc(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) {
-		switch r.URL.Path {
-		case discoveryPath:
-			_ = json.NewEncoder(w).Encode(discoveryDocument{
-				Issuer:  server.URL,
-				JWKSURI: server.URL + jwksPath,
-			})
-
-		case jwksPath:
-			_ = json.NewEncoder(w).Encode(
-				jose.JSONWebKeySet{
-					Keys: []jose.JSONWebKey{{
-						Key:       &privateKey.PublicKey,
-						KeyID:     keyID,
-						Algorithm: string(jose.RS256),
-						Use:       "sig",
-					}},
-				},
-			)
-
-		default:
-			http.NotFound(w, r)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(token.subject).To(Equal(test.subject))
+			Expect(token.claims).To(HaveKeyWithValue("repository", "konfidence-project/konfidence"))
 		}
-	}))
-	defer server.Close()
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
+		Expect(jwksCalls.Load()).To(Equal(int32(1)))
+	})
 
-	tests := map[string]map[string]any{
-		"wrong audience": {
-			"iss": server.URL,
-			"aud": "different-audience",
-			"sub": "workload-subject",
-			"exp": time.Now().Add(time.Hour).Unix(),
-		},
-		"wrong issuer": {
-			"iss": "https://different.example",
-			"aud": "konfidence-api",
-			"sub": "workload-subject",
-			"exp": time.Now().Add(time.Hour).Unix(),
-		},
-		"expired": {
-			"iss": server.URL,
-			"aud": "konfidence-api",
-			"sub": "workload-subject",
-			"exp": time.Now().Add(-time.Hour).Unix(),
-		},
-		"missing subject with client ID": {
-			"iss":       server.URL,
-			"aud":       "konfidence-api",
-			"client_id": "workload-client",
-			"exp":       time.Now().Add(time.Hour).Unix(),
-		},
-		"empty subject with client ID": {
-			"iss":       server.URL,
-			"aud":       "konfidence-api",
-			"sub":       "",
-			"client_id": "workload-client",
-			"exp":       time.Now().Add(time.Hour).Unix(),
-		},
-	}
+	Describe("invalid claims", func() {
+		var privateKey *rsa.PrivateKey
+		var server *httptest.Server
+		const keyID = "test-key"
 
-	for name, claims := range tests {
-		t.Run(name, func(t *testing.T) {
-			verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
-			rawToken := signWorkloadToken(
-				t,
-				privateKey,
-				keyID,
-				claims,
-			)
-
-			token, err := verifier.Verify(
-				context.Background(),
-				rawToken,
-				server.URL+discoveryPath,
-				"konfidence-api",
-			)
-
-			if token != nil {
-				t.Fatalf(
-					"expected nil token, got %+v",
-					token,
-				)
-			}
-			if !errors.Is(err, ErrInvalidBearerToken) {
-				t.Fatalf(
-					"expected ErrInvalidBearerToken, got %v",
-					err,
-				)
-			}
+		BeforeEach(func() {
+			privateKey = generateKey()
+			server, _, _ = newTestOIDCProvider(&privateKey.PublicKey, keyID)
 		})
-	}
-}
 
-func TestValidateHTTPSURL(t *testing.T) {
-	tests := map[string]struct {
-		rawURL  string
-		wantErr bool
-	}{
-		"valid HTTPS URL": {
-			rawURL: "https://issuer.example/.well-known/openid-configuration",
-		},
-		"valid HTTPS URL with port": {
-			rawURL: "https://issuer.example:8443/discovery",
-		},
-		"rejects HTTP": {
-			rawURL:  "http://issuer.example/discovery",
-			wantErr: true,
-		},
-		"rejects relative URL": {
-			rawURL:  "/.well-known/openid-configuration",
-			wantErr: true,
-		},
-		"rejects missing host": {
-			rawURL:  "https:///discovery",
-			wantErr: true,
-		},
-		"rejects empty URL": {
-			rawURL:  "",
-			wantErr: true,
-		},
-		"rejects malformed URL": {
-			rawURL:  "https://issuer.example/%",
-			wantErr: true,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			err := validateHTTPSURL(test.rawURL)
-
-			if test.wantErr && err == nil {
-				t.Fatalf(
-					"validateHTTPSURL(%q) succeeded, expected error",
-					test.rawURL,
+		DescribeTable("rejects the token",
+			func(claims func(string) map[string]any) {
+				verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
+				token, err := verifier.Verify(
+					context.Background(),
+					signWorkloadToken(privateKey, keyID, claims(server.URL)),
+					server.URL+discoveryPath,
+					"konfidence-api",
 				)
+				Expect(token).To(BeNil())
+				Expect(err).To(MatchError(ErrInvalidBearerToken))
+			},
+			Entry("with the wrong audience", func(serverURL string) map[string]any {
+				return map[string]any{"iss": serverURL, "aud": "different-audience", "sub": "workload-subject", "exp": time.Now().Add(time.Hour).Unix()}
+			}),
+			Entry("with the wrong issuer", func(string) map[string]any {
+				return map[string]any{"iss": "https://different.example", "aud": "konfidence-api", "sub": "workload-subject", "exp": time.Now().Add(time.Hour).Unix()}
+			}),
+			Entry("when expired", func(serverURL string) map[string]any {
+				return map[string]any{"iss": serverURL, "aud": "konfidence-api", "sub": "workload-subject", "exp": time.Now().Add(-time.Hour).Unix()}
+			}),
+			Entry("when the subject is missing", func(serverURL string) map[string]any {
+				return map[string]any{"iss": serverURL, "aud": "konfidence-api", "client_id": "workload-client", "exp": time.Now().Add(time.Hour).Unix()}
+			}),
+			Entry("when the subject is empty", func(serverURL string) map[string]any {
+				return map[string]any{"iss": serverURL, "aud": "konfidence-api", "sub": "", "client_id": "workload-client", "exp": time.Now().Add(time.Hour).Unix()}
+			}),
+		)
+	})
+
+	DescribeTable("validates HTTPS URLs",
+		func(rawURL string, valid bool) {
+			err := validateHTTPSURL(rawURL)
+			if valid {
+				Expect(err).NotTo(HaveOccurred())
+			} else {
+				Expect(err).To(HaveOccurred())
 			}
-			if !test.wantErr && err != nil {
-				t.Fatalf(
-					"validateHTTPSURL(%q) returned error: %v",
-					test.rawURL,
-					err,
-				)
-			}
-		})
-	}
-}
-
-func TestOIDCTokenVerifierRejectsOversizedDiscoveryDocument(t *testing.T) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(
-		w http.ResponseWriter,
-		_ *http.Request,
-	) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		_, err := w.Write([]byte(strings.Repeat(
-			"x",
-			maximumDiscoveryDocumentSize+1,
-		)))
-		if err != nil {
-			t.Errorf("writing discovery response: %v", err)
-		}
-	}))
-	defer server.Close()
-
-	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
-
-	result, err := verifier.createVerifier(
-		context.Background(),
-		verifierKey{
-			endpoint: server.URL + discoveryPath,
-			audience: "konfidence-api",
 		},
+		Entry("an HTTPS URL", "https://issuer.example/.well-known/openid-configuration", true),
+		Entry("an HTTPS URL with a port", "https://issuer.example:8443/discovery", true),
+		Entry("rejects HTTP", "http://issuer.example/discovery", false),
+		Entry("rejects a relative URL", "/.well-known/openid-configuration", false),
+		Entry("rejects a missing host", "https:///discovery", false),
+		Entry("rejects an empty URL", "", false),
+		Entry("rejects a malformed URL", "https://issuer.example/%", false),
 	)
 
-	if result != nil {
-		t.Fatalf("expected nil verifier, got %v", result)
-	}
-	if err == nil {
-		t.Fatal("expected oversized discovery document to be rejected")
-	}
-	if err.Error() != "OIDC discovery document is too large" {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestOIDCTokenVerifierRejectsDiscoveryWithoutIssuer(t *testing.T) {
-	var server *httptest.Server
-
-	server = httptest.NewTLSServer(http.HandlerFunc(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) {
-		switch r.URL.Path {
-		case discoveryPath:
+	It("rejects an oversized discovery document", func() {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			defer GinkgoRecover()
 			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(discoveryDocument{
-				JWKSURI: server.URL + jwksPath,
-			}); err != nil {
-				t.Errorf("encoding discovery document: %v", err)
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte(strings.Repeat("x", maximumDiscoveryDocumentSize+1)))
+			Expect(err).NotTo(HaveOccurred())
+		}))
+		DeferCleanup(server.Close)
+		result, err := newTestOIDCTokenVerifier(server.Client(), time.Hour).createVerifier(
+			context.Background(),
+			verifierKey{endpoint: server.URL + discoveryPath, audience: "konfidence-api"},
+		)
+		Expect(result).To(BeNil())
+		Expect(err).To(MatchError("OIDC discovery document is too large"))
+	})
+
+	It("rejects a discovery document without an issuer", func() {
+		var server *httptest.Server
+		server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer GinkgoRecover()
+			switch r.URL.Path {
+			case discoveryPath:
+				w.Header().Set("Content-Type", "application/json")
+				Expect(json.NewEncoder(w).Encode(discoveryDocument{JWKSURI: server.URL + jwksPath})).To(Succeed())
+			case jwksPath:
+				http.Error(w, "JWKS must not be requested", http.StatusInternalServerError)
+			default:
+				http.NotFound(w, r)
 			}
+		}))
+		DeferCleanup(server.Close)
+		result, err := newTestOIDCTokenVerifier(server.Client(), time.Hour).createVerifier(
+			context.Background(),
+			verifierKey{endpoint: server.URL + discoveryPath, audience: "konfidence-api"},
+		)
+		Expect(result).To(BeNil())
+		Expect(err).To(MatchError("OIDC discovery document has no issuer"))
+	})
 
-		case jwksPath:
-			http.Error(
-				w,
-				"JWKS must not be requested",
-				http.StatusInternalServerError,
-			)
+	It("rejects an insecure JWKS URL", func() {
+		var server *httptest.Server
+		server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer GinkgoRecover()
+			if r.URL.Path != discoveryPath {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			Expect(json.NewEncoder(w).Encode(discoveryDocument{
+				Issuer: server.URL, JWKSURI: "http://issuer.example/jwks",
+			})).To(Succeed())
+		}))
+		DeferCleanup(server.Close)
+		result, err := newTestOIDCTokenVerifier(server.Client(), time.Hour).createVerifier(
+			context.Background(),
+			verifierKey{endpoint: server.URL + discoveryPath, audience: "konfidence-api"},
+		)
+		Expect(result).To(BeNil())
+		Expect(err).To(MatchError("invalid OIDC JWKS URI: URL must use HTTPS and include a host"))
+	})
 
-		default:
-			http.NotFound(w, r)
+	It("expires a cached verifier", func() {
+		privateKey := generateKey()
+		const keyID, audience = "test-key", "konfidence-api"
+		server, discoveryCalls, jwksCalls := newTestOIDCProvider(&privateKey.PublicKey, keyID)
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Nanosecond)
+		rawToken := signWorkloadToken(privateKey, keyID, validWorkloadClaims(server.URL, audience))
+
+		for range 2 {
+			token, err := verifier.Verify(context.Background(), rawToken, server.URL+discoveryPath, audience)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(token).NotTo(BeNil())
 		}
-	}))
-	defer server.Close()
+		Expect(discoveryCalls.Load()).To(Equal(int32(2)))
+		Expect(jwksCalls.Load()).To(Equal(int32(2)))
+	})
 
-	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
-	result, err := verifier.createVerifier(
-		context.Background(),
-		verifierKey{
-			endpoint: server.URL + discoveryPath,
-			audience: "konfidence-api",
-		},
-	)
+	It("keeps the cached verifier after a signature failure", func() {
+		trustedKey := generateKey()
+		untrustedKey := generateKey()
+		const (
+			trustedKeyID   = "trusted-key"
+			untrustedKeyID = "untrusted-key"
+			audience       = "konfidence-api"
+		)
+		server, discoveryCalls, jwksCalls := newTestOIDCProvider(&trustedKey.PublicKey, trustedKeyID)
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
+		claims := validWorkloadClaims(server.URL, audience)
+		validToken := signWorkloadToken(trustedKey, trustedKeyID, claims)
+		_, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
+		Expect(err).NotTo(HaveOccurred())
 
-	if result != nil {
-		t.Fatalf("expected nil verifier, got %v", result)
-	}
-	if err == nil {
-		t.Fatal("expected discovery document without issuer to be rejected")
-	}
-	if err.Error() != "OIDC discovery document has no issuer" {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
+		invalidToken := signWorkloadToken(untrustedKey, untrustedKeyID, claims)
+		_, err = verifier.Verify(context.Background(), invalidToken, server.URL+discoveryPath, audience)
+		Expect(err).To(MatchError(ErrInvalidBearerToken))
 
-func TestOIDCTokenVerifierRejectsInsecureJWKSURL(t *testing.T) {
-	var server *httptest.Server
-
-	server = httptest.NewTLSServer(http.HandlerFunc(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) {
-		if r.URL.Path != discoveryPath {
-			http.NotFound(w, r)
-			return
+		// The remote key set refreshes after the signature failure; the verifier itself remains cached.
+		for range 2 {
+			_, err = verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
+			Expect(err).NotTo(HaveOccurred())
 		}
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
+		Expect(jwksCalls.Load()).To(Equal(int32(2)))
+	})
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(discoveryDocument{
-			Issuer:  server.URL,
-			JWKSURI: "http://issuer.example/jwks",
-		}); err != nil {
-			t.Errorf("encoding discovery document: %v", err)
-		}
-	}))
-	defer server.Close()
+	It("keeps the cache after a claim failure", func() {
+		privateKey := generateKey()
+		const keyID, audience = "test-key", "konfidence-api"
+		server, discoveryCalls, jwksCalls := newTestOIDCProvider(&privateKey.PublicKey, keyID)
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
+		validToken := signWorkloadToken(privateKey, keyID, validWorkloadClaims(server.URL, audience))
+		_, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
+		Expect(err).NotTo(HaveOccurred())
 
-	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
-	result, err := verifier.createVerifier(
-		context.Background(),
-		verifierKey{
-			endpoint: server.URL + discoveryPath,
-			audience: "konfidence-api",
-		},
-	)
-
-	if result != nil {
-		t.Fatalf("expected nil verifier, got %v", result)
-	}
-	if err == nil {
-		t.Fatal("expected insecure JWKS URL to be rejected")
-	}
-
-	expected := "invalid OIDC JWKS URI: " +
-		"URL must use HTTPS and include a host"
-	if err.Error() != expected {
-		t.Fatalf("expected error %q, got %q", expected, err.Error())
-	}
-}
-
-func TestOIDCTokenVerifierExpiresCachedVerifier(t *testing.T) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	const (
-		keyID    = "test-key"
-		audience = "konfidence-api"
-	)
-
-	server, discoveryCalls, jwksCalls := newTestOIDCProvider(t, &privateKey.PublicKey, keyID)
-
-	// The entry is guaranteed to have expired before the second request.
-	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Nanosecond)
-	rawToken := signWorkloadToken(t, privateKey, keyID, validWorkloadClaims(server.URL, audience))
-
-	for range 2 {
-		token, err := verifier.Verify(context.Background(), rawToken, server.URL+discoveryPath, audience)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if token == nil {
-			t.Fatal("expected verified token")
-		}
-	}
-
-	if got := discoveryCalls.Load(); got != 2 {
-		t.Fatalf("expected two discovery requests after expiration, got %d", got)
-	}
-	if got := jwksCalls.Load(); got != 2 {
-		t.Fatalf("expected two JWKS requests after expiration, got %d", got)
-	}
-}
-
-func TestOIDCTokenVerifierKeepsCachedVerifierAfterSignatureFailure(t *testing.T) {
-	trustedKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-	untrustedKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	const (
-		trustedKeyID   = "trusted-key"
-		untrustedKeyID = "untrusted-key"
-		audience       = "konfidence-api"
-	)
-
-	server, discoveryCalls, jwksCalls := newTestOIDCProvider(t, &trustedKey.PublicKey, trustedKeyID)
-	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
-
-	claims := validWorkloadClaims(server.URL, audience)
-	validToken := signWorkloadToken(t, trustedKey, trustedKeyID, claims)
-	if _, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience); err != nil {
-		t.Fatal(err)
-	}
-
-	invalidToken := signWorkloadToken(t, untrustedKey, untrustedKeyID, claims)
-	if _, err := verifier.Verify(context.Background(), invalidToken, server.URL+discoveryPath, audience); !errors.Is(err, ErrInvalidBearerToken) {
-		t.Fatalf("expected ErrInvalidBearerToken, got %v", err)
-	}
-
-	// RemoteKeySet already refreshed JWKS after the signature failure. The
-	// verifier remains cached, so the valid token uses those refreshed keys.
-	if _, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience); err != nil {
-		t.Fatal(err)
-	}
-
-	if got := discoveryCalls.Load(); got != 1 {
-		t.Fatalf("expected one discovery request, got %d", got)
-	}
-
-	if got := jwksCalls.Load(); got != 2 {
-		t.Fatalf("expected two JWKS requests, got %d", got)
-	}
-}
-
-func TestOIDCTokenVerifierKeepsCacheAfterClaimFailure(t *testing.T) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	const (
-		keyID    = "test-key"
-		audience = "konfidence-api"
-	)
-
-	server, discoveryCalls, jwksCalls := newTestOIDCProvider(t, &privateKey.PublicKey, keyID)
-	verifier := newTestOIDCTokenVerifier(t, server.Client(), time.Hour)
-	validToken := signWorkloadToken(t, privateKey, keyID, validWorkloadClaims(server.URL, audience))
-	if _, err := verifier.Verify(
-		context.Background(),
-		validToken,
-		server.URL+discoveryPath,
-		audience,
-	); err != nil {
-		t.Fatal(err)
-	}
-
-	invalidClaims := validWorkloadClaims(server.URL, "different-audience")
-	invalidToken := signWorkloadToken(t, privateKey, keyID, invalidClaims)
-	if _, err := verifier.Verify(
-		context.Background(),
-		invalidToken,
-		server.URL+discoveryPath,
-		audience,
-	); !errors.Is(err, ErrInvalidBearerToken) {
-		t.Fatalf("expected ErrInvalidBearerToken, got %v", err)
-	}
-
-	if _, err := verifier.Verify(
-		context.Background(),
-		validToken,
-		server.URL+discoveryPath,
-		audience,
-	); err != nil {
-		t.Fatal(err)
-	}
-
-	if got := discoveryCalls.Load(); got != 1 {
-		t.Fatalf("expected one discovery request, got %d", got)
-	}
-	if got := jwksCalls.Load(); got != 1 {
-		t.Fatalf("expected one JWKS request, got %d", got)
-	}
-}
+		invalidToken := signWorkloadToken(privateKey, keyID, validWorkloadClaims(server.URL, "different-audience"))
+		_, err = verifier.Verify(context.Background(), invalidToken, server.URL+discoveryPath, audience)
+		Expect(err).To(MatchError(ErrInvalidBearerToken))
+		_, err = verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
+		Expect(jwksCalls.Load()).To(Equal(int32(1)))
+	})
+})

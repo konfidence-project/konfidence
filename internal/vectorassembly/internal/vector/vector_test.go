@@ -1,17 +1,10 @@
 package vector
 
 import (
-	"testing"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	ociv1 "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 )
-
-func TestDomainVector(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "vector domain Suite")
-}
 
 var _ = Describe("Vector.Clone", func() {
 	It("mutations to cloned Artifacts do not affect the original", func() {

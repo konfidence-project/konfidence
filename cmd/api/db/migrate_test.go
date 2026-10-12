@@ -4,18 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
-	"testing"
 
 	db "github.com/konfidence-project/konfidence/cmd/api/db"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
-
-func TestDB(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "DB Suite")
-}
 
 var _ = Describe("Migrations", func() {
 	var (

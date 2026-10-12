@@ -7,13 +7,14 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"testing"
 	"time"
 
 	"github.com/konfidence-project/konfidence/internal/api/config"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
 	"github.com/konfidence-project/konfidence/internal/api/session"
 	"github.com/konfidence-project/konfidence/internal/auth"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 type testSessionStore struct {
@@ -75,687 +76,311 @@ func (s *testSessionStore) Delete(_ context.Context, id string) error {
 	return nil
 }
 
-func TestSessionAuthenticationFollowsOpenAPISecurity(t *testing.T) {
-	store := &testSessionStore{sessions: map[string]*session.Session{
-		"valid-session": {Context: session.Context{ID: "valid-session"}},
-	}}
-	authRepo := &testAuthRepository{}
+func testAuthenticator(
+	store *testSessionStore,
+	authRepo *testAuthRepository,
+	parsed config.Parsed,
+	next http.Handler,
+) http.Handler {
+	GinkgoHelper()
 
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/identity" {
+	handler, err := middleware.Authenticator(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		store,
+		authRepo,
+		parsed,
+		next,
+	)
+	Expect(err).NotTo(HaveOccurred())
+	return handler
+}
+
+func sessionConfig() config.Parsed {
+	return config.Parsed{
+		OIDC: config.ParsedOIDCConfig{Enabled: true},
+		Session: config.ParsedSessionConfig{
+			Cookie: config.SessionCookieConfig{Name: "session"},
+		},
+	}
+}
+
+var _ = Describe("Session authentication", func() {
+	Context("OpenAPI security", func() {
+		var store *testSessionStore
+		var authRepo *testAuthRepository
+		var handler http.Handler
+
+		BeforeEach(func() {
+			store = &testSessionStore{sessions: map[string]*session.Session{
+				"valid-session": {Context: session.Context{ID: "valid-session"}},
+			}}
+			authRepo = &testAuthRepository{}
+			handler = testAuthenticator(store, authRepo, sessionConfig(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/v1/identity" {
+					storedSession, err := session.FromContext(r.Context())
+					Expect(err).NotTo(HaveOccurred())
+					Expect(storedSession.ID).To(Equal("valid-session"))
+				}
+				w.WriteHeader(http.StatusNoContent)
+			}))
+		})
+
+		It("bypasses authentication for a public operation", func() {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/login?return_url=https%3A%2F%2Fdashboard.example.com", nil))
+
+			Expect(response.Code).To(Equal(http.StatusNoContent))
+			Expect(store.getCalls).To(BeZero())
+			Expect(authRepo.calls).To(BeZero())
+		})
+
+		It("preserves the original validation status", func() {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/not-found", nil))
+			Expect(response.Code).To(Equal(http.StatusNotFound))
+		})
+
+		It("rejects a protected operation without a session", func() {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil))
+			Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		})
+
+		It("accepts a protected operation with a valid session", func() {
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+			request.AddCookie(&http.Cookie{Name: "session", Value: "valid-session"})
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			Expect(response.Code).To(Equal(http.StatusNoContent))
+		})
+
+		It("rejects a differently named cookie", func() {
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+			request.AddCookie(&http.Cookie{Name: "unknown-session-name", Value: "valid-session"})
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		})
+
+		It("rejects an unknown session", func() {
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+			request.AddCookie(&http.Cookie{Name: "session", Value: "unknown"})
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		})
+
+		It("deletes a rejected session", func() {
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+			request.AddCookie(&http.Cookie{Name: "session", Value: "unknown"})
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+
+			Expect(response.Code).To(Equal(http.StatusUnauthorized))
+			Expect(store.deletedIDs).To(Equal([]string{"unknown"}))
+		})
+	})
+
+	It("maps project roles onto the session", func() {
+		store := &testSessionStore{sessions: map[string]*session.Session{
+			"valid-session": {Groups: []string{"all-users", "platform-engineers"}},
+		}}
+		authRepo := &testAuthRepository{projectRoles: auth.ProjectRoles{
+			"accessible": {"admin", "viewer"},
+		}}
+		handler := testAuthenticator(store, authRepo, sessionConfig(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			storedSession, err := session.FromContext(r.Context())
-			if err != nil || storedSession.ID != "valid-session" {
-				t.Errorf("unexpected session context: session=%+v err=%v", storedSession, err)
-			}
-		}
-		w.WriteHeader(http.StatusNoContent)
-	})
-
-	h, err := middleware.Authenticator(
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
-		store,
-		authRepo,
-		config.Parsed{OIDC: config.ParsedOIDCConfig{Enabled: true}, Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
-		next,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Run("public operation bypasses authentication", func(t *testing.T) {
-		before := store.getCalls
-		response := httptest.NewRecorder()
-		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/login?return_url=https%3A%2F%2Fdashboard.example.com", nil))
-
-		if response.Code != http.StatusNoContent {
-			t.Fatalf("expected status %d, got %d", http.StatusNoContent, response.Code)
-		}
-		if store.getCalls != before {
-			t.Fatalf("expected no session lookup, got %d", store.getCalls-before)
-		}
-		if authRepo.calls != 0 {
-			t.Fatalf("expected no role lookup, got %d", authRepo.calls)
-		}
-	})
-
-	t.Run("operations return original validation status", func(t *testing.T) {
-		response := httptest.NewRecorder()
-		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/not-found", nil))
-
-		if response.Code != http.StatusNotFound {
-			t.Fatalf("expected status %d, got %d", http.StatusNotFound, response.Code)
-		}
-	})
-
-	t.Run("protected operation rejects missing session", func(t *testing.T) {
-		response := httptest.NewRecorder()
-		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil))
-		if response.Code != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
-		}
-	})
-
-	t.Run("protected operation accepts valid session", func(t *testing.T) {
-		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(storedSession.ProjectRoles["accessible"]).To(Equal([]string{"admin", "viewer"}))
+			Expect(storedSession.ProjectRoles).NotTo(HaveKey("hidden"))
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
 		request.AddCookie(&http.Cookie{Name: "session", Value: "valid-session"})
-		h.ServeHTTP(response, request)
-		if response.Code != http.StatusNoContent {
-			t.Fatalf("expected status %d, got %d", http.StatusNoContent, response.Code)
-		}
-	})
-
-	t.Run("protected operation rejects a differently named cookie", func(t *testing.T) {
 		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
-		request.AddCookie(&http.Cookie{Name: "unknown-session-name", Value: "valid-session"})
-		h.ServeHTTP(response, request)
-		if response.Code != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
-		}
+
+		handler.ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(http.StatusNoContent))
+		Expect(authRepo.calls).To(Equal(1))
+		Expect(authRepo.groups).To(Equal([]string{"all-users", "platform-engineers"}))
+		Expect(store.sessions["valid-session"].ProjectRoles["accessible"]).To(Equal([]string{"admin", "viewer"}))
 	})
 
-	t.Run("protected operation rejects unknown session", func(t *testing.T) {
-		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
-		request.AddCookie(&http.Cookie{Name: "session", Value: "unknown"})
-		h.ServeHTTP(response, request)
-		if response.Code != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
-		}
-	})
-
-	t.Run("protected operation deletes rejected session", func(t *testing.T) {
-		deletionsBefore := len(store.deletedIDs)
-
-		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
-		request.AddCookie(&http.Cookie{Name: "session", Value: "unknown"})
-		h.ServeHTTP(response, request)
-
-		if response.Code != http.StatusUnauthorized {
-			t.Fatalf(
-				"expected status %d, got %d",
-				http.StatusUnauthorized,
-				response.Code,
-			)
-		}
-
-		if len(store.deletedIDs) != deletionsBefore+1 {
-			t.Fatalf("expected one session deletion, got %d", len(store.deletedIDs)-deletionsBefore)
-		}
-
-		if deletedID := store.deletedIDs[len(store.deletedIDs)-1]; deletedID != "unknown" {
-			t.Fatalf("expected session %q to be deleted, got %q", "unknown", deletedID)
-		}
-	})
-}
-
-func TestSessionAuthenticationMapsProjectRoles(t *testing.T) {
-	store := &testSessionStore{sessions: map[string]*session.Session{
-		"valid-session": {Groups: []string{"all-users", "platform-engineers"}},
-	}}
-	const adminRole = "admin"
-	authRepo := &testAuthRepository{projectRoles: auth.ProjectRoles{
-		"accessible": {adminRole, "viewer"},
-	}}
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		storedSession, err := session.FromContext(r.Context())
-		if err != nil {
-			t.Errorf("expected mapped session context: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		if roles := storedSession.ProjectRoles["accessible"]; len(roles) != 2 || roles[0] != adminRole || roles[1] != "viewer" {
-			t.Errorf("unexpected roles: %v", roles)
-		}
-		if _, ok := storedSession.ProjectRoles["hidden"]; ok {
-			t.Error("unexpected access to hidden project")
-		}
-		w.WriteHeader(http.StatusNoContent)
-	})
-	h, err := middleware.Authenticator(
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
-		store,
-		authRepo,
-		config.Parsed{OIDC: config.ParsedOIDCConfig{Enabled: true}, Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
-		next,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
-	request.AddCookie(&http.Cookie{Name: "session", Value: "valid-session"})
-	response := httptest.NewRecorder()
-
-	h.ServeHTTP(response, request)
-
-	if response.Code != http.StatusNoContent {
-		t.Fatalf("expected status %d, got %d", http.StatusNoContent, response.Code)
-	}
-	if authRepo.calls != 1 {
-		t.Fatalf("expected one role lookup, got %d", authRepo.calls)
-	}
-	if len(authRepo.groups) != 2 || authRepo.groups[0] != "all-users" || authRepo.groups[1] != "platform-engineers" {
-		t.Fatalf("unexpected groups passed to auth repository: %v", authRepo.groups)
-	}
-	roles := store.sessions["valid-session"].ProjectRoles["accessible"]
-	if len(roles) != 2 || roles[0] != adminRole || roles[1] != "viewer" {
-		t.Fatalf("expected stored session to be mapped, got %v", roles)
-	}
-}
-
-func TestSessionAuthenticationRejectsSessionMappingFailures(t *testing.T) {
-	tests := map[string]struct {
-		store    *testSessionStore
-		authRepo *testAuthRepository
-	}{
-		"session lookup failure": {
-			store:    &testSessionStore{err: errors.New("session store unavailable")},
-			authRepo: &testAuthRepository{},
-		},
-		"role lookup failure": {
-			store: &testSessionStore{sessions: map[string]*session.Session{
-				"valid-session": {},
-			}},
-			authRepo: &testAuthRepository{err: errors.New("project cache unavailable")},
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			nextCalled := false
-			h, err := middleware.Authenticator(
-				slog.New(slog.NewTextHandler(io.Discard, nil)),
-				test.store,
-				test.authRepo,
-				config.Parsed{OIDC: config.ParsedOIDCConfig{Enabled: true}, Session: config.ParsedSessionConfig{Cookie: config.SessionCookieConfig{Name: "session"}}},
-				http.HandlerFunc(func(http.ResponseWriter, *http.Request) { nextCalled = true }),
-			)
-			if err != nil {
-				t.Fatal(err)
+	DescribeTable("rejects session mapping failures",
+		func(storeFailure, roleFailure bool) {
+			store := &testSessionStore{sessions: map[string]*session.Session{"valid-session": {}}}
+			authRepo := &testAuthRepository{}
+			if storeFailure {
+				store.err = errors.New("session store unavailable")
 			}
+			if roleFailure {
+				authRepo.err = errors.New("project cache unavailable")
+			}
+			nextCalled := false
+			handler := testAuthenticator(store, authRepo, sessionConfig(), http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				nextCalled = true
+			}))
 			request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
 			request.AddCookie(&http.Cookie{Name: "session", Value: "valid-session"})
 			response := httptest.NewRecorder()
 
-			h.ServeHTTP(response, request)
+			handler.ServeHTTP(response, request)
 
-			if response.Code != http.StatusUnauthorized {
-				t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
-			}
-			if nextCalled {
-				t.Fatal("expected request not to reach next handler")
-			}
-		})
-	}
-}
+			Expect(response.Code).To(Equal(http.StatusUnauthorized))
+			Expect(nextCalled).To(BeFalse())
+		},
+		Entry("when session lookup fails", true, false),
+		Entry("when role lookup fails", false, true),
+	)
 
-func TestSessionAuthenticationTokenExpiry(t *testing.T) {
-	tests := map[string]struct {
-		scopes        []string
-		tokenExpiry   int64
-		expectedCode  int
-		expectDeleted bool
-	}{
-		"expired token with offline access": {
-			scopes:        []string{"offline_access"},
-			tokenExpiry:   time.Now().Add(-time.Minute).Unix(),
-			expectedCode:  http.StatusUnauthorized,
-			expectDeleted: true,
-		},
-		"future token with offline access": {
-			scopes:       []string{"offline_access"},
-			tokenExpiry:  time.Now().Add(time.Hour).Unix(),
-			expectedCode: http.StatusNoContent,
-		},
-		"zero expiry with offline access": {
-			scopes:       []string{"offline_access"},
-			tokenExpiry:  0,
-			expectedCode: http.StatusNoContent,
-		},
-		"expired token without offline access": {
-			scopes:       []string{"openid", "profile"},
-			tokenExpiry:  time.Now().Add(-time.Minute).Unix(),
-			expectedCode: http.StatusNoContent,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			store := &testSessionStore{
-				sessions: map[string]*session.Session{
-					"session-id": {
-						Context: session.Context{
-							ID: "session-id",
-						},
-						TokenExpiry: test.tokenExpiry,
-					},
-				},
+	DescribeTable("handles token expiry",
+		func(scopes []string, expiryOffset time.Duration, zeroExpiry bool, expectedCode int, expectDeleted bool) {
+			tokenExpiry := time.Now().Add(expiryOffset).Unix()
+			if zeroExpiry {
+				tokenExpiry = 0
 			}
+			store := &testSessionStore{sessions: map[string]*session.Session{
+				"session-id": {Context: session.Context{ID: "session-id"}, TokenExpiry: tokenExpiry},
+			}}
 			authRepo := &testAuthRepository{}
 			nextCalled := false
-
-			handler, err := middleware.Authenticator(
-				slog.New(slog.NewTextHandler(io.Discard, nil)),
-				store,
-				authRepo,
-				config.Parsed{
-					OIDC: config.ParsedOIDCConfig{
-						Enabled: true,
-						Scopes:  test.scopes,
-					},
-					Session: config.ParsedSessionConfig{
-						Cookie: config.SessionCookieConfig{
-							Name: "session",
-						},
-					},
-				},
-				http.HandlerFunc(func(
-					w http.ResponseWriter,
-					_ *http.Request,
-				) {
-					nextCalled = true
-					w.WriteHeader(http.StatusNoContent)
-				}),
-			)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			request := httptest.NewRequest(
-				http.MethodGet,
-				"/api/v1/identity",
-				nil,
-			)
-			request.AddCookie(&http.Cookie{
-				Name:  "session",
-				Value: "session-id",
-			})
-
+			parsed := sessionConfig()
+			parsed.OIDC.Scopes = scopes
+			handler := testAuthenticator(store, authRepo, parsed, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				nextCalled = true
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+			request.AddCookie(&http.Cookie{Name: "session", Value: "session-id"})
 			response := httptest.NewRecorder()
+
 			handler.ServeHTTP(response, request)
 
-			if response.Code != test.expectedCode {
-				t.Fatalf(
-					"expected status %d, got %d",
-					test.expectedCode,
-					response.Code,
-				)
+			Expect(response.Code).To(Equal(expectedCode))
+			if expectDeleted {
+				Expect(store.deletedIDs).To(Equal([]string{"session-id"}))
+				Expect(nextCalled).To(BeFalse())
+				Expect(authRepo.calls).To(BeZero())
+			} else {
+				Expect(store.deletedIDs).To(BeEmpty())
+				Expect(nextCalled).To(BeTrue())
 			}
-
-			deleted := len(store.deletedIDs) > 0
-			if deleted != test.expectDeleted {
-				t.Fatalf(
-					"expected deleted=%t, got %t",
-					test.expectDeleted,
-					deleted,
-				)
-			}
-
-			if test.expectDeleted {
-				if deletedID := store.deletedIDs[0]; deletedID != "session-id" {
-					t.Fatalf(
-						"expected session %q to be deleted, got %q",
-						"session-id",
-						deletedID,
-					)
-				}
-				if nextCalled {
-					t.Fatal("expected expired session not to reach next handler")
-				}
-				if authRepo.calls != 0 {
-					t.Fatalf(
-						"expected no role lookup, got %d calls",
-						authRepo.calls,
-					)
-				}
-			} else if !nextCalled {
-				t.Fatal("expected valid session to reach next handler")
-			}
-		})
-	}
-}
-
-func TestBearerAuthentication(t *testing.T) {
-	store := &testSessionStore{
-		sessions: map[string]*session.Session{
-			"valid-session": {
-				Context: session.Context{
-					ID: "valid-session",
-				},
-			},
 		},
-	}
-	authRepo := &testAuthRepository{
-		tokenIdentity: &auth.TokenIdentity{
-			Subject: "workload-subject",
-			ProjectRoles: auth.ProjectRoles{
-				"project-a": {"admin"},
-			},
-		},
-	}
+		Entry("an expired token with offline access", []string{"offline_access"}, -time.Minute, false, http.StatusUnauthorized, true),
+		Entry("a future token with offline access", []string{"offline_access"}, time.Hour, false, http.StatusNoContent, false),
+		Entry("zero expiry with offline access", []string{"offline_access"}, time.Duration(0), true, http.StatusNoContent, false),
+		Entry("an expired token without offline access", []string{"openid", "profile"}, -time.Minute, false, http.StatusNoContent, false),
+	)
+})
 
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		identity, err := session.FromContext(r.Context())
-		if err != nil {
-			t.Errorf("expected bearer identity in context: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+var _ = Describe("Bearer authentication", func() {
+	It("takes precedence over a valid session cookie", func() {
+		store := &testSessionStore{sessions: map[string]*session.Session{
+			"valid-session": {Context: session.Context{ID: "valid-session"}},
+		}}
+		authRepo := &testAuthRepository{tokenIdentity: &auth.TokenIdentity{
+			Subject:      "workload-subject",
+			ProjectRoles: auth.ProjectRoles{"project-a": {"admin"}},
+		}}
+		handler := testAuthenticator(store, authRepo, sessionConfig(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			identity, err := session.FromContext(r.Context())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(identity.Subject).To(Equal("workload-subject"))
+			Expect(identity.ProjectRoles["project-a"]).To(Equal([]string{"admin"}))
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+		request.Header.Set("Authorization", "bEaReR workload-token")
+		request.AddCookie(&http.Cookie{Name: "session", Value: "valid-session"})
+		response := httptest.NewRecorder()
 
-		if identity.Subject != "workload-subject" {
-			t.Errorf("unexpected subject: %q", identity.Subject)
-		}
-		if roles := identity.ProjectRoles["project-a"]; len(roles) != 1 ||
-			roles[0] != "admin" {
-			t.Errorf("unexpected project roles: %v", identity.ProjectRoles)
-		}
+		handler.ServeHTTP(response, request)
 
-		w.WriteHeader(http.StatusNoContent)
+		Expect(response.Code).To(Equal(http.StatusNoContent))
+		Expect(authRepo.tokenCalls).To(Equal(1))
+		Expect(authRepo.rawToken).To(Equal("workload-token"))
+		Expect(store.getCalls).To(BeZero())
+		Expect(authRepo.calls).To(BeZero())
 	})
 
-	handler, err := middleware.Authenticator(
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
-		store,
-		authRepo,
-		config.Parsed{
-			Session: config.ParsedSessionConfig{
-				Cookie: config.SessionCookieConfig{
-					Name: "session",
-				},
-			},
-		},
-		next,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	request := httptest.NewRequest(
-		http.MethodGet,
-		"/api/v1/identity",
-		nil,
-	)
-	request.Header.Set("Authorization", "bEaReR workload-token")
-
-	// Bearer authentication must take precedence over a valid cookie.
-	request.AddCookie(&http.Cookie{
-		Name:  "session",
-		Value: "valid-session",
-	})
-
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-
-	if response.Code != http.StatusNoContent {
-		t.Fatalf(
-			"expected status %d, got %d",
-			http.StatusNoContent,
-			response.Code,
-		)
-	}
-	if authRepo.tokenCalls != 1 {
-		t.Fatalf(
-			"expected one token authentication, got %d",
-			authRepo.tokenCalls,
-		)
-	}
-	if authRepo.rawToken != "workload-token" {
-		t.Fatalf("unexpected token passed to repository")
-	}
-	if store.getCalls != 0 {
-		t.Fatalf(
-			"expected no session lookup, got %d",
-			store.getCalls,
-		)
-	}
-	if authRepo.calls != 0 {
-		t.Fatalf(
-			"expected no session role lookup, got %d",
-			authRepo.calls,
-		)
-	}
-}
-
-func TestBearerAuthenticationRejectsInvalidCredentials(t *testing.T) {
-	tests := map[string]struct {
-		authorization   string
-		tokenErr        error
-		expectTokenCall bool
-		expectChallenge bool
-	}{
-		"missing token": {
-			authorization:   "Bearer",
-			expectChallenge: true,
-		},
-		"empty token": {
-			authorization:   "Bearer ",
-			expectChallenge: true,
-		},
-		"token containing whitespace": {
-			authorization:   "Bearer first second",
-			expectChallenge: true,
-		},
-		"unsupported scheme": {
-			authorization: "Basic credentials",
-		},
-		"repository rejection": {
-			authorization:   "Bearer rejected-token",
-			tokenErr:        auth.ErrInvalidBearerToken,
-			expectTokenCall: true,
-			expectChallenge: true,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			store := &testSessionStore{
-				sessions: map[string]*session.Session{
-					"valid-session": {
-						Context: session.Context{
-							ID: "valid-session",
-						},
-					},
-				},
-			}
+	DescribeTable("rejects invalid credentials",
+		func(authorization string, tokenErr error, expectTokenCall, expectChallenge bool) {
+			store := &testSessionStore{sessions: map[string]*session.Session{
+				"valid-session": {Context: session.Context{ID: "valid-session"}},
+			}}
 			authRepo := &testAuthRepository{
-				tokenIdentity: &auth.TokenIdentity{
-					Subject: "unexpected",
-				},
-				tokenErr: test.tokenErr,
+				tokenIdentity: &auth.TokenIdentity{Subject: "unexpected"},
+				tokenErr:      tokenErr,
 			}
 			nextCalled := false
-
-			handler, err := middleware.Authenticator(
-				slog.New(slog.NewTextHandler(io.Discard, nil)),
-				store,
-				authRepo,
-				config.Parsed{
-					Session: config.ParsedSessionConfig{
-						Cookie: config.SessionCookieConfig{
-							Name: "session",
-						},
-					},
-				},
-				http.HandlerFunc(func(
-					http.ResponseWriter,
-					*http.Request,
-				) {
-					nextCalled = true
-				}),
-			)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			request := httptest.NewRequest(
-				http.MethodGet,
-				"/api/v1/identity",
-				nil,
-			)
-			request.Header.Set(
-				"Authorization",
-				test.authorization,
-			)
-			request.AddCookie(&http.Cookie{
-				Name:  "session",
-				Value: "valid-session",
-			})
-
+			handler := testAuthenticator(store, authRepo, sessionConfig(), http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				nextCalled = true
+			}))
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+			request.Header.Set("Authorization", authorization)
+			request.AddCookie(&http.Cookie{Name: "session", Value: "valid-session"})
 			response := httptest.NewRecorder()
+
 			handler.ServeHTTP(response, request)
 
-			if response.Code != http.StatusUnauthorized {
-				t.Fatalf(
-					"expected status %d, got %d",
-					http.StatusUnauthorized,
-					response.Code,
-				)
+			Expect(response.Code).To(Equal(http.StatusUnauthorized))
+			Expect(nextCalled).To(BeFalse())
+			Expect(store.getCalls).To(BeZero())
+			if expectTokenCall {
+				Expect(authRepo.tokenCalls).To(BeNumerically(">", 0))
+			} else {
+				Expect(authRepo.tokenCalls).To(BeZero())
 			}
-			if nextCalled {
-				t.Fatal("unexpected call to next handler")
+			if expectChallenge {
+				Expect(response.Header().Get("WWW-Authenticate")).To(Equal("Bearer"))
+			} else {
+				Expect(response.Header().Get("WWW-Authenticate")).To(BeEmpty())
 			}
-			if store.getCalls != 0 {
-				t.Fatalf(
-					"unexpected cookie fallback: %d lookups",
-					store.getCalls,
-				)
-			}
-
-			gotTokenCall := authRepo.tokenCalls > 0
-			if gotTokenCall != test.expectTokenCall {
-				t.Fatalf(
-					"expected token call=%t, got %t",
-					test.expectTokenCall,
-					gotTokenCall,
-				)
-			}
-
-			challenge := response.Header().
-				Get("WWW-Authenticate")
-			if test.expectChallenge && challenge != "Bearer" {
-				t.Fatalf(
-					"expected Bearer challenge, got %q",
-					challenge,
-				)
-			}
-			if !test.expectChallenge && challenge != "" {
-				t.Fatalf(
-					"expected no challenge, got %q",
-					challenge,
-				)
-			}
-		})
-	}
-}
-
-func TestLogoutDoesNotAcceptBearerAuthentication(t *testing.T) {
-	store := &testSessionStore{
-		sessions: make(map[string]*session.Session),
-	}
-	authRepo := &testAuthRepository{
-		tokenIdentity: &auth.TokenIdentity{
-			Subject: "workload-subject",
 		},
-	}
-	nextCalled := false
-
-	handler, err := middleware.Authenticator(
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
-		store,
-		authRepo,
-		config.Parsed{
-			Session: config.ParsedSessionConfig{
-				Cookie: config.SessionCookieConfig{
-					Name: "session",
-				},
-			},
-		},
-		http.HandlerFunc(func(
-			http.ResponseWriter,
-			*http.Request,
-		) {
-			nextCalled = true
-		}),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	request := httptest.NewRequest(
-		http.MethodPost,
-		"/api/v1/logout",
-		nil,
-	)
-	request.Header.Set(
-		"Authorization",
-		"Bearer workload-token",
+		Entry("with a missing token", "Bearer", nil, false, true),
+		Entry("with an empty token", "Bearer ", nil, false, true),
+		Entry("with whitespace in the token", "Bearer first second", nil, false, true),
+		Entry("with an unsupported scheme", "Basic credentials", nil, false, false),
+		Entry("when the repository rejects the token", "Bearer rejected-token", auth.ErrInvalidBearerToken, true, true),
 	)
 
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-
-	if response.Code != http.StatusUnauthorized {
-		t.Fatalf(
-			"expected status %d, got %d",
-			http.StatusUnauthorized,
-			response.Code,
+	It("does not authenticate logout requests", func() {
+		authRepo := &testAuthRepository{tokenIdentity: &auth.TokenIdentity{Subject: "workload-subject"}}
+		nextCalled := false
+		handler := testAuthenticator(
+			&testSessionStore{sessions: make(map[string]*session.Session)},
+			authRepo,
+			sessionConfig(),
+			http.HandlerFunc(func(http.ResponseWriter, *http.Request) { nextCalled = true }),
 		)
-	}
-	if nextCalled {
-		t.Fatal("bearer-authenticated logout reached next handler")
-	}
-	if authRepo.tokenCalls != 0 {
-		t.Fatalf(
-			"logout attempted bearer authentication %d times",
-			authRepo.tokenCalls,
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/logout", nil)
+		request.Header.Set("Authorization", "Bearer workload-token")
+		response := httptest.NewRecorder()
+
+		handler.ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		Expect(nextCalled).To(BeFalse())
+		Expect(authRepo.tokenCalls).To(BeZero())
+	})
+
+	It("rejects a nil identity", func() {
+		authRepo := &testAuthRepository{}
+		nextCalled := false
+		handler := testAuthenticator(
+			&testSessionStore{sessions: make(map[string]*session.Session)},
+			authRepo,
+			sessionConfig(),
+			http.HandlerFunc(func(http.ResponseWriter, *http.Request) { nextCalled = true }),
 		)
-	}
-}
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/identity", nil)
+		request.Header.Set("Authorization", "Bearer workload-token")
+		response := httptest.NewRecorder()
 
-func TestBearerAuthenticationRejectsNilIdentity(t *testing.T) {
-	authRepo := &testAuthRepository{}
-	nextCalled := false
+		handler.ServeHTTP(response, request)
 
-	handler, err := middleware.Authenticator(
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
-		&testSessionStore{
-			sessions: make(map[string]*session.Session),
-		},
-		authRepo,
-		config.Parsed{
-			Session: config.ParsedSessionConfig{
-				Cookie: config.SessionCookieConfig{
-					Name: "session",
-				},
-			},
-		},
-		http.HandlerFunc(func(
-			http.ResponseWriter,
-			*http.Request,
-		) {
-			nextCalled = true
-		}),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	request := httptest.NewRequest(
-		http.MethodGet,
-		"/api/v1/identity",
-		nil,
-	)
-	request.Header.Set("Authorization", "Bearer workload-token")
-
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-
-	if response.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
-	}
-	if nextCalled {
-		t.Fatal("request with nil identity reached next handler")
-	}
-}
+		Expect(response.Code).To(Equal(http.StatusUnauthorized))
+		Expect(nextCalled).To(BeFalse())
+	})
+})
