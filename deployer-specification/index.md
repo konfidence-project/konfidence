@@ -18,8 +18,8 @@ Open decisions and potential future changes are outlined where possible and are 
 An artifact type consists of a vendor-owned domain, a descriptive type, and a contract version:
 
 ```bnf
-<artifact-type>  ::= <type-name> ":" <version>
-<type-name>      ::= <domain> "/" <type>
+<artifact-type>  ::= <type-name> "/" <version>
+<type-name>      ::= <type> "." <domain>
 <domain>         ::= <label> "." <label> | <label> "." <domain>
 <type>           ::= <label>
 <label>          ::= <alphanumeric> | <alphanumeric> <label-middle> <alphanumeric>
@@ -34,7 +34,7 @@ An artifact type consists of a vendor-owned domain, a descriptive type, and a co
 <nonzero-digit>  ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 ```
 
-For example, `konfidence.cloud/helm:v1alpha1` names the first alpha version of the Helm artifact contract maintained by `konfidence.cloud`.
+For example, `helm.konfidence.cloud/v1alpha1` names the first alpha version of the Helm artifact contract maintained by `konfidence.cloud`.
 
 The `<domain>` MUST be a lowercase DNS name controlled by the deployer provider.
 Each domain label MUST satisfy the DNS length limit of 63 octets.
@@ -42,28 +42,19 @@ Each domain label MUST satisfy the DNS length limit of 63 octets.
 The `<type>` is a separate identifier and MUST NOT exceed 63 characters under this grammar.
 The `<type>` SHOULD describe the artifact's packaging format or deployment mechanism, such as `helm` or `kustomize`.
 
-The version identifies how the artifact's deployment payload is interpreted.
-A deployer release MAY support several artifact contract versions.
-
-Version identifiers SHOULD follow the [Kubernetes API versioning convention](https://kubernetes.io/docs/reference/using-api/#api-versioning): `v1alpha1` is alpha, `v1beta1` is beta, and `v1` is stable.
-An alpha contract MAY change without preserving compatibility.
-A beta contract SHOULD preserve compatibility as it evolves.
-A stable contract MUST preserve compatibility within its major version.
-Any incompatible change requires a new major version.
 A provider MUST use a distinct version identifier whenever the payload contract changes in a way that a deployer supporting the previous identifier cannot safely interpret.
 This also includes changes where the deployer is generally able to read the payload, but may not be able to correctly interpret the described deployment (e.g. when adding a new field).
 
 ### 1.2 Artifact packaging
 
-An artifact is an OCM component version.
+An artifact is an OCM component version following the [OCM spec](https://github.com/open-component-model/ocm-spec).
 Its resources MUST contain exactly one resource of type `cloud.konfidence.artifact.manifest`, and that resource MUST be named `konfidence-manifest`.
-This resource MUST contain a JSON object with a `type` property whose value is the complete artifact type, including the contract version defined in section 1.1.
+This resource MUST contain a JSON object with a `type` property whose value is the complete artifact type:
 
-The component version MAY contain additional resources that a deployer uses to understand what needs to be deployed.
-
-For example, the OCM component constructor can include:
+[//]: # (TODO: can we use type: UTF8/v1 instead and use inline yaml)
 
 ```yaml
+# component-constructor.yaml
 resources:
   - name: konfidence-manifest
     relation: local
@@ -77,22 +68,24 @@ The referenced JSON file contains the artifact's type declaration:
 
 ```json
 {
-  "type": "konfidence.cloud/kustomize:v1alpha1"
+  "type": "kustomize.konfidence.cloud/v1alpha1"
 }
 ```
 
-[//]: # (TODO agree on the exact requirements to "fully support" an artifactType)
+The component version MAY contain additional resources that a deployer uses to understand what needs to be deployed.
+
 The provider of an artifact type SHOULD document the packaging and validation requirements for each supported contract version.
 These requirements MUST identify required and optional OCM resources, their names or types, cardinality, accepted access methods, and expected payload formats.
 The provider MUST also document semantic constraints that cannot be checked from the component descriptor alone.
 
-A deployer MUST validate the resources and payloads it relies on before acting on any Konfidence-created resource.
-It MUST report invalid artifacts through the corresponding resource status, as specified in the following sections.
+A deployer MUST validate the resources and payloads it relies on before deploying an artifact.
+It MUST report invalid artifacts through `ArtifactDeployment.status`, as specified in section 3.
 
-A provider MUST publish a machine-readable schema for structural requirements on the resolved OCM component descriptor.
+A provider MAY publish a machine-readable schema for structural validation on the resolved OCM component descriptor.
 The schema format, how schemas are published and selected by artifact type, and which checks can be performed before payloads are fetched remain to be defined.
-Descriptor-level validation does not replace validation of the referenced payloads by the deployer.
-A provider MAY offer tools to create or validate artifacts, including optional `kden` integration.
+Future versions of this specification may introduce requirements about how deployers provide that information to enable seamless integration into Konfidence tooling. 
+
+A provider MAY offer custom tools to create or validate artifacts for their supported types.
 Conformance MUST NOT depend on artifacts having been created with provider-specific tooling.
 
 ## 2. DeploymentTarget
@@ -107,7 +100,7 @@ metadata:
   name: helm-production
   namespace: kden-l-prod-fz8g86s6
 spec:
-  artifactType: konfidence.cloud/helm
+  artifactType: helm.konfidence.cloud
   parameters:
     apiGroup: ""
     kind: Secret
@@ -163,36 +156,57 @@ The exact shape of `status.capabilities` remains open for now.
 
 ### 2.4 Deletion
 
-[//]: # (TODO decide what to do when DeploymentTarget is deleted)
-core will set a Stale=True / Ready=Unknown condition to ArtifactDeployment already?
-deployer either:
-* leave artifacts deployed (we might report errors in dashboard, even when apps are still running. can they be adopted when the target comes back again? )
-* undeploy artifacts (immediate service downtime)
-* prevent deletion while ArtifactDeployments exist with admission webhook in core?
+Deleting a `DeploymentTarget` MUST NOT by itself undeploy artifacts or remove resources at its destination.
+Runtime resources remain deployed, but the deployer may lose access to them and can no longer guarantee their continued reconciliation.
+If another target for the same artifact type is created, the deployer MUST NOT assume that it refers to the same destination or silently adopt the existing runtime resources.
+How core reports the state of affected `ArtifactDeployment` resources after target deletion remains to be specified; their previous readiness MUST NOT be taken as evidence that they are still being reconciled.
 
 ## 3. ArtifactDeployment
 
 Core creates an immutable `ArtifactDeployment` specification containing an artifact manifest and OCM component resources.
+
+### 3.1 Ownership and selection
+
 The type in `spec.manifest.type` selects the responsible deployer and the corresponding target in the deployment's landscape namespace.
 A deployer acts platform-wide and declares the artifact types it supports in its own configuration.
 It is the cluster administrator's responsibility to ensure that at most one deployer reconciles a given artifact type in a control plane.
 A vendor-owned identifier prevents accidental naming conflicts, but it cannot prevent two controllers from being configured for the same type.
+
 The deployer MUST reconcile an `ArtifactDeployment` only when its artifact type matches a supported identifier exactly.
 It MUST leave resources belonging to other providers or types to their responsible deployers.
 An unsupported version MUST NOT be interpreted as another version of the same type.
 
+### 3.2 Input validation
+
+The deployer MUST validate the `ArtifactDeployment` specification against the packaging contract for its exact artifact type and version.
+This includes the required OCM resources and the payloads it consumes.
+It MUST NOT rely on validation performed by an artifact authoring tool or by core.
+Task manifests attached to an artifact are outside the base artifact-deployment contract.
+
+### 3.3 Reconciliation and failure handling
+
 The deployer MUST reconcile supported artifacts idempotently, including those created before it was installed or while it was stopped.
-It MUST validate the payload against the documented contract for that exact artifact type and version.
-An unsupported or invalid payload MUST be reported through the artifact's status rather than deployed using assumptions from another version.
+It MUST complete input validation before creating runtime resources.
+An invalid payload MUST be reported through `ArtifactDeployment.status` rather than deployed.
 If the target is absent, unready, or does not report support for the artifact's version, the artifact MUST NOT be deployed through that target.
+
+### 3.4 Status
 
 The deployer reports artifact fetching, deployment, application health, deployment results, and overall readiness through `ArtifactDeployment.status`.
 The meanings and transition rules for `ArtifactFetched`, `ArtifactDeployed`, `AppHealthy`, `DeploymentResultCreated`, and `Ready` require further definition.
 A deployer MUST NOT leave `Ready=True` when it knows that a prerequisite for readiness has failed.
-Whether a health check or deployment result is required for every artifact type is an open decision.
 
-The deployer MUST define how runtime resources are removed when an artifact deployment is deleted, including resources on remote runtimes.
-Task manifests attached to an artifact are outside the base artifact-deployment contract.
+### 3.5 Deletion and undeployment
+
+The deployer MUST add a finalizer to an `ArtifactDeployment` before creating runtime resources for it.
+On deletion, it MUST remove the runtime resources it manages, including resources on a remote runtime, before removing its finalizer.
+It MUST NOT remove the finalizer while any of those resources are known to remain deployed.
+If cleanup cannot complete, including because the target connection is unavailable, the deployer MUST retain the finalizer and retry cleanup when access is restored.
+Consequently, deleting the target before deleting its artifact deployments can leave those deployments pending deletion until access to the original destination is restored.
+
+### 3.6 Optional behavior
+
+Whether a health check or deployment result is required for every artifact type, and how an artifact without either advances to readiness, remain open decisions.
 
 ## 4. Deployment results and deployed-instance visibility
 
@@ -201,18 +215,20 @@ Task manifests attached to an artifact are outside the base artifact-deployment 
 * **Processing and guarantees, failure/retry handling:** Define when results are available, whether they may change after readiness, and how duplicate or malformed results are reported. Distinguish results consumed by applications from an inventory of deployed runtime instances.
 * **Status reporting via conditions:** Define when `DeploymentResultCreated` is true, including zero-result artifacts. Decide which generic deployment identity and health information can be reported for UI/API display; there is no portable instance inventory field today.
 * **Resource deletion and undeployment:** Define when results become invalid or are removed after undeployment.
-* **Optional behavior:** Decide whether publishing results is optional for a class and how an artifact with no results advances to readiness.
+* **Optional behavior:** Decide whether publishing results is optional for an artifact type and how an artifact with no results advances to readiness.
 
 ## 5. Vector association and artifact reuse
 
-* **Ownership and resource selection:** Core currently creates a `VectorAssignment` for each vector/artifact pair and uses `ArtifactManifest.allowReuse` when creating the `ArtifactDeployment`. One artifact may be referenced by several vectors; the class's deployer handles vector-specific work.
+* **Ownership and resource selection:** Core creates a `VectorAssignment` for each vector/artifact pair and uses `ArtifactManifest.allowReuse` when creating the `ArtifactDeployment`. One artifact may be referenced by several vectors; the deployer for the artifact type handles vector-specific work.
 * **Interpretation of inputs / generic fields:** `VectorAssignment` references the vector and artifact. When reuse is enabled, a deployer MUST NOT infer a single vector from the artifact alone.
 * **Processing and guarantees, failure/retry handling:** Vector-specific data MUST remain isolated across vectors sharing an artifact. Define what happens if an artifact requests reuse but the deployer cannot support it, and how missing references or failed assignment work are handled.
 * **Status reporting via conditions:** Define what `VectorAssignment.Ready` proves, including whether a no-op assignment can be ready and what happens when the referenced artifact becomes unavailable.
 * **Resource deletion and undeployment:** Removing one vector MUST NOT undeploy an artifact still in use by another; define cleanup of its vector-specific state.
-* **Optional behavior:** Decide whether reuse is a class capability and whether the `VectorAssignment` CRD remains the representation of association (`konfidence` issue #83). Preserve the semantic contract if the CRD changes.
+* **Optional behavior:** Decide whether reuse is an artifact-type capability and whether the `VectorAssignment` CRD remains the representation of association (`konfidence` issue #83). Preserve the semantic contract if the CRD changes.
 
 ## 6. VectorData: vector-scoped data
+
+* VectorData MUST NOT change for given vector. Deleting/Re-creating ArtifactDeployments may lead to different deploymentresults. Core must detect on that and report VectorDeployment as broken. 
 
 * **Ownership and resource selection:** Core creates immutable `VectorData` per `VectorDeployment` with authored data, features, and aggregated results. Decide which implementor owns its materialization and status when several deployers/classes serve one landscape.
 * **Interpretation of inputs / generic fields:** Define the mapping from vector identity to `VectorData` and how consumers select the right vector, including when an artifact is reused. Specify behavior for missing or unknown identities; storage and distribution are runtime-specific.
