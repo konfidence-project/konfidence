@@ -59,6 +59,19 @@ func (r *vectorDeploymentLandscapeRepository) Get(_ context.Context, _, _ string
 	return r.landscape, r.err
 }
 
+func (r *vectorDeploymentRepository) GetForScope(_ context.Context,
+	_ landscapedomain.ScopedLandscape, _ string) (*vectordeployment.ResolvedVectorDeployment, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if len(r.items) == 0 {
+		return nil, vectordeployment.ErrNotFound
+	}
+	return &r.items[0], nil
+}
+
+// TODO: add tests after ginkgo migration for single resource endpoint
+
 func (r *vectorDeploymentLandscapeRepository) ListForProject(_ context.Context, _ string) ([]konfidence.Landscape, error) {
 	r.listCalls++
 	return r.landscapes, r.err
@@ -231,5 +244,89 @@ var _ = Describe("ListVectorDeploymentsV1", func() {
 				openapi.ListVectorDeploymentsV1RequestObject{ProjectId: "project-a"})
 			assertVectorDeploymentAPIError(response, err, http.StatusInternalServerError)
 		})
+	})
+})
+
+var _ = Describe("GetVectorDeploymentV1", func() {
+	It("returns the deployment by landscape and ID", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev")
+		sv := &konfidence.StageVersion{
+			ObjectMeta: metav1.ObjectMeta{Name: "checkout-sv", Namespace: "kden-l-dev"},
+			Spec: konfidence.StageVersionSpec{
+				StageRef: &konfidence.StageReference{Name: "checkout"},
+			},
+		}
+		vd := &konfidence.VectorDeployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "checkout-v1",
+				Namespace: "kden-l-dev",
+				OwnerReferences: []metav1.OwnerReference{{
+					Kind: konfidence.StageVersionKind,
+					Name: "checkout-sv",
+				}},
+			},
+			Spec: konfidence.VectorDeploymentSpec{
+				Vector: "https://registry.example.com/ocm//acme.example/checkout:1.0.0",
+			},
+		}
+		h := newProjectHandlerForTest(project, dev, sv, vd)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"viewer"}})
+		resp, err := h.GetVectorDeploymentV1(ctx, openapi.GetVectorDeploymentV1RequestObject{
+			ProjectId:          "my-project",
+			LandscapeId:        "dev",
+			VectorDeploymentId: "checkout-v1",
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		item := resp.(openapi.GetVectorDeploymentV1200JSONResponse)
+		Expect(item.Id).To(Equal("checkout-v1"))
+		Expect(item.LandscapeId).To(Equal("dev"))
+		Expect(item.StageId).To(Equal("checkout"))
+		Expect(item.Vector.ComponentName).To(Equal("acme.example/checkout"))
+		Expect(item.Vector.ComponentVersion).To(Equal("1.0.0"))
+	})
+
+	It("returns 404 when the deployment does not exist", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		dev := scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev")
+		h := newProjectHandlerForTest(project, dev)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"viewer"}})
+		resp, err := h.GetVectorDeploymentV1(ctx, openapi.GetVectorDeploymentV1RequestObject{
+			ProjectId: "my-project", LandscapeId: "dev", VectorDeploymentId: "missing",
+		})
+		expectAPIError(resp, err, http.StatusNotFound)
+	})
+
+	It("returns 404 when the landscape does not exist", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		h := newProjectHandlerForTest(project)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"viewer"}})
+		resp, err := h.GetVectorDeploymentV1(ctx, openapi.GetVectorDeploymentV1RequestObject{
+			ProjectId: "my-project", LandscapeId: "nonexistent", VectorDeploymentId: "checkout-v1",
+		})
+		expectAPIError(resp, err, http.StatusNotFound)
+	})
+
+	It("returns 401 when no session is present", func() {
+		h := newProjectHandlerForTest()
+		resp, err := h.GetVectorDeploymentV1(context.Background(), openapi.GetVectorDeploymentV1RequestObject{
+			ProjectId: "my-project", LandscapeId: "dev", VectorDeploymentId: "checkout-v1",
+		})
+		expectAPIError(resp, err, http.StatusUnauthorized)
+	})
+
+	It("returns 403 when caller has no role for the project", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		h := newProjectHandlerForTest(project)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"other-project": {"viewer"}})
+		resp, err := h.GetVectorDeploymentV1(ctx, openapi.GetVectorDeploymentV1RequestObject{
+			ProjectId: "my-project", LandscapeId: "dev", VectorDeploymentId: "checkout-v1",
+		})
+		expectAPIError(resp, err, http.StatusForbidden)
 	})
 })

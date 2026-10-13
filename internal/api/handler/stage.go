@@ -12,6 +12,23 @@ import (
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 )
 
+func (h *projectHandler) GetStageV1(ctx context.Context, request openapi.GetStageV1RequestObject) (openapi.GetStageV1ResponseObject, error) {
+	scope, err := h.resolveStageScope(ctx, request.ProjectId, request.LandscapeId)
+	if err != nil {
+		return nil, err
+	}
+
+	stage, err := h.stageRepo.GetForScope(ctx, scope, request.StageId)
+	if err != nil {
+		if errors.Is(err, stagedomain.ErrNotFound) {
+			return nil, apierror.NewNotFound("stage", request.StageId)
+		}
+		return nil, apierror.NewInternal(err)
+	}
+
+	return openapi.GetStageV1200JSONResponse(toStageResponse(*stage)), nil
+}
+
 func (h *projectHandler) ListStagesV1(ctx context.Context, req openapi.ListStagesV1RequestObject) (openapi.ListStagesV1ResponseObject, error) {
 	identity, err := session.FromContext(ctx)
 	if err != nil {
@@ -51,6 +68,22 @@ func (h *projectHandler) ListStagesV1(ctx context.Context, req openapi.ListStage
 	}
 
 	return openapi.ListStagesV1200JSONResponse{Data: data}, nil
+}
+
+func (h *projectHandler) resolveStageScope(ctx context.Context, projectId, landscapeId string) (landscapedomain.ScopedLandscape, error) {
+	identity, err := session.FromContext(ctx)
+	if err != nil {
+		return landscapedomain.ScopedLandscape{}, apierror.NewUnauthorized()
+	}
+	namespace, err := h.resolveProjectNamespace(ctx, identity, projectId)
+	if err != nil {
+		return landscapedomain.ScopedLandscape{}, err
+	}
+	scope, err := h.resolveLandscapeScope(ctx, namespace, landscapeId, landscapedomain.WithLandscapeId(landscapeId))
+	if err != nil {
+		return landscapedomain.ScopedLandscape{}, err
+	}
+	return scope[0], nil
 }
 
 // toStageResponse maps a resolved stage to its DTO. The Stage CRD has no display name,

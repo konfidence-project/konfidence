@@ -5,6 +5,7 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/artifactdeployment"
+	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -77,6 +78,15 @@ func artifactDeploymentResource(name, landscapeNamespace, landscapeId, vectorDep
 				Name: vectorDeploymentID,
 			}},
 		},
+	}
+}
+
+func scopedLandscape() landscapedomain.ScopedLandscape {
+	return landscapedomain.ScopedLandscape{
+		Landscape: konfidence.Landscape{
+			ObjectMeta: metav1.ObjectMeta{Name: landscapeID},
+		},
+		Namespace: landscapeNamespace,
 	}
 }
 
@@ -214,6 +224,56 @@ var _ = Describe("Repository", func() {
 			).ListForScope(context.Background(), projectNamespace)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resolved).To(ConsistOf(HaveField("VectorDeploymentIds", []string{vectorDeploymentID, "vd-b"})))
+		})
+	})
+	Describe("GetForScope", func() {
+		It("returns the deployment with its landscape and resolved IDs", func() {
+			scoped := scopedLandscape()
+			got, err := repositoryWith(
+				stageVersionResource("sv-1", landscapeNamespace, stageID),
+				vectorDeploymentResource(vectorDeploymentID, landscapeNamespace, "sv-1"),
+				artifactDeploymentResource("ad-a", landscapeNamespace, landscapeID, vectorDeploymentID),
+			).GetForScope(context.Background(), scoped, "ad-a")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.ArtifactDeployment.Name).To(Equal("ad-a"))
+			Expect(got.LandscapeId).To(Equal(landscapeID))
+			Expect(got.VectorDeploymentIds).To(Equal([]string{vectorDeploymentID}))
+			Expect(got.StageIds).To(Equal([]string{stageID}))
+		})
+
+		It("returns ErrNotFound for a missing deployment", func() {
+			scoped := scopedLandscape()
+			_, err := repositoryWith().GetForScope(context.Background(), scoped, "missing")
+			Expect(err).To(MatchError(artifactdeployment.ErrNotFound))
+		})
+
+		It("does not return a deployment from another landscape namespace", func() {
+			scoped := scopedLandscape()
+			_, err := repositoryWith(
+				stageVersionResource("sv-1", "kden-l-prod", stageID),
+				vectorDeploymentResource(vectorDeploymentID, "kden-l-prod", "sv-1"),
+				artifactDeploymentResource("ad-a", "kden-l-prod", landscapeID, vectorDeploymentID),
+			).GetForScope(context.Background(), scoped, "ad-a")
+			Expect(err).To(MatchError(artifactdeployment.ErrNotFound))
+		})
+
+		It("resolves multiple vector deployment and stage IDs", func() {
+			scoped := scopedLandscape()
+			deployment := artifactDeploymentResource("ad-a", landscapeNamespace, landscapeID, "vd-a")
+			deployment.OwnerReferences = append(deployment.OwnerReferences, metav1.OwnerReference{
+				Kind: konfidence.VectorDeploymentKind,
+				Name: "vd-b",
+			})
+			got, err := repositoryWith(
+				stageVersionResource("sv-1", landscapeNamespace, "stage-a"),
+				stageVersionResource("sv-2", landscapeNamespace, "stage-b"),
+				vectorDeploymentResource("vd-a", landscapeNamespace, "sv-1"),
+				vectorDeploymentResource("vd-b", landscapeNamespace, "sv-2"),
+				deployment,
+			).GetForScope(context.Background(), scoped, "ad-a")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.VectorDeploymentIds).To(ConsistOf("vd-a", "vd-b"))
+			Expect(got.StageIds).To(ConsistOf("stage-a", "stage-b"))
 		})
 	})
 })

@@ -156,3 +156,57 @@ var _ = Describe("ListLandscapesV1", func() {
 		Expect(ok.Data[0].Id).To(Equal("dev"))
 	})
 })
+
+var _ = Describe("GetLandscapeV1", func() {
+	It("returns the landscape by id", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		l := landscapeFixture("dev", "kden-p-my-project", "Development")
+		h := newProjectHandlerForTest(project, l)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
+		resp, err := h.GetLandscapeV1(ctx, openapi.GetLandscapeV1RequestObject{
+			ProjectId:   "my-project",
+			LandscapeId: "dev",
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		item := resp.(openapi.GetLandscapeV1200JSONResponse)
+		Expect(item.Id).To(Equal("dev"))
+		Expect(item.Name).To(Equal("Development"))
+	})
+
+	It("returns 404 when the landscape does not exist", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		h := newProjectHandlerForTest(project)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
+		resp, err := h.GetLandscapeV1(ctx, openapi.GetLandscapeV1RequestObject{
+			ProjectId:   "my-project",
+			LandscapeId: "nonexistent",
+		})
+		expectAPIError(resp, err, http.StatusNotFound)
+	})
+
+	It("returns 401 when no session is present", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		h := newProjectHandlerForTest(project)
+
+		resp, err := h.GetLandscapeV1(context.Background(), openapi.GetLandscapeV1RequestObject{
+			ProjectId:   "my-project",
+			LandscapeId: "dev",
+		})
+		expectAPIError(resp, err, http.StatusUnauthorized)
+	})
+
+	It("returns 403 when caller has no role for the project", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		h := newProjectHandlerForTest(project)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"other-project": {"admin"}})
+		resp, err := h.GetLandscapeV1(ctx, openapi.GetLandscapeV1RequestObject{
+			ProjectId:   "my-project",
+			LandscapeId: "dev",
+		})
+		expectAPIError(resp, err, http.StatusForbidden)
+	})
+})

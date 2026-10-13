@@ -71,15 +71,33 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
-	It("gets a landscape", func() {
-		want := landscapeFixture("dev", "kden-p-my-project", "Development")
+	Describe("Get", func() {
+		It("gets a landscape", func() {
+			want := landscapeFixture("dev", "kden-p-my-project", "Development")
 
-		got, err := landscape.NewRepository(fakeClient(want)).Get(context.Background(), "kden-p-my-project", "dev")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(got).To(And(
-			HaveField("Name", want.Name),
-			HaveField("Spec.DisplayName", want.Spec.DisplayName),
-		))
+			got, err := landscape.NewRepository(fakeClient(want)).Get(context.Background(), "kden-p-my-project", "dev")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(And(
+				HaveField("Name", want.Name),
+				HaveField("Spec.DisplayName", want.Spec.DisplayName),
+			))
+		})
+
+		It("returns an error when the landscape does not exist", func() {
+			_, err := landscape.NewRepository(fakeClient()).Get(context.Background(), "kden-p-my-project", "dev")
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("only gets from the requested namespace", func() {
+			want := landscapeFixture("dev", "kden-p-project-a", "Dev A")
+
+			got, err := landscape.NewRepository(fakeClient(
+				want,
+				landscapeFixture("dev", "kden-p-project-b", "Dev B"),
+			)).Get(context.Background(), "kden-p-project-a", "dev")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.Namespace).To(Equal("kden-p-project-a"))
+		})
 	})
 
 	Describe("ResolveScope", func() {
@@ -103,7 +121,8 @@ var _ = Describe("Repository", func() {
 				scopedLandscapeFixture("staging", "kden-p-my-project", "kden-l-staging-5678"),
 			))
 
-			scope, err := repository.ResolveScope(context.Background(), "kden-p-my-project", landscape.WithLandscapeId("staging"))
+			scope, err := repository.ResolveScope(context.Background(), "kden-p-my-project",
+				landscape.WithLandscapeId("staging"))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(scope).To(ConsistOf(And(
 				HaveField("Landscape.Name", "staging"),
@@ -130,7 +149,8 @@ var _ = Describe("Repository", func() {
 				scopedLandscapeFixture("dev", "kden-p-my-project", ""),
 			))
 
-			scope, err := repository.ResolveScope(context.Background(), "kden-p-my-project", landscape.WithLandscapeId("dev"))
+			scope, err := repository.ResolveScope(context.Background(), "kden-p-my-project",
+				landscape.WithLandscapeId("dev"))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(scope).To(ConsistOf(HaveField("Namespace", "")))
 		})

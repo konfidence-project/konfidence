@@ -7,8 +7,12 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var ErrNotFound = fmt.Errorf("stage not found")
 
 // ResolvedStage is a stage together with the landscape it lives in and its resolved stage versions.
 type ResolvedStage struct {
@@ -19,6 +23,7 @@ type ResolvedStage struct {
 }
 
 type Repository interface {
+	GetForScope(ctx context.Context, scoped landscapedomain.ScopedLandscape, name string) (*ResolvedStage, error)
 	// ListForScope lists stages with resolved versions across the given
 	// landscape scope (from landscapedomain.ResolveScope). Skips scope
 	// entries whose Namespace is still "".
@@ -29,6 +34,28 @@ type k8sRepository struct{ reader client.Reader }
 
 func NewRepository(reader client.Reader) Repository {
 	return &k8sRepository{reader: reader}
+}
+
+func (r *k8sRepository) GetForScope(ctx context.Context, scoped landscapedomain.ScopedLandscape, name string) (*ResolvedStage, error) {
+	var stage konfidence.Stage
+	if err := r.reader.Get(ctx, types.NamespacedName{
+		Name:      name,
+		Namespace: scoped.Namespace,
+	}, &stage); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("getting stage %q in namespace %q: %w", name, scoped.Namespace, err)
+	}
+
+	var versions konfidence.StageVersionList
+	if err := r.reader.List(ctx, &versions, client.InNamespace(scoped.Namespace)); err != nil {
+		return nil, fmt.Errorf("listing stage versions in namespace %q: %w", scoped.Namespace, err)
+	}
+
+	versionsByStage := groupVersionsByStage(versions.Items)
+	resolved := resolveStage(stage, scoped.Landscape.Name, versionsByStage[stage.Name])
+	return &resolved, nil
 }
 
 func (r *k8sRepository) ListForScope(

@@ -250,3 +250,55 @@ var _ = Describe("Repository ListForScope", func() {
 		)))
 	})
 })
+var _ = Describe("Repository GetForScope", func() {
+	It("returns the stage with its landscape ID", func() {
+		scoped := scopeFixture("dev", "kden-l-dev")
+		got, err := stage.NewRepository(fakeClient(
+			stageFixture("app", "kden-l-dev", "vector:1", 1),
+		)).GetForScope(context.Background(), scoped, "app")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(got.Stage.Name).To(Equal("app"))
+		Expect(got.LandscapeID).To(Equal("dev"))
+	})
+
+	It("resolves the target stage version", func() {
+		scoped := scopeFixture("dev", "kden-l-dev")
+		got, err := stage.NewRepository(fakeClient(
+			stageFixture("app", "kden-l-dev", "vector:1", 1),
+			stageVersionFixture("app-v1", "kden-l-dev", "app", "vector:1", 1),
+		)).GetForScope(context.Background(), scoped, "app")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(got.Target).NotTo(BeNil())
+		Expect(got.Target.Name).To(Equal("app-v1"))
+		Expect(got.Active).To(BeNil())
+	})
+
+	It("resolves both target and active stage versions", func() {
+		scoped := scopeFixture("dev", "kden-l-dev")
+		s := withActiveStageVersion(stageFixture("app", "kden-l-dev", "vector:2", 2), "app-v1")
+		got, err := stage.NewRepository(fakeClient(
+			s,
+			stageVersionFixture("app-v1", "kden-l-dev", "app", "vector:1", 1),
+			stageVersionFixture("app-v2", "kden-l-dev", "app", "vector:2", 2),
+		)).GetForScope(context.Background(), scoped, "app")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(got.Target).NotTo(BeNil())
+		Expect(got.Target.Name).To(Equal("app-v2"))
+		Expect(got.Active).NotTo(BeNil())
+		Expect(got.Active.Name).To(Equal("app-v1"))
+	})
+
+	It("returns ErrNotFound for a missing stage", func() {
+		scoped := scopeFixture("dev", "kden-l-dev")
+		_, err := stage.NewRepository(fakeClient()).GetForScope(context.Background(), scoped, "missing")
+		Expect(err).To(MatchError(stage.ErrNotFound))
+	})
+
+	It("does not return a stage from another landscape namespace", func() {
+		devScope := scopeFixture("dev", "kden-l-dev")
+		_, err := stage.NewRepository(fakeClient(
+			stageFixture("app", "kden-l-prod", "vector:1", 1),
+		)).GetForScope(context.Background(), devScope, "app")
+		Expect(err).To(MatchError(stage.ErrNotFound))
+	})
+})
