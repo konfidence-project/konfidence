@@ -26,11 +26,10 @@ This document specifies the behavior a deployer MUST, SHOULD, and MAY implement 
 
 ### 1.1 Identifier
 
-An artifact type consists of a vendor-owned domain, a descriptive type, and a contract version:
+An artifact type consists of a descriptive type and a vendor-owned domain:
 
 ```bnf
-<artifact-type>  ::= <type-name> "/" <version>
-<type-name>      ::= <type> "." <domain>
+<artifact-type>  ::= <type> "." <domain>
 <domain>         ::= <label> "." <label> | <label> "." <domain>
 <type>           ::= <label>
 <label>          ::= <alphanumeric> | <alphanumeric> <label-middle> <alphanumeric>
@@ -38,14 +37,10 @@ An artifact type consists of a vendor-owned domain, a descriptive type, and a co
 <label-character> ::= <alphanumeric> | "-"
 <alphanumeric>   ::= <lowercase-letter> | <digit>
 <lowercase-letter> ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
-<digit>          ::= "0" | <nonzero-digit>
-<version>        ::= "v" <positive-integer> | "v" <positive-integer> "alpha" <positive-integer> | "v" <positive-integer> "beta" <positive-integer>
-<positive-integer> ::= <nonzero-digit> | <nonzero-digit> <digits>
-<digits>         ::= <digit> | <digit> <digits>
-<nonzero-digit>  ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+<digit>          ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 ```
 
-For example, `helm.konfidence.cloud/v1alpha1` names the first alpha version of the Helm artifact contract maintained by `konfidence.cloud`.
+For example, `helm.konfidence.cloud` identifies a Helm artifact contract maintained by `konfidence.cloud`.
 
 The `<domain>` MUST be a lowercase DNS name controlled by the deployer provider.
 Each domain label MUST satisfy the DNS length limit of 63 octets.
@@ -53,12 +48,13 @@ Each domain label MUST satisfy the DNS length limit of 63 octets.
 The `<type>` is a separate identifier and MUST NOT exceed 63 characters under this grammar.
 The `<type>` SHOULD describe the artifact's packaging format or deployment mechanism, such as `helm` or `kustomize`.
 
-A provider MUST use a distinct version identifier whenever the payload contract changes in a way that a deployer supporting the previous identifier cannot safely interpret.
-This also includes changes where the deployer is generally able to read the payload, but may not be able to correctly interpret the described deployment (e.g. when adding a new field).
+A provider MUST use a distinct artifact type whenever the payload contract changes in a way that a deployer supporting the original artifact type cannot safely interpret.
+This also includes changes where the deployer can read the payload but cannot correctly interpret the described deployment, such as adding a field with semantics it does not support.
 
 ### 1.2 Artifact packaging
 
 An artifact is an OCM component version following the [OCM spec](https://github.com/open-component-model/ocm-spec).
+The OCM component version identifies the packaged artifact; it is separate from the artifact type.
 Its resources MUST contain exactly one resource of type `cloud.konfidence.artifact.manifest`, and that resource MUST be named `konfidence-manifest`.
 This resource MUST contain a JSON object with a `type` property whose value is the complete artifact type:
 
@@ -79,13 +75,13 @@ The referenced JSON file contains the artifact's type declaration:
 
 ```json
 {
-  "type": "kustomize.konfidence.cloud/v1alpha1"
+  "type": "kustomize.konfidence.cloud"
 }
 ```
 
 The component version MAY contain additional resources that a deployer uses to understand what needs to be deployed.
 
-The provider of an artifact type SHOULD document the packaging and validation requirements for each supported contract version.
+The provider of an artifact type SHOULD document its packaging and validation requirements.
 These requirements MUST identify required and optional OCM resources, their names or types, cardinality, accepted access methods, and expected payload formats.
 The provider MUST also document semantic constraints that cannot be checked from the component descriptor alone.
 
@@ -102,7 +98,7 @@ Conformance MUST NOT depend on artifacts having been created with provider-speci
 ## 2. DeploymentTarget
 
 A `DeploymentTarget` configures a destination for an artifact type in a landscape namespace.
-Its `spec.artifactType` contains the unversioned `<type-name>`, so one target can serve multiple versions of the same artifact contract.
+Its `spec.artifactType` contains the artifact type defined in section 1.1.
 
 ```yaml
 apiVersion: konfidence.cloud/v1alpha1
@@ -118,8 +114,6 @@ spec:
     name: production-kubeconfig
 status:
   controller: konfidence.cloud/kubernetes-landscape-orchestrator:v1.2.3
-  supportedArtifactTypeVersions:
-    - v1
   conditions:
     - type: Ready
       status: "True"
@@ -128,9 +122,9 @@ status:
 
 ### 2.1 Ownership and selection
 
-A deployer MUST reconcile only targets whose `spec.artifactType` matches a `<type-name>` it supports.
+A deployer MUST reconcile only targets whose `spec.artifactType` matches an `<artifact-type>` it supports.
 It MUST NOT update the status of targets belonging to other providers or types.
-Within a landscape namespace, at most one target for a given `<type-name>` is allowed.
+Within a landscape namespace, at most one target for a given `<artifact-type>` is allowed.
 If no target exists, an artifact of that type cannot be deployed into the landscape.
 
 ### 2.2 Parameters and validation
@@ -147,7 +141,7 @@ The deployer SHOULD implement best-effort validation to prevent the user from ch
 Some changes require reconciliation even when the `DeploymentTarget.spec` does not change.
 The deployer MUST re-evaluate a target when a referenced resource that it relies on changes.
 
-### 2.3 Status and supported versions
+### 2.3 Status
 
 The deployer MUST set the target's `Ready` condition after validating the parameters it needs to accept the target.
 `Ready=True` means the deployer accepts the target for deployment.
@@ -156,11 +150,7 @@ This does not guarantee that a future artifact deployment will succeed.
 The deployer MAY perform additional connectivity or credential checks and report their results in separate deployer-owned conditions.
 It MUST set `Ready=False` with a descriptive reason and message when required parameters are invalid.
 
-The deployer MUST report the versions it can handle for the `DeploymentTarget.spec.artifactType` in `status.supportedArtifactTypeVersions`.
-Every reported version MUST correspond to a supported handler for that type and the target's configuration.
-It MUST remove a version from that list if it ceases to support it.
-
-Core MUST check that the target is ready and that the artifact's version appears in this list before treating the target as suitable for deployment.
+Core MUST check that the target is ready and its artifact type matches the artifact before treating the target as suitable for deployment.
 The deployer SHOULD publish its name and release version in `status.controller`.
 
 The exact shape of `status.capabilities` remains open for now.
@@ -185,11 +175,10 @@ A vendor-owned identifier prevents accidental naming conflicts, but it cannot pr
 
 The deployer MUST reconcile an `ArtifactDeployment` only when its artifact type matches a supported identifier exactly.
 It MUST leave resources belonging to other providers or types to their responsible deployers.
-An unsupported version MUST NOT be interpreted as another version of the same type.
 
 ### 3.2 Input validation
 
-The deployer MUST validate the `ArtifactDeployment` specification against the packaging contract for its exact artifact type and version.
+The deployer MUST validate the `ArtifactDeployment` specification against the packaging contract for its artifact type.
 This includes the required OCM resources and the payloads it consumes.
 It MUST NOT rely on validation performed by an artifact authoring tool or by core.
 Task manifests attached to an artifact are outside the base artifact-deployment contract.
@@ -199,7 +188,7 @@ Task manifests attached to an artifact are outside the base artifact-deployment 
 The deployer MUST reconcile supported artifacts idempotently, including those created before it was installed or while it was stopped.
 It MUST complete input validation before creating runtime resources.
 An invalid payload MUST be reported through `ArtifactDeployment.status` rather than deployed.
-If the target is absent, unready, or does not report support for the artifact's version, the artifact MUST NOT be deployed through that target.
+If the target is absent or unready, the artifact MUST NOT be deployed through that target.
 
 ### 3.4 Status
 
