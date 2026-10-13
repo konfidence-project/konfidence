@@ -7,20 +7,18 @@ Status: **Draft**.
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** in this document are to be interpreted as described in BCP 14 ([RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174)) when, and only when, they appear in all capitals.
 
 Open decisions and potential future changes are outlined where possible and are not conformance requirements.
-This specification defines the behavior expected of a deployer for the resources created by Konfidence core.
-The communication between Konfidence core and a deployer happens solely via the resources in the `konfidence.cloud/v1alpha1` control-plane API and their status.
 
 ## Introduction
 
-An `ArtifactDeployment` is the immutable, desired-state record of a single artifact that Konfidence wants deployed. Konfidence core creates it, stamps it with an artifact type, and carries the artifact's payload — an [Open Component Model (OCM)](https://ocm.software) component version — inside it, but core never acts on that payload. OCM gives Konfidence a technology-agnostic, uniquely identified package for delivery artifacts while leaving how they are deployed to tools built on top of it. Reconciling an `ArtifactDeployment` into a running deployment is delegated to a *deployer*.
+An `ArtifactDeployment` is the immutable, desired-state record of a single artifact that Konfidence wants deployed. Konfidence core creates it, stamps it with an artifact type, and carries the artifact's payload inside it, but core never acts on that payload. The payload is an [Open Component Model (OCM)](https://ocm.software) component version. OCM is a technology-agnostic standard for packaging and identifying delivery artifacts. Deploying one is delegated to a *deployer*.
 
 A deployer is a controller, or a set of controllers, that reconciles `ArtifactDeployment` objects into concrete deployments on a destination and reports progress and health back through their status.
-A deployer owns an artifact type: it defines the type's packaging and payload contract, including its supported versions (section 1). Each `ArtifactDeployment` declares its artifact type, which routes the object to the deployer that owns that type.
-Konfidence core manages the delivery process — it assembles and validates vectors, resolves each stage to a desired state, and aggregates per-artifact results back into vector-level resources — but it never deploys workloads itself, and it treats an artifact's payload as opaque.
+A deployer owns an artifact type: it defines the type's packaging and payload contract (section 1). Each `ArtifactDeployment` declares its artifact type, which routes the object to the deployer that owns that type.
+Konfidence core manages the delivery process. It assembles, verifies, and signs vectors, resolves each stage to a desired state, and aggregates per-artifact results at the vector level. It never deploys workloads itself, and it treats an artifact's payload as opaque.
 
-A destination can be a Kubernetes cluster, but it need not be: a deployer might publish static content to an object store or CDN, apply configuration to a managed cloud service, or drive any other destination that can host an artifact.
+A destination is whatever can host an artifact: a Kubernetes cluster is one case, but a deployer might equally publish static content to an object store or CDN, apply configuration to a managed cloud service, run a WebAssembly workload on a Wasm runtime, or drive any other runtime.
 A deployer is a pluggable component: core and deployer communicate solely through the `konfidence.cloud/v1alpha1` control-plane API and its status.
-This boundary is what lets a single Konfidence installation roll out complex vectors whose artifacts span many domain-specific types, each handled by a purpose-built deployer, without core knowing how any individual deployment is performed.
+This boundary is what lets a single Konfidence installation roll out a complex vector whose artifacts together power an entire application, spanning many domain-specific types, each handled by a purpose-built deployer, without core knowing how any individual deployment is performed.
 
 This document specifies the behavior a deployer MUST, SHOULD, and MAY implement to be a conformant participant in that contract.
 
