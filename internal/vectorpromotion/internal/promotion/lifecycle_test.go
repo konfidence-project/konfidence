@@ -25,6 +25,11 @@ var _ = Describe("Lifecycle", func() {
 				Status: metav1.ConditionFalse,
 				Reason: konfidence.ReasonPromotionSuperseded,
 			}}, true),
+			Entry("outstanding limit reached", []metav1.Condition{{
+				Type:   konfidence.ConditionTypeSucceeded,
+				Status: metav1.ConditionFalse,
+				Reason: konfidence.ReasonPromotionOutstandingLimitReached,
+			}}, true),
 			Entry("failed", []metav1.Condition{{
 				Type:   konfidence.ConditionTypeSucceeded,
 				Status: metav1.ConditionFalse,

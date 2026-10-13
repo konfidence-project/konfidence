@@ -40,7 +40,8 @@ func InProgressLongerThan(p *konfidence.VectorPromotion, d time.Duration) bool {
 func IsSuperseded(p *konfidence.VectorPromotion) bool {
 	cond := getSucceededCondition(p)
 	return cond != nil && cond.Status == metav1.ConditionFalse &&
-		cond.Reason == konfidence.ReasonPromotionSuperseded
+		(cond.Reason == konfidence.ReasonPromotionSuperseded ||
+			cond.Reason == konfidence.ReasonPromotionOutstandingLimitReached)
 }
 
 func IsSucceeded(p *konfidence.VectorPromotion) bool {
