@@ -26,7 +26,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@humanspeak/svelte-headless-table": "^6.4.0",
+    "@humanspeak/svelte-headless-table": "^7.0.1",
     "@konfidence/api-client": "workspace:*",
     "@konfidence/design-system": "workspace:*",
     "@skeletonlabs/skeleton": "^5.0.1",
