@@ -5,7 +5,7 @@
     import LandscapeStageCard from "$lib/landscape/components/LandscapeStageCard.svelte";
 
     type StageNode = Node<
-        { stage: Stage; landscapeName: string; href: string },
+        { stage: Stage; landscapeName: string; href: string; selected?: boolean },
         "stage"
     >;
     let { data, id }: NodeProps<StageNode> = $props();

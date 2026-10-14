@@ -2,10 +2,9 @@ import "../../../app.css";
 import { page } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
-import type { Landscape, Stage } from "$lib/konfidence-api/types";
+import type { Stage } from "$lib/konfidence-api/types";
 import StageDetails from "$lib/landscape/components/StageDetails.svelte";
 
-const landscape: Landscape = { id: "primary", name: "Primary" };
 const stage: Stage = {
   activeStageVersion: {
     id: "dev-api-v1",
@@ -14,7 +13,7 @@ const stage: Stage = {
     vector: "registry.example.com/delivery/vector:1.0.0",
   },
   id: "dev-api",
-  landscapeId: landscape.id,
+  landscapeId: "primary",
   name: "dev-api",
   targetStageVersion: {
     id: "dev-api-v2",
@@ -24,7 +23,6 @@ const stage: Stage = {
   },
 };
 const baseProps = {
-  backHref: "/projects/payments/landscape",
   onRetry: vi.fn(),
 };
 
@@ -56,46 +54,39 @@ describe("<StageDetails>", () => {
     await render(StageDetails, {
       ...baseProps,
       errorStatus: 404,
-      landscape,
       stage,
       status: "error",
     });
 
     await expect.element(page.getByRole("heading", { name: "Stage not found" })).toBeVisible();
-    await expect
-      .element(page.getByRole("link", { name: "Back to landscapes" }))
-      .toHaveAttribute("href", baseProps.backHref);
     await expect.element(page.getByRole("button", { name: "Retry" })).not.toBeInTheDocument();
   });
 
   it("renders missing stage data as not found", async () => {
     await render(StageDetails, {
       ...baseProps,
-      landscape,
       status: "ready",
     });
 
     await expect.element(page.getByRole("heading", { name: "Stage not found" })).toBeVisible();
   });
 
-  it("renders breadcrumbs and both stage versions when ready", async () => {
+  it("renders both stage versions without page chrome when ready", async () => {
     await render(StageDetails, {
       ...baseProps,
-      landscape,
       stage,
       status: "ready",
     });
 
-    await expect.element(page.getByRole("heading", { level: 1, name: stage.name })).toBeVisible();
-    const breadcrumbs = page.getByRole("navigation", { name: "Breadcrumb" });
-    await expect
-      .element(breadcrumbs.getByRole("link", { name: "Landscapes" }))
-      .toHaveAttribute("href", baseProps.backHref);
-    await expect.element(breadcrumbs).toMatchTextContent(landscape.name);
-    await expect.element(breadcrumbs).toMatchTextContent(stage.name);
     await expect.element(page.getByRole("region", { name: "Target version" })).toBeVisible();
     await expect.element(page.getByRole("region", { name: "Active version" })).toBeVisible();
     await expect.element(page.getByText("Deploying vector", { exact: true })).toBeVisible();
     await expect.element(page.getByText("Ready", { exact: true })).toBeVisible();
+    await expect
+      .element(page.getByRole("navigation", { name: "Breadcrumb" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("heading", { level: 1, name: stage.name }))
+      .not.toBeInTheDocument();
   });
 });

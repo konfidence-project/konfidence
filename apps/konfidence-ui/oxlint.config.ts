@@ -61,6 +61,13 @@ export default defineConfig({
         node: true,
       },
       files: ["src/**/*.test.ts", "src/**/*.svelte.test.ts", "src/**/*.test-e2e.ts", "e2e/**/*.ts"],
+      globals: {
+        $derived: "readonly",
+        $effect: "readonly",
+        $inspect: "readonly",
+        $props: "readonly",
+        $state: "readonly",
+      },
       rules: {
         "eslint/max-statements": "off",
         "eslint/no-magic-numbers": "off",
