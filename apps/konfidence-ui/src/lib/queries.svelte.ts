@@ -30,13 +30,29 @@ interface ArtifactDeploymentFilter extends LandscapeFilter {
   vectorDeploymentId?: string;
 }
 
+interface VectorDeploymentRef {
+  [key: string]: string | undefined;
+  projectId: string;
+  landscapeId: string;
+  vectorDeploymentId: string;
+}
+
+interface StageRef {
+  [key: string]: string | undefined;
+  projectId: string;
+  landscapeId: string;
+  stageId: string;
+}
+
 const AUTHENTICATED_QUERY_ROOT = "authenticated";
 
 // fail(...) populates the query error state for API failures.
 const LANDSCAPES_UNAVAILABLE = "Landscapes are currently unavailable.";
 const PROJECTS_UNAVAILABLE = "Projects are currently unavailable.";
 const STAGES_UNAVAILABLE = "Stages are currently unavailable.";
+const STAGE_UNAVAILABLE = "Stage is currently unavailable.";
 const VECTOR_DEPLOYMENTS_UNAVAILABLE = "Vector deployments are currently unavailable.";
+const VECTOR_DEPLOYMENT_UNAVAILABLE = "Vector deployment is currently unavailable.";
 const ARTIFACT_DEPLOYMENTS_UNAVAILABLE = "Artifact deployments are currently unavailable.";
 const VECTOR_PROMOTION_CONFIGS_UNAVAILABLE = "Vector promotion configs are currently unavailable.";
 
@@ -96,6 +112,35 @@ const useStages = createQuery<QueryError, LandscapeFilter, readonly Stage[]>(
       return succeed<readonly Stage[]>(data.data);
     } catch {
       return fail<QueryError>({ message: STAGES_UNAVAILABLE });
+    }
+  },
+);
+
+const useStage = createQuery<QueryError, StageRef, Stage>(
+  (param) => [
+    AUTHENTICATED_QUERY_ROOT,
+    "projects",
+    param.projectId,
+    "landscapes",
+    param.landscapeId,
+    "stages",
+    param.stageId,
+  ],
+  async ({ projectId, landscapeId, stageId }, signal) => {
+    try {
+      const { data, error, response } = await getApiClient().GET(
+        "/v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId}",
+        {
+          params: { path: { landscapeId, projectId, stageId } },
+          signal,
+        },
+      );
+      if (error || !response.ok || !data) {
+        return fail<QueryError>({ message: STAGE_UNAVAILABLE, status: response.status });
+      }
+      return succeed<Stage>(data);
+    } catch {
+      return fail<QueryError>({ message: STAGE_UNAVAILABLE });
     }
   },
 );
@@ -161,6 +206,38 @@ const useVectorDeployments = createQuery<QueryError, LandscapeFilter, readonly V
   },
 );
 
+const useVectorDeployment = createQuery<QueryError, VectorDeploymentRef, VectorDeployment>(
+  (param) => [
+    AUTHENTICATED_QUERY_ROOT,
+    "projects",
+    param.projectId,
+    "landscapes",
+    param.landscapeId,
+    "vectorDeployments",
+    param.vectorDeploymentId,
+  ],
+  async ({ projectId, landscapeId, vectorDeploymentId }, signal) => {
+    try {
+      const { data, error, response } = await getApiClient().GET(
+        "/v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId}",
+        {
+          params: { path: { landscapeId, projectId, vectorDeploymentId } },
+          signal,
+        },
+      );
+      if (error || !response.ok || !data) {
+        return fail<QueryError>({
+          message: VECTOR_DEPLOYMENT_UNAVAILABLE,
+          status: response.status,
+        });
+      }
+      return succeed<VectorDeployment>(data);
+    } catch {
+      return fail<QueryError>({ message: VECTOR_DEPLOYMENT_UNAVAILABLE });
+    }
+  },
+);
+
 const useArtifactDeployments = createQuery<
   QueryError,
   ArtifactDeploymentFilter,
@@ -206,6 +283,8 @@ export {
   useLandscapes,
   useProjects,
   useStages,
+  useStage,
+  useVectorDeployment,
   useVectorDeployments,
   useVectorPromotionConfigs,
 };
