@@ -98,12 +98,10 @@ func generateKey() *rsa.PrivateKey {
 }
 
 var _ = Describe("OIDC token verifier", func() {
-	It("verifies tokens and caches the provider", func() {
+	It("verifies tokens and shares provider state across audiences", func() {
 		privateKey := generateKey()
-		const (
-			keyID    = "test-key"
-			audience = "konfidence-api"
-		)
+		const keyID = "test-key"
+
 		var discoveryCalls atomic.Int32
 		var jwksCalls atomic.Int32
 		var server *httptest.Server
@@ -135,11 +133,19 @@ var _ = Describe("OIDC token verifier", func() {
 		for _, test := range []struct {
 			subject  string
 			clientID string
+			audience string
 		}{
-			{subject: "workload-subject", clientID: "workload-client"},
-			{subject: "second-workload-subject"},
+			{
+				subject:  "workload-subject",
+				clientID: "workload-client",
+				audience: "workload-audience",
+			},
+			{
+				subject:  "second-workload-subject",
+				audience: "second-workload-audience",
+			},
 		} {
-			claims := validWorkloadClaims(server.URL, audience)
+			claims := validWorkloadClaims(server.URL, test.audience)
 			claims["sub"] = test.subject
 			claims["repository"] = "konfidence-project/konfidence"
 			if test.clientID != "" {
@@ -149,7 +155,7 @@ var _ = Describe("OIDC token verifier", func() {
 				context.Background(),
 				signWorkloadToken(privateKey, keyID, claims),
 				server.URL+"/.well-known/openid-configuration",
-				audience,
+				test.audience,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(token.subject).To(Equal(test.subject))
@@ -226,10 +232,7 @@ var _ = Describe("OIDC token verifier", func() {
 			Expect(err).NotTo(HaveOccurred())
 		}))
 		DeferCleanup(server.Close)
-		result, err := newTestOIDCTokenVerifier(server.Client(), time.Hour).createVerifier(
-			context.Background(),
-			verifierKey{endpoint: server.URL + discoveryPath, audience: "konfidence-api"},
-		)
+		result, err := newTestOIDCTokenVerifier(server.Client(), time.Hour).createProvider(context.Background(), server.URL+discoveryPath)
 		Expect(result).To(BeNil())
 		Expect(err).To(MatchError("OIDC discovery document is too large"))
 	})
@@ -249,10 +252,7 @@ var _ = Describe("OIDC token verifier", func() {
 			}
 		}))
 		DeferCleanup(server.Close)
-		result, err := newTestOIDCTokenVerifier(server.Client(), time.Hour).createVerifier(
-			context.Background(),
-			verifierKey{endpoint: server.URL + discoveryPath, audience: "konfidence-api"},
-		)
+		result, err := newTestOIDCTokenVerifier(server.Client(), time.Hour).createProvider(context.Background(), server.URL+discoveryPath)
 		Expect(result).To(BeNil())
 		Expect(err).To(MatchError("OIDC discovery document has no issuer"))
 	})
@@ -271,15 +271,12 @@ var _ = Describe("OIDC token verifier", func() {
 			})).To(Succeed())
 		}))
 		DeferCleanup(server.Close)
-		result, err := newTestOIDCTokenVerifier(server.Client(), time.Hour).createVerifier(
-			context.Background(),
-			verifierKey{endpoint: server.URL + discoveryPath, audience: "konfidence-api"},
-		)
+		result, err := newTestOIDCTokenVerifier(server.Client(), time.Hour).createProvider(context.Background(), server.URL+discoveryPath)
 		Expect(result).To(BeNil())
 		Expect(err).To(MatchError("invalid OIDC JWKS URI: URL must use HTTPS and include a host"))
 	})
 
-	It("expires a cached verifier", func() {
+	It("expires cached provider state", func() {
 		privateKey := generateKey()
 		const keyID, audience = "test-key", "konfidence-api"
 		server, discoveryCalls, jwksCalls := newTestOIDCProvider(&privateKey.PublicKey, keyID)
@@ -295,7 +292,7 @@ var _ = Describe("OIDC token verifier", func() {
 		Expect(jwksCalls.Load()).To(Equal(int32(2)))
 	})
 
-	It("keeps the cached verifier after a signature failure", func() {
+	It("keeps cached provider state after a signature failure", func() {
 		trustedKey := generateKey()
 		untrustedKey := generateKey()
 		const (
@@ -314,7 +311,7 @@ var _ = Describe("OIDC token verifier", func() {
 		_, err = verifier.Verify(context.Background(), invalidToken, server.URL+discoveryPath, audience)
 		Expect(err).To(MatchError(ErrInvalidBearerToken))
 
-		// The remote key set refreshes after the signature failure; the verifier itself remains cached.
+		// The remote key set refreshes after the signature failure; the provider state remains cached.
 		for range 2 {
 			_, err = verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
 			Expect(err).NotTo(HaveOccurred())
@@ -337,6 +334,38 @@ var _ = Describe("OIDC token verifier", func() {
 		Expect(err).To(MatchError(ErrInvalidBearerToken))
 		_, err = verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
 		Expect(err).NotTo(HaveOccurred())
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
+		Expect(jwksCalls.Load()).To(Equal(int32(1)))
+	})
+
+	It("shares provider state across audiences for the same endpoint", func() {
+		privateKey := generateKey()
+		const keyID = "test-key"
+
+		server, discoveryCalls, jwksCalls := newTestOIDCProvider(
+			&privateKey.PublicKey,
+			keyID,
+		)
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
+
+		for _, audience := range []string{"audience-a", "audience-b"} {
+			rawToken := signWorkloadToken(
+				privateKey,
+				keyID,
+				validWorkloadClaims(server.URL, audience),
+			)
+
+			token, err := verifier.Verify(
+				context.Background(),
+				rawToken,
+				server.URL+discoveryPath,
+				audience,
+			)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(token).NotTo(BeNil())
+		}
+
 		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
 		Expect(jwksCalls.Load()).To(Equal(int32(1)))
 	})
