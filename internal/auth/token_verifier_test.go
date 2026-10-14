@@ -155,8 +155,9 @@ var _ = Describe("OIDC token verifier", func() {
 				context.Background(),
 				signWorkloadToken(privateKey, keyID, claims),
 				server.URL+"/.well-known/openid-configuration",
-				test.audience,
+				[]string{test.audience},
 			)
+
 			Expect(err).NotTo(HaveOccurred())
 			Expect(token.subject).To(Equal(test.subject))
 			Expect(token.claims).To(HaveKeyWithValue("repository", "konfidence-project/konfidence"))
@@ -182,7 +183,7 @@ var _ = Describe("OIDC token verifier", func() {
 					context.Background(),
 					signWorkloadToken(privateKey, keyID, claims(server.URL)),
 					server.URL+discoveryPath,
-					"konfidence-api",
+					[]string{"konfidence-api"},
 				)
 				Expect(token).To(BeNil())
 				Expect(err).To(MatchError(ErrInvalidBearerToken))
@@ -284,7 +285,7 @@ var _ = Describe("OIDC token verifier", func() {
 		rawToken := signWorkloadToken(privateKey, keyID, validWorkloadClaims(server.URL, audience))
 
 		for range 2 {
-			token, err := verifier.Verify(context.Background(), rawToken, server.URL+discoveryPath, audience)
+			token, err := verifier.Verify(context.Background(), rawToken, server.URL+discoveryPath, []string{audience})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(token).NotTo(BeNil())
 		}
@@ -304,16 +305,16 @@ var _ = Describe("OIDC token verifier", func() {
 		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
 		claims := validWorkloadClaims(server.URL, audience)
 		validToken := signWorkloadToken(trustedKey, trustedKeyID, claims)
-		_, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
+		_, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, []string{audience})
 		Expect(err).NotTo(HaveOccurred())
 
 		invalidToken := signWorkloadToken(untrustedKey, untrustedKeyID, claims)
-		_, err = verifier.Verify(context.Background(), invalidToken, server.URL+discoveryPath, audience)
+		_, err = verifier.Verify(context.Background(), invalidToken, server.URL+discoveryPath, []string{audience})
 		Expect(err).To(MatchError(ErrInvalidBearerToken))
 
 		// The remote key set refreshes after the signature failure; the provider state remains cached.
 		for range 2 {
-			_, err = verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
+			_, err = verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, []string{audience})
 			Expect(err).NotTo(HaveOccurred())
 		}
 		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
@@ -326,13 +327,13 @@ var _ = Describe("OIDC token verifier", func() {
 		server, discoveryCalls, jwksCalls := newTestOIDCProvider(&privateKey.PublicKey, keyID)
 		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
 		validToken := signWorkloadToken(privateKey, keyID, validWorkloadClaims(server.URL, audience))
-		_, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
+		_, err := verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, []string{audience})
 		Expect(err).NotTo(HaveOccurred())
 
 		invalidToken := signWorkloadToken(privateKey, keyID, validWorkloadClaims(server.URL, "different-audience"))
-		_, err = verifier.Verify(context.Background(), invalidToken, server.URL+discoveryPath, audience)
+		_, err = verifier.Verify(context.Background(), invalidToken, server.URL+discoveryPath, []string{audience})
 		Expect(err).To(MatchError(ErrInvalidBearerToken))
-		_, err = verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, audience)
+		_, err = verifier.Verify(context.Background(), validToken, server.URL+discoveryPath, []string{audience})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
 		Expect(jwksCalls.Load()).To(Equal(int32(1)))
@@ -355,17 +356,57 @@ var _ = Describe("OIDC token verifier", func() {
 				validWorkloadClaims(server.URL, audience),
 			)
 
-			token, err := verifier.Verify(
-				context.Background(),
-				rawToken,
-				server.URL+discoveryPath,
-				audience,
-			)
+			token, err := verifier.Verify(context.Background(), rawToken, server.URL+discoveryPath, []string{audience})
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(token).NotTo(BeNil())
 		}
 
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
+		Expect(jwksCalls.Load()).To(Equal(int32(1)))
+	})
+
+	It("returns every configured audience present in the verified token", func() {
+		privateKey := generateKey()
+		const keyID = "test-key"
+
+		server, discoveryCalls, jwksCalls := newTestOIDCProvider(&privateKey.PublicKey, keyID)
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
+		claims := validWorkloadClaims(server.URL, "unused")
+		claims["aud"] = []string{"audience-a", "audience-b", "unconfigured-audience"}
+		rawToken := signWorkloadToken(privateKey, keyID, claims)
+		token, err := verifier.Verify(
+			context.Background(),
+			rawToken,
+			server.URL+discoveryPath,
+			[]string{
+				"audience-a",
+				"audience-b",
+				"missing-audience",
+			},
+		)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(token).NotTo(BeNil())
+		Expect(token.audiences).To(ConsistOf("audience-a", "audience-b"))
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
+		Expect(jwksCalls.Load()).To(Equal(int32(1)))
+	})
+
+	It("rejects a token without a configured verified audience", func() {
+		privateKey := generateKey()
+		const keyID = "test-key"
+
+		server, discoveryCalls, jwksCalls := newTestOIDCProvider(&privateKey.PublicKey, keyID)
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
+
+		rawToken := signWorkloadToken(privateKey, keyID, validWorkloadClaims(server.URL, "different-audience"))
+		token, err := verifier.Verify(context.Background(), rawToken, server.URL+discoveryPath, []string{"audience-a", "audience-b"})
+
+		Expect(token).To(BeNil())
+		Expect(err).To(MatchError(ErrInvalidBearerToken))
+
+		// Signature verification happens before the manual audience check.
 		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
 		Expect(jwksCalls.Load()).To(Equal(int32(1)))
 	})

@@ -16,14 +16,10 @@ import (
 
 const maximumDiscoveryDocumentSize = 1024 * 1024
 
-type verifierKey struct {
-	endpoint string
-	audience string
-}
-
 type verifiedToken struct {
-	subject string
-	claims  map[string]any
+	subject   string
+	claims    map[string]any
+	audiences []string
 }
 
 type providerState struct {
@@ -37,9 +33,8 @@ type discoveryDocument struct {
 }
 
 type tokenVerifier interface {
-	Verify(ctx context.Context, rawToken string, endpoint string, audience string) (*verifiedToken, error)
+	Verify(ctx context.Context, rawToken string, endpoint string, allowedAudiences []string) (*verifiedToken, error)
 }
-
 type oidcTokenVerifier struct {
 	httpClient *http.Client
 	providers  *otter.Cache[string, *providerState]
@@ -65,16 +60,20 @@ func newOIDCTokenVerifier(jwksCacheTTL time.Duration) tokenVerifier {
 	}
 }
 
-func (v *oidcTokenVerifier) Verify(ctx context.Context, rawToken string, endpoint string, audience string,
-) (*verifiedToken, error) {
+func (v *oidcTokenVerifier) Verify(ctx context.Context, rawToken string, endpoint string, allowedAudiences []string) (*verifiedToken, error) {
 	provider, err := v.getProvider(ctx, endpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	verifier := oidc.NewVerifier(provider.issuer, provider.keySet, &oidc.Config{ClientID: audience})
+	verifier := oidc.NewVerifier(provider.issuer, provider.keySet, &oidc.Config{SkipClientIDCheck: true})
 	idToken, err := verifier.Verify(ctx, rawToken)
 	if err != nil {
+		return nil, ErrInvalidBearerToken
+	}
+
+	audiences := matchingAudiences(idToken.Audience, allowedAudiences)
+	if len(audiences) == 0 {
 		return nil, ErrInvalidBearerToken
 	}
 
@@ -87,7 +86,26 @@ func (v *oidcTokenVerifier) Verify(ctx context.Context, rawToken string, endpoin
 		return nil, ErrInvalidBearerToken
 	}
 
-	return &verifiedToken{subject: idToken.Subject, claims: claims}, nil
+	return &verifiedToken{subject: idToken.Subject, audiences: audiences, claims: claims}, nil
+}
+
+func matchingAudiences(tokenAudiences []string, allowedAudiences []string) []string {
+	allowed := make(map[string]struct{}, len(allowedAudiences))
+	for _, audience := range allowedAudiences {
+		allowed[audience] = struct{}{}
+	}
+
+	matches := make([]string, 0, len(tokenAudiences))
+	for _, audience := range tokenAudiences {
+		if _, ok := allowed[audience]; !ok {
+			continue
+		}
+
+		matches = append(matches, audience)
+		delete(allowed, audience)
+	}
+
+	return matches
 }
 
 func (v *oidcTokenVerifier) getProvider(ctx context.Context, endpoint string) (*providerState, error) {
