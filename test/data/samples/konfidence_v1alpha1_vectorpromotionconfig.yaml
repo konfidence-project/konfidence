@@ -12,3 +12,5 @@ spec:
     name: sample-stage
     landscape: sample-landscape
   ttlAfterFinished: 1h
+  keepLastPromotions: 10
+  keepOutstandingPromotions: 10
