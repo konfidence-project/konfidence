@@ -6,17 +6,44 @@
         title?: string;
         onClose?: () => void;
         showBody?: boolean;
+        width?: number;
+        onWidthChange?: (width: number) => void;
+        headerHeight?: string;
     }
     let {
         open = $bindable(false),
         title = "Details",
         onClose,
         showBody = true,
+        width,
+        onWidthChange,
+        headerHeight,
     }: Props = $props();
+
+    // svelte-ignore state_referenced_locally
+    let panelWidth = $state(width);
 </script>
 
-<button type="button" data-testid="open-btn" onclick={() => (open = true)}>Open</button>
-<SidePanel bind:open {title} {onClose}>
+<div style:--app-shell-header-height={headerHeight} data-testid="fixture-root">
+    <button type="button" data-testid="open-btn" onclick={() => (open = true)}>Open</button>
+    {#if width === undefined}
+        <SidePanel bind:open {title} {onClose} {onWidthChange}>
+            {@render body()}
+            {#snippet footer()}
+                {@render footerContent()}
+            {/snippet}
+        </SidePanel>
+    {:else}
+        <SidePanel bind:open bind:width={panelWidth} {title} {onClose} {onWidthChange}>
+            {@render body()}
+            {#snippet footer()}
+                {@render footerContent()}
+            {/snippet}
+        </SidePanel>
+    {/if}
+</div>
+
+{#snippet body()}
     {#if showBody}
         <div style="display: flex; flex-direction: column; gap: 12px;">
             <p data-testid="panel-body" style="margin: 0; font-size: var(--font-size-compact); color: var(--text-primary);">
@@ -34,9 +61,10 @@
             </dl>
         </div>
     {/if}
-    {#snippet footer()}
-        <span data-testid="panel-footer" style="font-size: var(--font-size-compact); color: var(--text-tertiary);"
-            >footer</span
-        >
-    {/snippet}
-</SidePanel>
+{/snippet}
+
+{#snippet footerContent()}
+    <span data-testid="panel-footer" style="font-size: var(--font-size-compact); color: var(--text-tertiary);"
+        >footer</span
+    >
+{/snippet}

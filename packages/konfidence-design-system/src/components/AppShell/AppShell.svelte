@@ -70,6 +70,7 @@
         "app-shell grid grid-rows-[4px_56px_1fr]",
         layout === "canvas" ? "h-dvh min-h-0" : "min-h-dvh",
     ]}
+    style:--app-shell-header-height="calc(4px + 56px)"
 >
     <Brandbar />
     {@render topbar({ toggleDrawer })}
