@@ -12,6 +12,7 @@
     import StageDetails from "$lib/landscape/components/StageDetails.svelte";
     import { STAGE_PARAM } from "$lib/landscape/params";
     import { stageDetailsUrl } from "$lib/projects/url";
+    import { sidePanelWidth } from "$lib/shell/sidePanelWidth.svelte";
 
     interface Props {
         error?: string;
@@ -113,6 +114,8 @@
     title={selectedStage?.name ?? "Stage"}
     onClose={closeOverlay}
     onResize={openStageDetails}
+    width={sidePanelWidth.current}
+    onWidthChange={sidePanelWidth.set}
 >
     {#if selectedStage}
         <StageDetails {projectId} stage={selectedStage} status="ready" onRetry={() => undefined} />
