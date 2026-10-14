@@ -1,11 +1,17 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
+    import { page } from "$app/state";
     import {
         Button,
         OrbitLoader,
         PageHeader,
+        SidePanel,
     } from "@konfidence/design-system/components";
     import type { Landscape, Stage, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
     import LandscapeFlow from "#lib/landscape/components/LandscapeFlow.svelte";
+    import StageDetails from "#lib/landscape/components/StageDetails.svelte";
+    import { STAGE_PARAM } from "#lib/landscape/params.ts";
+    import { stageDetailsUrl } from "#lib/projects/url.ts";
 
     interface Props {
         error?: string;
@@ -27,14 +33,43 @@
         embedded,
         onRetry,
     }: Props = $props();
+
+    const selectedStageId = $derived(page.url.searchParams.get(STAGE_PARAM) ?? undefined);
+    const selectedStage = $derived(
+        selectedStageId === undefined
+            ? undefined
+            : stages.find((candidate) => candidate.id === selectedStageId),
+    );
+
+    const closeOverlay = (): void => {
+        if (!page.url.searchParams.has(STAGE_PARAM)) {
+            return;
+        }
+        const next = new URL(page.url);
+        next.searchParams.delete(STAGE_PARAM);
+        // eslint-disable-next-line svelte/no-navigation-without-resolve -- reusing the current page URL.
+        void goto(next, { keepFocus: true, noScroll: true });
+    };
+
+    const openStageDetails = (): void => {
+        if (selectedStage === undefined) {
+            return;
+        }
+        const href = stageDetailsUrl({
+            embedded,
+            landscapeId: selectedStage.landscapeId,
+            projectId,
+            stageId: selectedStage.id,
+        });
+        // eslint-disable-next-line svelte/no-navigation-without-resolve -- the shared helper resolves this typed application route.
+        void goto(href);
+    };
 </script>
 
 <section
     class="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]"
     aria-labelledby="landscape-title"
 >
-    <!-- Header is inset by the standard page gutter; the flow canvas below
-         keeps its edge-to-edge working area for panning. -->
     <div class="px-6 pt-6">
         <PageHeader
             id="landscape-title"
@@ -68,6 +103,18 @@
             {promotionConfigs}
             {projectId}
             {embedded}
+            {selectedStageId}
         />
     {/if}
 </section>
+
+<SidePanel
+    open={selectedStage !== undefined}
+    title={selectedStage?.name ?? "Stage"}
+    onClose={closeOverlay}
+    onResize={openStageDetails}
+>
+    {#if selectedStage}
+        <StageDetails {projectId} stage={selectedStage} status="ready" onRetry={() => undefined} />
+    {/if}
+</SidePanel>

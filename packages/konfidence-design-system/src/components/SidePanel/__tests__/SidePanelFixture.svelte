@@ -5,6 +5,7 @@
         open?: boolean;
         title?: string;
         onClose?: () => void;
+        onResize?: () => void;
         showBody?: boolean;
         width?: number;
         onWidthChange?: (width: number) => void;
@@ -14,6 +15,7 @@
         open = $bindable(false),
         title = "Details",
         onClose,
+        onResize,
         showBody = true,
         width,
         onWidthChange,
@@ -27,14 +29,14 @@
 <div style:--app-shell-header-height={headerHeight} data-testid="fixture-root">
     <button type="button" data-testid="open-btn" onclick={() => (open = true)}>Open</button>
     {#if width === undefined}
-        <SidePanel bind:open {title} {onClose} {onWidthChange}>
+        <SidePanel bind:open {title} {onClose} {onResize} {onWidthChange}>
             {@render body()}
             {#snippet footer()}
                 {@render footerContent()}
             {/snippet}
         </SidePanel>
     {:else}
-        <SidePanel bind:open bind:width={panelWidth} {title} {onClose} {onWidthChange}>
+        <SidePanel bind:open bind:width={panelWidth} {title} {onClose} {onResize} {onWidthChange}>
             {@render body()}
             {#snippet footer()}
                 {@render footerContent()}

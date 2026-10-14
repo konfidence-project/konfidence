@@ -1,20 +1,17 @@
 <script lang="ts">
-    import { page } from "$app/state";
     import StageDetails from "#lib/landscape/components/StageDetails.svelte";
-    import { useLandscapes, useStages } from "#lib/queries.svelte.ts";
-    import { projectLandscapeUrl } from "#lib/projects/url.ts";
-    import { isEmbedded } from "#lib/shell/embedded.ts";
+    import { useStage } from "#lib/queries.svelte.ts";
     import type { PageProps } from "./$types";
 
     let { data }: PageProps = $props();
 
-    const landscapesQuery = useLandscapes(() => ({ projectId: data.projectId }));
-    const stagesQuery = useStages(() => ({
+    const stageQuery = useStage(() => ({
         landscapeId: data.landscapeId,
         projectId: data.projectId,
+        stageId: data.stageId,
     }));
-    const loading = $derived(landscapesQuery.loading || stagesQuery.loading);
-    const error = $derived(landscapesQuery.error ?? stagesQuery.error);
+    const loading = $derived(stageQuery.loading);
+    const error = $derived(stageQuery.error);
     const status = $derived.by(() => {
         if (loading) {
             return "loading";
@@ -22,30 +19,19 @@
         return error ? "error" : "ready";
     });
     const reload = (): void => {
-        landscapesQuery.reload();
-        stagesQuery.reload();
+        stageQuery.reload();
     };
-    const embedded = $derived(isEmbedded(page.url));
-    const landscape = $derived(
-        landscapesQuery.data?.find(({ id }) => id === data.landscapeId),
-    );
-    const stage = $derived(
-        stagesQuery.data?.find(
-            ({ id, landscapeId: owner }) =>
-                id === data.stageId && owner === data.landscapeId,
-        ),
-    );
+    const stage = $derived(stageQuery.data ?? undefined);
 </script>
 
 <svelte:head><title>{stage?.name ?? "Stage"} · Konfidence</title></svelte:head>
 
 <section class="mx-auto flex w-full max-w-[84rem] flex-col gap-5 px-6 pt-6 pb-10">
     <StageDetails
-        backHref={projectLandscapeUrl(data.projectId, embedded)}
         error={error?.message}
         errorStatus={error?.status}
-        {landscape}
         onRetry={reload}
+        projectId={data.projectId}
         {stage}
         {status}
     />

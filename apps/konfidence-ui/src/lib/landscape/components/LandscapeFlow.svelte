@@ -10,7 +10,7 @@
     import type { Edge, Node } from "@xyflow/svelte";
     import type { Landscape, Stage, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
     import { buildLandscapeGraph, stageKey } from "#lib/landscape/landscapeGraph.ts";
-    import { stageDetailsUrl } from "#lib/projects/url.ts";
+    import { stageOverlayUrl } from "#lib/projects/url.ts";
     import { mode } from "mode-watcher";
     import LandscapeCanvasResize from "#lib/landscape/components/LandscapeCanvasResize.svelte";
     import LandscapeEmptyNode from "#lib/landscape/components/LandscapeEmptyNode.svelte";
@@ -22,6 +22,7 @@
         promotionConfigs: readonly VectorPromotionConfig[];
         projectId: string;
         embedded: boolean;
+        selectedStageId?: string;
     }
     let {
         landscapes,
@@ -29,6 +30,7 @@
         promotionConfigs,
         projectId,
         embedded,
+        selectedStageId,
     }: Props = $props();
 
     const nodeTypes = {
@@ -71,13 +73,13 @@
         const stageNodes: Node[] = graph.stages.map((placement) => ({
             ...defaults,
             data: {
-                href: stageDetailsUrl({
+                href: stageOverlayUrl({
                     embedded,
-                    landscapeId: placement.landscapeId,
                     projectId,
                     stageId: placement.stage.id,
                 }),
                 landscapeName: placement.landscapeName,
+                selected: placement.stage.id === selectedStageId,
                 stage: placement.stage,
             },
             height: CARD_HEIGHT,
