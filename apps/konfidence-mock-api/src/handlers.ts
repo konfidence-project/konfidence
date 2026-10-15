@@ -149,9 +149,15 @@ const operationHandlers = {
     return reply.send(stage);
   },
   getVectorDeploymentV1: (request, reply) => {
-    const { vectorDeploymentId } = request.params as { vectorDeploymentId: string };
-    const deployment = projectFor(request).vectorDeployments.find(
-      ({ id }) => id === vectorDeploymentId,
+    const { landscapeId, vectorDeploymentId } = request.params as {
+      landscapeId: string;
+      vectorDeploymentId: string;
+    };
+    const project = projectFor(request);
+    requireLandscape(project, landscapeId);
+    const deployment = project.resolvableVectorDeployments.find(
+      ({ id, landscapeId: deploymentLandscapeId }) =>
+        id === vectorDeploymentId && deploymentLandscapeId === landscapeId,
     );
     if (!deployment) {
       throw httpError(404, "VectorDeployment not found");

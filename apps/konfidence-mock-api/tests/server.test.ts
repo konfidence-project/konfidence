@@ -229,9 +229,14 @@ test("filters vector deployments by landscape", async () => {
   const vectors = await get(
     "/api/v1/projects/payments-platform/vectorDeployments?landscapeId=development",
   );
-  await expect(vectors.json()).resolves.toMatchObject({
-    data: [{ id: "vector-dev-us30-1", status: "DeploymentReady" }],
-  });
+  expect(vectors.status).toBe(200);
+  const { data } = (await vectors.json()) as {
+    data: components["schemas"]["VectorDeployment"][];
+  };
+  expect(data.every((deployment) => deployment.landscapeId === "development")).toBe(true);
+  expect(data).toContainEqual(
+    expect.objectContaining({ id: "vector-dev-us30-1", status: "DeploymentReady" }),
+  );
 });
 
 test("reports a vector deployment filter naming an unknown landscape as not found", async () => {
@@ -242,6 +247,66 @@ test("reports a vector deployment filter naming an unknown landscape as not foun
 
   const empty = await get("/api/v1/projects/payments-platform/vectorDeployments?landscapeId=");
   expect(empty.status).toBe(404);
+});
+
+test("serves a single vector deployment keyed by its list-page fixture id", async () => {
+  const deployment = await get(
+    "/api/v1/projects/payments-platform/landscapes/development/vectorDeployments/vector-dev-us30-1",
+  );
+  expect(deployment.status).toBe(200);
+  await expect(deployment.json()).resolves.toMatchObject({
+    id: "vector-dev-us30-1",
+    landscapeId: "development",
+    stageId: "dev-us30",
+    status: "DeploymentReady",
+    vector: { componentName: "delivery-vector", componentVersion: "2026.8.5" },
+  });
+});
+
+test("serves a single vector deployment keyed by the stage version id the UI requests", async () => {
+  const deployment = await get(
+    "/api/v1/projects/payments-platform/landscapes/development/vectorDeployments/dev-eu10-v6",
+  );
+  expect(deployment.status).toBe(200);
+  await expect(deployment.json()).resolves.toMatchObject({
+    id: "dev-eu10-v6",
+    landscapeId: "development",
+    stageId: "dev-eu10",
+    status: "DeployingVector",
+    vector: { componentName: "delivery-vector", componentVersion: "2026.8.6" },
+  });
+});
+
+test("maps a failed stage version onto a failed vector deployment", async () => {
+  const deployment = await get(
+    "/api/v1/projects/payments-platform/landscapes/development/vectorDeployments/dev-rollback-v2",
+  );
+  expect(deployment.status).toBe(200);
+  await expect(deployment.json()).resolves.toMatchObject({
+    id: "dev-rollback-v2",
+    status: "DeploymentFailed",
+  });
+});
+
+test("reports a vector deployment requested under the wrong landscape as not found", async () => {
+  const mismatched = await get(
+    "/api/v1/projects/payments-platform/landscapes/test/vectorDeployments/dev-eu10-v6",
+  );
+  expect(mismatched.status).toBe(404);
+});
+
+test("reports a single vector deployment under an unknown landscape as not found", async () => {
+  const unknown = await get(
+    "/api/v1/projects/payments-platform/landscapes/nowhere/vectorDeployments/dev-eu10-v6",
+  );
+  expect(unknown.status).toBe(404);
+});
+
+test("reports an unknown vector deployment id as not found", async () => {
+  const unknown = await get(
+    "/api/v1/projects/payments-platform/landscapes/development/vectorDeployments/does-not-exist",
+  );
+  expect(unknown.status).toBe(404);
 });
 
 test("filters artifact deployments by vector deployment", async () => {
