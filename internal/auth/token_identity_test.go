@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -12,23 +14,34 @@ import (
 )
 
 type stubTokenVerifier struct {
-	results map[verifierKey]*verifiedToken
-	errors  map[verifierKey]error
-	calls   map[verifierKey]int
+	results            map[string]*verifiedToken
+	errors             map[string]error
+	calls              map[string]int
+	requestedAudiences map[string][]string
 }
 
-func (v *stubTokenVerifier) Verify(
-	_ context.Context,
-	_ string,
-	endpoint string,
-	audience string,
-) (*verifiedToken, error) {
-	key := verifierKey{endpoint: endpoint, audience: audience}
-	v.calls[key]++
-	if err := v.errors[key]; err != nil {
+func newStubTokenVerifier() *stubTokenVerifier {
+	return &stubTokenVerifier{
+		results:            make(map[string]*verifiedToken),
+		errors:             make(map[string]error),
+		calls:              make(map[string]int),
+		requestedAudiences: make(map[string][]string),
+	}
+}
+
+func (v *stubTokenVerifier) Verify(_ context.Context, _ string, endpoint string, allowedAudiences []string) (*verifiedToken, error) {
+	v.calls[endpoint]++
+	v.requestedAudiences[endpoint] = append([]string(nil), allowedAudiences...)
+	if err := v.errors[endpoint]; err != nil {
 		return nil, err
 	}
-	return v.results[key], nil
+
+	result, ok := v.results[endpoint]
+	if !ok || result == nil {
+		return nil, fmt.Errorf("unexpected token verification for endpoint %q", endpoint)
+	}
+
+	return result, nil
 }
 
 func newTokenTestRepository(verifier tokenVerifier, projects ...*konfidence.Project) *k8sRepository {
@@ -56,19 +69,15 @@ var _ = Describe("Token identity", func() {
 			endpoint = "https://issuer.example/.well-known/openid-configuration"
 			audience = "konfidence"
 		)
-		key := verifierKey{endpoint: endpoint, audience: audience}
-		verifier := &stubTokenVerifier{
-			results: map[verifierKey]*verifiedToken{
-				key: {
-					subject: "workload-subject",
-					claims: map[string]any{
-						"sub":        "repo:konfidence-project/konfidence:ref:main",
-						"repository": "konfidence-project/konfidence",
-					},
-				},
+
+		verifier := newStubTokenVerifier()
+		verifier.results[endpoint] = &verifiedToken{
+			subject:   "workload-subject",
+			audiences: []string{audience},
+			claims: map[string]any{
+				"sub":        "repo:konfidence-project/konfidence:ref:main",
+				"repository": "konfidence-project/konfidence",
 			},
-			errors: make(map[verifierKey]error),
-			calls:  make(map[verifierKey]int),
 		}
 		jwks := func(claims map[string]konfidence.GlobMatch) *konfidence.JWKSSubject {
 			return &konfidence.JWKSSubject{Endpoint: endpoint, Audience: audience, Claims: claims}
@@ -94,33 +103,41 @@ var _ = Describe("Token identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(identity.Subject).To(Equal("workload-subject"))
 		Expect(identity.ProjectRoles).To(HaveKeyWithValue("project-a", []string{"admin", "viewer"}))
-		Expect(verifier.calls[key]).To(Equal(1), "duplicate candidates should be verified once")
+		Expect(verifier.calls[endpoint]).To(Equal(1))
+		Expect(verifier.requestedAudiences[endpoint]).To(ConsistOf(audience))
 	})
 
 	It("rejects an invalid token", func() {
-		key := verifierKey{
-			endpoint: "https://issuer.example/.well-known/openid-configuration",
-			audience: "konfidence",
-		}
-		verifier := &stubTokenVerifier{
-			results: make(map[verifierKey]*verifiedToken),
-			errors:  map[verifierKey]error{key: ErrInvalidBearerToken},
-			calls:   make(map[verifierKey]int),
-		}
+		const (
+			endpoint = "https://issuer.example/.well-known/openid-configuration"
+			audience = "konfidence"
+		)
+
+		verifier := newStubTokenVerifier()
+		verifier.errors[endpoint] = ErrInvalidBearerToken
 		repository := newTokenTestRepository(verifier, &konfidence.Project{
 			ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
 			Spec: konfidence.ProjectSpec{RoleBindings: map[string]konfidence.Subjects{
-				"admin": {{JWKS: &konfidence.JWKSSubject{
-					Endpoint: key.endpoint,
-					Audience: key.audience,
-					Claims:   map[string]konfidence.GlobMatch{"sub": "repo:*"},
-				}}},
+				"admin": {{
+					JWKS: &konfidence.JWKSSubject{
+						Endpoint: endpoint,
+						Audience: audience,
+						Claims: map[string]konfidence.GlobMatch{
+							"sub": "repo:*",
+						},
+					},
+				}},
 			}},
 		})
 
 		identity, err := repository.AuthenticateToken(context.Background(), "invalid-token")
+
 		Expect(identity).To(BeNil())
 		Expect(err).To(MatchError(ErrInvalidBearerToken))
+		Expect(verifier.calls[endpoint]).To(Equal(1))
+		Expect(verifier.requestedAudiences[endpoint]).To(
+			ConsistOf(audience),
+		)
 	})
 
 	DescribeTable("matches glob patterns",
@@ -134,4 +151,102 @@ var _ = Describe("Token identity", func() {
 		Entry("only to the end", "repo:owner", "repo:owner/name", false),
 		Entry("with regex metacharacters treated literally", "repo:owner/name.with+meta", "repo:owner/nameXwithmeta", false),
 	)
+
+	It("verifies once per endpoint and applies each verified audience", func() {
+		const endpoint = "https://issuer.example/.well-known/openid-configuration"
+		verifier := newStubTokenVerifier()
+		verifier.results[endpoint] = &verifiedToken{
+			subject: "workload-subject",
+			audiences: []string{
+				"audience-a",
+				"audience-b",
+			},
+			claims: map[string]any{
+				"repository": "konfidence-project/konfidence",
+			},
+		}
+
+		repository := newTokenTestRepository(
+			verifier,
+			&konfidence.Project{
+				ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
+				Spec: konfidence.ProjectSpec{
+					RoleBindings: map[string]konfidence.Subjects{
+						"viewer": {{
+							JWKS: &konfidence.JWKSSubject{
+								Endpoint: endpoint,
+								Audience: "audience-a",
+								Claims: map[string]konfidence.GlobMatch{
+									"repository": "konfidence-project/*",
+								},
+							},
+						}},
+						"admin": {{
+							JWKS: &konfidence.JWKSSubject{
+								Endpoint: endpoint,
+								Audience: "audience-b",
+								Claims: map[string]konfidence.GlobMatch{
+									"repository": "konfidence-project/*",
+								},
+							},
+						}},
+					},
+				},
+			},
+		)
+
+		identity, err := repository.AuthenticateToken(context.Background(), "signed-token")
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(identity.ProjectRoles).To(HaveKeyWithValue("project-a", []string{"admin", "viewer"}))
+		Expect(verifier.calls[endpoint]).To(Equal(1))
+		Expect(verifier.requestedAudiences[endpoint]).To(ConsistOf("audience-a", "audience-b"))
+	})
+
+	It("grants roles only for audiences present in the verified token", func() {
+		privateKey := generateKey()
+		const keyID = "test-key"
+
+		server, discoveryCalls, jwksCalls := newTestOIDCProvider(&privateKey.PublicKey, keyID)
+		endpoint := server.URL + discoveryPath
+
+		jwks := func(audience string) *konfidence.JWKSSubject {
+			return &konfidence.JWKSSubject{
+				Endpoint: endpoint,
+				Audience: audience,
+				Claims: map[string]konfidence.GlobMatch{
+					"repository": "konfidence-project/*",
+				},
+			}
+		}
+
+		repository := newTokenTestRepository(
+			newTestOIDCTokenVerifier(server.Client(), time.Hour),
+			&konfidence.Project{
+				ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
+				Spec: konfidence.ProjectSpec{
+					RoleBindings: map[string]konfidence.Subjects{
+						"viewer": {{JWKS: jwks("audience-a")}},
+						"admin":  {{JWKS: jwks("audience-b")}},
+					},
+				},
+			},
+		)
+
+		claims := validWorkloadClaims(server.URL, "audience-a")
+		claims["repository"] = "konfidence-project/konfidence"
+		rawToken := signWorkloadToken(privateKey, keyID, claims)
+		identity, err := repository.AuthenticateToken(
+			context.Background(),
+			rawToken,
+		)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(identity.Subject).To(Equal("workload-subject"))
+		Expect(identity.ProjectRoles).To(Equal(ProjectRoles{
+			"project-a": []string{"viewer"},
+		}))
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
+		Expect(jwksCalls.Load()).To(Equal(int32(1)))
+	})
 })

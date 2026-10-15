@@ -16,6 +16,8 @@ type tokenBinding struct {
 	claims  map[string]konfidence.GlobMatch
 }
 
+type tokenBindingsByAudience map[string][]tokenBinding
+
 func (r *k8sRepository) AuthenticateToken(ctx context.Context, rawToken string) (*TokenIdentity, error) {
 	var projects konfidence.ProjectList
 	if err := r.reader.List(ctx, &projects); err != nil {
@@ -26,8 +28,14 @@ func (r *k8sRepository) AuthenticateToken(ctx context.Context, rawToken string) 
 	var subject string
 	verifiedAny := false
 	projectRoles := make(map[string]map[string]struct{})
-	for candidate, bindings := range candidates {
-		token, err := r.tokenVerifier.Verify(ctx, rawToken, candidate.endpoint, candidate.audience)
+	for endpoint, bindingsByAudience := range candidates {
+		allowedAudiences := make([]string, 0, len(bindingsByAudience))
+		for audience := range bindingsByAudience {
+			allowedAudiences = append(allowedAudiences, audience)
+		}
+		sort.Strings(allowedAudiences)
+
+		token, err := r.tokenVerifier.Verify(ctx, rawToken, endpoint, allowedAudiences)
 		if err != nil {
 			continue
 		}
@@ -37,15 +45,19 @@ func (r *k8sRepository) AuthenticateToken(ctx context.Context, rawToken string) 
 			verifiedAny = true
 		}
 
-		for _, binding := range bindings {
-			if !matchesTokenClaims(token.claims, binding.claims) {
-				continue
-			}
+		// token.audiences contains only the intersection between the signed token's
+		// audiences and the audiences configured for this endpoint.
+		for _, audience := range token.audiences {
+			for _, binding := range bindingsByAudience[audience] {
+				if !matchesTokenClaims(token.claims, binding.claims) {
+					continue
+				}
 
-			if projectRoles[binding.project] == nil {
-				projectRoles[binding.project] = make(map[string]struct{})
+				if projectRoles[binding.project] == nil {
+					projectRoles[binding.project] = make(map[string]struct{})
+				}
+				projectRoles[binding.project][binding.role] = struct{}{}
 			}
-			projectRoles[binding.project][binding.role] = struct{}{}
 		}
 	}
 
@@ -66,8 +78,9 @@ func (r *k8sRepository) AuthenticateToken(ctx context.Context, rawToken string) 
 	return identity, nil
 }
 
-func collectTokenBindings(projects []konfidence.Project) map[verifierKey][]tokenBinding {
-	bindingsByCandidate := make(map[verifierKey][]tokenBinding)
+func collectTokenBindings(projects []konfidence.Project) map[string]tokenBindingsByAudience {
+	bindingsByEndpoint := make(map[string]tokenBindingsByAudience)
+
 	for _, project := range projects {
 		for role, subjects := range project.Spec.RoleBindings {
 			for _, subject := range subjects {
@@ -75,9 +88,15 @@ func collectTokenBindings(projects []konfidence.Project) map[verifierKey][]token
 					continue
 				}
 
-				candidate := verifierKey{endpoint: subject.JWKS.Endpoint, audience: subject.JWKS.Audience}
-				bindingsByCandidate[candidate] = append(
-					bindingsByCandidate[candidate],
+				endpoint := subject.JWKS.Endpoint
+				audience := subject.JWKS.Audience
+
+				if bindingsByEndpoint[endpoint] == nil {
+					bindingsByEndpoint[endpoint] = make(tokenBindingsByAudience)
+				}
+
+				bindingsByEndpoint[endpoint][audience] = append(
+					bindingsByEndpoint[endpoint][audience],
 					tokenBinding{
 						project: project.Name,
 						role:    role,
@@ -88,7 +107,7 @@ func collectTokenBindings(projects []konfidence.Project) map[verifierKey][]token
 		}
 	}
 
-	return bindingsByCandidate
+	return bindingsByEndpoint
 }
 
 func matchesTokenClaims(claims map[string]any, expected map[string]konfidence.GlobMatch) bool {

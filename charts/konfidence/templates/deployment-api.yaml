@@ -41,6 +41,7 @@ spec:
             - --write-timeout={{ .Values.api.server.writeTimeout }}
             - --shutdown-timeout={{ .Values.api.server.shutdownTimeout }}
             - --oidc-enabled={{ .Values.api.oidc.enabled }}
+            - --oidc-jwks-cache-ttl={{ .Values.api.oidc.jwksCacheTTL }}
             {{- if .Values.api.oidc.enabled }}
             - --oidc-issuer-url={{ required "api.oidc.issuerURL is required" .Values.api.oidc.issuerURL }}
             - --oidc-client-id={{ required "api.oidc.clientId is required" .Values.api.oidc.clientId }}
@@ -54,7 +55,6 @@ spec:
             - --oidc-device-auth-url={{ .Values.api.oidc.deviceAuthURL }}
             - --oidc-user-info-url={{ .Values.api.oidc.userInfoURL }}
             - --oidc-jwks-url={{ .Values.api.oidc.jwksURL }}
-            - --oidc-jwks-cache-ttl={{ .Values.api.oidc.jwksCacheTTL }}
             - --oidc-pkce-enabled={{ .Values.api.oidc.pkceEnabled }}
             - --oidc-state-expiration={{ .Values.api.oidc.stateExpiration }}
             {{- end }}
