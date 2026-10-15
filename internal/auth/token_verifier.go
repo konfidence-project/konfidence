@@ -12,6 +12,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/maypok86/otter/v2"
+	"golang.org/x/sync/singleflight"
 )
 
 const maximumDiscoveryDocumentSize = 1024 * 1024
@@ -36,8 +37,9 @@ type tokenVerifier interface {
 	Verify(ctx context.Context, rawToken string, endpoint string, allowedAudiences []string) (*verifiedToken, error)
 }
 type oidcTokenVerifier struct {
-	httpClient *http.Client
-	providers  *otter.Cache[string, *providerState]
+	httpClient     *http.Client
+	providers      *otter.Cache[string, *providerState]
+	providerLoader singleflight.Group
 }
 
 func newOIDCTokenVerifier(jwksCacheTTL time.Duration) tokenVerifier {
@@ -109,7 +111,46 @@ func matchingAudiences(tokenAudiences []string, allowedAudiences []string) []str
 }
 
 func (v *oidcTokenVerifier) getProvider(ctx context.Context, endpoint string) (*providerState, error) {
-	return v.providers.Get(ctx, endpoint, otter.LoaderFunc[string, *providerState](v.createProvider))
+	if provider, ok := v.providers.GetIfPresent(endpoint); ok {
+		return provider, nil
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	result := v.providerLoader.DoChan(endpoint, func() (any, error) {
+		// another load may have populated the cache between the first lookup
+		// and joining this singleflight call.
+		if provider, ok := v.providers.GetIfPresent(endpoint); ok {
+			return provider, nil
+		}
+
+		// discovery is shared by all requests for this endpoint and therefore
+		// must not inherit cancellation from whichever request arrived first.
+		provider, err := v.createProvider(context.Background(), endpoint)
+		if err != nil {
+			return nil, err
+		}
+
+		v.providers.Set(endpoint, provider)
+		return provider, nil
+	})
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case result := <-result:
+		if result.Err != nil {
+			return nil, result.Err
+		}
+
+		provider, ok := result.Val.(*providerState)
+		if !ok {
+			return nil, errors.New("unexpected OIDC provider cache value")
+		}
+		return provider, nil
+	}
 }
 
 func (v *oidcTokenVerifier) createProvider(ctx context.Context, endpoint string) (*providerState, error) {

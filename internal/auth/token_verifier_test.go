@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -95,6 +96,142 @@ func generateKey() *rsa.PrivateKey {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	Expect(err).NotTo(HaveOccurred())
 	return privateKey
+}
+
+type getProviderResult struct {
+	provider *providerState
+	err      error
+}
+
+type doneObservedContext struct {
+	context.Context
+	observed chan struct{}
+	once     sync.Once
+}
+
+func newDoneObservedContext(ctx context.Context) (*doneObservedContext, <-chan struct{}) {
+	observed := make(chan struct{})
+	return &doneObservedContext{
+		Context:  ctx,
+		observed: observed,
+	}, observed
+}
+
+func (c *doneObservedContext) Done() <-chan struct{} {
+	c.once.Do(func() {
+		close(c.observed)
+	})
+	return c.Context.Done()
+}
+
+func newBlockingDiscoveryProvider() (*httptest.Server, <-chan struct{}, func(), *atomic.Int32) {
+	GinkgoHelper()
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	discoveryCalls := &atomic.Int32{}
+	var startedOnce sync.Once
+	var releaseOnce sync.Once
+
+	var server *httptest.Server
+	server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer GinkgoRecover()
+
+		if r.URL.Path != discoveryPath {
+			http.NotFound(w, r)
+			return
+		}
+
+		discoveryCalls.Add(1)
+		startedOnce.Do(func() {
+			close(started)
+		})
+		<-release
+
+		w.Header().Set("Content-Type", "application/json")
+		Expect(json.NewEncoder(w).Encode(discoveryDocument{
+			Issuer:  server.URL,
+			JWKSURI: server.URL + jwksPath,
+		})).To(Succeed())
+	}))
+
+	releaseDiscovery := func() {
+		releaseOnce.Do(func() {
+			close(release)
+		})
+	}
+
+	DeferCleanup(func() {
+		releaseDiscovery()
+		server.Close()
+	})
+
+	return server, started, releaseDiscovery, discoveryCalls
+}
+
+type servedJWK struct {
+	publicKey *rsa.PublicKey
+	keyID     string
+}
+
+func newRotatingTestOIDCProvider(publicKey *rsa.PublicKey, keyID string) (
+	*httptest.Server,
+	func(*rsa.PublicKey, string),
+	*atomic.Int32,
+	*atomic.Int32,
+) {
+	GinkgoHelper()
+
+	currentKey := &atomic.Pointer[servedJWK]{}
+	currentKey.Store(&servedJWK{
+		publicKey: publicKey,
+		keyID:     keyID,
+	})
+
+	discoveryCalls := &atomic.Int32{}
+	jwksCalls := &atomic.Int32{}
+
+	var server *httptest.Server
+	server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer GinkgoRecover()
+
+		switch r.URL.Path {
+		case discoveryPath:
+			discoveryCalls.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			Expect(json.NewEncoder(w).Encode(discoveryDocument{
+				Issuer:  server.URL,
+				JWKSURI: server.URL + jwksPath,
+			})).To(Succeed())
+
+		case jwksPath:
+			jwksCalls.Add(1)
+			key := currentKey.Load()
+			w.Header().Set("Content-Type", "application/json")
+			Expect(json.NewEncoder(w).Encode(jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{{
+					Key:       key.publicKey,
+					KeyID:     key.keyID,
+					Algorithm: string(jose.RS256),
+					Use:       "sig",
+				}},
+			})).To(Succeed())
+
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+
+	DeferCleanup(server.Close)
+
+	rotate := func(publicKey *rsa.PublicKey, keyID string) {
+		currentKey.Store(&servedJWK{
+			publicKey: publicKey,
+			keyID:     keyID,
+		})
+	}
+
+	return server, rotate, discoveryCalls, jwksCalls
 }
 
 var _ = Describe("OIDC token verifier", func() {
@@ -293,6 +430,45 @@ var _ = Describe("OIDC token verifier", func() {
 		Expect(jwksCalls.Load()).To(Equal(int32(2)))
 	})
 
+	It("uses the refreshed JWKS on the first request after expiry", func() {
+		oldKey := generateKey()
+		newKey := generateKey()
+
+		const (
+			oldKeyID = "old-key"
+			newKeyID = "new-key"
+			audience = "konfidence-api"
+		)
+
+		server, rotate, discoveryCalls, jwksCalls := newRotatingTestOIDCProvider(&oldKey.PublicKey, oldKeyID)
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Nanosecond)
+		endpoint := server.URL + discoveryPath
+		claims := validWorkloadClaims(server.URL, audience)
+
+		oldToken := signWorkloadToken(oldKey, oldKeyID, claims)
+		token, err := verifier.Verify(context.Background(), oldToken, endpoint, []string{audience})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(token).NotTo(BeNil())
+
+		rotate(&newKey.PublicKey, newKeyID)
+
+		// The provider entry has expired. The first request must use a newly
+		// created key set rather than the previously cached one.
+		token, err = verifier.Verify(context.Background(), oldToken, endpoint, []string{audience})
+		Expect(token).To(BeNil())
+		Expect(err).To(MatchError(ErrInvalidBearerToken))
+
+		Expect(discoveryCalls.Load()).To(Equal(int32(2)))
+		Expect(jwksCalls.Load()).To(BeNumerically(">=", 2))
+
+		// verify that token signed with new key works as expected
+		newToken := signWorkloadToken(newKey, newKeyID, claims)
+		token, err = verifier.Verify(context.Background(), newToken, endpoint, []string{audience})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(token).NotTo(BeNil())
+		Expect(token.subject).To(Equal("workload-subject"))
+	})
+
 	It("keeps cached provider state after a signature failure", func() {
 		trustedKey := generateKey()
 		untrustedKey := generateKey()
@@ -409,5 +585,84 @@ var _ = Describe("OIDC token verifier", func() {
 		// Signature verification happens before the manual audience check.
 		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
 		Expect(jwksCalls.Load()).To(Equal(int32(1)))
+	})
+
+	It("continues a shared provider load after the initiating caller is canceled", func() {
+		server, discoveryStarted, releaseDiscovery, discoveryCalls := newBlockingDiscoveryProvider()
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
+		endpoint := server.URL + discoveryPath
+
+		firstCtx, cancelFirst := context.WithCancel(context.Background())
+		firstResult := make(chan getProviderResult, 1)
+		go func() {
+			provider, err := verifier.getProvider(firstCtx, endpoint)
+			firstResult <- getProviderResult{provider: provider, err: err}
+		}()
+
+		Eventually(discoveryStarted, time.Second).Should(BeClosed())
+		cancelFirst()
+
+		var first getProviderResult
+		Eventually(firstResult, time.Second).Should(Receive(&first))
+		Expect(first.provider).To(BeNil())
+		Expect(first.err).To(MatchError(context.Canceled))
+
+		secondCtx, secondWaiting := newDoneObservedContext(context.Background())
+		secondResult := make(chan getProviderResult, 1)
+		go func() {
+			provider, err := verifier.getProvider(secondCtx, endpoint)
+			secondResult <- getProviderResult{provider: provider, err: err}
+		}()
+
+		Eventually(secondWaiting, time.Second).Should(BeClosed())
+		releaseDiscovery()
+
+		var second getProviderResult
+		Eventually(secondResult, time.Second).Should(Receive(&second))
+		Expect(second.err).NotTo(HaveOccurred())
+		Expect(second.provider).NotTo(BeNil())
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
+	})
+
+	It("lets a waiting caller return when its context is canceled", func() {
+		server, discoveryStarted, releaseDiscovery, discoveryCalls := newBlockingDiscoveryProvider()
+		verifier := newTestOIDCTokenVerifier(server.Client(), time.Hour)
+		endpoint := server.URL + discoveryPath
+
+		firstResult := make(chan getProviderResult, 1)
+		go func() {
+			provider, err := verifier.getProvider(context.Background(), endpoint)
+			firstResult <- getProviderResult{provider: provider, err: err}
+		}()
+
+		Eventually(discoveryStarted, time.Second).Should(BeClosed())
+
+		waitingBaseCtx, cancelWaiting := context.WithCancel(context.Background())
+		waitingCtx, waiting := newDoneObservedContext(waitingBaseCtx)
+		waitingResult := make(chan getProviderResult, 1)
+		go func() {
+			provider, err := verifier.getProvider(waitingCtx, endpoint)
+			waitingResult <- getProviderResult{provider: provider, err: err}
+		}()
+
+		// Done() is called only after DoChan, proving this caller joined the wait.
+		Eventually(waiting, time.Second).Should(BeClosed())
+		cancelWaiting()
+
+		// This assertion happens before discovery is released. Therefore the
+		// waiting caller must return solely because its context was cancelled.
+		var waitingCall getProviderResult
+		Eventually(waitingResult, time.Second).Should(Receive(&waitingCall))
+		Expect(waitingCall.provider).To(BeNil())
+		Expect(waitingCall.err).To(MatchError(context.Canceled))
+
+		// The shared operation must remain active for the original caller.
+		releaseDiscovery()
+
+		var firstCall getProviderResult
+		Eventually(firstResult, time.Second).Should(Receive(&firstCall))
+		Expect(firstCall.err).NotTo(HaveOccurred())
+		Expect(firstCall.provider).NotTo(BeNil())
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
 	})
 })

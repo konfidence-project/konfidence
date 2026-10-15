@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -200,5 +201,52 @@ var _ = Describe("Token identity", func() {
 		Expect(identity.ProjectRoles).To(HaveKeyWithValue("project-a", []string{"admin", "viewer"}))
 		Expect(verifier.calls[endpoint]).To(Equal(1))
 		Expect(verifier.requestedAudiences[endpoint]).To(ConsistOf("audience-a", "audience-b"))
+	})
+
+	It("grants roles only for audiences present in the verified token", func() {
+		privateKey := generateKey()
+		const keyID = "test-key"
+
+		server, discoveryCalls, jwksCalls := newTestOIDCProvider(&privateKey.PublicKey, keyID)
+		endpoint := server.URL + discoveryPath
+
+		jwks := func(audience string) *konfidence.JWKSSubject {
+			return &konfidence.JWKSSubject{
+				Endpoint: endpoint,
+				Audience: audience,
+				Claims: map[string]konfidence.GlobMatch{
+					"repository": "konfidence-project/*",
+				},
+			}
+		}
+
+		repository := newTokenTestRepository(
+			newTestOIDCTokenVerifier(server.Client(), time.Hour),
+			&konfidence.Project{
+				ObjectMeta: metav1.ObjectMeta{Name: "project-a"},
+				Spec: konfidence.ProjectSpec{
+					RoleBindings: map[string]konfidence.Subjects{
+						"viewer": {{JWKS: jwks("audience-a")}},
+						"admin":  {{JWKS: jwks("audience-b")}},
+					},
+				},
+			},
+		)
+
+		claims := validWorkloadClaims(server.URL, "audience-a")
+		claims["repository"] = "konfidence-project/konfidence"
+		rawToken := signWorkloadToken(privateKey, keyID, claims)
+		identity, err := repository.AuthenticateToken(
+			context.Background(),
+			rawToken,
+		)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(identity.Subject).To(Equal("workload-subject"))
+		Expect(identity.ProjectRoles).To(Equal(ProjectRoles{
+			"project-a": []string{"viewer"},
+		}))
+		Expect(discoveryCalls.Load()).To(Equal(int32(1)))
+		Expect(jwksCalls.Load()).To(Equal(int32(1)))
 	})
 })
