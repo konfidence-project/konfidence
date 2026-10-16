@@ -2,49 +2,28 @@
     import "@ui5/webcomponents/dist/Icon.js";
     import "@ui5/webcomponents-icons/dist/error.js";
     import "@ui5/webcomponents-icons/dist/question-mark.js";
-    import {
-        Breadcrumbs,
-        Button,
-        EmptyState,
-        OrbitLoader,
-        PageHeader,
-    } from "@konfidence/design-system/components";
-    import type { BreadcrumbItem } from "@konfidence/design-system/components";
-    import type { Landscape, Stage } from "$lib/konfidence-api/types";
+    import { Button, EmptyState, OrbitLoader } from "@konfidence/design-system/components";
+    import type { Stage } from "$lib/konfidence-api/types";
     import StageVersionDetails from "$lib/landscape/components/StageVersionDetails.svelte";
+    import VectorDeploymentSection from "$lib/landscape/components/VectorDeploymentSection.svelte";
 
     interface Props {
-        backHref: string;
         error?: string;
         errorStatus?: number;
-        landscape?: Landscape;
+        projectId?: string;
         stage?: Stage;
         status: "loading" | "ready" | "error";
         onRetry: () => void;
     }
-    let {
-        backHref,
-        error,
-        errorStatus,
-        landscape,
-        stage,
-        status,
-        onRetry,
-    }: Props = $props();
+    let { error, errorStatus, projectId, stage, status, onRetry }: Props = $props();
 
-    const crumbs: BreadcrumbItem[] = $derived(
-        landscape && stage
-            ? [
-                  { href: backHref, label: "Landscapes" },
-                  // No dedicated per-landscape route yet — this crumb
-                  // renders as plain text and becomes a link when the
-                  // landscape detail route ships.
-                  { label: landscape.name },
-                  { label: stage.name },
-              ]
-            : [],
+    const targetVersionId = $derived(stage?.targetStageVersion?.id);
+    const activeVersionId = $derived(stage?.activeStageVersion?.id);
+    const collapsed = $derived(
+        targetVersionId !== undefined && targetVersionId === activeVersionId,
     );
 </script>
+
 
 {#if status === "loading"}
     <OrbitLoader label="Loading stage details" />
@@ -60,31 +39,42 @@
                 ></Button>
         {/snippet}
     </EmptyState>
-{:else if !landscape || !stage || status === "error"}
+{:else if !stage || status === "error"}
     <EmptyState
         tone="empty"
         title="Stage not found"
-        description="The requested landscape or stage is not available in this project."
+        description="The requested stage is not available in this project."
     >
         {#snippet icon()}<ui5-icon name="question-mark" aria-hidden="true"
             ></ui5-icon>{/snippet}
-        {#snippet action()}
-            <Button href={backHref}><span>Back to landscapes</span></Button>
-        {/snippet}
     </EmptyState>
 {:else}
-    <PageHeader title={stage.name}>
-        {#snippet eyebrow()}
-            <Breadcrumbs items={crumbs} />
-        {/snippet}
-    </PageHeader>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <StageVersionDetails
-            label="Target"
-            version={stage.targetStageVersion}
-        /><StageVersionDetails
-            label="Active"
-            version={stage.activeStageVersion}
-        />
+        <div class="flex min-w-0 flex-col gap-4">
+            <StageVersionDetails
+                label="Target"
+                version={stage.targetStageVersion}
+            />
+            {#if projectId !== undefined && targetVersionId !== undefined}
+                <VectorDeploymentSection
+                    {projectId}
+                    landscapeId={stage.landscapeId}
+                    vectorDeploymentId={targetVersionId}
+                />
+            {/if}
+        </div>
+        <div class="flex min-w-0 flex-col gap-4">
+            <StageVersionDetails
+                label="Active"
+                version={stage.activeStageVersion}
+            />
+            {#if !collapsed && projectId !== undefined && activeVersionId !== undefined}
+                <VectorDeploymentSection
+                    {projectId}
+                    landscapeId={stage.landscapeId}
+                    vectorDeploymentId={activeVersionId}
+                />
+            {/if}
+        </div>
     </div>
 {/if}

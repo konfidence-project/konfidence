@@ -38,6 +38,30 @@ describe("<SidePanel>", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  describe("resize action", () => {
+    it("hides the resize button when no onResize handler is given", async () => {
+      await render(SidePanelFixture, { open: true });
+      await expect.element(page.getByTestId("side-panel")).toBeVisible();
+      await expect.element(page.getByTestId("side-panel-resize")).not.toBeInTheDocument();
+    });
+
+    it("shows the resize button and invokes onResize when provided", async () => {
+      const onResize = vi.fn();
+      await render(SidePanelFixture, { onResize, open: true });
+      const button = page.getByTestId("side-panel-resize");
+      await expect.element(button).toBeVisible();
+      await button.click();
+      expect(onResize).toHaveBeenCalled();
+    });
+
+    it("keeps the panel open after resizing (navigation is the caller's concern)", async () => {
+      const onResize = vi.fn();
+      await render(SidePanelFixture, { onResize, open: true });
+      await page.getByTestId("side-panel-resize").click();
+      await expect.element(page.getByTestId("side-panel")).toBeVisible();
+    });
+  });
+
   describe("header offset geometry", () => {
     it("offsets below the app shell header when the header-height variable is present", async () => {
       await page.viewport(560, 480);
