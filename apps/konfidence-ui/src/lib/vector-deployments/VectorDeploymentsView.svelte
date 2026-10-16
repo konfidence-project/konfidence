@@ -19,6 +19,7 @@
     import type {VectorDeploymentRow, VectorDeploymentStatus} from "./deployments.js";
     import {useDeploymentFilters} from "$lib/deployments/useDeploymentFilters.svelte.js";
     import {LANDSCAPE_PARAM} from "$lib/deployments/params.js";
+    import {sidePanelWidth} from "$lib/shell/sidePanelWidth.svelte";
 
 
     interface Props {
@@ -212,6 +213,8 @@
         open={filters.panelOpen && !loading && !error}
         title={filters.selected ? `${filters.selected.stageName}/${filters.selected.id}` : "Vector deployment"}
         onClose={filters.closePanel}
+        width={sidePanelWidth.current}
+        onWidthChange={sidePanelWidth.set}
 >
     {#if filters.selected}
         <VectorDeploymentDetail row={filters.selected}/>

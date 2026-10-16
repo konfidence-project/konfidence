@@ -11,7 +11,7 @@
 <Section
     id="overlays"
     title="Dialogs & side panels"
-    subtitle="Real <SidePanel> from @konfidence/design-system (right-anchored `<dialog>` with backdrop). Modal dialogs and master-detail with resizer are still on the roadmap."
+    subtitle="Real <SidePanel> from @konfidence/design-system (right-anchored `<dialog>` with backdrop, drag/keyboard resizable left edge). Modal dialogs and master-detail layout are still on the roadmap."
     status="partial"
 >
     <div class="stack flex flex-col gap-5">
@@ -54,7 +54,7 @@
 
         <NotYetImplemented
             note="Skeleton v5 provides Dialog primitives. Konfidence has not yet wrapped them."
-            planned={["<Dialog> / <ConfirmDialog>", "<SidePanel side='bottom'>", "<MasterDetail> with draggable resizer"]}
+            planned={["<Dialog> / <ConfirmDialog>", "<SidePanel side='bottom'>", "<MasterDetail> layout"]}
         />
     </div>
 </Section>

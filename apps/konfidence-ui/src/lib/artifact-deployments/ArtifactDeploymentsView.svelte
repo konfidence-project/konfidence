@@ -19,6 +19,7 @@
     import type { ArtifactDeploymentRow, ArtifactDeploymentStatus } from "./deployments.js";
     import { useDeploymentFilters } from "$lib/deployments/useDeploymentFilters.svelte.js";
     import { LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "$lib/deployments/params.js";
+    import { sidePanelWidth } from "$lib/shell/sidePanelWidth.svelte";
 
 
     interface Props {
@@ -238,6 +239,8 @@
     open={filters.panelOpen && !loading && !error}
     title={filters.selected ? `${filters.selected.component}@${filters.selected.version}` : "Artifact deployment"}
     onClose={filters.closePanel}
+    width={sidePanelWidth.current}
+    onWidthChange={sidePanelWidth.set}
 >
     {#if filters.selected}
         <ArtifactDeploymentDetail row={filters.selected} />

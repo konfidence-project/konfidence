@@ -21,6 +21,19 @@ describe("<AppShell>", () => {
     expect(document.querySelector<HTMLElement>(".app-shell__main")).not.toBeNull();
   });
 
+  it("exposes the header height as a CSS custom property on the shell root", async () => {
+    await render(AppShellFixture);
+    const shell = document.querySelector<HTMLElement>(".app-shell");
+    expect(shell).not.toBeNull();
+    const probe = document.createElement("div");
+    probe.style.height = getComputedStyle(shell!)
+      .getPropertyValue("--app-shell-header-height")
+      .trim();
+    shell!.appendChild(probe);
+    expect(getComputedStyle(probe).height).toBe("60px");
+    probe.remove();
+  });
+
   it("renders a skip link pointing at the main content", async () => {
     await render(AppShellFixture);
     const link = document.querySelector<HTMLAnchorElement>("a.skip-link");
