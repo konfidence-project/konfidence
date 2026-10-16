@@ -1908,6 +1908,8 @@ spec:
     name: sample-stage
     landscape: sample-landscape
   ttlAfterFinished: 1h
+  keepLastPromotions: 10
+  keepOutstandingPromotions: 10
 ```
 
 ### VectorPromotionConfigSpec
@@ -1991,7 +1993,7 @@ _Appears in:_
 | `Blocked` | PromotionStateBlocked means the promotion is ready but cannot execute<br />because its target does not resolve; see the config's Ready condition.<br /> |
 | `Succeeded` | PromotionStateSucceeded means the promotion completed successfully.<br /> |
 | `Failed` | PromotionStateFailed means the promotion reached a terminal state without success.<br /> |
-| `Superseded` | PromotionStateSuperseded means a newer promotion replaced this one.<br />Superseded promotions are locked: they can never be approved or<br />executed afterward. The newer promotion is the one to act on.<br /> |
+| `Superseded` | PromotionStateSuperseded means a promotion was replaced by a newer one or<br />retired after the outstanding promotion limit was reached. Superseded<br />promotions can never be approved or executed afterward.<br /> |
 
 
 ### VectorPromotionStatus
@@ -2008,7 +2010,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
-| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes Conditions for display. Conditions are the source of<br />truth; State is recomputed whenever conditions are written. `Superseded`<br />is a locked terminal state: a superseded promotion can never be<br />approved or executed afterwards, only its successor can. |  | Enum: [Waiting Ready InProgress Blocked Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
+| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes Conditions for display. Conditions are the source of<br />truth; State is recomputed whenever conditions are written. `Superseded`<br />is a terminal state: a superseded promotion can never be<br />approved or executed afterward. |  | Enum: [Waiting Ready InProgress Blocked Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
 | `approval` _[PromotionApproval](#promotionapproval)_ | Approval records the granted approval. A promotion is approved at most<br />once; re-approval attempts are rejected. |  | Optional: \{\} <br /> |
 | `promotedStageRef` _[TypedObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#typedobjectreference-v1-core)_ | PromotedStageRef records the Stage this promotion actually wrote its<br />vector to, so the promotion is self-describing even after the config<br />changed or was deleted. |  | Optional: \{\} <br /> |
 

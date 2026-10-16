@@ -306,8 +306,8 @@ spec:
                 description: |-
                   State summarizes Conditions for display. Conditions are the source of
                   truth; State is recomputed whenever conditions are written. `Superseded`
-                  is a locked terminal state: a superseded promotion can never be
-                  approved or executed afterwards, only its successor can.
+                  is a terminal state: a superseded promotion can never be
+                  approved or executed afterward.
                 enum:
                 - Waiting
                 - Ready

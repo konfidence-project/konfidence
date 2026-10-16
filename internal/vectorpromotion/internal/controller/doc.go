@@ -27,6 +27,10 @@
 //	requireApproval? ──no──> Ready (no Approved condition:
 //	     |yes                  |    absent gates leave no record)
 //	  Waiting ──Approve()──> Ready
+//	     |
+//	     └── outstanding limit exceeded ──> Superseded
+//	          (oldest waiting promotion,
+//	           reason OutstandingLimitReached)
 //	                           v
 //	     serialization gate (one InProgress per config,
 //	     newest cleared wins, older siblings Superseded)
@@ -36,9 +40,16 @@
 //	                 v
 //	            InProgress ──> Succeeded
 //
+// `keepOutstandingPromotions` limits the number of promotions in the `Waiting`
+// state per configuration. The default limit is 10. If the limit is exceeded,
+// the oldest waiting promotions, ordered by `spec.sequence`, transition to
+// `Superseded` with reason `OutstandingLimitReached` and can no longer be
+// approved or executed. A value of 0 allows an unlimited number of waiting
+// promotions. Promotions in any other state do not count toward this limit.
+//
 // Superseded, Succeeded and other Succeeded=False reasons (except Running and
 // TargetUnresolved) are terminal. Terminal promotions are cleaned up by the
-// TTL controller (`ttlAfterFinished`) and bounded per config by
+// retention controller using `ttlAfterFinished` and bounded per config by
 // `keepLastPromotions`.
 //
 // # Crash recovery

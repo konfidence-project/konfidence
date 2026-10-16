@@ -58,9 +58,9 @@ const (
 	PromotionStateSucceeded VectorPromotionState = "Succeeded"
 	// PromotionStateFailed means the promotion reached a terminal state without success.
 	PromotionStateFailed VectorPromotionState = "Failed"
-	// PromotionStateSuperseded means a newer promotion replaced this one.
-	// Superseded promotions are locked: they can never be approved or
-	// executed afterward. The newer promotion is the one to act on.
+	// PromotionStateSuperseded means a promotion was replaced by a newer one or
+	// retired after the outstanding promotion limit was reached. Superseded
+	// promotions can never be approved or executed afterward.
 	PromotionStateSuperseded VectorPromotionState = "Superseded"
 )
 
@@ -129,8 +129,8 @@ type VectorPromotionStatus struct {
 
 	// State summarizes Conditions for display. Conditions are the source of
 	// truth; State is recomputed whenever conditions are written. `Superseded`
-	// is a locked terminal state: a superseded promotion can never be
-	// approved or executed afterwards, only its successor can.
+	// is a terminal state: a superseded promotion can never be
+	// approved or executed afterward.
 	// +kubebuilder:validation:Enum=Waiting;Ready;InProgress;Blocked;Succeeded;Failed;Superseded
 	// +optional
 	State VectorPromotionState `json:"state,omitempty"`
