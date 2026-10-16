@@ -14,9 +14,12 @@ interface ProjectFixture {
   artifactDeployments: ArtifactDeployment[];
   landscapes: Landscape[];
   project: Project;
+  // Only the list-page rows: backs listVectorDeploymentsV1.
+  vectorDeployments: VectorDeployment[];
+  // Superset the single-item fetch resolves: list-page rows plus every stageVersion-derived deployment.
+  resolvableVectorDeployments: VectorDeployment[];
   roles: string[];
   stages: Stage[];
-  vectorDeployments: VectorDeployment[];
   vectorPromotionConfigs: VectorPromotionConfig[];
 }
 
@@ -37,7 +40,7 @@ const identityProject = {
   name: "Identity Service",
 } satisfies Project;
 
-// Vector deployments for the three original stages.
+// Backs the vectorDeployments list/detail page and the artifactDeployment links below; keyed by vector-<stage>-1 ids the list UI and its e2e tests expect.
 const rows = [
   {
     landscape: "development",
@@ -68,7 +71,7 @@ const landscapes: Landscape[] = [
   { id: "staging", name: "Staging" },
 ];
 
-const vectorDeployments: VectorDeployment[] = rows.map((row) => ({
+const listPageVectorDeployments: VectorDeployment[] = rows.map((row) => ({
   id: `vector-${row.stage}-1`,
   landscapeId: row.landscape,
   stageId: row.stage,
@@ -161,6 +164,49 @@ const stages: Stage[] = [
     targetStageVersion: stageVersion("prod-legacy", 2, "Failed", "2026.7.0"),
   }),
 ];
+
+// Maps a stageVersion rollout state onto the matching vectorDeployment status.
+const vectorDeploymentStatus = (status: StageVersion["status"]): VectorDeployment["status"] => {
+  switch (status) {
+    case "DeployingVector": {
+      return "DeployingVector";
+    }
+    case "Failed": {
+      return "DeploymentFailed";
+    }
+    // Transient and healthy states both resolve to a ready deployment.
+    default: {
+      return "DeploymentReady";
+    }
+  }
+};
+
+// Reads the component version out of a stageVersion vector reference tag.
+const versionFromVector = (vector: string): string => vector.split(":").at(-1) ?? "";
+
+// Derives one deployment per stageVersion so getVectorDeploymentV1 resolves the stageVersion ids the UI requests (see StageDetails.svelte and useVectorDeployment).
+const stageVersionDeployments: VectorDeployment[] = stages.flatMap((entry) =>
+  [entry.targetStageVersion, entry.activeStageVersion]
+    .filter((version): version is StageVersion => version !== undefined)
+    .map((version) => ({
+      id: version.id,
+      landscapeId: entry.landscapeId,
+      stageId: entry.id,
+      status: vectorDeploymentStatus(version.status),
+      vector: {
+        componentName: "delivery-vector",
+        componentVersion: versionFromVector(version.vector),
+        repository: REPOSITORY,
+      },
+    })),
+);
+
+// De-duplicates on id so overlapping active/target versions and list-page fixtures each appear once.
+// Only the single-item fetch (getVectorDeploymentV1) draws from this superset; the list page serves listPageVectorDeployments.
+const resolvableVectorDeployments: VectorDeployment[] = [
+  ...listPageVectorDeployments,
+  ...stageVersionDeployments,
+].filter((deployment, index, all) => all.findIndex(({ id }) => id === deployment.id) === index);
 
 const component = (componentName: string, componentVersion: string) => ({
   componentName,
@@ -269,7 +315,8 @@ const populatedProject: ProjectFixture = {
   project: paymentsProject,
   roles: ["admin", "dev"],
   stages,
-  vectorDeployments,
+  vectorDeployments: listPageVectorDeployments,
+  resolvableVectorDeployments,
   vectorPromotionConfigs,
 };
 
@@ -280,6 +327,7 @@ const emptyProject = (project: Project, roles: string[]): ProjectFixture => ({
   roles,
   stages: [],
   vectorDeployments: [],
+  resolvableVectorDeployments: [],
   vectorPromotionConfigs: [],
 });
 
@@ -312,7 +360,8 @@ const scenarios = {
         ...emptyProject(paymentsProject, ["dev"]),
         landscapes: landscapes.filter(({ id }) => id === "development" || id === "test"),
         stages: stages.slice(0, 1),
-        vectorDeployments: vectorDeployments.slice(0, 1),
+        vectorDeployments: listPageVectorDeployments.slice(0, 1),
+        resolvableVectorDeployments: resolvableVectorDeployments.slice(0, 1),
       },
     ],
     user: {
