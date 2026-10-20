@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -76,6 +77,11 @@ func (r *k8sRepository) ListForProject(ctx context.Context, namespace string) ([
 	if err := r.reader.List(ctx, &list, client.InNamespace(namespace)); err != nil {
 		return nil, fmt.Errorf("listing landscapes in namespace %q: %w", namespace, err)
 	}
+
+	sort.Slice(list.Items, func(i, j int) bool {
+		return list.Items[i].Name < list.Items[j].Name
+	})
+
 	return list.Items, nil
 }
 

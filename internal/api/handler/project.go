@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
@@ -406,10 +405,6 @@ func (h *projectHandler) ListVectorPromotionConfigsV1(ctx context.Context,
 	if err != nil {
 		return nil, apierror.NewInternal(err)
 	}
-
-	sort.Slice(configs, func(i, j int) bool {
-		return configs[i].Name < configs[j].Name
-	})
 
 	data := make([]openapi.VectorPromotionConfig, 0, len(configs))
 	for _, c := range configs {

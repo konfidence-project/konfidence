@@ -260,6 +260,43 @@ var _ = Describe("Repository", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resolved).To(ConsistOf(HaveField("VectorDeploymentIds", []string{vectorDeploymentID, "vd-b"})))
 		})
+
+		It("sorts by landscape and artifact deployment name", func() {
+			const prodNamespace = "kden-l-prod"
+
+			resolved, err := repositoryWith(
+				artifactDeploymentResource("web", prodNamespace, "prod", "prod-web"),
+				artifactDeploymentResource("api", prodNamespace, "prod", "prod-api"),
+				artifactDeploymentResource("web", landscapeNamespace, "dev", "dev-web"),
+				artifactDeploymentResource("api", landscapeNamespace, "dev", "dev-api"),
+			).ListForScope(
+				context.Background(),
+				[]landscapedomain.ScopedLandscape{
+					scopedLandscapeResource("prod", prodNamespace),
+					scopedLandscapeResource("dev", landscapeNamespace),
+				},
+			)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resolved).To(HaveExactElements(
+				And(
+					HaveField("LandscapeId", "dev"),
+					HaveField("ArtifactDeployment.Name", "api"),
+				),
+				And(
+					HaveField("LandscapeId", "dev"),
+					HaveField("ArtifactDeployment.Name", "web"),
+				),
+				And(
+					HaveField("LandscapeId", "prod"),
+					HaveField("ArtifactDeployment.Name", "api"),
+				),
+				And(
+					HaveField("LandscapeId", "prod"),
+					HaveField("ArtifactDeployment.Name", "web"),
+				),
+			))
+		})
 	})
 	Describe("GetForScope", func() {
 		It("returns the deployment with its landscape and resolved IDs", func() {

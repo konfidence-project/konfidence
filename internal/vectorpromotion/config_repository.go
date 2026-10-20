@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,6 +42,10 @@ func (r *k8sConfigRepository) List(ctx context.Context, namespace string) ([]kon
 	if err := r.reader.List(ctx, &configs, client.InNamespace(namespace)); err != nil {
 		return nil, fmt.Errorf("listing vectorPromotionConfigs in namespace %q failed: %w", namespace, err)
 	}
+
+	sort.Slice(configs.Items, func(i, j int) bool {
+		return configs.Items[i].Name < configs.Items[j].Name
+	})
 
 	return configs.Items, nil
 }

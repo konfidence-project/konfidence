@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/auth"
@@ -49,6 +50,10 @@ func (r *k8sRepository) List(ctx context.Context, projectRoles auth.ProjectRoles
 			authorizedProjectItems = append(authorizedProjectItems, p)
 		}
 	}
+
+	sort.Slice(authorizedProjectItems, func(i, j int) bool {
+		return authorizedProjectItems[i].Name < authorizedProjectItems[j].Name
+	})
 
 	return authorizedProjectItems, nil
 }

@@ -50,4 +50,27 @@ var _ = Describe("Repository", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(projects).To(ConsistOf(HaveField("Name", "one")))
 	})
+
+	It("sorts authorized projects by name", func() {
+		k8s := fake.NewClientBuilder().
+			WithScheme(projectScheme()).
+			WithObjects(
+				&konfidence.Project{ObjectMeta: metav1.ObjectMeta{Name: "zulu"}},
+				&konfidence.Project{ObjectMeta: metav1.ObjectMeta{Name: "alpha"}},
+				&konfidence.Project{ObjectMeta: metav1.ObjectMeta{Name: "middle"}},
+			).
+			Build()
+
+		projects, err := project.NewRepository(k8s).List(
+			context.Background(),
+			auth.ProjectRoles{"zulu": {"admin"}, "alpha": {"admin"}, "middle": {"viewer"}},
+		)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(projects).To(HaveExactElements(
+			HaveField("Name", "alpha"),
+			HaveField("Name", "middle"),
+			HaveField("Name", "zulu"),
+		))
+	})
 })

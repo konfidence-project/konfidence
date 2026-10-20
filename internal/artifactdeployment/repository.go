@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
@@ -142,6 +143,13 @@ func (r *k8sRepository) ListForScope(ctx context.Context, scope []landscapedomai
 			})
 		}
 	}
+
+	sort.Slice(resolved, func(i, j int) bool {
+		if resolved[i].LandscapeId != resolved[j].LandscapeId {
+			return resolved[i].LandscapeId < resolved[j].LandscapeId
+		}
+		return resolved[i].ArtifactDeployment.Name < resolved[j].ArtifactDeployment.Name
+	})
 
 	return resolved, nil
 }

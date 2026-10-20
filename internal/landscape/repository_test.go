@@ -69,6 +69,22 @@ var _ = Describe("Repository", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).To(ConsistOf(HaveField("Name", "dev")))
 		})
+
+		It("sorts landscapes by name", func() {
+			repository := landscape.NewRepository(fakeClient(
+				landscapeFixture("zulu", "kden-p-my-project", "Zulu"),
+				landscapeFixture("alpha", "kden-p-my-project", "Alpha"),
+				landscapeFixture("middle", "kden-p-my-project", "Middle"),
+			))
+
+			result, err := repository.ListForProject(context.Background(), "kden-p-my-project")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(HaveExactElements(
+				HaveField("Name", "alpha"),
+				HaveField("Name", "middle"),
+				HaveField("Name", "zulu"),
+			))
+		})
 	})
 
 	Describe("Get", func() {
@@ -164,6 +180,21 @@ var _ = Describe("Repository", func() {
 			scope, err := repository.ResolveScope(context.Background(), "kden-p-project-a")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(scope).To(ConsistOf(HaveField("Namespace", "kden-l-dev-a")))
+		})
+
+		It("returns scope ordered by landscape name", func() {
+			repository := landscape.NewRepository(fakeClient(
+				scopedLandscapeFixture("prod", "kden-p-my-project", "kden-l-prod"),
+				scopedLandscapeFixture("dev", "kden-p-my-project", "kden-l-dev"),
+			))
+
+			scope, err := repository.ResolveScope(context.Background(), "kden-p-my-project")
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(scope).To(HaveExactElements(
+				HaveField("Landscape.Name", "dev"),
+				HaveField("Landscape.Name", "prod"),
+			))
 		})
 	})
 })
