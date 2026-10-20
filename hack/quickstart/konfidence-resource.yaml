@@ -1,0 +1,95 @@
+apiVersion: konfidence.cloud/v1alpha1
+kind: Project
+metadata:
+  name: alpha-project
+spec:
+  namespace: alpha-ns
+  displayName: alphaProj
+  roleBindings:
+    admin:
+      - session:
+          memberOf: [admins]
+    pm:
+      - session:
+          memberOf: [project-pms]
+    dev:
+      - session:
+          memberOf: [developers]
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Project
+metadata:
+  name: beta-project
+spec:
+  namespace: beta-ns
+  displayName: betaProj
+  roleBindings:
+    admin:
+      - session:
+          memberOf: [admins]
+    pm:
+      - session:
+          memberOf: [project-pms]
+    dev:
+      - session:
+          memberOf: [project-devs]
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Project
+metadata:
+  name: gamma-project
+spec:
+  namespace: gamma-ns
+  displayName: gammaProj
+  roleBindings:
+    admin:
+      - session:
+          memberOf: [platform-admins]
+    pm:
+      - session:
+          memberOf: [project-pms]
+    dev:
+      - session:
+          memberOf: [project-dev]
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Landscape
+metadata:
+  name: ls-alpha-1
+  namespace: alpha-ns
+spec:
+  displayName: alpha-landscape-1
+  namespace: ls-alpha-1-ns
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Landscape
+metadata:
+  name: ls-beta-1
+  namespace: beta-ns
+spec:
+  displayName: beta-landscape-1
+  namespace: ls-beta-1-ns
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Stage
+metadata:
+  name: stage-alpha-1
+  namespace: ls-alpha-1-ns
+spec:
+  vector: https://konfidence.common.repositories.cloud.sap/example-app-tests//k.den/bookinfo:latest
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Stage
+metadata:
+  name: stage-alpha-2
+  namespace: ls-alpha-1-ns
+spec:
+  vector: https://konfidence.common.repositories.cloud.sap/example-app-tests//k.den/bookinfo:latest
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Stage
+metadata:
+  name: stage-beta-1
+  namespace: ls-beta-1-ns
+spec:
+  vector: https://konfidence.common.repositories.cloud.sap/example-app-tests//k.den/bookinfo:latest

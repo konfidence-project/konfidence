@@ -66,6 +66,14 @@ func NewInternal(cause error) *Error {
 	}
 }
 
+func NewBadRequest(msg string) *Error {
+	return &Error{
+		Status:  http.StatusBadRequest,
+		Code:    "bad_request",
+		Message: msg,
+	}
+}
+
 // NewInternalErrorResponse returns a safe OpenAPI response without exposing the cause.
 func NewInternalErrorResponse() openapi.InternalErrorJSONResponse {
 	return openapi.InternalErrorJSONResponse{

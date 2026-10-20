@@ -450,6 +450,120 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/projects/{projectId}/vectors/diff:
+    get:
+      operationId: getVectorDiffV1
+      summary: Get the diff between two vectors by ref.
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - name: incoming
+          in: query
+          required: true
+          description: >
+            OCM ref string for the incoming vector (registry//component:version).
+            Must be percent-encoded.
+          schema:
+            type: string
+        - name: current
+          in: query
+          required: true
+          description: >
+            OCM ref string for the current vector (registry//component:version).
+            Must be percent-encoded.
+          schema:
+            type: string
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VectorDiff"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/projects/{projectId}/vectors/content:
+    get:
+      operationId: getVectorContentV1
+      summary: Get OCM content for vectors by refs.
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - name: refs
+          in: query
+          required: true
+          description: >
+            One or more OCM ref strings (registry//component:version).
+            Must be percent-encoded. Repeat the parameter for multiple refs.
+          schema:
+            type: array
+            items:
+              type: string
+            minItems: 1
+          style: form
+          explode: true
+      description: >
+        Returns the component list and configuration of any vector available in OCI,
+        regardless of whether it has been deployed.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VectorContentList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/projects/{projectId}/artifacts/content:
+    get:
+      operationId: getArtifactContentV1
+      summary: Get OCM content for an artifact by ref.
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - name: ref
+          in: query
+          required: true
+          description: >
+            OCM ref string identifying the artifact (registry//component:version).
+            Must be percent-encoded. Passed as a query parameter because the OCM ref
+            contains // which cannot be used in a path segment.
+          schema:
+            type: string
+      description: >
+        Returns the manifest details of any artifact available in OCI, including
+        type, allowReuse, tasks, and OCM resources.
+      tags: [ projects ]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtifactContent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/projects/{projectId}/artifactDeployments:
     get:
@@ -874,6 +988,101 @@ components:
             type: array
             items:
               type: string
+
+    VectorDiff:
+      type: object
+      required: [ incoming, current ]
+      properties:
+        incoming:
+          $ref: "#/components/schemas/VectorContent"
+        current:
+          $ref: "#/components/schemas/VectorContent"
+
+    VectorContentList:
+      type: object
+      required: [ data ]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/VectorContent"
+
+    VectorContent:
+      type: object
+      required: [ ref, components ]
+      properties:
+        ref:
+          type: string
+          description: OCM ref string (registry//component:version)
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/VectorComponent"
+        config:
+          $ref: "#/components/schemas/VectorConfig"
+
+    VectorComponent:
+      type: object
+      required: [ componentName, version ]
+      properties:
+        componentName:
+          type: string
+        version:
+          type: string
+
+    VectorConfig:
+      type: object
+      properties:
+        features:
+          type: object
+          additionalProperties: true
+          description: Raw features blob from VectorConfigurationV1
+        authored:
+          type: object
+          additionalProperties: true
+          description: Raw authored blob from VectorConfigurationV1
+
+    ArtifactContent:
+      type: object
+      required: [ ref, type, allowReuse ]
+      properties:
+        ref:
+          type: string
+          description: OCM ref string (registry//component:version)
+        type:
+          type: string
+        allowReuse:
+          type: boolean
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArtifactTask"
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArtifactResource"
+
+    ArtifactTask:
+      type: object
+      required: [ name, type ]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        dependsOn:
+          type: array
+          items:
+            type: string
+
+    ArtifactResource:
+      type: object
+      required: [ name, type ]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
 
     ArtifactReference:
       allOf:
