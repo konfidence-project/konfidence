@@ -171,14 +171,13 @@ test("retries after a landscape network failure", async ({ page }) => {
   await expect(page.getByRole("link", { name: /View details for stage dev-api/ })).toBeVisible();
 });
 
-// oxlint-disable-next-line eslint/max-statements -- One journey verifies overview-to-detail keyboard navigation, node stability, reload/back behavior.
-test("groups stages and opens a real detail route with the keyboard", async ({ page }) => {
+test("keeps stage nodes pinned while dragging the canvas from a card", async ({ page }) => {
   await mockOverview(page);
   await signIn(page, "/projects");
   await page.getByRole("link", { name: "Payments Platform" }).click();
 
   await expect(page.getByRole("link", { name: /View details for stage dev-api/ })).toBeVisible();
-  // Stage cards are pinned: dragging on a card neither moves the node nor pans.
+  // Cards can initiate canvas panning, but the node's graph position stays fixed.
   const card = page.locator(".svelte-flow__node-stage").first();
   const transformBefore = await card.evaluate((element) => element.style.transform);
   expect(transformBefore).toContain("translate");
@@ -190,11 +189,19 @@ test("groups stages and opens a real detail route with the keyboard", async ({ p
   });
   await page.mouse.up();
   expect(await card.evaluate((element) => element.style.transform)).toBe(transformBefore);
+  await expect(page).toHaveURL("/projects/payments-platform/landscape");
+});
+
+test("groups stages and opens a real detail route with the keyboard", async ({ page }) => {
+  await mockOverview(page);
+  await signIn(page, "/projects");
+  await page.getByRole("link", { name: "Payments Platform" }).click();
 
   const link = page.getByRole("link", {
     name: /View details for stage dev-api/,
   });
   await link.focus();
+  await expect(link).toBeFocused();
   await page.keyboard.press("Enter");
 
   await expect(page).toHaveURL("/projects/payments-platform/landscape/primary/stages/dev-api");

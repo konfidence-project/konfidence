@@ -2,8 +2,8 @@ import { page } from "vitest/browser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 import LoginPage from "./+page.svelte";
-import SessionTestProvider from "$lib/auth/SessionTestProvider.svelte";
-import { createTestSession } from "$lib/auth/session.test-helpers";
+import SessionTestProvider from "#lib/auth/SessionTestProvider.svelte";
+import { createTestSession } from "#lib/auth/session.test-helpers.ts";
 
 const pageState = {
   url: new URL("http://127.0.0.1/login"),

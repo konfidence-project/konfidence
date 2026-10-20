@@ -10,9 +10,9 @@
         TableHeaderCell,
         TableRow,
     } from "@konfidence/design-system/components";
-    import MonoCell from "$lib/components/table-cells/MonoCell.svelte";
-    import StatusCell from "$lib/components/table-cells/StatusCell.svelte";
-    import TagListCell from "$lib/components/table-cells/TagListCell.svelte";
+    import MonoCell from "#lib/components/table-cells/MonoCell.svelte";
+    import StatusCell from "#lib/components/table-cells/StatusCell.svelte";
+    import TagListCell from "#lib/components/table-cells/TagListCell.svelte";
     import { toStore } from "svelte/store";
 
     import type { ArtifactDeploymentRow } from "./deployments.js";

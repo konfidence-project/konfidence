@@ -1,9 +1,9 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
     import { page } from "$app/state";
-    import { useProjects } from "$lib/projects/projectContext";
-    import { isEmbedded } from "$lib/shell/embedded";
-    import { projectsUrl } from "$lib/projects/url";
+    import { useProjects } from "#lib/projects/projectContext.ts";
+    import { isEmbedded } from "#lib/shell/embedded.ts";
+    import { projectsUrl } from "#lib/projects/url.ts";
     import { Link } from "@konfidence/design-system/components";
 
     interface Props { children: Snippet; }

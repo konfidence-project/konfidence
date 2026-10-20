@@ -85,10 +85,10 @@ class DeploymentFilters<Row extends MatchableRow, Status extends string> {
   }
 
   #updateUrl(mutate: (params: URLSearchParams) => void): void {
-    const next = new globalThis.URL(page.url);
+    const next = new globalThis.URL(page.url.href);
     mutate(next.searchParams);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- reusing the current page URL.
-    void goto(next, { keepFocus: true, noScroll: true });
+    void goto(next, { reset: false });
   }
 
   openRow = (row: Row): void => {

@@ -1,5 +1,5 @@
-import type { ApiClient } from "$lib/konfidence-api/client";
-import { createApiClient } from "$lib/konfidence-api/client";
+import type { ApiClient } from "#lib/konfidence-api/client.ts";
+import { createApiClient } from "#lib/konfidence-api/client.ts";
 
 /*
  * Singleton API client shared across the app. Safe as a module-level singleton

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { components } from "@konfidence/api-client/schema";
-import { buildLandscapeGraph, stageKey } from "$lib/landscape/landscapeGraph";
+import { buildLandscapeGraph, stageKey } from "#lib/landscape/landscapeGraph.ts";
 
 type Landscape = components["schemas"]["Landscape"];
 type Stage = components["schemas"]["Stage"];

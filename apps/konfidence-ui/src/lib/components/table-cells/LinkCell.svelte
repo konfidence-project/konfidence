@@ -11,7 +11,7 @@
     }
     let { ariaLabel, children, url }: Props = $props();
 
-    const external = $derived(new globalThis.URL(url, page.url).origin !== page.url.origin);
+    const external = $derived(new globalThis.URL(url, page.url.href).origin !== page.url.origin);
 
     const stopRowSelection = (event: MouseEvent): void => {
         event.stopPropagation();

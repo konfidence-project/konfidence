@@ -1,8 +1,8 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import LandscapeOverview from "$lib/landscape/components/LandscapeOverview.svelte";
-    import { useLandscapes, useStages, useVectorPromotionConfigs } from "$lib/queries.svelte.js";
-    import { isEmbedded } from "$lib/shell/embedded";
+    import LandscapeOverview from "#lib/landscape/components/LandscapeOverview.svelte";
+    import { useLandscapes, useStages, useVectorPromotionConfigs } from "#lib/queries.svelte.ts";
+    import { isEmbedded } from "#lib/shell/embedded.ts";
     import type { PageProps } from "./$types";
 
     let { data }: PageProps = $props();

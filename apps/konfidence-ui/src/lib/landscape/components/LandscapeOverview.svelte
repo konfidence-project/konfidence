@@ -4,8 +4,8 @@
         OrbitLoader,
         PageHeader,
     } from "@konfidence/design-system/components";
-    import type { Landscape, Stage, VectorPromotionConfig } from "$lib/konfidence-api/types";
-    import LandscapeFlow from "$lib/landscape/components/LandscapeFlow.svelte";
+    import type { Landscape, Stage, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
+    import LandscapeFlow from "#lib/landscape/components/LandscapeFlow.svelte";
 
     interface Props {
         error?: string;

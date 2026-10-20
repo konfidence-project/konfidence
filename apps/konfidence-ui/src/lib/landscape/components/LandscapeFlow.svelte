@@ -8,13 +8,13 @@
         SvelteFlow,
     } from "@xyflow/svelte";
     import type { Edge, Node } from "@xyflow/svelte";
-    import type { Landscape, Stage, VectorPromotionConfig } from "$lib/konfidence-api/types";
-    import { buildLandscapeGraph, stageKey } from "$lib/landscape/landscapeGraph";
-    import { stageDetailsUrl } from "$lib/projects/url";
+    import type { Landscape, Stage, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
+    import { buildLandscapeGraph, stageKey } from "#lib/landscape/landscapeGraph.ts";
+    import { stageDetailsUrl } from "#lib/projects/url.ts";
     import { mode } from "mode-watcher";
-    import LandscapeCanvasResize from "$lib/landscape/components/LandscapeCanvasResize.svelte";
-    import LandscapeEmptyNode from "$lib/landscape/components/LandscapeEmptyNode.svelte";
-    import StageNode from "$lib/landscape/components/StageNode.svelte";
+    import LandscapeCanvasResize from "#lib/landscape/components/LandscapeCanvasResize.svelte";
+    import LandscapeEmptyNode from "#lib/landscape/components/LandscapeEmptyNode.svelte";
+    import StageNode from "#lib/landscape/components/StageNode.svelte";
 
     interface Props {
         landscapes: readonly Landscape[];

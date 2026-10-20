@@ -1,4 +1,4 @@
-import type { Identity as ApiIdentity } from "$lib/konfidence-api/types";
+import type { Identity as ApiIdentity } from "#lib/konfidence-api/types.ts";
 
 type AuthRole = string;
 

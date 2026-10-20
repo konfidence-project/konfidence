@@ -11,7 +11,7 @@
         NEUTRAL_RAMP,
         STATUS_ROLES,
         TEAL_RAMP,
-    } from "$lib/tokens/read-tokens";
+    } from "#lib/tokens/read-tokens.ts";
 </script>
 
 <Section

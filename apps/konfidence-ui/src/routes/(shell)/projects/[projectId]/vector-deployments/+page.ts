@@ -1,4 +1,4 @@
-import { LANDSCAPE_PARAM } from "$lib/deployments/params";
+import { LANDSCAPE_PARAM } from "#lib/deployments/params.ts";
 import type { PageLoad } from "./$types";
 
 export const load: PageLoad = ({ params, url }) => {

@@ -1,3 +1,4 @@
+import adapter from "@sveltejs/adapter-static";
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import { sveltekit } from "@sveltejs/kit/vite";
@@ -23,7 +24,20 @@ export default defineConfig({
       name: "spa-preview-fallback",
     },
     tailwindcss(),
-    sveltekit(),
+    sveltekit({
+      adapter: adapter({ fallback: "index.html" }),
+      compilerOptions: {
+        // Force runes mode for application code until Svelte 6 makes it the default.
+        runes: ({ filename }) => {
+          if (filename.split(/[/\\]/).includes("node_modules")) {
+            return undefined;
+          }
+
+          return true;
+        },
+      },
+      paths: { relative: false },
+    }),
   ],
   server: {
     proxy: {

@@ -3,7 +3,7 @@
     import { goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
-    import { useSession } from "$lib/auth/session.svelte";
+    import { useSession } from "#lib/auth/session.svelte.ts";
 
     const session = useSession();
 
@@ -27,7 +27,7 @@
             // hard navigation for arbitrary deep-links the typed resolver
             // cannot statically match.
             if (safeReturnTo === "/") {
-                void goto(resolve("/"));
+                void goto(resolve("/(shell)"));
             } else {
                 globalThis.location.assign(safeReturnTo);
             }

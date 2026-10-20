@@ -1,5 +1,5 @@
 /* oxlint-disable eslint/max-statements, typescript/prefer-for-of -- Layering is a linear fixed-point relaxation; the indexed pass counter and the accumulation steps read more clearly kept together than split apart. */
-import type { Landscape, Stage, VectorPromotionConfig } from "$lib/konfidence-api/types";
+import type { Landscape, Stage, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
 
 // A stage placed on the promotion graph. `column` is the topological depth in
 // the promotion DAG (0 = origin/"dev" on the left, higher = closer to "prod" on

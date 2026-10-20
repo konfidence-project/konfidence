@@ -4,7 +4,7 @@ import type {
   Middleware,
 } from "@konfidence/api-client";
 import { createKonfidenceApiClient } from "@konfidence/api-client";
-import { HTTP_UNAUTHORIZED } from "$lib/http-status";
+import { HTTP_UNAUTHORIZED } from "#lib/http-status.ts";
 
 type ApiClient = KonfidenceApiClient;
 

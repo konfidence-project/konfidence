@@ -1,12 +1,12 @@
 <script lang="ts">
     import type { PageProps } from "./$types";
-    import VectorDeploymentsView from "$lib/vector-deployments/VectorDeploymentsView.svelte";
+    import VectorDeploymentsView from "#lib/vector-deployments/VectorDeploymentsView.svelte";
     import {
         useArtifactDeployments,
         useLandscapes,
         useStages,
         useVectorDeployments,
-    } from "$lib/queries.svelte.js";
+    } from "#lib/queries.svelte.ts";
 
     let { data }: PageProps = $props();
 

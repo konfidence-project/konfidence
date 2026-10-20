@@ -4,7 +4,7 @@ import { render } from "vitest-browser-svelte";
 import ProjectsPageTestProvider from "./__tests__/ProjectsPageTestProvider.svelte";
 
 const navigation = vi.hoisted(() => ({
-  goto: vi.fn<(url: string, options: { replaceState: boolean }) => Promise<void>>(),
+  goto: vi.fn<(url: string, options: { replace: boolean }) => Promise<void>>(),
 }));
 
 vi.mock("$app/navigation", () => ({ goto: navigation.goto }));
@@ -30,7 +30,7 @@ describe("projects page", () => {
 
     await expect.element(page.getByRole("status")).toHaveTextContent("Opening Payments…");
     expect(navigation.goto).toHaveBeenCalledWith("/projects/payments/landscape", {
-      replaceState: true,
+      replace: true,
     });
 
     finishNavigation();

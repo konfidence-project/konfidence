@@ -2,12 +2,12 @@
     import type { Snippet } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import { useSession } from "$lib/auth/session.svelte";
-    import { useProjects as useProjectsQuery } from "$lib/queries.svelte";
-    import { provideProjects } from "$lib/projects/projectContext";
-    import { persistProjectPreferenceToSessionStorage, readLastProject } from "$lib/projects/persistProjectPreference";
-    import { projectLandscapeUrl } from "$lib/projects/url";
-    import { isEmbedded } from "$lib/shell/embedded";
+    import { useSession } from "#lib/auth/session.svelte.ts";
+    import { useProjects as useProjectsQuery } from "#lib/queries.svelte.ts";
+    import { provideProjects } from "#lib/projects/projectContext.ts";
+    import { persistProjectPreferenceToSessionStorage, readLastProject } from "#lib/projects/persistProjectPreference.ts";
+    import { projectLandscapeUrl } from "#lib/projects/url.ts";
+    import { isEmbedded } from "#lib/shell/embedded.ts";
 
     interface Props { children: Snippet; }
     let { children }: Props = $props();

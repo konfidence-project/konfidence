@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Menu, ProjectSelection } from "@konfidence/design-system/components";
-    import { useProjects } from "$lib/projects/projectContext";
+    import { useProjects } from "#lib/projects/projectContext.ts";
 
     /**
      * Project switcher trigger + popover menu. Skeleton's `Menu.Trigger`

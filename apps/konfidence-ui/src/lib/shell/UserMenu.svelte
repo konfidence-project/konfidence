@@ -2,7 +2,7 @@
     import { goto } from "$app/navigation";
     import { resolve } from "$app/paths";
     import { Avatar, Menu } from "@konfidence/design-system/components";
-    import { useSession } from "$lib/auth/session.svelte";
+    import { useSession } from "#lib/auth/session.svelte.ts";
 
     /**
      * Avatar trigger + user menu. Follows the same idiom as
@@ -29,7 +29,7 @@
 
     const handleSelect = (details: { value: string }): void => {
         if (details.value === SIGN_OUT_VALUE) {
-            void goto(resolve("/logout"));
+            void goto(resolve('logout'));
         }
     };
 </script>
@@ -41,7 +41,7 @@
                 {...attributes}
                 as="button"
                 class={attributes.class}
-                {initials}
+                initials={initials}
                 orbit
                 ariaLabel={`Open user menu for ${session.user?.name ?? "current user"}`}
                 data-testid="user-menu-trigger"

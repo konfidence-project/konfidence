@@ -1,6 +1,6 @@
 <script lang="ts">
-    import type { Project } from "$lib/konfidence-api/types";
-    import { provideProjects } from "$lib/projects/projectContext";
+    import type { Project } from "#lib/konfidence-api/types.ts";
+    import { provideProjects } from "#lib/projects/projectContext.ts";
     import ProjectsPage from "../+page.svelte";
 
     interface Props { projects: readonly Project[]; }

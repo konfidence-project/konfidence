@@ -3,8 +3,8 @@ import type {
   Landscape as ApiLandscape,
   Stage as ApiStage,
   VectorDeployment as ApiVectorDeployment,
-} from "$lib/konfidence-api/types";
-import type { StatusTone } from "$lib/components/table-cells/status-cell.types.js";
+} from "#lib/konfidence-api/types.ts";
+import type { StatusTone } from "#lib/components/table-cells/status-cell.types.ts";
 
 interface ArtifactDeploymentRow {
   id: string;

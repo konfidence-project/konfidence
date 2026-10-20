@@ -1,8 +1,8 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import { useProjects } from "$lib/projects/projectContext";
-    import { projectLandscapeUrl } from "$lib/projects/url";
-    import { isEmbedded } from "$lib/shell/embedded";
+    import { useProjects } from "#lib/projects/projectContext.ts";
+    import { projectLandscapeUrl } from "#lib/projects/url.ts";
+    import { isEmbedded } from "#lib/shell/embedded.ts";
 
     const projectContext = useProjects();
     const embedded = $derived(isEmbedded(page.url));

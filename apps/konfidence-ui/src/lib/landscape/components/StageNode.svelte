@@ -1,8 +1,8 @@
 <script lang="ts">
     import type { Node, NodeProps } from "@xyflow/svelte";
     import { Handle, Position, useSvelteFlow } from "@xyflow/svelte";
-    import type { Stage } from "$lib/konfidence-api/types";
-    import LandscapeStageCard from "$lib/landscape/components/LandscapeStageCard.svelte";
+    import type { Stage } from "#lib/konfidence-api/types.ts";
+    import LandscapeStageCard from "#lib/landscape/components/LandscapeStageCard.svelte";
 
     type StageNode = Node<
         { stage: Stage; landscapeName: string; href: string },
