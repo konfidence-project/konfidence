@@ -277,28 +277,6 @@ var _ = Describe("Project Controller", Ordered, func() {
 		Expect(controller.GetNamespace(ctx, k8sClient, konfidence.ProjectNamespacePrefix+projectName, true)).To(BeNil())
 	})
 
-	It("repairs label drift on the managed namespace", func() {
-		const projectName = "proj-drift"
-		controller.CreateProject(ctx, k8sClient, projectName)
-		DeferCleanup(func() { controller.CleanupProject(ctx, k8sClient, projectName) })
-
-		nsName := konfidence.ProjectNamespacePrefix + projectName
-		Eventually(func(g Gomega) {
-			expectManagedNamespace(g, controller.GetNamespace(ctx, k8sClient, nsName, true), projectName)
-		}, timeout, interval).Should(Succeed())
-
-		By("overwriting a managed label")
-		ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
-		ns.Labels[pkgctrl.ProjectTypeLabel] = "drifted"
-		Expect(k8sClient.Update(ctx, ns)).To(Succeed())
-
-		By("waiting for the label to be restored")
-		Eventually(func(g Gomega) {
-			ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
-			g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ProjectTypeLabel, "project"))
-		}, timeout, interval).Should(Succeed())
-	})
-
 	It("deletes the project namespace and waits for its termination under deletionPolicy Delete", func() {
 		const projectName = "proj-delete"
 		project := controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {

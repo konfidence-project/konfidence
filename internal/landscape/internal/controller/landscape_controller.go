@@ -21,10 +21,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -347,16 +345,6 @@ func (r *LandscapeReconciler) isManagedByLandscape(ns *corev1.Namespace, landsca
 		ns.Labels[pkgctrl.ProjectNameLabel] == landscape.Status.ProjectName
 }
 
-// isManagedByLandscapeController checks if a namespace is managed by the landscape
-// controller (any landscape, not a specific one).
-func isManagedByLandscapeController(ns *corev1.Namespace) bool {
-	if ns.Labels == nil {
-		return false
-	}
-	managedBy, hasManagedBy := ns.Labels[pkgctrl.ManagedByLabel]
-	return hasManagedBy && managedBy == landscapeControllerName
-}
-
 // namespaceConflict reports whether an existing namespace may not be taken over
 // by the given Landscape under the policy. Create refuses any namespace it does
 // not already manage; Adopt refuses only one managed by a different konfidence
@@ -435,61 +423,13 @@ func namespaceEventReason(operationResult controllerutil.OperationResult) string
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LandscapeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// We deliberately do not watch managed namespaces. Deletion or drift of the
+	// management labels on a namespace should be very rare and does not require
+	// immediate detection; the periodic requeue reconciles any drift as a backup.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.Landscape{}, builder.WithPredicates(reconcilePredicate())).
-		Watches(
-			// we cannot use .Owns(), because namespace-scoped Landscape cannot own a cluster-scoped Namespace
-			&corev1.Namespace{},
-			handler.EnqueueRequestsFromMapFunc(r.findLandscapeForNamespace),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-		).
 		Named(landscapeControllerName).
 		Complete(r)
-}
-
-// findLandscapeForNamespace maps a Namespace event to reconcile requests for any
-// Landscape resources that manage it. Since Landscape is namespace-scoped and
-// cannot set an owner reference on the cluster-scoped Namespace, we identify
-// the managing Landscape via labels.
-func (r *LandscapeReconciler) findLandscapeForNamespace(ctx context.Context, obj client.Object) []reconcile.Request {
-	ns, ok := obj.(*corev1.Namespace)
-	if !ok {
-		return nil
-	}
-
-	// Check if this namespace is managed by the landscape controller
-	if !isManagedByLandscapeController(ns) {
-		return nil
-	}
-
-	// Get the landscape name and parent project namespace from labels
-	landscapeName, hasLandscape := ns.Labels[pkgctrl.LandscapeNameLabel]
-	projectName, hasProject := ns.Labels[pkgctrl.ProjectNameLabel]
-	if !hasLandscape || !hasProject {
-		return nil
-	}
-
-	projectNsList := &corev1.NamespaceList{}
-	if err := r.List(ctx, projectNsList, client.MatchingLabels{
-		pkgctrl.ProjectTypeLabel: "project",
-		pkgctrl.ProjectNameLabel: projectName,
-	}); err != nil {
-		logf.FromContext(ctx).Error(err, "failed to list project namespaces while mapping namespace event to Landscape",
-			"namespace", ns.Name, "project", projectName)
-		return nil
-	}
-	if len(projectNsList.Items) == 0 {
-		return nil
-	}
-
-	return []reconcile.Request{
-		{
-			NamespacedName: types.NamespacedName{
-				Name:      landscapeName,
-				Namespace: projectNsList.Items[0].Name,
-			},
-		},
-	}
 }
 
 // reconcilePredicate triggers on spec (generation) changes and on deletion.

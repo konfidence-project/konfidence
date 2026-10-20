@@ -20,10 +20,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -336,12 +334,6 @@ func isManagedBy(ns *corev1.Namespace, project *konfidence.Project) bool {
 		ns.Labels[pkgctrl.ProjectNameLabel] == project.Name
 }
 
-// isManagedByProjectController reports whether the namespace is managed by the
-// project controller (any Project).
-func isManagedByProjectController(ns *corev1.Namespace) bool {
-	return ns.Labels[pkgctrl.ManagedByLabel] == projectControllerName
-}
-
 // namespaceConflict reports whether an existing namespace may not be taken over
 // by the given Project under the policy. Create refuses any namespace it does
 // not already manage; Adopt refuses only one managed by a different konfidence
@@ -380,32 +372,13 @@ func namespaceEventReason(operationResult controllerutil.OperationResult) string
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// We deliberately do not watch managed namespaces. Deletion or drift of the
+	// management labels on a namespace should be very rare and does not require
+	// immediate detection; the periodic requeue reconciles any drift as a backup.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.Project{}, builder.WithPredicates(reconcilePredicate())).
-		Watches(
-			// We cannot use .Owns(): the namespace is tracked by labels, not by a
-			// controller owner reference (see isManagedBy).
-			&corev1.Namespace{},
-			handler.EnqueueRequestsFromMapFunc(r.findProjectForNamespace),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-		).
 		Named(projectControllerName).
 		Complete(r)
-}
-
-// findProjectForNamespace maps a Namespace event to the Project that manages it,
-// identified by the managed-by and project-name labels. Project is cluster-scoped,
-// so the request carries only the project name.
-func (r *ProjectReconciler) findProjectForNamespace(_ context.Context, obj client.Object) []reconcile.Request {
-	ns, ok := obj.(*corev1.Namespace)
-	if !ok || !isManagedByProjectController(ns) {
-		return nil
-	}
-	projectName := ns.Labels[pkgctrl.ProjectNameLabel]
-	if projectName == "" {
-		return nil
-	}
-	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: projectName}}}
 }
 
 // reconcilePredicate triggers on spec (generation) changes and on deletion.
