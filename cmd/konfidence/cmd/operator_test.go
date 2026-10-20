@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/konfidence-project/konfidence/internal/deploymenttarget"
 	"github.com/konfidence-project/konfidence/internal/landscape"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -19,7 +18,6 @@ import (
 
 var _ = Describe("controllerDomains", func() {
 	allControllers := []string{
-		deploymenttarget.OperatorFlagName,
 		stage.OperatorFlagName,
 		taskorchestration.OperatorFlagName,
 		vectoractivation.OperatorFlagName,

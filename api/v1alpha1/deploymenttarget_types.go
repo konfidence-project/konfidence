@@ -15,43 +15,18 @@ const (
 
 // DeploymentTargetSpec defines the desired state of DeploymentTarget.
 type DeploymentTargetSpec struct {
-	// DeploymentClassName references a DeploymentClass by its metadata.name. The referenced DeploymentClass determines
-	// which controller is responsible for reconciling the DeploymentTarget resource. If there is no DeploymentClass
-	// with that name, the DeploymentTarget will be marked as not ready. DeploymentClassName
-	// is immutable because changing it would transfer ownership of the DeploymentTarget to a different controller.
-	//
-	// There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique
-	// across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of
-	// Konfidence.
+	// ArtifactType identifies the artifact type this destination serves.
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="deploymentClassName is immutable"
-	DeploymentClassName string `json:"deploymentClassName"`
+	ArtifactType string `json:"artifactType"`
 
-	// Connection defines how to connect to this deployment target.
-	// The structure and interpretation of connection details is specific to the
-	// deployment class and its implementing controller.
-	// +kubebuilder:validation:Required
-	Connection DeploymentTargetConnection `json:"connection"`
-}
-
-// DeploymentTargetConnection defines connection information for a deployment target.
-type DeploymentTargetConnection struct {
-	// Type is a hint for how to interpret the connection reference. It is advisory
-	// and informational only. The deployer controller interprets and enforces its meaning.
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=64
-	Type string `json:"type"`
-
-	// Ref references a resource containing connection details. This can be a Secret, ConfigMap,
-	// or a custom resource defined by the deployer. The deployer is responsible for interpreting
-	// and validating the referenced resource.
+	// Parameters are deployer-specific configuration for connecting to the target
+	// runtime. Their structure and interpretation are defined by the deployer that
+	// owns ArtifactType.
 	// +optional
-	Ref *ConnectionRef `json:"ref,omitempty"`
+	Parameters *Parameters `json:"parameters,omitempty"`
 }
 
-// ConnectionRef identifies a Secret or ConfigMap in the same namespace.
-type ConnectionRef struct {
+type Parameters struct {
 	// APIGroup is the group for the resource being referenced.
 	// Defaults to the core API group ("") for Secret and ConfigMap.
 	// For deployer-specific CRDs, set this to the appropriate API group.
@@ -71,12 +46,12 @@ type ConnectionRef struct {
 	Name string `json:"name"`
 }
 
-// DeploymentTargetStatus defines the observed state of DeploymentTarget.
-// The deployer controller responsible for this target's DeploymentClass is expected
-// to set the Ready condition once it has accepted the resource. What "accepted" means
-// is up to the deployer. It may include connectivity checks or simply validate the
-// configuration.
+// DeploymentTargetStatus defines the state observed by the responsible deployer.
 type DeploymentTargetStatus struct {
+	// Controller identifies the deployer and release version reporting this status.
+	// +optional
+	Controller string `json:"controller,omitempty"`
+
 	// +optional
 	// +listType=map
 	// +listMapKey=type
@@ -89,16 +64,15 @@ type DeploymentTargetStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced,categories=konfidence;kden
-// +kubebuilder:printcolumn:name="Class",type=string,JSONPath=`.spec.deploymentClassName`,description="Deployment class name"
-// +kubebuilder:printcolumn:name="Connection",type=string,JSONPath=`.spec.connection.type`,description="Connection type"
+// +kubebuilder:printcolumn:name="Artifact Type",type=string,JSONPath=`.spec.artifactType`,description="Artifact type"
+// +kubebuilder:printcolumn:name="Controller",type=string,JSONPath=`.status.controller`,description="Reporting deployer"
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`,description="Ready status"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // DeploymentTarget is the Schema for the deploymenttargets API. A DeploymentTarget
 // configures a concrete deployment destination within a landscape for a specific
-// deployment class. It is namespace-scoped and created in landscape namespaces.
-// Multiple DeploymentTargets can exist in the same landscape, but their deployment
-// class names must be unique within the namespace.
+// artifact type. It is namespace-scoped and created in landscape namespaces.
+// At most one DeploymentTarget for a given artifact type is allowed in a namespace.
 type DeploymentTarget struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
