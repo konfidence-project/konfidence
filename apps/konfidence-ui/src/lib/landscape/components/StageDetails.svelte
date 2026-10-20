@@ -25,6 +25,14 @@
 </script>
 {#if status === "loading"}
     <OrbitLoader label="Loading stage details" />
+{:else if status === "error" && errorStatus === 403}
+    <EmptyState
+        tone="error"
+        title="Stage access denied"
+        description="You do not have permission to view this stage."
+    >
+        {#snippet icon()}<ui5-icon name="error" aria-hidden="true"></ui5-icon>{/snippet}
+    </EmptyState>
 {:else if status === "error" && errorStatus !== 404}
     <EmptyState
         tone="error"

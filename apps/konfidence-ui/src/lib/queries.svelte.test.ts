@@ -55,7 +55,6 @@ describe("useVectorDeployment", () => {
   it("returns the single vector deployment on success (data is unwrapped, not data.data)", async () => {
     getMock.mockResolvedValue({
       data: vectorDeployment,
-      error: undefined,
       response: { ok: true, status: HTTP_OK },
     });
     const { useVectorDeployment } = await import("$lib/queries.svelte");
@@ -69,7 +68,6 @@ describe("useVectorDeployment", () => {
   it("calls the single vector deployment endpoint with the path params", async () => {
     getMock.mockResolvedValue({
       data: vectorDeployment,
-      error: undefined,
       response: { ok: true, status: HTTP_OK },
     });
     const { useVectorDeployment } = await import("$lib/queries.svelte");
@@ -140,7 +138,6 @@ describe("useStage", () => {
   it("returns the single stage on success (data is unwrapped, not data.data)", async () => {
     getMock.mockResolvedValue({
       data: stage,
-      error: undefined,
       response: { ok: true, status: HTTP_OK },
     });
     const { useStage } = await import("$lib/queries.svelte");
@@ -154,7 +151,6 @@ describe("useStage", () => {
   it("calls the single stage endpoint with the path params", async () => {
     getMock.mockResolvedValue({
       data: stage,
-      error: undefined,
       response: { ok: true, status: HTTP_OK },
     });
     const { useStage } = await import("$lib/queries.svelte");

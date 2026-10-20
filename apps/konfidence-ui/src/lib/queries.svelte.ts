@@ -1,6 +1,7 @@
 import { createQuery, fail, succeed } from "svelte-tiny-query";
 
 import { getApiClient } from "#lib/konfidence-api/client-instance.ts";
+import { getStage } from "#lib/konfidence-api/stages.ts";
 import type {
   ArtifactDeployment,
   Landscape,
@@ -9,6 +10,9 @@ import type {
   VectorDeployment,
   VectorPromotionConfig,
 } from "#lib/konfidence-api/types.ts";
+import { getVectorDeployment } from "#lib/konfidence-api/vector-deployments.ts";
+import type { StageReference } from "#lib/konfidence-api/stages.ts";
+import type { VectorDeploymentReference } from "#lib/konfidence-api/vector-deployments.ts";
 
 interface ProjectScope {
   [key: string]: string | undefined;
@@ -28,20 +32,6 @@ interface LandscapeFilter {
 
 interface ArtifactDeploymentFilter extends LandscapeFilter {
   vectorDeploymentId?: string;
-}
-
-interface VectorDeploymentRef {
-  [key: string]: string | undefined;
-  projectId: string;
-  landscapeId: string;
-  vectorDeploymentId: string;
-}
-
-interface StageRef {
-  [key: string]: string | undefined;
-  projectId: string;
-  landscapeId: string;
-  stageId: string;
 }
 
 const AUTHENTICATED_QUERY_ROOT = "authenticated";
@@ -116,7 +106,7 @@ const useStages = createQuery<QueryError, LandscapeFilter, readonly Stage[]>(
   },
 );
 
-const useStage = createQuery<QueryError, StageRef, Stage>(
+const useStage = createQuery<QueryError, StageReference, Readonly<Stage>>(
   (param) => [
     AUTHENTICATED_QUERY_ROOT,
     "projects",
@@ -126,19 +116,13 @@ const useStage = createQuery<QueryError, StageRef, Stage>(
     "stages",
     param.stageId,
   ],
-  async ({ projectId, landscapeId, stageId }, signal) => {
+  async (reference, signal) => {
     try {
-      const { data, error, response } = await getApiClient().GET(
-        "/v1/projects/{projectId}/landscapes/{landscapeId}/stages/{stageId}",
-        {
-          params: { path: { landscapeId, projectId, stageId } },
-          signal,
-        },
-      );
-      if (error || !response.ok || !data) {
-        return fail<QueryError>({ message: STAGE_UNAVAILABLE, status: response.status });
+      const result = await getStage(reference, signal);
+      if ("error" in result) {
+        return fail<QueryError>({ message: STAGE_UNAVAILABLE, status: result.status });
       }
-      return succeed<Stage>(data);
+      return succeed<Readonly<Stage>>(result.data);
     } catch {
       return fail<QueryError>({ message: STAGE_UNAVAILABLE });
     }
@@ -206,7 +190,11 @@ const useVectorDeployments = createQuery<QueryError, LandscapeFilter, readonly V
   },
 );
 
-const useVectorDeployment = createQuery<QueryError, VectorDeploymentRef, VectorDeployment>(
+const useVectorDeployment = createQuery<
+  QueryError,
+  VectorDeploymentReference,
+  Readonly<VectorDeployment>
+>(
   (param) => [
     AUTHENTICATED_QUERY_ROOT,
     "projects",
@@ -216,22 +204,16 @@ const useVectorDeployment = createQuery<QueryError, VectorDeploymentRef, VectorD
     "vectorDeployments",
     param.vectorDeploymentId,
   ],
-  async ({ projectId, landscapeId, vectorDeploymentId }, signal) => {
+  async (reference, signal) => {
     try {
-      const { data, error, response } = await getApiClient().GET(
-        "/v1/projects/{projectId}/landscapes/{landscapeId}/vectorDeployments/{vectorDeploymentId}",
-        {
-          params: { path: { landscapeId, projectId, vectorDeploymentId } },
-          signal,
-        },
-      );
-      if (error || !response.ok || !data) {
+      const result = await getVectorDeployment(reference, signal);
+      if ("error" in result) {
         return fail<QueryError>({
           message: VECTOR_DEPLOYMENT_UNAVAILABLE,
-          status: response.status,
+          status: result.status,
         });
       }
-      return succeed<VectorDeployment>(data);
+      return succeed<Readonly<VectorDeployment>>(result.data);
     } catch {
       return fail<QueryError>({ message: VECTOR_DEPLOYMENT_UNAVAILABLE });
     }

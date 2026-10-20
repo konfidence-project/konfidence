@@ -62,6 +62,17 @@ describe("<StageDetails>", () => {
     await expect.element(page.getByRole("button", { name: "Retry" })).not.toBeInTheDocument();
   });
 
+  it("renders a 403 as access denied without a retry action", async () => {
+    await render(StageDetails, {
+      ...baseProps,
+      errorStatus: 403,
+      status: "error",
+    });
+
+    await expect.element(page.getByRole("alert")).toMatchTextContent("Stage access denied");
+    await expect.element(page.getByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  });
+
   it("renders missing stage data as not found", async () => {
     await render(StageDetails, {
       ...baseProps,
