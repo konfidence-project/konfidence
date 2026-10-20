@@ -69,6 +69,16 @@ spec:
               changing a set namespace is caught by the field-level rule. The two rules
               are split to stay within the CEL cost budget of the schema.
             properties:
+              deletionPolicy:
+                default: Orphan
+                description: |-
+                  DeletionPolicy controls what happens to the project namespace when the
+                  Project is deleted. Orphan (the default) keeps the namespace and strips
+                  its management labels; Delete removes the namespace with the Project.
+                enum:
+                - Delete
+                - Orphan
+                type: string
               displayName:
                 description: |-
                   DisplayName is the human-readable name of the project, shown in user
@@ -89,6 +99,16 @@ spec:
                 x-kubernetes-validations:
                 - message: namespace is immutable
                   rule: self == oldSelf
+              namespacePolicy:
+                default: Create
+                description: |-
+                  NamespacePolicy controls how the project namespace is taken over. Create
+                  (the default) creates it and errors on conflict; Adopt takes over an
+                  existing namespace and requires it to already exist.
+                enum:
+                - Create
+                - Adopt
+                type: string
               roleBindings:
                 additionalProperties:
                   description: |-

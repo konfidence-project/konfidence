@@ -26,6 +26,9 @@ const (
 	LandscapeNamespaceTerminatingReason = "NamespaceTerminating"
 	// LandscapeNamespaceCreateFailedReason indicates that creating or updating the landscape namespace failed.
 	LandscapeNamespaceCreateFailedReason = "NamespaceCreateFailed"
+	// LandscapeNamespaceNotFoundReason indicates that namespacePolicy Adopt was requested
+	// but the target namespace does not exist yet.
+	LandscapeNamespaceNotFoundReason = "NamespaceNotFound"
 	// LandscapeInvalidNamespaceReason indicates that the landscape was created in a namespace that is not a project namespace.
 	LandscapeInvalidNamespaceReason = "InvalidNamespace"
 
@@ -57,6 +60,22 @@ type LandscapeSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="namespace is immutable"
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
+
+	// NamespacePolicy controls how the landscape namespace is taken over. Create
+	// (the default) creates it and errors on conflict; Adopt takes over an
+	// existing namespace and requires it to already exist.
+	// +kubebuilder:validation:Enum=Create;Adopt
+	// +kubebuilder:default=Create
+	// +optional
+	NamespacePolicy NamespacePolicy `json:"namespacePolicy,omitempty"`
+
+	// DeletionPolicy controls what happens to the landscape namespace when the
+	// Landscape is deleted. Orphan (the default) keeps the namespace and strips
+	// its management labels; Delete removes the namespace with the Landscape.
+	// +kubebuilder:validation:Enum=Delete;Orphan
+	// +kubebuilder:default=Orphan
+	// +optional
+	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
 }
 
 // LandscapeStatus defines the observed state of Landscape.

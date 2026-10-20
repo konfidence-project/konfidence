@@ -26,6 +26,9 @@ const (
 	ProjectNamespaceTerminatingReason = "NamespaceTerminating"
 	// ProjectNamespaceCreateFailedReason indicates that creating or updating the project namespace failed.
 	ProjectNamespaceCreateFailedReason = "NamespaceCreateFailed"
+	// ProjectNamespaceNotFoundReason indicates that namespacePolicy Adopt was requested
+	// but the target namespace does not exist yet.
+	ProjectNamespaceNotFoundReason = "NamespaceNotFound"
 
 	// ProjectNamespacePrefix is the prefix of the default project namespace name.
 	ProjectNamespacePrefix = "kden-p-"
@@ -55,6 +58,22 @@ type ProjectSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="namespace is immutable"
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
+
+	// NamespacePolicy controls how the project namespace is taken over. Create
+	// (the default) creates it and errors on conflict; Adopt takes over an
+	// existing namespace and requires it to already exist.
+	// +kubebuilder:validation:Enum=Create;Adopt
+	// +kubebuilder:default=Create
+	// +optional
+	NamespacePolicy NamespacePolicy `json:"namespacePolicy,omitempty"`
+
+	// DeletionPolicy controls what happens to the project namespace when the
+	// Project is deleted. Orphan (the default) keeps the namespace and strips
+	// its management labels; Delete removes the namespace with the Project.
+	// +kubebuilder:validation:Enum=Delete;Orphan
+	// +kubebuilder:default=Orphan
+	// +optional
+	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
 
 	// RoleBindings grants project roles to callers. It maps a role name to the
 	// list of subjects that hold that role; a caller holds the role if any
