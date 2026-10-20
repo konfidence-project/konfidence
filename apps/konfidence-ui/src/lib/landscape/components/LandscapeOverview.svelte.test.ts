@@ -1,6 +1,6 @@
 import "../../../app.css";
 import { page } from "vitest/browser";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 import type {
   Landscape,
@@ -12,9 +12,13 @@ import LandscapeOverview from "$lib/landscape/components/LandscapeOverview.svelt
 
 const navigation = vi.hoisted(() => ({
   goto: vi.fn<(url: URL, options: { keepFocus: boolean; noScroll: boolean }) => Promise<void>>(),
+  pushState: vi.fn<(url: string | URL, state: App.PageState) => void>(),
 }));
 const appState = vi.hoisted(() => ({
-  page: { url: new URL("http://127.0.0.1/projects/payments/landscape") },
+  page: {
+    state: {} as App.PageState,
+    url: new URL("http://127.0.0.1/projects/payments/landscape"),
+  },
 }));
 
 interface MockQueryState {
@@ -66,11 +70,17 @@ const vectorDeploymentResource = (overrides: Partial<VectorDeployment>): VectorD
   ...overrides,
 });
 
-vi.mock("$app/navigation", () => ({ goto: navigation.goto }));
+vi.mock("$app/navigation", () => ({ goto: navigation.goto, pushState: navigation.pushState }));
 vi.mock("$app/state", () => appState);
 
 const setUrl = (search: string): void => {
   appState.page.url = new URL(`http://127.0.0.1/projects/payments/landscape${search}`);
+};
+
+const setStageOverlay = (landscapeId: string, stageId: string): void => {
+  appState.page.state = {
+    stageOverlay: { landscapeId, projectId: "payments", stageId },
+  };
 };
 
 const landscapes: readonly Landscape[] = [{ id: "primary", name: "Primary" }];
@@ -125,20 +135,33 @@ const baseProps = {
 beforeEach(() => {
   navigation.goto.mockReset();
   navigation.goto.mockResolvedValue();
+  navigation.pushState.mockReset();
   vectorDeployment.states.clear();
   vectorDeployment.reload.mockReset();
+  appState.page.state = {};
   setUrl("");
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("<LandscapeOverview> stage overlay", () => {
-  it("keeps the overlay closed with no stage param", async () => {
+  it("pre-opens the overlay from shallow route state", async () => {
+    setStageOverlay("primary", "dev-api");
+    await render(LandscapeOverview, baseProps);
+
+    await expect.element(page.getByRole("dialog", { name: "dev-api" })).toBeVisible();
+  });
+
+  it("keeps the overlay closed with no shallow route state", async () => {
     await render(LandscapeOverview, baseProps);
 
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("pre-opens the overlay for the stage named in the search param", async () => {
-    setUrl("?stage=dev-api");
+  it("renders stage details for the shallow route state", async () => {
+    setStageOverlay("primary", "dev-api");
     await render(LandscapeOverview, baseProps);
 
     await expect.element(page.getByRole("dialog", { name: "dev-api" })).toBeVisible();
@@ -149,7 +172,7 @@ describe("<LandscapeOverview> stage overlay", () => {
   });
 
   it("highlights the selected stage's card when its overlay is open", async () => {
-    setUrl("?stage=dev-api");
+    setStageOverlay("primary", "dev-api");
     await render(LandscapeOverview, baseProps);
 
     const selectedCard = page
@@ -160,58 +183,101 @@ describe("<LandscapeOverview> stage overlay", () => {
     });
   });
 
-  it("does not open the overlay for an unknown stage id", async () => {
-    setUrl("?stage=missing");
+  it("does not open the overlay for an unknown stage reference", async () => {
+    setStageOverlay("primary", "missing");
     await render(LandscapeOverview, baseProps);
 
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("clears the stage param when the overlay is closed", async () => {
-    setUrl("?stage=dev-api");
+  it("navigates back once when the overlay is closed", async () => {
+    const back = vi.spyOn(globalThis.history, "back").mockImplementation(() => undefined);
+    setStageOverlay("primary", "dev-api");
     await render(LandscapeOverview, baseProps);
 
     await page.getByTestId("side-panel-close").click();
 
-    expect(navigation.goto).toHaveBeenCalled();
-    const [next, options] = navigation.goto.mock.calls[0]!;
-    expect(next.searchParams.has("stage")).toBe(false);
-    expect(next.pathname).toBe("/projects/payments/landscape");
-    expect(options).toEqual({ keepFocus: true, noScroll: true });
+    expect(back).toHaveBeenCalledOnce();
   });
 
-  it("navigates to the dedicated stage detail page from the overlay resize button", async () => {
-    setUrl("?stage=dev-api");
+  it("shallow-routes an ordinary stage-card click to its canonical URL", async () => {
     await render(LandscapeOverview, baseProps);
 
-    const dialog = page.getByRole("dialog", { name: "dev-api" });
-    await expect.element(dialog).toBeVisible();
-    // A direct DOM click avoids a stale top-layer backdrop (left by a prior
-    // test's unmounted <dialog>) swallowing the synthesized pointer event.
-    (dialog.getByTestId("side-panel-resize").element() as HTMLButtonElement).click();
+    const card = page.getByRole("link", { name: "View details for stage dev-api in Primary" });
+    card
+      .element()
+      .dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0, cancelable: true }));
 
-    expect(navigation.goto).toHaveBeenCalledWith(
+    expect(navigation.pushState).toHaveBeenCalledWith(
       "/projects/payments/landscape/primary/stages/dev-api",
+      {
+        stageOverlay: {
+          landscapeId: "primary",
+          projectId: "payments",
+          stageId: "dev-api",
+        },
+      },
     );
   });
 
-  it("preserves the embedded flag when navigating to the stage detail page", async () => {
-    setUrl("?stage=dev-api");
+  it("does not intercept a modified stage-card click", async () => {
+    await render(LandscapeOverview, baseProps);
+
+    const card = page
+      .getByRole("link", { name: "View details for stage dev-api in Primary" })
+      .element();
+    card.addEventListener("click", (event) => event.preventDefault());
+    card.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, ctrlKey: true }));
+
+    expect(navigation.pushState).not.toHaveBeenCalled();
+  });
+
+  it("preserves the embedded flag in the canonical card URL", async () => {
     await render(LandscapeOverview, { ...baseProps, embedded: true });
 
-    const dialog = page.getByRole("dialog", { name: "dev-api" });
-    await expect.element(dialog).toBeVisible();
-    (dialog.getByTestId("side-panel-resize").element() as HTMLButtonElement).click();
+    await expect
+      .element(page.getByRole("link", { name: "View details for stage dev-api in Primary" }))
+      .toHaveAttribute("href", "/projects/payments/landscape/primary/stages/dev-api?embedded=1");
+  });
 
-    expect(navigation.goto).toHaveBeenCalledWith(
-      "/projects/payments/landscape/primary/stages/dev-api?embedded=1",
-    );
+  it("links from the overlay to the canonical full page", async () => {
+    setStageOverlay("primary", "dev-api");
+    await render(LandscapeOverview, baseProps);
+
+    await expect
+      .element(page.getByRole("link", { name: "Open full page" }))
+      .toHaveAttribute("href", "/projects/payments/landscape/primary/stages/dev-api");
+  });
+
+  it("selects a stage by landscape and stage id", async () => {
+    const secondaryStage = { ...stage, landscapeId: "secondary" };
+    setStageOverlay("secondary", "dev-api");
+    await render(LandscapeOverview, {
+      ...baseProps,
+      landscapes: [...landscapes, { id: "secondary", name: "Secondary" }],
+      stages: [stage, secondaryStage],
+    });
+
+    const primary = page.getByRole("link", {
+      name: "View details for stage dev-api in Primary",
+    });
+    const secondary = page.getByRole("link", {
+      name: "View details for stage dev-api in Secondary",
+    });
+    await vi.waitFor(() => {
+      expect((primary.element() as HTMLElement).classList.contains("stage-card--selected")).toBe(
+        false,
+      );
+      expect((secondary.element() as HTMLElement).classList.contains("stage-card--selected")).toBe(
+        true,
+      );
+    });
   });
 });
 
 describe("<LandscapeOverview> vector deployment sections", () => {
   it("shows a loading indicator for each section while the vector deployment is fetching", async () => {
-    setUrl("?stage=dev-api");
+    setStageOverlay("primary", "dev-api");
     await render(LandscapeOverview, baseProps);
 
     const loaders = page.getByText("Loading vector deployment");
@@ -236,7 +302,7 @@ describe("<LandscapeOverview> vector deployment sections", () => {
         },
       }),
     });
-    setUrl("?stage=dev-api");
+    setStageOverlay("primary", "dev-api");
     await render(LandscapeOverview, baseProps);
 
     await expect.element(page.getByText("delivery-service").first()).toBeVisible();
@@ -259,7 +325,7 @@ describe("<LandscapeOverview> vector deployment sections", () => {
     setVectorDeploymentState("dev-api-v1", {
       data: vectorDeploymentResource({ id: "dev-api-v1", status: "DeploymentReady" }),
     });
-    setUrl("?stage=dev-api");
+    setStageOverlay("primary", "dev-api");
     await render(LandscapeOverview, baseProps);
 
     const alert = page.getByRole("alert").first();
@@ -277,7 +343,7 @@ describe("<LandscapeOverview> vector deployment sections", () => {
     setVectorDeploymentState("dev-api-v1", {
       data: vectorDeploymentResource({ id: "dev-api-v1", status: "DeploymentReady" }),
     });
-    setUrl("?stage=dev-api");
+    setStageOverlay("primary", "dev-api");
     await render(LandscapeOverview, baseProps);
 
     await expect.element(page.getByText("No vector deployment")).toBeVisible();
@@ -288,7 +354,7 @@ describe("<LandscapeOverview> vector deployment sections", () => {
     setVectorDeploymentState("dev-api-v1", {
       data: vectorDeploymentResource({ id: "dev-api-v1", status: "DeploymentReady" }),
     });
-    setUrl("?stage=prod-api");
+    setStageOverlay("primary", "prod-api");
     await render(LandscapeOverview, {
       ...baseProps,
       landscapes: [{ id: "primary", name: "Primary" }],

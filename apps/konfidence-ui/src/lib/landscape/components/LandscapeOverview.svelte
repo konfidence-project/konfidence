@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { page } from "$app/state";
     import {
         Button,
         OrbitLoader,
@@ -10,8 +8,8 @@
     import type { Landscape, Stage, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
     import LandscapeFlow from "#lib/landscape/components/LandscapeFlow.svelte";
     import StageDetails from "#lib/landscape/components/StageDetails.svelte";
-    import { STAGE_PARAM } from "#lib/landscape/params.ts";
-    import { stageDetailsUrl } from "#lib/projects/url.ts";
+    import { useStageOverlay } from "#lib/landscape/stageOverlay.svelte.ts";
+    import { sidePanelWidth } from "#lib/shell/sidePanelWidth.svelte.ts";
 
     interface Props {
         error?: string;
@@ -34,36 +32,13 @@
         onRetry,
     }: Props = $props();
 
-    const selectedStageId = $derived(page.url.searchParams.get(STAGE_PARAM) ?? undefined);
-    const selectedStage = $derived(
-        selectedStageId === undefined
-            ? undefined
-            : stages.find((candidate) => candidate.id === selectedStageId),
-    );
+    const overlay = useStageOverlay({
+        embedded: () => embedded,
+        projectId: () => projectId,
+        stages: () => stages,
+    });
+    const selectedStage = $derived(overlay.selected);
 
-    const closeOverlay = (): void => {
-        if (!page.url.searchParams.has(STAGE_PARAM)) {
-            return;
-        }
-        const next = new URL(page.url);
-        next.searchParams.delete(STAGE_PARAM);
-        // eslint-disable-next-line svelte/no-navigation-without-resolve -- reusing the current page URL.
-        void goto(next, { keepFocus: true, noScroll: true });
-    };
-
-    const openStageDetails = (): void => {
-        if (selectedStage === undefined) {
-            return;
-        }
-        const href = stageDetailsUrl({
-            embedded,
-            landscapeId: selectedStage.landscapeId,
-            projectId,
-            stageId: selectedStage.id,
-        });
-        // eslint-disable-next-line svelte/no-navigation-without-resolve -- the shared helper resolves this typed application route.
-        void goto(href);
-    };
 </script>
 
 <section
@@ -101,9 +76,9 @@
             {landscapes}
             {stages}
             {promotionConfigs}
-            {projectId}
-            {embedded}
-            {selectedStageId}
+            selectedStage={selectedStage}
+            stageHref={overlay.hrefFor}
+            stageReference={overlay.referenceFor}
         />
     {/if}
 </section>
@@ -111,8 +86,10 @@
 <SidePanel
     open={selectedStage !== undefined}
     title={selectedStage?.name ?? "Stage"}
-    onClose={closeOverlay}
-    onResize={openStageDetails}
+    onClose={overlay.close}
+    fullPageHref={overlay.selectedHref}
+    width={sidePanelWidth.current}
+    onWidthChange={sidePanelWidth.set}
 >
     {#if selectedStage}
         <StageDetails {projectId} stage={selectedStage} status="ready" onRetry={() => undefined} />

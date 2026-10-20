@@ -81,13 +81,15 @@ test("shows the empty overview for the empty mock project", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "No landscapes yet" })).toBeVisible();
 });
 
-// oxlint-disable-next-line eslint/max-statements -- This real-data journey checks the minimum detail contract, reload, landmark, and overlay close behavior.
-test("opens and reloads real mock details without nesting main landmarks", async ({ page }) => {
+// oxlint-disable-next-line eslint/max-statements -- This real-data journey checks details, landmarks, and shallow history behavior.
+test("opens real mock details and follows browser history", async ({ page }) => {
   await signIn(page, "/projects");
   await page.getByRole("link", { name: "Payments Platform" }).click();
-  await page.getByRole("link", { name: /View details for stage dev-eu10/ }).click();
+  const card = page.getByRole("link", { name: /View details for stage dev-eu10/ });
+  const detailsUrl = await card.getAttribute("href");
+  await card.click();
 
-  await expect(page).toHaveURL(/\?stage=dev-eu10/);
+  await expect(page).toHaveURL(detailsUrl!);
   const dialog = page.getByRole("dialog", { name: "dev-eu10" });
   await expect(dialog).toBeVisible();
   const targetVersion = page.getByRole("region", { name: "Target version" });
@@ -97,38 +99,52 @@ test("opens and reloads real mock details without nesting main landmarks", async
   await expect(activeVersion.getByText("Ready", { exact: true })).toBeVisible();
   await expect(activeVersion.getByText("dev-eu10-v5", { exact: true })).toBeVisible();
   await expect(page.locator("main")).toHaveCount(1);
-  await page.reload();
-  await expect(page.locator("main")).toHaveCount(1);
-  await expect(page.getByRole("dialog", { name: "dev-eu10" })).toBeVisible();
-  await page.getByTestId("side-panel-close").click();
+  await page.goBack();
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.goForward();
+  await expect(page).toHaveURL(detailsUrl!);
+  await expect(page.getByRole("dialog", { name: "dev-eu10" })).toBeVisible();
 });
 
-// oxlint-disable-next-line eslint/max-statements -- One journey verifies the overlay-to-detail-page resize handoff is deep-linkable.
-test("expands the overlay to the dedicated stage detail page via the resize button", async ({
-  page,
-}) => {
+// oxlint-disable-next-line eslint/max-statements -- One journey verifies shallow overlay navigation and its standalone fallback.
+test("uses the canonical stage URL for the overlay and standalone page", async ({ page }) => {
   await mockOverview(page);
   await page.route(SINGLE_STAGE_API, (route) => route.fulfill({ json: stage }));
-  const target = "/projects/payments-platform/landscape?stage=dev-api";
+  const target = "/projects/payments-platform/landscape";
   await signIn(page, target, target);
 
-  await expect(page.getByRole("dialog", { name: "dev-api" })).toBeVisible();
-  await page.getByTestId("side-panel-resize").click();
+  const card = page.getByRole("link", { name: "View details for stage dev-api in Primary" });
+  await expect(card).toHaveAttribute(
+    "href",
+    "/projects/payments-platform/landscape/primary/stages/dev-api",
+  );
+  await card.click();
 
-  // The dedicated detail page is its own deep-linkable route (no overlay, no
-  // overview canvas), loading only the single stage it needs.
+  await expect(page).toHaveURL("/projects/payments-platform/landscape/primary/stages/dev-api");
+  await expect(page.getByRole("dialog", { name: "dev-api" })).toBeVisible();
+  const fullPage = page.getByRole("link", { name: "Open full page" });
+  await expect(fullPage).toHaveAttribute(
+    "href",
+    "/projects/payments-platform/landscape/primary/stages/dev-api",
+  );
+
+  await fullPage.click();
+
   await expect(page).toHaveURL("/projects/payments-platform/landscape/primary/stages/dev-api");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByTestId("landscape-flow")).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1, name: "dev-api" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to landscape" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Target version" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Active version" })).toBeVisible();
 });
 
 test("renders a pending target without an active version", async ({ page }) => {
-  const target = "/projects/payments-platform/landscape?stage=dev-canary";
-  await signIn(page, target, target);
+  await signIn(page, "/projects");
+  await page.getByRole("link", { name: "Payments Platform" }).click();
+  await page.getByRole("link", { name: /View details for stage DEV-canary/ }).click();
 
   await expect(page.getByRole("dialog", { name: "DEV-canary" })).toBeVisible();
   await expect(
@@ -170,12 +186,13 @@ test("recovers from a stage detail API error", async ({ page }) => {
       },
     });
   });
-  const target = "/projects/payments-platform/landscape?stage=dev-api";
+  const target = "/projects/payments-platform/landscape";
   await signIn(page, target, target);
 
   await expect(page.getByRole("heading", { name: "Landscape could not be loaded" })).toBeVisible();
   failing = false;
   await page.getByRole("button", { name: "Retry" }).click();
+  await page.getByRole("link", { name: /View details for stage dev-api/ }).click();
   await expect(page.getByRole("dialog", { name: "dev-api" })).toBeVisible();
   await expect(
     page.getByTestId("side-panel").getByText("registry.example:5000//delivery/vector:main"),
@@ -254,13 +271,12 @@ test("groups stages and opens a real detail route with the keyboard", async ({ p
   await expect(link).toBeFocused();
   await page.keyboard.press("Enter");
 
-  await expect(page).toHaveURL("/projects/payments-platform/landscape?stage=dev-api");
+  await expect(page).toHaveURL("/projects/payments-platform/landscape/primary/stages/dev-api");
   await expect(page.getByRole("dialog", { name: "dev-api" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Target version" })).toBeVisible();
   await expect(
     page.getByTestId("side-panel").getByText("registry.example:5000//delivery/vector:main"),
   ).toBeVisible();
-  await page.reload();
   await page.getByTestId("side-panel-close").click();
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
 });
@@ -291,12 +307,19 @@ test("recovers from an overview API error and fits a mobile viewport", async ({ 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("leaves the overlay closed for an unknown stage id in the search param", async ({ page }) => {
-  await mockOverview(page);
-  const target = "/projects/payments-platform/landscape?stage=missing";
+test("renders not found for an unknown canonical stage URL", async ({ page }) => {
+  await page.route(SINGLE_STAGE_API, (route) =>
+    route.fulfill({
+      json: { error: { code: "404", message: "Not found" } },
+      status: 404,
+    }),
+  );
+  const target = "/projects/payments-platform/landscape/primary/stages/missing";
   await signIn(page, target, target);
 
-  await expect(page.getByTestId("landscape-flow")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "missing" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Stage not found" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to landscape" })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
@@ -420,7 +443,7 @@ test("lays out stages by promotion depth from dev on the left to prod on the rig
   });
   await expect(other).toHaveAttribute(
     "href",
-    "/projects/payments-platform/landscape?stage=other-api",
+    "/projects/payments-platform/landscape/secondary/stages/other-api",
   );
   // Promotion edges are rendered between the chained stages.
   await expect(page.locator(".svelte-flow__edge")).toHaveCount(2);
@@ -441,7 +464,7 @@ test("keeps overview stages after opening and closing the detail overlay", async
   await page.route(STAGES_API, (route) =>
     route.fulfill({
       json: {
-        data: [stage, { ...stage, id: "sec-api", landscapeId: "secondary", name: "sec-api" }],
+        data: [stage, { ...stage, landscapeId: "secondary" }],
       },
     }),
   );
@@ -452,20 +475,20 @@ test("keeps overview stages after opening and closing the detail overlay", async
     name: "View details for stage dev-api in Primary",
   });
   const secondary = page.getByRole("link", {
-    name: "View details for stage sec-api in Secondary",
+    name: "View details for stage dev-api in Secondary",
   });
   await expect(primary).toBeVisible();
   await expect(secondary).toBeVisible();
   await secondary.click();
-  await expect(page.getByRole("dialog", { name: "sec-api" })).toBeVisible();
-  await expect(page).toHaveURL(/\?stage=sec-api/);
+  await expect(page.getByRole("dialog", { name: "dev-api" })).toBeVisible();
+  await expect(page).toHaveURL("/projects/payments-platform/landscape/secondary/stages/dev-api");
   await page.getByTestId("side-panel-close").click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(primary).toBeVisible();
   await expect(secondary).toBeVisible();
   await primary.click();
   await expect(page.getByRole("dialog", { name: "dev-api" })).toBeVisible();
-  await expect(page).toHaveURL(/\?stage=dev-api/);
+  await expect(page).toHaveURL("/projects/payments-platform/landscape/primary/stages/dev-api");
 });
 
 // oxlint-disable-next-line eslint/max-statements -- Verify initial readability, explicit fit, and keyboard recovery to an offscreen stage.

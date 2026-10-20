@@ -3,9 +3,17 @@
     import { Handle, Position, useSvelteFlow } from "@xyflow/svelte";
     import type { Stage } from "#lib/konfidence-api/types.ts";
     import LandscapeStageCard from "#lib/landscape/components/LandscapeStageCard.svelte";
+    import { openStageOverlay } from "#lib/landscape/stageOverlay.svelte.ts";
+    import type { StageOverlayReference } from "#lib/landscape/stageOverlay.svelte.ts";
 
     type StageNode = Node<
-        { stage: Stage; landscapeName: string; href: string; selected?: boolean },
+        {
+            stage: Stage;
+            landscapeName: string;
+            href: string;
+            reference: StageOverlayReference;
+            selected?: boolean;
+        },
         "stage"
     >;
     let { data, id }: NodeProps<StageNode> = $props();
@@ -19,6 +27,9 @@
         ) {
             void fitView({ maxZoom: 1, nodes: [{ id }], padding: 0.2 });
         }
+    };
+    const openStage = (event: MouseEvent): void => {
+        openStageOverlay(event, data.href, data.reference);
     };
 </script>
 
@@ -43,7 +54,7 @@
         isConnectable={false}
         style="opacity: 0; pointer-events: none;"
     />
-    <LandscapeStageCard {...data} />
+    <LandscapeStageCard {...data} onclick={openStage} />
     <Handle
         type="source"
         position={Position.Right}

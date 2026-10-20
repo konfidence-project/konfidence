@@ -18,7 +18,7 @@ const stage: Stage = {
   name: "dev-api",
 };
 const props = {
-  href: "/projects/payments/landscape?stage=dev-api",
+  href: "/projects/payments/landscape/primary/stages/dev-api",
   landscapeName: "Primary",
 };
 
