@@ -239,6 +239,44 @@ var _ = Describe("Project Controller", Ordered, func() {
 		}, timeout, interval).Should(Succeed())
 	})
 
+	It("adopts a pre-existing unmanaged namespace under namespacePolicy Adopt", func() {
+		const projectName = "proj-adopt"
+		const nsName = "proj-adopt-existing-ns"
+
+		unmanaged := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName}}
+		Expect(k8sClient.Create(ctx, unmanaged)).To(Succeed())
+
+		controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.Namespace = nsName
+			p.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+		})
+		DeferCleanup(func() { controller.CleanupProject(ctx, k8sClient, projectName) })
+
+		Eventually(func(g Gomega) {
+			expectManagedNamespace(g, controller.GetNamespace(ctx, k8sClient, nsName, false), projectName)
+			project := controller.GetProject(ctx, k8sClient, projectName, false)
+			g.Expect(project.Status.Namespace).To(Equal(nsName))
+			expectCondition(g, project, konfidence.ProjectNamespaceReadyCondition, metav1.ConditionTrue, konfidence.ProjectNamespaceReconciledReason)
+		}, timeout, interval).Should(Succeed())
+	})
+
+	It("reports NamespaceNotFound when namespacePolicy Adopt has no namespace to adopt", func() {
+		const projectName = "proj-adopt-missing"
+		controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+		})
+		DeferCleanup(func() { controller.CleanupProject(ctx, k8sClient, projectName) })
+
+		Eventually(func(g Gomega) {
+			project := controller.GetProject(ctx, k8sClient, projectName, false)
+			expectCondition(g, project, konfidence.ProjectNamespaceReadyCondition, metav1.ConditionFalse, konfidence.ProjectNamespaceNotFoundReason)
+			expectCondition(g, project, konfidence.ProjectReadyCondition, metav1.ConditionFalse, konfidence.ProjectNamespaceNotFoundReason)
+		}, timeout, interval).Should(Succeed())
+
+		By("not creating the namespace")
+		Expect(controller.GetNamespace(ctx, k8sClient, konfidence.ProjectNamespacePrefix+projectName, true)).To(BeNil())
+	})
+
 	It("repairs label drift on the managed namespace", func() {
 		const projectName = "proj-drift"
 		controller.CreateProject(ctx, k8sClient, projectName)

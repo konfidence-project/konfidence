@@ -260,4 +260,87 @@ var _ = Describe("Landscape Controller", Ordered, func() {
 		Expect(controller.GetNamespace(ctx, k8sClient, ns1Name, true)).NotTo(BeNil())
 		Expect(controller.GetNamespace(ctx, k8sClient, ns2Name, true)).NotTo(BeNil())
 	})
+
+	It("refuses to adopt an existing unmanaged namespace under namespacePolicy Create", func() {
+		const projectName = "proj-conflict"
+		const projectNsName = "kden-p-proj-conflict"
+		const landscapeName = "land-conflict"
+		const nsName = "land-conflict-taken-ns"
+
+		controller.CreateProjectNamespace(ctx, k8sClient, projectNsName, projectName)
+		DeferCleanup(func() { controller.CleanupProjectNamespace(ctx, k8sClient, projectNsName) })
+
+		unmanaged := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName}}
+		Expect(k8sClient.Create(ctx, unmanaged)).To(Succeed())
+		DeferCleanup(func() {
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, unmanaged))).To(Succeed())
+		})
+
+		controller.CreateLandscape(ctx, k8sClient, landscapeName, projectNsName, func(l *konfidence.Landscape) {
+			l.Spec.Namespace = nsName
+		})
+		DeferCleanup(func() { controller.CleanupLandscape(ctx, k8sClient, landscapeName, projectNsName) })
+
+		Eventually(func(g Gomega) {
+			landscape := controller.GetLandscape(ctx, k8sClient, landscapeName, projectNsName, false)
+			expectCondition(g, landscape, konfidence.LandscapeNamespaceReadyCondition, metav1.ConditionFalse, konfidence.LandscapeNamespaceConflictReason)
+			expectCondition(g, landscape, konfidence.LandscapeReadyCondition, metav1.ConditionFalse, konfidence.LandscapeNamespaceConflictReason)
+		}, timeout, interval).Should(Succeed())
+
+		By("leaving the unmanaged namespace untouched")
+		Consistently(func(g Gomega) {
+			ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
+			g.Expect(ns.Labels).NotTo(HaveKey(pkgctrl.ManagedByLabel))
+		}, time.Second*2, interval).Should(Succeed())
+	})
+
+	It("adopts a pre-existing unmanaged namespace under namespacePolicy Adopt", func() {
+		const projectName = "proj-adopt"
+		const projectNsName = "kden-p-proj-adopt"
+		const landscapeName = "land-adopt"
+		const nsName = "land-adopt-existing-ns"
+
+		controller.CreateProjectNamespace(ctx, k8sClient, projectNsName, projectName)
+		DeferCleanup(func() { controller.CleanupProjectNamespace(ctx, k8sClient, projectNsName) })
+
+		unmanaged := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName}}
+		Expect(k8sClient.Create(ctx, unmanaged)).To(Succeed())
+
+		controller.CreateLandscape(ctx, k8sClient, landscapeName, projectNsName, func(l *konfidence.Landscape) {
+			l.Spec.Namespace = nsName
+			l.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+		})
+		DeferCleanup(func() { controller.CleanupLandscape(ctx, k8sClient, landscapeName, projectNsName) })
+
+		Eventually(func(g Gomega) {
+			expectManagedNamespace(g, controller.GetNamespace(ctx, k8sClient, nsName, false), projectName, landscapeName)
+			landscape := controller.GetLandscape(ctx, k8sClient, landscapeName, projectNsName, false)
+			g.Expect(landscape.Status.Namespace).To(Equal(nsName))
+			expectCondition(g, landscape, konfidence.LandscapeNamespaceReadyCondition, metav1.ConditionTrue, konfidence.LandscapeNamespaceReconciledReason)
+		}, timeout, interval).Should(Succeed())
+	})
+
+	It("reports NamespaceNotFound when namespacePolicy Adopt has no namespace to adopt", func() {
+		const projectName = "proj-adopt-missing"
+		const projectNsName = "kden-p-proj-adopt-missing"
+		const landscapeName = "land-adopt-missing"
+
+		controller.CreateProjectNamespace(ctx, k8sClient, projectNsName, projectName)
+		DeferCleanup(func() { controller.CleanupProjectNamespace(ctx, k8sClient, projectNsName) })
+
+		controller.CreateLandscape(ctx, k8sClient, landscapeName, projectNsName, func(l *konfidence.Landscape) {
+			l.Spec.Namespace = "land-adopt-missing-ns"
+			l.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+		})
+		DeferCleanup(func() { controller.CleanupLandscape(ctx, k8sClient, landscapeName, projectNsName) })
+
+		Eventually(func(g Gomega) {
+			landscape := controller.GetLandscape(ctx, k8sClient, landscapeName, projectNsName, false)
+			expectCondition(g, landscape, konfidence.LandscapeNamespaceReadyCondition, metav1.ConditionFalse, konfidence.LandscapeNamespaceNotFoundReason)
+			expectCondition(g, landscape, konfidence.LandscapeReadyCondition, metav1.ConditionFalse, konfidence.LandscapeNamespaceNotFoundReason)
+		}, timeout, interval).Should(Succeed())
+
+		By("not creating the namespace")
+		Expect(controller.GetNamespace(ctx, k8sClient, "land-adopt-missing-ns", true)).To(BeNil())
+	})
 })

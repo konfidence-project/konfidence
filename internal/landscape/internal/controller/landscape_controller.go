@@ -32,6 +32,11 @@ const (
 	deletionRequeueInterval  = 5 * time.Second
 	landscapeControllerName  = "landscape-controller"
 
+	// adoptRequeueInterval bounds how long namespacePolicy Adopt waits before
+	// re-checking for a target namespace that does not exist yet, rather than
+	// relying on exponential error backoff.
+	adoptRequeueInterval = 10 * time.Second
+
 	// The landscape namespace must be fully deleted together with everything in
 	// it before the Landscape is released. The finalizer lets the controller
 	// delete the namespace and wait for its termination first.
@@ -49,6 +54,7 @@ const (
 var (
 	errNamespaceConflict    = errors.New("namespace conflict")
 	errNamespaceTerminating = errors.New("namespace terminating")
+	errNamespaceNotFound    = errors.New("namespace not found")
 )
 
 // LandscapeReconciler reconciles a Landscape object
@@ -101,6 +107,12 @@ func (r *LandscapeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		"an error occurred while reconciling landscape",
 	)
 	if err != nil {
+		// An Adopt waiting for its target namespace to appear is an expected,
+		// self-resolving state rather than a failure: requeue on a fixed short
+		// interval instead of letting the error drive exponential backoff.
+		if errors.Is(err, errNamespaceNotFound) {
+			return ctrl.Result{RequeueAfter: adoptRequeueInterval}, nil
+		}
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{RequeueAfter: defaultReconcileInterval}, nil
@@ -188,10 +200,20 @@ func (r *LandscapeReconciler) createOrUpdateNamespace(
 	}
 
 	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, ns, func() error {
-		// Check if namespace already exists and is not managed by this landscape.
+		policy := landscape.Spec.NamespacePolicy
+		if policy == "" {
+			policy = konfidence.NamespacePolicyCreate
+		}
+
+		// CreationTimestamp is zero only on the create path; a set value means the
+		// namespace pre-exists. Adopt requires it to exist; Create makes it.
 		// We cannot use metav1.IsControlledBy because Landscape is namespace-scoped
-		// and cannot own a cluster-scoped Namespace. Instead, we rely on labels.
-		if !ns.CreationTimestamp.IsZero() && !r.isManagedByLandscape(ns, landscape) {
+		// and cannot own a cluster-scoped Namespace, so ownership is tracked by labels.
+		if ns.CreationTimestamp.IsZero() {
+			if policy == konfidence.NamespacePolicyAdopt {
+				return fmt.Errorf("%w: namespace %s does not exist", errNamespaceNotFound, ns.Name)
+			}
+		} else if r.namespaceConflict(ns, landscape, policy) {
 			return fmt.Errorf("%w: namespace %s already exists and is not managed by Landscape %s/%s",
 				errNamespaceConflict, ns.Name, landscape.Namespace, landscape.Name)
 		}
@@ -301,6 +323,24 @@ func isManagedByLandscapeController(ns *corev1.Namespace) bool {
 	return hasManagedBy && managedBy == landscapeControllerName
 }
 
+// namespaceConflict reports whether an existing namespace may not be taken over
+// by the given Landscape under the policy. Create refuses any namespace it does
+// not already manage; Adopt refuses only one managed by a different konfidence
+// resource, taking over an unmanaged namespace.
+func (r *LandscapeReconciler) namespaceConflict(
+	ns *corev1.Namespace,
+	landscape *konfidence.Landscape,
+	policy konfidence.NamespacePolicy,
+) bool {
+	if r.isManagedByLandscape(ns, landscape) {
+		return false
+	}
+	if policy == konfidence.NamespacePolicyAdopt {
+		return ns.Labels[pkgctrl.ManagedByLabel] != ""
+	}
+	return true
+}
+
 func (r *LandscapeReconciler) setCondition(
 	landscape *konfidence.Landscape,
 	conditionType string,
@@ -345,6 +385,8 @@ func namespaceFailureReason(err error) string {
 		return konfidence.LandscapeNamespaceConflictReason
 	case errors.Is(err, errNamespaceTerminating):
 		return konfidence.LandscapeNamespaceTerminatingReason
+	case errors.Is(err, errNamespaceNotFound):
+		return konfidence.LandscapeNamespaceNotFoundReason
 	default:
 		return konfidence.LandscapeNamespaceCreateFailedReason
 	}
@@ -397,7 +439,12 @@ func (r *LandscapeReconciler) findLandscapeForNamespace(ctx context.Context, obj
 	if err := r.List(ctx, projectNsList, client.MatchingLabels{
 		pkgctrl.ProjectTypeLabel: "project",
 		pkgctrl.ProjectNameLabel: projectName,
-	}); err != nil || len(projectNsList.Items) == 0 {
+	}); err != nil {
+		logf.FromContext(ctx).Error(err, "failed to list project namespaces while mapping namespace event to Landscape",
+			"namespace", ns.Name, "project", projectName)
+		return nil
+	}
+	if len(projectNsList.Items) == 0 {
 		return nil
 	}
 

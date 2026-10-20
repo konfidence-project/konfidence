@@ -31,6 +31,11 @@ const (
 	deletionRequeueInterval  = 5 * time.Second
 	projectControllerName    = "project-controller"
 
+	// adoptRequeueInterval bounds how long namespacePolicy Adopt waits before
+	// re-checking for a target namespace that does not exist yet, rather than
+	// relying on exponential error backoff.
+	adoptRequeueInterval = 10 * time.Second
+
 	// The project namespace must be fully deleted together with everything in
 	// it before the Project is released. The finalizer lets the controller
 	// delete the namespace and wait for its termination first.
@@ -48,6 +53,7 @@ const (
 var (
 	errNamespaceConflict    = errors.New("namespace conflict")
 	errNamespaceTerminating = errors.New("namespace terminating")
+	errNamespaceNotFound    = errors.New("namespace not found")
 )
 
 // ProjectReconciler reconciles a Project object
@@ -100,6 +106,12 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		"an error occurred while reconciling project",
 	)
 	if err != nil {
+		// An Adopt waiting for its target namespace to appear is an expected,
+		// self-resolving state rather than a failure: requeue on a fixed short
+		// interval instead of letting the error drive exponential backoff.
+		if errors.Is(err, errNamespaceNotFound) {
+			return ctrl.Result{RequeueAfter: adoptRequeueInterval}, nil
+		}
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{RequeueAfter: defaultReconcileInterval}, nil
@@ -147,12 +159,22 @@ func (r *ProjectReconciler) createOrUpdateNamespace(
 	}
 
 	operationResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, ns, func() error {
+		policy := project.Spec.NamespacePolicy
+		if policy == "" {
+			policy = konfidence.NamespacePolicyCreate
+		}
+
 		// CreationTimestamp is zero only on the create path; a set value means the
-		// namespace pre-exists and must already be ours to be updated.
-		if !ns.CreationTimestamp.IsZero() && !isManagedBy(ns, project) {
+		// namespace pre-exists. Adopt requires it to exist; Create makes it.
+		if ns.CreationTimestamp.IsZero() {
+			if policy == konfidence.NamespacePolicyAdopt {
+				return fmt.Errorf("%w: namespace %s does not exist", errNamespaceNotFound, ns.Name)
+			}
+		} else if namespaceConflict(ns, project, policy) {
 			return fmt.Errorf("%w: namespace %s already exists and is not managed by Project %s",
 				errNamespaceConflict, ns.Name, project.Name)
 		}
+
 		// A terminating namespace cannot be updated or recreated; wait for the
 		// termination to complete and recreate it on a later reconciliation.
 		if !ns.DeletionTimestamp.IsZero() {
@@ -290,6 +312,20 @@ func isManagedByProjectController(ns *corev1.Namespace) bool {
 	return ns.Labels[pkgctrl.ManagedByLabel] == projectControllerName
 }
 
+// namespaceConflict reports whether an existing namespace may not be taken over
+// by the given Project under the policy. Create refuses any namespace it does
+// not already manage; Adopt refuses only one managed by a different konfidence
+// resource, taking over an unmanaged namespace.
+func namespaceConflict(ns *corev1.Namespace, project *konfidence.Project, policy konfidence.NamespacePolicy) bool {
+	if isManagedBy(ns, project) {
+		return false
+	}
+	if policy == konfidence.NamespacePolicyAdopt {
+		return ns.Labels[pkgctrl.ManagedByLabel] != ""
+	}
+	return true
+}
+
 // namespaceFailureReason maps a namespace reconciliation error to the
 // matching condition and event reason.
 func namespaceFailureReason(err error) string {
@@ -298,6 +334,8 @@ func namespaceFailureReason(err error) string {
 		return konfidence.ProjectNamespaceConflictReason
 	case errors.Is(err, errNamespaceTerminating):
 		return konfidence.ProjectNamespaceTerminatingReason
+	case errors.Is(err, errNamespaceNotFound):
+		return konfidence.ProjectNamespaceNotFoundReason
 	default:
 		return konfidence.ProjectNamespaceCreateFailedReason
 	}
