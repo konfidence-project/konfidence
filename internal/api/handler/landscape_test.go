@@ -74,6 +74,7 @@ func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
 		vectordeploymentdomain.NewRepository(k8s),
 		vectorpromotiondomain.NewRepository(k8s),
 		vectorpromotiondomain.NewConfigRepository(k8s),
+		nil,
 	)
 }
 

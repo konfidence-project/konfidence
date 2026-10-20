@@ -181,6 +181,17 @@ func (e VectorPromotionStatus) Valid() bool {
 	}
 }
 
+// ArtifactContent defines model for ArtifactContent.
+type ArtifactContent struct {
+	AllowReuse bool `json:"allowReuse"`
+
+	// Ref OCM ref string (registry//component:version)
+	Ref       string              `json:"ref"`
+	Resources *[]ArtifactResource `json:"resources,omitempty"`
+	Tasks     *[]ArtifactTask     `json:"tasks,omitempty"`
+	Type      string              `json:"type"`
+}
+
 // ArtifactDeployment defines model for ArtifactDeployment.
 type ArtifactDeployment struct {
 	Artifact ArtifactReference `json:"artifact"`
@@ -210,6 +221,19 @@ type ArtifactDeploymentList struct {
 
 // ArtifactReference defines model for ArtifactReference.
 type ArtifactReference = ComponentReference
+
+// ArtifactResource defines model for ArtifactResource.
+type ArtifactResource struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// ArtifactTask defines model for ArtifactTask.
+type ArtifactTask struct {
+	DependsOn *[]string `json:"dependsOn,omitempty"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+}
 
 // ComponentReference defines model for ComponentReference.
 type ComponentReference struct {
@@ -376,6 +400,35 @@ type StageVersionStatus string
 // StageVersionId The stageVersion id
 type StageVersionId = string
 
+// VectorComponent defines model for VectorComponent.
+type VectorComponent struct {
+	ComponentName string `json:"componentName"`
+	Version       string `json:"version"`
+}
+
+// VectorConfig defines model for VectorConfig.
+type VectorConfig struct {
+	// Authored Raw authored blob from VectorConfigurationV1
+	Authored *map[string]interface{} `json:"authored,omitempty"`
+
+	// Features Raw features blob from VectorConfigurationV1
+	Features *map[string]interface{} `json:"features,omitempty"`
+}
+
+// VectorContent defines model for VectorContent.
+type VectorContent struct {
+	Components []VectorComponent `json:"components"`
+	Config     *VectorConfig     `json:"config,omitempty"`
+
+	// Ref OCM ref string (registry//component:version)
+	Ref string `json:"ref"`
+}
+
+// VectorContentList defines model for VectorContentList.
+type VectorContentList struct {
+	Data []VectorContent `json:"data"`
+}
+
 // VectorDeployment defines model for VectorDeployment.
 type VectorDeployment struct {
 	// Id The vectorDeployment id
@@ -401,6 +454,12 @@ type VectorDeploymentId = string
 // VectorDeploymentList defines model for VectorDeploymentList.
 type VectorDeploymentList struct {
 	Data []VectorDeployment `json:"data"`
+}
+
+// VectorDiff defines model for VectorDiff.
+type VectorDiff struct {
+	Current  VectorContent `json:"current"`
+	Incoming VectorContent `json:"incoming"`
 }
 
 // VectorPromotion defines model for VectorPromotion.
@@ -526,6 +585,12 @@ type ListArtifactDeploymentsV1Params struct {
 	VectorDeploymentId *VectorDeploymentQueryId `form:"vectorDeploymentId,omitempty" json:"vectorDeploymentId,omitempty"`
 }
 
+// GetArtifactContentV1Params defines parameters for GetArtifactContentV1.
+type GetArtifactContentV1Params struct {
+	// Ref OCM ref string identifying the artifact (registry//component:version). Must be percent-encoded. Passed as a query parameter because the OCM ref contains // which cannot be used in a path segment.
+	Ref string `form:"ref" json:"ref"`
+}
+
 // ListStagesV1Params defines parameters for ListStagesV1.
 type ListStagesV1Params struct {
 	// LandscapeId Filter by landscapeId
@@ -536,6 +601,21 @@ type ListStagesV1Params struct {
 type ListVectorDeploymentsV1Params struct {
 	// LandscapeId Filter by landscapeId
 	LandscapeId *LandscapeQueryId `form:"landscapeId,omitempty" json:"landscapeId,omitempty"`
+}
+
+// GetVectorContentV1Params defines parameters for GetVectorContentV1.
+type GetVectorContentV1Params struct {
+	// Refs One or more OCM ref strings (registry//component:version). Must be percent-encoded. Repeat the parameter for multiple refs.
+	Refs []string `form:"refs" json:"refs"`
+}
+
+// GetVectorDiffV1Params defines parameters for GetVectorDiffV1.
+type GetVectorDiffV1Params struct {
+	// Incoming OCM ref string for the incoming vector (registry//component:version). Must be percent-encoded.
+	Incoming string `form:"incoming" json:"incoming"`
+
+	// Current OCM ref string for the current vector (registry//component:version). Must be percent-encoded.
+	Current string `form:"current" json:"current"`
 }
 
 // PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
@@ -564,6 +644,9 @@ type ServerInterface interface {
 	// ListArtifactDeploymentsV1 List all artifactDeployments for a project.
 	// (GET /v1/projects/{projectId}/artifactDeployments)
 	ListArtifactDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsV1Params)
+	// GetArtifactContentV1 Get OCM content for an artifact by ref.
+	// (GET /v1/projects/{projectId}/artifacts/content)
+	GetArtifactContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetArtifactContentV1Params)
 	// ListLandscapesV1 List all landscapes for a specific project
 	// (GET /v1/projects/{projectId}/landscapes)
 	ListLandscapesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId)
@@ -597,6 +680,12 @@ type ServerInterface interface {
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve)
 	ApproveVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId)
+	// GetVectorContentV1 Get OCM content for vectors by refs.
+	// (GET /v1/projects/{projectId}/vectors/content)
+	GetVectorContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorContentV1Params)
+	// GetVectorDiffV1 Get the diff between two vectors by ref.
+	// (GET /v1/projects/{projectId}/vectors/diff)
+	GetVectorDiffV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorDiffV1Params)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -642,6 +731,12 @@ func (_ Unimplemented) ListProjectsV1(w http.ResponseWriter, r *http.Request) {
 // ListArtifactDeploymentsV1 List all artifactDeployments for a project.
 // (GET /v1/projects/{projectId}/artifactDeployments)
 func (_ Unimplemented) ListArtifactDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsV1Params) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetArtifactContentV1 Get OCM content for an artifact by ref.
+// (GET /v1/projects/{projectId}/artifacts/content)
+func (_ Unimplemented) GetArtifactContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetArtifactContentV1Params) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -708,6 +803,18 @@ func (_ Unimplemented) GetVectorPromotionV1(w http.ResponseWriter, r *http.Reque
 // ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 // (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve)
 func (_ Unimplemented) ApproveVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetVectorContentV1 Get OCM content for vectors by refs.
+// (GET /v1/projects/{projectId}/vectors/content)
+func (_ Unimplemented) GetVectorContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorContentV1Params) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetVectorDiffV1 Get the diff between two vectors by ref.
+// (GET /v1/projects/{projectId}/vectors/diff)
+func (_ Unimplemented) GetVectorDiffV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorDiffV1Params) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -940,6 +1047,48 @@ func (siw *ServerInterfaceWrapper) ListArtifactDeploymentsV1(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListArtifactDeploymentsV1(w, r, projectId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetArtifactContentV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetArtifactContentV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetArtifactContentV1Params
+
+	// ------------- Required query parameter "ref" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "ref", r.URL.Query(), &params.Ref, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "ref"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ref", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetArtifactContentV1(w, r, projectId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1357,6 +1506,103 @@ func (siw *ServerInterfaceWrapper) ApproveVectorPromotionV1(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
+// GetVectorContentV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetVectorContentV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetVectorContentV1Params
+
+	// ------------- Required query parameter "refs" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "refs", r.URL.Query(), &params.Refs, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "refs"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "refs", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVectorContentV1(w, r, projectId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetVectorDiffV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetVectorDiffV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetVectorDiffV1Params
+
+	// ------------- Required query parameter "incoming" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "incoming", r.URL.Query(), &params.Incoming, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "incoming"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "incoming", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "current" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "current", r.URL.Query(), &params.Current, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "current"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "current", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVectorDiffV1(w, r, projectId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -1517,6 +1763,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}", wrapper.GetVectorPromotionV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectors/diff", wrapper.GetVectorDiffV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectors/content", wrapper.GetVectorContentV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/artifacts/content", wrapper.GetArtifactContentV1)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/v1/projects/{projectId}/artifactDeployments", wrapper.ListArtifactDeploymentsV1)
@@ -1917,6 +2172,85 @@ func (response ListArtifactDeploymentsV1404JSONResponse) VisitListArtifactDeploy
 type ListArtifactDeploymentsV1500JSONResponse struct{ InternalErrorJSONResponse }
 
 func (response ListArtifactDeploymentsV1500JSONResponse) VisitListArtifactDeploymentsV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1RequestObject struct {
+	ProjectId ProjectPathId `json:"projectId"`
+	Params    GetArtifactContentV1Params
+}
+
+type GetArtifactContentV1ResponseObject interface {
+	VisitGetArtifactContentV1Response(w http.ResponseWriter) error
+}
+
+type GetArtifactContentV1200JSONResponse ArtifactContent
+
+func (response GetArtifactContentV1200JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetArtifactContentV1400JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetArtifactContentV1401JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetArtifactContentV1403JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetArtifactContentV1500JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2806,6 +3140,178 @@ func (response ApproveVectorPromotionV1500JSONResponse) VisitApproveVectorPromot
 	return err
 }
 
+type GetVectorContentV1RequestObject struct {
+	ProjectId ProjectPathId `json:"projectId"`
+	Params    GetVectorContentV1Params
+}
+
+type GetVectorContentV1ResponseObject interface {
+	VisitGetVectorContentV1Response(w http.ResponseWriter) error
+}
+
+type GetVectorContentV1200JSONResponse VectorContentList
+
+func (response GetVectorContentV1200JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetVectorContentV1400JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetVectorContentV1401JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetVectorContentV1403JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetVectorContentV1500JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1RequestObject struct {
+	ProjectId ProjectPathId `json:"projectId"`
+	Params    GetVectorDiffV1Params
+}
+
+type GetVectorDiffV1ResponseObject interface {
+	VisitGetVectorDiffV1Response(w http.ResponseWriter) error
+}
+
+type GetVectorDiffV1200JSONResponse VectorDiff
+
+func (response GetVectorDiffV1200JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetVectorDiffV1400JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetVectorDiffV1401JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetVectorDiffV1403JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetVectorDiffV1404JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetVectorDiffV1500JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// AuthCallbackV1 OIDC callback
@@ -2829,6 +3335,9 @@ type StrictServerInterface interface {
 	// ListArtifactDeploymentsV1 List all artifactDeployments for a project.
 	// (GET /v1/projects/{projectId}/artifactDeployments)
 	ListArtifactDeploymentsV1(ctx context.Context, request ListArtifactDeploymentsV1RequestObject) (ListArtifactDeploymentsV1ResponseObject, error)
+	// GetArtifactContentV1 Get OCM content for an artifact by ref.
+	// (GET /v1/projects/{projectId}/artifacts/content)
+	GetArtifactContentV1(ctx context.Context, request GetArtifactContentV1RequestObject) (GetArtifactContentV1ResponseObject, error)
 	// ListLandscapesV1 List all landscapes for a specific project
 	// (GET /v1/projects/{projectId}/landscapes)
 	ListLandscapesV1(ctx context.Context, request ListLandscapesV1RequestObject) (ListLandscapesV1ResponseObject, error)
@@ -2862,6 +3371,12 @@ type StrictServerInterface interface {
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve)
 	ApproveVectorPromotionV1(ctx context.Context, request ApproveVectorPromotionV1RequestObject) (ApproveVectorPromotionV1ResponseObject, error)
+	// GetVectorContentV1 Get OCM content for vectors by refs.
+	// (GET /v1/projects/{projectId}/vectors/content)
+	GetVectorContentV1(ctx context.Context, request GetVectorContentV1RequestObject) (GetVectorContentV1ResponseObject, error)
+	// GetVectorDiffV1 Get the diff between two vectors by ref.
+	// (GET /v1/projects/{projectId}/vectors/diff)
+	GetVectorDiffV1(ctx context.Context, request GetVectorDiffV1RequestObject) (GetVectorDiffV1ResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -3078,6 +3593,33 @@ func (sh *strictHandler) ListArtifactDeploymentsV1(w http.ResponseWriter, r *htt
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListArtifactDeploymentsV1ResponseObject); ok {
 		if err := validResponse.VisitListArtifactDeploymentsV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetArtifactContentV1 operation middleware
+func (sh *strictHandler) GetArtifactContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetArtifactContentV1Params) {
+	var request GetArtifactContentV1RequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetArtifactContentV1(ctx, request.(GetArtifactContentV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetArtifactContentV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetArtifactContentV1ResponseObject); ok {
+		if err := validResponse.VisitGetArtifactContentV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3376,6 +3918,60 @@ func (sh *strictHandler) ApproveVectorPromotionV1(w http.ResponseWriter, r *http
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ApproveVectorPromotionV1ResponseObject); ok {
 		if err := validResponse.VisitApproveVectorPromotionV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetVectorContentV1 operation middleware
+func (sh *strictHandler) GetVectorContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorContentV1Params) {
+	var request GetVectorContentV1RequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVectorContentV1(ctx, request.(GetVectorContentV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVectorContentV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetVectorContentV1ResponseObject); ok {
+		if err := validResponse.VisitGetVectorContentV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetVectorDiffV1 operation middleware
+func (sh *strictHandler) GetVectorDiffV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorDiffV1Params) {
+	var request GetVectorDiffV1RequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVectorDiffV1(ctx, request.(GetVectorDiffV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVectorDiffV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetVectorDiffV1ResponseObject); ok {
+		if err := validResponse.VisitGetVectorDiffV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
