@@ -20,7 +20,7 @@ func (h *projectHandler) GetStageV1(ctx context.Context, request openapi.GetStag
 
 	stage, err := h.stageRepo.GetForScope(ctx, scope, request.StageId)
 	if err != nil {
-		if errors.Is(err, stagedomain.ErrNotFound) {
+		if errors.Is(err, stagedomain.ErrStageNotFound) {
 			return nil, apierror.NewNotFound("stage", request.StageId)
 		}
 		return nil, apierror.NewInternal(err)

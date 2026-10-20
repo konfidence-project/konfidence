@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -11,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var ErrNotFound = fmt.Errorf("project not found")
+var ErrProjectNotFound = errors.New("project not found")
 
 type Repository interface {
 	Get(ctx context.Context, name string) (*konfidence.Project, error)
@@ -28,7 +29,7 @@ func (r *k8sRepository) Get(ctx context.Context, name string) (*konfidence.Proje
 	var project konfidence.Project
 	if err := r.reader.Get(ctx, types.NamespacedName{Name: name}, &project); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, ErrNotFound
+			return nil, ErrProjectNotFound
 		}
 		return nil, fmt.Errorf("getting project %q: %w", name, err)
 	}

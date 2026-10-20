@@ -35,7 +35,7 @@ var _ = Describe("Repository", func() {
 
 		_, err := project.NewRepository(k8s).Get(context.Background(), "missing")
 
-		Expect(err).To(MatchError(project.ErrNotFound))
+		Expect(err).To(MatchError(project.ErrProjectNotFound))
 	})
 
 	It("lists only authorized projects", func() {

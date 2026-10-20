@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -52,6 +53,15 @@ func landscapeFixture(name, namespace, displayName string) *konfidence.Landscape
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec:       konfidence.LandscapeSpec{DisplayName: displayName},
 	}
+}
+
+type failingGetLandscapeRepository struct {
+	landscapedomain.Repository
+	err error
+}
+
+func (r *failingGetLandscapeRepository) Get(_ context.Context, _, _ string) (*konfidence.Landscape, error) {
+	return nil, r.err
 }
 
 func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
@@ -208,5 +218,22 @@ var _ = Describe("GetLandscapeV1", func() {
 			LandscapeId: "dev",
 		})
 		expectAPIError(resp, err, http.StatusForbidden)
+	})
+
+	It("returns 500 when the landscape repository fails", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		h := newProjectHandlerForTest(project)
+		h.landscapeRepo = &failingGetLandscapeRepository{
+			Repository: h.landscapeRepo,
+			err:        errors.New("kubernetes unavailable"),
+		}
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
+		resp, err := h.GetLandscapeV1(ctx, openapi.GetLandscapeV1RequestObject{
+			ProjectId:   "my-project",
+			LandscapeId: "dev",
+		})
+
+		expectAPIError(resp, err, http.StatusInternalServerError)
 	})
 })

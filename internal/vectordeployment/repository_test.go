@@ -153,7 +153,7 @@ var _ = Describe("Repository", func() {
 			_, err := vectordeployment.NewRepository(vectorDeploymentClient()).GetForScope(
 				context.Background(), scoped, "missing",
 			)
-			Expect(err).To(MatchError(vectordeployment.ErrNotFound))
+			Expect(err).To(MatchError(vectordeployment.ErrVectorDeploymentNotFound))
 		})
 
 		It("returns an error when the stage version is missing", func() {
@@ -162,7 +162,7 @@ var _ = Describe("Repository", func() {
 				vectorDeployment("checkout-v1", "landscape-dev", "missing-sv"),
 			)).GetForScope(context.Background(), scoped, "checkout-v1")
 			Expect(err).To(HaveOccurred())
-			Expect(err).NotTo(MatchError(vectordeployment.ErrNotFound))
+			Expect(err).NotTo(MatchError(vectordeployment.ErrVectorDeploymentNotFound))
 		})
 
 		It("returns an error when the deployment has no stage version owner", func() {
@@ -183,7 +183,7 @@ var _ = Describe("Repository", func() {
 				vectorDeployment("checkout-v1", "landscape-prod", "checkout-sv"),
 				stageVersion("checkout-sv", "landscape-prod", "checkout"),
 			)).GetForScope(context.Background(), devScope, "checkout-v1")
-			Expect(err).To(MatchError(vectordeployment.ErrNotFound))
+			Expect(err).To(MatchError(vectordeployment.ErrVectorDeploymentNotFound))
 		})
 	})
 })

@@ -2,6 +2,7 @@ package stage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -12,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var ErrNotFound = fmt.Errorf("stage not found")
+var ErrStageNotFound = errors.New("stage not found")
 
 // ResolvedStage is a stage together with the landscape it lives in and its resolved stage versions.
 type ResolvedStage struct {
@@ -43,7 +44,7 @@ func (r *k8sRepository) GetForScope(ctx context.Context, scoped landscapedomain.
 		Namespace: scoped.Namespace,
 	}, &stage); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, ErrNotFound
+			return nil, ErrStageNotFound
 		}
 		return nil, fmt.Errorf("getting stage %q in namespace %q: %w", name, scoped.Namespace, err)
 	}

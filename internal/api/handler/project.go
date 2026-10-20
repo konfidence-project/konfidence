@@ -50,15 +50,11 @@ func newProjectHandler(projectRepo projectdomain.Repository,
 func (h *projectHandler) ListProjectsV1(ctx context.Context, _ openapi.ListProjectsV1RequestObject) (openapi.ListProjectsV1ResponseObject, error) {
 	identity, err := session.FromContext(ctx)
 	if err != nil {
-		return openapi.ListProjectsV1401JSONResponse{
-			UnauthorizedJSONResponse: apierror.NewUnauthorizedResponse(),
-		}, nil
+		return nil, apierror.NewUnauthorized()
 	}
 	projects, err := h.projectRepo.List(ctx, identity.ProjectRoles)
 	if err != nil {
-		return openapi.ListProjectsV1500JSONResponse{
-			InternalErrorJSONResponse: apierror.NewInternalErrorResponse(),
-		}, nil
+		return nil, apierror.NewInternal(err)
 	}
 
 	data := make([]openapi.Project, len(projects))
@@ -88,7 +84,10 @@ func (h *projectHandler) GetLandscapeV1(ctx context.Context, req openapi.GetLand
 
 	landscape, err := h.landscapeRepo.Get(ctx, namespace, req.LandscapeId)
 	if err != nil {
-		return nil, apierror.NewNotFound("landscape", req.LandscapeId)
+		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
+			return nil, apierror.NewNotFound("landscape", req.LandscapeId)
+		}
+		return nil, apierror.NewInternal(err)
 	}
 
 	return openapi.GetLandscapeV1200JSONResponse(toLandscapeResponse(*landscape)), nil
@@ -144,7 +143,7 @@ func (h *projectHandler) GetVectorDeploymentV1(ctx context.Context,
 
 	deployment, err := h.vectorDeploymentRepo.GetForScope(ctx, scope[0], request.VectorDeploymentId)
 	if err != nil {
-		if errors.Is(err, vectordeploymentdomain.ErrNotFound) {
+		if errors.Is(err, vectordeploymentdomain.ErrVectorDeploymentNotFound) {
 			return nil, apierror.NewNotFound("vectorDeployment", request.VectorDeploymentId)
 		}
 		return nil, apierror.NewInternal(err)
@@ -248,7 +247,7 @@ func (h *projectHandler) GetArtifactDeploymentV1(ctx context.Context,
 
 	ad, err := h.artifactDeploymentRepo.GetForScope(ctx, scope[0], request.ArtifactDeploymentId)
 	if err != nil {
-		if errors.Is(err, artifactdeploymentdomain.ErrNotFound) {
+		if errors.Is(err, artifactdeploymentdomain.ErrArtifactDeploymentNotFound) {
 			return nil, apierror.NewNotFound("artifactDeployment", request.ArtifactDeploymentId)
 		}
 		return nil, apierror.NewInternal(err)
@@ -269,16 +268,24 @@ func (h *projectHandler) ListArtifactDeploymentsV1(ctx context.Context,
 		return nil, err
 	}
 
-	var opts []artifactdeploymentdomain.ListOption
+	landscapeId := ""
+	var scopeOpts []landscapedomain.ScopeOption
 	if request.Params.LandscapeId != nil {
-		opts = append(opts, artifactdeploymentdomain.WithLandscapeId(*request.Params.LandscapeId))
+		landscapeId = *request.Params.LandscapeId
+		scopeOpts = append(scopeOpts, landscapedomain.WithLandscapeId(landscapeId))
 	}
 
+	scope, err := h.resolveLandscapeScope(ctx, namespace, landscapeId, scopeOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	var opts []artifactdeploymentdomain.ListOption
 	if request.Params.VectorDeploymentId != nil {
 		opts = append(opts, artifactdeploymentdomain.WithVectorDeploymentId(*request.Params.VectorDeploymentId))
 	}
 
-	ads, err := h.artifactDeploymentRepo.ListForScope(ctx, namespace, opts...)
+	ads, err := h.artifactDeploymentRepo.ListForScope(ctx, scope, opts...)
 	if err != nil {
 		return nil, apierror.NewInternal(err)
 	}
@@ -343,7 +350,7 @@ func (h *projectHandler) resolveProjectNamespace(ctx context.Context, identity *
 	}
 	project, err := h.projectRepo.Get(ctx, projectId)
 	if err != nil {
-		if errors.Is(err, projectdomain.ErrNotFound) {
+		if errors.Is(err, projectdomain.ErrProjectNotFound) {
 			return "", apierror.NewNotFound("project", projectId)
 		}
 		return "", apierror.NewInternal(err)
