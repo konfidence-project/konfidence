@@ -299,9 +299,11 @@ var _ = Describe("Project Controller", Ordered, func() {
 		}, timeout, interval).Should(Succeed())
 	})
 
-	It("deletes the project namespace and waits for its termination", func() {
+	It("deletes the project namespace and waits for its termination under deletionPolicy Delete", func() {
 		const projectName = "proj-delete"
-		project := controller.CreateProject(ctx, k8sClient, projectName)
+		project := controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.DeletionPolicy = konfidence.DeletionPolicyDelete
+		})
 
 		nsName := konfidence.ProjectNamespacePrefix + projectName
 		Eventually(func(g Gomega) {
@@ -331,5 +333,38 @@ var _ = Describe("Project Controller", Ordered, func() {
 		}, timeout, interval).Should(Succeed())
 
 		controller.CleanupProject(ctx, k8sClient, projectName)
+	})
+
+	It("orphans the project namespace under deletionPolicy Orphan", func() {
+		const projectName = "proj-orphan"
+		project := controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.DeletionPolicy = konfidence.DeletionPolicyOrphan
+		})
+
+		nsName := konfidence.ProjectNamespacePrefix + projectName
+		Eventually(func(g Gomega) {
+			expectManagedNamespace(g, controller.GetNamespace(ctx, k8sClient, nsName, true), projectName)
+		}, timeout, interval).Should(Succeed())
+		// The orphaned namespace outlives the Project; clean it up by name.
+		DeferCleanup(func() {
+			ns := controller.GetNamespace(ctx, k8sClient, nsName, true)
+			if ns != nil {
+				Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, ns))).To(Succeed())
+			}
+		})
+
+		By("deleting the Project")
+		Expect(k8sClient.Delete(ctx, project)).To(Succeed())
+
+		By("releasing the Project while leaving the namespace alive without management labels")
+		Eventually(func(g Gomega) {
+			g.Expect(controller.GetProject(ctx, k8sClient, projectName, true)).To(BeNil())
+		}, timeout, interval).Should(Succeed())
+
+		ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
+		Expect(ns.DeletionTimestamp.IsZero()).To(BeTrue(), "namespace should not be deleted")
+		Expect(ns.Labels).NotTo(HaveKey(pkgctrl.ManagedByLabel))
+		Expect(ns.Labels).NotTo(HaveKey(pkgctrl.ProjectTypeLabel))
+		Expect(ns.Labels).NotTo(HaveKey(pkgctrl.ProjectNameLabel))
 	})
 })

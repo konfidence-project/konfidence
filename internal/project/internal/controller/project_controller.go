@@ -45,9 +45,10 @@ const (
 	projectNamespaceTypeValue = "project"
 
 	// Event reasons for namespace lifecycle transitions.
-	namespaceCreatedEventReason = "NamespaceCreated"
-	namespaceUpdatedEventReason = "NamespaceUpdated"
-	namespaceDeletedEventReason = "NamespaceDeleted"
+	namespaceCreatedEventReason  = "NamespaceCreated"
+	namespaceUpdatedEventReason  = "NamespaceUpdated"
+	namespaceDeletedEventReason  = "NamespaceDeleted"
+	namespaceOrphanedEventReason = "NamespaceOrphaned"
 )
 
 var (
@@ -164,6 +165,12 @@ func (r *ProjectReconciler) createOrUpdateNamespace(
 			policy = konfidence.NamespacePolicyCreate
 		}
 
+		// A terminating namespace cannot be updated or recreated under any policy;
+		// wait for the termination to complete and retry on a later reconciliation.
+		if !ns.DeletionTimestamp.IsZero() {
+			return fmt.Errorf("%w: namespace %s is terminating", errNamespaceTerminating, ns.Name)
+		}
+
 		// CreationTimestamp is zero only on the create path; a set value means the
 		// namespace pre-exists. Adopt requires it to exist; Create makes it.
 		if ns.CreationTimestamp.IsZero() {
@@ -175,11 +182,6 @@ func (r *ProjectReconciler) createOrUpdateNamespace(
 				errNamespaceConflict, ns.Name, project.Name)
 		}
 
-		// A terminating namespace cannot be updated or recreated; wait for the
-		// termination to complete and recreate it on a later reconciliation.
-		if !ns.DeletionTimestamp.IsZero() {
-			return fmt.Errorf("%w: namespace %s is terminating", errNamespaceTerminating, ns.Name)
-		}
 		if ns.Labels == nil {
 			ns.Labels = map[string]string{}
 		}
@@ -194,9 +196,10 @@ func (r *ProjectReconciler) createOrUpdateNamespace(
 	return ns, operationResult, nil
 }
 
-// reconcileDelete deletes the managed project namespace (if any), waits for
-// its termination and then releases the finalizer so the Project can be
-// garbage-collected.
+// reconcileDelete releases the project namespace according to the deletion
+// policy and then removes the finalizer so the Project can be garbage-collected.
+// Delete removes the namespace and waits for its termination; Orphan (the
+// default) leaves the namespace in place and only strips its management labels.
 func (r *ProjectReconciler) reconcileDelete(ctx context.Context, project *konfidence.Project) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
@@ -210,25 +213,32 @@ func (r *ProjectReconciler) reconcileDelete(ctx context.Context, project *konfid
 		return ctrl.Result{}, fmt.Errorf("unable to fetch project namespace: %w", err)
 	}
 
-	// The namespace still exists and belongs to this Project: issue the delete
-	// and requeue until it is gone before releasing the finalizer.
 	if err == nil && isManagedBy(ns, project) {
-		if ns.DeletionTimestamp.IsZero() {
-			if delErr := r.Delete(ctx, ns); delErr != nil && !apierrors.IsNotFound(delErr) {
-				return ctrl.Result{}, fmt.Errorf("unable to delete project namespace: %w", delErr)
+		if project.Spec.DeletionPolicy == konfidence.DeletionPolicyDelete {
+			// Delete the namespace and requeue until it is gone before releasing
+			// the finalizer.
+			if ns.DeletionTimestamp.IsZero() {
+				if delErr := r.Delete(ctx, ns); delErr != nil && !apierrors.IsNotFound(delErr) {
+					return ctrl.Result{}, fmt.Errorf("unable to delete project namespace: %w", delErr)
+				}
+				msg := fmt.Sprintf("Namespace %s deleted for Project %s", ns.Name, project.Name)
+				r.Recorder.Eventf(project, nil, corev1.EventTypeNormal, namespaceDeletedEventReason, namespaceDeletedEventReason, msg)
+				log.Info(msg)
 			}
-			msg := fmt.Sprintf("Namespace %s deleted for Project %s", ns.Name, project.Name)
-			r.Recorder.Eventf(project, nil, corev1.EventTypeNormal, namespaceDeletedEventReason, namespaceDeletedEventReason, msg)
-			log.Info(msg)
+			// Surface the wait so a namespace whose termination is stuck (for example
+			// on a resource with a blocking finalizer) is diagnosable from status
+			// rather than a silent 5s requeue loop.
+			if err := r.setTerminatingStatus(ctx, project, ns.Name); err != nil {
+				return ctrl.Result{}, err
+			}
+			log.Info("waiting for project namespace deletion", "namespace", ns.Name)
+			return ctrl.Result{RequeueAfter: deletionRequeueInterval}, nil
 		}
-		// Surface the wait so a namespace whose termination is stuck (for example
-		// on a resource with a blocking finalizer) is diagnosable from status
-		// rather than a silent 5s requeue loop.
-		if err := r.setTerminatingStatus(ctx, project, ns.Name); err != nil {
+
+		// Orphan: strip the management labels and leave the namespace behind.
+		if err := r.orphanNamespace(ctx, project, ns); err != nil {
 			return ctrl.Result{}, err
 		}
-		log.Info("waiting for project namespace deletion", "namespace", ns.Name)
-		return ctrl.Result{RequeueAfter: deletionRequeueInterval}, nil
 	}
 
 	controllerutil.RemoveFinalizer(project, projectFinalizer)
@@ -236,6 +246,21 @@ func (r *ProjectReconciler) reconcileDelete(ctx context.Context, project *konfid
 		return ctrl.Result{}, fmt.Errorf("unable to remove finalizer from project: %w", err)
 	}
 	return ctrl.Result{}, nil
+}
+
+// orphanNamespace removes the konfidence.cloud/* management labels from the
+// namespace so it is no longer owned by any Project, then emits an event.
+func (r *ProjectReconciler) orphanNamespace(ctx context.Context, project *konfidence.Project, ns *corev1.Namespace) error {
+	delete(ns.Labels, pkgctrl.ManagedByLabel)
+	delete(ns.Labels, pkgctrl.ProjectTypeLabel)
+	delete(ns.Labels, pkgctrl.ProjectNameLabel)
+	if err := r.Update(ctx, ns); err != nil {
+		return fmt.Errorf("unable to orphan project namespace: %w", err)
+	}
+	msg := fmt.Sprintf("Namespace %s orphaned for Project %s", ns.Name, project.Name)
+	r.Recorder.Eventf(project, nil, corev1.EventTypeNormal, namespaceOrphanedEventReason, namespaceOrphanedEventReason, msg)
+	logf.FromContext(ctx).Info(msg)
+	return nil
 }
 
 // setTerminatingStatus records, via a status patch, that the Project is waiting
@@ -301,6 +326,11 @@ func statusNamespaceName(project *konfidence.Project) string {
 // controller owner reference across the Project->Namespace boundary without
 // tying namespace deletion to garbage collection, so ownership is tracked via
 // the managed-by and project-name labels.
+//
+// Because ownership lives in these labels, manually editing managed-by or
+// project-name on a managed namespace flips it to a conflict that the
+// controller cannot repair on its own (unlike an owner reference). Recovering
+// requires restoring the labels or deleting the namespace by hand.
 func isManagedBy(ns *corev1.Namespace, project *konfidence.Project) bool {
 	return ns.Labels[pkgctrl.ManagedByLabel] == projectControllerName &&
 		ns.Labels[pkgctrl.ProjectNameLabel] == project.Name
