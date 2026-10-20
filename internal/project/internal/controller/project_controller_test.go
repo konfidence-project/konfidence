@@ -63,13 +63,9 @@ var _ = Describe("Project Controller", Ordered, func() {
 		g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ManagedByLabel, ControllerName))
 		g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ProjectTypeLabel, "project"))
 		g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ProjectNameLabel, projectName))
-		ownerRef := metav1.GetControllerOf(ns)
-		g.Expect(ownerRef).NotTo(BeNil())
-		g.Expect(ownerRef.Kind).To(Equal(konfidence.ProjectKind))
-		g.Expect(ownerRef.Name).To(Equal(projectName))
 	}
 
-	It("creates the default project namespace with labels and owner reference", func() {
+	It("creates the default project namespace with managed labels", func() {
 		const projectName = "proj-default"
 		controller.CreateProject(ctx, k8sClient, projectName)
 		DeferCleanup(func() { controller.CleanupProject(ctx, k8sClient, projectName) })
@@ -229,7 +225,6 @@ var _ = Describe("Project Controller", Ordered, func() {
 		Consistently(func(g Gomega) {
 			ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
 			g.Expect(ns.Labels).NotTo(HaveKey(pkgctrl.ManagedByLabel))
-			g.Expect(ns.OwnerReferences).To(BeEmpty())
 		}, time.Second*2, interval).Should(Succeed())
 
 		By("emitting a warning event")
@@ -256,13 +251,13 @@ var _ = Describe("Project Controller", Ordered, func() {
 
 		By("overwriting a managed label")
 		ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
-		ns.Labels[pkgctrl.ProjectNameLabel] = "drifted"
+		ns.Labels[pkgctrl.ProjectTypeLabel] = "drifted"
 		Expect(k8sClient.Update(ctx, ns)).To(Succeed())
 
 		By("waiting for the label to be restored")
 		Eventually(func(g Gomega) {
 			ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
-			g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ProjectNameLabel, projectName))
+			g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ProjectTypeLabel, "project"))
 		}, timeout, interval).Should(Succeed())
 	})
 

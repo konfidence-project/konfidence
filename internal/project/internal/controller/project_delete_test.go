@@ -48,7 +48,7 @@ func withFinalizer(p *konfidence.Project) {
 }
 
 // newManagedNamespace builds a namespace owned by the given Project, as the
-// controller would create it (managed labels + controller owner reference).
+// controller would create it (managed labels).
 func newManagedNamespace(name string, project *konfidence.Project) *corev1.Namespace {
 	return &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -57,9 +57,6 @@ func newManagedNamespace(name string, project *konfidence.Project) *corev1.Names
 				pkgctrl.ManagedByLabel:   projectControllerName,
 				pkgctrl.ProjectTypeLabel: projectNamespaceTypeValue,
 				pkgctrl.ProjectNameLabel: project.Name,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(project, konfidence.GroupVersion.WithKind(konfidence.ProjectKind)),
 			},
 		},
 	}

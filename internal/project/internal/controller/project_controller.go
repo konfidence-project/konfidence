@@ -20,8 +20,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -162,7 +164,7 @@ func (r *ProjectReconciler) createOrUpdateNamespace(
 		ns.Labels[pkgctrl.ManagedByLabel] = projectControllerName
 		ns.Labels[pkgctrl.ProjectTypeLabel] = projectNamespaceTypeValue
 		ns.Labels[pkgctrl.ProjectNameLabel] = project.Name
-		return controllerutil.SetControllerReference(project, ns, r.Scheme)
+		return nil
 	})
 	if err != nil {
 		return nil, operationResult, fmt.Errorf("failed to create or update namespace: %w", err)
@@ -273,11 +275,19 @@ func statusNamespaceName(project *konfidence.Project) string {
 }
 
 // isManagedBy reports whether the namespace is owned by the given Project.
-// Ownership is derived from the controller owner reference rather than the
-// managed labels, so label drift never makes the controller mistake its own
-// namespace for a foreign one (or vice versa).
+// Project is cluster-scoped but cannot own a cluster-scoped Namespace via a
+// controller owner reference across the Project->Namespace boundary without
+// tying namespace deletion to garbage collection, so ownership is tracked via
+// the managed-by and project-name labels.
 func isManagedBy(ns *corev1.Namespace, project *konfidence.Project) bool {
-	return metav1.IsControlledBy(ns, project)
+	return ns.Labels[pkgctrl.ManagedByLabel] == projectControllerName &&
+		ns.Labels[pkgctrl.ProjectNameLabel] == project.Name
+}
+
+// isManagedByProjectController reports whether the namespace is managed by the
+// project controller (any Project).
+func isManagedByProjectController(ns *corev1.Namespace) bool {
+	return ns.Labels[pkgctrl.ManagedByLabel] == projectControllerName
 }
 
 // namespaceFailureReason maps a namespace reconciliation error to the
@@ -304,9 +314,30 @@ func namespaceEventReason(operationResult controllerutil.OperationResult) string
 func (r *ProjectReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.Project{}, builder.WithPredicates(reconcilePredicate())).
-		Owns(&corev1.Namespace{}).
+		Watches(
+			// We cannot use .Owns(): the namespace is tracked by labels, not by a
+			// controller owner reference (see isManagedBy).
+			&corev1.Namespace{},
+			handler.EnqueueRequestsFromMapFunc(r.findProjectForNamespace),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Named(projectControllerName).
 		Complete(r)
+}
+
+// findProjectForNamespace maps a Namespace event to the Project that manages it,
+// identified by the managed-by and project-name labels. Project is cluster-scoped,
+// so the request carries only the project name.
+func (r *ProjectReconciler) findProjectForNamespace(_ context.Context, obj client.Object) []reconcile.Request {
+	ns, ok := obj.(*corev1.Namespace)
+	if !ok || !isManagedByProjectController(ns) {
+		return nil
+	}
+	projectName := ns.Labels[pkgctrl.ProjectNameLabel]
+	if projectName == "" {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: projectName}}}
 }
 
 // reconcilePredicate triggers on spec (generation) changes and on deletion.
