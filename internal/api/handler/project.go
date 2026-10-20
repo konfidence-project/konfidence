@@ -17,6 +17,7 @@ import (
 	vectordeploymentdomain "github.com/konfidence-project/konfidence/internal/vectordeployment"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	compref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
+	"github.com/konfidence-project/konfidence/pkg/ocm/content"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,6 +29,7 @@ type projectHandler struct {
 	artifactDeploymentRepo    artifactdeploymentdomain.Repository
 	vectorPromotionRepo       vectorpromotiondomain.Repository
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository
+	ocmReader                 content.Reader
 }
 
 func newProjectHandler(projectRepo projectdomain.Repository,
@@ -35,6 +37,7 @@ func newProjectHandler(projectRepo projectdomain.Repository,
 	artifactDeploymentRepo artifactdeploymentdomain.Repository, vectorDeploymentRepo vectordeploymentdomain.Repository,
 	vectorPromotionRepo vectorpromotiondomain.Repository,
 	vectorPromotionConfigRepo vectorpromotiondomain.ConfigRepository,
+	ocmReader content.Reader,
 ) *projectHandler {
 	return &projectHandler{
 		projectRepo:               projectRepo,
@@ -44,6 +47,7 @@ func newProjectHandler(projectRepo projectdomain.Repository,
 		artifactDeploymentRepo:    artifactDeploymentRepo,
 		vectorPromotionRepo:       vectorPromotionRepo,
 		vectorPromotionConfigRepo: vectorPromotionConfigRepo,
+		ocmReader:                 ocmReader,
 	}
 }
 

@@ -158,6 +158,17 @@ func (e VectorPromotionStatus) Valid() bool {
 	}
 }
 
+// ArtifactContent defines model for ArtifactContent.
+type ArtifactContent struct {
+	AllowReuse bool `json:"allowReuse"`
+
+	// Ref OCM ref string (registry//component:version)
+	Ref       string              `json:"ref"`
+	Resources *[]ArtifactResource `json:"resources,omitempty"`
+	Tasks     *[]ArtifactTask     `json:"tasks,omitempty"`
+	Type      string              `json:"type"`
+}
+
 // ArtifactDeployment defines model for ArtifactDeployment.
 type ArtifactDeployment struct {
 	Artifact ArtifactReference `json:"artifact"`
@@ -187,6 +198,19 @@ type ArtifactDeploymentList struct {
 
 // ArtifactReference defines model for ArtifactReference.
 type ArtifactReference = ComponentReference
+
+// ArtifactResource defines model for ArtifactResource.
+type ArtifactResource struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// ArtifactTask defines model for ArtifactTask.
+type ArtifactTask struct {
+	DependsOn *[]string `json:"dependsOn,omitempty"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+}
 
 // ComponentReference defines model for ComponentReference.
 type ComponentReference struct {
@@ -332,6 +356,30 @@ type StageVersionStatus string
 // StageVersionId The stageVersion id
 type StageVersionId = string
 
+// VectorComponent defines model for VectorComponent.
+type VectorComponent struct {
+	ComponentName string `json:"componentName"`
+	Version       string `json:"version"`
+}
+
+// VectorConfig defines model for VectorConfig.
+type VectorConfig struct {
+	// Authored Raw authored blob from VectorConfigurationV1
+	Authored *map[string]interface{} `json:"authored,omitempty"`
+
+	// Features Raw features blob from VectorConfigurationV1
+	Features *map[string]interface{} `json:"features,omitempty"`
+}
+
+// VectorContent defines model for VectorContent.
+type VectorContent struct {
+	Components []VectorComponent `json:"components"`
+	Config     *VectorConfig     `json:"config,omitempty"`
+
+	// Ref OCM ref string (registry//component:version)
+	Ref string `json:"ref"`
+}
+
 // VectorDeployment defines model for VectorDeployment.
 type VectorDeployment struct {
 	// Id The vectorDeployment id
@@ -357,6 +405,12 @@ type VectorDeploymentId = string
 // VectorDeploymentList defines model for VectorDeploymentList.
 type VectorDeploymentList struct {
 	Data []VectorDeployment `json:"data"`
+}
+
+// VectorDiff defines model for VectorDiff.
+type VectorDiff struct {
+	Current  VectorContent `json:"current"`
+	Incoming VectorContent `json:"incoming"`
 }
 
 // VectorPromotion defines model for VectorPromotion.
@@ -479,6 +533,12 @@ type ListArtifactDeploymentsV1Params struct {
 	VectorDeploymentId *VectorDeploymentQueryId `form:"vectorDeploymentId,omitempty" json:"vectorDeploymentId,omitempty"`
 }
 
+// GetArtifactContentV1Params defines parameters for GetArtifactContentV1.
+type GetArtifactContentV1Params struct {
+	// Ref OCM ref string identifying the artifact (registry//component:version). Must be percent-encoded. Passed as a query parameter because the OCM ref contains // which cannot be used in a path segment.
+	Ref string `form:"ref" json:"ref"`
+}
+
 // ListStagesV1Params defines parameters for ListStagesV1.
 type ListStagesV1Params struct {
 	// LandscapeId Filter by landscapeId
@@ -489,6 +549,12 @@ type ListStagesV1Params struct {
 type ListVectorDeploymentsV1Params struct {
 	// LandscapeId Filter by landscapeId
 	LandscapeId *LandscapeQueryId `form:"landscapeId,omitempty" json:"landscapeId,omitempty"`
+}
+
+// GetVectorContentV1Params defines parameters for GetVectorContentV1.
+type GetVectorContentV1Params struct {
+	// Ref OCM ref string identifying the vector (registry//component:version). Must be percent-encoded. Passed as a query parameter because the OCM ref contains // which cannot be used in a path segment.
+	Ref string `form:"ref" json:"ref"`
 }
 
 // PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
@@ -628,6 +694,13 @@ type ClientInterface interface {
 	// Corresponds with GET /v1/projects/{projectId}/artifactDeployments (the `ListArtifactDeploymentsV1` operationId).
 	ListArtifactDeploymentsV1(ctx context.Context, projectId ProjectPathId, params *ListArtifactDeploymentsV1Params, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetArtifactContentV1 Get OCM content for an artifact by ref.
+	//
+	// Returns the manifest details of any artifact available in OCI, including type, allowReuse, tasks, and OCM resources.
+	//
+	// Corresponds with GET /v1/projects/{projectId}/artifacts/content (the `GetArtifactContentV1` operationId).
+	GetArtifactContentV1(ctx context.Context, projectId ProjectPathId, params *GetArtifactContentV1Params, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListLandscapesV1 List all landscapes for a specific project
 	//
 	// Returns all landscape resources for a project.
@@ -704,6 +777,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 	ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetVectorPromotionDiffV1 Get the diff between the incoming and current vector for a promotion.
+	//
+	// Returns the diff of the OCM content of both the incoming vector from the promotion spec and the current vector deployed on the target stage.
+	//
+	// Corresponds with GET /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/diff (the `GetVectorPromotionDiffV1` operationId).
+	GetVectorPromotionDiffV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetVectorContentV1 Get OCM content for a vector by ref.
+	//
+	// Returns the component list and configuration of any vector available in OCI, regardless of whether it has been deployed.
+	//
+	// Corresponds with GET /v1/projects/{projectId}/vectors/content (the `GetVectorContentV1` operationId).
+	GetVectorContentV1(ctx context.Context, projectId ProjectPathId, params *GetVectorContentV1Params, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // AuthCallbackV1 OIDC callback
@@ -836,6 +923,23 @@ func (c *Client) ListProjectsV1(ctx context.Context, reqEditors ...RequestEditor
 // Corresponds with GET /v1/projects/{projectId}/artifactDeployments (the `ListArtifactDeploymentsV1` operationId).
 func (c *Client) ListArtifactDeploymentsV1(ctx context.Context, projectId ProjectPathId, params *ListArtifactDeploymentsV1Params, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListArtifactDeploymentsV1Request(c.Server, projectId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetArtifactContentV1 Get OCM content for an artifact by ref.
+//
+// Returns the manifest details of any artifact available in OCI, including type, allowReuse, tasks, and OCM resources.
+//
+// Corresponds with GET /v1/projects/{projectId}/artifacts/content (the `GetArtifactContentV1` operationId).
+func (c *Client) GetArtifactContentV1(ctx context.Context, projectId ProjectPathId, params *GetArtifactContentV1Params, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetArtifactContentV1Request(c.Server, projectId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1023,6 +1127,40 @@ func (c *Client) GetVectorPromotionV1(ctx context.Context, projectId ProjectPath
 // Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 func (c *Client) ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewApproveVectorPromotionV1Request(c.Server, projectId, vectorPromotionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetVectorPromotionDiffV1 Get the diff between the incoming and current vector for a promotion.
+//
+// Returns the diff of the OCM content of both the incoming vector from the promotion spec and the current vector deployed on the target stage.
+//
+// Corresponds with GET /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/diff (the `GetVectorPromotionDiffV1` operationId).
+func (c *Client) GetVectorPromotionDiffV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetVectorPromotionDiffV1Request(c.Server, projectId, vectorPromotionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetVectorContentV1 Get OCM content for a vector by ref.
+//
+// Returns the component list and configuration of any vector available in OCI, regardless of whether it has been deployed.
+//
+// Corresponds with GET /v1/projects/{projectId}/vectors/content (the `GetVectorContentV1` operationId).
+func (c *Client) GetVectorContentV1(ctx context.Context, projectId ProjectPathId, params *GetVectorContentV1Params, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetVectorContentV1Request(c.Server, projectId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1359,6 +1497,63 @@ func NewListArtifactDeploymentsV1Request(server string, projectId ProjectPathId,
 				}
 			}
 
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetArtifactContentV1Request constructs an http.Request for the GetArtifactContentV1 method
+func NewGetArtifactContentV1Request(server string, projectId ProjectPathId, params *GetArtifactContentV1Params) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "projectId", projectId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/artifacts/content", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "ref", params.Ref, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
 		}
 
 		if encoded := queryValues.Encode(); encoded != "" {
@@ -1873,6 +2068,104 @@ func NewApproveVectorPromotionV1Request(server string, projectId ProjectPathId, 
 	return req, nil
 }
 
+// NewGetVectorPromotionDiffV1Request constructs an http.Request for the GetVectorPromotionDiffV1 method
+func NewGetVectorPromotionDiffV1Request(server string, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "projectId", projectId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "vectorPromotionId", vectorPromotionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/vectorPromotions/%s/diff", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetVectorContentV1Request constructs an http.Request for the GetVectorContentV1 method
+func NewGetVectorContentV1Request(server string, projectId ProjectPathId, params *GetVectorContentV1Params) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "projectId", projectId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/vectors/content", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "ref", params.Ref, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -1989,6 +2282,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /v1/projects/{projectId}/artifactDeployments (the `ListArtifactDeploymentsV1` operationId).
 	ListArtifactDeploymentsV1WithResponse(ctx context.Context, projectId ProjectPathId, params *ListArtifactDeploymentsV1Params, reqEditors ...RequestEditorFn) (*ListArtifactDeploymentsV1Response, error)
 
+	// GetArtifactContentV1WithResponse Get OCM content for an artifact by ref.
+	//
+	// Returns the manifest details of any artifact available in OCI, including type, allowReuse, tasks, and OCM resources.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/projects/{projectId}/artifacts/content (the `GetArtifactContentV1` operationId).
+	GetArtifactContentV1WithResponse(ctx context.Context, projectId ProjectPathId, params *GetArtifactContentV1Params, reqEditors ...RequestEditorFn) (*GetArtifactContentV1Response, error)
+
 	// ListLandscapesV1WithResponse List all landscapes for a specific project
 	//
 	// Returns all landscape resources for a project.
@@ -2087,6 +2389,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 	ApproveVectorPromotionV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*ApproveVectorPromotionV1Response, error)
+
+	// GetVectorPromotionDiffV1WithResponse Get the diff between the incoming and current vector for a promotion.
+	//
+	// Returns the diff of the OCM content of both the incoming vector from the promotion spec and the current vector deployed on the target stage.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/diff (the `GetVectorPromotionDiffV1` operationId).
+	GetVectorPromotionDiffV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*GetVectorPromotionDiffV1Response, error)
+
+	// GetVectorContentV1WithResponse Get OCM content for a vector by ref.
+	//
+	// Returns the component list and configuration of any vector available in OCI, regardless of whether it has been deployed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/projects/{projectId}/vectors/content (the `GetVectorContentV1` operationId).
+	GetVectorContentV1WithResponse(ctx context.Context, projectId ProjectPathId, params *GetVectorContentV1Params, reqEditors ...RequestEditorFn) (*GetVectorContentV1Response, error)
 }
 
 // AuthCallbackV1Response302Headers the declared response headers of an HTTP 302 response for AuthCallbackV1
@@ -2483,6 +2803,75 @@ func (r ListArtifactDeploymentsV1Response) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListArtifactDeploymentsV1Response) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetArtifactContentV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ArtifactContent
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalError
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetArtifactContentV1Response) GetJSON200() *ArtifactContent {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetArtifactContentV1Response) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetArtifactContentV1Response) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetArtifactContentV1Response) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetArtifactContentV1Response) GetJSON500() *InternalError {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r GetArtifactContentV1Response) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetArtifactContentV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetArtifactContentV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetArtifactContentV1Response) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -3248,6 +3637,144 @@ func (r ApproveVectorPromotionV1Response) ContentType() string {
 	return ""
 }
 
+type GetVectorPromotionDiffV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *VectorDiff
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalError
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetVectorPromotionDiffV1Response) GetJSON200() *VectorDiff {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetVectorPromotionDiffV1Response) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetVectorPromotionDiffV1Response) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetVectorPromotionDiffV1Response) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetVectorPromotionDiffV1Response) GetJSON500() *InternalError {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r GetVectorPromotionDiffV1Response) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetVectorPromotionDiffV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetVectorPromotionDiffV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetVectorPromotionDiffV1Response) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetVectorContentV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *VectorContent
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalError
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetVectorContentV1Response) GetJSON200() *VectorContent {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetVectorContentV1Response) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetVectorContentV1Response) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetVectorContentV1Response) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetVectorContentV1Response) GetJSON500() *InternalError {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r GetVectorContentV1Response) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetVectorContentV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetVectorContentV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetVectorContentV1Response) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // AuthCallbackV1WithResponse OIDC callback
 //
 // Receives the authorization code from the IDP after successful login. Exchanges the code for tokens and establishes a session cookie.
@@ -3366,6 +3893,21 @@ func (c *ClientWithResponses) ListArtifactDeploymentsV1WithResponse(ctx context.
 		return nil, err
 	}
 	return ParseListArtifactDeploymentsV1Response(rsp)
+}
+
+// GetArtifactContentV1WithResponse Get OCM content for an artifact by ref.
+//
+// Returns the manifest details of any artifact available in OCI, including type, allowReuse, tasks, and OCM resources.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/projects/{projectId}/artifacts/content (the `GetArtifactContentV1` operationId).
+func (c *ClientWithResponses) GetArtifactContentV1WithResponse(ctx context.Context, projectId ProjectPathId, params *GetArtifactContentV1Params, reqEditors ...RequestEditorFn) (*GetArtifactContentV1Response, error) {
+	rsp, err := c.GetArtifactContentV1(ctx, projectId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetArtifactContentV1Response(rsp)
 }
 
 // ListLandscapesV1WithResponse List all landscapes for a specific project
@@ -3531,6 +4073,36 @@ func (c *ClientWithResponses) ApproveVectorPromotionV1WithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseApproveVectorPromotionV1Response(rsp)
+}
+
+// GetVectorPromotionDiffV1WithResponse Get the diff between the incoming and current vector for a promotion.
+//
+// Returns the diff of the OCM content of both the incoming vector from the promotion spec and the current vector deployed on the target stage.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/diff (the `GetVectorPromotionDiffV1` operationId).
+func (c *ClientWithResponses) GetVectorPromotionDiffV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*GetVectorPromotionDiffV1Response, error) {
+	rsp, err := c.GetVectorPromotionDiffV1(ctx, projectId, vectorPromotionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetVectorPromotionDiffV1Response(rsp)
+}
+
+// GetVectorContentV1WithResponse Get OCM content for a vector by ref.
+//
+// Returns the component list and configuration of any vector available in OCI, regardless of whether it has been deployed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/projects/{projectId}/vectors/content (the `GetVectorContentV1` operationId).
+func (c *ClientWithResponses) GetVectorContentV1WithResponse(ctx context.Context, projectId ProjectPathId, params *GetVectorContentV1Params, reqEditors ...RequestEditorFn) (*GetVectorContentV1Response, error) {
+	rsp, err := c.GetVectorContentV1(ctx, projectId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetVectorContentV1Response(rsp)
 }
 
 // ParseAuthCallbackV1Response parses an HTTP response from a AuthCallbackV1WithResponse call
@@ -3857,6 +4429,60 @@ func ParseListArtifactDeploymentsV1Response(rsp *http.Response) (*ListArtifactDe
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetArtifactContentV1Response parses an HTTP response from a GetArtifactContentV1WithResponse call
+func ParseGetArtifactContentV1Response(rsp *http.Response) (*GetArtifactContentV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetArtifactContentV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ArtifactContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError
@@ -4454,6 +5080,114 @@ func ParseApproveVectorPromotionV1Response(rsp *http.Response) (*ApproveVectorPr
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetVectorPromotionDiffV1Response parses an HTTP response from a GetVectorPromotionDiffV1WithResponse call
+func ParseGetVectorPromotionDiffV1Response(rsp *http.Response) (*GetVectorPromotionDiffV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetVectorPromotionDiffV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VectorDiff
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetVectorContentV1Response parses an HTTP response from a GetVectorContentV1WithResponse call
+func ParseGetVectorContentV1Response(rsp *http.Response) (*GetVectorContentV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetVectorContentV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VectorContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError
