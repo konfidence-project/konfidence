@@ -10,7 +10,7 @@
         children: Snippet;
         footer?: Snippet;
         onClose?: () => void;
-        onResize?: () => void;
+        fullPageHref?: string;
         width?: number;
         onWidthChange?: (width: number) => void;
     }
@@ -26,7 +26,7 @@
         children,
         footer,
         onClose,
-        onResize,
+        fullPageHref,
         width = $bindable(DEFAULT_WIDTH),
         onWidthChange,
     }: Props = $props();
@@ -50,6 +50,9 @@
     });
 
     const requestClose = (): void => {
+        if (!open) {
+            return;
+        }
         open = false;
         onClose?.();
     };
@@ -150,16 +153,16 @@
             {title}
         </h2>
         <div class="flex items-center gap-1">
-            {#if onResize}
-                <button
-                    type="button"
+            {#if fullPageHref}
+                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- The design-system caller supplies an already-resolved application URL. -->
+                <a
+                    href={fullPageHref}
                     class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:size-icon-md"
                     aria-label="Open full page"
-                    onclick={() => onResize?.()}
-                    data-testid="side-panel-resize"
+                    data-testid="side-panel-full-page"
                 >
                     <ui5-icon class="text-current" name="resize" aria-hidden="true"></ui5-icon>
-                </button>
+                </a>
             {/if}
             <button
                 type="button"
@@ -249,4 +252,3 @@
         }
     }
 </style>
-

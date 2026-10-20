@@ -38,27 +38,18 @@ describe("<SidePanel>", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  describe("resize action", () => {
-    it("hides the resize button when no onResize handler is given", async () => {
+  describe("full-page link", () => {
+    it("hides the link when no full-page URL is given", async () => {
       await render(SidePanelFixture, { open: true });
       await expect.element(page.getByTestId("side-panel")).toBeVisible();
-      await expect.element(page.getByTestId("side-panel-resize")).not.toBeInTheDocument();
+      await expect.element(page.getByTestId("side-panel-full-page")).not.toBeInTheDocument();
     });
 
-    it("shows the resize button and invokes onResize when provided", async () => {
-      const onResize = vi.fn();
-      await render(SidePanelFixture, { onResize, open: true });
-      const button = page.getByTestId("side-panel-resize");
-      await expect.element(button).toBeVisible();
-      await button.click();
-      expect(onResize).toHaveBeenCalled();
-    });
-
-    it("keeps the panel open after resizing (navigation is the caller's concern)", async () => {
-      const onResize = vi.fn();
-      await render(SidePanelFixture, { onResize, open: true });
-      await page.getByTestId("side-panel-resize").click();
-      await expect.element(page.getByTestId("side-panel")).toBeVisible();
+    it("renders a normal link to the full page", async () => {
+      await render(SidePanelFixture, { fullPageHref: "/details/one", open: true });
+      const link = page.getByRole("link", { name: "Open full page" });
+      await expect.element(link).toBeVisible();
+      await expect.element(link).toHaveAttribute("href", "/details/one");
     });
   });
 
@@ -188,6 +179,7 @@ describe("<SidePanel>", () => {
         document.documentElement.setAttribute("data-theme", "konfidence");
         document.documentElement.classList.toggle("dark", mode === "dark");
         await render(SidePanelFixture, {
+          fullPageHref: "/details/payments-api",
           open: true,
           title: "payments-api@3.4.1",
         });
