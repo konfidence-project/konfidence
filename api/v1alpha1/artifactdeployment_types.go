@@ -213,3 +213,16 @@ type ArtifactDeploymentList struct {
 func init() {
 	SchemeBuilder.Register(&ArtifactDeployment{}, &ArtifactDeploymentList{})
 }
+
+func (ad *ArtifactDeployment) MatchesArtifactType(artifactType string) bool {
+	return ad != nil && ad.Spec.Manifest.Type == artifactType
+}
+
+func (ad *ArtifactDeployment) IsSupported(supported ArtifactTypes) bool {
+	if ad == nil {
+		return false
+	}
+
+	_, ok := supported[ad.Spec.Manifest.Type]
+	return ok
+}

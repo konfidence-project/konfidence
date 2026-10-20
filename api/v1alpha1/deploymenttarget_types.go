@@ -102,3 +102,16 @@ type DeploymentTargetList struct {
 func init() {
 	SchemeBuilder.Register(&DeploymentTarget{}, &DeploymentTargetList{})
 }
+
+func (dt *DeploymentTarget) MatchesArtifactType(artifactType string) bool {
+	return dt != nil && dt.Spec.ArtifactType == artifactType
+}
+
+func (dt *DeploymentTarget) IsSupported(supported ArtifactTypes) bool {
+	if dt == nil {
+		return false
+	}
+
+	_, ok := supported[dt.Spec.ArtifactType]
+	return ok
+}
