@@ -315,13 +315,8 @@ func statusNamespaceName(project *konfidence.Project) string {
 	return namespaceName(project)
 }
 
-// isManagedBy reports whether the namespace is managed by the given Project.
-// A cluster-scoped Project cannot own a cluster-scoped Namespace via an owner
-// reference without tying namespace deletion to garbage collection, so ownership
-// is tracked by the managed-by and project labels instead.
-//
-// Because ownership lives in these labels, manually editing them on a managed
-// namespace flips it to a conflict the controller cannot repair on its own.
+// isManagedBy reports whether the namespace carries the managed-by and project
+// labels marking it as owned by the given Project.
 func isManagedBy(ns *corev1.Namespace, project *konfidence.Project) bool {
 	return ns.Labels[pkgctrl.ManagedByLabel] == projectControllerName &&
 		ns.Labels[pkgctrl.ProjectNameLabel] == project.Name

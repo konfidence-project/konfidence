@@ -327,14 +327,10 @@ func (r *LandscapeReconciler) setTerminatingStatus(ctx context.Context, landscap
 	)
 }
 
-// isManagedByLandscape reports whether the namespace is managed by the given
-// Landscape. A namespace-scoped Landscape cannot own a cluster-scoped Namespace
-// via an owner reference, so ownership is tracked by labels instead. The project
-// label is part of the check so two same-named Landscapes in different projects
-// cannot both claim the same namespace.
-//
-// Because ownership lives in these labels, manually editing them on a managed
-// namespace flips it to a conflict the controller cannot repair on its own.
+// isManagedByLandscape reports whether the namespace carries the managed-by,
+// landscape, and project labels marking it as owned by the given Landscape.
+// The project label is part of the check so two same-named Landscapes in
+// different projects cannot both claim it.
 func (r *LandscapeReconciler) isManagedByLandscape(ns *corev1.Namespace, landscape *konfidence.Landscape) bool {
 	if landscape.Status.ProjectName == "" {
 		return false
