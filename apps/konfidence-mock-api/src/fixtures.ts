@@ -16,7 +16,10 @@ interface ProjectFixture {
   project: Project;
   roles: string[];
   stages: Stage[];
+  // Only the list-page rows: backs listVectorDeploymentsV1.
   vectorDeployments: VectorDeployment[];
+  // Superset the single-item fetch resolves: list-page rows plus every stageVersion-derived deployment.
+  resolvableVectorDeployments: VectorDeployment[];
   vectorPromotionConfigs: VectorPromotionConfig[];
 }
 
@@ -175,6 +178,49 @@ const stages: Stage[] = [
   }),
 ];
 
+// Maps a stageVersion rollout state onto the matching vectorDeployment status.
+const vectorDeploymentStatus = (status: StageVersion["status"]): VectorDeployment["status"] => {
+  switch (status) {
+    case "DeployingVector": {
+      return "DeployingVector";
+    }
+    case "Failed": {
+      return "DeploymentFailed";
+    }
+    // Transient and healthy states both resolve to a ready deployment.
+    default: {
+      return "DeploymentReady";
+    }
+  }
+};
+
+// Reads the component version out of a stageVersion vector reference tag.
+const versionFromVector = (vector: string): string => vector.split(":").at(-1) ?? "";
+
+// Derives one deployment per stageVersion so getVectorDeploymentV1 resolves the stageVersion ids the UI requests (see StageDetails.svelte and useVectorDeployment).
+const stageVersionDeployments: VectorDeployment[] = stages.flatMap((entry) =>
+  [entry.targetStageVersion, entry.activeStageVersion]
+    .filter((version): version is StageVersion => version !== undefined)
+    .map((version) => ({
+      id: version.id,
+      landscapeId: entry.landscapeId,
+      stageId: entry.id,
+      status: vectorDeploymentStatus(version.status),
+      vector: {
+        componentName: VECTOR_COMPONENT,
+        componentVersion: versionFromVector(version.vector),
+        repository: REPOSITORY,
+      },
+    })),
+);
+
+// De-duplicates on id so overlapping active/target versions and list-page fixtures each appear once.
+// Only the single-item fetch (getVectorDeploymentV1) draws from this superset; the list page serves vectorDeployments.
+const resolvableVectorDeployments: VectorDeployment[] = [
+  ...vectorDeployments,
+  ...stageVersionDeployments,
+].filter((deployment, index, all) => all.findIndex(({ id }) => id === deployment.id) === index);
+
 const component = (componentName: string, componentVersion: string) => ({
   componentName,
   componentVersion,
@@ -280,6 +326,7 @@ const populatedProject: ProjectFixture = {
   artifactDeployments,
   landscapes,
   project: paymentsProject,
+  resolvableVectorDeployments,
   roles: ["admin", "dev"],
   stages,
   vectorDeployments,
@@ -290,6 +337,7 @@ const emptyProject = (project: Project, roles: string[]): ProjectFixture => ({
   artifactDeployments: [],
   landscapes: [],
   project,
+  resolvableVectorDeployments: [],
   roles,
   stages: [],
   vectorDeployments: [],
@@ -324,6 +372,7 @@ const scenarios = {
       {
         ...emptyProject(paymentsProject, ["dev"]),
         landscapes: landscapes.filter(({ id }) => id === "development" || id === "test"),
+        resolvableVectorDeployments: resolvableVectorDeployments.slice(0, 1),
         stages: stages.slice(0, 1),
         vectorDeployments: vectorDeployments.slice(0, 1),
       },
