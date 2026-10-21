@@ -9,6 +9,10 @@ import { signIn } from "../../../../../../e2e/helpers";
 const PROJECT_ID = "payments-platform";
 const ARTIFACT_DEPLOYMENTS_PATH = `/projects/${PROJECT_ID}/artifact-deployments`;
 const EXPECTED_ROW_COUNT = 5;
+const ARTIFACT_COMPONENT = "github.com/konfidence-project/example-app/payments-api";
+const ARTIFACT_REPOSITORY = "https://bp.common.repositories.cloud.sap/konfidence/delivery-vector";
+const ARTIFACT_VERSION = "2026.9.29-201426000Z";
+const ARTIFACT_ID = "dev-us30-20260929-201426000Z-payments-api";
 
 const setScenario = async (page: Page, scenario: string): Promise<void> => {
   await page.context().addCookies([
@@ -34,6 +38,28 @@ const gotoArtifactDeployments = async (
   await signIn(page, path, path);
 };
 
+const expectDetailFieldToFit = async (
+  panel: ReturnType<Page["getByTestId"]>,
+  label: string,
+  value: string,
+): Promise<void> => {
+  const labelElement = panel.locator("dt", { hasText: label }).first();
+  const valueElement = labelElement.locator("xpath=following-sibling::dd[1]");
+  await expect(valueElement).toHaveText(value);
+
+  const [panelBox, labelBox, valueBox] = await Promise.all([
+    panel.boundingBox(),
+    labelElement.boundingBox(),
+    valueElement.boundingBox(),
+  ]);
+  if (!panelBox || !labelBox || !valueBox) {
+    throw new Error(`Could not measure the ${label} detail field`);
+  }
+
+  expect(valueBox.x).toBeGreaterThanOrEqual(labelBox.x + labelBox.width);
+  expect(valueBox.x + valueBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+};
+
 test.describe("artifact deployments", () => {
   test("shows every deployment returned by the mock API", async ({ page }) => {
     await gotoArtifactDeployments(page);
@@ -43,11 +69,21 @@ test.describe("artifact deployments", () => {
 
     const rows = page.getByTestId("artifact-row");
     await expect(rows).toHaveCount(EXPECTED_ROW_COUNT);
-    await expect(page.locator('[data-row-id="artifact-dev-us30-1"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-dev-us30-2"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-test-eu20-1"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-test-eu20-2"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-test-eu20-3"]')).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-api"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-ui"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="test-eu20-20260924-151030000Z-payments-api-1"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="test-eu20-20260924-151030000Z-payments-api-2"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="test-eu20-20260924-151030000Z-payments-api-3"]'),
+    ).toBeVisible();
   });
 
   test("narrows the table by search text", async ({ page }) => {
@@ -57,7 +93,9 @@ test.describe("artifact deployments", () => {
 
     const rows = page.getByTestId("artifact-row");
     await expect(rows).toHaveCount(1);
-    await expect(page.locator('[data-row-id="artifact-dev-us30-2"]')).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-ui"]'),
+    ).toBeVisible();
   });
 
   test("filters the table by status", async ({ page }) => {
@@ -67,7 +105,9 @@ test.describe("artifact deployments", () => {
 
     const rows = page.getByTestId("artifact-row");
     await expect(rows).toHaveCount(1);
-    await expect(page.locator('[data-row-id="artifact-dev-us30-2"]')).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-ui"]'),
+    ).toBeVisible();
   });
 
   test("sorts by version when the column header is activated", async ({ page }) => {
@@ -79,21 +119,34 @@ test.describe("artifact deployments", () => {
     await page.getByRole("button", { name: /^Version/ }).click();
 
     const firstRow = page.getByTestId("artifact-row").first();
-    await expect(firstRow).toHaveAttribute("data-row-id", "artifact-test-eu20-1");
+    await expect(firstRow).toHaveAttribute(
+      "data-row-id",
+      "test-eu20-20260924-151030000Z-payments-api-1",
+    );
   });
 
   test("opens the detail drawer and shows the resolved relationships", async ({ page }) => {
     await gotoArtifactDeployments(page);
 
-    await page.locator('[data-row-id="artifact-dev-us30-1"]').click();
+    await page.locator(`[data-row-id="${ARTIFACT_ID}"]`).click();
 
     const panel = page.getByTestId("side-panel");
     await expect(panel).toBeVisible();
-    await expect(page.getByTestId("artifact-detail-id")).toHaveText("artifact-dev-us30-1");
+    await expect(page.getByTestId("artifact-detail-id")).toHaveText(ARTIFACT_ID);
+    await expectDetailFieldToFit(panel, "Component", ARTIFACT_COMPONENT);
+    await expectDetailFieldToFit(panel, "Version", ARTIFACT_VERSION);
+    await expectDetailFieldToFit(panel, "Repository", ARTIFACT_REPOSITORY);
+    await expectDetailFieldToFit(panel, "Deployment id", ARTIFACT_ID);
     await expect(page.getByTestId("artifact-detail-stages")).toContainText("dev-us30");
-    await expect(page.getByTestId("artifact-detail-vectors")).toContainText("vector-dev-us30-1");
-    await expect(page.getByTestId("artifact-detail-vectors")).toContainText("delivery-vector");
-    await expect(page).toHaveURL(`${ARTIFACT_DEPLOYMENTS_PATH}?deployment=artifact-dev-us30-1`);
+    await expect(page.getByTestId("artifact-detail-vectors")).toContainText(
+      "dev-us30-20260929-201426000Z",
+    );
+    await expect(page.getByTestId("artifact-detail-vectors")).toContainText(
+      "github.com/konfidence-project/example-app/vector",
+    );
+    await expect(page).toHaveURL(
+      `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z-payments-api`,
+    );
   });
 
   test("supports keyboard-driven inspection of a row", async ({ page }) => {
@@ -115,12 +168,14 @@ test.describe("artifact deployments", () => {
   test("deep-links to a deployment via the query parameter", async ({ page }) => {
     await gotoArtifactDeployments(
       page,
-      `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=artifact-test-eu20-1`,
+      `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=test-eu20-20260924-151030000Z-payments-api-1`,
     );
 
     const panel = page.getByTestId("side-panel");
     await expect(panel).toBeVisible();
-    await expect(page.getByTestId("artifact-detail-id")).toHaveText("artifact-test-eu20-1");
+    await expect(page.getByTestId("artifact-detail-id")).toHaveText(
+      "test-eu20-20260924-151030000Z-payments-api-1",
+    );
   });
 
   test("keeps the panel closed when the URL points at a missing deployment id", async ({
@@ -137,15 +192,19 @@ test.describe("artifact deployments", () => {
   test("keeps deep-link state addressable through the back button", async ({ page }) => {
     await gotoArtifactDeployments(page);
 
-    await page.locator('[data-row-id="artifact-dev-us30-1"]').click();
-    await expect(page).toHaveURL(`${ARTIFACT_DEPLOYMENTS_PATH}?deployment=artifact-dev-us30-1`);
+    await page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-api"]').click();
+    await expect(page).toHaveURL(
+      `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z-payments-api`,
+    );
 
     await page.goBack();
     await expect(page).toHaveURL(ARTIFACT_DEPLOYMENTS_PATH);
     await expect(page.getByTestId("side-panel")).toBeHidden();
 
     await page.goForward();
-    await expect(page).toHaveURL(`${ARTIFACT_DEPLOYMENTS_PATH}?deployment=artifact-dev-us30-1`);
+    await expect(page).toHaveURL(
+      `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z-payments-api`,
+    );
     await expect(page.getByTestId("side-panel")).toBeVisible();
   });
 
@@ -154,7 +213,7 @@ test.describe("artifact deployments", () => {
   }) => {
     await gotoArtifactDeployments(page);
 
-    await page.locator('[data-row-id="artifact-dev-us30-2"]').click();
+    await page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-ui"]').click();
     await expect(page.getByTestId("side-panel")).toBeVisible();
 
     await page.getByTestId("side-panel-close").click();
@@ -199,9 +258,15 @@ test.describe("artifact deployments", () => {
     await expect(page).toHaveURL(`${ARTIFACT_DEPLOYMENTS_PATH}?landscapeId=test`);
     const rows = page.getByTestId("artifact-row");
     await expect(rows).toHaveCount(3);
-    await expect(page.locator('[data-row-id="artifact-test-eu20-1"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-test-eu20-2"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-test-eu20-3"]')).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="test-eu20-20260924-151030000Z-payments-api-1"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="test-eu20-20260924-151030000Z-payments-api-2"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="test-eu20-20260924-151030000Z-payments-api-3"]'),
+    ).toBeVisible();
 
     // The `landscapeId=test` query must reach the API (server-side
     // narrowing), not just filter locally.
@@ -213,7 +278,9 @@ test.describe("artifact deployments", () => {
 
     const rows = page.getByTestId("artifact-row");
     await expect(rows).toHaveCount(2);
-    await expect(page.locator('[data-row-id="artifact-test-eu20-1"]')).toHaveCount(0);
+    await expect(
+      page.locator('[data-row-id="test-eu20-20260924-151030000Z-payments-api-1"]'),
+    ).toHaveCount(0);
     await expect(page.getByTestId("artifact-landscape-filter")).toHaveValue("development");
   });
 
@@ -222,15 +289,19 @@ test.describe("artifact deployments", () => {
   }) => {
     await gotoArtifactDeployments(page);
 
-    await page.getByTestId("artifact-vector-filter").selectOption("vector-dev-us30-1");
+    await page.getByTestId("artifact-vector-filter").selectOption("dev-us30-20260929-201426000Z");
     await expect(page).toHaveURL(
-      `${ARTIFACT_DEPLOYMENTS_PATH}?vectorDeploymentId=vector-dev-us30-1`,
+      `${ARTIFACT_DEPLOYMENTS_PATH}?vectorDeploymentId=dev-us30-20260929-201426000Z`,
     );
 
     const rows = page.getByTestId("artifact-row");
     await expect(rows).toHaveCount(2);
-    await expect(page.locator('[data-row-id="artifact-dev-us30-1"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="artifact-dev-us30-2"]')).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-api"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-ui"]'),
+    ).toBeVisible();
 
     // Picking a landscape drops the incompatible vector filter.
     await page.getByTestId("artifact-landscape-filter").selectOption("test");
