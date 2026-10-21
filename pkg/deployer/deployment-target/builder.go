@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	konfidencev1alpha1 "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlBuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,7 +48,6 @@ func (b *builder) For(supportedArtifactTypes konfidencev1alpha1.ArtifactTypeSet)
 }
 
 // WithValidation sets the deployer's target-parameter validation function.
-// If called multiple times, the last value is used.
 func (b *builder) WithValidation(validate ValidationFunc) *builder {
 	if b != nil {
 		b.validation = validate
@@ -54,8 +55,7 @@ func (b *builder) WithValidation(validate ValidationFunc) *builder {
 	return b
 }
 
-// Watches adds an additional resource watch that can trigger target reconciliation.
-// Its arguments match controller-runtime's TypedBuilder.Watches.
+// Watches adds a resource watch with the provided event handler.
 func (b *builder) Watches(
 	object client.Object,
 	eventHandler handler.TypedEventHandler[client.Object, reconcile.Request],
@@ -71,7 +71,7 @@ func (b *builder) Watches(
 	return b
 }
 
-// Named sets the controller name. If omitted, Complete uses "deploymenttarget".
+// Named sets the controller name. If omitted, it falls back to "deploymenttarget".
 func (b *builder) Named(name string) *builder {
 	if b != nil {
 		b.controllerName = strings.TrimSpace(name)
@@ -110,7 +110,15 @@ func (b *builder) complete(r *reconciler) error {
 		For(&konfidencev1alpha1.DeploymentTarget{}, ctrlBuilder.WithPredicates(predicate.GenerationChangedPredicate{}, supportedTarget))
 
 	for _, watched := range r.watchers {
-		cb = cb.Watches(watched.object, watched.eventHandler, watched.opts...)
+		eventHandler := watched.eventHandler
+		if eventHandler == referencedTargetsMarker {
+			gvk, err := watchedResourceGVK(watched.object, b.manager.GetScheme())
+			if err != nil {
+				return fmt.Errorf("resolve watched resource type: %w", err)
+			}
+			eventHandler = enqueueTargetsReferencing(gvk, r.supportedArtifactTypes, r.client)
+		}
+		cb = cb.Watches(watched.object, eventHandler, watched.opts...)
 	}
 
 	return cb.Named(r.controllerName).Complete(r)
@@ -137,6 +145,23 @@ func (b *builder) validateConfiguration() error {
 		}
 	}
 	return nil
+}
+
+func watchedResourceGVK(object client.Object, scheme *runtime.Scheme) (schema.GroupVersionKind, error) {
+	gvks, _, err := scheme.ObjectKinds(object)
+	if err != nil {
+		return schema.GroupVersionKind{}, err
+	}
+	if len(gvks) == 0 {
+		return schema.GroupVersionKind{}, fmt.Errorf("type %T is not registered in the manager scheme", object)
+	}
+	gvk := gvks[0]
+	for _, candidate := range gvks[1:] {
+		if candidate.Group != gvk.Group || candidate.Kind != gvk.Kind {
+			return schema.GroupVersionKind{}, fmt.Errorf("type %T maps to multiple API groups or kinds", object)
+		}
+	}
+	return gvk, nil
 }
 
 func (b *builder) build(c client.Client, controllerName string) (*reconciler, error) {
