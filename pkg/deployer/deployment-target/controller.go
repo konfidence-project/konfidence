@@ -24,57 +24,46 @@ type reconciler struct {
 	controllerName         string
 	supportedArtifactTypes konfidencev1alpha1.ArtifactTypeSet
 	watchers               []watch
-	validate               ValidationFunc
+	validateFunc           ValidationFunc
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	dt := &konfidencev1alpha1.DeploymentTarget{}
-	if err := r.client.Get(ctx, req.NamespacedName, dt); err != nil {
+	err := r.client.Get(ctx, req.NamespacedName, dt)
+	if err != nil || !dt.IsSupported(r.supportedArtifactTypes) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !dt.IsSupported(r.supportedArtifactTypes) {
-		return ctrl.Result{}, nil
-	}
-
 	log.Info("reconciling DeploymentTarget", "artifactType", dt.Spec.ArtifactType)
-	if err := r.setController(ctx, dt); err != nil {
-		return ctrl.Result{}, err
+	original := dt.DeepCopy()
+
+	dt.Status.Controller = r.controllerName
+
+	err = r.validate(ctx, dt)
+	if err != nil {
+		r.setReady(dt, metav1.ConditionFalse, ReasonInvalidParameters, fmt.Sprintf("invalid parameters: %v", err))
+	} else {
+		r.setReady(dt, metav1.ConditionTrue, ReasonAccepted, "parameters accepted")
 	}
 
-	if r.validate != nil {
-		if err := r.validate(ctx, r.client, dt); err != nil {
-			if err := r.setReady(ctx, dt, metav1.ConditionFalse, ReasonInvalidParameters, fmt.Sprintf("invalid parameters: %v", err)); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, nil
-		}
+	patch := client.MergeFrom(original)
+	if err := r.client.Status().Patch(ctx, dt, patch); err != nil {
+		return ctrl.Result{}, fmt.Errorf("patch DeploymentTarget status: %w", err)
 	}
-
-	if err := r.setReady(ctx, dt, metav1.ConditionTrue, ReasonAccepted, "parameters accepted"); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	return ctrl.Result{}, nil
 }
 
-func (r *reconciler) setController(ctx context.Context, target *konfidencev1alpha1.DeploymentTarget) error {
-	if target.Status.Controller == r.controllerName {
-		return nil
+func (r *reconciler) validate(ctx context.Context, dt *konfidencev1alpha1.DeploymentTarget) error {
+	if r.validateFunc != nil {
+		return r.validateFunc(ctx, r.client, dt)
 	}
 
-	patch := client.MergeFrom(target.DeepCopy())
-	target.Status.Controller = r.controllerName
-	if err := r.client.Status().Patch(ctx, target, patch); err != nil {
-		return fmt.Errorf("patch DeploymentTarget controller: %w", err)
-	}
 	return nil
 }
 
-func (r *reconciler) setReady(ctx context.Context, target *konfidencev1alpha1.DeploymentTarget, status metav1.ConditionStatus, reason, message string) error {
-	patch := client.MergeFrom(target.DeepCopy())
+func (r *reconciler) setReady(target *konfidencev1alpha1.DeploymentTarget, status metav1.ConditionStatus, reason, message string) {
 	meta.SetStatusCondition(&target.Status.Conditions, metav1.Condition{
 		Type:               konfidencev1alpha1.DeploymentTargetReadyCondition,
 		Status:             status,
@@ -83,8 +72,4 @@ func (r *reconciler) setReady(ctx context.Context, target *konfidencev1alpha1.De
 		ObservedGeneration: target.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
-	if err := r.client.Status().Patch(ctx, target, patch); err != nil {
-		return fmt.Errorf("patch DeploymentTarget status: %w", err)
-	}
-	return nil
 }
