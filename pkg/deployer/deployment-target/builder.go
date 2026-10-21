@@ -32,8 +32,8 @@ type builder struct {
 	watchers               []watch
 }
 
-// NewDeploymentTargetControllerManagedBy starts a builder bound to mgr.
-func NewDeploymentTargetControllerManagedBy(mgr ctrl.Manager) *builder {
+// NewControllerManagedBy starts a builder bound to mgr.
+func NewControllerManagedBy(mgr ctrl.Manager) *builder {
 	return &builder{manager: mgr}
 }
 
@@ -80,7 +80,7 @@ func (b *builder) Named(name string) *builder {
 }
 
 // Complete validates the builder, constructs the reconciler, and registers it
-// with the manager supplied to NewDeploymentTargetControllerManagedBy.
+// with the manager supplied to NewControllerManagedBy.
 func (b *builder) Complete() error {
 	if err := b.validateConfiguration(); err != nil {
 		return err
