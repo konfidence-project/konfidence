@@ -35,11 +35,6 @@ type adProjectRepository struct {
 	err     error
 }
 
-func (r *adRepository) Get(_ context.Context, _ string) (
-	*konfidence.ArtifactDeployment, error) {
-	return nil, r.err
-}
-
 func (r *adProjectRepository) Get(_ context.Context, _ string) (
 	*konfidence.Project, error) {
 	if r.err != nil {
