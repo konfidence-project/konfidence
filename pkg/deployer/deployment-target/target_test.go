@@ -1,7 +1,8 @@
-package target
+package deploymenttarget
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -114,6 +116,40 @@ func TestIsReadyRequiresCurrentGeneration(t *testing.T) {
 	}
 }
 
+func TestDeploymentTargetControllerBuilderRequiresValidConfiguration(t *testing.T) {
+	scheme := runtime.NewScheme()
+	if err := konfidencev1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	valid := func() *builder {
+		return NewDeploymentTargetControllerManagedBy(nil).For(konfidencev1alpha1.ArtifactTypeSet{"helm.example.com": {}})
+	}
+	if err := valid().validateConfiguration(); err != nil {
+		t.Fatalf("builder.validateConfiguration(valid) error = %v", err)
+	}
+
+	cases := []struct {
+		name    string
+		builder *builder
+	}{
+		{name: "missing For", builder: NewDeploymentTargetControllerManagedBy(nil)},
+		{name: "missing artifact types", builder: NewDeploymentTargetControllerManagedBy(nil).For(nil)},
+		{name: "blank artifact type", builder: NewDeploymentTargetControllerManagedBy(nil).For(konfidencev1alpha1.ArtifactTypeSet{" ": {}})},
+		{name: "watcher without object", builder: valid().Watches(nil, nil)},
+		{name: "watcher without handler", builder: valid().Watches(&konfidencev1alpha1.DeploymentTarget{}, nil)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.builder.validateConfiguration(); err == nil {
+				t.Fatal("builder configuration validation succeeded with invalid configuration")
+			}
+		})
+	}
+	if err := valid().Complete(); err == nil {
+		t.Fatal("Complete() succeeded without a manager")
+	}
+}
+
 func TestSetReady(t *testing.T) {
 	scheme := runtime.NewScheme()
 	if err := konfidencev1alpha1.AddToScheme(scheme); err != nil {
@@ -124,7 +160,12 @@ func TestSetReady(t *testing.T) {
 		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(dt).WithObjects(dt).Build()
-	r := &DeploymentTargetReconciler{Client: c}
+	r, err := NewDeploymentTargetControllerManagedBy(nil).
+		For(konfidencev1alpha1.ArtifactTypeSet{"helm.example.com": {}}).
+		Named("example.com/deployer:v1.2.3").build(c, "example.com/deployer:v1.2.3")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := r.setReady(context.Background(), dt, metav1.ConditionTrue, "Accepted", "valid target"); err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +188,12 @@ func TestSetController(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "prod", Namespace: "landscape"},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(dt).WithObjects(dt).Build()
-	r := &DeploymentTargetReconciler{Client: c, ControllerName: "example.com/deployer:v1.2.3"}
+	r, err := NewDeploymentTargetControllerManagedBy(nil).
+		For(konfidencev1alpha1.ArtifactTypeSet{"helm.example.com": {}}).
+		Named("example.com/deployer:v1.2.3").build(c, "example.com/deployer:v1.2.3")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := r.setController(context.Background(), dt); err != nil {
 		t.Fatal(err)
 	}
@@ -157,5 +203,69 @@ func TestSetController(t *testing.T) {
 	}
 	if updated.Status.Controller != "example.com/deployer:v1.2.3" {
 		t.Fatalf("status.controller = %q, want controller identity", updated.Status.Controller)
+	}
+}
+
+func TestReconcileValidatesSupportedTargets(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	if err := konfidencev1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	valid := &konfidencev1alpha1.DeploymentTarget{
+		ObjectMeta: metav1.ObjectMeta{Name: "valid", Namespace: "landscape", Generation: 2},
+		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"},
+	}
+	invalid := &konfidencev1alpha1.DeploymentTarget{
+		ObjectMeta: metav1.ObjectMeta{Name: "invalid", Namespace: "landscape", Generation: 3},
+		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"},
+	}
+	unsupported := &konfidencev1alpha1.DeploymentTarget{
+		ObjectMeta: metav1.ObjectMeta{Name: "unsupported", Namespace: "landscape"},
+		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "other.example.com"},
+	}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&konfidencev1alpha1.DeploymentTarget{}).WithObjects(valid, invalid, unsupported).Build()
+	r, err := NewDeploymentTargetControllerManagedBy(nil).
+		For(konfidencev1alpha1.ArtifactTypeSet{"helm.example.com": {}}).
+		WithValidation(func(_ context.Context, _ client.Reader, dt *konfidencev1alpha1.DeploymentTarget) error {
+			if dt.Name == invalid.Name {
+				return errors.New("invalid parameters")
+			}
+			return nil
+		}).build(c, defaultControllerName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name       string
+		status     metav1.ConditionStatus
+		reason     string
+		generation int64
+	}{
+		{name: valid.Name, status: metav1.ConditionTrue, reason: ReasonAccepted, generation: 2},
+		{name: invalid.Name, status: metav1.ConditionFalse, reason: ReasonInvalidParameters, generation: 3},
+	} {
+		if _, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Namespace: "landscape", Name: tc.name}}); err != nil {
+			t.Fatalf("Reconcile(%q): %v", tc.name, err)
+		}
+		got := &konfidencev1alpha1.DeploymentTarget{}
+		if err := c.Get(ctx, client.ObjectKey{Namespace: "landscape", Name: tc.name}, got); err != nil {
+			t.Fatal(err)
+		}
+		condition := meta.FindStatusCondition(got.Status.Conditions, konfidencev1alpha1.DeploymentTargetReadyCondition)
+		if got.Status.Controller != defaultControllerName || condition == nil || condition.Status != tc.status || condition.Reason != tc.reason || condition.ObservedGeneration != tc.generation {
+			t.Errorf("%s status = %#v; want controller identity and Ready=%s (%s) at generation %d", tc.name, got.Status, tc.status, tc.reason, tc.generation)
+		}
+	}
+	if _, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(unsupported)}); err != nil {
+		t.Fatalf("Reconcile unsupported target: %v", err)
+	}
+	gotUnsupported := &konfidencev1alpha1.DeploymentTarget{}
+	if err := c.Get(ctx, client.ObjectKeyFromObject(unsupported), gotUnsupported); err != nil {
+		t.Fatal(err)
+	}
+	if gotUnsupported.Status.Controller != "" || len(gotUnsupported.Status.Conditions) != 0 {
+		t.Errorf("unsupported target status changed: %#v", gotUnsupported.Status)
 	}
 }

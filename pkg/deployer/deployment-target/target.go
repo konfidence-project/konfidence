@@ -1,7 +1,7 @@
 // Package target contains optional helpers for implementing the Konfidence
 // DeploymentTarget contract. It provides opt-in builder helpers, but leaves
 // controller bootstrap and target parameter interpretation to the deployer.
-package target
+package deploymenttarget
 
 import (
 	"context"

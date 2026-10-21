@@ -218,11 +218,11 @@ func (ad *ArtifactDeployment) MatchesArtifactType(artifactType string) bool {
 	return ad != nil && ad.Spec.Manifest.Type == artifactType
 }
 
-func (ad *ArtifactDeployment) IsSupported(supported ArtifactTypes) bool {
+func (ad *ArtifactDeployment) IsSupported(supported ArtifactTypeSet) bool {
 	if ad == nil {
 		return false
 	}
 
-	_, ok := supported[ad.Spec.Manifest.Type]
+	_, ok := supported[ArtifactType(ad.Spec.Manifest.Type)]
 	return ok
 }
