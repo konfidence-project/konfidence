@@ -12,6 +12,7 @@ import (
 type ArtifactType string
 
 // ArtifactTypeProvider is implemented by API resources that declare an artifact type.
+// +kubebuilder:object:generate=false
 type ArtifactTypeProvider interface {
 	ArtifactType() ArtifactType
 }
