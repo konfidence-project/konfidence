@@ -216,5 +216,5 @@ func init() {
 
 // ArtifactType returns the ArtifactType which the ArtifactDeployment declares.
 func (ad *ArtifactDeployment) ArtifactType() ArtifactType {
-	return ArtifactType(ad.Spec.Manifest.Type)
+	return ad.Spec.Manifest.Type
 }

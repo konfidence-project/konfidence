@@ -312,7 +312,7 @@ var _ = Describe("OcmAdapter", func() {
 				gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 				By("populating manifest fields from the blob")
-				gomega.Expect(manifest.Type).To(gomega.Equal("cloud.konfidence.flux.helm"))
+				gomega.Expect(manifest.Type).To(gomega.Equal(konfidence.ArtifactType("cloud.konfidence.flux.helm")))
 				gomega.Expect(manifest.AllowReuse).To(gomega.BeTrue())
 
 				By("populating tasks from task manifest blobs")
@@ -429,7 +429,7 @@ var _ = Describe("OcmAdapter", func() {
 				manifest, err := adapter.GetArtifactManifestByReference(ctx, artifactRef)
 
 				gomega.Expect(err).ToNot(gomega.HaveOccurred())
-				gomega.Expect(manifest.Type).To(gomega.Equal("cloud.konfidence.oci.image"))
+				gomega.Expect(manifest.Type).To(gomega.Equal(konfidence.ArtifactType("cloud.konfidence.oci.image")))
 				gomega.Expect(manifest.AllowReuse).To(gomega.BeFalse())
 				gomega.Expect(manifest.Tasks).To(gomega.BeEmpty())
 			})
@@ -467,7 +467,7 @@ var _ = Describe("OcmAdapter", func() {
 				gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 				By("populating manifest fields correctly")
-				gomega.Expect(manifest.Type).To(gomega.Equal("cloud.konfidence.flux.helm"))
+				gomega.Expect(manifest.Type).To(gomega.Equal(konfidence.ArtifactType("cloud.konfidence.flux.helm")))
 				gomega.Expect(manifest.AllowReuse).To(gomega.BeTrue())
 
 				By("collecting non-manifest resources into Resources")

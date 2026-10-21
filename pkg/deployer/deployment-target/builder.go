@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlBuilder "sigs.k8s.io/controller-runtime/pkg/builder"
+	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -23,7 +23,7 @@ type ValidationFunc func(ctx context.Context, c client.Reader, target *konfidenc
 type watch struct {
 	object       client.Object
 	eventHandler handler.TypedEventHandler[client.Object, reconcile.Request]
-	opts         []ctrlBuilder.WatchesOption
+	opts         []ctrlbuilder.WatchesOption
 }
 
 type builder struct {
@@ -59,13 +59,13 @@ func (b *builder) WithValidation(validate ValidationFunc) *builder {
 func (b *builder) Watches(
 	object client.Object,
 	eventHandler handler.TypedEventHandler[client.Object, reconcile.Request],
-	opts ...ctrlBuilder.WatchesOption,
+	opts ...ctrlbuilder.WatchesOption,
 ) *builder {
 	if b != nil {
 		b.watchers = append(b.watchers, watch{
 			object:       object,
 			eventHandler: eventHandler,
-			opts:         append([]ctrlBuilder.WatchesOption(nil), opts...),
+			opts:         append([]ctrlbuilder.WatchesOption(nil), opts...),
 		})
 	}
 	return b
@@ -106,8 +106,8 @@ func (b *builder) complete(r *reconciler) error {
 		return ok && r.supportedArtifactTypes.Contains(target.ArtifactType())
 	})
 
-	cb := ctrlBuilder.TypedControllerManagedBy[reconcile.Request](b.manager).
-		For(&konfidencev1alpha1.DeploymentTarget{}, ctrlBuilder.WithPredicates(predicate.GenerationChangedPredicate{}, supportedTarget))
+	cb := ctrlbuilder.TypedControllerManagedBy[reconcile.Request](b.manager).
+		For(&konfidencev1alpha1.DeploymentTarget{}, ctrlbuilder.WithPredicates(predicate.GenerationChangedPredicate{}, supportedTarget))
 
 	for _, watched := range r.watchers {
 		eventHandler := watched.eventHandler
@@ -176,7 +176,7 @@ func (b *builder) build(c client.Client, controllerName string) (*reconciler, er
 	}
 	watchers := append([]watch(nil), b.watchers...)
 	for i := range watchers {
-		watchers[i].opts = append([]ctrlBuilder.WatchesOption(nil), watchers[i].opts...)
+		watchers[i].opts = append([]ctrlbuilder.WatchesOption(nil), watchers[i].opts...)
 	}
 
 	return &reconciler{
