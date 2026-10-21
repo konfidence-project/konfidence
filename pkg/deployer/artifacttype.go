@@ -1,19 +1,15 @@
 package deployer
 
 import (
+	"github.com/konfidence-project/konfidence/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-// ArtifactTypeMatcher is implemented by resources selected by artifact type.
-type ArtifactTypeMatcher interface {
-	MatchesArtifactType(artifactType string) bool
-}
-
 // ArtifactTypePredicate accepts objects that match artifactType.
-func ArtifactTypePredicate(artifactType string) predicate.Predicate {
+func ArtifactTypePredicate(artifactType v1alpha1.ArtifactType) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		matcher, ok := obj.(ArtifactTypeMatcher)
-		return ok && matcher.MatchesArtifactType(artifactType)
+		resource, ok := obj.(v1alpha1.ArtifactTypeProvider)
+		return ok && resource.ArtifactType() == artifactType
 	})
 }

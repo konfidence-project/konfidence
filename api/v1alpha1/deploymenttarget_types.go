@@ -103,14 +103,7 @@ func init() {
 	SchemeBuilder.Register(&DeploymentTarget{}, &DeploymentTargetList{})
 }
 
-func (dt *DeploymentTarget) MatchesArtifactType(artifactType string) bool {
-	return dt != nil && dt.Spec.ArtifactType == artifactType
-}
-
-func (dt *DeploymentTarget) IsSupported(supported ArtifactTypeSet) bool {
-	if dt == nil {
-		return false
-	}
-
-	return supported.Contains(ArtifactType(dt.Spec.ArtifactType))
+// ArtifactType returns the ArtifactType which the DeploymentTarget declares.
+func (dt *DeploymentTarget) ArtifactType() ArtifactType {
+	return ArtifactType(dt.Spec.ArtifactType)
 }

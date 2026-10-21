@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	konfidencev1alpha1 "github.com/konfidence-project/konfidence/api/v1alpha1"
-	"github.com/konfidence-project/konfidence/pkg/deployer"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,7 +21,7 @@ import (
 // FindReady lists ready targets of artifactType in namespace. The spec permits
 // at most one target of a type per namespace; this method returns an error if
 // multiple ready targets match, rather than choosing one arbitrarily.
-func FindReady(ctx context.Context, reader client.Reader, namespace, artifactType string) (*konfidencev1alpha1.DeploymentTarget, error) {
+func FindReady(ctx context.Context, reader client.Reader, namespace string, artifactType konfidencev1alpha1.ArtifactType) (*konfidencev1alpha1.DeploymentTarget, error) {
 	targets := &konfidencev1alpha1.DeploymentTargetList{}
 	if err := reader.List(ctx, targets, client.InNamespace(namespace)); err != nil {
 		return nil, fmt.Errorf("list DeploymentTargets in namespace %q: %w", namespace, err)
@@ -30,7 +29,7 @@ func FindReady(ctx context.Context, reader client.Reader, namespace, artifactTyp
 
 	var match *konfidencev1alpha1.DeploymentTarget
 	for i := range targets.Items {
-		if !targets.Items[i].MatchesArtifactType(artifactType) || !IsReady(&targets.Items[i]) {
+		if targets.Items[i].ArtifactType() != artifactType || !IsReady(&targets.Items[i]) {
 			continue
 		}
 		if match != nil {
@@ -39,7 +38,7 @@ func FindReady(ctx context.Context, reader client.Reader, namespace, artifactTyp
 		match = &targets.Items[i]
 	}
 	if match == nil {
-		return nil, apierrors.NewNotFound(schema.GroupResource{Group: konfidencev1alpha1.GroupVersion.Group, Resource: "deploymenttargets"}, artifactType)
+		return nil, apierrors.NewNotFound(schema.GroupResource{Group: konfidencev1alpha1.GroupVersion.Group, Resource: "deploymenttargets"}, string(artifactType))
 	}
 	return match, nil
 }
@@ -56,7 +55,7 @@ func IsReady(target *konfidencev1alpha1.DeploymentTarget) bool {
 // EnqueueArtifactDeploymentsForTarget returns a handler that enqueues the
 // ArtifactDeployments of artifactType in the namespace of a changed matching
 // DeploymentTarget.
-func EnqueueArtifactDeploymentsForTarget(artifactType string, reader client.Reader) handler.EventHandler {
+func EnqueueArtifactDeploymentsForTarget(artifactType konfidencev1alpha1.ArtifactType, reader client.Reader) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 		requests, err := requestsForTarget(ctx, reader, obj, artifactType)
 		if err != nil {
@@ -67,9 +66,9 @@ func EnqueueArtifactDeploymentsForTarget(artifactType string, reader client.Read
 	})
 }
 
-func requestsForTarget(ctx context.Context, reader client.Reader, obj client.Object, artifactType string) ([]reconcile.Request, error) {
-	matcher, ok := obj.(deployer.ArtifactTypeMatcher)
-	if !ok || !matcher.MatchesArtifactType(artifactType) {
+func requestsForTarget(ctx context.Context, reader client.Reader, obj client.Object, artifactType konfidencev1alpha1.ArtifactType) ([]reconcile.Request, error) {
+	resource, ok := obj.(konfidencev1alpha1.ArtifactTypeProvider)
+	if !ok || resource.ArtifactType() != artifactType {
 		return nil, nil
 	}
 
@@ -81,7 +80,7 @@ func requestsForTarget(ctx context.Context, reader client.Reader, obj client.Obj
 	requests := make([]reconcile.Request, 0)
 	for i := range deployments.Items {
 		deployment := &deployments.Items[i]
-		if deployment.MatchesArtifactType(artifactType) {
+		if deployment.ArtifactType() == artifactType {
 			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(deployment)})
 		}
 	}

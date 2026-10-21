@@ -103,7 +103,7 @@ func (b *builder) Complete() error {
 func (b *builder) complete(r *reconciler) error {
 	supportedTarget := predicate.NewPredicateFuncs(func(obj client.Object) bool {
 		target, ok := obj.(*konfidencev1alpha1.DeploymentTarget)
-		return ok && target.IsSupported(r.supportedArtifactTypes)
+		return ok && r.supportedArtifactTypes.Contains(target.ArtifactType())
 	})
 
 	cb := ctrlBuilder.TypedControllerManagedBy[reconcile.Request](b.manager).

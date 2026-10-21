@@ -214,15 +214,7 @@ func init() {
 	SchemeBuilder.Register(&ArtifactDeployment{}, &ArtifactDeploymentList{})
 }
 
-func (ad *ArtifactDeployment) MatchesArtifactType(artifactType string) bool {
-	return ad != nil && ad.Spec.Manifest.Type == artifactType
-}
-
-func (ad *ArtifactDeployment) IsSupported(supported ArtifactTypeSet) bool {
-	if ad == nil {
-		return false
-	}
-
-	_, ok := supported[ArtifactType(ad.Spec.Manifest.Type)]
-	return ok
+// ArtifactType returns the ArtifactType which the ArtifactDeployment declares.
+func (ad *ArtifactDeployment) ArtifactType() ArtifactType {
+	return ArtifactType(ad.Spec.Manifest.Type)
 }
