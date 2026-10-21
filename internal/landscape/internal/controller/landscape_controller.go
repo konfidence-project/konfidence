@@ -40,7 +40,7 @@ const (
 	// delete the namespace and wait for its termination first.
 	landscapeFinalizer = "konfidence.cloud/landscape-finalizer"
 
-	// landscapeNamespaceTypeValue is the type label value on landscape namespaces.
+	// landscapeNamespaceTypeValue is the ProjectTypeLabel value on landscape namespaces.
 	landscapeNamespaceTypeValue = "landscape"
 
 	// Event reasons for namespace lifecycle transitions.
@@ -121,7 +121,6 @@ func (r *LandscapeReconciler) reconcileLandscape(ctx context.Context, landscape 
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling landscape")
 
-	// Retrieve project name
 	projectName, err := r.getProjectName(ctx, landscape)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to retrieve project name: %s", err.Error())
@@ -183,6 +182,8 @@ func (r *LandscapeReconciler) getProjectName(ctx context.Context, landscape *kon
 	return projectName, nil
 }
 
+// createOrUpdateNamespace writes the landscape namespace with managed-by labels
+// so the controller owns its lifecycle and won't touch a foreign namespace.
 func (r *LandscapeReconciler) createOrUpdateNamespace(
 	ctx context.Context,
 	landscape *konfidence.Landscape,
@@ -212,8 +213,6 @@ func (r *LandscapeReconciler) createOrUpdateNamespace(
 
 		// CreationTimestamp is zero only on the create path; a set value means the
 		// namespace pre-exists. Adopt requires it to exist; Create makes it.
-		// We cannot use metav1.IsControlledBy because Landscape is namespace-scoped
-		// and cannot own a cluster-scoped Namespace, so ownership is tracked by labels.
 		if ns.CreationTimestamp.IsZero() {
 			if policy == konfidence.NamespacePolicyAdopt {
 				return fmt.Errorf("%w: namespace %s does not exist", errNamespaceNotFound, ns.Name)
@@ -230,8 +229,6 @@ func (r *LandscapeReconciler) createOrUpdateNamespace(
 		ns.Labels[pkgctrl.ProjectTypeLabel] = landscapeNamespaceTypeValue
 		ns.Labels[pkgctrl.ProjectNameLabel] = projectName
 		ns.Labels[pkgctrl.LandscapeNameLabel] = landscape.Name
-		// Note: we cannot set an owner reference because Landscape is namespace-scoped
-		// and Namespace is cluster-scoped. We rely on the finalizer for cleanup.
 		return nil
 	})
 	if err != nil {
@@ -269,6 +266,9 @@ func (r *LandscapeReconciler) reconcileDelete(ctx context.Context, landscape *ko
 				log.Info(msg)
 			}
 
+			// Surface the wait so a namespace whose termination is stuck (for example
+			// on a resource with a blocking finalizer) is diagnosable from status
+			// rather than a silent 5s requeue loop.
 			if err := r.setTerminatingStatus(ctx, landscape, ns.Name); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -328,11 +328,11 @@ func (r *LandscapeReconciler) setTerminatingStatus(ctx context.Context, landscap
 	)
 }
 
-// isManagedByLandscape checks if a namespace is managed by the given Landscape.
-// Since Landscape is namespace-scoped and cannot set an owner reference on the
-// cluster-scoped Namespace, we check labels instead. The project label is part
-// of the check so two same-named Landscapes in different projects that target
-// the same namespace do not each claim it.
+// isManagedByLandscape reports whether the namespace is managed by the given
+// Landscape. A namespace-scoped Landscape cannot own a cluster-scoped Namespace
+// via an owner reference, so ownership is tracked by labels instead. The project
+// label is part of the check so two same-named Landscapes in different projects
+// cannot both claim the same namespace.
 //
 // Because ownership lives in these labels, manually editing them on a managed
 // namespace flips it to a conflict the controller cannot repair on its own.

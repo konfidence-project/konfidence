@@ -135,7 +135,6 @@ func (r *ProjectReconciler) reconcileProject(ctx context.Context, project *konfi
 	r.setCondition(project, konfidence.ProjectReadyCondition, metav1.ConditionTrue,
 		konfidence.ProjectReconciledReason, fmt.Sprintf("Project %s reconciled", project.Name))
 
-	// Only emit an event when the namespace actually changed
 	if operationResult != controllerutil.OperationResultNone {
 		reason := namespaceEventReason(operationResult)
 		msg := fmt.Sprintf("Namespace %s %s for Project %s", ns.Name, operationResult, project.Name)
@@ -213,8 +212,6 @@ func (r *ProjectReconciler) reconcileDelete(ctx context.Context, project *konfid
 
 	if err == nil && isManagedBy(ns, project) {
 		if project.Spec.DeletionPolicy == konfidence.DeletionPolicyDelete {
-			// Delete the namespace and requeue until it is gone before releasing
-			// the finalizer.
 			if ns.DeletionTimestamp.IsZero() {
 				if delErr := r.Delete(ctx, ns); delErr != nil && !apierrors.IsNotFound(delErr) {
 					return ctrl.Result{}, fmt.Errorf("unable to delete project namespace: %w", delErr)
@@ -301,7 +298,7 @@ func (r *ProjectReconciler) setCondition(
 }
 
 // namespaceName returns the name of the project namespace: spec.namespace
-// when set, "kden-project-<project-name>" otherwise.
+// when set, "kden-p-<project-name>" otherwise.
 func namespaceName(project *konfidence.Project) string {
 	if project.Spec.Namespace != "" {
 		return project.Spec.Namespace
@@ -319,16 +316,13 @@ func statusNamespaceName(project *konfidence.Project) string {
 	return namespaceName(project)
 }
 
-// isManagedBy reports whether the namespace is owned by the given Project.
-// Project is cluster-scoped but cannot own a cluster-scoped Namespace via a
-// controller owner reference across the Project->Namespace boundary without
-// tying namespace deletion to garbage collection, so ownership is tracked via
-// the managed-by and project-name labels.
+// isManagedBy reports whether the namespace is managed by the given Project.
+// A cluster-scoped Project cannot own a cluster-scoped Namespace via an owner
+// reference without tying namespace deletion to garbage collection, so ownership
+// is tracked by the managed-by and project labels instead.
 //
-// Because ownership lives in these labels, manually editing managed-by or
-// project-name on a managed namespace flips it to a conflict that the
-// controller cannot repair on its own (unlike an owner reference). Recovering
-// requires restoring the labels or deleting the namespace by hand.
+// Because ownership lives in these labels, manually editing them on a managed
+// namespace flips it to a conflict the controller cannot repair on its own.
 func isManagedBy(ns *corev1.Namespace, project *konfidence.Project) bool {
 	return ns.Labels[pkgctrl.ManagedByLabel] == projectControllerName &&
 		ns.Labels[pkgctrl.ProjectNameLabel] == project.Name
