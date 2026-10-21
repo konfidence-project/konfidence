@@ -7,6 +7,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/auth"
+	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,6 +57,15 @@ func stageVersionFixture(name, namespace, stageName, vector string, stageGenerat
 		},
 		Status: konfidence.StageVersionStatus{Conditions: conditions},
 	}
+}
+
+type emptyStageScopeRepository struct {
+	landscapedomain.Repository
+}
+
+func (r *emptyStageScopeRepository) ResolveScope(_ context.Context, _ string,
+	_ ...landscapedomain.ScopeOption) ([]landscapedomain.ScopedLandscape, error) {
+	return []landscapedomain.ScopedLandscape{}, nil
 }
 
 func landscapeIdParam(id string) openapi.ListStagesV1Params {
@@ -381,5 +391,25 @@ var _ = Describe("GetStageV1", func() {
 			ProjectId: "my-project", LandscapeId: "dev", StageId: "a",
 		})
 		expectAPIError(resp, err, http.StatusForbidden)
+	})
+
+	It("returns 500 when landscape resolution returns an empty scope", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		h := newProjectHandlerForTest(project)
+
+		h.landscapeRepo = &emptyStageScopeRepository{
+			Repository: h.landscapeRepo,
+		}
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
+		resp, err := h.GetStageV1(ctx,
+			openapi.GetStageV1RequestObject{
+				ProjectId:   "my-project",
+				LandscapeId: "dev",
+				StageId:     "a",
+			},
+		)
+
+		expectAPIError(resp, err, http.StatusInternalServerError)
 	})
 })

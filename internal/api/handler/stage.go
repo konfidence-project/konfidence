@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
@@ -43,12 +44,9 @@ func (h *projectHandler) ListStagesV1(ctx context.Context, req openapi.ListStage
 		opts = append(opts, landscapedomain.WithLandscapeId(landscapeId))
 	}
 
-	scope, err := h.landscapeRepo.ResolveScope(ctx, namespace, opts...)
+	scope, err := h.resolveLandscapeScope(ctx, namespace, landscapeId, opts...)
 	if err != nil {
-		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
-			return nil, apierror.NewNotFound("landscape", landscapeId)
-		}
-		return nil, apierror.NewInternal(err)
+		return nil, err
 	}
 
 	stages, err := h.stageRepo.ListForScope(ctx, scope)
@@ -73,6 +71,11 @@ func (h *projectHandler) resolveStageScope(ctx context.Context, projectId string
 	scope, err := h.resolveLandscapeScope(ctx, namespace, landscapeId, landscapedomain.WithLandscapeId(landscapeId))
 	if err != nil {
 		return landscapedomain.ScopedLandscape{}, err
+	}
+
+	if len(scope) != 1 {
+		return landscapedomain.ScopedLandscape{}, apierror.NewInternal(
+			fmt.Errorf("resolving landscape %q returned %d entries", landscapeId, len(scope)))
 	}
 
 	return scope[0], nil
