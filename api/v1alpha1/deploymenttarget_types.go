@@ -107,11 +107,10 @@ func (dt *DeploymentTarget) MatchesArtifactType(artifactType string) bool {
 	return dt != nil && dt.Spec.ArtifactType == artifactType
 }
 
-func (dt *DeploymentTarget) IsSupported(supported ArtifactTypes) bool {
+func (dt *DeploymentTarget) IsSupported(supported ArtifactTypeSet) bool {
 	if dt == nil {
 		return false
 	}
 
-	_, ok := supported[dt.Spec.ArtifactType]
-	return ok
+	return supported.Contains(ArtifactType(dt.Spec.ArtifactType))
 }
