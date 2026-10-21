@@ -159,6 +159,6 @@ func (b *builder) build(c client.Client, controllerName string) (*reconciler, er
 		controllerName:         controllerName,
 		supportedArtifactTypes: supported,
 		watchers:               watchers,
-		validate:               b.validation,
+		validateFunc:           b.validation,
 	}, nil
 }

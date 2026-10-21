@@ -36,7 +36,7 @@ func TestEnqueueArtifactDeploymentsForTarget(t *testing.T) {
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(matching, otherType, otherNamespace).Build()
 	target := &konfidencev1alpha1.DeploymentTarget{
 		ObjectMeta: metav1.ObjectMeta{Name: "prod", Namespace: "landscape"},
-		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"},
+		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "cloud.example.helm"},
 	}
 
 	requests, err := requestsForTarget(ctx, c, target, "helm.example.com")
@@ -122,7 +122,7 @@ func TestDeploymentTargetControllerBuilderRequiresValidConfiguration(t *testing.
 		t.Fatal(err)
 	}
 	valid := func() *builder {
-		return NewDeploymentTargetControllerManagedBy(nil).For(konfidencev1alpha1.ArtifactTypeSet{"helm.example.com": {}})
+		return NewDeploymentTargetControllerManagedBy(nil).For(konfidencev1alpha1.ArtifactTypeSet{"cloud.helm.example": {}})
 	}
 	if err := valid().validateConfiguration(); err != nil {
 		t.Fatalf("builder.validateConfiguration(valid) error = %v", err)
@@ -161,12 +161,14 @@ func TestSetReady(t *testing.T) {
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(dt).WithObjects(dt).Build()
 	r, err := NewDeploymentTargetControllerManagedBy(nil).
-		For(konfidencev1alpha1.ArtifactTypeSet{"helm.example.com": {}}).
+		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
 		Named("example.com/deployer:v1.2.3").build(c, "example.com/deployer:v1.2.3")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := r.setReady(context.Background(), dt, metav1.ConditionTrue, "Accepted", "valid target"); err != nil {
+	original := dt.DeepCopy()
+	r.setReady(dt, metav1.ConditionTrue, "Accepted", "valid target")
+	if err := r.patchStatus(context.Background(), dt, original); err != nil {
 		t.Fatal(err)
 	}
 	updated := &konfidencev1alpha1.DeploymentTarget{}
@@ -189,12 +191,14 @@ func TestSetController(t *testing.T) {
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(dt).WithObjects(dt).Build()
 	r, err := NewDeploymentTargetControllerManagedBy(nil).
-		For(konfidencev1alpha1.ArtifactTypeSet{"helm.example.com": {}}).
+		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
 		Named("example.com/deployer:v1.2.3").build(c, "example.com/deployer:v1.2.3")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := r.setController(context.Background(), dt); err != nil {
+	original := dt.DeepCopy()
+	r.setController(dt)
+	if err := r.patchStatus(context.Background(), dt, original); err != nil {
 		t.Fatal(err)
 	}
 	updated := &konfidencev1alpha1.DeploymentTarget{}
@@ -214,7 +218,7 @@ func TestReconcileValidatesSupportedTargets(t *testing.T) {
 	}
 	valid := &konfidencev1alpha1.DeploymentTarget{
 		ObjectMeta: metav1.ObjectMeta{Name: "valid", Namespace: "landscape", Generation: 2},
-		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"},
+		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "cloud.example.helm"},
 	}
 	invalid := &konfidencev1alpha1.DeploymentTarget{
 		ObjectMeta: metav1.ObjectMeta{Name: "invalid", Namespace: "landscape", Generation: 3},
@@ -226,7 +230,7 @@ func TestReconcileValidatesSupportedTargets(t *testing.T) {
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&konfidencev1alpha1.DeploymentTarget{}).WithObjects(valid, invalid, unsupported).Build()
 	r, err := NewDeploymentTargetControllerManagedBy(nil).
-		For(konfidencev1alpha1.ArtifactTypeSet{"helm.example.com": {}}).
+		For(konfidencev1alpha1.ArtifactTypeSet{"helm.cloud.example.com": {}}).
 		WithValidation(func(_ context.Context, _ client.Reader, dt *konfidencev1alpha1.DeploymentTarget) error {
 			if dt.Name == invalid.Name {
 				return errors.New("invalid parameters")
