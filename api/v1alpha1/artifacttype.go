@@ -11,6 +11,11 @@ import (
 // section 1.1 of conformance/specs/deployer.md. It is encouraged to use MustArtifactType for construction.
 type ArtifactType string
 
+// ArtifactTypeProvider is implemented by API resources that declare an artifact type.
+type ArtifactTypeProvider interface {
+	ArtifactType() ArtifactType
+}
+
 // artifactTypeRegex implements the <artifact-type> grammar in
 // conformance/specs/deployer.md section 1.1.
 var artifactTypeRegex = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)

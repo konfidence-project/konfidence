@@ -32,7 +32,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	dt := &konfidencev1alpha1.DeploymentTarget{}
 	err := r.client.Get(ctx, req.NamespacedName, dt)
-	if err != nil || !dt.IsSupported(r.supportedArtifactTypes) {
+	if err != nil || !r.supportedArtifactTypes.Contains(dt.ArtifactType()) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
