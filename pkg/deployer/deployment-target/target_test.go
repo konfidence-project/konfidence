@@ -122,7 +122,7 @@ func TestDeploymentTargetControllerBuilderRequiresValidConfiguration(t *testing.
 		t.Fatal(err)
 	}
 	valid := func() *builder {
-		return NewDeploymentTargetControllerManagedBy(nil).For(konfidencev1alpha1.ArtifactTypeSet{"cloud.helm.example": {}})
+		return NewControllerManagedBy(nil).For(konfidencev1alpha1.ArtifactTypeSet{"cloud.helm.example": {}})
 	}
 	if err := valid().validateConfiguration(); err != nil {
 		t.Fatalf("builder.validateConfiguration(valid) error = %v", err)
@@ -132,9 +132,9 @@ func TestDeploymentTargetControllerBuilderRequiresValidConfiguration(t *testing.
 		name    string
 		builder *builder
 	}{
-		{name: "missing For", builder: NewDeploymentTargetControllerManagedBy(nil)},
-		{name: "missing artifact types", builder: NewDeploymentTargetControllerManagedBy(nil).For(nil)},
-		{name: "blank artifact type", builder: NewDeploymentTargetControllerManagedBy(nil).For(konfidencev1alpha1.ArtifactTypeSet{" ": {}})},
+		{name: "missing For", builder: NewControllerManagedBy(nil)},
+		{name: "missing artifact types", builder: NewControllerManagedBy(nil).For(nil)},
+		{name: "blank artifact type", builder: NewControllerManagedBy(nil).For(konfidencev1alpha1.ArtifactTypeSet{" ": {}})},
 		{name: "watcher without object", builder: valid().Watches(nil, nil)},
 		{name: "watcher without handler", builder: valid().Watches(&konfidencev1alpha1.DeploymentTarget{}, nil)},
 	}
@@ -160,7 +160,7 @@ func TestSetReady(t *testing.T) {
 		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(dt).WithObjects(dt).Build()
-	r, err := NewDeploymentTargetControllerManagedBy(nil).
+	r, err := NewControllerManagedBy(nil).
 		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
 		Named("example.com/deployer:v1.2.3").build(c, "example.com/deployer:v1.2.3")
 	if err != nil {
@@ -190,7 +190,7 @@ func TestSetController(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "prod", Namespace: "landscape"},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(dt).WithObjects(dt).Build()
-	r, err := NewDeploymentTargetControllerManagedBy(nil).
+	r, err := NewControllerManagedBy(nil).
 		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
 		Named("example.com/deployer:v1.2.3").build(c, "example.com/deployer:v1.2.3")
 	if err != nil {
@@ -229,7 +229,7 @@ func TestReconcileValidatesSupportedTargets(t *testing.T) {
 		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "other.example.com"},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&konfidencev1alpha1.DeploymentTarget{}).WithObjects(valid, invalid, unsupported).Build()
-	r, err := NewDeploymentTargetControllerManagedBy(nil).
+	r, err := NewControllerManagedBy(nil).
 		For(konfidencev1alpha1.ArtifactTypeSet{"helm.cloud.example.com": {}}).
 		WithValidation(func(_ context.Context, _ client.Reader, dt *konfidencev1alpha1.DeploymentTarget) error {
 			if dt.Name == invalid.Name {
