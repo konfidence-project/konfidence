@@ -211,15 +211,14 @@ func (r *LandscapeReconciler) createOrUpdateNamespace(
 			return fmt.Errorf("%w: namespace %s is terminating", errNamespaceTerminating, ns.Name)
 		}
 
-		// CreationTimestamp is zero only on the create path; a set value means the
-		// namespace pre-exists. Adopt requires it to exist; Create makes it.
-		if ns.CreationTimestamp.IsZero() {
-			if policy == konfidence.NamespacePolicyAdopt {
-				return fmt.Errorf("%w: namespace %s does not exist", errNamespaceNotFound, ns.Name)
+		namespaceExists := !ns.CreationTimestamp.IsZero()
+		if namespaceExists {
+			if r.namespaceConflict(ns, landscape, policy) {
+				return fmt.Errorf("%w: namespace %s already exists and is not managed by Landscape %s/%s",
+					errNamespaceConflict, ns.Name, landscape.Namespace, landscape.Name)
 			}
-		} else if r.namespaceConflict(ns, landscape, policy) {
-			return fmt.Errorf("%w: namespace %s already exists and is not managed by Landscape %s/%s",
-				errNamespaceConflict, ns.Name, landscape.Namespace, landscape.Name)
+		} else if policy == konfidence.NamespacePolicyAdopt {
+			return fmt.Errorf("%w: namespace %s does not exist", errNamespaceNotFound, ns.Name)
 		}
 
 		if ns.Labels == nil {

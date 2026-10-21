@@ -168,15 +168,14 @@ func (r *ProjectReconciler) createOrUpdateNamespace(
 			return fmt.Errorf("%w: namespace %s is terminating", errNamespaceTerminating, ns.Name)
 		}
 
-		// CreationTimestamp is zero only on the create path; a set value means the
-		// namespace pre-exists. Adopt requires it to exist; Create makes it.
-		if ns.CreationTimestamp.IsZero() {
-			if policy == konfidence.NamespacePolicyAdopt {
-				return fmt.Errorf("%w: namespace %s does not exist", errNamespaceNotFound, ns.Name)
+		namespaceExists := !ns.CreationTimestamp.IsZero()
+		if namespaceExists {
+			if namespaceConflict(ns, project, policy) {
+				return fmt.Errorf("%w: namespace %s already exists and is not managed by Project %s",
+					errNamespaceConflict, ns.Name, project.Name)
 			}
-		} else if namespaceConflict(ns, project, policy) {
-			return fmt.Errorf("%w: namespace %s already exists and is not managed by Project %s",
-				errNamespaceConflict, ns.Name, project.Name)
+		} else if policy == konfidence.NamespacePolicyAdopt {
+			return fmt.Errorf("%w: namespace %s does not exist", errNamespaceNotFound, ns.Name)
 		}
 
 		if ns.Labels == nil {
