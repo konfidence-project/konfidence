@@ -16,7 +16,10 @@ interface ProjectFixture {
   project: Project;
   roles: string[];
   stages: Stage[];
+  // Only the list-page rows: backs listVectorDeploymentsV1.
   vectorDeployments: VectorDeployment[];
+  // Superset the single-item fetch resolves: list-page rows plus every stageVersion-derived deployment.
+  resolvableVectorDeployments: VectorDeployment[];
   vectorPromotionConfigs: VectorPromotionConfig[];
 }
 
@@ -26,7 +29,17 @@ interface ScenarioFixture {
   user: Omit<Identity, "projectRoles">;
 }
 
-const REPOSITORY = "ghcr.io/konfidence/mock";
+const VECTOR_REPOSITORY = "https://bp.common.repositories.cloud.sap/konfidence";
+const REPOSITORY = `${VECTOR_REPOSITORY}/delivery-vector`;
+const VECTOR_COMPONENT = "github.com/konfidence-project/example-app/vector";
+const PAYMENTS_API_COMPONENT = "github.com/konfidence-project/example-app/payments-api";
+const PAYMENTS_UI_COMPONENT = "github.com/konfidence-project/example-app/payments-ui";
+
+const VECTOR_DEPLOYMENT_IDS = {
+  development: "dev-us30-20260929-201426000Z",
+  production: "prod-eu30-20260918-094500000Z",
+  test: "test-eu20-20260924-151030000Z",
+} as const;
 
 const paymentsProject = {
   id: "payments-platform",
@@ -40,22 +53,25 @@ const identityProject = {
 // Vector deployments for the three original stages.
 const rows = [
   {
+    id: VECTOR_DEPLOYMENT_IDS.development,
     landscape: "development",
     stage: "dev-us30",
     vectorStatus: "DeploymentReady",
-    version: "2026.8.5",
+    version: "2026.9.29-201426000Z",
   },
   {
+    id: VECTOR_DEPLOYMENT_IDS.test,
     landscape: "test",
     stage: "test-eu20",
     vectorStatus: "DeploymentReady",
-    version: "2026.8.4",
+    version: "2026.9.24-151030000Z",
   },
   {
+    id: VECTOR_DEPLOYMENT_IDS.production,
     landscape: "production",
     stage: "prod-eu30",
     vectorStatus: "DeployingVector",
-    version: "2026.8.3",
+    version: "2026.9.18-094500000Z",
   },
 ] as const;
 
@@ -69,12 +85,12 @@ const landscapes: Landscape[] = [
 ];
 
 const vectorDeployments: VectorDeployment[] = rows.map((row) => ({
-  id: `vector-${row.stage}-1`,
+  id: row.id,
   landscapeId: row.landscape,
   stageId: row.stage,
   status: row.vectorStatus,
   vector: {
-    componentName: "delivery-vector",
+    componentName: VECTOR_COMPONENT,
     componentVersion: row.version,
     repository: REPOSITORY,
   },
@@ -89,7 +105,7 @@ const stageVersion = (
   id: `${stageId}-v${stageGeneration}`,
   stageGeneration,
   status,
-  vector: `${REPOSITORY}//delivery-vector:${version}`,
+  vector: `${VECTOR_REPOSITORY}//delivery-vector:${version}`,
 });
 
 const stage = (
@@ -99,10 +115,10 @@ const stage = (
   versions: Pick<Stage, "activeStageVersion" | "targetStageVersion">,
 ): Stage => ({ id, landscapeId, name, ...versions });
 
-const sandboxVersion = stageVersion("sandbox", 2, "Ready", "2026.8.2");
-const devVersion = stageVersion("dev-us30", 5, "Ready", "2026.8.5");
-const testVersion = stageVersion("test-eu20", 4, "Ready", "2026.8.4");
-const prodVersion = stageVersion("prod-eu30", 3, "Ready", "2026.8.3");
+const sandboxVersion = stageVersion("sandbox", 2, "Ready", "2026.9.17-101500000Z");
+const devVersion = stageVersion("dev-us30", 5, "Ready", "2026.9.29-201426000Z");
+const testVersion = stageVersion("test-eu20", 4, "Ready", "2026.9.24-151030000Z");
+const prodVersion = stageVersion("prod-eu30", 3, "Ready", "2026.9.18-094500000Z");
 
 const stages: Stage[] = [
   stage("dev-us30", "dev-us30", "development", {
@@ -118,15 +134,15 @@ const stages: Stage[] = [
     targetStageVersion: prodVersion,
   }),
   stage("dev-eu10", "dev-eu10", "development", {
-    activeStageVersion: stageVersion("dev-eu10", 5, "Ready", "2026.8.5"),
-    targetStageVersion: stageVersion("dev-eu10", 6, "DeployingVector", "2026.8.6"),
+    activeStageVersion: stageVersion("dev-eu10", 5, "Ready", "2026.9.23-110000000Z"),
+    targetStageVersion: stageVersion("dev-eu10", 6, "DeployingVector", "2026.9.29-201426000Z"),
   }),
   stage("dev-canary", "DEV-canary", "development", {
-    targetStageVersion: stageVersion("dev-canary", 1, "PendingDeployment", "2026.9.0"),
+    targetStageVersion: stageVersion("dev-canary", 1, "PendingDeployment", "2026.9.29-201426000Z"),
   }),
   stage("dev-rollback", "dev-rollback", "development", {
-    activeStageVersion: stageVersion("dev-rollback", 1, "Ready", "2026.8.1"),
-    targetStageVersion: stageVersion("dev-rollback", 2, "Failed", "2026.8.7"),
+    activeStageVersion: stageVersion("dev-rollback", 1, "Ready", "2026.9.10-083000000Z"),
+    targetStageVersion: stageVersion("dev-rollback", 2, "Failed", "2026.9.12-140000000Z"),
   }),
   stage("dev-new", "dev-new", "development", {}),
   stage("sandbox", "sandbox", "development", {
@@ -134,33 +150,76 @@ const stages: Stage[] = [
     targetStageVersion: sandboxVersion,
   }),
   stage("test-us10", "test-us10", "test", {
-    activeStageVersion: stageVersion("test-us10", 4, "Ready", "2026.8.4"),
-    targetStageVersion: stageVersion("test-us10", 5, "MigratingVector", "2026.8.5"),
+    activeStageVersion: stageVersion("test-us10", 4, "Ready", "2026.9.20-091500000Z"),
+    targetStageVersion: stageVersion("test-us10", 5, "MigratingVector", "2026.9.24-151030000Z"),
   }),
   stage("test-hotfix", "Test-hotfix", "test", {
-    activeStageVersion: stageVersion("test-hotfix", 5, "Ready", "2026.8.5"),
-    targetStageVersion: stageVersion("test-hotfix", 6, "ActivatingVector", "2026.8.6"),
+    activeStageVersion: stageVersion("test-hotfix", 5, "Ready", "2026.9.22-120000000Z"),
+    targetStageVersion: stageVersion("test-hotfix", 6, "ActivatingVector", "2026.9.24-151030000Z"),
   }),
   stage("test-broken", "test-broken", "test", {
-    activeStageVersion: stageVersion("test-broken", 2, "Ready", "2026.7.9"),
-    targetStageVersion: stageVersion("test-broken", 3, "Failed", "2026.8.0"),
+    activeStageVersion: stageVersion("test-broken", 2, "Ready", "2026.8.29-070000000Z"),
+    targetStageVersion: stageVersion("test-broken", 3, "Failed", "2026.9.01-070000000Z"),
   }),
   stage("test-green", "test-green", "test", {
-    activeStageVersion: stageVersion("test-green", 3, "Ready", "2026.8.3"),
-    targetStageVersion: stageVersion("test-green", 4, "Ready", "2026.8.4"),
+    activeStageVersion: stageVersion("test-green", 3, "Ready", "2026.9.18-094500000Z"),
+    targetStageVersion: stageVersion("test-green", 4, "Ready", "2026.9.24-151030000Z"),
   }),
   stage("prod-us40", "prod-us40", "production", {
-    activeStageVersion: stageVersion("prod-us40", 3, "Ready", "2026.8.3"),
-    targetStageVersion: stageVersion("prod-us40", 4, "ActivatingVector", "2026.8.4"),
+    activeStageVersion: stageVersion("prod-us40", 3, "Ready", "2026.9.18-094500000Z"),
+    targetStageVersion: stageVersion("prod-us40", 4, "ActivatingVector", "2026.9.24-151030000Z"),
   }),
   stage("prod-dr", "PROD-dr", "production", {
-    targetStageVersion: stageVersion("prod-dr", 1, "PendingDeployment", "2026.8.8"),
+    targetStageVersion: stageVersion("prod-dr", 1, "PendingDeployment", "2026.9.26-060000000Z"),
   }),
   stage("prod-legacy", "prod-legacy", "production", {
-    activeStageVersion: stageVersion("prod-legacy", 1, "Ready", "2026.6.0"),
-    targetStageVersion: stageVersion("prod-legacy", 2, "Failed", "2026.7.0"),
+    activeStageVersion: stageVersion("prod-legacy", 1, "Ready", "2026.7.30-060000000Z"),
+    targetStageVersion: stageVersion("prod-legacy", 2, "Failed", "2026.8.15-060000000Z"),
   }),
 ];
+
+// Maps a stageVersion rollout state onto the matching vectorDeployment status.
+const vectorDeploymentStatus = (status: StageVersion["status"]): VectorDeployment["status"] => {
+  switch (status) {
+    case "DeployingVector": {
+      return "DeployingVector";
+    }
+    case "Failed": {
+      return "DeploymentFailed";
+    }
+    // Transient and healthy states both resolve to a ready deployment.
+    default: {
+      return "DeploymentReady";
+    }
+  }
+};
+
+// Reads the component version out of a stageVersion vector reference tag.
+const versionFromVector = (vector: string): string => vector.split(":").at(-1) ?? "";
+
+// Derives one deployment per stageVersion so getVectorDeploymentV1 resolves the stageVersion ids the UI requests (see StageDetails.svelte and useVectorDeployment).
+const stageVersionDeployments: VectorDeployment[] = stages.flatMap((entry) =>
+  [entry.targetStageVersion, entry.activeStageVersion]
+    .filter((version): version is StageVersion => version !== undefined)
+    .map((version) => ({
+      id: version.id,
+      landscapeId: entry.landscapeId,
+      stageId: entry.id,
+      status: vectorDeploymentStatus(version.status),
+      vector: {
+        componentName: VECTOR_COMPONENT,
+        componentVersion: versionFromVector(version.vector),
+        repository: REPOSITORY,
+      },
+    })),
+);
+
+// De-duplicates on id so overlapping active/target versions and list-page fixtures each appear once.
+// Only the single-item fetch (getVectorDeploymentV1) draws from this superset; the list page serves vectorDeployments.
+const resolvableVectorDeployments: VectorDeployment[] = [
+  ...vectorDeployments,
+  ...stageVersionDeployments,
+].filter((deployment, index, all) => all.findIndex(({ id }) => id === deployment.id) === index);
 
 const component = (componentName: string, componentVersion: string) => ({
   componentName,
@@ -170,44 +229,44 @@ const component = (componentName: string, componentVersion: string) => ({
 
 const artifactDeployments: ArtifactDeployment[] = [
   {
-    artifact: component("payments-api", "3.4.1"),
-    id: "artifact-dev-us30-1",
+    artifact: component(PAYMENTS_API_COMPONENT, "2026.9.29-201426000Z"),
+    id: "dev-us30-20260929-201426000Z-payments-api",
     landscapeId: "development",
     stageIds: ["dev-us30"],
     status: "ArtifactDeployed",
-    vectorDeploymentIds: ["vector-dev-us30-1"],
+    vectorDeploymentIds: [VECTOR_DEPLOYMENT_IDS.development],
   },
   {
-    artifact: component("payments-ui", "2.7.0"),
-    id: "artifact-dev-us30-2",
+    artifact: component(PAYMENTS_UI_COMPONENT, "2026.9.29-201426000Z"),
+    id: "dev-us30-20260929-201426000Z-payments-ui",
     landscapeId: "development",
     stageIds: ["dev-us30"],
     status: "ArtifactFetched",
-    vectorDeploymentIds: ["vector-dev-us30-1"],
+    vectorDeploymentIds: [VECTOR_DEPLOYMENT_IDS.development],
   },
   {
-    artifact: component("payments-api", "3.4.0"),
-    id: "artifact-test-eu20-1",
+    artifact: component(PAYMENTS_API_COMPONENT, "2026.9.24-151030000Z"),
+    id: "test-eu20-20260924-151030000Z-payments-api-1",
     landscapeId: "test",
     stageIds: ["test-eu20"],
     status: "ArtifactDeployed",
-    vectorDeploymentIds: ["vector-test-eu20-1"],
+    vectorDeploymentIds: [VECTOR_DEPLOYMENT_IDS.test],
   },
   {
-    artifact: component("payments-api", "3.4.1"),
-    id: "artifact-test-eu20-2",
+    artifact: component(PAYMENTS_API_COMPONENT, "2026.9.24-151030000Z"),
+    id: "test-eu20-20260924-151030000Z-payments-api-2",
     landscapeId: "test",
     stageIds: ["test-eu20"],
     status: "AppHealthy",
-    vectorDeploymentIds: ["vector-test-eu20-1"],
+    vectorDeploymentIds: [VECTOR_DEPLOYMENT_IDS.test],
   },
   {
-    artifact: component("payments-api", "3.4.1"),
-    id: "artifact-test-eu20-3",
+    artifact: component(PAYMENTS_API_COMPONENT, "2026.9.24-151030000Z"),
+    id: "test-eu20-20260924-151030000Z-payments-api-3",
     landscapeId: "test",
     stageIds: ["test-eu20"],
     status: "Ready",
-    vectorDeploymentIds: ["vector-test-eu20-1"],
+    vectorDeploymentIds: [VECTOR_DEPLOYMENT_IDS.test],
   },
 ];
 
@@ -224,7 +283,7 @@ const vectorPromotionConfigs: VectorPromotionConfig[] = [
         source: { kind: "Stage", landscape: "development", name: "dev-us30" },
         status: "Waiting",
         target: { kind: "Stage", landscape: "test", name: "test-eu20" },
-        vector: `${REPOSITORY}//delivery-vector:2026.8.5`,
+        vector: `${VECTOR_REPOSITORY}//delivery-vector:2026.9.29-201426000Z`,
       },
       {
         approval: {
@@ -237,7 +296,7 @@ const vectorPromotionConfigs: VectorPromotionConfig[] = [
         source: { kind: "Stage", landscape: "development", name: "dev-us30" },
         status: "Succeeded",
         target: { kind: "Stage", landscape: "test", name: "test-eu20" },
-        vector: `${REPOSITORY}//delivery-vector:2026.8.4`,
+        vector: `${VECTOR_REPOSITORY}//delivery-vector:2026.9.24-151030000Z`,
       },
     ],
     source: { kind: "Stage", landscape: "development", name: "dev-us30" },
@@ -255,7 +314,7 @@ const vectorPromotionConfigs: VectorPromotionConfig[] = [
         source: { kind: "Stage", landscape: "test", name: "test-eu20" },
         status: "Ready",
         target: { kind: "Stage", landscape: "production", name: "prod-eu30" },
-        vector: `${REPOSITORY}//delivery-vector:2026.8.3`,
+        vector: `${VECTOR_REPOSITORY}//delivery-vector:2026.9.18-094500000Z`,
       },
     ],
     source: { kind: "Stage", landscape: "test", name: "test-eu20" },
@@ -267,6 +326,7 @@ const populatedProject: ProjectFixture = {
   artifactDeployments,
   landscapes,
   project: paymentsProject,
+  resolvableVectorDeployments,
   roles: ["admin", "dev"],
   stages,
   vectorDeployments,
@@ -277,6 +337,7 @@ const emptyProject = (project: Project, roles: string[]): ProjectFixture => ({
   artifactDeployments: [],
   landscapes: [],
   project,
+  resolvableVectorDeployments: [],
   roles,
   stages: [],
   vectorDeployments: [],
@@ -311,6 +372,7 @@ const scenarios = {
       {
         ...emptyProject(paymentsProject, ["dev"]),
         landscapes: landscapes.filter(({ id }) => id === "development" || id === "test"),
+        resolvableVectorDeployments: resolvableVectorDeployments.slice(0, 1),
         stages: stages.slice(0, 1),
         vectorDeployments: vectorDeployments.slice(0, 1),
       },
