@@ -1,4 +1,4 @@
-// Package target contains optional helpers for implementing the Konfidence
+// Package deploymenttarget contains optional helpers for implementing the Konfidence
 // DeploymentTarget contract. It provides opt-in builder helpers, but leaves
 // controller bootstrap and target parameter interpretation to the deployer.
 package deploymenttarget
@@ -18,10 +18,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// FindReady lists ready targets of artifactType in namespace. The spec permits
-// at most one target of a type per namespace; this method returns an error if
-// multiple ready targets match, rather than choosing one arbitrarily.
-func FindReady(ctx context.Context, reader client.Reader, namespace string, artifactType konfidencev1alpha1.ArtifactType) (*konfidencev1alpha1.DeploymentTarget, error) {
+// FindReady lists ready targets for a given ArtifactType in the namespace. There should be at most one
+// target of a type per namespace. This method returns an error if multiple ready targets match.
+func FindReady(
+	ctx context.Context,
+	reader client.Reader,
+	namespace string,
+	artifactType konfidencev1alpha1.ArtifactType,
+) (*konfidencev1alpha1.DeploymentTarget, error) {
 	targets := &konfidencev1alpha1.DeploymentTargetList{}
 	if err := reader.List(ctx, targets, client.InNamespace(namespace)); err != nil {
 		return nil, fmt.Errorf("list DeploymentTargets in namespace %q: %w", namespace, err)
@@ -66,7 +70,12 @@ func EnqueueArtifactDeploymentsForTarget(artifactType konfidencev1alpha1.Artifac
 	})
 }
 
-func requestsForTarget(ctx context.Context, reader client.Reader, obj client.Object, artifactType konfidencev1alpha1.ArtifactType) ([]reconcile.Request, error) {
+func requestsForTarget(
+	ctx context.Context,
+	reader client.Reader,
+	obj client.Object,
+	artifactType konfidencev1alpha1.ArtifactType,
+) ([]reconcile.Request, error) {
 	resource, ok := obj.(konfidencev1alpha1.ArtifactTypeProvider)
 	if !ok || resource.ArtifactType() != artifactType {
 		return nil, nil

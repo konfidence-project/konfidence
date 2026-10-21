@@ -105,5 +105,5 @@ func init() {
 
 // ArtifactType returns the ArtifactType which the DeploymentTarget declares.
 func (dt *DeploymentTarget) ArtifactType() ArtifactType {
-	return ArtifactType(dt.Spec.ArtifactType)
+	return dt.Spec.ArtifactType
 }

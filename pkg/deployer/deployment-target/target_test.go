@@ -108,8 +108,20 @@ func TestFindRejectsMultipleTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 	objects := []runtime.Object{
-		&konfidencev1alpha1.DeploymentTarget{ObjectMeta: metav1.ObjectMeta{Name: "one", Namespace: "landscape"}, Spec: konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"}, Status: konfidencev1alpha1.DeploymentTargetStatus{Conditions: []metav1.Condition{{Type: konfidencev1alpha1.DeploymentTargetReadyCondition, Status: metav1.ConditionTrue}}}},
-		&konfidencev1alpha1.DeploymentTarget{ObjectMeta: metav1.ObjectMeta{Name: "two", Namespace: "landscape"}, Spec: konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"}, Status: konfidencev1alpha1.DeploymentTargetStatus{Conditions: []metav1.Condition{{Type: konfidencev1alpha1.DeploymentTargetReadyCondition, Status: metav1.ConditionTrue}}}},
+		&konfidencev1alpha1.DeploymentTarget{
+			ObjectMeta: metav1.ObjectMeta{Name: "one", Namespace: "landscape"},
+			Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"},
+			Status: konfidencev1alpha1.DeploymentTargetStatus{Conditions: []metav1.Condition{{
+				Type: konfidencev1alpha1.DeploymentTargetReadyCondition, Status: metav1.ConditionTrue,
+			}}},
+		},
+		&konfidencev1alpha1.DeploymentTarget{
+			ObjectMeta: metav1.ObjectMeta{Name: "two", Namespace: "landscape"},
+			Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "helm.example.com"},
+			Status: konfidencev1alpha1.DeploymentTargetStatus{Conditions: []metav1.Condition{{
+				Type: konfidencev1alpha1.DeploymentTargetReadyCondition, Status: metav1.ConditionTrue,
+			}}},
+		},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
 	if _, err := FindReady(context.Background(), c, "landscape", "helm.example.com"); err == nil || !strings.Contains(err.Error(), "multiple DeploymentTargets") {
@@ -274,7 +286,9 @@ func TestReconcileValidatesSupportedTargets(t *testing.T) {
 			t.Fatal(err)
 		}
 		condition := meta.FindStatusCondition(got.Status.Conditions, konfidencev1alpha1.DeploymentTargetReadyCondition)
-		if got.Status.Controller != defaultControllerName || condition == nil || condition.Status != tc.status || condition.Reason != tc.reason || condition.ObservedGeneration != tc.generation {
+		if got.Status.Controller != defaultControllerName || condition == nil ||
+			condition.Status != tc.status || condition.Reason != tc.reason ||
+			condition.ObservedGeneration != tc.generation {
 			t.Errorf("%s status = %#v; want controller identity and Ready=%s (%s) at generation %d", tc.name, got.Status, tc.status, tc.reason, tc.generation)
 		}
 	}

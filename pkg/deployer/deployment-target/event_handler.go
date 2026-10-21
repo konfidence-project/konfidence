@@ -32,7 +32,13 @@ func enqueueTargetsReferencing(gvk schema.GroupVersionKind, supported konfidence
 	})
 }
 
-func requestsForReference(ctx context.Context, reader client.Reader, obj client.Object, gvk schema.GroupVersionKind, supported konfidencev1alpha1.ArtifactTypeSet) ([]reconcile.Request, error) {
+func requestsForReference(
+	ctx context.Context,
+	reader client.Reader,
+	obj client.Object,
+	gvk schema.GroupVersionKind,
+	supported konfidencev1alpha1.ArtifactTypeSet,
+) ([]reconcile.Request, error) {
 	if obj == nil {
 		return nil, nil
 	}
