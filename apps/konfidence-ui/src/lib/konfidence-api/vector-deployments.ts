@@ -1,5 +1,5 @@
-import { getApiClient } from "$lib/konfidence-api/client-instance";
-import type { VectorDeployment } from "$lib/konfidence-api/types";
+import { getApiClient } from "#lib/konfidence-api/client-instance.ts";
+import type { VectorDeployment } from "#lib/konfidence-api/types.ts";
 
 type VectorDeploymentReference = Readonly<{
   projectId: string;

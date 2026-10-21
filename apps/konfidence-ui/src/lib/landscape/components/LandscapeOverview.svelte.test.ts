@@ -7,8 +7,8 @@ import type {
   Stage,
   VectorDeployment,
   VectorPromotionConfig,
-} from "$lib/konfidence-api/types";
-import LandscapeOverview from "$lib/landscape/components/LandscapeOverview.svelte";
+} from "#lib/konfidence-api/types.ts";
+import LandscapeOverview from "#lib/landscape/components/LandscapeOverview.svelte";
 
 const navigation = vi.hoisted(() => ({
   goto: vi.fn<(url: URL, options: { keepFocus: boolean; noScroll: boolean }) => Promise<void>>(),
@@ -33,7 +33,7 @@ const vectorDeployment = vi.hoisted(() => ({
   states: new Map<string, MockQueryState>(),
 }));
 
-vi.mock("$lib/queries.svelte", () => ({
+vi.mock("#lib/queries.svelte.ts", () => ({
   useVectorDeployment: (paramGetter: () => { vectorDeploymentId: string }): MockQueryState => {
     const { vectorDeploymentId } = paramGetter();
     return (

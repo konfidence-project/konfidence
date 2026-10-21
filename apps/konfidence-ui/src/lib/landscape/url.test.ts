@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stageDetailsUrl } from "$lib/landscape/url";
+import { stageDetailsUrl } from "#lib/landscape/url.ts";
 
 describe("stageDetailsUrl", () => {
   it("identifies the project, landscape, and stage", () => {

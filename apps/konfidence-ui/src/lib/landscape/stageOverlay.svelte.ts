@@ -1,8 +1,8 @@
 import { pushState } from "$app/navigation";
 import { page } from "$app/state";
 
-import type { Stage } from "$lib/konfidence-api/types";
-import { stageDetailsUrl } from "$lib/landscape/url";
+import type { Stage } from "#lib/konfidence-api/types.ts";
+import { stageDetailsUrl } from "#lib/landscape/url.ts";
 
 interface StageOverlayOptions {
   embedded: () => boolean;

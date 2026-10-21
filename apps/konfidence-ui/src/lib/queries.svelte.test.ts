@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, HTTP_OK } from "$lib/http-status";
-import type { Stage, VectorDeployment } from "$lib/konfidence-api/types";
+import { HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, HTTP_OK } from "#lib/http-status.ts";
+import type { Stage, VectorDeployment } from "#lib/konfidence-api/types.ts";
 
 const getMock = vi.fn();
 
-vi.mock("$lib/konfidence-api/client-instance", () => ({
+vi.mock("#lib/konfidence-api/client-instance.ts", () => ({
   getApiClient: () => ({ GET: getMock }),
 }));
 
@@ -57,7 +57,7 @@ describe("useVectorDeployment", () => {
       data: vectorDeployment,
       response: { ok: true, status: HTTP_OK },
     });
-    const { useVectorDeployment } = await import("$lib/queries.svelte");
+    const { useVectorDeployment } = await import("#lib/queries.svelte.ts");
 
     const result = await runQuery(() => useVectorDeployment(() => freshParam()));
 
@@ -70,7 +70,7 @@ describe("useVectorDeployment", () => {
       data: vectorDeployment,
       response: { ok: true, status: HTTP_OK },
     });
-    const { useVectorDeployment } = await import("$lib/queries.svelte");
+    const { useVectorDeployment } = await import("#lib/queries.svelte.ts");
     const param = freshParam();
 
     await runQuery(() => useVectorDeployment(() => param));
@@ -95,7 +95,7 @@ describe("useVectorDeployment", () => {
       error: { message: "boom" },
       response: { ok: false, status: HTTP_INTERNAL_SERVER_ERROR },
     });
-    const { useVectorDeployment } = await import("$lib/queries.svelte");
+    const { useVectorDeployment } = await import("#lib/queries.svelte.ts");
 
     const result = await runQuery(() => useVectorDeployment(() => freshParam()));
 
@@ -110,7 +110,7 @@ describe("useVectorDeployment", () => {
       error: { message: "not found" },
       response: { ok: false, status: HTTP_NOT_FOUND },
     });
-    const { useVectorDeployment } = await import("$lib/queries.svelte");
+    const { useVectorDeployment } = await import("#lib/queries.svelte.ts");
 
     const result = await runQuery(() => useVectorDeployment(() => freshParam()));
 
@@ -140,7 +140,7 @@ describe("useStage", () => {
       data: stage,
       response: { ok: true, status: HTTP_OK },
     });
-    const { useStage } = await import("$lib/queries.svelte");
+    const { useStage } = await import("#lib/queries.svelte.ts");
 
     const result = await runQuery(() => useStage(() => freshStageParam()));
 
@@ -153,7 +153,7 @@ describe("useStage", () => {
       data: stage,
       response: { ok: true, status: HTTP_OK },
     });
-    const { useStage } = await import("$lib/queries.svelte");
+    const { useStage } = await import("#lib/queries.svelte.ts");
     const param = freshStageParam();
 
     await runQuery(() => useStage(() => param));
@@ -178,7 +178,7 @@ describe("useStage", () => {
       error: { message: "boom" },
       response: { ok: false, status: HTTP_INTERNAL_SERVER_ERROR },
     });
-    const { useStage } = await import("$lib/queries.svelte");
+    const { useStage } = await import("#lib/queries.svelte.ts");
 
     const result = await runQuery(() => useStage(() => freshStageParam()));
 
@@ -193,7 +193,7 @@ describe("useStage", () => {
       error: { message: "not found" },
       response: { ok: false, status: HTTP_NOT_FOUND },
     });
-    const { useStage } = await import("$lib/queries.svelte");
+    const { useStage } = await import("#lib/queries.svelte.ts");
 
     const result = await runQuery(() => useStage(() => freshStageParam()));
 

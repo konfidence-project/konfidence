@@ -1,5 +1,5 @@
-import { getApiClient } from "$lib/konfidence-api/client-instance";
-import type { Stage } from "$lib/konfidence-api/types";
+import { getApiClient } from "#lib/konfidence-api/client-instance.ts";
+import type { Stage } from "#lib/konfidence-api/types.ts";
 
 type StageReference = Readonly<{
   projectId: string;

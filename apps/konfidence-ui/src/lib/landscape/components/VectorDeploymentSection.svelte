@@ -3,9 +3,9 @@
     import "@ui5/webcomponents-icons/dist/error.js";
     import "@ui5/webcomponents-icons/dist/question-mark.js";
     import { Button, EmptyState, OrbitLoader } from "@konfidence/design-system/components";
-    import { HTTP_NOT_FOUND } from "$lib/http-status";
-    import { useVectorDeployment } from "$lib/queries.svelte";
-    import VectorDeploymentFields from "$lib/vector-deployments/VectorDeploymentFields.svelte";
+    import { HTTP_NOT_FOUND } from "#lib/http-status.ts";
+    import { useVectorDeployment } from "#lib/queries.svelte.ts";
+    import VectorDeploymentFields from "#lib/vector-deployments/VectorDeploymentFields.svelte";
 
     interface Props {
         projectId: string;

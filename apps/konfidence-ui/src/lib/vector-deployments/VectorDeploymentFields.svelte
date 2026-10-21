@@ -1,6 +1,6 @@
 <script lang="ts">
     import { StatusBadge } from "@konfidence/design-system/components";
-    import type { VectorDeployment } from "$lib/konfidence-api/types";
+    import type { VectorDeployment } from "#lib/konfidence-api/types.ts";
     import { statusLabel, statusTone } from "./deployments.js";
 
     interface Props {
