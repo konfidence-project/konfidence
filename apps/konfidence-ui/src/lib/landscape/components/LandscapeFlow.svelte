@@ -10,25 +10,27 @@
     import type { Edge, Node } from "@xyflow/svelte";
     import type { Landscape, Stage, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
     import { buildLandscapeGraph, stageKey } from "#lib/landscape/landscapeGraph.ts";
-    import { stageDetailsUrl } from "#lib/projects/url.ts";
     import { mode } from "mode-watcher";
     import LandscapeCanvasResize from "#lib/landscape/components/LandscapeCanvasResize.svelte";
     import LandscapeEmptyNode from "#lib/landscape/components/LandscapeEmptyNode.svelte";
     import StageNode from "#lib/landscape/components/StageNode.svelte";
+    import type { StageOverlayReference } from "#lib/landscape/stageOverlay.svelte.ts";
 
     interface Props {
         landscapes: readonly Landscape[];
         stages: readonly Stage[];
         promotionConfigs: readonly VectorPromotionConfig[];
-        projectId: string;
-        embedded: boolean;
+        selectedStage?: Stage;
+        stageHref: (stage: Stage) => string;
+        stageReference: (stage: Stage) => StageOverlayReference;
     }
     let {
         landscapes,
         stages,
         promotionConfigs,
-        projectId,
-        embedded,
+        selectedStage,
+        stageHref,
+        stageReference,
     }: Props = $props();
 
     const nodeTypes = {
@@ -71,13 +73,12 @@
         const stageNodes: Node[] = graph.stages.map((placement) => ({
             ...defaults,
             data: {
-                href: stageDetailsUrl({
-                    embedded,
-                    landscapeId: placement.landscapeId,
-                    projectId,
-                    stageId: placement.stage.id,
-                }),
+                href: stageHref(placement.stage),
                 landscapeName: placement.landscapeName,
+                reference: stageReference(placement.stage),
+                selected:
+                    placement.stage.id === selectedStage?.id &&
+                    placement.stage.landscapeId === selectedStage.landscapeId,
                 stage: placement.stage,
             },
             height: CARD_HEIGHT,

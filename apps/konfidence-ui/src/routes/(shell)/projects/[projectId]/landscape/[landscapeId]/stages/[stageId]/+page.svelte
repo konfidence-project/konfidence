@@ -1,20 +1,22 @@
 <script lang="ts">
     import { page } from "$app/state";
+    import { Breadcrumbs, Button, PageHeader } from "@konfidence/design-system/components";
+    import type { BreadcrumbItem } from "@konfidence/design-system/components";
     import StageDetails from "#lib/landscape/components/StageDetails.svelte";
-    import { useLandscapes, useStages } from "#lib/queries.svelte.ts";
     import { projectLandscapeUrl } from "#lib/projects/url.ts";
+    import { useStage } from "#lib/queries.svelte.ts";
     import { isEmbedded } from "#lib/shell/embedded.ts";
     import type { PageProps } from "./$types";
 
     let { data }: PageProps = $props();
 
-    const landscapesQuery = useLandscapes(() => ({ projectId: data.projectId }));
-    const stagesQuery = useStages(() => ({
+    const stageQuery = useStage(() => ({
         landscapeId: data.landscapeId,
         projectId: data.projectId,
+        stageId: data.stageId,
     }));
-    const loading = $derived(landscapesQuery.loading || stagesQuery.loading);
-    const error = $derived(landscapesQuery.error ?? stagesQuery.error);
+    const loading = $derived(stageQuery.loading);
+    const error = $derived(stageQuery.error);
     const status = $derived.by(() => {
         if (loading) {
             return "loading";
@@ -22,30 +24,37 @@
         return error ? "error" : "ready";
     });
     const reload = (): void => {
-        landscapesQuery.reload();
-        stagesQuery.reload();
+        stageQuery.reload();
     };
-    const embedded = $derived(isEmbedded(page.url));
-    const landscape = $derived(
-        landscapesQuery.data?.find(({ id }) => id === data.landscapeId),
-    );
-    const stage = $derived(
-        stagesQuery.data?.find(
-            ({ id, landscapeId: owner }) =>
-                id === data.stageId && owner === data.landscapeId,
-        ),
-    );
+    const stage = $derived(stageQuery.data ?? undefined);
+    const backHref = $derived(projectLandscapeUrl(data.projectId, isEmbedded(page.url)));
+    const stageName = $derived(stage?.name ?? data.stageId);
+    const crumbs: BreadcrumbItem[] = $derived([
+        { href: backHref, label: data.projectId },
+        { label: data.landscapeId },
+        { label: stageName },
+    ]);
 </script>
 
-<svelte:head><title>{stage?.name ?? "Stage"} · Konfidence</title></svelte:head>
+<svelte:head><title>{stageName} · Konfidence</title></svelte:head>
 
 <section class="mx-auto flex w-full max-w-[84rem] flex-col gap-5 px-6 pt-6 pb-10">
+    <PageHeader
+        title={stageName}
+        description={`Project ${data.projectId} · Landscape ${data.landscapeId}`}
+    >
+        {#snippet eyebrow()}
+            <Breadcrumbs items={crumbs} />
+        {/snippet}
+        {#snippet actions()}
+            <Button href={backHref} variant="secondary">Back to landscape</Button>
+        {/snippet}
+    </PageHeader>
     <StageDetails
-        backHref={projectLandscapeUrl(data.projectId, embedded)}
         error={error?.message}
         errorStatus={error?.status}
-        {landscape}
         onRetry={reload}
+        projectId={data.projectId}
         {stage}
         {status}
     />

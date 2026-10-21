@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
     import "@ui5/webcomponents-icons/dist/decline.js";
+    import "@ui5/webcomponents-icons/dist/resize.js";
     import "@ui5/webcomponents/dist/Icon.js";
 
     interface Props {
@@ -9,6 +10,7 @@
         children: Snippet;
         footer?: Snippet;
         onClose?: () => void;
+        fullPageHref?: string;
         width?: number;
         onWidthChange?: (width: number) => void;
     }
@@ -24,6 +26,7 @@
         children,
         footer,
         onClose,
+        fullPageHref,
         width = $bindable(DEFAULT_WIDTH),
         onWidthChange,
     }: Props = $props();
@@ -47,6 +50,9 @@
     });
 
     const requestClose = (): void => {
+        if (!open) {
+            return;
+        }
         open = false;
         onClose?.();
     };
@@ -146,15 +152,28 @@
         <h2 class="m-0 text-h3 font-semibold text-content-primary">
             {title}
         </h2>
-        <button
-            type="button"
-            class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:size-icon-md"
-            aria-label="Close details"
-            onclick={requestClose}
-            data-testid="side-panel-close"
-        >
-            <ui5-icon class="text-current" name="decline" aria-hidden="true"></ui5-icon>
-        </button>
+        <div class="flex items-center gap-1">
+            {#if fullPageHref}
+                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- The design-system caller supplies an already-resolved application URL. -->
+                <a
+                    href={fullPageHref}
+                    class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:size-icon-md"
+                    aria-label="Open full page"
+                    data-testid="side-panel-full-page"
+                >
+                    <ui5-icon class="text-current" name="resize" aria-hidden="true"></ui5-icon>
+                </a>
+            {/if}
+            <button
+                type="button"
+                class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:size-icon-md"
+                aria-label="Close details"
+                onclick={requestClose}
+                data-testid="side-panel-close"
+            >
+                <ui5-icon class="text-current" name="decline" aria-hidden="true"></ui5-icon>
+            </button>
+        </div>
     </header>
     <div class="flex-1 overflow-auto px-5 py-4">
         {@render children()}
@@ -233,4 +252,3 @@
         }
     }
 </style>
-

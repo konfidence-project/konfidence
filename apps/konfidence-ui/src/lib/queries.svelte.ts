@@ -1,6 +1,7 @@
 import { createQuery, fail, succeed } from "svelte-tiny-query";
 
 import { getApiClient } from "#lib/konfidence-api/client-instance.ts";
+import { getStage } from "#lib/konfidence-api/stages.ts";
 import type {
   ArtifactDeployment,
   Landscape,
@@ -9,6 +10,9 @@ import type {
   VectorDeployment,
   VectorPromotionConfig,
 } from "#lib/konfidence-api/types.ts";
+import { getVectorDeployment } from "#lib/konfidence-api/vector-deployments.ts";
+import type { StageReference } from "#lib/konfidence-api/stages.ts";
+import type { VectorDeploymentReference } from "#lib/konfidence-api/vector-deployments.ts";
 
 interface ProjectScope {
   [key: string]: string | undefined;
@@ -36,7 +40,9 @@ const AUTHENTICATED_QUERY_ROOT = "authenticated";
 const LANDSCAPES_UNAVAILABLE = "Landscapes are currently unavailable.";
 const PROJECTS_UNAVAILABLE = "Projects are currently unavailable.";
 const STAGES_UNAVAILABLE = "Stages are currently unavailable.";
+const STAGE_UNAVAILABLE = "Stage is currently unavailable.";
 const VECTOR_DEPLOYMENTS_UNAVAILABLE = "Vector deployments are currently unavailable.";
+const VECTOR_DEPLOYMENT_UNAVAILABLE = "Vector deployment is currently unavailable.";
 const ARTIFACT_DEPLOYMENTS_UNAVAILABLE = "Artifact deployments are currently unavailable.";
 const VECTOR_PROMOTION_CONFIGS_UNAVAILABLE = "Vector promotion configs are currently unavailable.";
 
@@ -96,6 +102,29 @@ const useStages = createQuery<QueryError, LandscapeFilter, readonly Stage[]>(
       return succeed<readonly Stage[]>(data.data);
     } catch {
       return fail<QueryError>({ message: STAGES_UNAVAILABLE });
+    }
+  },
+);
+
+const useStage = createQuery<QueryError, StageReference, Readonly<Stage>>(
+  (param) => [
+    AUTHENTICATED_QUERY_ROOT,
+    "projects",
+    param.projectId,
+    "landscapes",
+    param.landscapeId,
+    "stages",
+    param.stageId,
+  ],
+  async (reference, signal) => {
+    try {
+      const result = await getStage(reference, signal);
+      if ("error" in result) {
+        return fail<QueryError>({ message: STAGE_UNAVAILABLE, status: result.status });
+      }
+      return succeed<Readonly<Stage>>(result.data);
+    } catch {
+      return fail<QueryError>({ message: STAGE_UNAVAILABLE });
     }
   },
 );
@@ -161,6 +190,36 @@ const useVectorDeployments = createQuery<QueryError, LandscapeFilter, readonly V
   },
 );
 
+const useVectorDeployment = createQuery<
+  QueryError,
+  VectorDeploymentReference,
+  Readonly<VectorDeployment>
+>(
+  (param) => [
+    AUTHENTICATED_QUERY_ROOT,
+    "projects",
+    param.projectId,
+    "landscapes",
+    param.landscapeId,
+    "vectorDeployments",
+    param.vectorDeploymentId,
+  ],
+  async (reference, signal) => {
+    try {
+      const result = await getVectorDeployment(reference, signal);
+      if ("error" in result) {
+        return fail<QueryError>({
+          message: VECTOR_DEPLOYMENT_UNAVAILABLE,
+          status: result.status,
+        });
+      }
+      return succeed<Readonly<VectorDeployment>>(result.data);
+    } catch {
+      return fail<QueryError>({ message: VECTOR_DEPLOYMENT_UNAVAILABLE });
+    }
+  },
+);
+
 const useArtifactDeployments = createQuery<
   QueryError,
   ArtifactDeploymentFilter,
@@ -206,6 +265,8 @@ export {
   useLandscapes,
   useProjects,
   useStages,
+  useStage,
+  useVectorDeployment,
   useVectorDeployments,
   useVectorPromotionConfigs,
 };

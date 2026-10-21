@@ -5,7 +5,13 @@ declare global {
     // interface Error {}
     // interface Locals {}
     // interface PageData {}
-    // interface PageState {}
+    interface PageState {
+      readonly stageOverlay?: {
+        readonly projectId: string;
+        readonly landscapeId: string;
+        readonly stageId: string;
+      };
+    }
     // interface Platform {}
   }
 

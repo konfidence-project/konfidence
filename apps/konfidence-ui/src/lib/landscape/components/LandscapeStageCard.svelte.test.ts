@@ -81,6 +81,14 @@ it("advances the active phase as the target status progresses", async () => {
   expect(failed?.textContent?.trim()).toBe("Activate");
 });
 
+it("marks the card as selected when the selected prop is set", async () => {
+  const rendered = await render(LandscapeStageCard, { ...props, stage: scenarios.active });
+  const link = page.getByRole("link").element() as HTMLElement;
+  expect(link.classList.contains("stage-card--selected")).toBe(false);
+  await rendered.rerender({ ...props, selected: true, stage: scenarios.active });
+  expect(link.classList.contains("stage-card--selected")).toBe(true);
+});
+
 it("colours the top stripe from the target status", async () => {
   const rendered = await render(LandscapeStageCard, { ...props, stage: scenarios.deploying });
   const link = page.getByRole("link").element() as HTMLElement;

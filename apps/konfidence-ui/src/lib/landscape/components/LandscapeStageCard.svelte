@@ -12,8 +12,9 @@
         landscapeName: string;
         href: string;
         selected?: boolean;
+        onclick?: (event: MouseEvent) => void;
     }
-    let { stage, landscapeName, href, selected = false }: Props = $props();
+    let { stage, landscapeName, href, selected = false, onclick }: Props = $props();
 
     const target = $derived(stage.targetStageVersion);
     const active = $derived(stage.activeStageVersion);
@@ -115,4 +116,5 @@
     {activeVersionText}
     live={targetIsActive}
     {selected}
+    {onclick}
 />

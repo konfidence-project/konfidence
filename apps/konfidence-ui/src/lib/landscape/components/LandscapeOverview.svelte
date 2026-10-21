@@ -3,9 +3,13 @@
         Button,
         OrbitLoader,
         PageHeader,
+        SidePanel,
     } from "@konfidence/design-system/components";
     import type { Landscape, Stage, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
     import LandscapeFlow from "#lib/landscape/components/LandscapeFlow.svelte";
+    import StageDetails from "#lib/landscape/components/StageDetails.svelte";
+    import { useStageOverlay } from "#lib/landscape/stageOverlay.svelte.ts";
+    import { sidePanelWidth } from "#lib/shell/sidePanelWidth.svelte.ts";
 
     interface Props {
         error?: string;
@@ -27,14 +31,20 @@
         embedded,
         onRetry,
     }: Props = $props();
+
+    const overlay = useStageOverlay({
+        embedded: () => embedded,
+        projectId: () => projectId,
+        stages: () => stages,
+    });
+    const selectedStage = $derived(overlay.selected);
+
 </script>
 
 <section
     class="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]"
     aria-labelledby="landscape-title"
 >
-    <!-- Header is inset by the standard page gutter; the flow canvas below
-         keeps its edge-to-edge working area for panning. -->
     <div class="px-6 pt-6">
         <PageHeader
             id="landscape-title"
@@ -66,8 +76,22 @@
             {landscapes}
             {stages}
             {promotionConfigs}
-            {projectId}
-            {embedded}
+            selectedStage={selectedStage}
+            stageHref={overlay.hrefFor}
+            stageReference={overlay.referenceFor}
         />
     {/if}
 </section>
+
+<SidePanel
+    open={selectedStage !== undefined}
+    title={selectedStage?.name ?? "Stage"}
+    onClose={overlay.close}
+    fullPageHref={overlay.selectedHref}
+    width={sidePanelWidth.current}
+    onWidthChange={sidePanelWidth.set}
+>
+    {#if selectedStage}
+        <StageDetails {projectId} stage={selectedStage} status="ready" onRetry={() => undefined} />
+    {/if}
+</SidePanel>

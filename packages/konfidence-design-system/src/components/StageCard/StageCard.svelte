@@ -15,6 +15,7 @@
         activeVersionText: string;
         live?: boolean;
         selected?: boolean;
+        onclick?: (event: MouseEvent) => void;
     }
 
     let {
@@ -29,6 +30,7 @@
         activeVersionText,
         live = false,
         selected = false,
+        onclick,
     }: Props = $props();
     const statusId = $props.id();
 
@@ -40,10 +42,21 @@
         warning: "var(--status-warning-solid)",
     };
     const stageAccent = $derived(ACCENT_TOKEN[statusRole]);
+
+    const handleClick = (event: MouseEvent): void => {
+        onclick?.(event);
+    };
+    const captureClick = (node: HTMLAnchorElement): { destroy: () => void } => {
+        node.addEventListener("click", handleClick, { capture: true });
+        return {
+            destroy: () => node.removeEventListener("click", handleClick, { capture: true }),
+        };
+    };
 </script>
 
 <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- The consumer is responsible for supplying a resolved URL. -->
 <a {href}
+    use:captureClick
     class={[
         "stage-card box-border relative flex h-64 w-full flex-col gap-3 overflow-hidden rounded-[var(--card-radius)] border border-outline-subtle bg-surface-card p-4 pt-[calc(var(--space-4)+3px)] text-content-primary no-underline shadow-elevation-sm",
         "transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-elevation-md not-[.stage-card--selected]:hover:border-outline-focus motion-reduce:transition-none motion-reduce:hover:translate-y-0",
