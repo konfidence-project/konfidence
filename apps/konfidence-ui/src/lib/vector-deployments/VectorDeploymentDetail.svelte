@@ -19,9 +19,9 @@
             Landscape
         </h3>
         <p class="m-0 flex flex-col gap-0.5 text-compact text-content-primary">
-            <span>{row.landscape}</span>
+            <span class="[overflow-wrap:anywhere]">{row.landscape}</span>
             {#if row.landscape !== row.landscapeId}
-                <span class="font-[family-name:var(--font-mono)] text-[color:var(--text-tertiary)]">{row.landscapeId}</span>
+                <span class="font-[family-name:var(--font-mono)] [overflow-wrap:anywhere] text-[color:var(--text-tertiary)]">{row.landscapeId}</span>
             {/if}
         </p>
     </section>
@@ -34,9 +34,9 @@
         </h3>
 
         <p class="m-0 flex flex-col gap-0.5 text-compact text-content-primary">
-            <span>{row.stageName}</span>
+            <span class="[overflow-wrap:anywhere]">{row.stageName}</span>
             {#if row.stageName !== row.stageId}
-                <span class="font-[family-name:var(--font-mono)] text-[color:var(--text-tertiary)]">{row.stageId}</span>
+                <span class="font-[family-name:var(--font-mono)] [overflow-wrap:anywhere] text-[color:var(--text-tertiary)]">{row.stageId}</span>
             {/if}
         </p>
     </section>

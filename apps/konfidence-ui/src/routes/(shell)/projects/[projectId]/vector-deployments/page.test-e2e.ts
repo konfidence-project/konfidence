@@ -7,6 +7,10 @@ const VECTOR_DEPLOYMENTS_PATH = `/projects/${PROJECT_ID}/vector-deployments`;
 const ARTIFACT_DEPLOYMENTS_PATH = `/projects/${PROJECT_ID}/artifact-deployments`;
 const EMPTY_VECTOR_DEPLOYMENTS_PATH = "/projects/identity-service/vector-deployments";
 const EXPECTED_ROW_COUNT = 3;
+const VECTOR_COMPONENT = "github.com/konfidence-project/example-app/vector";
+const VECTOR_REPOSITORY = "https://bp.common.repositories.cloud.sap/konfidence/delivery-vector";
+const VECTOR_VERSION = "2026.9.29-201426000Z";
+const VECTOR_ID = "dev-us30-20260929-201426000Z";
 
 const setScenario = async (page: Page, scenario: string): Promise<void> => {
   await page.context().addCookies([
@@ -26,6 +30,28 @@ const gotoVectorDeployments = async (
   await signIn(page, path, path);
 };
 
+const expectDetailFieldToFit = async (
+  panel: ReturnType<Page["getByTestId"]>,
+  label: string,
+  value: string,
+): Promise<void> => {
+  const labelElement = panel.locator("dt", { hasText: label }).first();
+  const valueElement = labelElement.locator("xpath=following-sibling::dd[1]");
+  await expect(valueElement).toHaveText(value);
+
+  const [panelBox, labelBox, valueBox] = await Promise.all([
+    panel.boundingBox(),
+    labelElement.boundingBox(),
+    valueElement.boundingBox(),
+  ]);
+  if (!panelBox || !labelBox || !valueBox) {
+    throw new Error(`Could not measure the ${label} detail field`);
+  }
+
+  expect(valueBox.x).toBeGreaterThanOrEqual(labelBox.x + labelBox.width);
+  expect(valueBox.x + valueBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+};
+
 test.describe("vector deployments", () => {
   test("shows every deployment returned by the mock API", async ({ page }) => {
     await gotoVectorDeployments(page);
@@ -35,19 +61,19 @@ test.describe("vector deployments", () => {
 
     const rows = page.getByTestId("vectordeployment-row");
     await expect(rows).toHaveCount(EXPECTED_ROW_COUNT);
-    await expect(page.locator('[data-row-id="vector-dev-us30-1"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="vector-test-eu20-1"]')).toBeVisible();
-    await expect(page.locator('[data-row-id="vector-prod-eu30-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="dev-us30-20260929-201426000Z"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="test-eu20-20260924-151030000Z"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="prod-eu30-20260918-094500000Z"]')).toBeVisible();
   });
 
   test("narrows the table by search text", async ({ page }) => {
     await gotoVectorDeployments(page);
 
-    await page.getByTestId("vectordeployment-search").fill("2026.8.4");
+    await page.getByTestId("vectordeployment-search").fill("2026.9.24-151030000Z");
 
     const rows = page.getByTestId("vectordeployment-row");
     await expect(rows).toHaveCount(1);
-    await expect(page.locator('[data-row-id="vector-test-eu20-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="test-eu20-20260924-151030000Z"]')).toBeVisible();
   });
 
   test("filters the table by status", async ({ page }) => {
@@ -57,7 +83,7 @@ test.describe("vector deployments", () => {
 
     const rows = page.getByTestId("vectordeployment-row");
     await expect(rows).toHaveCount(1);
-    await expect(page.locator('[data-row-id="vector-prod-eu30-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="prod-eu30-20260918-094500000Z"]')).toBeVisible();
   });
 
   test("sorts by version when the column header is activated", async ({ page }) => {
@@ -67,35 +93,39 @@ test.describe("vector deployments", () => {
 
     await expect(page.getByTestId("vectordeployment-row").first()).toHaveAttribute(
       "data-row-id",
-      "vector-prod-eu30-1",
+      "prod-eu30-20260918-094500000Z",
     );
   });
 
   test("opens the detail drawer and shows the vector context", async ({ page }) => {
     await gotoVectorDeployments(page);
 
-    await page.locator('[data-row-id="vector-dev-us30-1"]').click();
+    await page.locator(`[data-row-id="${VECTOR_ID}"]`).click();
 
     const panel = page.getByTestId("side-panel");
     await expect(panel).toBeVisible();
-    await expect(page.getByTestId("vectordeployment-detail-id")).toHaveText("vector-dev-us30-1");
-    await expect(panel).toContainText("delivery-vector");
+    await expect(page.getByTestId("vectordeployment-detail-id")).toHaveText(VECTOR_ID);
+    await expect(panel).toContainText(VECTOR_COMPONENT);
+    await expectDetailFieldToFit(panel, "Component", VECTOR_COMPONENT);
+    await expectDetailFieldToFit(panel, "Version", VECTOR_VERSION);
+    await expectDetailFieldToFit(panel, "Repository", VECTOR_REPOSITORY);
+    await expectDetailFieldToFit(panel, "Deployment id", VECTOR_ID);
     await expect(panel).toContainText("Development");
     await expect(panel).toContainText("dev-us30");
-    await expect(page).toHaveURL(`${VECTOR_DEPLOYMENTS_PATH}?deployment=vector-dev-us30-1`);
+    await expect(page).toHaveURL(`${VECTOR_DEPLOYMENTS_PATH}?deployment=${VECTOR_ID}`);
   });
 
   test("opens related artifact deployments from the artifact count", async ({ page }) => {
     await gotoVectorDeployments(page);
 
     const artifactCountButton = page.getByRole("button", {
-      name: "View artifact deployments for vector-dev-us30-1",
+      name: "View artifact deployments for dev-us30-20260929-201426000Z",
     });
     await expect(artifactCountButton).toHaveText("2");
     await artifactCountButton.click();
 
     await expect(page).toHaveURL(
-      `${ARTIFACT_DEPLOYMENTS_PATH}?vectorDeploymentId=vector-dev-us30-1`,
+      `${ARTIFACT_DEPLOYMENTS_PATH}?vectorDeploymentId=dev-us30-20260929-201426000Z`,
     );
     await expect(page.getByTestId("artifact-row")).toHaveCount(2);
   });
@@ -117,10 +147,15 @@ test.describe("vector deployments", () => {
   });
 
   test("deep-links to a deployment via the query parameter", async ({ page }) => {
-    await gotoVectorDeployments(page, `${VECTOR_DEPLOYMENTS_PATH}?deployment=vector-test-eu20-1`);
+    await gotoVectorDeployments(
+      page,
+      `${VECTOR_DEPLOYMENTS_PATH}?deployment=test-eu20-20260924-151030000Z`,
+    );
 
     await expect(page.getByTestId("side-panel")).toBeVisible();
-    await expect(page.getByTestId("vectordeployment-detail-id")).toHaveText("vector-test-eu20-1");
+    await expect(page.getByTestId("vectordeployment-detail-id")).toHaveText(
+      "test-eu20-20260924-151030000Z",
+    );
   });
 
   test("keeps the panel closed when the URL points at a missing deployment id", async ({
@@ -137,22 +172,26 @@ test.describe("vector deployments", () => {
   test("keeps deep-link state addressable through browser history", async ({ page }) => {
     await gotoVectorDeployments(page);
 
-    await page.locator('[data-row-id="vector-dev-us30-1"]').click();
-    await expect(page).toHaveURL(`${VECTOR_DEPLOYMENTS_PATH}?deployment=vector-dev-us30-1`);
+    await page.locator('[data-row-id="dev-us30-20260929-201426000Z"]').click();
+    await expect(page).toHaveURL(
+      `${VECTOR_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z`,
+    );
 
     await page.goBack();
     await expect(page).toHaveURL(VECTOR_DEPLOYMENTS_PATH);
     await expect(page.getByTestId("side-panel")).toBeHidden();
 
     await page.goForward();
-    await expect(page).toHaveURL(`${VECTOR_DEPLOYMENTS_PATH}?deployment=vector-dev-us30-1`);
+    await expect(page).toHaveURL(
+      `${VECTOR_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z`,
+    );
     await expect(page.getByTestId("side-panel")).toBeVisible();
   });
 
   test("closes the drawer and clears the URL", async ({ page }) => {
     await gotoVectorDeployments(page);
 
-    await page.locator('[data-row-id="vector-dev-us30-1"]').click();
+    await page.locator('[data-row-id="dev-us30-20260929-201426000Z"]').click();
     await expect(page.getByTestId("side-panel")).toBeVisible();
 
     await page.getByTestId("side-panel-close").click();
@@ -195,7 +234,7 @@ test.describe("vector deployments", () => {
 
     await expect(page).toHaveURL(`${VECTOR_DEPLOYMENTS_PATH}?landscapeId=test`);
     await expect(page.getByTestId("vectordeployment-row")).toHaveCount(1);
-    await expect(page.locator('[data-row-id="vector-test-eu20-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="test-eu20-20260924-151030000Z"]')).toBeVisible();
     expect(requests.some((url) => url.includes("landscapeId=test"))).toBe(true);
   });
 
@@ -203,7 +242,7 @@ test.describe("vector deployments", () => {
     await gotoVectorDeployments(page, `${VECTOR_DEPLOYMENTS_PATH}?landscapeId=development`);
 
     await expect(page.getByTestId("vectordeployment-row")).toHaveCount(1);
-    await expect(page.locator('[data-row-id="vector-dev-us30-1"]')).toBeVisible();
+    await expect(page.locator('[data-row-id="dev-us30-20260929-201426000Z"]')).toBeVisible();
     await expect(page.getByTestId("vectordeployment-landscape-filter")).toHaveValue("development");
   });
 
