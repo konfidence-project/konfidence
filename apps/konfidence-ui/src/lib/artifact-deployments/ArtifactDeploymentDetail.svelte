@@ -17,24 +17,24 @@
         >
             Artifact
         </h3>
-        <dl class="m-0 grid grid-cols-[minmax(0,8rem)_1fr] gap-x-3 gap-y-2 text-compact">
+        <dl class="m-0 grid min-w-0 grid-cols-[minmax(0,8rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-compact">
             <dt class="text-content-tertiary">Component</dt>
-            <dd class="m-0 break-words text-content-primary">{row.component}</dd>
+            <dd class="m-0 min-w-0 [overflow-wrap:anywhere] text-content-primary">{row.component}</dd>
             <dt class="text-content-tertiary">Version</dt>
-            <dd class="m-0 break-words font-mono text-content-primary">
+            <dd class="m-0 min-w-0 font-mono [overflow-wrap:anywhere] text-content-primary">
                 {row.version}
             </dd>
             <dt class="text-content-tertiary">Repository</dt>
-            <dd class="m-0 break-words font-mono text-content-primary">
+            <dd class="m-0 min-w-0 font-mono [overflow-wrap:anywhere] text-content-primary">
                 {row.repository}
             </dd>
             <dt class="text-content-tertiary">Status</dt>
-            <dd class="m-0 text-content-primary">
+            <dd class="m-0 min-w-0 text-content-primary">
                 <StatusBadge status={statusTone(row.status)}>{statusLabel(row.status)}</StatusBadge>
             </dd>
             <dt class="text-content-tertiary">Deployment id</dt>
             <dd
-                class="m-0 break-words font-mono text-content-primary"
+                class="m-0 min-w-0 font-mono [overflow-wrap:anywhere] text-content-primary"
                 data-testid="artifact-detail-id"
             >
                 {row.id}
@@ -49,9 +49,9 @@
             Landscape
         </h3>
         <p class="m-0 flex flex-col gap-0.5 text-compact text-content-primary">
-            <span>{row.landscape}</span>
+            <span class="[overflow-wrap:anywhere]">{row.landscape}</span>
             {#if row.landscape !== row.landscapeId}
-                <span class="font-mono text-content-tertiary">{row.landscapeId}</span>
+                <span class="font-mono [overflow-wrap:anywhere] text-content-tertiary">{row.landscapeId}</span>
             {/if}
         </p>
     </section>
@@ -73,9 +73,9 @@
                         class="rounded-base border border-outline-subtle bg-surface-subtle px-3 py-2"
                     >
                         <div class="flex flex-col items-start gap-1">
-                            <span>{name}</span>
+                            <span class="[overflow-wrap:anywhere]">{name}</span>
                             {#if name !== row.stageIds[index]}
-                                <span class="font-mono text-content-tertiary"
+                                <span class="font-mono [overflow-wrap:anywhere] text-content-tertiary"
                                     >{row.stageIds[index]}</span
                                 >
                             {/if}
@@ -104,9 +104,9 @@
                         class="rounded-base border border-outline-subtle bg-surface-subtle px-3 py-2"
                     >
                         <div class="flex flex-col items-start gap-1">
-                            <span class="font-mono">{id}</span>
+                            <span class="font-mono [overflow-wrap:anywhere]">{id}</span>
                             {#if related}
-                                <span
+                                <span class="[overflow-wrap:anywhere]"
                                     >{related.vector.componentName}@{related.vector.componentVersion}</span
                                 >
                                 <StatusBadge status="deploying">{related.status}</StatusBadge>

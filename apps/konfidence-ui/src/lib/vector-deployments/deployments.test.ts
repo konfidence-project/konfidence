@@ -13,7 +13,7 @@ import {
   toVectorDeploymentRows,
 } from "./deployments.js";
 
-const REPOSITORY = "ghcr.io/konfidence/mock";
+const REPOSITORY = "https://bp.common.repositories.cloud.sap/konfidence/delivery-vector";
 
 const landscapes: ApiLandscape[] = [
   { id: "development", name: "Development" },
@@ -35,8 +35,8 @@ interface VectorInput {
 }
 
 const vector = ({
-  componentName = "delivery-vector",
-  componentVersion = "2026.8.5",
+  componentName = "github.com/konfidence-project/example-app/vector",
+  componentVersion = "2026.9.29-201426000Z",
   id,
   landscapeId,
   stageId,
@@ -70,29 +70,29 @@ const build = (
 describe("toVectorDeploymentRows", () => {
   it("resolves delivery context and exposes vector metadata", () => {
     const source = vector({
-      id: "vector-dev-us30-1",
+      id: "dev-us30-20260929-201426000Z",
       landscapeId: "development",
       stageId: "dev-us30",
     });
     const [row] = build([source]);
 
     expect(row).toMatchObject({
-      component: "delivery-vector",
-      id: "vector-dev-us30-1",
+      component: "github.com/konfidence-project/example-app/vector",
+      id: "dev-us30-20260929-201426000Z",
       landscape: "Development",
       landscapeId: "development",
       repository: REPOSITORY,
       stageId: "dev-us30",
       stageName: "Development US",
       status: "DeploymentReady",
-      version: "2026.8.5",
+      version: "2026.9.29-201426000Z",
     });
     expect(row?.raw).toBe(source);
   });
 
   it("attaches only artifacts referencing the vector deployment", () => {
     const source = vector({
-      id: "vector-dev-us30-1",
+      id: "dev-us30-20260929-201426000Z",
       landscapeId: "development",
       stageId: "dev-us30",
     });
@@ -124,7 +124,7 @@ describe("matchesQuery", () => {
     vector({
       componentName: "payments-delivery",
       componentVersion: "3.4.1",
-      id: "vector-dev-us30-1",
+      id: "dev-us30-20260929-201426000Z",
       landscapeId: "development",
       stageId: "dev-us30",
       status: "DeployingVector",
@@ -137,10 +137,10 @@ describe("matchesQuery", () => {
   });
 
   it.each([
-    "vector-dev-us30-1",
+    "dev-us30-20260929-201426000Z",
     "PAYMENTS-DELIVERY",
     "3.4.1",
-    "ghcr.io",
+    "bp.common.repositories.cloud.sap",
     "development",
     "development us",
     "deploying",
@@ -156,7 +156,7 @@ describe("matchesQuery", () => {
 describe("matchesStatus", () => {
   const [row] = build([
     vector({
-      id: "vector-dev-us30-1",
+      id: "dev-us30-20260929-201426000Z",
       landscapeId: "development",
       stageId: "dev-us30",
       status: "DeploymentReady",

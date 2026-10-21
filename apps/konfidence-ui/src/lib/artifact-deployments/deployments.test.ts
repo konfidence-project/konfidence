@@ -13,7 +13,7 @@ import {
   toArtifactDeploymentRows,
 } from "./deployments.js";
 
-const REPOSITORY = "ghcr.io/konfidence/mock";
+const REPOSITORY = "https://bp.common.repositories.cloud.sap/konfidence/delivery-vector";
 
 const landscape = (id: string, name: string): ApiLandscape => ({ id, name });
 
@@ -41,7 +41,7 @@ const vector = ({
   stageId,
   status: "DeploymentReady",
   vector: {
-    componentName: "delivery-vector",
+    componentName: "github.com/konfidence-project/example-app/vector",
     componentVersion,
     repository: REPOSITORY,
   },
@@ -85,14 +85,14 @@ const stages = [
 ];
 const vectors = [
   vector({
-    componentVersion: "2026.8.5",
-    id: "vector-dev-us30-1",
+    componentVersion: "2026.9.29-201426000Z",
+    id: "dev-us30-20260929-201426000Z",
     landscapeId: "development",
     stageId: "dev-us30",
   }),
   vector({
-    componentVersion: "2026.8.4",
-    id: "vector-test-eu20-1",
+    componentVersion: "2026.9.24-151030000Z",
+    id: "test-eu20-20260924-151030000Z",
     landscapeId: "test",
     stageId: "test-eu20",
   }),
@@ -115,12 +115,14 @@ describe("toArtifactDeploymentRows", () => {
         id: "a-1",
         landscapeId: "development",
         stageIds: ["dev-us30"],
-        vectorDeploymentIds: ["vector-dev-us30-1"],
+        vectorDeploymentIds: ["dev-us30-20260929-201426000Z"],
       }),
     ]);
     expect(row?.landscape).toBe("Development");
     expect(row?.stageNames).toEqual(["dev-us30"]);
-    expect(row?.vectorDeploymentLabels).toEqual(["delivery-vector@2026.8.5"]);
+    expect(row?.vectorDeploymentLabels).toEqual([
+      "github.com/konfidence-project/example-app/vector@2026.9.29-201426000Z",
+    ]);
     expect(row?.relatedVectorDeployments).toHaveLength(1);
     expect(row?.repository).toBe(REPOSITORY);
     expect(row?.component).toBe("payments-api");
@@ -152,7 +154,7 @@ describe("toArtifactDeploymentRows", () => {
       landscapeId: "development",
       stageIds: ["dev-us30"],
       status: "ArtifactFetched",
-      vectorDeploymentIds: ["vector-dev-us30-1"],
+      vectorDeploymentIds: ["dev-us30-20260929-201426000Z"],
     });
     const [row] = build([source]);
     expect(row?.raw).toBe(source);
@@ -169,10 +171,10 @@ describe("matchesQuery", () => {
     deployment({
       componentName: "payments-api",
       componentVersion: "3.4.1",
-      id: "artifact-dev-us30-1",
+      id: "dev-us30-20260929-201426000Z-payments-api",
       landscapeId: "development",
       stageIds: ["dev-us30"],
-      vectorDeploymentIds: ["vector-dev-us30-1"],
+      vectorDeploymentIds: ["dev-us30-20260929-201426000Z"],
     }),
   ]);
 
@@ -187,14 +189,14 @@ describe("matchesQuery", () => {
 
   it("matches version, repository, landscape, stage and vector-deployment label", () => {
     expect(matchesQuery(row!, "3.4.1")).toBe(true);
-    expect(matchesQuery(row!, "ghcr.io")).toBe(true);
+    expect(matchesQuery(row!, "bp.common.repositories.cloud.sap")).toBe(true);
     expect(matchesQuery(row!, "development")).toBe(true);
     expect(matchesQuery(row!, "dev-us30")).toBe(true);
-    expect(matchesQuery(row!, "delivery-vector")).toBe(true);
+    expect(matchesQuery(row!, "github.com/konfidence-project/example-app/vector")).toBe(true);
   });
 
   it("matches the deployment id", () => {
-    expect(matchesQuery(row!, "artifact-dev-us30-1")).toBe(true);
+    expect(matchesQuery(row!, "dev-us30-20260929-201426000Z-payments-api")).toBe(true);
   });
 
   it("returns false when no field contains the query", () => {

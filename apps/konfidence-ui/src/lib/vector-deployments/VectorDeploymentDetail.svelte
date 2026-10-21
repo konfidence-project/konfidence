@@ -17,24 +17,24 @@
         >
             Vector deployment
         </h3>
-        <dl class="m-0 grid grid-cols-[minmax(0,8rem)_1fr] gap-x-3 gap-y-2 text-compact">
+        <dl class="m-0 grid min-w-0 grid-cols-[minmax(0,8rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-compact">
             <dt class="text-[color:var(--text-tertiary)]">Component</dt>
-            <dd class="m-0 break-words text-[color:var(--text-primary)]">{row.component}</dd>
+            <dd class="m-0 min-w-0 [overflow-wrap:anywhere] text-[color:var(--text-primary)]">{row.component}</dd>
             <dt class="text-[color:var(--text-tertiary)]">Version</dt>
-            <dd class="m-0 break-words font-[family-name:var(--font-mono)] text-[color:var(--text-primary)]">
+            <dd class="m-0 min-w-0 font-[family-name:var(--font-mono)] [overflow-wrap:anywhere] text-[color:var(--text-primary)]">
                 {row.version}
             </dd>
             <dt class="text-[color:var(--text-tertiary)]">Repository</dt>
-            <dd class="m-0 break-words font-[family-name:var(--font-mono)] text-[color:var(--text-primary)]">
+            <dd class="m-0 min-w-0 font-[family-name:var(--font-mono)] [overflow-wrap:anywhere] text-[color:var(--text-primary)]">
                 {row.repository}
             </dd>
             <dt class="text-[color:var(--text-tertiary)]">Status</dt>
-            <dd class="m-0 text-[color:var(--text-primary)]">
+            <dd class="m-0 min-w-0 text-[color:var(--text-primary)]">
                 <StatusBadge status={statusTone(row.status)}>{statusLabel(row.status)}</StatusBadge>
             </dd>
             <dt class="text-[color:var(--text-tertiary)]">Deployment id</dt>
             <dd
-                class="m-0 break-words font-[family-name:var(--font-mono)] text-[color:var(--text-primary)]"
+                class="m-0 min-w-0 font-[family-name:var(--font-mono)] [overflow-wrap:anywhere] text-[color:var(--text-primary)]"
                 data-testid="vectordeployment-detail-id"
             >
                 {row.id}
@@ -49,9 +49,9 @@
             Landscape
         </h3>
         <p class="m-0 flex flex-col gap-0.5 text-compact text-content-primary">
-            <span>{row.landscape}</span>
+            <span class="[overflow-wrap:anywhere]">{row.landscape}</span>
             {#if row.landscape !== row.landscapeId}
-                <span class="font-[family-name:var(--font-mono)] text-[color:var(--text-tertiary)]">{row.landscapeId}</span>
+                <span class="font-[family-name:var(--font-mono)] [overflow-wrap:anywhere] text-[color:var(--text-tertiary)]">{row.landscapeId}</span>
             {/if}
         </p>
     </section>
@@ -64,9 +64,9 @@
         </h3>
 
         <p class="m-0 flex flex-col gap-0.5 text-compact text-content-primary">
-            <span>{row.stageName}</span>
+            <span class="[overflow-wrap:anywhere]">{row.stageName}</span>
             {#if row.stageName !== row.stageId}
-                <span class="font-[family-name:var(--font-mono)] text-[color:var(--text-tertiary)]">{row.stageId}</span>
+                <span class="font-[family-name:var(--font-mono)] [overflow-wrap:anywhere] text-[color:var(--text-tertiary)]">{row.stageId}</span>
             {/if}
         </p>
     </section>
