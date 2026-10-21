@@ -1,7 +1,7 @@
 <script lang="ts">
     import NotYetImplemented from "../NotYetImplemented.svelte";
     import Section from "../Section.svelte";
-    import { TAG_COLORS } from "$lib/tokens/read-tokens";
+    import { TAG_COLORS } from "#lib/tokens/read-tokens.ts";
 </script>
 
 <Section

@@ -9,13 +9,13 @@
         EMBEDDED_ON,
         EMBEDDED_QUERY,
         isEmbedded,
-    } from "$lib/shell/embedded";
-    import ProjectsProvider from "$lib/projects/ProjectsProvider.svelte";
-    import ProjectsContent from "$lib/projects/components/ProjectsContent.svelte";
-    import ProjectSelector from "$lib/shell/ProjectSelector.svelte";
-    import SideNav from "$lib/shell/SideNav.svelte";
-    import ThemeSwitcher from "$lib/shell/ThemeSwitcher.svelte";
-    import UserMenu from "$lib/shell/UserMenu.svelte";
+    } from "#lib/shell/embedded.ts";
+    import ProjectsProvider from "#lib/projects/ProjectsProvider.svelte";
+    import ProjectsContent from "#lib/projects/components/ProjectsContent.svelte";
+    import ProjectSelector from "#lib/shell/ProjectSelector.svelte";
+    import SideNav from "#lib/shell/SideNav.svelte";
+    import ThemeSwitcher from "#lib/shell/ThemeSwitcher.svelte";
+    import UserMenu from "#lib/shell/UserMenu.svelte";
 
     /**
      * Authenticated shell layout.
@@ -58,7 +58,7 @@
         const next = new globalThis.URL(target);
         next.searchParams.set(EMBEDDED_QUERY, EMBEDDED_ON);
         // eslint-disable-next-line svelte/no-navigation-without-resolve -- the target URL is already resolved by SvelteKit; we only re-attach the ?embedded=1 flag before navigating.
-        void goto(next, { replaceState: navigation.type === "leave" });
+        void goto(next, { replace: navigation.type === "leave" });
     });
 </script>
 
@@ -76,7 +76,7 @@
                 <TopBar onHamburger={toggleDrawer}>
                     {#snippet logo()}
                         <a
-                            href={resolve("/")}
+                            href={resolve("/(shell)")}
                             aria-label="Konfidence home"
                             data-testid="brand-home"
                         >
@@ -98,7 +98,7 @@
             {/snippet}
 
             {#snippet sidebar({ closeDrawer })}
-                <SideNav {closeDrawer} />
+                <SideNav closeDrawer={closeDrawer} />
             {/snippet}
 
             {#snippet main()}

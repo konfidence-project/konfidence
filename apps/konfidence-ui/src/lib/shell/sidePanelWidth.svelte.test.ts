@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { STORAGE_KEY, SidePanelWidth, sidePanelWidth } from "$lib/shell/sidePanelWidth.svelte";
+import { STORAGE_KEY, SidePanelWidth, sidePanelWidth } from "#lib/shell/sidePanelWidth.svelte.ts";
 
 describe("SidePanelWidth", () => {
   beforeEach(() => {

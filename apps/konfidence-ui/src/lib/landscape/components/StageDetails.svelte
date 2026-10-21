@@ -10,8 +10,8 @@
         PageHeader,
     } from "@konfidence/design-system/components";
     import type { BreadcrumbItem } from "@konfidence/design-system/components";
-    import type { Landscape, Stage } from "$lib/konfidence-api/types";
-    import StageVersionDetails from "$lib/landscape/components/StageVersionDetails.svelte";
+    import type { Landscape, Stage } from "#lib/konfidence-api/types.ts";
+    import StageVersionDetails from "#lib/landscape/components/StageVersionDetails.svelte";
 
     interface Props {
         backHref: string;

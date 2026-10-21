@@ -2,12 +2,12 @@
     import { Brandbar, Button } from "@konfidence/design-system/components";
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
-    import { EMBEDDED_ON, EMBEDDED_QUERY, isEmbedded } from "$lib/shell/embedded";
+    import { EMBEDDED_ON, EMBEDDED_QUERY, isEmbedded } from "#lib/shell/embedded.ts";
 
     const status = $derived(page.status);
     const message = $derived(page.error?.message ?? "Something went wrong.");
     const homeHref = $derived(
-        isEmbedded(page.url) ? `${resolve("/")}?${EMBEDDED_QUERY}=${EMBEDDED_ON}` : resolve("/"),
+        isEmbedded(page.url) ? `${resolve("/(shell)")}?${EMBEDDED_QUERY}=${EMBEDDED_ON}` : resolve("/(shell)"),
     );
 </script>
 

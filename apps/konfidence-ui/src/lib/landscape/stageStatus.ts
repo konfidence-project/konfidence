@@ -1,4 +1,4 @@
-import type { StageVersion } from "$lib/konfidence-api/types";
+import type { StageVersion } from "#lib/konfidence-api/types.ts";
 
 // Badge tones this feature relies on. Keep in sync with StatusBadge's
 // static utility-class map; `.badge--<tone>` remains a public class hook.

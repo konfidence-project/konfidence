@@ -1,6 +1,6 @@
 import { createQuery, fail, succeed } from "svelte-tiny-query";
 
-import { getApiClient } from "$lib/konfidence-api/client-instance";
+import { getApiClient } from "#lib/konfidence-api/client-instance.ts";
 import type {
   ArtifactDeployment,
   Landscape,
@@ -8,7 +8,7 @@ import type {
   Stage,
   VectorDeployment,
   VectorPromotionConfig,
-} from "$lib/konfidence-api/types";
+} from "#lib/konfidence-api/types.ts";
 
 interface ProjectScope {
   [key: string]: string | undefined;

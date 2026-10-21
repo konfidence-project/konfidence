@@ -1,5 +1,5 @@
 import { createContext } from "svelte";
-import type { Project } from "$lib/konfidence-api/types";
+import type { Project } from "#lib/konfidence-api/types.ts";
 
 interface ProjectsContext {
   readonly projects: readonly Project[];

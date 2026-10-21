@@ -1,12 +1,12 @@
 import { getContext, setContext, tick } from "svelte";
 import { invalidateQueries } from "svelte-tiny-query";
-import type { AuthStatus, AuthUser } from "$lib/auth/types";
-import { toAuthUser } from "$lib/auth/types";
-import type { ApiClient } from "$lib/konfidence-api/client";
-import { resolveApiBaseUrl } from "$lib/konfidence-api/client";
+import type { AuthStatus, AuthUser } from "#lib/auth/types.ts";
+import { toAuthUser } from "#lib/auth/types.ts";
+import type { ApiClient } from "#lib/konfidence-api/client.ts";
+import { resolveApiBaseUrl } from "#lib/konfidence-api/client.ts";
 import { goto } from "$app/navigation";
-import { HTTP_UNAUTHORIZED } from "$lib/http-status";
-import { AUTHENTICATED_QUERY_ROOT } from "$lib/queries.svelte";
+import { HTTP_UNAUTHORIZED } from "#lib/http-status.ts";
+import { AUTHENTICATED_QUERY_ROOT } from "#lib/queries.svelte.ts";
 import type { paths } from "@konfidence/api-client/schema";
 
 // SvelteKit UI routes (not part of the OpenAPI surface).

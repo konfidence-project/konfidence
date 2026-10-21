@@ -1,6 +1,6 @@
 import { vi } from "vitest";
-import { createApiClient } from "$lib/konfidence-api/client";
-import { SessionStore } from "$lib/auth/session.svelte";
+import { createApiClient } from "#lib/konfidence-api/client.ts";
+import { SessionStore } from "#lib/auth/session.svelte.ts";
 
 /**
  * Canonical identity payload matching `components.schemas.Identity` in the

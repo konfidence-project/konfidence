@@ -2,8 +2,8 @@ import "../../../app.css";
 import { page } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
-import type { Landscape, Stage } from "$lib/konfidence-api/types";
-import StageDetails from "$lib/landscape/components/StageDetails.svelte";
+import type { Landscape, Stage } from "#lib/konfidence-api/types.ts";
+import StageDetails from "#lib/landscape/components/StageDetails.svelte";
 
 const landscape: Landscape = { id: "primary", name: "Primary" };
 const stage: Stage = {

@@ -1,7 +1,7 @@
 import { page } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
-import ProjectsTestProvider from "$lib/projects/components/ProjectsTestProvider.svelte";
+import ProjectsTestProvider from "#lib/projects/components/ProjectsTestProvider.svelte";
 
 vi.mock("$app/state", () => ({
   page: { url: new URL("http://127.0.0.1/projects?embedded=1") },

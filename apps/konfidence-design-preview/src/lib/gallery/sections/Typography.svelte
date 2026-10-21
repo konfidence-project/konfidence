@@ -1,7 +1,7 @@
 <script lang="ts">
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
-    import { RADIUS_STEPS, SPACING_STEPS, TYPE_SCALE } from "$lib/tokens/read-tokens";
+    import { RADIUS_STEPS, SPACING_STEPS, TYPE_SCALE } from "#lib/tokens/read-tokens.ts";
 </script>
 
 <Section

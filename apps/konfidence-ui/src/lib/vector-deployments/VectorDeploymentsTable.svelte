@@ -11,9 +11,9 @@
         TableRow,
     } from "@konfidence/design-system/components";
     import { resolve } from "$app/paths";
-    import { VECTOR_DEPLOYMENT_PARAM } from "$lib/deployments/params";
-    import LinkCell from "$lib/components/table-cells/LinkCell.svelte";
-    import StatusCell from "$lib/components/table-cells/StatusCell.svelte";
+    import { VECTOR_DEPLOYMENT_PARAM } from "#lib/deployments/params.ts";
+    import LinkCell from "#lib/components/table-cells/LinkCell.svelte";
+    import StatusCell from "#lib/components/table-cells/StatusCell.svelte";
     import { toStore } from "svelte/store";
 
     import { createVectordeploymentTable } from "./create-vectordeployment-table.js";

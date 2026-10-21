@@ -1,9 +1,9 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import StageDetails from "$lib/landscape/components/StageDetails.svelte";
-    import { useLandscapes, useStages } from "$lib/queries.svelte.js";
-    import { projectLandscapeUrl } from "$lib/projects/url";
-    import { isEmbedded } from "$lib/shell/embedded";
+    import StageDetails from "#lib/landscape/components/StageDetails.svelte";
+    import { useLandscapes, useStages } from "#lib/queries.svelte.ts";
+    import { projectLandscapeUrl } from "#lib/projects/url.ts";
+    import { isEmbedded } from "#lib/shell/embedded.ts";
     import type { PageProps } from "./$types";
 
     let { data }: PageProps = $props();

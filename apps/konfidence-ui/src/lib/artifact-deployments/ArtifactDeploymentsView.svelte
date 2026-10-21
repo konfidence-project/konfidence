@@ -2,7 +2,7 @@
     import "@ui5/webcomponents-icons/dist/product.js";
     import "@ui5/webcomponents-icons/dist/error.js";
     import "@ui5/webcomponents/dist/Icon.js";
-    import type { ArtifactDeployment, Landscape, Stage, VectorDeployment } from "$lib/konfidence-api/types";
+    import type { ArtifactDeployment, Landscape, Stage, VectorDeployment } from "#lib/konfidence-api/types.ts";
     import {
         Button,
         EmptyState,
@@ -18,9 +18,9 @@
     import ArtifactDeploymentsTable from "./ArtifactDeploymentsTable.svelte";
     import { matchesQuery, matchesStatus, toArtifactDeploymentRows } from "./deployments.js";
     import type { ArtifactDeploymentRow, ArtifactDeploymentStatus } from "./deployments.js";
-    import { useDeploymentFilters } from "$lib/deployments/useDeploymentFilters.svelte.js";
-    import { LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "$lib/deployments/params.js";
-    import { sidePanelWidth } from "$lib/shell/sidePanelWidth.svelte";
+    import { useDeploymentFilters } from "#lib/deployments/useDeploymentFilters.svelte.ts";
+    import { LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "#lib/deployments/params.ts";
+    import { sidePanelWidth } from "#lib/shell/sidePanelWidth.svelte.ts";
 
 
     interface Props {

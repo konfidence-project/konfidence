@@ -2,8 +2,8 @@
     import { resolve } from "$app/paths";
     import { page } from "$app/state";
     import { NavGroup, NavItem, Sidebar, isActive } from "@konfidence/design-system/components";
-    import { useProjects } from "$lib/projects/projectContext";
-    import ProjectSelector from "$lib/shell/ProjectSelector.svelte";
+    import { useProjects } from "#lib/projects/projectContext.ts";
+    import ProjectSelector from "#lib/shell/ProjectSelector.svelte";
 
     /**
      * Primary side navigation. Composes the design-system `Sidebar` /

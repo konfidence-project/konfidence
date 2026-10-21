@@ -3,7 +3,7 @@
     import { OrbitLoader } from "@konfidence/design-system/components";
     import { goto } from "$app/navigation";
     import { resolve } from "$app/paths";
-    import { LOGIN_PATH, useSession } from "$lib/auth/session.svelte";
+    import { LOGIN_PATH, useSession } from "#lib/auth/session.svelte.ts";
 
     const session = useSession();
 

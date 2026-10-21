@@ -1,7 +1,7 @@
 <script lang="ts">
-    import type { Project } from "$lib/konfidence-api/types";
-    import { provideProjects } from "$lib/projects/projectContext";
-    import ProjectSelection from "$lib/projects/components/ProjectSelection.svelte";
+    import type { Project } from "#lib/konfidence-api/types.ts";
+    import { provideProjects } from "#lib/projects/projectContext.ts";
+    import ProjectSelection from "#lib/projects/components/ProjectSelection.svelte";
 
     interface Props { projects: readonly Project[]; }
     let { projects }: Props = $props();

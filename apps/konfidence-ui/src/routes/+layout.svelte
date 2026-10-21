@@ -13,8 +13,8 @@
         LOGOUT_PATH,
         SessionStore,
         provideSession,
-    } from "$lib/auth/session.svelte";
-    import { getApiClient, setOnUnauthorized } from "$lib/konfidence-api/client-instance";
+    } from "#lib/auth/session.svelte.ts";
+    import { getApiClient, setOnUnauthorized } from "#lib/konfidence-api/client-instance.ts";
 
     interface Props {
         children?: Snippet;

@@ -1,7 +1,7 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
     import { Button } from "@konfidence/design-system/components";
-    import { useProjects } from "$lib/projects/projectContext";
+    import { useProjects } from "#lib/projects/projectContext.ts";
 
     interface Props { children: Snippet; }
     let { children }: Props = $props();

@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { createApiClient } from "$lib/konfidence-api/client";
+import { createApiClient } from "#lib/konfidence-api/client.ts";
 
 const requestCredentials = async (baseUrl: string): Promise<RequestCredentials> => {
   const fetch = vi.fn(async (_request: Request) =>

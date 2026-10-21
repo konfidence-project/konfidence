@@ -4,7 +4,7 @@ import type {
   Landscape as ApiLandscape,
   Stage as ApiStage,
   VectorDeployment as ApiVectorDeployment,
-} from "$lib/konfidence-api/types";
+} from "#lib/konfidence-api/types.ts";
 import {
   matchesQuery,
   matchesStatus,

@@ -1,27 +1,27 @@
 <script lang="ts">
-    import ActivityFeed from "$lib/gallery/sections/ActivityFeed.svelte";
-    import Atoms from "$lib/gallery/sections/Atoms.svelte";
-    import Buttons from "$lib/gallery/sections/Buttons.svelte";
-    import Charts from "$lib/gallery/sections/Charts.svelte";
-    import Colors from "$lib/gallery/sections/Colors.svelte";
-    import DataBlocks from "$lib/gallery/sections/DataBlocks.svelte";
-    import Feedback from "$lib/gallery/sections/Feedback.svelte";
-    import Forms from "$lib/gallery/sections/Forms.svelte";
-    import Hero from "$lib/gallery/sections/Hero.svelte";
-    import Icons from "$lib/gallery/sections/Icons.svelte";
-    import Lists from "$lib/gallery/sections/Lists.svelte";
-    import LogsAndCode from "$lib/gallery/sections/LogsAndCode.svelte";
-    import MessageStrips from "$lib/gallery/sections/MessageStrips.svelte";
-    import Misc from "$lib/gallery/sections/Misc.svelte";
-    import Navigation from "$lib/gallery/sections/Navigation.svelte";
-    import Overlays from "$lib/gallery/sections/Overlays.svelte";
-    import Pipeline from "$lib/gallery/sections/Pipeline.svelte";
-    import Shell from "$lib/gallery/sections/Shell.svelte";
-    import ShellPatterns from "$lib/gallery/sections/ShellPatterns.svelte";
-    import Signature from "$lib/gallery/sections/Signature.svelte";
-    import StatusBadges from "$lib/gallery/sections/StatusBadges.svelte";
-    import Tags from "$lib/gallery/sections/Tags.svelte";
-    import Typography from "$lib/gallery/sections/Typography.svelte";
+    import ActivityFeed from "#lib/gallery/sections/ActivityFeed.svelte";
+    import Atoms from "#lib/gallery/sections/Atoms.svelte";
+    import Buttons from "#lib/gallery/sections/Buttons.svelte";
+    import Charts from "#lib/gallery/sections/Charts.svelte";
+    import Colors from "#lib/gallery/sections/Colors.svelte";
+    import DataBlocks from "#lib/gallery/sections/DataBlocks.svelte";
+    import Feedback from "#lib/gallery/sections/Feedback.svelte";
+    import Forms from "#lib/gallery/sections/Forms.svelte";
+    import Hero from "#lib/gallery/sections/Hero.svelte";
+    import Icons from "#lib/gallery/sections/Icons.svelte";
+    import Lists from "#lib/gallery/sections/Lists.svelte";
+    import LogsAndCode from "#lib/gallery/sections/LogsAndCode.svelte";
+    import MessageStrips from "#lib/gallery/sections/MessageStrips.svelte";
+    import Misc from "#lib/gallery/sections/Misc.svelte";
+    import Navigation from "#lib/gallery/sections/Navigation.svelte";
+    import Overlays from "#lib/gallery/sections/Overlays.svelte";
+    import Pipeline from "#lib/gallery/sections/Pipeline.svelte";
+    import Shell from "#lib/gallery/sections/Shell.svelte";
+    import ShellPatterns from "#lib/gallery/sections/ShellPatterns.svelte";
+    import Signature from "#lib/gallery/sections/Signature.svelte";
+    import StatusBadges from "#lib/gallery/sections/StatusBadges.svelte";
+    import Tags from "#lib/gallery/sections/Tags.svelte";
+    import Typography from "#lib/gallery/sections/Typography.svelte";
 
     const TOC: readonly { id: string; label: string; status: "implemented" | "partial" | "placeholder" }[] = [
         { id: "signature", label: "Signature", status: "implemented" },

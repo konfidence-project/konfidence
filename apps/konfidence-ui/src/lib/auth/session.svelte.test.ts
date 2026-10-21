@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as SvelteTinyQuery from "svelte-tiny-query";
-import { HTTP_INTERNAL_SERVER_ERROR, HTTP_OK, HTTP_UNAUTHORIZED } from "$lib/http-status";
+import { HTTP_INTERNAL_SERVER_ERROR, HTTP_OK, HTTP_UNAUTHORIZED } from "#lib/http-status.ts";
 import {
   createTestSession,
   identityBody,
   jsonResponse,
   mockFetchOnce,
   mockFetchReject,
-} from "$lib/auth/session.test-helpers";
-import { AUTHENTICATED_QUERY_ROOT } from "$lib/queries.svelte";
+} from "#lib/auth/session.test-helpers.ts";
+import { AUTHENTICATED_QUERY_ROOT } from "#lib/queries.svelte.ts";
 
 const gotoMock = vi.fn(async (_target: string): Promise<void> => undefined);
 const invalidateQueriesMock = vi.fn();

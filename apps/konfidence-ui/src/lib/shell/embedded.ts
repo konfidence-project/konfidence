@@ -11,6 +11,7 @@
 const EMBEDDED_QUERY = "embedded";
 const EMBEDDED_ON = "1";
 
-const isEmbedded = (url: URL): boolean => url.searchParams.get(EMBEDDED_QUERY) === EMBEDDED_ON;
+const isEmbedded = (url: { searchParams: Pick<URLSearchParams, "get"> }): boolean =>
+  url.searchParams.get(EMBEDDED_QUERY) === EMBEDDED_ON;
 
 export { EMBEDDED_QUERY, EMBEDDED_ON, isEmbedded };
