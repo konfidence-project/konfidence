@@ -65,7 +65,7 @@ func (r *vectorDeploymentRepository) GetForScope(_ context.Context,
 		return nil, r.err
 	}
 	if len(r.items) == 0 {
-		return nil, vectordeployment.ErrNotFound
+		return nil, vectordeployment.ErrVectorDeploymentNotFound
 	}
 	return &r.items[0], nil
 }

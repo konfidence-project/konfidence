@@ -15,6 +15,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/handler"
 	"github.com/konfidence-project/konfidence/internal/api/middleware"
 	"github.com/konfidence-project/konfidence/internal/api/ui"
+	"golang.org/x/sync/errgroup"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 )
 
@@ -31,8 +32,9 @@ func New(cfg config.Parsed, logger *slog.Logger, apiHandler http.Handler) *Serve
 	return &Server{cfg: cfg, logger: logger, handler: apiHandler}
 }
 
-// ListenAndServe starts the HTTP server and blocks until ctx is canceled, then performs
-// a graceful shutdown. The optional onAddr callback is called with the actual
+// ListenAndServe starts the HTTP server and blocks until the context is
+// canceled or a managed component fails. Before returning, it stops the
+// watcher and shuts down the HTTP server. The optional onAddr callback is called with the actual
 // bound address once the server is listening — useful in tests with ":0".
 func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) error {
 	rootHandler, err := s.router()
@@ -42,11 +44,25 @@ func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) err
 
 	ln, err := net.Listen("tcp", s.cfg.Server.Addr)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", s.cfg.Server.Addr, err)
+		return fmt.Errorf(
+			"failed to listen on %s: %w",
+			s.cfg.Server.Addr,
+			err,
+		)
 	}
 
-	if len(onAddr) > 0 && onAddr[0] != nil {
-		onAddr[0](ln.Addr().String())
+	// covers initialization failures before Serve takes ownership and is
+	// harmless after Shutdown has already closed the listener.
+	defer func() {
+		_ = ln.Close()
+	}()
+
+	var watcher *certwatcher.CertWatcher
+	if s.cfg.Server.TLSCertFile != "" {
+		watcher, err = certwatcher.New(s.cfg.Server.TLSCertFile, s.cfg.Server.TLSKeyFile)
+		if err != nil {
+			return fmt.Errorf("failed to initialize cert watcher: %w", err)
+		}
 	}
 
 	srv := &http.Server{
@@ -55,48 +71,73 @@ func (s *Server) ListenAndServe(ctx context.Context, onAddr ...func(string)) err
 		WriteTimeout: s.cfg.Server.WriteTimeout,
 	}
 
-	errCh := make(chan error, 1)
-	var watcher *certwatcher.CertWatcher
-	if s.cfg.Server.TLSCertFile != "" {
-		var err error
-		watcher, err = certwatcher.New(s.cfg.Server.TLSCertFile, s.cfg.Server.TLSKeyFile)
-		if err != nil {
-			return fmt.Errorf("failed to initialize cert watcher: %w", err)
-		}
-		go func() {
-			if err := watcher.Start(ctx); err != nil {
-				errCh <- fmt.Errorf("cert watcher failed: %w", err)
-			}
-		}()
+	if watcher != nil {
+		srv.TLSConfig = &tls.Config{GetCertificate: watcher.GetCertificate}
 	}
 
-	go func() {
+	// report the address only after all startup initialization succeeded.
+	if len(onAddr) > 0 && onAddr[0] != nil {
+		onAddr[0](ln.Addr().String())
+	}
+
+	group, groupCtx := errgroup.WithContext(ctx)
+	if watcher != nil {
+		group.Go(func() error {
+			err := watcher.Start(groupCtx)
+			if err == nil {
+				return nil
+			}
+
+			// cancellation is expected when the server stops or another
+			// component fails. CertWatcher may return an error while
+			// unwinding its initial watch setup.
+			if groupCtx.Err() != nil {
+				return nil
+			}
+
+			return fmt.Errorf("cert watcher failed: %w", err)
+		})
+	}
+
+	group.Go(func() error {
 		s.logger.Info("api server starting", "addr", ln.Addr().String(), "tls", watcher != nil)
+		var serveErr error
 		if watcher != nil {
-			srv.TLSConfig = &tls.Config{GetCertificate: watcher.GetCertificate}
-			if err := srv.ServeTLS(ln, "", ""); !errors.Is(err, http.ErrServerClosed) {
-				errCh <- fmt.Errorf("server error: %w", err)
-			}
+			serveErr = srv.ServeTLS(ln, "", "")
 		} else {
-			if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
-				errCh <- fmt.Errorf("server error: %w", err)
-			}
+			serveErr = srv.Serve(ln)
 		}
-		close(errCh)
-	}()
 
-	select {
-	case err := <-errCh:
-		return err
-	case <-ctx.Done():
+		if errors.Is(serveErr, http.ErrServerClosed) {
+			return nil
+		}
+
+		if serveErr == nil {
+			return errors.New("api server stopped unexpectedly")
+		}
+
+		return fmt.Errorf("server error: %w", serveErr)
+	})
+
+	group.Go(func() error {
+		<-groupCtx.Done()
 		s.logger.Info("shutting down api server")
-	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Server.ShutdownTimeout)
-	defer cancel()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Server.ShutdownTimeout)
+		defer cancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("graceful shutdown failed: %w", err)
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			// shutdown does not close active connections after its
+			// deadline, so force closure before returning.
+			closeErr := srv.Close()
+			return fmt.Errorf("graceful shutdown failed: %w", errors.Join(err, closeErr))
+		}
+
+		return nil
+	})
+
+	if err := group.Wait(); err != nil {
+		return err
 	}
 
 	s.logger.Info("api server stopped")

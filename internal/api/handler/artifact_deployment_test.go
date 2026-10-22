@@ -20,6 +20,7 @@ import (
 type adRepository struct {
 	items []artifactdeployment.ResolvedArtifactDeployment
 	err   error
+	scope []landscapedomain.ScopedLandscape
 }
 
 type adLandscapeRepository struct {
@@ -32,11 +33,6 @@ type adLandscapeRepository struct {
 type adProjectRepository struct {
 	project *konfidence.Project
 	err     error
-}
-
-func (r *adRepository) Get(_ context.Context, _ string) (
-	*konfidence.ArtifactDeployment, error) {
-	return nil, r.err
 }
 
 func (r *adProjectRepository) Get(_ context.Context, _ string) (
@@ -53,9 +49,11 @@ func (r *adProjectRepository) List(_ context.Context,
 }
 
 func (r *adRepository) ListForScope(
-	_ context.Context, _ string,
-	_ ...artifactdeployment.ListOption) (
-	[]artifactdeployment.ResolvedArtifactDeployment, error) {
+	_ context.Context,
+	scope []landscapedomain.ScopedLandscape,
+	_ ...artifactdeployment.ListOption,
+) ([]artifactdeployment.ResolvedArtifactDeployment, error) {
+	r.scope = scope
 	return r.items, r.err
 }
 
@@ -69,7 +67,7 @@ func (r *adRepository) GetForScope(_ context.Context, _ landscapedomain.ScopedLa
 		return nil, r.err
 	}
 	if len(r.items) == 0 {
-		return nil, artifactdeployment.ErrNotFound
+		return nil, artifactdeployment.ErrArtifactDeploymentNotFound
 	}
 	return &r.items[0], nil
 }
@@ -152,6 +150,7 @@ var _ = Describe("ListArtifactDeploymentsV1", func() {
 		Expect(got.VectorDeploymentIds).To(Equal([]string{"vd-a"}))
 		Expect(got.Artifact.ComponentName).To(Equal("acme.example/myapp"))
 		Expect(got.Artifact.ComponentVersion).To(Equal("1.0.0"))
+		Expect(repository.scope).To(Equal(landscapeRepository.scope))
 	})
 
 	It("returns deployments without a landscape filter", func() {

@@ -2,7 +2,9 @@ package project
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/auth"
@@ -11,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var ErrNotFound = fmt.Errorf("project not found")
+var ErrProjectNotFound = errors.New("project not found")
 
 type Repository interface {
 	Get(ctx context.Context, name string) (*konfidence.Project, error)
@@ -28,7 +30,7 @@ func (r *k8sRepository) Get(ctx context.Context, name string) (*konfidence.Proje
 	var project konfidence.Project
 	if err := r.reader.Get(ctx, types.NamespacedName{Name: name}, &project); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, ErrNotFound
+			return nil, ErrProjectNotFound
 		}
 		return nil, fmt.Errorf("getting project %q: %w", name, err)
 	}
@@ -48,6 +50,10 @@ func (r *k8sRepository) List(ctx context.Context, projectRoles auth.ProjectRoles
 			authorizedProjectItems = append(authorizedProjectItems, p)
 		}
 	}
+
+	sort.Slice(authorizedProjectItems, func(i, j int) bool {
+		return authorizedProjectItems[i].Name < authorizedProjectItems[j].Name
+	})
 
 	return authorizedProjectItems, nil
 }

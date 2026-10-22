@@ -291,7 +291,7 @@ var _ = Describe("Repository GetForScope", func() {
 	It("returns ErrNotFound for a missing stage", func() {
 		scoped := scopeFixture("dev", "kden-l-dev")
 		_, err := stage.NewRepository(fakeClient()).GetForScope(context.Background(), scoped, "missing")
-		Expect(err).To(MatchError(stage.ErrNotFound))
+		Expect(err).To(MatchError(stage.ErrStageNotFound))
 	})
 
 	It("does not return a stage from another landscape namespace", func() {
@@ -299,6 +299,6 @@ var _ = Describe("Repository GetForScope", func() {
 		_, err := stage.NewRepository(fakeClient(
 			stageFixture("app", "kden-l-prod", "vector:1", 1),
 		)).GetForScope(context.Background(), devScope, "app")
-		Expect(err).To(MatchError(stage.ErrNotFound))
+		Expect(err).To(MatchError(stage.ErrStageNotFound))
 	})
 })

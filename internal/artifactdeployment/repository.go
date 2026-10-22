@@ -2,8 +2,10 @@ package artifactdeployment
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
+	"sort"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
@@ -12,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var ErrNotFound = fmt.Errorf("artifact deployment not found")
+var ErrArtifactDeploymentNotFound = errors.New("artifact deployment not found")
 
 type ResolvedArtifactDeployment struct {
 	ArtifactDeployment  konfidence.ArtifactDeployment
@@ -22,23 +24,15 @@ type ResolvedArtifactDeployment struct {
 }
 
 type Repository interface {
-	Get(ctx context.Context, name string) (*konfidence.ArtifactDeployment, error) // do we need this?
 	GetForScope(ctx context.Context, scoped landscapedomain.ScopedLandscape, name string) (*ResolvedArtifactDeployment, error)
-	ListForScope(ctx context.Context, namespace string, opts ...ListOption) ([]ResolvedArtifactDeployment, error)
+	ListForScope(ctx context.Context, scope []landscapedomain.ScopedLandscape, opts ...ListOption) ([]ResolvedArtifactDeployment, error)
 }
 
 type listOptions struct {
-	landscapeID        *string
 	vectorDeploymentID *string
 }
 
 type ListOption func(*listOptions)
-
-func WithLandscapeId(id string) ListOption {
-	return func(options *listOptions) {
-		options.landscapeID = &id
-	}
-}
 
 func WithVectorDeploymentId(id string) ListOption {
 	return func(options *listOptions) {
@@ -52,18 +46,6 @@ func NewRepository(reader client.Reader) Repository {
 	return &k8sRepository{reader: reader}
 }
 
-func (r *k8sRepository) Get(ctx context.Context, name string) (*konfidence.ArtifactDeployment, error) {
-	var artifactDeployment konfidence.ArtifactDeployment
-	if err := r.reader.Get(ctx, types.NamespacedName{Name: name}, &artifactDeployment); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("getting artifact deployment %q: %w", name, err)
-	}
-
-	return &artifactDeployment, nil
-}
-
 func (r *k8sRepository) GetForScope(ctx context.Context, scoped landscapedomain.ScopedLandscape, name string) (*ResolvedArtifactDeployment, error) {
 	var ad konfidence.ArtifactDeployment
 	if err := r.reader.Get(ctx, types.NamespacedName{
@@ -71,7 +53,7 @@ func (r *k8sRepository) GetForScope(ctx context.Context, scoped landscapedomain.
 		Name:      name,
 	}, &ad); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, ErrNotFound
+			return nil, ErrArtifactDeploymentNotFound
 		}
 		return nil, fmt.Errorf("getting artifact deployment %q in namespace %q: %w", name, scoped.Namespace, err)
 	}
@@ -106,36 +88,18 @@ func (r *k8sRepository) GetForScope(ctx context.Context, scoped landscapedomain.
 	}, nil
 }
 
-func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts ...ListOption) ([]ResolvedArtifactDeployment, error) {
+func (r *k8sRepository) ListForScope(ctx context.Context, scope []landscapedomain.ScopedLandscape, opts ...ListOption) ([]ResolvedArtifactDeployment, error) {
 	options := listOptions{}
 	for _, opt := range opts {
 		opt(&options)
 	}
 
 	resolved := make([]ResolvedArtifactDeployment, 0)
-	var landscapes konfidence.LandscapeList
-	if err := r.reader.List(ctx, &landscapes, client.InNamespace(namespace)); err != nil {
-		return nil, fmt.Errorf("listing landscapes in namespace %q: %w", namespace, err)
-	}
-
-	var scopedLandscapes []landscapedomain.ScopedLandscape
-	for _, l := range landscapes.Items {
-		if options.landscapeID != nil && l.Name != *options.landscapeID {
+	for _, scoped := range scope {
+		if scoped.Namespace == "" {
 			continue
 		}
-		if l.Status.Namespace != "" {
-			scopedLandscapes = append(scopedLandscapes, landscapedomain.ScopedLandscape{
-				Landscape: l,
-				Namespace: l.Status.Namespace,
-			})
-		}
-	}
 
-	if options.landscapeID != nil && len(scopedLandscapes) == 0 {
-		return nil, fmt.Errorf("landscape %q not found", *options.landscapeID)
-	}
-
-	for _, scoped := range scopedLandscapes {
 		var artifactDeployments konfidence.ArtifactDeploymentList
 		if err := r.reader.List(ctx, &artifactDeployments, client.InNamespace(scoped.Namespace)); err != nil {
 			return nil, fmt.Errorf("listing artifact deployments in namespace %q: %w", scoped.Namespace, err)
@@ -179,6 +143,13 @@ func (r *k8sRepository) ListForScope(ctx context.Context, namespace string, opts
 			})
 		}
 	}
+
+	sort.Slice(resolved, func(i, j int) bool {
+		if resolved[i].LandscapeId != resolved[j].LandscapeId {
+			return resolved[i].LandscapeId < resolved[j].LandscapeId
+		}
+		return resolved[i].ArtifactDeployment.Name < resolved[j].ArtifactDeployment.Name
+	})
 
 	return resolved, nil
 }

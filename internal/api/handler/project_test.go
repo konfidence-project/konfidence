@@ -3,8 +3,10 @@ package handler
 import (
 	"context"
 	"errors"
+	"net/http"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
 	"github.com/konfidence-project/konfidence/internal/auth"
@@ -20,7 +22,7 @@ type projectRepository struct {
 }
 
 func (r *projectRepository) Get(_ context.Context, _ string) (*konfidence.Project, error) {
-	return nil, project.ErrNotFound
+	return nil, project.ErrProjectNotFound
 }
 
 func (r *projectRepository) List(_ context.Context, projectRoles auth.ProjectRoles) ([]konfidence.Project, error) {
@@ -86,25 +88,27 @@ var _ = Describe("ListProjectsV1", func() {
 	It("returns unauthorized without an identity", func() {
 		h := &projectHandler{projectRepo: &projectRepository{}}
 
-		response, err := h.ListProjectsV1(context.Background(), openapi.ListProjectsV1RequestObject{})
-		Expect(err).NotTo(HaveOccurred())
-		unauthorized, ok := response.(openapi.ListProjectsV1401JSONResponse)
-		Expect(ok).To(BeTrue())
-		Expect(unauthorized.Error.Code).To(Equal("unauthorized"))
-		Expect(unauthorized.Error.Message).To(Equal("authentication required or session expired"))
+		_, err := h.ListProjectsV1(context.Background(), openapi.ListProjectsV1RequestObject{})
+		Expect(err).To(HaveOccurred())
+		var unauthorized *apierror.Error
+		Expect(errors.As(err, &unauthorized)).To(BeTrue())
+		Expect(unauthorized.Status).To(Equal(http.StatusUnauthorized))
+		Expect(unauthorized.Code).To(Equal("unauthorized"))
+		Expect(unauthorized.Message).To(Equal("authentication required or session expired"))
 	})
 
 	It("returns 500 on repository error", func() {
 		repositoryErr := errors.New("kubernetes unavailable")
 		h := &projectHandler{projectRepo: &projectRepository{err: repositoryErr}}
-
-		response, err := h.ListProjectsV1(authorizedContext(auth.ProjectRoles{
+		_, err := h.ListProjectsV1(authorizedContext(auth.ProjectRoles{
 			"visible": {"admin"},
 		}), openapi.ListProjectsV1RequestObject{})
-		Expect(err).NotTo(HaveOccurred())
-		internal, ok := response.(openapi.ListProjectsV1500JSONResponse)
-		Expect(ok).To(BeTrue())
-		Expect(internal.Error.Code).To(Equal("internal_server_error"))
-		Expect(internal.Error.Message).To(Equal("an unexpected error occurred"))
+		Expect(err).To(HaveOccurred())
+
+		var internalError *apierror.Error
+		Expect(errors.As(err, &internalError)).To(BeTrue())
+		Expect(internalError.Status).To(Equal(http.StatusInternalServerError))
+		Expect(internalError.Code).To(Equal("internal_server_error"))
+		Expect(internalError.Message).To(Equal("an unexpected error occurred"))
 	})
 })

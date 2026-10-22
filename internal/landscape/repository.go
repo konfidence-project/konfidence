@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -61,8 +63,12 @@ func NewRepository(reader client.Reader) Repository {
 func (r *k8sRepository) Get(ctx context.Context, namespace, name string) (*konfidence.Landscape, error) {
 	landscape := &konfidence.Landscape{}
 	if err := r.reader.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, landscape); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, ErrLandscapeNotFound
+		}
 		return nil, fmt.Errorf("getting landscape %q in namespace %q: %w", name, namespace, err)
 	}
+
 	return landscape, nil
 }
 
@@ -71,14 +77,15 @@ func (r *k8sRepository) ListForProject(ctx context.Context, namespace string) ([
 	if err := r.reader.List(ctx, &list, client.InNamespace(namespace)); err != nil {
 		return nil, fmt.Errorf("listing landscapes in namespace %q: %w", namespace, err)
 	}
+
+	sort.Slice(list.Items, func(i, j int) bool {
+		return list.Items[i].Name < list.Items[j].Name
+	})
+
 	return list.Items, nil
 }
 
-func (r *k8sRepository) ResolveScope(
-	ctx context.Context,
-	projectNamespace string,
-	opts ...ScopeOption,
-) ([]ScopedLandscape, error) {
+func (r *k8sRepository) ResolveScope(ctx context.Context, projectNamespace string, opts ...ScopeOption) ([]ScopedLandscape, error) {
 	options := &scopeOptions{}
 	for _, opt := range opts {
 		opt(options)

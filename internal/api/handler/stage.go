@@ -3,11 +3,11 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
-	"github.com/konfidence-project/konfidence/internal/api/session"
 	landscapedomain "github.com/konfidence-project/konfidence/internal/landscape"
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 )
@@ -20,7 +20,7 @@ func (h *projectHandler) GetStageV1(ctx context.Context, request openapi.GetStag
 
 	stage, err := h.stageRepo.GetForScope(ctx, scope, request.StageId)
 	if err != nil {
-		if errors.Is(err, stagedomain.ErrNotFound) {
+		if errors.Is(err, stagedomain.ErrStageNotFound) {
 			return nil, apierror.NewNotFound("stage", request.StageId)
 		}
 		return nil, apierror.NewInternal(err)
@@ -30,12 +30,7 @@ func (h *projectHandler) GetStageV1(ctx context.Context, request openapi.GetStag
 }
 
 func (h *projectHandler) ListStagesV1(ctx context.Context, req openapi.ListStagesV1RequestObject) (openapi.ListStagesV1ResponseObject, error) {
-	identity, err := session.FromContext(ctx)
-	if err != nil {
-		return nil, apierror.NewUnauthorized()
-	}
-
-	namespace, err := h.resolveProjectNamespace(ctx, identity, req.ProjectId)
+	_, namespace, err := h.resolveProjectRequest(ctx, req.ProjectId)
 	if err != nil {
 		return nil, err
 	}
@@ -49,12 +44,9 @@ func (h *projectHandler) ListStagesV1(ctx context.Context, req openapi.ListStage
 		opts = append(opts, landscapedomain.WithLandscapeId(landscapeId))
 	}
 
-	scope, err := h.landscapeRepo.ResolveScope(ctx, namespace, opts...)
+	scope, err := h.resolveLandscapeScope(ctx, namespace, landscapeId, opts...)
 	if err != nil {
-		if errors.Is(err, landscapedomain.ErrLandscapeNotFound) {
-			return nil, apierror.NewNotFound("landscape", landscapeId)
-		}
-		return nil, apierror.NewInternal(err)
+		return nil, err
 	}
 
 	stages, err := h.stageRepo.ListForScope(ctx, scope)
@@ -70,19 +62,22 @@ func (h *projectHandler) ListStagesV1(ctx context.Context, req openapi.ListStage
 	return openapi.ListStagesV1200JSONResponse{Data: data}, nil
 }
 
-func (h *projectHandler) resolveStageScope(ctx context.Context, projectId, landscapeId string) (landscapedomain.ScopedLandscape, error) {
-	identity, err := session.FromContext(ctx)
-	if err != nil {
-		return landscapedomain.ScopedLandscape{}, apierror.NewUnauthorized()
-	}
-	namespace, err := h.resolveProjectNamespace(ctx, identity, projectId)
+func (h *projectHandler) resolveStageScope(ctx context.Context, projectId string, landscapeId string) (landscapedomain.ScopedLandscape, error) {
+	_, namespace, err := h.resolveProjectRequest(ctx, projectId)
 	if err != nil {
 		return landscapedomain.ScopedLandscape{}, err
 	}
+
 	scope, err := h.resolveLandscapeScope(ctx, namespace, landscapeId, landscapedomain.WithLandscapeId(landscapeId))
 	if err != nil {
 		return landscapedomain.ScopedLandscape{}, err
 	}
+
+	if len(scope) != 1 {
+		return landscapedomain.ScopedLandscape{}, apierror.NewInternal(
+			fmt.Errorf("resolving landscape %q returned %d entries", landscapeId, len(scope)))
+	}
+
 	return scope[0], nil
 }
 

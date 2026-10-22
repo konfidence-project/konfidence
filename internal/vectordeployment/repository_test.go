@@ -134,6 +134,49 @@ var _ = Describe("Repository", func() {
 				`resolving stage for vector deployment "checkout-v1"`,
 			)))
 		})
+
+		It("sorts by landscape and deployment name", func() {
+			repository := vectordeployment.NewRepository(
+				vectorDeploymentClient(
+					vectorDeployment("web", "landscape-prod", "prod-web"),
+					vectorDeployment("api", "landscape-prod", "prod-api"),
+					vectorDeployment("web", "landscape-dev", "dev-web"),
+					vectorDeployment("api", "landscape-dev", "dev-api"),
+					stageVersion("prod-web", "landscape-prod", "web"),
+					stageVersion("prod-api", "landscape-prod", "api"),
+					stageVersion("dev-web", "landscape-dev", "web"),
+					stageVersion("dev-api", "landscape-dev", "api"),
+				),
+			)
+
+			items, err := repository.ListForScope(
+				context.Background(),
+				[]landscapedomain.ScopedLandscape{
+					scope("prod", "project-a", "landscape-prod"),
+					scope("dev", "project-a", "landscape-dev"),
+				},
+			)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(items).To(HaveExactElements(
+				And(
+					HaveField("LandscapeId", "dev"),
+					HaveField("VectorDeployment.Name", "api"),
+				),
+				And(
+					HaveField("LandscapeId", "dev"),
+					HaveField("VectorDeployment.Name", "web"),
+				),
+				And(
+					HaveField("LandscapeId", "prod"),
+					HaveField("VectorDeployment.Name", "api"),
+				),
+				And(
+					HaveField("LandscapeId", "prod"),
+					HaveField("VectorDeployment.Name", "web"),
+				),
+			))
+		})
 	})
 	Describe("GetForScope", func() {
 		It("returns the deployment with its landscape and stage IDs", func() {
@@ -153,7 +196,7 @@ var _ = Describe("Repository", func() {
 			_, err := vectordeployment.NewRepository(vectorDeploymentClient()).GetForScope(
 				context.Background(), scoped, "missing",
 			)
-			Expect(err).To(MatchError(vectordeployment.ErrNotFound))
+			Expect(err).To(MatchError(vectordeployment.ErrVectorDeploymentNotFound))
 		})
 
 		It("returns an error when the stage version is missing", func() {
@@ -162,7 +205,7 @@ var _ = Describe("Repository", func() {
 				vectorDeployment("checkout-v1", "landscape-dev", "missing-sv"),
 			)).GetForScope(context.Background(), scoped, "checkout-v1")
 			Expect(err).To(HaveOccurred())
-			Expect(err).NotTo(MatchError(vectordeployment.ErrNotFound))
+			Expect(err).NotTo(MatchError(vectordeployment.ErrVectorDeploymentNotFound))
 		})
 
 		It("returns an error when the deployment has no stage version owner", func() {
@@ -183,7 +226,7 @@ var _ = Describe("Repository", func() {
 				vectorDeployment("checkout-v1", "landscape-prod", "checkout-sv"),
 				stageVersion("checkout-sv", "landscape-prod", "checkout"),
 			)).GetForScope(context.Background(), devScope, "checkout-v1")
-			Expect(err).To(MatchError(vectordeployment.ErrNotFound))
+			Expect(err).To(MatchError(vectordeployment.ErrVectorDeploymentNotFound))
 		})
 	})
 })

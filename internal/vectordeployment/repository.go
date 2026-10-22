@@ -2,6 +2,7 @@ package vectordeployment
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -14,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var ErrNotFound = fmt.Errorf("vector deployment not found")
+var ErrVectorDeploymentNotFound = errors.New("vector deployment not found")
 
 type State string
 
@@ -63,7 +64,7 @@ func (r *k8sRepository) GetForScope(ctx context.Context, scoped landscapedomain.
 		Name:      name,
 	}, &deployment); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, ErrNotFound
+			return nil, ErrVectorDeploymentNotFound
 		}
 		return nil, fmt.Errorf("getting vector deployment %q in namespace %q: %w", name, scoped.Namespace, err)
 	}
@@ -93,10 +94,7 @@ func (r *k8sRepository) GetForScope(ctx context.Context, scoped landscapedomain.
 	}, nil
 }
 
-func (r *k8sRepository) ListForScope(
-	ctx context.Context,
-	scope []landscapedomain.ScopedLandscape,
-) ([]ResolvedVectorDeployment, error) {
+func (r *k8sRepository) ListForScope(ctx context.Context, scope []landscapedomain.ScopedLandscape) ([]ResolvedVectorDeployment, error) {
 	resolved := make([]ResolvedVectorDeployment, 0, len(scope))
 	for _, scoped := range scope {
 		if scoped.Namespace == "" {

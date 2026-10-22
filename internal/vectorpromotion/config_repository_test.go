@@ -87,5 +87,22 @@ var _ = Describe("ConfigRepository", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result).To(BeEmpty())
 		})
+
+		It("sorts configs by name", func() {
+			repo := newConfigRepository(
+				newConfig("zulu", "default"),
+				newConfig("alpha", "default"),
+				newConfig("middle", "default"),
+			)
+
+			result, err := repo.List(ctx, "default")
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(HaveExactElements(
+				HaveField("Name", "alpha"),
+				HaveField("Name", "middle"),
+				HaveField("Name", "zulu"),
+			))
+		})
 	})
 })
