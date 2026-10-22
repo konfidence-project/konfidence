@@ -485,8 +485,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `artifactType` _string_ | ArtifactType identifies the artifact type this destination serves. |  | Required: \{\} <br /> |
-| `parameters` _[Parameters](#parameters)_ | Parameters are deployer-specific configuration for connecting to the target<br />runtime. Their structure and interpretation are defined by the deployer that<br />owns ArtifactType. |  | Optional: \{\} <br /> |
+| `artifactType` _string_ | ArtifactType identifies the artifact type this destination serves. The ArtifactType is selected by a deployer<br />whose controllers are responsible for reconciling the DeploymentTarget resource. If there is no deployer<br />covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is immutable<br />because changing it may transfer ownership of the DeploymentTarget to a different controller.<br />There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique<br />across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of<br />Konfidence. |  | Required: \{\} <br /> |
+| `parameters` _[Parameters](#parameters)_ | Parameters define how to connect to the target runtime described by this DeploymentTarget. It may point to<br />deployer-specific configuration containing connection details, credentials and further settings required to<br />connect to the target runtime. Their structure and interpretation are defined by the deployer that owns ArtifactType. |  | Optional: \{\} <br /> |
 
 
 ### DeploymentTargetStatus

@@ -15,13 +15,22 @@ const (
 
 // DeploymentTargetSpec defines the desired state of DeploymentTarget.
 type DeploymentTargetSpec struct {
-	// ArtifactType identifies the artifact type this destination serves.
+	// ArtifactType identifies the artifact type this destination serves. The ArtifactType is selected by a deployer
+	// whose controllers are responsible for reconciling the DeploymentTarget resource. If there is no deployer
+	// covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is immutable
+	// because changing it may transfer ownership of the DeploymentTarget to a different controller.
+	//
+	// There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique
+	// across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of
+	// Konfidence.
+	//
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="artifactType is immutable"
 	ArtifactType string `json:"artifactType"`
 
-	// Parameters are deployer-specific configuration for connecting to the target
-	// runtime. Their structure and interpretation are defined by the deployer that
-	// owns ArtifactType.
+	// Parameters define how to connect to the target runtime described by this DeploymentTarget. It may point to
+	// deployer-specific configuration containing connection details, credentials and further settings required to
+	// connect to the target runtime. Their structure and interpretation are defined by the deployer that owns ArtifactType.
 	// +optional
 	Parameters *Parameters `json:"parameters,omitempty"`
 }
