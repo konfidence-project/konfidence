@@ -192,7 +192,8 @@ test.describe("artifact deployments", () => {
   test("keeps deep-link state addressable through the back button", async ({ page }) => {
     await gotoArtifactDeployments(page);
 
-    await page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-api"]').click();
+    const row = page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-api"]');
+    await row.click();
     await expect(page).toHaveURL(
       `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z-payments-api`,
     );
@@ -200,12 +201,14 @@ test.describe("artifact deployments", () => {
     await page.goBack();
     await expect(page).toHaveURL(ARTIFACT_DEPLOYMENTS_PATH);
     await expect(page.getByTestId("side-panel")).toBeHidden();
+    await expect(row).toBeFocused();
 
     await page.goForward();
     await expect(page).toHaveURL(
       `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z-payments-api`,
     );
     await expect(page.getByTestId("side-panel")).toBeVisible();
+    await expect(page.getByTestId("side-panel-close")).toBeFocused();
   });
 
   test("closes the drawer when the close button is clicked and clears the URL", async ({

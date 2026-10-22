@@ -172,7 +172,8 @@ test.describe("vector deployments", () => {
   test("keeps deep-link state addressable through browser history", async ({ page }) => {
     await gotoVectorDeployments(page);
 
-    await page.locator('[data-row-id="dev-us30-20260929-201426000Z"]').click();
+    const row = page.locator('[data-row-id="dev-us30-20260929-201426000Z"]');
+    await row.click();
     await expect(page).toHaveURL(
       `${VECTOR_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z`,
     );
@@ -180,12 +181,14 @@ test.describe("vector deployments", () => {
     await page.goBack();
     await expect(page).toHaveURL(VECTOR_DEPLOYMENTS_PATH);
     await expect(page.getByTestId("side-panel")).toBeHidden();
+    await expect(row).toBeFocused();
 
     await page.goForward();
     await expect(page).toHaveURL(
       `${VECTOR_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z`,
     );
     await expect(page.getByTestId("side-panel")).toBeVisible();
+    await expect(page.getByTestId("side-panel-close")).toBeFocused();
   });
 
   test("closes the drawer and clears the URL", async ({ page }) => {
