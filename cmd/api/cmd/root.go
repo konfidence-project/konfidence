@@ -262,6 +262,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	}
 
 	api, err := handler.NewAPIHandler(
+		ctx,
 		logger,
 		k8sClient,
 		*oidcClient,
