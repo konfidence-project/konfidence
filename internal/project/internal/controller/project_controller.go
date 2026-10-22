@@ -171,6 +171,11 @@ func (r *ProjectReconciler) createOrUpdateNamespace(
 		namespaceExists := !ns.CreationTimestamp.IsZero()
 		if namespaceExists {
 			if namespaceConflict(ns, project, policy) {
+				if policy == konfidence.NamespacePolicyCreate {
+					return fmt.Errorf("%w: namespace %s already exists and is not managed by Project %s"+
+						" (set namespacePolicy to Adopt to take over an existing namespace)",
+						errNamespaceConflict, ns.Name, project.Name)
+				}
 				return fmt.Errorf("%w: namespace %s already exists and is not managed by Project %s",
 					errNamespaceConflict, ns.Name, project.Name)
 			}

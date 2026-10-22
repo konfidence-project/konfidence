@@ -214,6 +214,11 @@ func (r *LandscapeReconciler) createOrUpdateNamespace(
 		namespaceExists := !ns.CreationTimestamp.IsZero()
 		if namespaceExists {
 			if r.namespaceConflict(ns, landscape, policy) {
+				if policy == konfidence.NamespacePolicyCreate {
+					return fmt.Errorf("%w: namespace %s already exists and is not managed by Landscape %s/%s"+
+						" (set namespacePolicy to Adopt to take over an existing namespace)",
+						errNamespaceConflict, ns.Name, landscape.Namespace, landscape.Name)
+				}
 				return fmt.Errorf("%w: namespace %s already exists and is not managed by Landscape %s/%s",
 					errNamespaceConflict, ns.Name, landscape.Namespace, landscape.Name)
 			}
