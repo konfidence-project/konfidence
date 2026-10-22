@@ -19,6 +19,55 @@ describe("<SidePanel>", () => {
     await expect.element(page.getByTestId("panel-body")).toBeVisible();
   });
 
+  it("can open non-modally and keeps the surrounding page interactive", async () => {
+    await page.viewport(1200, 600);
+    const onClose = vi.fn();
+    await render(SidePanelFixture, { modal: false, onClose, open: true });
+    const dialog = page.getByTestId("side-panel").element() as HTMLDialogElement;
+    expect(dialog.matches(":modal")).toBe(false);
+
+    await page.getByTestId("outside-btn").click();
+    await expect.element(page.getByTestId("side-panel")).toBeVisible();
+
+    await page
+      .getByTestId("outside-btn")
+      .element()
+      .dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("focuses the close button when opened", async () => {
+    await render(SidePanelFixture, { modal: false, open: true });
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(page.getByTestId("side-panel-close").element());
+    });
+  });
+
+  it("converts an open panel between non-modal and modal presentation", async () => {
+    await render(SidePanelFixture, { modal: false, open: true });
+    const dialog = page.getByTestId("side-panel").element() as HTMLDialogElement;
+    expect(dialog.matches(":modal")).toBe(false);
+
+    await page.getByTestId("toggle-modal").click();
+    await vi.waitFor(() => expect(dialog.matches(":modal")).toBe(true));
+    await expect.element(page.getByTestId("side-panel")).toBeVisible();
+  });
+
+  it("closes only the topmost non-modal panel with Escape", async () => {
+    await page.viewport(1200, 600);
+    await render(SidePanelFixture, { modal: false, open: true, secondOpen: true });
+    await expect.element(page.getByRole("dialog", { name: "Details" })).toBeVisible();
+    await expect.element(page.getByRole("dialog", { name: "Second details" })).toBeVisible();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+
+    await expect
+      .element(page.getByRole("dialog", { name: "Second details" }))
+      .not.toBeInTheDocument();
+    await expect.element(page.getByRole("dialog", { name: "Details" })).toBeVisible();
+  });
+
   it("closes when the close button is clicked", async () => {
     await render(SidePanelFixture, { open: true });
     await page.getByTestId("side-panel-close").click();
@@ -36,6 +85,24 @@ describe("<SidePanel>", () => {
     await page.getByTestId("side-panel-close").click();
     await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("reports when the closing transition completes", async () => {
+    const onCloseComplete = vi.fn();
+    await render(SidePanelFixture, {
+      modal: false,
+      onCloseComplete,
+      open: true,
+      title: "Closing panel",
+    });
+    const dialog = page.getByRole("dialog", { name: "Closing panel" });
+    await dialog.getByTestId("side-panel-close").click();
+    const element = dialog.element() as HTMLDialogElement;
+    await vi.waitFor(() => expect(element.open).toBe(false));
+    element.dispatchEvent(
+      new TransitionEvent("transitionend", { bubbles: true, propertyName: "translate" }),
+    );
+    await vi.waitFor(() => expect(onCloseComplete).toHaveBeenCalledOnce());
   });
 
   describe("full-page link", () => {
@@ -183,9 +250,18 @@ describe("<SidePanel>", () => {
           open: true,
           title: "payments-api@3.4.1",
         });
-        await expect
-          .element(page.getByRole("dialog", { name: "payments-api@3.4.1" }))
-          .toMatchScreenshot();
+        const screenshotPanel = page.getByRole("dialog", { name: "payments-api@3.4.1" });
+        await vi.waitFor(() =>
+          expect(document.activeElement).toBe(
+            screenshotPanel.getByTestId("side-panel-close").element(),
+          ),
+        );
+        const screenshotResizer = screenshotPanel
+          .getByTestId("side-panel-resizer")
+          .element() as HTMLElement;
+        screenshotResizer.focus();
+        screenshotResizer.style.background = "var(--border-strong, rgba(120, 90, 40, 0.7))";
+        await expect.element(screenshotPanel).toMatchScreenshot();
       });
     }
   });
