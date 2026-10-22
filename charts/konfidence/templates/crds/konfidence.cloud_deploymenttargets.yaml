@@ -22,13 +22,13 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Deployment class name
-      jsonPath: .spec.deploymentClassName
-      name: Class
+    - description: Artifact type
+      jsonPath: .spec.artifactType
+      name: Artifact Type
       type: string
-    - description: Connection type
-      jsonPath: .spec.connection.type
-      name: Connection
+    - description: Reporting deployer
+      jsonPath: .status.controller
+      name: Controller
       type: string
     - description: Ready status
       jsonPath: .status.conditions[?(@.type=="Ready")].status
@@ -43,9 +43,8 @@ spec:
         description: |-
           DeploymentTarget is the Schema for the deploymenttargets API. A DeploymentTarget
           configures a concrete deployment destination within a landscape for a specific
-          deployment class. It is namespace-scoped and created in landscape namespaces.
-          Multiple DeploymentTargets can exist in the same landscape, but their deployment
-          class names must be unique within the namespace.
+          artifact type. It is namespace-scoped and created in landscape namespaces.
+          At most one DeploymentTarget for a given artifact type is allowed in a namespace.
         properties:
           apiVersion:
             description: |-
@@ -67,74 +66,54 @@ spec:
           spec:
             description: DeploymentTargetSpec defines the desired state of DeploymentTarget.
             properties:
-              connection:
+              artifactType:
                 description: |-
-                  Connection defines how to connect to this deployment target.
-                  The structure and interpretation of connection details is specific to the
-                  deployment class and its implementing controller.
+                  ArtifactType identifies which type of artifact should be deployed to the specified target. The ArtifactType is
+                  selected by a deployer whose controllers are responsible for reconciling the DeploymentTarget resource. If there
+                  is no deployer covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is
+                  immutable because changing it may transfer ownership of the DeploymentTarget to a different controller.
+
+                  Currently, Konfidence only supports one DeploymentTarget per ArtifactType in a landscape, so this field should
+                  be unique across all DeploymentTargets in the same landscape namespace. If multiple DeploymentTargets with the
+                  same ArtifactType exist in a single landscape namespace, deployers may fail their deployments, as they cannot
+                  determine which DeploymentTarget takes precedence.
+                type: string
+                x-kubernetes-validations:
+                - message: artifactType is immutable
+                  rule: self == oldSelf
+              parameters:
+                description: |-
+                  Parameters define how to connect to the target runtime described by this DeploymentTarget. It may point to
+                  deployer-specific configuration containing connection details, credentials and further settings required to
+                  connect to the target runtime. Their structure and interpretation are defined by the deployer that owns ArtifactType.
                 properties:
-                  ref:
+                  apiGroup:
                     description: |-
-                      Ref references a resource containing connection details. This can be a Secret, ConfigMap,
-                      or a custom resource defined by the deployer. The deployer is responsible for interpreting
-                      and validating the referenced resource.
-                    properties:
-                      apiGroup:
-                        description: |-
-                          APIGroup is the group for the resource being referenced.
-                          Defaults to the core API group ("") for Secret and ConfigMap.
-                          For deployer-specific CRDs, set this to the appropriate API group.
-                        type: string
-                      kind:
-                        description: Kind is the resource kind (e.g., "Secret", "ConfigMap",
-                          or a deployer-specific kind).
-                        maxLength: 64
-                        minLength: 1
-                        type: string
-                      name:
-                        description: Name is the name of the referenced resource.
-                        maxLength: 253
-                        minLength: 1
-                        type: string
-                    required:
-                    - kind
-                    - name
-                    type: object
-                  type:
-                    description: |-
-                      Type is a hint for how to interpret the connection reference. It is advisory
-                      and informational only. The deployer controller interprets and enforces its meaning.
-                    maxLength: 64
+                      APIGroup is the group for the resource being referenced.
+                      Defaults to the core API group ("") for Secret and ConfigMap.
+                      For deployer-specific CRDs, set this to the appropriate API group.
+                    type: string
+                  kind:
+                    description: Kind is the resource kind (e.g., "Secret", "ConfigMap",
+                      or a deployer-specific kind).
+                    maxLength: 63
+                    minLength: 1
+                    type: string
+                  name:
+                    description: Name is the name of the referenced resource.
+                    maxLength: 253
                     minLength: 1
                     type: string
                 required:
-                - type
+                - kind
+                - name
                 type: object
-              deploymentClassName:
-                description: |-
-                  DeploymentClassName references a DeploymentClass by its metadata.name. The referenced DeploymentClass determines
-                  which controller is responsible for reconciling the DeploymentTarget resource. If there is no DeploymentClass
-                  with that name, the DeploymentTarget will be marked as not ready. DeploymentClassName
-                  is immutable because changing it would transfer ownership of the DeploymentTarget to a different controller.
-
-                  There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique
-                  across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of
-                  Konfidence.
-                type: string
-                x-kubernetes-validations:
-                - message: deploymentClassName is immutable
-                  rule: self == oldSelf
             required:
-            - connection
-            - deploymentClassName
+            - artifactType
             type: object
           status:
-            description: |-
-              DeploymentTargetStatus defines the observed state of DeploymentTarget.
-              The deployer controller responsible for this target's DeploymentClass is expected
-              to set the Ready condition once it has accepted the resource. What "accepted" means
-              is up to the deployer. It may include connectivity checks or simply validate the
-              configuration.
+            description: DeploymentTargetStatus defines the state observed by the
+              responsible deployer.
             properties:
               conditions:
                 items:
@@ -195,6 +174,10 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              controller:
+                description: Controller identifies the deployer and release version
+                  reporting this status.
+                type: string
             type: object
         type: object
     served: true

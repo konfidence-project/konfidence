@@ -38,12 +38,12 @@ func (v *DeploymentTargetValidator) ValidateCreate(ctx context.Context, obj *Dep
 	deploymenttargetlog.Info("validating DeploymentTarget creation",
 		"name", obj.Name,
 		"namespace", obj.Namespace,
-		"deploymentClassName", obj.Spec.DeploymentClassName,
+		"artifactType", obj.Spec.ArtifactType,
 	)
 	if err := pkgwebhook.ValidateLandscapeNamespace(ctx, v.Client, obj.Namespace); err != nil {
 		return nil, err
 	}
-	return nil, v.validateDeploymentClassUniqueness(ctx, obj)
+	return nil, v.validateArtifactTypeUniqueness(ctx, obj)
 }
 
 // ValidateUpdate validates a DeploymentTarget on update.
@@ -51,8 +51,9 @@ func (v *DeploymentTargetValidator) ValidateUpdate(ctx context.Context, _ *Deplo
 	deploymenttargetlog.Info("validating DeploymentTarget update",
 		"name", newObj.Name,
 		"namespace", newObj.Namespace,
-		"deploymentClassName", newObj.Spec.DeploymentClassName,
+		"artifactType", newObj.Spec.ArtifactType,
 	)
+
 	return nil, pkgwebhook.ValidateLandscapeNamespace(ctx, v.Client, newObj.Namespace)
 }
 
@@ -61,13 +62,7 @@ func (v *DeploymentTargetValidator) ValidateDelete(_ context.Context, _ *Deploym
 	return nil, nil
 }
 
-func (v *DeploymentTargetValidator) validateDeploymentClassUniqueness(ctx context.Context, obj *DeploymentTarget) error {
-	// This check does not provide a strong guarantee for unique deployment targets per deployment class in a landscape.
-	// If two deployment targets with the same class are created in quick succession, the webhook may not be able to
-	// detect the conflict. This is an accepted edge case for now because the restriction may be loosened in the future
-	// anyway. At the moment, deployers can decide on their own how to handle the situation if multiple deployment
-	// targets exist.
-
+func (v *DeploymentTargetValidator) validateArtifactTypeUniqueness(ctx context.Context, obj *DeploymentTarget) error {
 	list := &DeploymentTargetList{}
 	if err := v.Client.List(ctx, list, client.InNamespace(obj.Namespace)); err != nil {
 		return apierrors.NewInternalError(fmt.Errorf("failed to list DeploymentTargets in namespace %q: %w", obj.Namespace, err))
@@ -78,12 +73,12 @@ func (v *DeploymentTargetValidator) validateDeploymentClassUniqueness(ctx contex
 		if existing.Name == obj.Name {
 			continue
 		}
-		if existing.Spec.DeploymentClassName == obj.Spec.DeploymentClassName {
+		if existing.Spec.ArtifactType == obj.Spec.ArtifactType {
 			return field.Invalid(
-				field.NewPath("spec").Child("deploymentClassName"),
-				obj.Spec.DeploymentClassName,
+				field.NewPath("spec").Child("artifactType"),
+				obj.Spec.ArtifactType,
 				fmt.Sprintf(
-					"deployment class name must be unique across DeploymentTargets in namespace %q (already used by DeploymentTarget %q)",
+					"artifact type must be unique across DeploymentTargets in namespace %q (already used by DeploymentTarget %q)",
 					obj.Namespace,
 					existing.Name,
 				),
