@@ -19,7 +19,8 @@ const informerSyncTimeout = 30 * time.Second
 type informerBackedCache struct {
 	cache  ctrlcache.Cache
 	cancel context.CancelFunc
-	done   <-chan error
+	done   chan struct{}
+	runErr error
 }
 
 type informerBackedClient struct {
@@ -76,30 +77,37 @@ func newInformerBackedCache(ctx context.Context, config *rest.Config, scheme *ru
 		return nil, fmt.Errorf("failed to register field index for VectorPromotion: %w", err)
 	}
 
-	done := make(chan error, 1)
+	informerCache := &informerBackedCache{
+		cache:  k8sCache,
+		cancel: cancel,
+		done:   make(chan struct{}),
+	}
+
 	go func() {
-		err := k8sCache.Start(cacheCtx)
-		done <- err
-		if err != nil {
+		informerCache.runErr = k8sCache.Start(cacheCtx)
+		if informerCache.runErr != nil {
 			cancel()
 		}
+		close(informerCache.done)
 	}()
 
 	syncCtx, cancelSync := context.WithTimeout(cacheCtx, informerSyncTimeout)
 	defer cancelSync()
 	if !k8sCache.WaitForCacheSync(syncCtx) {
 		cancel()
-		startErr := <-done
+		startErr := informerCache.Wait()
 		if startErr != nil && !errors.Is(startErr, context.Canceled) {
 			return nil, fmt.Errorf("failed to start informer cache: %w", startErr)
 		}
+
 		if errors.Is(syncCtx.Err(), context.DeadlineExceeded) {
 			return nil, fmt.Errorf("informer cache failed to sync within %s", informerSyncTimeout)
 		}
+
 		return nil, fmt.Errorf("failed to sync informer cache: %w", syncCtx.Err())
 	}
 
-	return &informerBackedCache{cache: k8sCache, cancel: cancel, done: done}, nil
+	return informerCache, nil
 }
 
 // CachedReader serves Get and List calls from the informers' local stores.
@@ -109,13 +117,59 @@ func (c *informerBackedCache) CachedReader() client.Reader {
 
 func (c *informerBackedCache) Close() error {
 	c.cancel()
-	err := <-c.done
+
+	err := c.Wait()
 	if errors.Is(err, context.Canceled) {
 		return nil
 	}
+
 	return err
+}
+
+// Done is closed when the informer cache stops.
+func (c *informerBackedCache) Done() <-chan struct{} {
+	return c.done
+}
+
+// Wait blocks until the informer cache stops and returns its terminal error.
+// It may be called multiple times.
+func (c *informerBackedCache) Wait() error {
+	<-c.done
+	return c.runErr
+}
+
+// Done is closed when the underlying informer cache stops.
+func (c *informerBackedClient) Done() <-chan struct{} {
+	return c.cache.Done()
+}
+
+// Wait blocks until the underlying informer cache stops.
+func (c *informerBackedClient) Wait() error {
+	return c.cache.Wait()
 }
 
 func (c *informerBackedClient) Close() error {
 	return c.cache.Close()
+}
+
+func waitForInformerTermination(ctx context.Context, informer *informerBackedClient) error {
+	select {
+	case <-ctx.Done():
+		return nil
+
+	case <-informer.Done():
+		err := informer.Wait()
+
+		// Context cancellation and informer termination can happen at
+		// approximately the same time during normal shutdown.
+		if ctx.Err() != nil {
+			return nil
+		}
+
+		if err == nil {
+			return errors.New("informer cache stopped unexpectedly")
+		}
+
+		return fmt.Errorf("informer cache stopped unexpectedly: %w", err)
+	}
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/session"
 	"github.com/konfidence-project/konfidence/internal/kden/log"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -57,6 +58,29 @@ by environment variables.
 	env var or in-cluster config when deployed as a pod.`,
 	PreRun: loadOIDCClientSecret,
 	RunE:   startServer,
+}
+
+type apiServerRunner interface {
+	ListenAndServe(context.Context, ...func(string)) error
+}
+
+func runServerWithInformer(
+	ctx context.Context,
+	apiServer apiServerRunner,
+	informer *informerBackedClient,
+	onAddr ...func(string),
+) error {
+	group, groupCtx := errgroup.WithContext(ctx)
+
+	group.Go(func() error {
+		return apiServer.ListenAndServe(groupCtx, onAddr...)
+	})
+
+	group.Go(func() error {
+		return waitForInformerTermination(groupCtx, informer)
+	})
+
+	return group.Wait()
 }
 
 // Execute is the entry point called from main.
@@ -274,7 +298,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to create API handler: %w", err)
 	}
 
-	return server.New(parsed, logger, api).ListenAndServe(ctx)
+	return runServerWithInformer(ctx, server.New(parsed, logger, api), k8sClient)
 }
 
 // envOr returns the value of the environment variable key, or fallback if unset.
