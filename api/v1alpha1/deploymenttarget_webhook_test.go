@@ -109,22 +109,6 @@ var _ = Describe("DeploymentTargetValidator", func() {
 				Expect(warnings).To(BeEmpty())
 			})
 		})
-		Context("when an update creates a duplicate artifact type", func() {
-			It("should reject the update", func() {
-				ns := landscapeNamespace("landscape")
-				oldTarget := target("target", ns.Name, "kustomize.konfidence.cloud")
-				existing := target("existing", ns.Name, "helm.konfidence.cloud")
-				newTarget := oldTarget.DeepCopy()
-				newTarget.Spec.ArtifactType = existing.Spec.ArtifactType
-				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, oldTarget, existing).Build()
-				validator := &DeploymentTargetValidator{Client: fakeClient}
-
-				warnings, err := validator.ValidateUpdate(ctx, oldTarget, newTarget)
-				Expect(err).To(HaveOccurred())
-				Expect(warnings).To(BeEmpty())
-			})
-		})
-
 		Context("when the namespace is not a landscape namespace", func() {
 			It("should reject the update", func() {
 				ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ordinary"}}

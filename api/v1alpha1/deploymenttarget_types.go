@@ -15,14 +15,15 @@ const (
 
 // DeploymentTargetSpec defines the desired state of DeploymentTarget.
 type DeploymentTargetSpec struct {
-	// ArtifactType identifies the artifact type this destination serves. The ArtifactType is selected by a deployer
-	// whose controllers are responsible for reconciling the DeploymentTarget resource. If there is no deployer
-	// covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is immutable
-	// because changing it may transfer ownership of the DeploymentTarget to a different controller.
+	// ArtifactType identifies which type of artifact should be deployed to the specified target. The ArtifactType is
+	// selected by a deployer whose controllers are responsible for reconciling the DeploymentTarget resource. If there
+	// is no deployer covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is
+	// immutable because changing it may transfer ownership of the DeploymentTarget to a different controller.
 	//
-	// There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique
-	// across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of
-	// Konfidence.
+	// Currently, Konfidence only supports one DeploymentTarget per ArtifactType in a landscape, so this field should
+	// be unique across all DeploymentTargets in the same landscape namespace. If multiple DeploymentTargets with the
+	// same ArtifactType exist in a single landscape namespace, deployers may fail their deployments, as they cannot
+	// determine which DeploymentTarget takes precedence.
 	//
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="artifactType is immutable"
@@ -35,6 +36,9 @@ type DeploymentTargetSpec struct {
 	Parameters *Parameters `json:"parameters,omitempty"`
 }
 
+// Parameters reference a resource containing deployer-specific configuration for connecting to the target runtime.
+// The referenced resource's structure and interpretation are defined by the deployer responsible for the
+// DeploymentTarget's ArtifactType.
 type Parameters struct {
 	// APIGroup is the group for the resource being referenced.
 	// Defaults to the core API group ("") for Secret and ConfigMap.
@@ -45,7 +49,7 @@ type Parameters struct {
 	// Kind is the resource kind (e.g., "Secret", "ConfigMap", or a deployer-specific kind).
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=64
+	// +kubebuilder:validation:MaxLength=63
 	Kind string `json:"kind"`
 
 	// Name is the name of the referenced resource.

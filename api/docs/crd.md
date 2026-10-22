@@ -485,7 +485,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `artifactType` _string_ | ArtifactType identifies the artifact type this destination serves. The ArtifactType is selected by a deployer<br />whose controllers are responsible for reconciling the DeploymentTarget resource. If there is no deployer<br />covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is immutable<br />because changing it may transfer ownership of the DeploymentTarget to a different controller.<br />There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique<br />across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of<br />Konfidence. |  | Required: \{\} <br /> |
+| `artifactType` _string_ | ArtifactType identifies which type of artifact should be deployed to the specified target. The ArtifactType is<br />selected by a deployer whose controllers are responsible for reconciling the DeploymentTarget resource. If there<br />is no deployer covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is<br />immutable because changing it may transfer ownership of the DeploymentTarget to a different controller.<br />Currently, Konfidence only supports one DeploymentTarget per ArtifactType in a landscape, so this field should<br />be unique across all DeploymentTargets in the same landscape namespace. If multiple DeploymentTargets with the<br />same ArtifactType exist in a single landscape namespace, deployers may fail their deployments, as they cannot<br />determine which DeploymentTarget takes precedence. |  | Required: \{\} <br /> |
 | `parameters` _[Parameters](#parameters)_ | Parameters define how to connect to the target runtime described by this DeploymentTarget. It may point to<br />deployer-specific configuration containing connection details, credentials and further settings required to<br />connect to the target runtime. Their structure and interpretation are defined by the deployer that owns ArtifactType. |  | Optional: \{\} <br /> |
 
 
@@ -745,7 +745,9 @@ _Appears in:_
 
 
 
-
+Parameters reference a resource containing deployer-specific configuration for connecting to the target runtime.
+The referenced resource's structure and interpretation are defined by the deployer responsible for the
+DeploymentTarget's ArtifactType.
 
 
 
@@ -755,7 +757,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `apiGroup` _string_ | APIGroup is the group for the resource being referenced.<br />Defaults to the core API group ("") for Secret and ConfigMap.<br />For deployer-specific CRDs, set this to the appropriate API group. |  | Optional: \{\} <br /> |
-| `kind` _string_ | Kind is the resource kind (e.g., "Secret", "ConfigMap", or a deployer-specific kind). |  | MaxLength: 64 <br />MinLength: 1 <br />Required: \{\} <br /> |
+| `kind` _string_ | Kind is the resource kind (e.g., "Secret", "ConfigMap", or a deployer-specific kind). |  | MaxLength: 63 <br />MinLength: 1 <br />Required: \{\} <br /> |
 | `name` _string_ | Name is the name of the referenced resource. |  | MaxLength: 253 <br />MinLength: 1 <br />Required: \{\} <br /> |
 
 

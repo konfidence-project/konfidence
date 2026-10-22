@@ -53,10 +53,8 @@ func (v *DeploymentTargetValidator) ValidateUpdate(ctx context.Context, _ *Deplo
 		"namespace", newObj.Namespace,
 		"artifactType", newObj.Spec.ArtifactType,
 	)
-	if err := pkgwebhook.ValidateLandscapeNamespace(ctx, v.Client, newObj.Namespace); err != nil {
-		return nil, err
-	}
-	return nil, v.validateArtifactTypeUniqueness(ctx, newObj)
+
+	return nil, pkgwebhook.ValidateLandscapeNamespace(ctx, v.Client, newObj.Namespace)
 }
 
 // ValidateDelete validates a DeploymentTarget on deletion.
