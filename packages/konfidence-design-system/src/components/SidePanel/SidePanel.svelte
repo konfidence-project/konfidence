@@ -1,8 +1,8 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
-    import "@ui5/webcomponents-icons/dist/decline.js";
     import "@ui5/webcomponents-icons/dist/resize.js";
     import "@ui5/webcomponents/dist/Icon.js";
+    import PanelShell from "../PanelShell/PanelShell.svelte";
 
     interface Props {
         open?: boolean;
@@ -13,6 +13,9 @@
         fullPageHref?: string;
         width?: number;
         onWidthChange?: (width: number) => void;
+        modal?: boolean;
+        focusKey?: string;
+        onCloseComplete?: () => void;
     }
 
     const DEFAULT_WIDTH = 544;
@@ -29,39 +32,14 @@
         fullPageHref,
         width = $bindable(DEFAULT_WIDTH),
         onWidthChange,
+        modal = true,
+        focusKey,
+        onCloseComplete,
     }: Props = $props();
-
-    let dialog: HTMLDialogElement | undefined = $state();
 
     const clamp = (value: number): number => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(value)));
 
     const effectiveWidth = $derived(clamp(width));
-
-    $effect(() => {
-        const target = dialog;
-        if (!target) {
-            return;
-        }
-        if (open && !target.open) {
-            target.showModal();
-        } else if (!open && target.open) {
-            target.close();
-        }
-    });
-
-    const requestClose = (): void => {
-        if (!open) {
-            return;
-        }
-        open = false;
-        onClose?.();
-    };
-
-    const handleBackdropClick = (event: MouseEvent): void => {
-        if (event.target === dialog) {
-            requestClose();
-        }
-    };
 
     let resizing = $state(false);
     let dragStartX = 0;
@@ -120,134 +98,61 @@
     };
 </script>
 
-<dialog
-    bind:this={dialog}
-    class="side-panel fixed top-[var(--app-shell-header-height,0px)] bottom-0 right-0 left-auto m-0 h-auto max-h-[calc(100dvh-var(--app-shell-header-height,0px))] max-w-[100vw] flex-col overflow-hidden border-0 border-l border-l-outline-subtle bg-surface-default p-0 text-content-primary shadow-[-8px_0_24px_rgba(0,0,0,0.12)] backdrop:bg-[linear-gradient(to_bottom,transparent_0,transparent_var(--app-shell-header-height,0px),var(--scrim)_var(--app-shell-header-height,0px))]"
-    style:width="min({effectiveWidth}px, 100vw)"
-    aria-label={title}
-    data-testid="side-panel"
-    onclose={requestClose}
-    onclick={handleBackdropClick}
+<PanelShell
+    bind:open
+    {title}
+    placement="right"
+    testid="side-panel"
+    dialogClass="side-panel border-l border-l-outline-subtle shadow-[-8px_0_24px_rgba(0,0,0,0.12)] backdrop:bg-[linear-gradient(to_bottom,transparent_0,transparent_var(--app-shell-header-height,0px),var(--scrim)_var(--app-shell-header-height,0px))]"
+    dialogStyle="width: min({effectiveWidth}px, 100vw)"
+    {onClose}
+    {modal}
+    {focusKey}
+    {onCloseComplete}
+    {footer}
 >
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div
-        class="side-panel__resizer absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize touch-none bg-transparent transition-colors hover:bg-[var(--border-strong,rgba(120,90,40,0.5))] focus-visible:bg-[var(--border-strong,rgba(120,90,40,0.7))] focus-visible:outline-none"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize panel"
-        aria-valuemin={MIN_WIDTH}
-        aria-valuemax={MAX_WIDTH}
-        aria-valuenow={effectiveWidth}
-        tabindex="0"
-        data-testid="side-panel-resizer"
-        onpointerdown={onHandlePointerDown}
-        onpointermove={onHandlePointerMove}
-        onpointerup={onHandlePointerUp}
-        onkeydown={onHandleKeydown}
-    ></div>
-    <header
-        class="flex items-center justify-between gap-2 border-b border-[color:var(--border-subtle)] px-5 py-4"
-    >
-        <h2 class="m-0 text-h3 font-semibold text-content-primary">
-            {title}
-        </h2>
-        <div class="flex items-center gap-1">
-            {#if fullPageHref}
-                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- The design-system caller supplies an already-resolved application URL. -->
-                <a
-                    href={fullPageHref}
-                    class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:size-icon-md"
-                    aria-label="Open full page"
-                    data-testid="side-panel-full-page"
-                >
-                    <ui5-icon class="text-current" name="resize" aria-hidden="true"></ui5-icon>
-                </a>
-            {/if}
-            <button
-                type="button"
+    {#snippet resizer()}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <div
+            class="side-panel__resizer absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize touch-none bg-transparent transition-colors hover:bg-[var(--border-strong,rgba(120,90,40,0.5))] focus-visible:bg-[var(--border-strong,rgba(120,90,40,0.7))] focus-visible:outline-none"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize panel"
+            aria-valuemin={MIN_WIDTH}
+            aria-valuemax={MAX_WIDTH}
+            aria-valuenow={effectiveWidth}
+            tabindex="0"
+            data-testid="side-panel-resizer"
+            onpointerdown={onHandlePointerDown}
+            onpointermove={onHandlePointerMove}
+            onpointerup={onHandlePointerUp}
+            onkeydown={onHandleKeydown}
+        ></div>
+    {/snippet}
+    {#snippet headerAction()}
+        {#if fullPageHref}
+            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- The design-system caller supplies an already-resolved application URL. -->
+            <a
+                href={fullPageHref}
                 class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:size-icon-md"
-                aria-label="Close details"
-                onclick={requestClose}
-                data-testid="side-panel-close"
+                aria-label="Open full page"
+                data-testid="side-panel-full-page"
             >
-                <ui5-icon class="text-current" name="decline" aria-hidden="true"></ui5-icon>
-            </button>
-        </div>
-    </header>
-    <div class="flex-1 overflow-auto px-5 py-4">
-        {@render children()}
-    </div>
-    {#if footer}
-        <footer
-            class="border-t border-outline-subtle bg-surface-subtle px-5 py-3"
-        >
-            {@render footer()}
-        </footer>
-    {/if}
-</dialog>
+                <ui5-icon class="text-current" name="resize" aria-hidden="true"></ui5-icon>
+            </a>
+        {/if}
+    {/snippet}
+    {@render children()}
+</PanelShell>
 
 <style>
-    .side-panel {
-        display: flex;
-        translate: 0 0;
-        opacity: 1;
-        transition:
-            translate var(--motion-base, 240ms) cubic-bezier(var(--ease-out, 0.16, 1, 0.3, 1)),
-            opacity var(--motion-base, 240ms) cubic-bezier(var(--ease-out, 0.16, 1, 0.3, 1)),
-            display var(--motion-base, 240ms) allow-discrete,
-            overlay var(--motion-base, 240ms) allow-discrete;
-    }
-
-    .side-panel:not([open]) {
-        display: none;
-        translate: 100% 0;
-        opacity: 0;
-    }
-
-    @starting-style {
-        .side-panel[open] {
-            translate: 100% 0;
-            opacity: 0;
-        }
-    }
-
-    .side-panel::backdrop {
-        opacity: 1;
-        transition:
-            opacity var(--motion-base, 240ms) cubic-bezier(var(--ease, 0.4, 0, 0.2, 1)),
-            display var(--motion-base, 240ms) allow-discrete,
-            overlay var(--motion-base, 240ms) allow-discrete;
-    }
-
-    .side-panel:not([open])::backdrop {
-        opacity: 0;
-    }
-
-    @starting-style {
-        .side-panel[open]::backdrop {
-            opacity: 0;
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .side-panel,
-        .side-panel::backdrop {
-            transition: none;
-        }
-
-        .side-panel:not([open]) {
-            translate: 0 0;
-            opacity: 1;
-        }
-    }
-
     @media (max-width: 767px) {
-        .side-panel {
+        :global(.side-panel) {
             width: 100vw !important;
         }
 
-        .side-panel__resizer {
+        :global(.side-panel .side-panel__resizer) {
             display: none;
         }
     }
