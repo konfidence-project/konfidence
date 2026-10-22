@@ -219,9 +219,6 @@ func (r *ProjectReconciler) reconcileDelete(ctx context.Context, project *konfid
 				r.Recorder.Eventf(project, nil, corev1.EventTypeNormal, namespaceDeletedEventReason, namespaceDeletedEventReason, msg)
 				log.Info(msg)
 			}
-			// Surface the wait so a namespace whose termination is stuck (for example
-			// on a resource with a blocking finalizer) is diagnosable from status
-			// rather than a silent 5s requeue loop.
 			if err := r.setTerminatingStatus(ctx, project, ns.Name); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -229,7 +226,6 @@ func (r *ProjectReconciler) reconcileDelete(ctx context.Context, project *konfid
 			return ctrl.Result{RequeueAfter: deletionRequeueInterval}, nil
 		}
 
-		// Orphan: strip the management labels and leave the namespace behind.
 		if err := r.orphanNamespace(ctx, project, ns); err != nil {
 			return ctrl.Result{}, err
 		}
