@@ -40,6 +40,7 @@ const (
 // changing a set namespace is caught by the field-level rule. The two rules
 // are split to stay within the CEL cost budget of the schema.
 // +kubebuilder:validation:XValidation:rule="has(self.namespace) == has(oldSelf.namespace)",message="namespace is immutable"
+// +kubebuilder:validation:XValidation:rule="self.namespacePolicy != 'Adopt' || has(self.namespace)",message="namespace is required when namespacePolicy is Adopt"
 type ProjectSpec struct {
 	// DisplayName is the human-readable name of the project, shown in user
 	// interfaces. It does not affect the namespace name or any label, and it
@@ -61,7 +62,8 @@ type ProjectSpec struct {
 
 	// NamespacePolicy controls how the project namespace is taken over. Create
 	// (the default) creates it and errors on conflict; Adopt takes over an
-	// existing namespace and requires it to already exist.
+	// existing namespace and requires both that namespace to already exist and
+	// spec.namespace to be set, so the adopted namespace is named explicitly.
 	// +kubebuilder:validation:Enum=Create;Adopt
 	// +kubebuilder:default=Create
 	// +optional

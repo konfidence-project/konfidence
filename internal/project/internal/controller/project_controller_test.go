@@ -262,7 +262,9 @@ var _ = Describe("Project Controller", Ordered, func() {
 
 	It("reports NamespaceNotFound when namespacePolicy Adopt has no namespace to adopt", func() {
 		const projectName = "proj-adopt-missing"
+		const nsName = "proj-adopt-missing-ns"
 		controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.Namespace = nsName
 			p.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
 		})
 		DeferCleanup(func() { controller.CleanupProject(ctx, k8sClient, projectName) })
@@ -274,7 +276,16 @@ var _ = Describe("Project Controller", Ordered, func() {
 		}, timeout, interval).Should(Succeed())
 
 		By("not creating the namespace")
-		Expect(controller.GetNamespace(ctx, k8sClient, konfidence.ProjectNamespacePrefix+projectName, true)).To(BeNil())
+		Expect(controller.GetNamespace(ctx, k8sClient, nsName, true)).To(BeNil())
+	})
+
+	It("rejects namespacePolicy Adopt without an explicit namespace", func() {
+		project := controller.NewProject("proj-adopt-no-ns", func(p *konfidence.Project) {
+			p.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+		})
+		err := k8sClient.Create(ctx, project)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("namespace is required when namespacePolicy is Adopt"))
 	})
 
 	It("deletes the project namespace and waits for its termination under deletionPolicy Delete", func() {

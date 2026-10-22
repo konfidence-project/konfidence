@@ -104,7 +104,8 @@ spec:
                 description: |-
                   NamespacePolicy controls how the project namespace is taken over. Create
                   (the default) creates it and errors on conflict; Adopt takes over an
-                  existing namespace and requires it to already exist.
+                  existing namespace and requires both that namespace to already exist and
+                  spec.namespace to be set, so the adopted namespace is named explicitly.
                 enum:
                 - Create
                 - Adopt
@@ -200,6 +201,8 @@ spec:
             x-kubernetes-validations:
             - message: namespace is immutable
               rule: has(self.namespace) == has(oldSelf.namespace)
+            - message: namespace is required when namespacePolicy is Adopt
+              rule: self.namespacePolicy != 'Adopt' || has(self.namespace)
           status:
             description: ProjectStatus defines the observed state of Project.
             properties:

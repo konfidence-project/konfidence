@@ -343,4 +343,17 @@ var _ = Describe("Landscape Controller", Ordered, func() {
 		By("not creating the namespace")
 		Expect(controller.GetNamespace(ctx, k8sClient, "land-adopt-missing-ns", true)).To(BeNil())
 	})
+
+	It("rejects namespacePolicy Adopt without an explicit namespace", func() {
+		const projectNsName = "kden-p-proj-adopt-no-ns"
+		controller.CreateProjectNamespace(ctx, k8sClient, projectNsName, "proj-adopt-no-ns")
+		DeferCleanup(func() { controller.CleanupProjectNamespace(ctx, k8sClient, projectNsName) })
+
+		landscape := controller.NewLandscape("land-adopt-no-ns", projectNsName, func(l *konfidence.Landscape) {
+			l.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+		})
+		err := k8sClient.Create(ctx, landscape)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("namespace is required when namespacePolicy is Adopt"))
+	})
 })
