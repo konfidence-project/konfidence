@@ -47,17 +47,26 @@ const expectDetailFieldToFit = async (
   const valueElement = labelElement.locator("xpath=following-sibling::dd[1]");
   await expect(valueElement).toHaveText(value);
 
-  const [panelBox, labelBox, valueBox] = await Promise.all([
-    panel.boundingBox(),
-    labelElement.boundingBox(),
-    valueElement.boundingBox(),
-  ]);
-  if (!panelBox || !labelBox || !valueBox) {
-    throw new Error(`Could not measure the ${label} detail field`);
-  }
-
-  expect(valueBox.x).toBeGreaterThanOrEqual(labelBox.x + labelBox.width);
-  expect(valueBox.x + valueBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+  // Measure in one browser call so the opening transition cannot move the
+  // panel between the label and value measurements.
+  await expect
+    .poll(() =>
+      labelElement.evaluate((element) => {
+        const surface = element.closest('[data-testid="side-panel"]');
+        const field = element.nextElementSibling;
+        if (!surface || !field) {
+          throw new Error("Could not measure the detail field");
+        }
+        const panelBox = surface.getBoundingClientRect();
+        const labelBox = element.getBoundingClientRect();
+        const valueBox = field.getBoundingClientRect();
+        return {
+          followsLabel: valueBox.left >= labelBox.right,
+          insidePanel: valueBox.right <= panelBox.right,
+        };
+      }),
+    )
+    .toEqual({ followsLabel: true, insidePanel: true });
 };
 
 test.describe("artifact deployments", () => {
@@ -160,6 +169,7 @@ test.describe("artifact deployments", () => {
     await expect(panel).toBeVisible();
     await expect(page).toHaveURL(/[?&]deployment=/);
 
+    await expect(page.getByTestId("side-panel-close")).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(panel).toBeHidden();
     await expect(page).not.toHaveURL(/[?&]deployment=/);
@@ -192,7 +202,8 @@ test.describe("artifact deployments", () => {
   test("keeps deep-link state addressable through the back button", async ({ page }) => {
     await gotoArtifactDeployments(page);
 
-    await page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-api"]').click();
+    const row = page.locator('[data-row-id="dev-us30-20260929-201426000Z-payments-api"]');
+    await row.click();
     await expect(page).toHaveURL(
       `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z-payments-api`,
     );
@@ -200,12 +211,14 @@ test.describe("artifact deployments", () => {
     await page.goBack();
     await expect(page).toHaveURL(ARTIFACT_DEPLOYMENTS_PATH);
     await expect(page.getByTestId("side-panel")).toBeHidden();
+    await expect(row).toBeFocused();
 
     await page.goForward();
     await expect(page).toHaveURL(
       `${ARTIFACT_DEPLOYMENTS_PATH}?deployment=dev-us30-20260929-201426000Z-payments-api`,
     );
     await expect(page.getByTestId("side-panel")).toBeVisible();
+    await expect(page.getByTestId("side-panel-close")).toBeFocused();
   });
 
   test("closes the drawer when the close button is clicked and clears the URL", async ({
