@@ -164,7 +164,7 @@ type ArtifactManifest struct {
 	// Type specifies the name of the DeploymentClass that should handle this artifact (e.g., "helm.konfidence.cloud").
 	// This must match a DeploymentClass.metadata.name in the cluster.
 	// Deployers implement their own interpretation of the artifact's contents.
-	Type string `json:"type"`
+	Type ArtifactType `json:"type"`
 
 	// AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.
 	// Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific
@@ -212,4 +212,9 @@ type ArtifactDeploymentList struct {
 
 func init() {
 	SchemeBuilder.Register(&ArtifactDeployment{}, &ArtifactDeploymentList{})
+}
+
+// ArtifactType returns the ArtifactType which the ArtifactDeployment declares.
+func (ad *ArtifactDeployment) ArtifactType() ArtifactType {
+	return ad.Spec.Manifest.Type
 }

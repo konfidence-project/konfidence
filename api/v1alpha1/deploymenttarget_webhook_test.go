@@ -27,7 +27,7 @@ var _ = Describe("DeploymentTargetValidator", func() {
 			},
 		}}
 	}
-	target := func(name, namespace, artifactType string) *DeploymentTarget {
+	target := func(name, namespace string, artifactType ArtifactType) *DeploymentTarget {
 		return &DeploymentTarget{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 			Spec:       DeploymentTargetSpec{ArtifactType: artifactType},
@@ -48,7 +48,7 @@ var _ = Describe("DeploymentTargetValidator", func() {
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns).Build()
 				validator := &DeploymentTargetValidator{Client: fakeClient}
 
-				warnings, err := validator.ValidateCreate(ctx, target("helm", ns.Name, "helm.konfidence.cloud"))
+				warnings, err := validator.ValidateCreate(ctx, target("helm", ns.Name, ArtifactType("helm.konfidence.cloud")))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(warnings).To(BeEmpty())
 			})
@@ -57,7 +57,7 @@ var _ = Describe("DeploymentTargetValidator", func() {
 		Context("when the artifact type already exists in the same namespace", func() {
 			It("should reject creation", func() {
 				ns := landscapeNamespace("landscape")
-				existing := target("existing", ns.Name, "helm.konfidence.cloud")
+				existing := target("existing", ns.Name, ArtifactType("helm.konfidence.cloud"))
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, existing).Build()
 				validator := &DeploymentTargetValidator{Client: fakeClient}
 
@@ -71,7 +71,7 @@ var _ = Describe("DeploymentTargetValidator", func() {
 			It("should allow creation", func() {
 				first := landscapeNamespace("first")
 				second := landscapeNamespace("second")
-				existing := target("existing", first.Name, "helm.konfidence.cloud")
+				existing := target("existing", first.Name, ArtifactType("helm.konfidence.cloud"))
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(first, second, existing).Build()
 				validator := &DeploymentTargetValidator{Client: fakeClient}
 
@@ -87,7 +87,7 @@ var _ = Describe("DeploymentTargetValidator", func() {
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns).Build()
 				validator := &DeploymentTargetValidator{Client: fakeClient}
 
-				warnings, err := validator.ValidateCreate(ctx, target("target", ns.Name, "helm.konfidence.cloud"))
+				warnings, err := validator.ValidateCreate(ctx, target("target", ns.Name, ArtifactType("helm.konfidence.cloud")))
 				Expect(err).To(HaveOccurred())
 				Expect(warnings).To(BeEmpty())
 			})
@@ -98,7 +98,7 @@ var _ = Describe("DeploymentTargetValidator", func() {
 		Context("when parameters change in a landscape namespace", func() {
 			It("should allow the update", func() {
 				ns := landscapeNamespace("landscape")
-				oldTarget := target("target", ns.Name, "helm.konfidence.cloud")
+				oldTarget := target("target", ns.Name, ArtifactType("helm.konfidence.cloud"))
 				newTarget := oldTarget.DeepCopy()
 				newTarget.Spec.Parameters = &Parameters{Kind: "Secret", Name: "updated"}
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, oldTarget).Build()
@@ -112,8 +112,8 @@ var _ = Describe("DeploymentTargetValidator", func() {
 		Context("when an update creates a duplicate artifact type", func() {
 			It("should reject the update", func() {
 				ns := landscapeNamespace("landscape")
-				oldTarget := target("target", ns.Name, "kustomize.konfidence.cloud")
-				existing := target("existing", ns.Name, "helm.konfidence.cloud")
+				oldTarget := target("target", ns.Name, ArtifactType("kustomize.konfidence.cloud"))
+				existing := target("existing", ns.Name, ArtifactType("helm.konfidence.cloud"))
 				newTarget := oldTarget.DeepCopy()
 				newTarget.Spec.ArtifactType = existing.Spec.ArtifactType
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, oldTarget, existing).Build()
@@ -128,7 +128,7 @@ var _ = Describe("DeploymentTargetValidator", func() {
 		Context("when the namespace is not a landscape namespace", func() {
 			It("should reject the update", func() {
 				ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ordinary"}}
-				oldTarget := target("target", ns.Name, "helm.konfidence.cloud")
+				oldTarget := target("target", ns.Name, ArtifactType("helm.konfidence.cloud"))
 				newTarget := oldTarget.DeepCopy()
 				newTarget.Spec.Parameters = &Parameters{Kind: "Secret", Name: "kubeconfig"}
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, oldTarget).Build()

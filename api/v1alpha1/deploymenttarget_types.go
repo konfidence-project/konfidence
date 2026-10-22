@@ -26,7 +26,7 @@ type DeploymentTargetSpec struct {
 	//
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="artifactType is immutable"
-	ArtifactType string `json:"artifactType"`
+	ArtifactType ArtifactType `json:"artifactType"`
 
 	// Parameters define how to connect to the target runtime described by this DeploymentTarget. It may point to
 	// deployer-specific configuration containing connection details, credentials and further settings required to
@@ -101,4 +101,9 @@ type DeploymentTargetList struct {
 
 func init() {
 	SchemeBuilder.Register(&DeploymentTarget{}, &DeploymentTargetList{})
+}
+
+// ArtifactType returns the ArtifactType which the DeploymentTarget declares.
+func (dt *DeploymentTarget) ArtifactType() ArtifactType {
+	return dt.Spec.ArtifactType
 }

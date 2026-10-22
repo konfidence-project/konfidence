@@ -285,8 +285,27 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _string_ | Type specifies the name of the DeploymentClass that should handle this artifact (e.g., "helm.konfidence.cloud").<br />This must match a DeploymentClass.metadata.name in the cluster.<br />Deployers implement their own interpretation of the artifact's contents. |  |  |
+| `type` _[ArtifactType](#artifacttype)_ | Type specifies the name of the DeploymentClass that should handle this artifact (e.g., "helm.konfidence.cloud").<br />This must match a DeploymentClass.metadata.name in the cluster.<br />Deployers implement their own interpretation of the artifact's contents. |  |  |
 | `allowReuse` _boolean_ | AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.<br />Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific<br />runtime context. |  |  |
+
+
+### ArtifactType
+
+_Underlying type:_ _string_
+
+ArtifactType is a type-and-domain identifier for a deployer's artifactType contract. Its syntax is defined in
+section 1.1 of conformance/specs/deployer.md. It is encouraged to use MustArtifactType for construction.
+
+
+
+_Appears in:_
+- [ArtifactManifest](#artifactmanifest)
+- [DeploymentTargetSpec](#deploymenttargetspec)
+
+
+
+
+
 
 
 ### Component
@@ -485,7 +504,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `artifactType` _string_ | ArtifactType identifies the artifact type this destination serves. The ArtifactType is selected by a deployer<br />whose controllers are responsible for reconciling the DeploymentTarget resource. If there is no deployer<br />covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is immutable<br />because changing it may transfer ownership of the DeploymentTarget to a different controller.<br />There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique<br />across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of<br />Konfidence. |  | Required: \{\} <br /> |
+| `artifactType` _[ArtifactType](#artifacttype)_ | ArtifactType identifies the artifact type this destination serves. The ArtifactType is selected by a deployer<br />whose controllers are responsible for reconciling the DeploymentTarget resource. If there is no deployer<br />covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is immutable<br />because changing it may transfer ownership of the DeploymentTarget to a different controller.<br />There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique<br />across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of<br />Konfidence. |  | Required: \{\} <br /> |
 | `parameters` _[Parameters](#parameters)_ | Parameters define how to connect to the target runtime described by this DeploymentTarget. It may point to<br />deployer-specific configuration containing connection details, credentials and further settings required to<br />connect to the target runtime. Their structure and interpretation are defined by the deployer that owns ArtifactType. |  | Optional: \{\} <br /> |
 
 
