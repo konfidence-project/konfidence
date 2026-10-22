@@ -26,6 +26,9 @@ const (
 	ProjectNamespaceTerminatingReason = "NamespaceTerminating"
 	// ProjectNamespaceCreateFailedReason indicates that creating or updating the project namespace failed.
 	ProjectNamespaceCreateFailedReason = "NamespaceCreateFailed"
+	// ProjectNamespaceNotFoundReason indicates that namespacePolicy Adopt was requested
+	// but the target namespace does not exist yet.
+	ProjectNamespaceNotFoundReason = "NamespaceNotFound"
 
 	// ProjectNamespacePrefix is the prefix of the default project namespace name.
 	ProjectNamespacePrefix = "kden-p-"
@@ -37,6 +40,7 @@ const (
 // changing a set namespace is caught by the field-level rule. The two rules
 // are split to stay within the CEL cost budget of the schema.
 // +kubebuilder:validation:XValidation:rule="has(self.namespace) == has(oldSelf.namespace)",message="namespace is immutable"
+// +kubebuilder:validation:XValidation:rule="self.namespacePolicy != 'Adopt' || has(self.namespace)",message="namespace is required when namespacePolicy is Adopt"
 type ProjectSpec struct {
 	// DisplayName is the human-readable name of the project, shown in user
 	// interfaces. It does not affect the namespace name or any label, and it
@@ -55,6 +59,23 @@ type ProjectSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="namespace is immutable"
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
+
+	// NamespacePolicy controls how the project namespace is taken over. Create
+	// (the default) creates it and errors on conflict; Adopt takes over an
+	// existing namespace and requires both that namespace to already exist and
+	// spec.namespace to be set, so the adopted namespace is named explicitly.
+	// +kubebuilder:validation:Enum=Create;Adopt
+	// +kubebuilder:default=Create
+	// +optional
+	NamespacePolicy NamespacePolicy `json:"namespacePolicy,omitempty"`
+
+	// DeletionPolicy controls what happens to the project namespace when the
+	// Project is deleted. Orphan (the default) keeps the namespace and strips
+	// its management labels; Delete removes the namespace with the Project.
+	// +kubebuilder:validation:Enum=Delete;Orphan
+	// +kubebuilder:default=Orphan
+	// +optional
+	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
 
 	// RoleBindings grants project roles to callers. It maps a role name to the
 	// list of subjects that hold that role; a caller holds the role if any

@@ -47,8 +47,15 @@ func withFinalizer(p *konfidence.Project) {
 	p.Finalizers = []string{projectFinalizer}
 }
 
+// withDeletionPolicyDelete sets the Delete deletion policy. The fake client
+// applies no CRD default, so specs that exercise the delete path must set it
+// explicitly (an unset policy defaults to Orphan).
+func withDeletionPolicyDelete(p *konfidence.Project) {
+	p.Spec.DeletionPolicy = konfidence.DeletionPolicyDelete
+}
+
 // newManagedNamespace builds a namespace owned by the given Project, as the
-// controller would create it (managed labels + controller owner reference).
+// controller would create it (managed labels).
 func newManagedNamespace(name string, project *konfidence.Project) *corev1.Namespace {
 	return &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -57,9 +64,6 @@ func newManagedNamespace(name string, project *konfidence.Project) *corev1.Names
 				pkgctrl.ManagedByLabel:   projectControllerName,
 				pkgctrl.ProjectTypeLabel: projectNamespaceTypeValue,
 				pkgctrl.ProjectNameLabel: project.Name,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(project, konfidence.GroupVersion.WithKind(konfidence.ProjectKind)),
 			},
 		},
 	}
@@ -80,7 +84,7 @@ var _ = Describe("Project reconcileDelete", func() {
 	ctx := context.Background()
 
 	It("deletes the managed namespace, then releases the finalizer once it is gone", func() {
-		project := NewProject("alpha", withFinalizer)
+		project := NewProject("alpha", withFinalizer, withDeletionPolicyDelete)
 		ns := newManagedNamespace(konfidence.ProjectNamespacePrefix+"alpha", project)
 		r, c := newFakeReconciler(project, ns)
 
@@ -99,7 +103,7 @@ var _ = Describe("Project reconcileDelete", func() {
 	})
 
 	It("prefers the namespace recorded in the status over the recomputed name", func() {
-		project := NewProject("beta", withFinalizer, func(p *konfidence.Project) {
+		project := NewProject("beta", withFinalizer, withDeletionPolicyDelete, func(p *konfidence.Project) {
 			p.Status.Namespace = "beta-custom-ns"
 		})
 		ns := newManagedNamespace("beta-custom-ns", project)
@@ -108,6 +112,26 @@ var _ = Describe("Project reconcileDelete", func() {
 		_, err := r.reconcileDelete(ctx, project)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(namespaceMissing(ctx, c, "beta-custom-ns")).To(BeTrue())
+	})
+
+	It("orphans the managed namespace and releases the finalizer under Orphan", func() {
+		// An unset deletion policy defaults to Orphan.
+		project := NewProject("zeta", withFinalizer)
+		ns := newManagedNamespace(konfidence.ProjectNamespacePrefix+"zeta", project)
+		r, c := newFakeReconciler(project, ns)
+
+		result, err := r.reconcileDelete(ctx, project)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.IsZero()).To(BeTrue())
+
+		By("leaving the namespace alive with the management labels stripped")
+		got := &corev1.Namespace{}
+		Expect(c.Get(ctx, types.NamespacedName{Name: ns.Name}, got)).To(Succeed())
+		Expect(got.Labels).NotTo(HaveKey(pkgctrl.ManagedByLabel))
+		Expect(got.Labels).NotTo(HaveKey(pkgctrl.ProjectTypeLabel))
+		Expect(got.Labels).NotTo(HaveKey(pkgctrl.ProjectNameLabel))
+
+		Expect(projectFinalizers(ctx, c, "zeta")).To(BeEmpty())
 	})
 
 	It("releases the finalizer immediately when the namespace is absent", func() {
