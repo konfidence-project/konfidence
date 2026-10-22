@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.1.0-alpha.2](https://github.com/konfidence-project/konfidence/compare/0.1.0-alpha.1...0.1.0-alpha.2) (2026-10-22)
+
+
+### Features
+
+* a max keep limit can be configured for non-terminal promotions,… ([#388](https://github.com/konfidence-project/konfidence/issues/388)) ([8f0a88d](https://github.com/konfidence-project/konfidence/commit/8f0a88d13cc0466095bca34296a72b16bbb1554f))
+* **cli:** prerender login pages with the design system ([#366](https://github.com/konfidence-project/konfidence/issues/366)) ([87c852c](https://github.com/konfidence-project/konfidence/commit/87c852c06a08b25cb0814a20664f0222d1ec9112))
+* **design system:** add & use Link component ([#312](https://github.com/konfidence-project/konfidence/issues/312)) ([8f53fbd](https://github.com/konfidence-project/konfidence/commit/8f53fbd0a54875280a29ca058121d768c9140e6f))
+* **design-preview:** interactive local design-system explorer ([#281](https://github.com/konfidence-project/konfidence/issues/281)) ([92313ad](https://github.com/konfidence-project/konfidence/commit/92313ad5c151db830140b86e26a301992950dab3))
+* **design-system:** header-aware, resizable SidePanel with slide transition ([#402](https://github.com/konfidence-project/konfidence/issues/402)) ([cb1a9e0](https://github.com/konfidence-project/konfidence/commit/cb1a9e06835d42ecc863862b9606cebbc1ed842d))
+* Fetch single resource ([#376](https://github.com/konfidence-project/konfidence/issues/376)) ([7821d03](https://github.com/konfidence-project/konfidence/commit/7821d03d6db6a6f22bcb341accda3dce5203c0aa))
+* improve jwks refresh handling ([#406](https://github.com/konfidence-project/konfidence/issues/406)) ([9dc134d](https://github.com/konfidence-project/konfidence/commit/9dc134d797b1acd0441b351b1317da42b67b94f3))
+* **landscape:** stage detail overlay with vector deployment info ([#403](https://github.com/konfidence-project/konfidence/issues/403)) ([6c5ceb2](https://github.com/konfidence-project/konfidence/commit/6c5ceb2daef89c05080e3207418567750efe6d99))
+* refactor api endpoints ([#418](https://github.com/konfidence-project/konfidence/issues/418)) ([9f7990d](https://github.com/konfidence-project/konfidence/commit/9f7990de853a6ffcc7e83b763a976dc9a04987d4))
+* report undeployable vector deployments with a Stalled condition ([#273](https://github.com/konfidence-project/konfidence/issues/273)) ([ea9ff05](https://github.com/konfidence-project/konfidence/commit/ea9ff05210cc293dce14a47c42a32d9562a20918))
+* serve components using mkcert created TLS keys at local dev setup ([#302](https://github.com/konfidence-project/konfidence/issues/302)) ([4d036d8](https://github.com/konfidence-project/konfidence/commit/4d036d8e0e974e01a7a4b84f2a2985e0d07a3e56))
+* **stalled:** add ocm related stalled conditions ([#389](https://github.com/konfidence-project/konfidence/issues/389)) ([58aab47](https://github.com/konfidence-project/konfidence/commit/58aab471c8257a8f25c30f2ee28d9c8d0148e99f))
+* **ui:** render landscape overview as a promotion graph ([#348](https://github.com/konfidence-project/konfidence/issues/348)) ([6961c4a](https://github.com/konfidence-project/konfidence/commit/6961c4abd5ab1374a3d4a8582bd6b75dd2900e89))
+* use konfidence themed cli login success/error page ([#357](https://github.com/konfidence-project/konfidence/issues/357)) ([735dbf0](https://github.com/konfidence-project/konfidence/commit/735dbf01f84401c69f83591069f83405b4eecd14))
+
+
+### Bug Fixes
+
+* **.env.development:** use localhost api base url ([#350](https://github.com/konfidence-project/konfidence/issues/350)) ([4a70c41](https://github.com/konfidence-project/konfidence/commit/4a70c41d58b22ad9ab7bde2cb661564f3cbfe051))
+* add ReasonPromotionOutstandingLimitReached to isSuperseded check… ([#394](https://github.com/konfidence-project/konfidence/issues/394)) ([b4222a6](https://github.com/konfidence-project/konfidence/commit/b4222a6021ba0a87577b05e266b0d9aefd71c675))
+* change default kden output to pretty ([#340](https://github.com/konfidence-project/konfidence/issues/340)) ([bcb7640](https://github.com/konfidence-project/konfidence/commit/bcb76404e1e12803b47913ec210603c109cacc42))
+* convert tests to ginkgo and add check that only ginkgo is used f… ([#387](https://github.com/konfidence-project/konfidence/issues/387)) ([0c24802](https://github.com/konfidence-project/konfidence/commit/0c248022030bd4c36a00557a90d88091500afc53))
+* **dashboard-sidepanels:** avoid overlapping data ([#426](https://github.com/konfidence-project/konfidence/issues/426)) ([dfbb067](https://github.com/konfidence-project/konfidence/commit/dfbb067909cbc4c7ca02f1f957132c7f1e383c09))
+* fixed returnURL validation at mock-api for frontend e2e tests ([#345](https://github.com/konfidence-project/konfidence/issues/345)) ([f69115d](https://github.com/konfidence-project/konfidence/commit/f69115d2b4a6df614995aa331914c37cf0ee4c35))
+* **quickstart:** install vector data service per landscape, not in konfidence-system ([#360](https://github.com/konfidence-project/konfidence/issues/360)) ([d78222a](https://github.com/konfidence-project/konfidence/commit/d78222a04f0a0ab39402cfb3c14351354122f716))
+* use ownerReferences instead of label when filtering artifactDepl… ([#370](https://github.com/konfidence-project/konfidence/issues/370)) ([698597e](https://github.com/konfidence-project/konfidence/commit/698597edf48771a4e42215c496435bb94ec1c8e8))
+
+
+### Maintenance
+
+* **deps:** bump @humanspeak/svelte-headless-table from 6.3.0 to 6.4.0 in the npm-minor-patch group ([#349](https://github.com/konfidence-project/konfidence/issues/349)) ([8fdb3f9](https://github.com/konfidence-project/konfidence/commit/8fdb3f9d7c8992cd4df939872b3059158cacd080))
+* **deps:** bump sigs.k8s.io/controller-runtime from 0.25.1 to 0.25.2 in the gomod-minor-patch group ([#377](https://github.com/konfidence-project/konfidence/issues/377)) ([40bb706](https://github.com/konfidence-project/konfidence/commit/40bb70678daf19a5019c43a011acc254d48c1aa5))
+* **deps:** bump the gomod-minor-patch group with 4 updates ([#429](https://github.com/konfidence-project/konfidence/issues/429)) ([5d26df3](https://github.com/konfidence-project/konfidence/commit/5d26df3621073e5fd7a5403b1d28562d8b9c9e31))
+* **deps:** bump the gomod-minor-patch group with 6 updates ([#407](https://github.com/konfidence-project/konfidence/issues/407)) ([7552d91](https://github.com/konfidence-project/konfidence/commit/7552d911b2c1693d316f81c2e560a812ca54cfd3))
+* **deps:** bump the npm-minor-patch group with 10 updates ([#378](https://github.com/konfidence-project/konfidence/issues/378)) ([0448c7d](https://github.com/konfidence-project/konfidence/commit/0448c7d7330e410d2086d51feb393e69375648d3))
+* **deps:** bump the npm-minor-patch group with 10 updates ([#408](https://github.com/konfidence-project/konfidence/issues/408)) ([42faba8](https://github.com/konfidence-project/konfidence/commit/42faba85fa9fce8d963e332f438d2852070bc868))
+* **deps:** bump the npm-minor-patch group with 9 updates ([#430](https://github.com/konfidence-project/konfidence/issues/430)) ([8d3ebbe](https://github.com/konfidence-project/konfidence/commit/8d3ebbe9e4ec8c7e0b5d5d4ef3f353d615082fdb))
+* **deps:** fix vulnerabilities ([#368](https://github.com/konfidence-project/konfidence/issues/368)) ([07bc67b](https://github.com/konfidence-project/konfidence/commit/07bc67bd4bcb2e2efd54d6bf8492bbc60d719b43))
+* **frontend:** migrate apps to SvelteKit 3 ([#416](https://github.com/konfidence-project/konfidence/issues/416)) ([9deead3](https://github.com/konfidence-project/konfidence/commit/9deead3136d42d1bb6eb9f1674deb0e4378a75a6))
+
 ## [0.1.0-alpha.1](https://github.com/konfidence-project/konfidence/compare/0.0.1-alpha.1...0.1.0-alpha.1) (2026-09-30)
 
 
