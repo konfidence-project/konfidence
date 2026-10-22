@@ -4,9 +4,8 @@ metadata:
   name: production-helm
   namespace: kden-l-production-abc123
 spec:
-  deploymentClassName: helm.konfidence.cloud
-  connection:
-    type: kubeconfig
-    ref:
-      kind: Secret
-      name: prod-cluster-kubeconfig
+  artifactType: helm.konfidence.cloud
+  parameters:
+    apiGroup: ""
+    kind: Secret
+    name: prod-cluster-kubeconfig

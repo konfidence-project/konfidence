@@ -86,7 +86,6 @@ rules:
   - activationtaskexecutions/status
   - activationtaskregistrations/status
   - artifactdeployments/status
-  - deploymenttargets/status
   - landscapes/status
   - projects/status
   - stages/status
@@ -106,7 +105,6 @@ rules:
 - apiGroups:
   - konfidence.cloud
   resources:
-  - deploymentclasses
   - deploymenttargets
   - vectorpromotionconfigs
   - vectortemplates
