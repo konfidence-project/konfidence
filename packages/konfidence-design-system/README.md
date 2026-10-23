@@ -91,17 +91,18 @@ manage mode or storage itself.
 
 ## Components
 
-| Component                                            | CSS classes it wraps                             | Purpose                                                                                                                          |
-| ---------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `Button`                                             | `.btn`, `.btn--{primary,secondary,ghost,danger}` | Renders `<button>` or `<a>`; forwards `disabled`, `aria-*`, click handler.                                                       |
-| `Brandbar`                                           | Tailwind utilities                               | The amber-teal aurora strip at the top of every screen.                                                                          |
-| `EmptyState`                                         | Tailwind utilities                               | Neutral shell for empty, info, and error placeholders (icon + text + action).                                                    |
-| `OrbitLoader`                                        | Tailwind utilities                               | Live-region loading indicator with an accessible label.                                                                          |
-| `SearchInput`                                        | Tailwind utilities                               | Icon-prefixed search field with inline clear button.                                                                             |
-| `SidePanel`                                          | Tailwind utilities                               | Right-anchored detail drawer built on native `<dialog>` (focus trap + `Esc` close).                                              |
-| `StatusBadge`                                        | `.badge`, `.badge--<status>`                     | Passes `status` through to the class list; the API owns the vocabulary.                                                          |
-| `Table` + `TableRow`, `TableCell`, `TableHeaderCell` | Tailwind utilities                               | Scrollable, sticky-header data-table primitives; `TableRow` accepts an `onselect` callback for click / Enter / Space activation. |
-| `StageCard` + `StageCardPlaceholder`                 | (Tailwind arbitrary-value utilities)             | Fixed-height promotion-graph card; `StageCardPlaceholder` is its dashed empty counterpart (title + optional eyebrow + message).  |
+| Component                                            | CSS classes it wraps                             | Purpose                                                                                                                            |
+| ---------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `Button`                                             | `.btn`, `.btn--{primary,secondary,ghost,danger}` | Renders `<button>` or `<a>`; forwards `disabled`, `aria-*`, click handler.                                                         |
+| `Brandbar`                                           | Tailwind utilities                               | The amber-teal aurora strip at the top of every screen.                                                                            |
+| `EmptyState`                                         | Tailwind utilities                               | Neutral shell for empty, info, and error placeholders (icon + text + action).                                                      |
+| `OrbitLoader`                                        | Tailwind utilities                               | Live-region loading indicator with an accessible label.                                                                            |
+| `SearchInput`                                        | Tailwind utilities                               | Icon-prefixed search field with inline clear button.                                                                               |
+| `SidePanel`                                          | Tailwind utilities                               | Right-anchored native `<dialog>`; modal by default, with an interactive-background mode.                                           |
+| `BottomSheet`                                        | Tailwind utilities                               | Bottom-anchored, width-spanning and vertically-resizable native `<dialog>`; modal by default, with an interactive-background mode. |
+| `StatusBadge`                                        | `.badge`, `.badge--<status>`                     | Passes `status` through to the class list; the API owns the vocabulary.                                                            |
+| `Table` + `TableRow`, `TableCell`, `TableHeaderCell` | Tailwind utilities                               | Scrollable, sticky-header data-table primitives; `TableRow` accepts an `onselect` callback for click / Enter / Space activation.   |
+| `StageCard` + `StageCardPlaceholder`                 | (Tailwind arbitrary-value utilities)             | Fixed-height promotion-graph card; `StageCardPlaceholder` is its dashed empty counterpart (title + optional eyebrow + message).    |
 
 ```svelte
 <script lang="ts">
@@ -112,6 +113,21 @@ manage mode or storage itself.
 
 <StatusBadge status="deploying">Deploying</StatusBadge>
 ```
+
+### Panel coexistence
+
+`SidePanel` (right) and `BottomSheet` (bottom) are modal by default. Pass
+`modal={false}` when the surrounding page must remain interactive. A non-modal
+panel has no scrim or focus trap, but still moves initial focus to its close
+button and handles `Esc` while focus is elsewhere on the page.
+
+The design system permits both placements to be open at once but does not
+coordinate them. Consumers are responsible for keeping panels mutually
+exclusive and, where needed, sequencing the outgoing close animation before
+opening a differently placed panel. The dashboard uses non-modal panels at the
+desktop breakpoint so users can inspect another landscape edge, stage, or
+deployment row without first dismissing the current details. Mobile panels
+retain modal behavior.
 
 ## Linux screenshots
 
