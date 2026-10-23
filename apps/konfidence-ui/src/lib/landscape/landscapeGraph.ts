@@ -23,9 +23,12 @@ interface EmptyLandscapePlacement {
 
 // A promotion relationship between two stages that both exist in the overview.
 interface StageEdge {
+  // The promotion config id; also the value carried in the promotion URL param.
   id: string;
   sourceStageKey: string;
   targetStageKey: string;
+  sourceName: string;
+  targetName: string;
 }
 
 interface LandscapeGraph {
@@ -130,10 +133,16 @@ const buildEdges = (
       targetStageKey !== undefined &&
       isRenderableEdge(sourceStageKey, targetStageKey, stageKeys)
     ) {
-      const id = `${sourceStageKey}=>${targetStageKey}`;
+      const { id } = config;
       if (!seen.has(id)) {
         seen.add(id);
-        edges.push({ id, sourceStageKey, targetStageKey });
+        edges.push({
+          id,
+          sourceName: config.source.name,
+          sourceStageKey,
+          targetName: config.target.name,
+          targetStageKey,
+        });
       }
     }
   }

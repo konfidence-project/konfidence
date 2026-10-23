@@ -3,7 +3,6 @@
     import { Handle, Position, useSvelteFlow } from "@xyflow/svelte";
     import type { Stage } from "#lib/konfidence-api/types.ts";
     import LandscapeStageCard from "#lib/landscape/components/LandscapeStageCard.svelte";
-    import { openStageOverlay } from "#lib/landscape/stageOverlay.svelte.ts";
     import type { StageOverlayReference } from "#lib/landscape/stageOverlay.svelte.ts";
 
     type StageNode = Node<
@@ -13,6 +12,8 @@
             href: string;
             reference: StageOverlayReference;
             selected?: boolean;
+            suppressFocusReveal?: boolean;
+            onSelect?: (stage: Stage, trigger: HTMLElement) => void;
         },
         "stage"
     >;
@@ -25,11 +26,18 @@
             event.target instanceof HTMLElement &&
             event.target.matches(":focus-visible")
         ) {
+            if (data.suppressFocusReveal) {
+                return;
+            }
             void fitView({ maxZoom: 1, nodes: [{ id }], padding: 0.2 });
         }
     };
     const openStage = (event: MouseEvent): void => {
-        openStageOverlay(event, data.href, data.reference);
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+            return;
+        }
+        event.preventDefault();
+        data.onSelect?.(data.stage, event.currentTarget as HTMLElement);
     };
 </script>
 

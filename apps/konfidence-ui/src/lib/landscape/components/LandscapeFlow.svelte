@@ -23,6 +23,12 @@
         selectedStage?: Stage;
         stageHref: (stage: Stage) => string;
         stageReference: (stage: Stage) => StageOverlayReference;
+        selectedPromotionId?: string;
+        highlightedStageKeys?: readonly string[];
+        onPromotionSelect?: (promotionId: string, trigger: Element) => void;
+        onPaneSelect?: () => void;
+        onStageSelect?: (stage: Stage, trigger: HTMLElement) => void;
+        suppressStageFocusReveal?: boolean;
     }
     let {
         landscapes,
@@ -31,6 +37,12 @@
         selectedStage,
         stageHref,
         stageReference,
+        selectedPromotionId,
+        highlightedStageKeys = [],
+        onPromotionSelect,
+        onPaneSelect,
+        onStageSelect,
+        suppressStageFocusReveal = false,
     }: Props = $props();
 
     const nodeTypes = {
@@ -70,25 +82,31 @@
     const rowY = (row: number): number => row * (CARD_HEIGHT + GAP);
 
     const nodes = $derived.by((): Node[] => {
-        const stageNodes: Node[] = graph.stages.map((placement) => ({
-            ...defaults,
-            data: {
-                href: stageHref(placement.stage),
-                landscapeName: placement.landscapeName,
-                reference: stageReference(placement.stage),
-                selected:
-                    placement.stage.id === selectedStage?.id &&
-                    placement.stage.landscapeId === selectedStage.landscapeId,
-                stage: placement.stage,
-            },
-            height: CARD_HEIGHT,
-            id: stageKey(placement.landscapeId, placement.stage.name),
-            position: { x: columnX(placement.column), y: rowY(placement.row) },
-            sourcePosition: Position.Right,
-            targetPosition: Position.Left,
-            type: "stage",
-            width: CARD_WIDTH,
-        }));
+        const stageNodes: Node[] = graph.stages.map((placement) => {
+            const key = stageKey(placement.landscapeId, placement.stage.name);
+            return {
+                ...defaults,
+                data: {
+                    href: stageHref(placement.stage),
+                    landscapeName: placement.landscapeName,
+                    onSelect: onStageSelect,
+                    reference: stageReference(placement.stage),
+                    selected:
+                        (placement.stage.id === selectedStage?.id &&
+                            placement.stage.landscapeId === selectedStage.landscapeId) ||
+                        highlightedStageKeys.includes(key),
+                    stage: placement.stage,
+                    suppressFocusReveal: suppressStageFocusReveal,
+                },
+                height: CARD_HEIGHT,
+                id: key,
+                position: { x: columnX(placement.column), y: rowY(placement.row) },
+                sourcePosition: Position.Right,
+                targetPosition: Position.Left,
+                type: "stage",
+                width: CARD_WIDTH,
+            };
+        });
         const emptyNodes: Node[] = graph.emptyLandscapes.map((placement) => ({
             ...defaults,
             data: { landscapeName: placement.landscapeName },
@@ -104,16 +122,39 @@
     const colorMode = $derived(mode.current === "dark" ? "dark" : "light");
     const edges = $derived.by((): Edge[] =>
         graph.edges.map((edge) => ({
+            ariaLabel: `View promotion details from ${edge.sourceName} to ${edge.targetName}`,
+            ariaRole: "button",
+            class: "landscape-promotion-edge",
+            data: { sourceName: edge.sourceName, targetName: edge.targetName },
+            domAttributes: {
+                onkeydown: (event: KeyboardEvent) => activateEdge(event, edge.id),
+            },
+            focusable: true,
             id: edge.id,
+            selectable: false,
+            selected: edge.id === selectedPromotionId,
             source: edge.sourceStageKey,
             target: edge.targetStageKey,
         })),
     );
 
+    const onEdgeClick = ({ edge, event }: { edge: Edge; event: MouseEvent }): void => {
+        onPromotionSelect?.(edge.id, event.currentTarget as Element);
+    };
+
+    const activateEdge = (event: KeyboardEvent, promotionId: string): void => {
+        if (event.key !== "Enter" && event.key !== " ") {
+            return;
+        }
+        event.preventDefault();
+        onPromotionSelect?.(promotionId, event.currentTarget as Element);
+    };
+
 </script>
 
 <div
     bind:clientWidth={canvasWidth}
+    tabindex="-1"
     class="h-full min-h-0 min-w-0 bg-surface-canvas [&_.svelte-flow]:[--xy-background-color:var(--surface-canvas)] [&_.svelte-flow]:[--xy-controls-button-background-color:var(--surface-default)] [&_.svelte-flow]:[--xy-controls-button-color:var(--text-primary)] [&_.svelte-flow]:[--xy-controls-button-border-color:var(--border-subtle)]"
     data-testid="landscape-flow"
 >
@@ -135,7 +176,9 @@
             nodesFocusable={false}
             elementsSelectable={false}
             selectionOnDrag={false}
-            edgesFocusable={false}
+            edgesFocusable={true}
+            onedgeclick={onEdgeClick}
+            onpaneclick={onPaneSelect}
             deleteKey={null}
             selectionKey={null}
             multiSelectionKey={null}
@@ -152,3 +195,18 @@
         </SvelteFlow>
     {/if}
 </div>
+
+<style>
+    /* Promotion edges are interactive: clicking one opens the promotion sheet.
+       The wide invisible interaction path gets the pointer cursor, and the
+       selected edge is highlighted. */
+    :global(.landscape-promotion-edge .svelte-flow__edge-interaction),
+    :global(.landscape-promotion-edge .svelte-flow__edge-path) {
+        cursor: pointer;
+    }
+
+    :global(.landscape-promotion-edge.selected .svelte-flow__edge-path) {
+        stroke: var(--border-strong, #b4851e);
+        stroke-width: 2.5;
+    }
+</style>

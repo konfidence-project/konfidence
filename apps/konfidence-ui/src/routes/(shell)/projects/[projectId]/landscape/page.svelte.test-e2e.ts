@@ -102,9 +102,11 @@ test("opens real mock details and follows browser history", async ({ page }) => 
   await page.goBack();
   await expect(page).toHaveURL("/projects/payments-platform/landscape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(card).toBeFocused();
   await page.goForward();
   await expect(page).toHaveURL(detailsUrl!);
   await expect(page.getByRole("dialog", { name: "dev-eu10" })).toBeVisible();
+  await expect(page.getByTestId("side-panel-close")).toBeFocused();
 });
 
 // oxlint-disable-next-line eslint/max-statements -- One journey verifies shallow overlay navigation and its standalone fallback.
@@ -489,6 +491,48 @@ test("keeps overview stages after opening and closing the detail overlay", async
   await primary.click();
   await expect(page.getByRole("dialog", { name: "dev-api" })).toBeVisible();
   await expect(page).toHaveURL("/projects/payments-platform/landscape/primary/stages/dev-api");
+});
+
+test("keeps the canvas viewport when Escape closes stage details", async ({ page }) => {
+  await signIn(
+    page,
+    "/projects/payments-platform/landscape",
+    "/projects/payments-platform/landscape",
+  );
+  const viewport = page.locator(".svelte-flow__viewport");
+  const card = page.getByRole("link", { name: /View details for stage/ }).first();
+  await expect(card).toBeInViewport();
+  const transformBefore = await viewport.getAttribute("style");
+
+  await card.click();
+  await expect(page.getByTestId("side-panel")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await expect(page.getByTestId("side-panel")).not.toBeVisible();
+  await expect.poll(() => viewport.getAttribute("style")).toBe(transformBefore);
+});
+
+test("clears promotion highlights when stage details replace the sheet", async ({ page }) => {
+  await signIn(
+    page,
+    "/projects/payments-platform/landscape",
+    "/projects/payments-platform/landscape",
+  );
+  const edge = page.getByRole("button", { name: /View promotion details from/ }).first();
+  await edge.click();
+  await expect(page.getByTestId("bottom-sheet")).toBeVisible();
+  await expect(page.locator(".stage-card--selected")).toHaveCount(2);
+  await expect(page.locator(".landscape-promotion-edge.selected")).toHaveCount(1);
+
+  await page
+    .getByRole("link", { name: /View details for stage/ })
+    .first()
+    .click();
+
+  await expect(page.getByTestId("side-panel")).toBeVisible();
+  await expect(page.getByTestId("bottom-sheet")).not.toBeVisible();
+  await expect(page.locator(".landscape-promotion-edge.selected")).toHaveCount(0);
+  await expect(page.locator(".stage-card--selected")).toHaveCount(1);
 });
 
 // oxlint-disable-next-line eslint/max-statements -- Verify initial readability, explicit fit, and keyboard recovery to an offscreen stage.
