@@ -34,7 +34,6 @@ const (
 	ProjectNamespacePrefix = "kden-p-"
 )
 
-
 //nolint:lll // Kubebuilder annotations are intentionally long.
 // +kubebuilder:validation:XValidation:rule="has(self.namespace) == has(oldSelf.namespace)",message="namespace is immutable"
 // +kubebuilder:validation:XValidation:rule="self.namespacePolicy != 'Adopt' || has(self.namespace)",message="namespace is required when namespacePolicy is Adopt"
