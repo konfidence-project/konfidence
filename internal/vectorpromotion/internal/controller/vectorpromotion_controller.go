@@ -75,7 +75,7 @@ func (r *VectorPromotionReconciler) reconcileState(ctx context.Context, vectorPr
 	case konfidence.PromotionStateWaiting:
 		return ctrl.Result{}, r.reconcileGates(ctx, vectorPromotion)
 	case konfidence.PromotionStateReady:
-		if err := r.markGatesSatisfied(ctx, vectorPromotion); err != nil {
+		if err := r.reconcileGates(ctx, vectorPromotion); err != nil {
 			return ctrl.Result{}, err
 		}
 		return r.reconcileExecution(ctx, vectorPromotion)
