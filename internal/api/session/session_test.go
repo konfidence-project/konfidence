@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
@@ -228,3 +229,44 @@ var _ = ginkgo.Describe("OIDC session data", func() {
 		Expect(sess.Groups).To(Equal([]string{"developers", "admins"}))
 	})
 })
+
+var _ = ginkgo.Describe("Session cloning", func() {
+	ginkgo.It("documents every field handled by cloneSession", func() {
+		expectFields[Session](map[string]reflect.Type{
+			"Context":      reflect.TypeFor[Context](),
+			"Groups":       reflect.TypeFor[[]string](),
+			"AccessToken":  reflect.TypeFor[string](),
+			"RefreshToken": reflect.TypeFor[*string](),
+			"TokenExpiry":  reflect.TypeFor[int64](),
+		})
+
+		expectFields[Context](map[string]reflect.Type{
+			"ID":                reflect.TypeFor[string](),
+			"Subject":           reflect.TypeFor[string](),
+			"Name":              reflect.TypeFor[*string](),
+			"Email":             reflect.TypeFor[*string](),
+			"GivenName":         reflect.TypeFor[*string](),
+			"FamilyName":        reflect.TypeFor[*string](),
+			"PreferredUsername": reflect.TypeFor[*string](),
+			"ProjectRoles":      reflect.TypeFor[auth.ProjectRoles](),
+		})
+	})
+})
+
+func expectFields[T any](expected map[string]reflect.Type) {
+	ginkgo.GinkgoHelper()
+	valueType := reflect.TypeFor[T]()
+	for field := range valueType.Fields() {
+		expectedType, exists := expected[field.Name]
+
+		Expect(exists).To(BeTrue(),
+			"%s contains a new or renamed field %q; review cloneSession method", valueType, field.Name)
+		if !exists {
+			continue
+		}
+
+		Expect(field.Type).To(Equal(expectedType), "%s.%s changed type; review cloneSession method", valueType, field.Name)
+	}
+
+	Expect(valueType.NumField()).To(Equal(len(expected)), "%s field count changed; review cloneSession method", valueType)
+}
