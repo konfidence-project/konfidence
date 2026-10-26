@@ -20,7 +20,6 @@ Package v1alpha1 contains API Schema definitions for the konfidence v1alpha1 API
 - [ActivationTaskExecution](#activationtaskexecution)
 - [ActivationTaskRegistration](#activationtaskregistration)
 - [ArtifactDeployment](#artifactdeployment)
-- [DeploymentClass](#deploymentclass)
 - [DeploymentTarget](#deploymenttarget)
 - [Landscape](#landscape)
 - [Project](#project)
@@ -247,7 +246,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `manifest` _[ArtifactManifest](#artifactmanifest)_ | Manifest contains information about the artifact itself and the deployer implementation responsible for handling it. |  |  |
+| `type` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$` <br /> |
 | `taskManifests` _[TaskManifest](#taskmanifest) array_ | TaskManifests describes optional post-deployment tasks (commonly used for vector migrations such as database<br />schema updates). Tasks are executed after the artifact has been deployed and may form a dependency graph via<br />DependsOn. |  |  |
 | `component` _[OCMComponent](#ocmcomponent)_ | Component contains OCM metadata associated with the artifact. This is a simplified mapping of the OCM ComponentVersion. |  |  |
 
@@ -270,25 +269,6 @@ _Appears in:_
 | `deploymentResult` _[DeploymentResult](#deploymentresult) array_ | DeploymentResults captures structured outputs produced by the deployer during the deployment process—such as<br />computed DNS names, service endpoints, generated configuration, or other workload-specific details.<br />Results should be treated as immutable for a given generation and may be consumed by later stages of a vector<br />rollout (e.g., routing configuration).<br />Results are unique by (name, type). |  | Optional: \{\} <br /> |
 
 
-### ArtifactManifest
-
-
-
-ArtifactManifest describes the content of the artifact, thus it determines the deployer implementation responsible
-for handling it.
-
-
-
-_Appears in:_
-- [ArtifactDeploymentSpec](#artifactdeploymentspec)
-- [VectorAssignmentSpec](#vectorassignmentspec)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `type` _[ArtifactType](#artifacttype)_ | Type specifies the name of the DeploymentClass that should handle this artifact (e.g., "helm.konfidence.cloud").<br />This must match a DeploymentClass.metadata.name in the cluster.<br />Deployers implement their own interpretation of the artifact's contents. |  |  |
-| `allowReuse` _boolean_ | AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.<br />Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific<br />runtime context. |  |  |
-
-
 ### ArtifactType
 
 _Underlying type:_ _string_
@@ -299,8 +279,9 @@ section 1.1 of conformance/specs/deployer.md. It is encouraged to use MustArtifa
 
 
 _Appears in:_
-- [ArtifactManifest](#artifactmanifest)
+- [ArtifactDeploymentSpec](#artifactdeploymentspec)
 - [DeploymentTargetSpec](#deploymenttargetspec)
+- [VectorAssignmentSpec](#vectorassignmentspec)
 
 
 
@@ -378,78 +359,6 @@ _Appears in:_
 | `ocm` _[OCMCredentials](#ocmcredentials)_ |  |  | Optional: \{\} <br /> |
 
 
-### DeletionPolicy
-
-_Underlying type:_ _string_
-
-DeletionPolicy controls what happens to the managed namespace when the owning
-Project or Landscape is deleted.
-
-
-
-_Appears in:_
-- [LandscapeSpec](#landscapespec)
-- [ProjectSpec](#projectspec)
-
-| Field | Description |
-| --- | --- |
-| `Delete` | DeletionPolicyDelete deletes the namespace together with the resource.<br /> |
-| `Orphan` | DeletionPolicyOrphan leaves the namespace in place and only strips the<br />konfidence.cloud/* management labels.<br /> |
-
-
-### DeploymentClass
-
-
-
-DeploymentClass declares a deployment capability provided by a deployer (controller). It is a cluster-scoped resource
-installed by deployers to advertise their capabilities. Its immutable spec ensures that ownership of resources using
-the class cannot change on the fly. Its metadata.name is the deployment class identifier referenced by
-ArtifactDeployments and DeploymentTargets. The name must be unique across all DeploymentClasses in the cluster and
-should follow the pattern `<class-name>.<vendor-domain>` (e.g., `helm.konfidence.cloud`).
-
-
-
-_Appears in:_
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `konfidence.cloud/v1alpha1` | | |
-| `kind` _string_ | `DeploymentClass` | | |
-| `kind` _string_ | Kind is a string value representing the REST resource this object represents.<br />Servers may infer this from the endpoint the client submits requests to.<br />Cannot be updated.<br />In CamelCase.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |  | Optional: \{\} <br /> |
-| `apiVersion` _string_ | APIVersion defines the versioned schema of this representation of an object.<br />Servers should convert recognized schemas to the latest internal value, and<br />may reject unrecognized values.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |  | Optional: \{\} <br /> |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[DeploymentClassSpec](#deploymentclassspec)_ |  |  |  |
-
-
-#### Example
-
-```yaml
-apiVersion: konfidence.cloud/v1alpha1
-kind: DeploymentClass
-metadata:
-  name: kustomize.konfidence.cloud
-spec:
-  controller: konfidence.cloud/kubernetes-landscape-orchestrator
-```
-
-### DeploymentClassSpec
-
-
-
-DeploymentClassSpec defines the desired state of DeploymentClass. It is immutable because changing it requires
-transfer of deployment ownership to a different controller. This process is currently not well-supported and
-is therefor not recommended.
-
-
-
-_Appears in:_
-- [DeploymentClass](#deploymentclass)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `controller` _string_ | Controller is the name of the controller that implements this deployment class.<br />This identifies which operator/controller is responsible for reconciling<br />resources of this deployment class (e.g., "kubernetes-landscape-orchestrator"). |  | MaxLength: 253 <br />MinLength: 1 <br />Required: \{\} <br /> |
-
-
 ### DeploymentResult
 
 
@@ -523,7 +432,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `artifactType` _[ArtifactType](#artifacttype)_ | ArtifactType identifies the artifact type this destination serves. The ArtifactType is selected by a deployer<br />whose controllers are responsible for reconciling the DeploymentTarget resource. If there is no deployer<br />covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is immutable<br />because changing it may transfer ownership of the DeploymentTarget to a different controller.<br />There can only be one DeploymentTarget for a given deployment class in a landscape, so DeploymentClassName must be unique<br />across DeploymentTargets in the same landscape namespace. This restriction might be loosened in future releases of<br />Konfidence. |  | Required: \{\} <br /> |
+| `artifactType` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact should be deployed to the specified target. It must match the<br />syntax defined in section 1.1 of the deployer specification.<br />The ArtifactType is selected by a deployer whose controllers are responsible for reconciling the<br />DeploymentTarget resource. If there is no deployer covering the given ArtifactType, the DeploymentTarget<br />will never become ready. ArtifactType is immutable because changing it may transfer ownership of the<br />DeploymentTarget to a different controller.<br />Currently, Konfidence only supports one DeploymentTarget per ArtifactType in a landscape, so this field should<br />be unique across all DeploymentTargets in the same landscape namespace. If multiple DeploymentTargets with the<br />same ArtifactType exist in a single landscape namespace, deployers may fail their deployments, as they cannot<br />determine which DeploymentTarget takes precedence. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$` <br />Required: \{\} <br /> |
 | `parameters` _[Parameters](#parameters)_ | Parameters define how to connect to the target runtime described by this DeploymentTarget. It may point to<br />deployer-specific configuration containing connection details, credentials and further settings required to<br />connect to the target runtime. Their structure and interpretation are defined by the deployer that owns ArtifactType. |  | Optional: \{\} <br /> |
 
 
@@ -803,7 +712,9 @@ _Appears in:_
 
 
 
-
+Parameters reference a resource containing deployer-specific configuration for connecting to the target runtime.
+The referenced resource's structure and interpretation are defined by the deployer responsible for the
+DeploymentTarget's ArtifactType.
 
 
 
@@ -813,7 +724,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `apiGroup` _string_ | APIGroup is the group for the resource being referenced.<br />Defaults to the core API group ("") for Secret and ConfigMap.<br />For deployer-specific CRDs, set this to the appropriate API group. |  | Optional: \{\} <br /> |
-| `kind` _string_ | Kind is the resource kind (e.g., "Secret", "ConfigMap", or a deployer-specific kind). |  | MaxLength: 64 <br />MinLength: 1 <br />Required: \{\} <br /> |
+| `kind` _string_ | Kind is the resource kind (e.g., "Secret", "ConfigMap", or a deployer-specific kind). |  | MaxLength: 63 <br />MinLength: 1 <br />Required: \{\} <br /> |
 | `name` _string_ | Name is the name of the referenced resource. |  | MaxLength: 253 <br />MinLength: 1 <br />Required: \{\} <br /> |
 
 
@@ -1579,7 +1490,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `manifest` _[ArtifactManifest](#artifactmanifest)_ | Manifest contains the ArtifactManifest describing the artifact to be assigned to the vector. This duplicates the<br />manifest stored in the ArtifactDeployment for efficiency: deployers often need to filter or select assignments<br />by artifact type, and embedding the manifest avoids repeated API lookups. |  |  |
+| `type` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the VectorAssignment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$` <br /> |
 | `artifactDeploymentRef` _[LocalArtifactDeploymentReference](#localartifactdeploymentreference)_ | ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The<br />referenced artifact must exist in the same namespace as this VectorAssignment. |  |  |
 | `vectorDeploymentRef` _[LocalVectorDeploymentReference](#localvectordeploymentreference)_ | VectorDeploymentRef references the VectorDeployment that this artifact is assigned to. This creates the explicit<br />mapping "artifact X belongs to vector Y". |  |  |
 

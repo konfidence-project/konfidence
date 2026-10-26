@@ -24,15 +24,15 @@ func TestEnqueueArtifactDeploymentsForTarget(t *testing.T) {
 	}
 	matching := &konfidencev1alpha1.ArtifactDeployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "helm", Namespace: "landscape"},
-		Spec:       konfidencev1alpha1.ArtifactDeploymentSpec{Manifest: konfidencev1alpha1.ArtifactManifest{Type: "cloud.example.helm"}},
+		Spec:       konfidencev1alpha1.ArtifactDeploymentSpec{ArtifactType: konfidencev1alpha1.MustArtifactType("cloud.example.helm")},
 	}
 	otherType := &konfidencev1alpha1.ArtifactDeployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "kustomize", Namespace: "landscape"},
-		Spec:       konfidencev1alpha1.ArtifactDeploymentSpec{Manifest: konfidencev1alpha1.ArtifactManifest{Type: "kustomize.example.com"}},
+		Spec:       konfidencev1alpha1.ArtifactDeploymentSpec{ArtifactType: konfidencev1alpha1.MustArtifactType("kustomize.example.com")},
 	}
 	otherNamespace := &konfidencev1alpha1.ArtifactDeployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "helm-other-landscape", Namespace: "other"},
-		Spec:       konfidencev1alpha1.ArtifactDeploymentSpec{Manifest: konfidencev1alpha1.ArtifactManifest{Type: "helm.example.com"}},
+		Spec:       konfidencev1alpha1.ArtifactDeploymentSpec{ArtifactType: konfidencev1alpha1.MustArtifactType("helm.example.com")},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(matching, otherType, otherNamespace).Build()
 	target := &konfidencev1alpha1.DeploymentTarget{

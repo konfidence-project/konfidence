@@ -28,10 +28,11 @@ const (
 // The VectorAssignmentSpec is immutable. If an artifact is replaced or added to a different vector, the old
 // VectorAssignment is deleted and a new one created.
 type VectorAssignmentSpec struct {
-	// Manifest contains the ArtifactManifest describing the artifact to be assigned to the vector. This duplicates the
-	// manifest stored in the ArtifactDeployment for efficiency: deployers often need to filter or select assignments
-	// by artifact type, and embedding the manifest avoids repeated API lookups.
-	Manifest ArtifactManifest `json:"manifest"`
+	// ArtifactType identifies which type of artifact is represented in the VectorAssignment. It must match the
+	// syntax defined in section 1.1 of the deployer specification.
+	//
+	// +kubebuilder:validation:Pattern=`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`
+	ArtifactType ArtifactType `json:"type"`
 
 	// ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The
 	// referenced artifact must exist in the same namespace as this VectorAssignment.

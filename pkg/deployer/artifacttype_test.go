@@ -9,10 +9,10 @@ import (
 
 func TestArtifactTypePredicate(t *testing.T) {
 	helmDeployment := &konfidencev1alpha1.ArtifactDeployment{
-		Spec: konfidencev1alpha1.ArtifactDeploymentSpec{Manifest: konfidencev1alpha1.ArtifactManifest{Type: "helm.example.com"}},
+		Spec: konfidencev1alpha1.ArtifactDeploymentSpec{ArtifactType: konfidencev1alpha1.MustArtifactType("helm.example.com")},
 	}
 	otherDeployment := &konfidencev1alpha1.ArtifactDeployment{
-		Spec: konfidencev1alpha1.ArtifactDeploymentSpec{Manifest: konfidencev1alpha1.ArtifactManifest{Type: "kustomize.example.com"}},
+		Spec: konfidencev1alpha1.ArtifactDeploymentSpec{ArtifactType: konfidencev1alpha1.MustArtifactType("kustomize.example.com")},
 	}
 	if !ArtifactTypePredicate("helm.example.com").Create(event.CreateEvent{Object: helmDeployment}) {
 		t.Fatal("predicate rejected a matching artifact deployment")

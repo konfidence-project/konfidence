@@ -80,28 +80,12 @@ spec:
                 required:
                 - name
                 type: object
-              manifest:
+              type:
                 description: |-
-                  Manifest contains the ArtifactManifest describing the artifact to be assigned to the vector. This duplicates the
-                  manifest stored in the ArtifactDeployment for efficiency: deployers often need to filter or select assignments
-                  by artifact type, and embedding the manifest avoids repeated API lookups.
-                properties:
-                  allowReuse:
-                    description: |-
-                      AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.
-                      Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific
-                      runtime context.
-                    type: boolean
-                  type:
-                    description: |-
-                      Type specifies the name of the DeploymentClass that should handle this artifact (e.g., "helm.konfidence.cloud").
-                      This must match a DeploymentClass.metadata.name in the cluster.
-                      Deployers implement their own interpretation of the artifact's contents.
-                    type: string
-                required:
-                - allowReuse
-                - type
-                type: object
+                  ArtifactType identifies which type of artifact is represented in the VectorAssignment. It must match the
+                  syntax defined in section 1.1 of the deployer specification.
+                pattern: ^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$
+                type: string
               vectorDeploymentRef:
                 description: |-
                   VectorDeploymentRef references the VectorDeployment that this artifact is assigned to. This creates the explicit
@@ -115,7 +99,7 @@ spec:
                 type: object
             required:
             - artifactDeploymentRef
-            - manifest
+            - type
             - vectorDeploymentRef
             type: object
             x-kubernetes-validations:

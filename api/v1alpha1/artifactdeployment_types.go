@@ -28,9 +28,6 @@ const (
 	// A transient fetch failure is not this reason.
 	ArtifactDeploymentStalledReasonManifestMissing = "ManifestMissing"
 
-	// ArtifactDeploymentStalledReasonNoDeploymentClassAvailable indicates that no DeploymentClass matches the artifact.
-	ArtifactDeploymentStalledReasonNoDeploymentClassAvailable = "NoDeploymentClassAvailable"
-
 	// ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing indicates that DeploymentTarget credentials are absent.
 	// Set it only after a deadline, since secrets often arrive asynchronously.
 	ArtifactDeploymentStalledReasonDeploymentTargetSecretsMissing = "DeploymentTargetSecretsMissing"
@@ -47,8 +44,11 @@ const (
 // optional post-deployment tasks, and optional metadata derived from an OCM ComponentVersion. A deployer interprets
 // the specification according to the artifact type in Manifest.Type.
 type ArtifactDeploymentSpec struct {
-	// Manifest contains information about the artifact itself and the deployer implementation responsible for handling it.
-	Manifest ArtifactManifest `json:"manifest"`
+	// ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the
+	// syntax defined in section 1.1 of the deployer specification.
+	//
+	// +kubebuilder:validation:Pattern=`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`
+	ArtifactType ArtifactType `json:"type"`
 
 	// TaskManifests describes optional post-deployment tasks (commonly used for vector migrations such as database
 	// schema updates). Tasks are executed after the artifact has been deployed and may form a dependency graph via
@@ -158,20 +158,6 @@ type ArtifactDeployment struct {
 	Status ArtifactDeploymentStatus `json:"status,omitempty"`
 }
 
-// ArtifactManifest describes the content of the artifact, thus it determines the deployer implementation responsible
-// for handling it.
-type ArtifactManifest struct {
-	// Type specifies the name of the DeploymentClass that should handle this artifact (e.g., "helm.konfidence.cloud").
-	// This must match a DeploymentClass.metadata.name in the cluster.
-	// Deployers implement their own interpretation of the artifact's contents.
-	Type ArtifactType `json:"type"`
-
-	// AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.
-	// Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific
-	// runtime context.
-	AllowReuse bool `json:"allowReuse"`
-}
-
 // TaskManifest defines a post-deployment task that is executed after the artifact has been deployed. Tasks are
 // commonly used for vector migrations (such as database schema changes) but may represent any post-deployment action.
 //
@@ -216,5 +202,5 @@ func init() {
 
 // ArtifactType returns the ArtifactType which the ArtifactDeployment declares.
 func (ad *ArtifactDeployment) ArtifactType() ArtifactType {
-	return ad.Spec.Manifest.Type
+	return ad.Spec.ArtifactType
 }
