@@ -8,62 +8,61 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 )
 
-// reconcileGates runs while a promotion is Waiting or Ready, i.e. before
-// execution starts: it seeds a Pending status entry for every declared gate
-// that has none yet and mirrors the gates into the informational
-// GatesSatisfied condition — False while any gate is open, True once all are
-// satisfied. It must also run for Ready promotions because a gate writer
-// satisfying the last gate flips the derived state straight to Ready; the
-// next reconcile is the first to observe it.
+// reconcileGates handles the gate phase of a Waiting promotion. It seeds a
+// Pending status entry for every declared gate that has none yet and records
+// the outcome as the phase on the Succeeded condition (status Unknown):
+// GateError or GatesPending while a gate is open, PromotionReady once every
+// gate is satisfied (immediately for promotions without gates). Writing
+// PromotionReady freezes the gates: pkg/promotiongate refuses changes from
+// then on.
 //
 // The controller never interprets gate types and never satisfies a gate
 // itself; gate writers do that through pkg/promotiongate. Seeding only adds
-// missing entries and the status patch is optimistic-locked, so a writer that
-// set its gate before the first reconcile is never overwritten: a stale patch
-// conflicts and is retried on fresh state. Promotions without gates carry no
-// GatesSatisfied condition at all.
+// missing entries and the status patch is optimistic-locked, so a gate written
+// concurrently is never overwritten: a stale patch conflicts and is retried on
+// fresh state. The same lock makes "all gates satisfied → Ready" atomic with
+// respect to a gate being reopened.
 func (r *VectorPromotionReconciler) reconcileGates(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
-	if len(vectorPromotion.Spec.Gates) == 0 {
-		return nil
-	}
 	log := logf.FromContext(ctx)
-	original := vectorPromotion.DeepCopy()
-	previous := meta.FindStatusCondition(original.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)
+	previous := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded).DeepCopy()
 
-	promotiongate.Seed(vectorPromotion)
-	status, reason, message := gatesSummary(vectorPromotion)
-	setGatesSatisfiedCondition(vectorPromotion, status, reason, message)
-	if err := r.patchStatusWithEvent(ctx, vectorPromotion, original); err != nil {
+	// gatesSummary treats a missing entry as Pending, so it can run before seeding.
+	reason, message := gatesSummary(vectorPromotion)
+	seed := func(p *konfidence.VectorPromotion) { promotiongate.Seed(p) }
+	if err := r.transition(ctx, vectorPromotion, reason, message, seed); err != nil {
 		return err
 	}
 
 	if previous != nil && previous.Reason == reason && previous.Message == message {
 		return nil
 	}
-	log.Info("promotion gates changed", "vector", vectorPromotion.Spec.Vector, "reason", reason, "message", message)
+	log.Info("promotion gates evaluated", "vector", vectorPromotion.Spec.Vector, "reason", reason, "message", message)
 	switch reason {
 	case konfidence.ReasonGateError:
 		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "PromotionGateError", EventActionGates, message)
 	case konfidence.ReasonGatesPending:
 		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionWaitingForGates", EventActionGates, message)
 	default:
-		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionGatesSatisfied", EventActionGates, message)
+		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionReady", EventActionGates, message)
 	}
 	return nil
 }
 
-// gatesSummary derives the GatesSatisfied condition from the gates. Errored
-// gates take precedence over pending ones, so a gate that can never pass is
-// surfaced instead of looking like an ordinary wait.
-func gatesSummary(vectorPromotion *konfidence.VectorPromotion) (status metav1.ConditionStatus, reason, message string) {
+// gatesSummary maps the gates onto the gate-phase reason. Errored gates take
+// precedence over pending ones, so a gate that can never pass is surfaced
+// instead of looking like an ordinary wait.
+func gatesSummary(vectorPromotion *konfidence.VectorPromotion) (reason, message string) {
 	if promotiongate.AllSatisfied(vectorPromotion) {
-		return metav1.ConditionTrue, konfidence.ReasonAllGatesSatisfied,
+		if len(vectorPromotion.Spec.Gates) == 0 {
+			return konfidence.ReasonPromotionReady,
+				fmt.Sprintf("promotion of vector %q declares no gates", vectorPromotion.Spec.Vector)
+		}
+		return konfidence.ReasonPromotionReady,
 			fmt.Sprintf("all %d gates of the promotion of vector %q are satisfied",
 				len(vectorPromotion.Spec.Gates), vectorPromotion.Spec.Vector)
 	}
@@ -76,28 +75,11 @@ func gatesSummary(vectorPromotion *konfidence.VectorPromotion) (status metav1.Co
 			}
 			details = append(details, detail)
 		}
-		return metav1.ConditionFalse, konfidence.ReasonGateError,
+		return konfidence.ReasonGateError,
 			fmt.Sprintf("promotion of vector %q is blocked by gates in error: %s",
 				vectorPromotion.Spec.Vector, strings.Join(details, ", "))
 	}
-	return metav1.ConditionFalse, konfidence.ReasonGatesPending,
+	return konfidence.ReasonGatesPending,
 		fmt.Sprintf("promotion of vector %q is waiting for gates: %s",
 			vectorPromotion.Spec.Vector, strings.Join(promotiongate.Open(vectorPromotion), ", "))
-}
-
-// setGatesSatisfiedCondition writes the GatesSatisfied condition on the
-// in-memory object; the derived status.state is applied centrally when the
-// status is patched.
-func setGatesSatisfiedCondition(
-	vectorPromotion *konfidence.VectorPromotion,
-	status metav1.ConditionStatus,
-	reason, message string,
-) {
-	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
-		Type:               konfidence.ConditionTypeGatesSatisfied,
-		Status:             status,
-		ObservedGeneration: vectorPromotion.Generation,
-		Reason:             reason,
-		Message:            message,
-	})
 }

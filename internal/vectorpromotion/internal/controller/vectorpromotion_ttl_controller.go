@@ -9,7 +9,6 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -49,7 +48,7 @@ func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !promotion.IsTerminal(vectorPromotion) {
+	if !promotion.DeriveState(vectorPromotion).Terminal() {
 		return ctrl.Result{}, r.enforceOutstandingRetention(ctx, vectorPromotion)
 	}
 
@@ -75,7 +74,7 @@ func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req ctrl.R
 }
 
 // enforceOutstandingRetention supersedes the oldest promotions that are still
-// waiting at an approval gate when the configured bound is exceeded.
+// in their gate phase (Waiting) when the configured bound is exceeded.
 func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
 	ctx context.Context,
 	vectorPromotion *konfidence.VectorPromotion,
@@ -94,7 +93,7 @@ func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
 	}
 	outstanding := make([]konfidence.VectorPromotion, 0, len(siblings))
 	for i := range siblings {
-		if !promotion.IsTerminal(&siblings[i]) && !promotion.Cleared(&siblings[i]) {
+		if promotion.DeriveState(&siblings[i]) == konfidence.PromotionStateWaiting {
 			outstanding = append(outstanding, siblings[i])
 		}
 	}
@@ -109,15 +108,12 @@ func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
 	var errs []error
 	for i := range outstanding[:len(outstanding)-keep] {
 		candidate := &outstanding[i]
-		original := candidate.DeepCopy()
 		message := fmt.Sprintf(
 			"promotion of vector %q was superseded because the limit of %d outstanding promotions was exceeded",
 			candidate.Spec.Vector,
 			keep,
 		)
-		setPromotionCondition(candidate, metav1.ConditionFalse,
-			konfidence.ReasonPromotionOutstandingLimitReached, message)
-		if err := patchPromotionStatus(ctx, r.Client, candidate, original); err != nil {
+		if err := transition(ctx, r.Client, candidate, konfidence.ReasonPromotionOutstandingLimitReached, message); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -139,7 +135,7 @@ func (r *VectorPromotionTTLReconciler) enforceTerminalRetention(ctx context.Cont
 	}
 	terminal := make([]konfidence.VectorPromotion, 0, len(siblings))
 	for _, sibling := range siblings {
-		if promotion.IsTerminal(&sibling) {
+		if promotion.DeriveState(&sibling).Terminal() {
 			terminal = append(terminal, sibling)
 		}
 	}
@@ -205,11 +201,11 @@ func (r *VectorPromotionTTLReconciler) mapConfigToPromotions(
 	for i := range promotions {
 		candidate := &promotions[i]
 		switch {
-		case promotion.IsTerminal(candidate):
+		case promotion.DeriveState(candidate).Terminal():
 			if terminal == nil || promotion.Newer(candidate, terminal) {
 				terminal = candidate
 			}
-		case !promotion.Cleared(candidate):
+		case promotion.DeriveState(candidate) == konfidence.PromotionStateWaiting:
 			if outstanding == nil || promotion.Newer(candidate, outstanding) {
 				outstanding = candidate
 			}

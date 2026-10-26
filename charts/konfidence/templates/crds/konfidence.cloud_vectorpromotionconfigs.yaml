@@ -114,12 +114,7 @@ spec:
                 description: Source references the resource to promote from.
                 properties:
                   kind:
-                    description: |-
-                      Kind is the kind of the source resource. A `VectorTemplate` source
-                      promotes its latest assembled vector; a `Stage` source promotes the
-                      vector currently configured on that stage (`spec.vector`). Gates the
-                      resulting promotion must pass are declared on the config
-                      (`VectorPromotionConfigSpec.Gates`), independent of the source kind.
+                    description: Kind is the kind of the source resource.
                     enum:
                     - VectorTemplate
                     - Stage

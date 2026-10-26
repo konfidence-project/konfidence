@@ -75,14 +75,19 @@ var _ = Describe("gate helpers", func() {
 		Expect(promotiongate.Seed(p)).To(BeFalse())
 	})
 
-	It("is mutable only before a Succeeded condition exists", func() {
-		p := promotionWithGates(approval)
-		Expect(promotiongate.Mutable(p)).To(BeTrue())
-		p.Status.Conditions = []metav1.Condition{{
-			Type: konfidence.ConditionTypeSucceeded, Status: metav1.ConditionFalse, Reason: konfidence.ReasonPromotionRunning,
-		}}
-		Expect(promotiongate.Mutable(p)).To(BeFalse())
-	})
+	DescribeTable("is mutable only while the promotion state is empty or Waiting",
+		func(state konfidence.VectorPromotionState, mutable bool) {
+			p := promotionWithGates(approval)
+			p.Status.State = state
+			Expect(promotiongate.Mutable(p)).To(Equal(mutable))
+		},
+		Entry("never reconciled", konfidence.VectorPromotionState(""), true),
+		Entry("waiting", konfidence.PromotionStateWaiting, true),
+		Entry("ready", konfidence.PromotionStateReady, false),
+		Entry("in progress", konfidence.PromotionStateInProgress, false),
+		Entry("blocked", konfidence.PromotionStateBlocked, false),
+		Entry("superseded", konfidence.PromotionStateSuperseded, false),
+	)
 })
 
 var _ = Describe("Apply", func() {
@@ -138,11 +143,9 @@ var _ = Describe("Apply", func() {
 			promotiongate.Update{State: konfidence.PromotionGateStateSatisfied, SetBy: "x"}, promotiongate.ErrTypeMissing),
 		Entry("invalid state", promotionWithGates(approval),
 			promotiongate.Update{Type: approval, State: "Open", SetBy: "x"}, promotiongate.ErrInvalidState),
-		Entry("executing promotion", func() *konfidence.VectorPromotion {
+		Entry("ready promotion", func() *konfidence.VectorPromotion {
 			p := promotionWithGates(approval)
-			p.Status.Conditions = []metav1.Condition{{
-				Type: konfidence.ConditionTypeSucceeded, Status: metav1.ConditionFalse, Reason: konfidence.ReasonPromotionRunning,
-			}}
+			p.Status.State = konfidence.PromotionStateReady
 			return p
 		}(), satisfy, promotiongate.ErrPromotionNotMutable),
 	)

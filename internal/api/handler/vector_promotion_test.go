@@ -255,9 +255,10 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
 		promo.Status.Conditions = []metav1.Condition{{
 			Type:   konfidence.ConditionTypeSucceeded,
-			Status: metav1.ConditionFalse,
+			Status: metav1.ConditionUnknown,
 			Reason: konfidence.ReasonPromotionRunning,
 		}}
+		promo.Status.State = konfidence.PromotionStateInProgress
 		h := newProjectHandlerForTest(project, promo)
 
 		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})

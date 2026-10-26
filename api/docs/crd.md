@@ -972,7 +972,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `kind` _string_ | Kind is the kind of the source resource. A `VectorTemplate` source<br />promotes its latest assembled vector; a `Stage` source promotes the<br />vector currently configured on that stage (`spec.vector`). Gates the<br />resulting promotion must pass are declared on the config<br />(`VectorPromotionConfigSpec.Gates`), independent of the source kind. |  | Enum: [VectorTemplate Stage] <br /> |
+| `kind` _string_ | Kind is the kind of the source resource. |  | Enum: [VectorTemplate Stage] <br /> |
 | `name` _string_ | Name is the name of the source resource. |  | MaxLength: 253 <br />MinLength: 1 <br /> |
 | `landscape` _string_ | Landscape is the `metadata.name` of the `Landscape` in the config's<br />namespace (not its managed namespace) whose namespace hosts the<br />referenced `Stage`. Required for `Stage` references; must be omitted<br />for `VectorTemplate` references, which are resolved in the config's<br />namespace. |  | MaxLength: 63 <br />MinLength: 1 <br />Optional: \{\} <br /> |
 
@@ -2043,8 +2043,9 @@ _Appears in:_
 
 _Underlying type:_ _string_
 
-VectorPromotionState summarizes the promotion lifecycle for display.
-Conditions are the source of truth; the state is derived from them.
+VectorPromotionState summarizes the promotion lifecycle. It is derived from
+the reason of the Succeeded condition, which is the source of truth, and is
+written in the same status patch as that condition.
 
 
 
@@ -2054,7 +2055,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `Waiting` | PromotionStateWaiting means at least one declared gate is not<br />satisfied yet (Pending or Error).<br /> |
-| `Ready` | PromotionStateReady means every declared gate is satisfied and the<br />promotion is queued for execution. Promotions without gates are Ready<br />from their first reconcile.<br /> |
+| `Ready` | PromotionStateReady means every declared gate was satisfied and the<br />promotion is queued for execution; its gates can no longer change.<br />Promotions without gates are Ready from their first reconcile.<br /> |
 | `InProgress` | PromotionStateInProgress means the promotion is executing.<br /> |
 | `Blocked` | PromotionStateBlocked means the promotion is ready but cannot execute<br />because its target does not resolve; see the config's Ready condition.<br /> |
 | `Succeeded` | PromotionStateSucceeded means the promotion completed successfully.<br /> |
@@ -2076,7 +2077,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
-| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes Conditions for display. Conditions are the source of<br />truth; State is recomputed whenever conditions or gates are written.<br />`Superseded` is a terminal state: a superseded promotion can never be<br />approved or executed afterward. |  | Enum: [Waiting Ready InProgress Blocked Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
+| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes the Succeeded condition. The condition's reason is the<br />source of truth; State is derived from it and written in the same status<br />patch, so the two never disagree. Gate writers may read it: gates can<br />only change while State is empty or `Waiting`. `Superseded` is a<br />terminal state: a superseded promotion can never be approved or<br />executed afterward. |  | Enum: [Waiting Ready InProgress Blocked Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
 | `gates` _[PromotionGateStatus](#promotiongatestatus) array_ | Gates reports the state and provenance of each declared gate, keyed by<br />gate type. Entries are seeded `Pending` by the promotion controller and<br />set by the gate's writer (a gate controller or the konfidence API)<br />through `pkg/promotiongate`. A missing entry counts as `Pending`. |  | MaxItems: 16 <br />Optional: \{\} <br /> |
 | `promotedStageRef` _[TypedObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#typedobjectreference-v1-core)_ | PromotedStageRef records the Stage this promotion actually wrote its<br />vector to, so the promotion is self-describing even after the config<br />changed or was deleted. |  | Optional: \{\} <br /> |
 

@@ -52,10 +52,9 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		promotion := createPromotionTargeting("exec-auto-promotion", config.Name,
 			stageTargetInLandscape("exec-stage", "exec-auto-landscape"), false)
 
-		By("the first reconcile executes directly; absent gates leave no record")
+		By("the first reconcile records Ready and executes directly")
 		reconcilePromotion(promotion.Name)
 		refreshPromotion(promotion)
-		Expect(meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)).To(BeNil())
 		Expect(promotion.Status.Gates).To(BeEmpty())
 		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
 		succeeded := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
@@ -178,7 +177,7 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 
 		By("simulating a crash after the Running patch and the stage write")
 		reconcilePromotion(promotion.Name)
-		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionRunning, metav1.Now().Time)
+		setSucceededCondition(promotion, metav1.ConditionUnknown, konfidence.ReasonPromotionRunning, metav1.Now().Time)
 
 		By("the next reconcile completes without re-patching the stage")
 		reconcilePromotion(promotion.Name)

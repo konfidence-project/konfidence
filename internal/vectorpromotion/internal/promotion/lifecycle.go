@@ -1,3 +1,8 @@
+// Package promotion holds the VectorPromotion lifecycle. The phase of a
+// promotion is the reason of its Succeeded condition. One table pairs every
+// reason with its condition status and its VectorPromotionState: writers look
+// up the status with ConditionStatusFor, readers classify a promotion with
+// DeriveState. Nothing here reads the gates.
 package promotion
 
 import (
@@ -6,93 +11,56 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 )
+
+type phase struct {
+	status metav1.ConditionStatus
+	state  konfidence.VectorPromotionState
+}
+
+// phases is the single place a Succeeded reason is paired with its condition
+// status and its state.
+var phases = map[string]phase{
+	konfidence.ReasonGatesPending:                     {metav1.ConditionUnknown, konfidence.PromotionStateWaiting},
+	konfidence.ReasonGateError:                        {metav1.ConditionUnknown, konfidence.PromotionStateWaiting},
+	konfidence.ReasonPromotionReady:                   {metav1.ConditionUnknown, konfidence.PromotionStateReady},
+	konfidence.ReasonPromotionRunning:                 {metav1.ConditionUnknown, konfidence.PromotionStateInProgress},
+	konfidence.ReasonPromotionTargetUnresolved:        {metav1.ConditionUnknown, konfidence.PromotionStateBlocked},
+	konfidence.ReasonPromotionSucceeded:               {metav1.ConditionTrue, konfidence.PromotionStateSucceeded},
+	konfidence.ReasonPromotionSuperseded:              {metav1.ConditionFalse, konfidence.PromotionStateSuperseded},
+	konfidence.ReasonPromotionOutstandingLimitReached: {metav1.ConditionFalse, konfidence.PromotionStateSuperseded},
+	konfidence.ReasonPromotionFailed:                  {metav1.ConditionFalse, konfidence.PromotionStateFailed},
+}
 
 func getSucceededCondition(p *konfidence.VectorPromotion) *metav1.Condition {
 	return meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
 
-// Cleared reports whether every declared gate is satisfied. Gates are only
-// evaluated until execution starts: a promotion that already carries a
-// Succeeded condition has passed its gates, so a later gate edit can neither
-// pull it back to Waiting nor make it count as outstanding again.
-func Cleared(p *konfidence.VectorPromotion) bool {
-	return getSucceededCondition(p) != nil || promotiongate.AllSatisfied(p)
+// ConditionStatusFor returns the Succeeded condition status that belongs to
+// the given reason, and false for a reason that is not a known phase.
+func ConditionStatusFor(reason string) (metav1.ConditionStatus, bool) {
+	ph, ok := phases[reason]
+	return ph.status, ok
 }
 
-func IsInProgress(p *konfidence.VectorPromotion) bool {
-	cond := getSucceededCondition(p)
-	return cond != nil && cond.Reason == konfidence.ReasonPromotionRunning
-}
-
-// InProgressLongerThan reports whether the promotion has claimed InProgress
-// for longer than the given duration.
-func InProgressLongerThan(p *konfidence.VectorPromotion, d time.Duration) bool {
-	if !IsInProgress(p) {
-		return false
-	}
-	return time.Since(getSucceededCondition(p).LastTransitionTime.Time) > d
-}
-
-func IsSuperseded(p *konfidence.VectorPromotion) bool {
-	cond := getSucceededCondition(p)
-	return cond != nil && cond.Status == metav1.ConditionFalse &&
-		(cond.Reason == konfidence.ReasonPromotionSuperseded ||
-			cond.Reason == konfidence.ReasonPromotionOutstandingLimitReached)
-}
-
-func IsSucceeded(p *konfidence.VectorPromotion) bool {
-	cond := getSucceededCondition(p)
-	return cond != nil && cond.Status == metav1.ConditionTrue
-}
-
-func IsTerminal(p *konfidence.VectorPromotion) bool {
-	cond := getSucceededCondition(p)
-	if cond == nil {
-		return false
-	}
-	if cond.Status == metav1.ConditionTrue {
-		return true
-	}
-	// Unknown conventionally means "not yet known" and is never terminal.
-	if cond.Status != metav1.ConditionFalse {
-		return false
-	}
-	return cond.Reason != konfidence.ReasonPromotionRunning &&
-		cond.Reason != konfidence.ReasonPromotionTargetUnresolved
-}
-
-// DeriveState summarizes the promotion conditions into a display state.
-// Conditions stay the source of truth; callers refresh `status.state` with
-// this value whenever they write conditions.
+// DeriveState classifies the promotion from the reason of its Succeeded
+// condition: Waiting before the first reconcile, the table state for a known
+// reason, and "" for an unrecognized reason (non-terminal, never executed).
 func DeriveState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState {
 	cond := getSucceededCondition(p)
 	if cond == nil {
-		return deriveGateState(p)
+		return konfidence.PromotionStateWaiting
 	}
-	if cond.Status == metav1.ConditionTrue {
-		return konfidence.PromotionStateSucceeded
-	}
-	switch cond.Reason {
-	case konfidence.ReasonPromotionRunning:
-		return konfidence.PromotionStateInProgress
-	case konfidence.ReasonPromotionTargetUnresolved:
-		return konfidence.PromotionStateBlocked
-	case konfidence.ReasonPromotionSuperseded, konfidence.ReasonPromotionOutstandingLimitReached:
-		return konfidence.PromotionStateSuperseded
-	}
-	return konfidence.PromotionStateFailed
+	return phases[cond.Reason].state
 }
 
-// NewestCleared returns the highest-sequence promotion whose gates have all
-// passed and that is not terminal. Returns nil if no promotion qualifies.
+// NewestCleared returns the highest-sequence live promotion that passed its
+// gates (Ready, InProgress or Blocked). Returns nil if no promotion qualifies.
 func NewestCleared(promotions []konfidence.VectorPromotion) *konfidence.VectorPromotion {
 	var newest *konfidence.VectorPromotion
 	for i := range promotions {
 		p := &promotions[i]
-		if !Cleared(p) || IsTerminal(p) {
+		if !DeriveState(p).Cleared() {
 			continue
 		}
 		if newest == nil || Newer(p, newest) {
@@ -123,20 +91,10 @@ func Newer(p, than *konfidence.VectorPromotion) bool {
 	return p.Spec.Sequence > than.Spec.Sequence
 }
 
-// deriveGateState projects the gate view: Ready means every declared gate is
-// satisfied (or none is declared), Waiting means at least one gate is still
-// Pending or in Error.
-func deriveGateState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState {
-	if Cleared(p) {
-		return konfidence.PromotionStateReady
-	}
-	return konfidence.PromotionStateWaiting
-}
-
 // TTLStatus returns whether the promotion should be deleted and the time remaining until expiry.
 // Returns (false, 0) if no TTL is configured or promotion is not terminal.
 func TTLStatus(p *konfidence.VectorPromotion) (shouldDelete bool, remaining time.Duration) {
-	if p.Spec.TTLAfterFinished == nil || !IsTerminal(p) {
+	if p.Spec.TTLAfterFinished == nil || !DeriveState(p).Terminal() {
 		return false, 0
 	}
 	expiresAt := getSucceededCondition(p).LastTransitionTime.Add(p.Spec.TTLAfterFinished.Duration)

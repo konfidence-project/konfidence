@@ -134,8 +134,8 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		Consistently(func(g Gomega) {
 			refreshPromotion(middle)
 			refreshPromotion(newest)
-			g.Expect(promotion.IsTerminal(middle)).To(BeFalse())
-			g.Expect(promotion.IsTerminal(newest)).To(BeFalse())
+			g.Expect(promotion.DeriveState(middle).Terminal()).To(BeFalse())
+			g.Expect(promotion.DeriveState(newest).Terminal()).To(BeFalse())
 		}, 3*time.Second, interval).Should(Succeed())
 	})
 
@@ -188,7 +188,7 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		Consistently(func(g Gomega) {
 			for _, vectorPromotion := range promotions {
 				refreshPromotion(vectorPromotion)
-				g.Expect(promotion.IsTerminal(vectorPromotion)).To(BeFalse())
+				g.Expect(promotion.DeriveState(vectorPromotion).Terminal()).To(BeFalse())
 			}
 		}, 3*time.Second, interval).Should(Succeed())
 	})

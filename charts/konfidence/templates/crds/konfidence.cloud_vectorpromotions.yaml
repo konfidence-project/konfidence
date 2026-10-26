@@ -116,12 +116,7 @@ spec:
                   recorded so a promotion is self-describing.
                 properties:
                   kind:
-                    description: |-
-                      Kind is the kind of the source resource. A `VectorTemplate` source
-                      promotes its latest assembled vector; a `Stage` source promotes the
-                      vector currently configured on that stage (`spec.vector`). Gates the
-                      resulting promotion must pass are declared on the config
-                      (`VectorPromotionConfigSpec.Gates`), independent of the source kind.
+                    description: Kind is the kind of the source resource.
                     enum:
                     - VectorTemplate
                     - Stage
@@ -357,10 +352,12 @@ spec:
                 type: object
               state:
                 description: |-
-                  State summarizes Conditions for display. Conditions are the source of
-                  truth; State is recomputed whenever conditions or gates are written.
-                  `Superseded` is a terminal state: a superseded promotion can never be
-                  approved or executed afterward.
+                  State summarizes the Succeeded condition. The condition's reason is the
+                  source of truth; State is derived from it and written in the same status
+                  patch, so the two never disagree. Gate writers may read it: gates can
+                  only change while State is empty or `Waiting`. `Superseded` is a
+                  terminal state: a superseded promotion can never be approved or
+                  executed afterward.
                 enum:
                 - Waiting
                 - Ready

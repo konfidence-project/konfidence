@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/client-go/tools/events"
@@ -56,44 +55,27 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if promotion.IsTerminal(vectorPromotion) {
+	// The phase is the reason of the Succeeded condition; DeriveState
+	// classifies it. Handlers write it only through transition, which keeps
+	// the condition and `status.state` in one patch.
+	state := promotion.DeriveState(vectorPromotion)
+	if state.Terminal() {
 		return ctrl.Result{}, nil
 	}
-
-	result, err := r.reconcileState(ctx, vectorPromotion)
-	// Phase handlers write conditions; the derived state is applied centrally
-	// so no exit path can leave it stale (e.g. a Ready promotion parked
-	// behind an in-progress sibling writes no condition at all).
-	return result, errors.Join(err, r.syncDerivedState(ctx, vectorPromotion))
-}
-
-// reconcileState dispatches on the derived state: each case runs the phase
-// that can move the promotion onward. promotion.DeriveState computes and
-// never sets; the handlers set conditions and never derive.
-func (r *VectorPromotionReconciler) reconcileState(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) (ctrl.Result, error) {
-	switch promotion.DeriveState(vectorPromotion) {
-	case konfidence.PromotionStateWaiting:
-		return ctrl.Result{}, r.reconcileGates(ctx, vectorPromotion)
-	case konfidence.PromotionStateReady:
+	if state == konfidence.PromotionStateWaiting {
+		// May record PromotionReady on the in-memory object, which lets the
+		// promotion move on to execution in this same reconcile.
 		if err := r.reconcileGates(ctx, vectorPromotion); err != nil {
 			return ctrl.Result{}, err
 		}
-		return r.reconcileExecution(ctx, vectorPromotion)
-	case konfidence.PromotionStateBlocked, konfidence.PromotionStateInProgress:
-		return r.reconcileExecution(ctx, vectorPromotion)
-	default:
-		// A non-terminal promotion whose Succeeded condition has an
-		// unrecognized shape (e.g. a hand-set Unknown status) is parked
-		// rather than executed on a guess.
-		return ctrl.Result{}, nil
+		state = promotion.DeriveState(vectorPromotion)
 	}
-}
-
-// syncDerivedState re-applies the derived display state; a no-op whenever a
-// phase handler already patched it alongside a condition write.
-func (r *VectorPromotionReconciler) syncDerivedState(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
-	original := vectorPromotion.DeepCopy()
-	return client.IgnoreNotFound(patchPromotionStatus(ctx, r.Client, vectorPromotion, original))
+	if state.Cleared() {
+		return r.reconcileExecution(ctx, vectorPromotion)
+	}
+	// Still waiting on gates, or a live promotion with an unrecognized reason
+	// (e.g. hand-set), which is parked rather than executed on a guess.
+	return ctrl.Result{}, nil
 }
 
 // RegisterFieldIndexes registers the cache indexes the promotion controllers

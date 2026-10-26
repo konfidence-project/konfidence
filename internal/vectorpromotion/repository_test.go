@@ -135,11 +135,13 @@ var _ = Describe("Repository", func() {
 		})
 
 		It("rejects a promotion that already started executing", func() {
-			repo := newRepository(newPromotion(metav1.Condition{
+			executing := newPromotion(metav1.Condition{
 				Type:   konfidence.ConditionTypeSucceeded,
-				Status: metav1.ConditionFalse,
+				Status: metav1.ConditionUnknown,
 				Reason: konfidence.ReasonPromotionRunning,
-			}))
+			})
+			executing.Status.State = konfidence.PromotionStateInProgress
+			repo := newRepository(executing)
 
 			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrPromotionExecuting))
 		})

@@ -15,6 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
+
+	promotionlifecycle "github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
 const (
@@ -283,6 +285,8 @@ func setSucceededCondition(
 		// meta.SetStatusCondition stamps its own transition time; force the test-controlled one.
 		cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 		cond.LastTransitionTime = metav1.NewTime(transitionTime.Truncate(time.Second))
+		// Keep status.state consistent with the condition, as transition does.
+		promotion.Status.State = promotionlifecycle.DeriveState(promotion)
 		g.Expect(k8sClient.Status().Update(ctx, promotion)).To(Succeed())
 	}, timeout, interval).Should(Succeed())
 }

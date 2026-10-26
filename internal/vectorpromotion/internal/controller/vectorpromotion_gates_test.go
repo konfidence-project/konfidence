@@ -20,8 +20,15 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 
 	BeforeEach(func() { cleanupPromotions() })
 
-	gatesSatisfied := func(promotion *konfidence.VectorPromotion) *metav1.Condition {
-		return meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)
+	phaseOf := func(promotion *konfidence.VectorPromotion) *metav1.Condition {
+		return meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
+	}
+	expectPhase := func(promotion *konfidence.VectorPromotion, status metav1.ConditionStatus, reason string) {
+		GinkgoHelper()
+		cond := phaseOf(promotion)
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Status).To(Equal(status))
+		Expect(cond.Reason).To(Equal(reason))
 	}
 
 	It("waits for approval and promotes once approved", func() {
@@ -32,7 +39,7 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 		promotion := createPromotionTargeting("exec-manual-promotion", config.Name,
 			stageTargetInLandscape("manual-stage", "exec-manual-landscape"), true)
 
-		By("first reconcile seeds the gate and parks the promotion in Waiting")
+		By("first reconcile seeds the gate and records the GatesPending phase")
 		reconcilePromotion(promotion.Name)
 		refreshPromotion(promotion)
 		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateWaiting))
@@ -40,30 +47,39 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 			Type:  konfidence.GateTypeExplicitApproval,
 			State: konfidence.PromotionGateStatePending,
 		}))
-		Expect(gatesSatisfied(promotion)).NotTo(BeNil())
-		Expect(gatesSatisfied(promotion).Status).To(Equal(metav1.ConditionFalse))
-		Expect(gatesSatisfied(promotion).Reason).To(Equal(konfidence.ReasonGatesPending))
-		Expect(gatesSatisfied(promotion).Message).To(ContainSubstring(konfidence.GateTypeExplicitApproval))
+		expectPhase(promotion, metav1.ConditionUnknown, konfidence.ReasonGatesPending)
+		Expect(phaseOf(promotion).Message).To(ContainSubstring(konfidence.GateTypeExplicitApproval))
 
 		By("reconciling again without approval does not execute")
 		reconcilePromotion(promotion.Name)
 		refreshPromotion(promotion)
-		Expect(meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)).To(BeNil())
+		expectPhase(promotion, metav1.ConditionUnknown, konfidence.ReasonGatesPending)
 
-		By("approving executes the promotion")
+		By("approving clears the gates and executes in the same reconcile")
 		approvePromotion(promotion)
+		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateWaiting))
 		reconcilePromotion(promotion.Name)
 		refreshPromotion(promotion)
 		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
-		Expect(gatesSatisfied(promotion).Status).To(Equal(metav1.ConditionTrue))
-		Expect(gatesSatisfied(promotion).Reason).To(Equal(konfidence.ReasonAllGatesSatisfied))
+		expectPhase(promotion, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded)
 
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: stage.Name, Namespace: stage.Namespace,
 		}, stage)).To(Succeed())
 		Expect(stage.Spec.Vector).To(Equal(testVector))
+	})
 
-		By("gates are frozen once execution started")
+	It("freezes the gates once the promotion is recorded Ready", func() {
+		promotion := createPromotionRequiringApproval("gates-freeze", "some-config")
+		approvePromotion(promotion)
+
+		By("the gate phase records Ready")
+		Expect(newExecutionReconciler().reconcileGates(ctx, promotion)).To(Succeed())
+		refreshPromotion(promotion)
+		expectPhase(promotion, metav1.ConditionUnknown, konfidence.ReasonPromotionReady)
+		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateReady))
+
+		By("a gate writer can no longer reopen the gate")
 		key := types.NamespacedName{Name: promotion.Name, Namespace: testNamespace}
 		Expect(promotiongate.Set(ctx, k8sClient, key, promotiongate.Update{
 			Type: konfidence.GateTypeExplicitApproval, State: konfidence.PromotionGateStatePending, SetBy: "test",
@@ -87,8 +103,8 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 		Expect(promotiongate.Find(promotion, e2eGate)).To(Equal(early))
 		Expect(promotiongate.StateOf(promotion, konfidence.GateTypeExplicitApproval)).
 			To(Equal(konfidence.PromotionGateStatePending))
-		Expect(gatesSatisfied(promotion).Message).To(ContainSubstring(konfidence.GateTypeExplicitApproval))
-		Expect(gatesSatisfied(promotion).Message).NotTo(ContainSubstring(e2eGate))
+		Expect(phaseOf(promotion).Message).To(ContainSubstring(konfidence.GateTypeExplicitApproval))
+		Expect(phaseOf(promotion).Message).NotTo(ContainSubstring(e2eGate))
 	})
 
 	It("rejects a seed patch built from a stale read instead of overwriting a gate", func() {
@@ -128,19 +144,31 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 		refreshPromotion(promotion)
 
 		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateWaiting))
-		Expect(meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)).To(BeNil())
-		Expect(gatesSatisfied(promotion).Status).To(Equal(metav1.ConditionFalse))
-		Expect(gatesSatisfied(promotion).Reason).To(Equal(konfidence.ReasonGateError))
-		Expect(gatesSatisfied(promotion).Message).To(ContainSubstring(e2eGate))
-		Expect(gatesSatisfied(promotion).Message).To(ContainSubstring("Misconfigured"))
+		expectPhase(promotion, metav1.ConditionUnknown, konfidence.ReasonGateError)
+		Expect(phaseOf(promotion).Message).To(ContainSubstring(e2eGate))
+		Expect(phaseOf(promotion).Message).To(ContainSubstring("Misconfigured"))
 
 		recorder, ok := reconciler.Recorder.(*events.FakeRecorder)
 		Expect(ok).To(BeTrue())
 		Expect(recorder.Events).To(Receive(ContainSubstring("Warning PromotionGateError")))
 
-		By("the writer can recover the gate")
+		By("the writer can still recover the gate")
 		setGate(promotion, e2eGate, konfidence.PromotionGateStateSatisfied, "TestsPassed")
-		Expect(promotiongate.AllSatisfied(promotion)).To(BeTrue())
+		Expect(newExecutionReconciler().reconcileGates(ctx, promotion)).To(Succeed())
+		refreshPromotion(promotion)
+		expectPhase(promotion, metav1.ConditionUnknown, konfidence.ReasonPromotionReady)
+	})
+
+	It("rejects a transition to an unknown phase without patching", func() {
+		promotion := createPromotion("transition-unknown-reason", "some-config")
+		resourceVersion := promotion.ResourceVersion
+
+		err := transition(ctx, k8sClient, promotion, "NotAPhase", "set by test")
+		Expect(err).To(MatchError(ContainSubstring(`unknown promotion phase "NotAPhase"`)))
+
+		refreshPromotion(promotion)
+		Expect(promotion.ResourceVersion).To(Equal(resourceVersion))
+		Expect(phaseOf(promotion)).To(BeNil())
 	})
 
 	It("does not touch a terminal promotion", func() {

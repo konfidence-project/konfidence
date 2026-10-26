@@ -14,30 +14,56 @@ import (
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
-// patchStatusWithEvent patches the promotion status if it changed and emits a
-// warning event when the patch fails.
-func (r *VectorPromotionReconciler) patchStatusWithEvent(ctx context.Context, vectorPromotion, original *konfidence.VectorPromotion) error {
-	err := patchPromotionStatus(ctx, r.Client, vectorPromotion, original)
+// transition records a phase change on the promotion and emits a warning
+// event when the status patch fails. See transition.
+func (r *VectorPromotionReconciler) transition(
+	ctx context.Context,
+	vectorPromotion *konfidence.VectorPromotion,
+	reason, message string,
+	mutate ...func(*konfidence.VectorPromotion),
+) error {
+	err := transition(ctx, r.Client, vectorPromotion, reason, message, mutate...)
 	if err != nil {
 		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch, err.Error())
 	}
 	return err
 }
 
-// setPromotionCondition writes the Succeeded condition on the in-memory
-// object; the derived status.state is applied centrally when the status is
-// patched. `meta.SetStatusCondition` only stamps LastTransitionTime when the
-// condition status flips, not on a reason change; a reason change (e.g.
-// Running to Superseded, both False) must still register as a transition
-// because the TTL clock and the config mirror key on it, so the timestamp is
-// forced here.
-func setPromotionCondition(
+// transition is the single way the promotion phase is written. It applies
+// the optional mutations (other status fields that belong to the same
+// transition), sets the Succeeded condition with the status that belongs to
+// the reason, refreshes `status.state`, and persists everything in one
+// optimistic-locked status patch; it is a no-op when nothing changed. The
+// in-memory promotion is updated in place, so callers can keep deciding on
+// it after the call.
+//
+// The patch is optimistic-locked because promotion status is also written by
+// gate writers: a stale write must conflict and retrigger reconciliation
+// instead of overwriting their gate entries.
+//
+// `meta.SetStatusCondition` only stamps LastTransitionTime when the condition
+// status flips, but every reason change is a transition: the live phases
+// (GatesPending → PromotionReady → PromotionRunning) share status Unknown.
+// The timestamp is forced on a reason change so it always shows when the
+// current phase began.
+func transition(
+	ctx context.Context,
+	c client.Client,
 	vectorPromotion *konfidence.VectorPromotion,
-	status metav1.ConditionStatus,
 	reason, message string,
-) {
-	previous := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-	reasonOnlyChange := previous != nil && previous.Status == status && previous.Reason != reason
+	mutate ...func(*konfidence.VectorPromotion),
+) error {
+	status, ok := promotion.ConditionStatusFor(reason)
+	if !ok {
+		return fmt.Errorf("unknown promotion phase %q for VectorPromotion %q", reason, vectorPromotion.Name)
+	}
+
+	original := vectorPromotion.DeepCopy()
+	for _, m := range mutate {
+		m(vectorPromotion)
+	}
+
+	previous := meta.FindStatusCondition(original.Status.Conditions, konfidence.ConditionTypeSucceeded)
 	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
 		Type:               konfidence.ConditionTypeSucceeded,
 		Status:             status,
@@ -45,24 +71,12 @@ func setPromotionCondition(
 		Reason:             reason,
 		Message:            message,
 	})
-	if reasonOnlyChange {
-		current := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-		current.LastTransitionTime = metav1.Now()
+	if previous != nil && previous.Reason != reason {
+		meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded).
+			LastTransitionTime = metav1.Now()
 	}
-}
-
-// patchPromotionStatus patches the promotion status if it changed relative to
-// original. It is the single place the derived status.state is set on the
-// controller side: DeriveState computes, this applies. The patch is
-// optimistic-locked: promotion status is also written by the external
-// approver, and a stale write must conflict and retrigger reconciliation
-// instead of silently overwriting the conditions array.
-func patchPromotionStatus(
-	ctx context.Context,
-	c client.Client,
-	vectorPromotion, original *konfidence.VectorPromotion,
-) error {
 	vectorPromotion.Status.State = promotion.DeriveState(vectorPromotion)
+
 	if reflect.DeepEqual(vectorPromotion.Status, original.Status) {
 		return nil
 	}

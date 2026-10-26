@@ -2,7 +2,6 @@ package promotiongate
 
 import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/meta"
 )
 
 // Declared reports whether the promotion declares a gate of the given type.
@@ -88,9 +87,10 @@ func Seed(p *konfidence.VectorPromotion) bool {
 	return added
 }
 
-// Mutable reports whether the promotion's gates may still change: only until
-// execution starts, i.e. while the promotion carries no Succeeded condition
-// (state Waiting or Ready).
+// Mutable reports whether the promotion's gates may still change: only while
+// its `status.state` is empty (never reconciled) or `Waiting`. The promotion
+// controller writes the state in the same patch as the phase condition, so
+// once it records the promotion as Ready the gates are frozen.
 func Mutable(p *konfidence.VectorPromotion) bool {
-	return meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded) == nil
+	return p.Status.State == "" || p.Status.State == konfidence.PromotionStateWaiting
 }

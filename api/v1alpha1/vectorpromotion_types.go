@@ -9,49 +9,47 @@ const (
 	// VectorPromotionKind is kind of the VectorPromotion resource.
 	VectorPromotionKind = "VectorPromotion"
 
-	// ConditionTypeSucceeded is the condition type for promotion results.
+	// ConditionTypeSucceeded carries the promotion phase. Its status tells
+	// whether the promotion finished (`Unknown` while live, `True` on success,
+	// `False` on any other end); its reason is the phase. `status.state` is
+	// derived from the reason and written in the same status patch.
 	ConditionTypeSucceeded = "Succeeded"
-	// ConditionTypeGatesSatisfied reports whether every declared gate is
-	// satisfied. It is informational: gate state lives in `status.gates`.
-	// Promotions without gates carry no such condition.
-	ConditionTypeGatesSatisfied = "GatesSatisfied"
 
-	// ReasonPromotionSucceeded indicates the promotion completed successfully.
-	ReasonPromotionSucceeded = "PromotionSucceeded"
-	// ReasonPromotionFailed is a catch-all for other promotion errors.
-	ReasonPromotionFailed = "PromotionFailed"
-	// ReasonPromotionRunning indicates that the promotion is still running.
-	ReasonPromotionRunning = "PromotionRunning"
-	// ReasonGatesPending indicates at least one declared gate is still open.
+	// ReasonGatesPending (Unknown) indicates at least one declared gate is still open.
 	ReasonGatesPending = "GatesPending"
-	// ReasonGateError indicates at least one declared gate reports an error.
+	// ReasonGateError (Unknown) indicates at least one declared gate reports an error.
 	ReasonGateError = "GateError"
-	// ReasonAllGatesSatisfied indicates every declared gate is satisfied.
-	ReasonAllGatesSatisfied = "AllGatesSatisfied"
-	// ReasonPromotionSuperseded indicates a newer promotion for the same config replaced this one.
+	// ReasonPromotionReady (Unknown) indicates every declared gate is satisfied
+	// and the promotion is queued for execution.
+	ReasonPromotionReady = "PromotionReady"
+	// ReasonPromotionRunning (Unknown) indicates that the promotion is executing.
+	ReasonPromotionRunning = "PromotionRunning"
+	// ReasonPromotionSucceeded (True) indicates the promotion completed successfully.
+	ReasonPromotionSucceeded = "PromotionSucceeded"
+	// ReasonPromotionFailed (False) is a catch-all for other promotion errors.
+	ReasonPromotionFailed = "PromotionFailed"
+	// ReasonPromotionSuperseded (False) indicates a newer promotion for the same config replaced this one.
 	ReasonPromotionSuperseded = "PromotionSuperseded"
-	// ReasonPromotionOutstandingLimitReached indicates an outstanding Promotion was superseded
+	// ReasonPromotionOutstandingLimitReached (False) indicates an outstanding Promotion was superseded
 	// after the limit of outstanding promotions was reached.
 	ReasonPromotionOutstandingLimitReached = "OutstandingLimitReached"
-	// ReasonPromotionTimedOut indicates the promotion stayed in progress past the
-	// execution deadline and was retired.
-	ReasonPromotionTimedOut = "PromotionTimedOut"
-	// ReasonPromotionTargetUnresolved indicates the target Stage or its Landscape does not
+	// ReasonPromotionTargetUnresolved (Unknown) indicates the target Stage or its Landscape does not
 	// resolve yet. The promotion stays live and execution is retried.
 	ReasonPromotionTargetUnresolved = "PromotionTargetUnresolved"
 )
 
-// VectorPromotionState summarizes the promotion lifecycle for display.
-// Conditions are the source of truth; the state is derived from them.
+// VectorPromotionState summarizes the promotion lifecycle. It is derived from
+// the reason of the Succeeded condition, which is the source of truth, and is
+// written in the same status patch as that condition.
 type VectorPromotionState string
 
 const (
 	// PromotionStateWaiting means at least one declared gate is not
 	// satisfied yet (Pending or Error).
 	PromotionStateWaiting VectorPromotionState = "Waiting"
-	// PromotionStateReady means every declared gate is satisfied and the
-	// promotion is queued for execution. Promotions without gates are Ready
-	// from their first reconcile.
+	// PromotionStateReady means every declared gate was satisfied and the
+	// promotion is queued for execution; its gates can no longer change.
+	// Promotions without gates are Ready from their first reconcile.
 	PromotionStateReady VectorPromotionState = "Ready"
 	// PromotionStateInProgress means the promotion is executing.
 	PromotionStateInProgress VectorPromotionState = "InProgress"
@@ -67,6 +65,26 @@ const (
 	// promotions can never be approved or executed afterward.
 	PromotionStateSuperseded VectorPromotionState = "Superseded"
 )
+
+// Terminal reports whether the state is final: Succeeded, Failed or
+// Superseded. A terminal promotion is never reconciled again.
+func (s VectorPromotionState) Terminal() bool {
+	switch s {
+	case PromotionStateSucceeded, PromotionStateFailed, PromotionStateSuperseded:
+		return true
+	}
+	return false
+}
+
+// Cleared reports whether the state belongs to a live promotion that passed
+// its gates and competes for execution: Ready, InProgress or Blocked.
+func (s VectorPromotionState) Cleared() bool {
+	switch s {
+	case PromotionStateReady, PromotionStateInProgress, PromotionStateBlocked:
+		return true
+	}
+	return false
+}
 
 // VectorPromotionSpec defines the desired state of VectorPromotion.
 //
@@ -123,10 +141,12 @@ type VectorPromotionSpec struct {
 type VectorPromotionStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// State summarizes Conditions for display. Conditions are the source of
-	// truth; State is recomputed whenever conditions or gates are written.
-	// `Superseded` is a terminal state: a superseded promotion can never be
-	// approved or executed afterward.
+	// State summarizes the Succeeded condition. The condition's reason is the
+	// source of truth; State is derived from it and written in the same status
+	// patch, so the two never disagree. Gate writers may read it: gates can
+	// only change while State is empty or `Waiting`. `Superseded` is a
+	// terminal state: a superseded promotion can never be approved or
+	// executed afterward.
 	// +kubebuilder:validation:Enum=Waiting;Ready;InProgress;Blocked;Succeeded;Failed;Superseded
 	// +optional
 	State VectorPromotionState `json:"state,omitempty"`

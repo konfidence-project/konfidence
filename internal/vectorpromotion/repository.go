@@ -40,9 +40,9 @@ var (
 	// a newer promotion. Superseded promotions are locked for good: the newer
 	// promotion is the one to approve.
 	ErrPromotionSuperseded = errors.New("promotion was superseded and is locked")
-	// ErrPromotionExecuting is returned when the promotion already started
-	// executing, so its gates can no longer change.
-	ErrPromotionExecuting = errors.New("promotion is already executing; its gates can no longer change")
+	// ErrPromotionExecuting is returned when the promotion already passed its
+	// gate phase (Ready or executing), so its gates can no longer change.
+	ErrPromotionExecuting = errors.New("promotion already passed its gates; they can no longer change")
 	// ErrAlreadyApproved is returned when the explicit-approval gate is
 	// already satisfied.
 	ErrAlreadyApproved = errors.New("promotion is already approved")
@@ -119,11 +119,12 @@ func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionI
 		return err
 	}
 
-	if promotion.IsSuperseded(vectorPromotion) {
+	state := promotion.DeriveState(vectorPromotion)
+	if state == konfidence.PromotionStateSuperseded {
 		return ErrPromotionSuperseded
 	}
-	if promotion.IsTerminal(vectorPromotion) {
-		return fmt.Errorf("%w: state is %q", ErrPromotionFinished, vectorPromotion.Status.State)
+	if state.Terminal() {
+		return fmt.Errorf("%w: state is %q", ErrPromotionFinished, state)
 	}
 	if !promotiongate.Declared(vectorPromotion, konfidence.GateTypeExplicitApproval) {
 		return ErrApprovalNotRequired
