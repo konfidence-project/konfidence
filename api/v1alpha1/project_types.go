@@ -34,13 +34,16 @@ const (
 	ProjectNamespacePrefix = "kden-p-"
 )
 
+
+//nolint:lll // Kubebuilder annotations are intentionally long.
+// +kubebuilder:validation:XValidation:rule="has(self.namespace) == has(oldSelf.namespace)",message="namespace is immutable"
+// +kubebuilder:validation:XValidation:rule="self.namespacePolicy != 'Adopt' || has(self.namespace)",message="namespace is required when namespacePolicy is Adopt"
+
 // ProjectSpec defines the desired state of Project.
 //
 // The transition rule catches namespace being set or unset after creation;
 // changing a set namespace is caught by the field-level rule. The two rules
 // are split to stay within the CEL cost budget of the schema.
-// +kubebuilder:validation:XValidation:rule="has(self.namespace) == has(oldSelf.namespace)",message="namespace is immutable"
-// +kubebuilder:validation:XValidation:rule="self.namespacePolicy != 'Adopt' || has(self.namespace)",message="namespace is required when namespacePolicy is Adopt"
 type ProjectSpec struct {
 	// DisplayName is the human-readable name of the project, shown in user
 	// interfaces. It does not affect the namespace name or any label, and it
