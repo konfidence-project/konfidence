@@ -4,9 +4,8 @@ metadata:
   name: production-kustomize
   namespace: kden-l-production-abc123
 spec:
-  deploymentClassName: kustomize.konfidence.cloud
-  connection:
-    type: kubeconfig
-    ref:
-      kind: Secret
-      name: prod-cluster-kubeconfig
+  artifactType: kustomize.konfidence.cloud
+  parameters:
+    apiGroup: ""
+    kind: Secret
+    name: prod-cluster-kubeconfig

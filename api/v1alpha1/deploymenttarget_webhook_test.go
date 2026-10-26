@@ -27,10 +27,10 @@ var _ = Describe("DeploymentTargetValidator", func() {
 			},
 		}}
 	}
-	target := func(name, namespace, deploymentClassName string) *DeploymentTarget {
+	target := func(name, namespace, artifactType string) *DeploymentTarget {
 		return &DeploymentTarget{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-			Spec:       DeploymentTargetSpec{DeploymentClassName: deploymentClassName},
+			Spec:       DeploymentTargetSpec{ArtifactType: artifactType},
 		}
 	}
 
@@ -42,7 +42,7 @@ var _ = Describe("DeploymentTargetValidator", func() {
 	})
 
 	Describe("ValidateCreate", func() {
-		Context("when the deployment class name is unique in a landscape namespace", func() {
+		Context("when the artifact type is unique in a landscape namespace", func() {
 			It("should allow creation", func() {
 				ns := landscapeNamespace("landscape")
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns).Build()
@@ -54,20 +54,20 @@ var _ = Describe("DeploymentTargetValidator", func() {
 			})
 		})
 
-		Context("when the deployment class name already exists in the same namespace", func() {
+		Context("when the artifact type already exists in the same namespace", func() {
 			It("should reject creation", func() {
 				ns := landscapeNamespace("landscape")
 				existing := target("existing", ns.Name, "helm.konfidence.cloud")
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, existing).Build()
 				validator := &DeploymentTargetValidator{Client: fakeClient}
 
-				warnings, err := validator.ValidateCreate(ctx, target("duplicate", ns.Name, existing.Spec.DeploymentClassName))
+				warnings, err := validator.ValidateCreate(ctx, target("duplicate", ns.Name, existing.Spec.ArtifactType))
 				Expect(err).To(HaveOccurred())
 				Expect(warnings).To(BeEmpty())
 			})
 		})
 
-		Context("when the deployment class name exists in another landscape namespace", func() {
+		Context("when the artifact type exists in another landscape namespace", func() {
 			It("should allow creation", func() {
 				first := landscapeNamespace("first")
 				second := landscapeNamespace("second")
@@ -75,7 +75,7 @@ var _ = Describe("DeploymentTargetValidator", func() {
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(first, second, existing).Build()
 				validator := &DeploymentTargetValidator{Client: fakeClient}
 
-				warnings, err := validator.ValidateCreate(ctx, target("other", second.Name, existing.Spec.DeploymentClassName))
+				warnings, err := validator.ValidateCreate(ctx, target("other", second.Name, existing.Spec.ArtifactType))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(warnings).To(BeEmpty())
 			})
@@ -95,12 +95,12 @@ var _ = Describe("DeploymentTargetValidator", func() {
 	})
 
 	Describe("ValidateUpdate", func() {
-		Context("when the connection changes in a landscape namespace", func() {
+		Context("when parameters change in a landscape namespace", func() {
 			It("should allow the update", func() {
 				ns := landscapeNamespace("landscape")
 				oldTarget := target("target", ns.Name, "helm.konfidence.cloud")
 				newTarget := oldTarget.DeepCopy()
-				newTarget.Spec.Connection = DeploymentTargetConnection{Type: "kubeconfig", Ref: &ConnectionRef{Kind: "Secret", Name: "updated"}}
+				newTarget.Spec.Parameters = &Parameters{Kind: "Secret", Name: "updated"}
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, oldTarget).Build()
 				validator := &DeploymentTargetValidator{Client: fakeClient}
 
@@ -109,13 +109,12 @@ var _ = Describe("DeploymentTargetValidator", func() {
 				Expect(warnings).To(BeEmpty())
 			})
 		})
-
 		Context("when the namespace is not a landscape namespace", func() {
 			It("should reject the update", func() {
 				ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ordinary"}}
 				oldTarget := target("target", ns.Name, "helm.konfidence.cloud")
 				newTarget := oldTarget.DeepCopy()
-				newTarget.Spec.Connection = DeploymentTargetConnection{Type: "kubeconfig"}
+				newTarget.Spec.Parameters = &Parameters{Kind: "Secret", Name: "kubeconfig"}
 				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, oldTarget).Build()
 				validator := &DeploymentTargetValidator{Client: fakeClient}
 
