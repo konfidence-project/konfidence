@@ -1,6 +1,9 @@
 package v1alpha1
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNewArtifactType(t *testing.T) {
 	tests := []struct {
@@ -12,11 +15,16 @@ func TestNewArtifactType(t *testing.T) {
 		{name: "single character labels", value: "a.b.c"},
 		{name: "digits and internal hyphens", value: "h-1.v2.example-domain"},
 		{name: "type label may start with digit", value: "1helm.example.com"},
+		{name: "maximum length type label", value: strings.Repeat("a", 63) + ".example.com"},
 		{name: "missing domain label", value: "helm.example", wantErr: true},
 		{name: "leading hyphen", value: "-helm.example.com", wantErr: true},
 		{name: "trailing hyphen", value: "helm.example-.com", wantErr: true},
 		{name: "uppercase", value: "Helm.example.com", wantErr: true},
 		{name: "whitespace", value: " helm.example.com", wantErr: true},
+		{name: "type label exceeds DNS limit", value: strings.Repeat("a", 64) + ".example.com", wantErr: true},
+		{name: "domain label exceeds DNS limit", value: "helm." + strings.Repeat("a", 64) + ".com", wantErr: true},
+		{name: "domain exceeds DNS total length", value: "helm." + strings.Repeat(strings.Repeat("a", 63)+".", 3) + strings.Repeat("a", 59) + ".com", wantErr: true},
+		{name: "maximum domain label lengths", value: "helm." + strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 61)},
 	}
 
 	for _, tt := range tests {

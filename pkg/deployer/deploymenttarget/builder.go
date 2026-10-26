@@ -18,6 +18,9 @@ import (
 
 const defaultControllerName = "deploymenttarget"
 
+// ValidationFunc is called to validate spec.parameters. Validation should cover the contents of the referenced resource
+// which can be fetched with the client.Reader. Any returned error will be treated as validation failure. Return nil
+// to indicate successful validation.
 type ValidationFunc func(ctx context.Context, c client.Reader, target *konfidencev1alpha1.DeploymentTarget) error
 
 type watch struct {
@@ -41,17 +44,13 @@ func NewControllerManagedBy(mgr ctrl.Manager) *builder {
 
 // For sets the artifact types this controller supports. It is required.
 func (b *builder) For(supportedArtifactTypes konfidencev1alpha1.ArtifactTypeSet) *builder {
-	if b != nil {
-		b.supportedArtifactTypes = supportedArtifactTypes
-	}
+	b.supportedArtifactTypes = supportedArtifactTypes
 	return b
 }
 
 // WithValidation sets the deployer's target-parameter validation function.
 func (b *builder) WithValidation(validate ValidationFunc) *builder {
-	if b != nil {
-		b.validation = validate
-	}
+	b.validation = validate
 	return b
 }
 
@@ -61,21 +60,17 @@ func (b *builder) Watches(
 	eventHandler handler.TypedEventHandler[client.Object, reconcile.Request],
 	opts ...ctrlbuilder.WatchesOption,
 ) *builder {
-	if b != nil {
-		b.watchers = append(b.watchers, watch{
-			object:       object,
-			eventHandler: eventHandler,
-			opts:         append([]ctrlbuilder.WatchesOption(nil), opts...),
-		})
-	}
+	b.watchers = append(b.watchers, watch{
+		object:       object,
+		eventHandler: eventHandler,
+		opts:         append([]ctrlbuilder.WatchesOption(nil), opts...),
+	})
 	return b
 }
 
 // Named sets the controller name. If omitted, it falls back to "deploymenttarget".
 func (b *builder) Named(name string) *builder {
-	if b != nil {
-		b.controllerName = strings.TrimSpace(name)
-	}
+	b.controllerName = strings.TrimSpace(name)
 	return b
 }
 
@@ -86,7 +81,7 @@ func (b *builder) Complete() error {
 		return err
 	}
 	if b.manager == nil {
-		return fmt.Errorf("must provide a non-nil Manager to NewDeploymentTargetControllerManagedBy()")
+		return fmt.Errorf("must provide a non-nil Manager to NewControllerManagedBy()")
 	}
 
 	if b.controllerName == "" {
@@ -109,7 +104,7 @@ func (b *builder) complete(r *reconciler) error {
 	cb := ctrlbuilder.TypedControllerManagedBy[reconcile.Request](b.manager).
 		For(&konfidencev1alpha1.DeploymentTarget{}, ctrlbuilder.WithPredicates(predicate.GenerationChangedPredicate{}, supportedTarget))
 
-	for _, watched := range r.watchers {
+	for _, watched := range b.watchers {
 		eventHandler := watched.eventHandler
 		if eventHandler == referencedTargetsMarker {
 			gvk, err := watchedResourceGVK(watched.object, b.manager.GetScheme())
@@ -125,9 +120,6 @@ func (b *builder) complete(r *reconciler) error {
 }
 
 func (b *builder) validateConfiguration() error {
-	if b == nil {
-		return fmt.Errorf("must provide a non-nil DeploymentTarget controller builder")
-	}
 	if len(b.supportedArtifactTypes) == 0 {
 		return fmt.Errorf("must call For() with at least one supported artifact type")
 	}
@@ -174,16 +166,11 @@ func (b *builder) build(c client.Client, controllerName string) (*reconciler, er
 	for artifactType := range b.supportedArtifactTypes {
 		supported[artifactType] = struct{}{}
 	}
-	watchers := append([]watch(nil), b.watchers...)
-	for i := range watchers {
-		watchers[i].opts = append([]ctrlbuilder.WatchesOption(nil), watchers[i].opts...)
-	}
 
 	return &reconciler{
 		client:                 c,
 		controllerName:         controllerName,
 		supportedArtifactTypes: supported,
-		watchers:               watchers,
 		validateFunc:           b.validation,
 	}, nil
 }

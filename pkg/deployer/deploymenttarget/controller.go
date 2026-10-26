@@ -23,7 +23,6 @@ type reconciler struct {
 	client                 client.Client
 	controllerName         string
 	supportedArtifactTypes konfidencev1alpha1.ArtifactTypeSet
-	watchers               []watch
 	validateFunc           ValidationFunc
 }
 

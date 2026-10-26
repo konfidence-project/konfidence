@@ -622,8 +622,6 @@ ocm.software/open-component-model/bindings/go/wget v0.0.0-20260811140339-29bc20e
 ocm.software/open-component-model/bindings/go/wget v0.0.0-20260811140339-29bc20eb921b/go.mod h1:xZ80nO3XrvLXgvlDU++sIkbsh5gxtjk8tnU5VuHc4D8=
 ocm.software/open-component-model/cli v0.14.0 h1:Z7NIQcc/uFc8oMUujfGjPJcxaz8lMHTySp94QXWHvuc=
 ocm.software/open-component-model/cli v0.14.0/go.mod h1:ish8EuE782/RgCCQM527ApVRfIajqmD2y+MeW2HGby8=
-ocm.software/open-component-model/kubernetes/controller v0.14.0 h1:Q2tRNpMkIard1BNTGgomi0Q8E/ySDWU387NkbxOBfOg=
-ocm.software/open-component-model/kubernetes/controller v0.14.0/go.mod h1:61x0I+1FaB0cI3g7VdKEpITCS9q6Yv8cUmqHYcBrTqA=
 ocm.software/open-component-model/kubernetes/controller v0.15.0 h1:WCRl42pjcyDqpuAPyFRB3AOMh9q5VNSxWGdxuN1GpN4=
 ocm.software/open-component-model/kubernetes/controller v0.15.0/go.mod h1:EFbVBfo1r+Z3Sv05Cvjfd+9IdY5xd9yyAMP3FM6diCo=
 oras.land/oras-go/v2 v2.6.2 h1:N04RXngAp1LJKTG6ifz3xHPipasEkWr+hFmInja5YKo=

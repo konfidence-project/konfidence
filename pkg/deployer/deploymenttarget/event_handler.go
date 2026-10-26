@@ -15,8 +15,13 @@ var referencedTargetsMarker handler.TypedEventHandler[client.Object, reconcile.R
 	handler.TypedEventHandler[client.Object, reconcile.Request]
 }{}
 
-// EnqueueReferencedTargets is a special handler that configures the reconciler to enqueue DeploymentTargets
-// whose parameters reference the watched resource and the spec.artifactType match a supported ArtifactType.
+// EnqueueReferencedTargets returns a handler that enqueues DeploymentTargets whose
+// parameters reference the watched resource and whose artifact type is supported.
+//
+// Use it with a controller watch, for example:
+//
+//	deploymenttarget.NewControllerManagedBy(mgr).
+//	    Watches(&MyResource{}, deploymenttarget.EnqueueReferencedTargets())
 func EnqueueReferencedTargets() handler.TypedEventHandler[client.Object, reconcile.Request] {
 	return referencedTargetsMarker
 }

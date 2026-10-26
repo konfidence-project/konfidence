@@ -246,7 +246,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$` <br /> |
+| `type` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?$` <br /> |
 | `taskManifests` _[TaskManifest](#taskmanifest) array_ | TaskManifests describes optional post-deployment tasks (commonly used for vector migrations such as database<br />schema updates). Tasks are executed after the artifact has been deployed and may form a dependency graph via<br />DependsOn. |  |  |
 | `component` _[OCMComponent](#ocmcomponent)_ | Component contains OCM metadata associated with the artifact. This is a simplified mapping of the OCM ComponentVersion. |  |  |
 
@@ -359,6 +359,25 @@ _Appears in:_
 | `ocm` _[OCMCredentials](#ocmcredentials)_ |  |  | Optional: \{\} <br /> |
 
 
+### DeletionPolicy
+
+_Underlying type:_ _string_
+
+DeletionPolicy controls what happens to the managed namespace when the owning
+Project or Landscape is deleted.
+
+
+
+_Appears in:_
+- [LandscapeSpec](#landscapespec)
+- [ProjectSpec](#projectspec)
+
+| Field | Description |
+| --- | --- |
+| `Delete` | DeletionPolicyDelete deletes the namespace together with the resource.<br /> |
+| `Orphan` | DeletionPolicyOrphan leaves the namespace in place and only strips the<br />konfidence.cloud/* management labels.<br /> |
+
+
 ### DeploymentResult
 
 
@@ -432,7 +451,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `artifactType` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact should be deployed to the specified target. It must match the<br />syntax defined in section 1.1 of the deployer specification.<br />The ArtifactType is selected by a deployer whose controllers are responsible for reconciling the<br />DeploymentTarget resource. If there is no deployer covering the given ArtifactType, the DeploymentTarget<br />will never become ready. ArtifactType is immutable because changing it may transfer ownership of the<br />DeploymentTarget to a different controller.<br />Currently, Konfidence only supports one DeploymentTarget per ArtifactType in a landscape, so this field should<br />be unique across all DeploymentTargets in the same landscape namespace. If multiple DeploymentTargets with the<br />same ArtifactType exist in a single landscape namespace, deployers may fail their deployments, as they cannot<br />determine which DeploymentTarget takes precedence. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$` <br />Required: \{\} <br /> |
+| `artifactType` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact should be deployed to the specified target. It must match the<br />syntax defined in section 1.1 of the deployer specification.<br />The ArtifactType is selected by a deployer whose controllers are responsible for reconciling the<br />DeploymentTarget resource. If there is no deployer covering the given ArtifactType, the DeploymentTarget<br />will never become ready. ArtifactType is immutable because changing it may transfer ownership of the<br />DeploymentTarget to a different controller.<br />Currently, Konfidence only supports one DeploymentTarget per ArtifactType in a landscape, so this field should<br />be unique across all DeploymentTargets in the same landscape namespace. If multiple DeploymentTargets with the<br />same ArtifactType exist in a single landscape namespace, deployers may fail their deployments, as they cannot<br />determine which DeploymentTarget takes precedence. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?$` <br />Required: \{\} <br /> |
 | `parameters` _[Parameters](#parameters)_ | Parameters define how to connect to the target runtime described by this DeploymentTarget. It may point to<br />deployer-specific configuration containing connection details, credentials and further settings required to<br />connect to the target runtime. Their structure and interpretation are defined by the deployer that owns ArtifactType. |  | Optional: \{\} <br /> |
 
 
@@ -1490,7 +1509,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the VectorAssignment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$` <br /> |
+| `type` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the VectorAssignment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?$` <br /> |
 | `artifactDeploymentRef` _[LocalArtifactDeploymentReference](#localartifactdeploymentreference)_ | ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The<br />referenced artifact must exist in the same namespace as this VectorAssignment. |  |  |
 | `vectorDeploymentRef` _[LocalVectorDeploymentReference](#localvectordeploymentreference)_ | VectorDeploymentRef references the VectorDeployment that this artifact is assigned to. This creates the explicit<br />mapping "artifact X belongs to vector Y". |  |  |
 

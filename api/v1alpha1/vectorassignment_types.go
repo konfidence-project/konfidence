@@ -31,7 +31,7 @@ type VectorAssignmentSpec struct {
 	// ArtifactType identifies which type of artifact is represented in the VectorAssignment. It must match the
 	// syntax defined in section 1.1 of the deployer specification.
 	//
-	// +kubebuilder:validation:Pattern=`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`
+	// +kubebuilder:validation:Pattern=`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`
 	ArtifactType ArtifactType `json:"type"`
 
 	// ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The

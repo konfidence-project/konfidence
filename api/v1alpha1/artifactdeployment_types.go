@@ -47,7 +47,7 @@ type ArtifactDeploymentSpec struct {
 	// ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the
 	// syntax defined in section 1.1 of the deployer specification.
 	//
-	// +kubebuilder:validation:Pattern=`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`
+	// +kubebuilder:validation:Pattern=`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`
 	ArtifactType ArtifactType `json:"type"`
 
 	// TaskManifests describes optional post-deployment tasks (commonly used for vector migrations such as database
