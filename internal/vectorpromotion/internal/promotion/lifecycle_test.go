@@ -18,63 +18,60 @@ var _ = Describe("Lifecycle", func() {
 		return &konfidence.VectorPromotion{Status: konfidence.VectorPromotionStatus{Conditions: conditions}}
 	}
 
-	DescribeTable("pairs every reason with its condition status and state",
-		func(reason string, status metav1.ConditionStatus, state konfidence.VectorPromotionState) {
-			gotStatus, ok := ConditionStatusFor(reason)
-			Expect(ok).To(BeTrue())
-			Expect(gotStatus).To(Equal(status))
-			Expect(DeriveState(withConditions(phase(status, reason)))).To(Equal(state))
+	cond := func(conditionType string, status metav1.ConditionStatus) metav1.Condition {
+		return metav1.Condition{Type: conditionType, Status: status, Reason: "SetByTest"}
+	}
+	gates := func(status metav1.ConditionStatus) metav1.Condition {
+		return cond(konfidence.ConditionTypeGatesSatisfied, status)
+	}
+	succeeded := func(status metav1.ConditionStatus) metav1.Condition {
+		return cond(konfidence.ConditionTypeSucceeded, status)
+	}
+
+	type facts struct {
+		conditions []metav1.Condition
+		started    bool
+	}
+	type predicates struct {
+		finished, succeeded, gatesCleared, waiting, cleared, started bool
+	}
+
+	DescribeTable("derives every predicate from condition statuses and timestamps",
+		func(f facts, expected predicates) {
+			p := withConditions(f.conditions)
+			if f.started {
+				now := metav1.Now()
+				p.Status.StartTime = &now
+			}
+			Expect(predicates{
+				finished:     IsFinished(p),
+				succeeded:    IsSucceeded(p),
+				gatesCleared: GatesCleared(p),
+				waiting:      IsWaiting(p),
+				cleared:      IsCleared(p),
+				started:      IsStarted(p),
+			}).To(Equal(expected))
 		},
-		Entry("gates pending", konfidence.ReasonGatesPending, metav1.ConditionUnknown, konfidence.PromotionStateWaiting),
-		Entry("gate error", konfidence.ReasonGateError, metav1.ConditionUnknown, konfidence.PromotionStateWaiting),
-		Entry("ready", konfidence.ReasonPromotionReady, metav1.ConditionUnknown, konfidence.PromotionStateReady),
-		Entry("running", konfidence.ReasonPromotionRunning, metav1.ConditionUnknown, konfidence.PromotionStateInProgress),
-		Entry("target unresolved", konfidence.ReasonPromotionTargetUnresolved, metav1.ConditionUnknown,
-			konfidence.PromotionStateBlocked),
-		Entry("succeeded", konfidence.ReasonPromotionSucceeded, metav1.ConditionTrue, konfidence.PromotionStateSucceeded),
-		Entry("superseded", konfidence.ReasonPromotionSuperseded, metav1.ConditionFalse, konfidence.PromotionStateSuperseded),
-		Entry("outstanding limit reached", konfidence.ReasonPromotionOutstandingLimitReached, metav1.ConditionFalse,
-			konfidence.PromotionStateSuperseded),
-		Entry("failed", konfidence.ReasonPromotionFailed, metav1.ConditionFalse, konfidence.PromotionStateFailed),
+		Entry("never reconciled", facts{},
+			predicates{waiting: true}),
+		Entry("gates open", facts{conditions: []metav1.Condition{gates(metav1.ConditionFalse), succeeded(metav1.ConditionUnknown)}},
+			predicates{waiting: true}),
+		Entry("gates satisfied", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionUnknown)}},
+			predicates{gatesCleared: true, cleared: true}),
+		Entry("started", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionUnknown)}, started: true},
+			predicates{gatesCleared: true, cleared: true, started: true}),
+		Entry("succeeded", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionTrue)}, started: true},
+			predicates{finished: true, succeeded: true, gatesCleared: true}),
+		Entry("superseded while waiting", facts{conditions: []metav1.Condition{gates(metav1.ConditionFalse), succeeded(metav1.ConditionFalse)}},
+			predicates{finished: true}),
 	)
 
-	Describe("DeriveState", func() {
-		It("is Waiting before the first reconcile", func() {
-			Expect(DeriveState(withConditions(nil))).To(Equal(konfidence.PromotionStateWaiting))
-		})
-
-		It("has no state for an unrecognized reason", func() {
-			p := withConditions(phase(metav1.ConditionUnknown, "SomeUnexpectedReason"))
-			Expect(DeriveState(p)).To(BeEmpty())
-			Expect(DeriveState(p).Terminal()).To(BeFalse())
-			Expect(DeriveState(p).Cleared()).To(BeFalse())
-			_, ok := ConditionStatusFor("SomeUnexpectedReason")
-			Expect(ok).To(BeFalse())
-		})
-
-		It("ignores the gates: only the recorded phase counts", func() {
-			p := withConditions(phase(metav1.ConditionUnknown, konfidence.ReasonPromotionReady))
-			p.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
-			p.Status.Gates = []konfidence.PromotionGateStatus{{
-				Type: konfidence.GateTypeExplicitApproval, State: konfidence.PromotionGateStatePending,
-			}}
-			Expect(DeriveState(p)).To(Equal(konfidence.PromotionStateReady))
-		})
+	It("never reads a condition reason", func() {
+		p := withConditions(phase(metav1.ConditionUnknown, "SomeUnexpectedReason"))
+		Expect(IsFinished(p)).To(BeFalse())
+		p = withConditions(phase(metav1.ConditionFalse, "SomeUnexpectedReason"))
+		Expect(IsFinished(p)).To(BeTrue())
 	})
-
-	DescribeTable("classifies states as terminal or cleared",
-		func(state konfidence.VectorPromotionState, terminal, cleared bool) {
-			Expect(state.Terminal()).To(Equal(terminal))
-			Expect(state.Cleared()).To(Equal(cleared))
-		},
-		Entry("waiting", konfidence.PromotionStateWaiting, false, false),
-		Entry("ready", konfidence.PromotionStateReady, false, true),
-		Entry("in progress", konfidence.PromotionStateInProgress, false, true),
-		Entry("blocked", konfidence.PromotionStateBlocked, false, true),
-		Entry("succeeded", konfidence.PromotionStateSucceeded, true, false),
-		Entry("failed", konfidence.PromotionStateFailed, true, false),
-		Entry("superseded", konfidence.PromotionStateSuperseded, true, false),
-	)
 
 	Describe("Newer", func() {
 		promo := func(sequence int64) *konfidence.VectorPromotion {
@@ -94,18 +91,18 @@ var _ = Describe("Lifecycle", func() {
 	})
 
 	Describe("NewestCleared", func() {
-		promo := func(name string, sequence int64, status metav1.ConditionStatus, reason string) konfidence.VectorPromotion {
+		promo := func(name string, sequence int64, conditions ...metav1.Condition) konfidence.VectorPromotion {
 			return konfidence.VectorPromotion{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
 				Spec:       konfidence.VectorPromotionSpec{Sequence: sequence},
-				Status:     konfidence.VectorPromotionStatus{Conditions: phase(status, reason)},
+				Status:     konfidence.VectorPromotionStatus{Conditions: conditions},
 			}
 		}
 		ready := func(name string, sequence int64) konfidence.VectorPromotion {
-			return promo(name, sequence, metav1.ConditionUnknown, konfidence.ReasonPromotionReady)
+			return promo(name, sequence, gates(metav1.ConditionTrue), succeeded(metav1.ConditionUnknown))
 		}
 		waiting := func(name string, sequence int64) konfidence.VectorPromotion {
-			return promo(name, sequence, metav1.ConditionUnknown, konfidence.ReasonGatesPending)
+			return promo(name, sequence, gates(metav1.ConditionFalse), succeeded(metav1.ConditionUnknown))
 		}
 
 		It("returns nil when nothing is cleared", func() {
@@ -122,18 +119,9 @@ var _ = Describe("Lifecycle", func() {
 			Expect(result.Name).To(Equal("new"))
 		})
 
-		It("counts in-progress and blocked promotions as cleared", func() {
+		It("skips finished promotions", func() {
 			result := NewestCleared([]konfidence.VectorPromotion{
-				ready("ready", 1),
-				promo("blocked", 2, metav1.ConditionUnknown, konfidence.ReasonPromotionTargetUnresolved),
-			})
-			Expect(result).NotTo(BeNil())
-			Expect(result.Name).To(Equal("blocked"))
-		})
-
-		It("skips terminal promotions", func() {
-			result := NewestCleared([]konfidence.VectorPromotion{
-				promo("terminal", 2, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded),
+				promo("finished", 2, gates(metav1.ConditionTrue), succeeded(metav1.ConditionTrue)),
 				ready("live", 1),
 			})
 			Expect(result).NotTo(BeNil())
@@ -147,6 +135,20 @@ var _ = Describe("Lifecycle", func() {
 			})
 			Expect(result).NotTo(BeNil())
 			Expect(result.Name).To(Equal("promo-a"))
+		})
+	})
+
+	Describe("TTLStatus completion time", func() {
+		It("measures from completionTime when set", func() {
+			completed := metav1.NewTime(time.Now().Add(-2 * time.Hour))
+			p := withConditions([]metav1.Condition{{
+				Type: konfidence.ConditionTypeSucceeded, Status: metav1.ConditionTrue, Reason: "SetByTest",
+				LastTransitionTime: metav1.Now(),
+			}})
+			p.Spec.TTLAfterFinished = &metav1.Duration{Duration: time.Hour}
+			p.Status.CompletionTime = &completed
+			shouldDelete, _ := TTLStatus(p)
+			Expect(shouldDelete).To(BeTrue())
 		})
 	})
 
@@ -259,7 +261,7 @@ var _ = Describe("Lifecycle", func() {
 						Conditions: []metav1.Condition{{
 							Type:               konfidence.ConditionTypeSucceeded,
 							Status:             metav1.ConditionFalse,
-							Reason:             konfidence.ReasonPromotionFailed,
+							Reason:             konfidence.ReasonPromotionSuperseded,
 							LastTransitionTime: pastTime,
 						}},
 					},

@@ -149,7 +149,6 @@ func (e VectorDeploymentStatus) Valid() bool {
 // Defines values for VectorPromotionStatus.
 const (
 	VectorPromotionStatusBlocked    VectorPromotionStatus = "Blocked"
-	VectorPromotionStatusFailed     VectorPromotionStatus = "Failed"
 	VectorPromotionStatusInProgress VectorPromotionStatus = "InProgress"
 	VectorPromotionStatusReady      VectorPromotionStatus = "Ready"
 	VectorPromotionStatusSucceeded  VectorPromotionStatus = "Succeeded"
@@ -161,8 +160,6 @@ const (
 func (e VectorPromotionStatus) Valid() bool {
 	switch e {
 	case VectorPromotionStatusBlocked:
-		return true
-	case VectorPromotionStatusFailed:
 		return true
 	case VectorPromotionStatusInProgress:
 		return true

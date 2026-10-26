@@ -2034,33 +2034,9 @@ _Appears in:_
 | `source` _[PromotionSourceReference](#promotionsourcereference)_ | Source is a snapshot of the config's source reference at creation time,<br />recorded so a promotion is self-describing. |  |  |
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target is a snapshot of the config's target reference at creation time.<br />Execution resolves and writes this target: approving a promotion approves<br />exactly this destination, regardless of later config edits. |  |  |
 | `vector` _string_ | Vector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) pinned when the promotion was created. |  | MinLength: 1 <br /> |
-| `gates` _[PromotionGate](#promotiongate) array_ | Gates is an immutable snapshot of the config's gates at creation time.<br />The promotion stays `Waiting` until every gate has a `Satisfied` entry<br />in `status.gates`. An empty list promotes immediately. |  | MaxItems: 16 <br />Optional: \{\} <br /> |
-| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
+| `gates` _[PromotionGate](#promotiongate) array_ | Gates is an immutable snapshot of the config's gates at creation time.<br />The promotion does not execute until every gate has a `Satisfied` entry<br />in `status.gates`. An empty list promotes immediately. |  | MaxItems: 16 <br />Optional: \{\} <br /> |
+| `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion finished (`status.completionTime`),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
 | `sequence` _integer_ | Sequence is a monotonic ordinal assigned by the creator (the config<br />reconciler, from the config's `status.sequence`). It is the sole<br />ordering between promotions of the same config; creation timestamps<br />only have second resolution and are never consulted. |  | Minimum: 0 <br /> |
-
-
-### VectorPromotionState
-
-_Underlying type:_ _string_
-
-VectorPromotionState summarizes the promotion lifecycle. It is derived from
-the reason of the Succeeded condition, which is the source of truth, and is
-written in the same status patch as that condition.
-
-
-
-_Appears in:_
-- [VectorPromotionStatus](#vectorpromotionstatus)
-
-| Field | Description |
-| --- | --- |
-| `Waiting` | PromotionStateWaiting means at least one declared gate is not<br />satisfied yet (Pending or Error).<br /> |
-| `Ready` | PromotionStateReady means every declared gate was satisfied and the<br />promotion is queued for execution; its gates can no longer change.<br />Promotions without gates are Ready from their first reconcile.<br /> |
-| `InProgress` | PromotionStateInProgress means the promotion is executing.<br /> |
-| `Blocked` | PromotionStateBlocked means the promotion is ready but cannot execute<br />because its target does not resolve; see the config's Ready condition.<br /> |
-| `Succeeded` | PromotionStateSucceeded means the promotion completed successfully.<br /> |
-| `Failed` | PromotionStateFailed means the promotion reached a terminal state without success.<br /> |
-| `Superseded` | PromotionStateSuperseded means a promotion was replaced by a newer one or<br />retired after the outstanding promotion limit was reached. Superseded<br />promotions can never be approved or executed afterward.<br /> |
 
 
 ### VectorPromotionStatus
@@ -2076,8 +2052,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
-| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes the Succeeded condition. The condition's reason is the<br />source of truth; State is derived from it and written in the same status<br />patch, so the two never disagree. Gate writers may read it: gates can<br />only change while State is empty or `Waiting`. `Superseded` is a<br />terminal state: a superseded promotion can never be approved or<br />executed afterward. |  | Enum: [Waiting Ready InProgress Blocked Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ | Conditions report GatesSatisfied, TargetResolved and Succeeded. |  | Optional: \{\} <br /> |
+| `startTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#time-v1-meta)_ | StartTime is when execution started, i.e. the promotion began writing<br />its vector to the target Stage. Set at most once. |  | Optional: \{\} <br /> |
+| `completionTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#time-v1-meta)_ | CompletionTime is when the promotion finished (Succeeded True or False). |  | Optional: \{\} <br /> |
 | `gates` _[PromotionGateStatus](#promotiongatestatus) array_ | Gates reports the state and provenance of each declared gate, keyed by<br />gate type. Entries are seeded `Pending` by the promotion controller and<br />set by the gate's writer (a gate controller or the konfidence API)<br />through `pkg/promotiongate`. A missing entry counts as `Pending`. |  | MaxItems: 16 <br />Optional: \{\} <br /> |
 | `promotedStageRef` _[TypedObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#typedobjectreference-v1-core)_ | PromotedStageRef records the Stage this promotion actually wrote its<br />vector to, so the promotion is self-describing even after the config<br />changed or was deleted. |  | Optional: \{\} <br /> |
 

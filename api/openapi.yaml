@@ -726,7 +726,7 @@ components:
           type: string
         status:
           type: string
-          enum: [Waiting, Ready, InProgress, Blocked, Succeeded, Failed, Superseded]
+          enum: [Waiting, Ready, InProgress, Blocked, Succeeded, Superseded]
         ttlAfterFinished:
           type: string
         sequence:

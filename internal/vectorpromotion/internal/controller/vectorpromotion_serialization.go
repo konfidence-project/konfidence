@@ -8,6 +8,7 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -16,9 +17,9 @@ import (
 
 const (
 	// siblingBlockedRequeueInterval paces re-evaluation while another
-	// promotion of the same config is in progress. With a single worker, a
-	// sibling is only ever observed InProgress when its last reconcile did not
-	// finish (crash or retried error); its own retry completes or fails it.
+	// promotion of the same config has started. With a single worker, a
+	// sibling is only ever observed started when its last reconcile did not
+	// finish (crash or retried error); its own retry completes it.
 	siblingBlockedRequeueInterval = 10 * time.Second
 )
 
@@ -35,10 +36,10 @@ func (r *VectorPromotionReconciler) reconcileExecution(ctx context.Context, vect
 
 	for i := range siblings {
 		sibling := &siblings[i]
-		if sibling.UID == vectorPromotion.UID || promotion.DeriveState(sibling) != konfidence.PromotionStateInProgress {
+		if sibling.UID == vectorPromotion.UID || !promotion.IsStarted(sibling) {
 			continue
 		}
-		log.V(1).Info("execution blocked by in-progress sibling", "sibling", sibling.Name)
+		log.V(1).Info("execution blocked by started sibling", "sibling", sibling.Name)
 		return ctrl.Result{RequeueAfter: siblingBlockedRequeueInterval}, nil
 	}
 
@@ -63,7 +64,7 @@ func (r *VectorPromotionReconciler) supersedeStaleSiblings(
 	var errs []error
 	for i := range siblings {
 		sibling := &siblings[i]
-		if sibling.UID == newest.UID || promotion.DeriveState(sibling).Terminal() || promotion.Newer(sibling, newest) {
+		if sibling.UID == newest.UID || promotion.IsFinished(sibling) || promotion.Newer(sibling, newest) {
 			continue
 		}
 		errs = append(errs, r.supersede(ctx, sibling, newest))
@@ -84,7 +85,8 @@ func (r *VectorPromotionReconciler) supersede(ctx context.Context, vectorPromoti
 			vectorPromotion.Spec.Vector, newest.Name, newest.Spec.Vector)
 		supersededBy = newest.Name
 	}
-	if err := r.transition(ctx, vectorPromotion, konfidence.ReasonPromotionSuperseded, message); err != nil {
+	if err := r.updateStatus(ctx, vectorPromotion,
+		finish(metav1.ConditionFalse, konfidence.ReasonPromotionSuperseded, message)); err != nil {
 		return err
 	}
 	log.Info("superseded promotion", "promotion", vectorPromotion.Name, "supersededBy", supersededBy)

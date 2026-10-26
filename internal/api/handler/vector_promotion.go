@@ -9,6 +9,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
+	"k8s.io/apimachinery/pkg/api/meta"
 )
 
 func (h *projectHandler) GetVectorPromotionV1(ctx context.Context,
@@ -45,8 +46,7 @@ func (h *projectHandler) ApproveVectorPromotionV1(ctx context.Context,
 		return openapi.ApproveVectorPromotionV1204Response{}, nil
 	case errors.Is(err, vectorpromotiondomain.ErrVectorPromotionNotFound):
 		return nil, apierror.NewNotFound("vectorPromotion", request.VectorPromotionId)
-	case errors.Is(err, vectorpromotiondomain.ErrPromotionSuperseded),
-		errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
+	case errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
 		errors.Is(err, vectorpromotiondomain.ErrPromotionExecuting),
 		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired):
 		return nil, apierror.NewConflict(err.Error())
@@ -66,10 +66,8 @@ func toVectorPromotionResponse(p konfidence.VectorPromotion) openapi.VectorPromo
 		Vector:   p.Spec.Vector,
 	}
 
-	if p.Status.State != "" {
-		status := openapi.VectorPromotionStatus(p.Status.State)
-		promotion.Status = &status
-	}
+	status := displayState(&p)
+	promotion.Status = &status
 
 	if p.Spec.TTLAfterFinished != nil {
 		ttl := p.Spec.TTLAfterFinished.Duration.String()
@@ -82,6 +80,27 @@ func toVectorPromotionResponse(p konfidence.VectorPromotion) openapi.VectorPromo
 	}
 
 	return promotion
+}
+
+// displayState summarizes the promotion's observed facts into the single
+// status shown by the API. It exists only for display; the controllers decide
+// on the facts themselves. Condition reasons are not consulted.
+func displayState(p *konfidence.VectorPromotion) openapi.VectorPromotionStatus {
+	conditions := p.Status.Conditions
+	switch {
+	case meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeSucceeded):
+		return openapi.VectorPromotionStatusSucceeded
+	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded):
+		return openapi.VectorPromotionStatusSuperseded
+	case p.Status.StartTime != nil:
+		return openapi.VectorPromotionStatusInProgress
+	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeTargetResolved):
+		return openapi.VectorPromotionStatusBlocked
+	case meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeGatesSatisfied):
+		return openapi.VectorPromotionStatusReady
+	default:
+		return openapi.VectorPromotionStatusWaiting
+	}
 }
 
 // toPromotionGateStatusesResponse reports every declared gate in declaration

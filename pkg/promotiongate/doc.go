@@ -33,9 +33,9 @@
 //     message rather than leaving the promotion waiting silently.
 //   - Always write through Set, so state and provenance never drift apart.
 //
-// Gates can only change while the promotion's `status.state` is empty or
-// `Waiting`. Once the promotion controller observes every gate satisfied it
-// records the promotion as Ready and the gates freeze. Set writes are optimistic-locked and
+// Gates can only change until the promotion controller observes every gate
+// satisfied: it then latches the `GatesSatisfied` condition True and the gates
+// freeze. They also freeze once the promotion finished. Set writes are optimistic-locked and
 // retried on conflict, so concurrent writers (other gates, the promotion
 // controller seeding entries) never overwrite each other. Set upserts: it does
 // not depend on the promotion controller having seeded the entry first.

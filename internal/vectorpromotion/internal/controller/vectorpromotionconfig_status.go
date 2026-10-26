@@ -61,7 +61,7 @@ func aggregatePromotionResults(config *konfidence.VectorPromotionConfig, promoti
 	}
 	succeeded := make([]konfidence.VectorPromotion, 0, len(promotions))
 	for i := range promotions {
-		if promotion.DeriveState(&promotions[i]) == konfidence.PromotionStateSucceeded {
+		if promotion.IsSucceeded(&promotions[i]) {
 			succeeded = append(succeeded, promotions[i])
 		}
 	}

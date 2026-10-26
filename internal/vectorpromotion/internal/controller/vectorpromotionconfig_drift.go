@@ -26,7 +26,7 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 		// A live promotion only satisfies the drift if it pins the same vector
 		// AND aims at the config's current target: after a target repoint, a
 		// promotion snapshotted for the old target must not suppress the new one.
-		if !promotion.DeriveState(&promotions[i]).Terminal() &&
+		if !promotion.IsFinished(&promotions[i]) &&
 			promotions[i].Spec.Vector == sourceVector &&
 			promotions[i].Spec.Target == config.Spec.Target {
 			return nil

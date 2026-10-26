@@ -134,31 +134,32 @@ var _ = Describe("Repository", func() {
 			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrAlreadyApproved))
 		})
 
-		It("rejects a promotion that already started executing", func() {
-			executing := newPromotion(metav1.Condition{
-				Type:   konfidence.ConditionTypeSucceeded,
-				Status: metav1.ConditionUnknown,
-				Reason: konfidence.ReasonPromotionRunning,
-			})
-			executing.Status.State = konfidence.PromotionStateInProgress
-			repo := newRepository(executing)
+		It("rejects a promotion whose gates already latched", func() {
+			repo := newRepository(newPromotion(metav1.Condition{
+				Type:   konfidence.ConditionTypeGatesSatisfied,
+				Status: metav1.ConditionTrue,
+				Reason: konfidence.ReasonAllGatesSatisfied,
+			}))
 
 			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrPromotionExecuting))
 		})
 
-		DescribeTable("rejects terminal promotions",
+		DescribeTable("rejects finished promotions and forwards the outcome",
 			func(reason string, status metav1.ConditionStatus) {
 				repo := newRepository(newPromotion(metav1.Condition{
-					Type:   konfidence.ConditionTypeSucceeded,
-					Status: status,
-					Reason: reason,
+					Type:    konfidence.ConditionTypeSucceeded,
+					Status:  status,
+					Reason:  reason,
+					Message: "set by test",
 				}))
 
 				err := repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")
 				Expect(err).To(MatchError(ErrPromotionFinished))
+				Expect(err).To(MatchError(ContainSubstring(reason + ": set by test")))
 			},
 			Entry("succeeded", konfidence.ReasonPromotionSucceeded, metav1.ConditionTrue),
-			Entry("failed", konfidence.ReasonPromotionFailed, metav1.ConditionFalse),
+			Entry("superseded by a newer promotion", konfidence.ReasonPromotionSuperseded, metav1.ConditionFalse),
+			Entry("outstanding limit reached", konfidence.ReasonPromotionOutstandingLimitReached, metav1.ConditionFalse),
 		)
 
 		It("rejects an empty approver", func() {
@@ -174,19 +175,6 @@ var _ = Describe("Repository", func() {
 
 			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrApprovalNotRequired))
 		})
-
-		DescribeTable("rejects a superseded promotion as locked", func(reason string) {
-			repo := newRepository(newPromotion(metav1.Condition{
-				Type:   konfidence.ConditionTypeSucceeded,
-				Status: metav1.ConditionFalse,
-				Reason: reason,
-			}))
-
-			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrPromotionSuperseded))
-		},
-			Entry("superseded by a newer promotion", konfidence.ReasonPromotionSuperseded),
-			Entry("outstanding limit reached", konfidence.ReasonPromotionOutstandingLimitReached),
-		)
 
 		It("reports a missing promotion as not found", func() {
 			repo := newRepository()

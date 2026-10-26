@@ -15,8 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
-
-	promotionlifecycle "github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
 const (
@@ -262,16 +260,19 @@ func createPromotionWithTTL(name, configRef string, ttl time.Duration) *konfiden
 	return promotion
 }
 
-// setSucceededCondition writes the Succeeded condition on a promotion directly.
-// The execution controller is not registered in this suite; tests drive
-// promotion conditions manually to exercise the TTL and status propagation
-// controllers.
+// setSucceededCondition writes the Succeeded condition on a promotion directly,
+// together with the facts the controller would have recorded alongside it: an
+// active (Unknown) promotion passed its gates and started at transitionTime; a
+// finished (True/False) one completed at transitionTime. The execution
+// controller is not registered in this suite; tests drive promotion facts
+// manually to exercise the TTL and status propagation controllers.
 func setSucceededCondition(
 	promotion *konfidence.VectorPromotion,
 	status metav1.ConditionStatus,
 	reason string,
 	transitionTime time.Time,
 ) {
+	at := metav1.NewTime(transitionTime.Truncate(time.Second))
 	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: promotion.Name, Namespace: testNamespace,
@@ -283,10 +284,36 @@ func setSucceededCondition(
 			Message: "set by test",
 		})
 		// meta.SetStatusCondition stamps its own transition time; force the test-controlled one.
-		cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-		cond.LastTransitionTime = metav1.NewTime(transitionTime.Truncate(time.Second))
-		// Keep status.state consistent with the condition, as transition does.
-		promotion.Status.State = promotionlifecycle.DeriveState(promotion)
+		meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded).LastTransitionTime = at
+		if status == metav1.ConditionUnknown {
+			meta.SetStatusCondition(&promotion.Status.Conditions, metav1.Condition{
+				Type: konfidence.ConditionTypeGatesSatisfied, Status: metav1.ConditionTrue,
+				Reason: konfidence.ReasonAllGatesSatisfied, Message: "set by test",
+			})
+			promotion.Status.StartTime = &at
+		} else {
+			promotion.Status.CompletionTime = &at
+		}
 		g.Expect(k8sClient.Status().Update(ctx, promotion)).To(Succeed())
 	}, timeout, interval).Should(Succeed())
+}
+
+// observedState summarizes a promotion's facts the way the API displays them,
+// to keep lifecycle assertions short.
+func observedState(p *konfidence.VectorPromotion) string {
+	conditions := p.Status.Conditions
+	switch {
+	case meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeSucceeded):
+		return "Succeeded"
+	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded):
+		return "Superseded"
+	case p.Status.StartTime != nil:
+		return "InProgress"
+	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeTargetResolved):
+		return "Blocked"
+	case meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeGatesSatisfied):
+		return "Ready"
+	default:
+		return "Waiting"
+	}
 }

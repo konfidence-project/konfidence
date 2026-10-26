@@ -55,27 +55,22 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// The phase is the reason of the Succeeded condition; DeriveState
-	// classifies it. Handlers write it only through transition, which keeps
-	// the condition and `status.state` in one patch.
-	state := promotion.DeriveState(vectorPromotion)
-	if state.Terminal() {
+	// Decisions are level-based on observed facts (condition statuses and
+	// timestamps), never on condition reasons.
+	if promotion.IsFinished(vectorPromotion) {
 		return ctrl.Result{}, nil
 	}
-	if state == konfidence.PromotionStateWaiting {
-		// May record PromotionReady on the in-memory object, which lets the
-		// promotion move on to execution in this same reconcile.
+	if !promotion.GatesCleared(vectorPromotion) {
+		// May latch GatesSatisfied=True on the in-memory object, which lets
+		// the promotion move on to execution in this same reconcile.
 		if err := r.reconcileGates(ctx, vectorPromotion); err != nil {
 			return ctrl.Result{}, err
 		}
-		state = promotion.DeriveState(vectorPromotion)
+		if !promotion.GatesCleared(vectorPromotion) {
+			return ctrl.Result{}, nil
+		}
 	}
-	if state.Cleared() {
-		return r.reconcileExecution(ctx, vectorPromotion)
-	}
-	// Still waiting on gates, or a live promotion with an unrecognized reason
-	// (e.g. hand-set), which is parked rather than executed on a guess.
-	return ctrl.Result{}, nil
+	return r.reconcileExecution(ctx, vectorPromotion)
 }
 
 // RegisterFieldIndexes registers the cache indexes the promotion controllers

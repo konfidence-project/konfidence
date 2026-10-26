@@ -10,73 +10,36 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
-// transition records a phase change on the promotion and emits a warning
-// event when the status patch fails. See transition.
-func (r *VectorPromotionReconciler) transition(
-	ctx context.Context,
-	vectorPromotion *konfidence.VectorPromotion,
-	reason, message string,
-	mutate ...func(*konfidence.VectorPromotion),
+// statusMutation edits the in-memory promotion status as part of one update.
+type statusMutation func(*konfidence.VectorPromotion)
+
+// updateStatus applies mutations and emits a warning event when the status
+// patch fails. See updateStatus.
+func (r *VectorPromotionReconciler) updateStatus(
+	ctx context.Context, vectorPromotion *konfidence.VectorPromotion, mutations ...statusMutation,
 ) error {
-	err := transition(ctx, r.Client, vectorPromotion, reason, message, mutate...)
+	err := updateStatus(ctx, r.Client, vectorPromotion, mutations...)
 	if err != nil {
 		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "StatusPatchFailed", EventActionStatusPatch, err.Error())
 	}
 	return err
 }
 
-// transition is the single way the promotion phase is written. It applies
-// the optional mutations (other status fields that belong to the same
-// transition), sets the Succeeded condition with the status that belongs to
-// the reason, refreshes `status.state`, and persists everything in one
-// optimistic-locked status patch; it is a no-op when nothing changed. The
-// in-memory promotion is updated in place, so callers can keep deciding on
-// it after the call.
-//
+// updateStatus applies the mutations to the in-memory promotion and persists
+// them in one optimistic-locked status patch; it is a no-op when nothing
+// changed. The promotion is updated in place, so callers keep deciding on it.
 // The patch is optimistic-locked because promotion status is also written by
 // gate writers: a stale write must conflict and retrigger reconciliation
 // instead of overwriting their gate entries.
-//
-// `meta.SetStatusCondition` only stamps LastTransitionTime when the condition
-// status flips, but every reason change is a transition: the live phases
-// (GatesPending → PromotionReady → PromotionRunning) share status Unknown.
-// The timestamp is forced on a reason change so it always shows when the
-// current phase began.
-func transition(
-	ctx context.Context,
-	c client.Client,
-	vectorPromotion *konfidence.VectorPromotion,
-	reason, message string,
-	mutate ...func(*konfidence.VectorPromotion),
+func updateStatus(
+	ctx context.Context, c client.Client, vectorPromotion *konfidence.VectorPromotion, mutations ...statusMutation,
 ) error {
-	status, ok := promotion.ConditionStatusFor(reason)
-	if !ok {
-		return fmt.Errorf("unknown promotion phase %q for VectorPromotion %q", reason, vectorPromotion.Name)
-	}
-
 	original := vectorPromotion.DeepCopy()
-	for _, m := range mutate {
-		m(vectorPromotion)
+	for _, mutate := range mutations {
+		mutate(vectorPromotion)
 	}
-
-	previous := meta.FindStatusCondition(original.Status.Conditions, konfidence.ConditionTypeSucceeded)
-	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
-		Type:               konfidence.ConditionTypeSucceeded,
-		Status:             status,
-		ObservedGeneration: vectorPromotion.Generation,
-		Reason:             reason,
-		Message:            message,
-	})
-	if previous != nil && previous.Reason != reason {
-		meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded).
-			LastTransitionTime = metav1.Now()
-	}
-	vectorPromotion.Status.State = promotion.DeriveState(vectorPromotion)
-
 	if reflect.DeepEqual(vectorPromotion.Status, original.Status) {
 		return nil
 	}
@@ -86,4 +49,39 @@ func transition(
 			vectorPromotion.Name, vectorPromotion.Namespace, err)
 	}
 	return nil
+}
+
+// setCondition returns a mutation that sets a condition with the standard
+// semantics: lastTransitionTime only moves when the status flips.
+func setCondition(conditionType string, status metav1.ConditionStatus, reason, message string) statusMutation {
+	return func(p *konfidence.VectorPromotion) {
+		meta.SetStatusCondition(&p.Status.Conditions, metav1.Condition{
+			Type:               conditionType,
+			Status:             status,
+			ObservedGeneration: p.Generation,
+			Reason:             reason,
+			Message:            message,
+		})
+	}
+}
+
+// initSucceeded returns a mutation that records the promotion as active
+// (Succeeded=Unknown/PromotionPending) unless a Succeeded condition exists.
+func initSucceeded(message string) statusMutation {
+	return func(p *konfidence.VectorPromotion) {
+		if meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded) == nil {
+			setCondition(konfidence.ConditionTypeSucceeded, metav1.ConditionUnknown,
+				konfidence.ReasonPromotionPending, message)(p)
+		}
+	}
+}
+
+// finish returns a mutation that ends the promotion: Succeeded True or False
+// with the given reason, and completionTime.
+func finish(status metav1.ConditionStatus, reason, message string) statusMutation {
+	return func(p *konfidence.VectorPromotion) {
+		setCondition(konfidence.ConditionTypeSucceeded, status, reason, message)(p)
+		now := metav1.Now()
+		p.Status.CompletionTime = &now
+	}
 }

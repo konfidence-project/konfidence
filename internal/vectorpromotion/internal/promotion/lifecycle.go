@@ -1,8 +1,7 @@
-// Package promotion holds the VectorPromotion lifecycle. The phase of a
-// promotion is the reason of its Succeeded condition. One table pairs every
-// reason with its condition status and its VectorPromotionState: writers look
-// up the status with ConditionStatusFor, readers classify a promotion with
-// DeriveState. Nothing here reads the gates.
+// Package promotion holds the VectorPromotion lifecycle predicates. Following
+// the Kubernetes API conventions, a promotion has no phase: each predicate
+// reads observed facts — condition statuses and timestamps — and never a
+// condition reason or the gates.
 package promotion
 
 import (
@@ -10,57 +9,49 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type phase struct {
-	status metav1.ConditionStatus
-	state  konfidence.VectorPromotionState
+// IsFinished reports whether the promotion's Succeeded condition is True or
+// False. A finished promotion never changes again.
+func IsFinished(p *konfidence.VectorPromotion) bool {
+	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeSucceeded) ||
+		meta.IsStatusConditionFalse(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
 
-// phases is the single place a Succeeded reason is paired with its condition
-// status and its state.
-var phases = map[string]phase{
-	konfidence.ReasonGatesPending:                     {metav1.ConditionUnknown, konfidence.PromotionStateWaiting},
-	konfidence.ReasonGateError:                        {metav1.ConditionUnknown, konfidence.PromotionStateWaiting},
-	konfidence.ReasonPromotionReady:                   {metav1.ConditionUnknown, konfidence.PromotionStateReady},
-	konfidence.ReasonPromotionRunning:                 {metav1.ConditionUnknown, konfidence.PromotionStateInProgress},
-	konfidence.ReasonPromotionTargetUnresolved:        {metav1.ConditionUnknown, konfidence.PromotionStateBlocked},
-	konfidence.ReasonPromotionSucceeded:               {metav1.ConditionTrue, konfidence.PromotionStateSucceeded},
-	konfidence.ReasonPromotionSuperseded:              {metav1.ConditionFalse, konfidence.PromotionStateSuperseded},
-	konfidence.ReasonPromotionOutstandingLimitReached: {metav1.ConditionFalse, konfidence.PromotionStateSuperseded},
-	konfidence.ReasonPromotionFailed:                  {metav1.ConditionFalse, konfidence.PromotionStateFailed},
+// IsSucceeded reports whether the promotion finished successfully.
+func IsSucceeded(p *konfidence.VectorPromotion) bool {
+	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
 
-func getSucceededCondition(p *konfidence.VectorPromotion) *metav1.Condition {
-	return meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
+// GatesCleared reports whether the GatesSatisfied condition latched True.
+func GatesCleared(p *konfidence.VectorPromotion) bool {
+	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)
 }
 
-// ConditionStatusFor returns the Succeeded condition status that belongs to
-// the given reason, and false for a reason that is not a known phase.
-func ConditionStatusFor(reason string) (metav1.ConditionStatus, bool) {
-	ph, ok := phases[reason]
-	return ph.status, ok
+// IsWaiting reports whether the active promotion still waits on its gates.
+func IsWaiting(p *konfidence.VectorPromotion) bool {
+	return !GatesCleared(p) && !IsFinished(p)
 }
 
-// DeriveState classifies the promotion from the reason of its Succeeded
-// condition: Waiting before the first reconcile, the table state for a known
-// reason, and "" for an unrecognized reason (non-terminal, never executed).
-func DeriveState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState {
-	cond := getSucceededCondition(p)
-	if cond == nil {
-		return konfidence.PromotionStateWaiting
-	}
-	return phases[cond.Reason].state
+// IsCleared reports whether the active promotion passed its gates and
+// competes for execution.
+func IsCleared(p *konfidence.VectorPromotion) bool {
+	return GatesCleared(p) && !IsFinished(p)
 }
 
-// NewestCleared returns the highest-sequence live promotion that passed its
-// gates (Ready, InProgress or Blocked). Returns nil if no promotion qualifies.
+// IsStarted reports whether the active promotion started executing. At most
+// one promotion per config is started at a time.
+func IsStarted(p *konfidence.VectorPromotion) bool {
+	return p.Status.StartTime != nil && !IsFinished(p)
+}
+
+// NewestCleared returns the highest-sequence promotion that passed its gates
+// and is not finished. Returns nil if no promotion qualifies.
 func NewestCleared(promotions []konfidence.VectorPromotion) *konfidence.VectorPromotion {
 	var newest *konfidence.VectorPromotion
 	for i := range promotions {
 		p := &promotions[i]
-		if !DeriveState(p).Cleared() {
+		if !IsCleared(p) {
 			continue
 		}
 		if newest == nil || Newer(p, newest) {
@@ -91,13 +82,18 @@ func Newer(p, than *konfidence.VectorPromotion) bool {
 	return p.Spec.Sequence > than.Spec.Sequence
 }
 
-// TTLStatus returns whether the promotion should be deleted and the time remaining until expiry.
-// Returns (false, 0) if no TTL is configured or promotion is not terminal.
+// TTLStatus returns whether the promotion should be deleted and the time
+// remaining until expiry, measured from `status.completionTime` (or the
+// Succeeded condition's transition time if it is missing). Returns (false, 0)
+// if no TTL is configured or the promotion is not finished.
 func TTLStatus(p *konfidence.VectorPromotion) (shouldDelete bool, remaining time.Duration) {
-	if p.Spec.TTLAfterFinished == nil || !DeriveState(p).Terminal() {
+	if p.Spec.TTLAfterFinished == nil || !IsFinished(p) {
 		return false, 0
 	}
-	expiresAt := getSucceededCondition(p).LastTransitionTime.Add(p.Spec.TTLAfterFinished.Duration)
-	remaining = time.Until(expiresAt)
+	finishedAt := meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded).LastTransitionTime
+	if p.Status.CompletionTime != nil {
+		finishedAt = *p.Status.CompletionTime
+	}
+	remaining = time.Until(finishedAt.Add(p.Spec.TTLAfterFinished.Duration))
 	return remaining <= 0, remaining
 }

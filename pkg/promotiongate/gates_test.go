@@ -75,18 +75,18 @@ var _ = Describe("gate helpers", func() {
 		Expect(promotiongate.Seed(p)).To(BeFalse())
 	})
 
-	DescribeTable("is mutable only while the promotion state is empty or Waiting",
-		func(state konfidence.VectorPromotionState, mutable bool) {
+	DescribeTable("is mutable only until GatesSatisfied latches or the promotion finishes",
+		func(conditions []metav1.Condition, mutable bool) {
 			p := promotionWithGates(approval)
-			p.Status.State = state
+			p.Status.Conditions = conditions
 			Expect(promotiongate.Mutable(p)).To(Equal(mutable))
 		},
-		Entry("never reconciled", konfidence.VectorPromotionState(""), true),
-		Entry("waiting", konfidence.PromotionStateWaiting, true),
-		Entry("ready", konfidence.PromotionStateReady, false),
-		Entry("in progress", konfidence.PromotionStateInProgress, false),
-		Entry("blocked", konfidence.PromotionStateBlocked, false),
-		Entry("superseded", konfidence.PromotionStateSuperseded, false),
+		Entry("never reconciled", nil, true),
+		Entry("gates open", conditions(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse), true),
+		Entry("gates latched", conditions(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), false),
+		Entry("active", conditions(konfidence.ConditionTypeSucceeded, metav1.ConditionUnknown), true),
+		Entry("superseded while waiting", conditions(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), false),
+		Entry("succeeded", conditions(konfidence.ConditionTypeSucceeded, metav1.ConditionTrue), false),
 	)
 })
 
@@ -143,10 +143,14 @@ var _ = Describe("Apply", func() {
 			promotiongate.Update{State: konfidence.PromotionGateStateSatisfied, SetBy: "x"}, promotiongate.ErrTypeMissing),
 		Entry("invalid state", promotionWithGates(approval),
 			promotiongate.Update{Type: approval, State: "Open", SetBy: "x"}, promotiongate.ErrInvalidState),
-		Entry("ready promotion", func() *konfidence.VectorPromotion {
+		Entry("gates latched", func() *konfidence.VectorPromotion {
 			p := promotionWithGates(approval)
-			p.Status.State = konfidence.PromotionStateReady
+			p.Status.Conditions = conditions(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue)
 			return p
 		}(), satisfy, promotiongate.ErrPromotionNotMutable),
 	)
 })
+
+func conditions(conditionType string, status metav1.ConditionStatus) []metav1.Condition {
+	return []metav1.Condition{{Type: conditionType, Status: status, Reason: "SetByTest"}}
+}

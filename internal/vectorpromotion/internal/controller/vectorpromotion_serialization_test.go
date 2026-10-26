@@ -32,7 +32,7 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		By("reconciling the older promotion supersedes it")
 		reconcilePromotion(older.Name)
 		refreshPromotion(older)
-		Expect(older.Status.State).To(Equal(konfidence.PromotionStateSuperseded))
+		Expect(observedState(older)).To(Equal("Superseded"))
 		cond := meta.FindStatusCondition(older.Status.Conditions, konfidence.ConditionTypeSucceeded)
 		Expect(cond).NotTo(BeNil())
 		Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionSuperseded))
@@ -40,7 +40,7 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		By("reconciling the newer promotion executes it")
 		reconcilePromotion(newer.Name)
 		refreshPromotion(newer)
-		Expect(newer.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(observedState(newer)).To(Equal("Succeeded"))
 	})
 
 	It("supersedes stale approved siblings before executing", func() {
@@ -59,11 +59,11 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		reconcilePromotion(newer.Name)
 		refreshPromotion(newer)
 		refreshPromotion(older)
-		Expect(newer.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
-		Expect(older.Status.State).To(Equal(konfidence.PromotionStateSuperseded))
+		Expect(observedState(newer)).To(Equal("Succeeded"))
+		Expect(observedState(older)).To(Equal("Superseded"))
 	})
 
-	It("requeues while a sibling promotion is in progress", func() {
+	It("requeues while a sibling promotion has started", func() {
 		config := createConfig("exec-blocked-config",
 			stageSource("other-stage"), stageTarget("blocked-stage"))
 		running := createPromotion("exec-blocked-a", config.Name)
@@ -74,11 +74,9 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		result := reconcilePromotion(blocked.Name)
 		Expect(result.RequeueAfter).To(Equal(siblingBlockedRequeueInterval))
 		refreshPromotion(blocked)
-		cond := meta.FindStatusCondition(blocked.Status.Conditions, konfidence.ConditionTypeSucceeded)
-		Expect(cond).NotTo(BeNil())
-		Expect(cond.Status).To(Equal(metav1.ConditionUnknown))
-		Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionReady))
-		Expect(blocked.Status.State).To(Equal(konfidence.PromotionStateReady))
+		Expect(meta.IsStatusConditionTrue(blocked.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)).To(BeTrue())
+		Expect(blocked.Status.StartTime).To(BeNil())
+		Expect(observedState(blocked)).To(Equal("Ready"))
 	})
 
 	It("sets state to Ready for a gateless promotion blocked by an in-progress sibling", func() {
@@ -91,7 +89,7 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		result := reconcilePromotion(blocked.Name)
 		Expect(result.RequeueAfter).To(Equal(siblingBlockedRequeueInterval))
 		refreshPromotion(blocked)
-		Expect(blocked.Status.State).To(Equal(konfidence.PromotionStateReady))
+		Expect(observedState(blocked)).To(Equal("Ready"))
 	})
 
 	It("waits behind an old in-progress sibling until its own retry ends it", func() {
@@ -111,17 +109,17 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		result := reconcilePromotion(blocked.Name)
 		Expect(result.RequeueAfter).To(Equal(siblingBlockedRequeueInterval))
 		refreshPromotion(interrupted)
-		Expect(interrupted.Status.State).To(Equal(konfidence.PromotionStateInProgress))
+		Expect(observedState(interrupted)).To(Equal("InProgress"))
 
 		By("the interrupted promotion's own retry ends it: the newer cleared sibling wins")
 		reconcilePromotion(interrupted.Name)
 		refreshPromotion(interrupted)
-		Expect(interrupted.Status.State).To(Equal(konfidence.PromotionStateSuperseded))
+		Expect(observedState(interrupted)).To(Equal("Superseded"))
 
 		By("the blocked promotion proceeds")
 		reconcilePromotion(blocked.Name)
 		refreshPromotion(blocked)
-		Expect(blocked.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(observedState(blocked)).To(Equal("Succeeded"))
 	})
 
 	It("does not supersede a newer promotion that is still waiting for approval", func() {
@@ -140,13 +138,13 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 		reconcilePromotion(older.Name)
 		refreshPromotion(older)
 		refreshPromotion(newer)
-		Expect(older.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
-		Expect(newer.Status.State).To(Equal(konfidence.PromotionStateWaiting))
+		Expect(observedState(older)).To(Equal("Succeeded"))
+		Expect(observedState(newer)).To(Equal("Waiting"))
 
 		By("approving the newer promotion still lets it run")
 		approvePromotion(newer)
 		reconcilePromotion(newer.Name)
 		refreshPromotion(newer)
-		Expect(newer.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(observedState(newer)).To(Equal("Succeeded"))
 	})
 })

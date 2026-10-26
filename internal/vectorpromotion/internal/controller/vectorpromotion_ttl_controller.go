@@ -9,6 +9,7 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -48,7 +49,7 @@ func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !promotion.DeriveState(vectorPromotion).Terminal() {
+	if !promotion.IsFinished(vectorPromotion) {
 		return ctrl.Result{}, r.enforceOutstandingRetention(ctx, vectorPromotion)
 	}
 
@@ -93,7 +94,7 @@ func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
 	}
 	outstanding := make([]konfidence.VectorPromotion, 0, len(siblings))
 	for i := range siblings {
-		if promotion.DeriveState(&siblings[i]) == konfidence.PromotionStateWaiting {
+		if promotion.IsWaiting(&siblings[i]) {
 			outstanding = append(outstanding, siblings[i])
 		}
 	}
@@ -113,7 +114,8 @@ func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
 			candidate.Spec.Vector,
 			keep,
 		)
-		if err := transition(ctx, r.Client, candidate, konfidence.ReasonPromotionOutstandingLimitReached, message); err != nil {
+		if err := updateStatus(ctx, r.Client, candidate,
+			finish(metav1.ConditionFalse, konfidence.ReasonPromotionOutstandingLimitReached, message)); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -135,7 +137,7 @@ func (r *VectorPromotionTTLReconciler) enforceTerminalRetention(ctx context.Cont
 	}
 	terminal := make([]konfidence.VectorPromotion, 0, len(siblings))
 	for _, sibling := range siblings {
-		if promotion.DeriveState(&sibling).Terminal() {
+		if promotion.IsFinished(&sibling) {
 			terminal = append(terminal, sibling)
 		}
 	}
@@ -201,11 +203,11 @@ func (r *VectorPromotionTTLReconciler) mapConfigToPromotions(
 	for i := range promotions {
 		candidate := &promotions[i]
 		switch {
-		case promotion.DeriveState(candidate).Terminal():
+		case promotion.IsFinished(candidate):
 			if terminal == nil || promotion.Newer(candidate, terminal) {
 				terminal = candidate
 			}
-		case promotion.DeriveState(candidate) == konfidence.PromotionStateWaiting:
+		case promotion.IsWaiting(candidate):
 			if outstanding == nil || promotion.Newer(candidate, outstanding) {
 				outstanding = candidate
 			}

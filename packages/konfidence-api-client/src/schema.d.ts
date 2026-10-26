@@ -432,14 +432,7 @@ export interface components {
       target: components["schemas"]["PromotionTargetReference"];
       vector: string;
       /** @enum {string} */
-      status?:
-        | "Waiting"
-        | "Ready"
-        | "InProgress"
-        | "Blocked"
-        | "Succeeded"
-        | "Failed"
-        | "Superseded";
+      status?: "Waiting" | "Ready" | "InProgress" | "Blocked" | "Succeeded" | "Superseded";
       ttlAfterFinished?: string;
       /** Format: int64 */
       sequence?: number;

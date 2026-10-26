@@ -8,6 +8,7 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -33,16 +34,13 @@ func PromotionConfigNameIndexFunc(obj client.Object) []string {
 var (
 	// ErrVectorPromotionNotFound is returned when the VectorPromotion does not exist.
 	ErrVectorPromotionNotFound = errors.New("vectorPromotion not found")
-	// ErrPromotionFinished is returned when the promotion already reached a
-	// terminal state and can no longer be approved.
-	ErrPromotionFinished = errors.New("promotion already reached a terminal state")
-	// ErrPromotionSuperseded is returned when the promotion was superseded by
-	// a newer promotion. Superseded promotions are locked for good: the newer
-	// promotion is the one to approve.
-	ErrPromotionSuperseded = errors.New("promotion was superseded and is locked")
-	// ErrPromotionExecuting is returned when the promotion already passed its
-	// gate phase (Ready or executing), so its gates can no longer change.
-	ErrPromotionExecuting = errors.New("promotion already passed its gates; they can no longer change")
+	// ErrPromotionFinished is returned when the promotion already finished
+	// (succeeded or superseded) and can no longer be approved. The error
+	// carries the reason and message of the Succeeded condition.
+	ErrPromotionFinished = errors.New("promotion already finished")
+	// ErrPromotionExecuting is returned when the promotion's gates are
+	// already satisfied, so they can no longer change.
+	ErrPromotionExecuting = errors.New("promotion gates are already satisfied; they can no longer change")
 	// ErrAlreadyApproved is returned when the explicit-approval gate is
 	// already satisfied.
 	ErrAlreadyApproved = errors.New("promotion is already approved")
@@ -102,11 +100,11 @@ func (r *k8sRepository) ListForConfig(ctx context.Context, namespace string,
 // on behalf of approvedBy. It is the single entry point for human approvals
 // (used by the konfidence API) and writes through pkg/promotiongate, like any
 // other gate writer, so state and provenance are set together under optimistic
-// locking. The derived `status.state` follows once the promotion controller
-// observes the gate change.
+// locking. The promotion controller latches GatesSatisfied once it observes
+// every gate satisfied.
 //
 // A missing resource is reported as ErrVectorPromotionNotFound; callers can map
-// ErrPromotionSuperseded, ErrPromotionFinished, ErrPromotionExecuting,
+// ErrPromotionFinished, ErrPromotionExecuting,
 // ErrAlreadyApproved, ErrApprovalNotRequired and ErrApproverMissing to client
 // errors.
 func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionId, approvedBy string) error {
@@ -119,12 +117,9 @@ func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionI
 		return err
 	}
 
-	state := promotion.DeriveState(vectorPromotion)
-	if state == konfidence.PromotionStateSuperseded {
-		return ErrPromotionSuperseded
-	}
-	if state.Terminal() {
-		return fmt.Errorf("%w: state is %q", ErrPromotionFinished, state)
+	if promotion.IsFinished(vectorPromotion) {
+		cond := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
+		return fmt.Errorf("%w: %s: %s", ErrPromotionFinished, cond.Reason, cond.Message)
 	}
 	if !promotiongate.Declared(vectorPromotion, konfidence.GateTypeExplicitApproval) {
 		return ErrApprovalNotRequired

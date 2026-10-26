@@ -8,11 +8,10 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	utils "github.com/konfidence-project/konfidence/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-
-	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
 // execute resolves the promotion's own target snapshot, writes the pinned
@@ -21,18 +20,25 @@ import (
 // aggregates promotion outcomes on its side.
 //
 // The function runs twice per promotion in the happy path (once to stamp
-// Running, once more after the resulting status event) and re-runs wholesale
-// after a crash: the Running patch is skipped once InProgress and
-// promoteStage is the idempotency check for the stage write itself.
+// startTime, once more after the resulting status event) and re-runs
+// wholesale after a crash: startTime is only set once and promoteStage is the
+// idempotency check for the stage write itself.
 func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
 	stage, err := resolveTargetStage(ctx, r.Client, vectorPromotion.Namespace, vectorPromotion.Spec.Target)
 	if err != nil {
 		return r.reportUnresolvedTarget(ctx, vectorPromotion, err)
 	}
 
-	if promotion.DeriveState(vectorPromotion) != konfidence.PromotionStateInProgress {
-		if err := r.transition(ctx, vectorPromotion, konfidence.ReasonPromotionRunning,
-			fmt.Sprintf("promoting vector %q to stage %q", vectorPromotion.Spec.Vector, stage.Name)); err != nil {
+	resolved := setCondition(konfidence.ConditionTypeTargetResolved, metav1.ConditionTrue, konfidence.ReasonTargetResolved,
+		fmt.Sprintf("target stage %q resolved in namespace %q", stage.Name, stage.Namespace))
+	if vectorPromotion.Status.StartTime == nil {
+		start := func(p *konfidence.VectorPromotion) {
+			now := metav1.Now()
+			p.Status.StartTime = &now
+		}
+		running := setCondition(konfidence.ConditionTypeSucceeded, metav1.ConditionUnknown, konfidence.ReasonPromotionRunning,
+			fmt.Sprintf("promoting vector %q to stage %q", vectorPromotion.Spec.Vector, stage.Name))
+		if err := r.updateStatus(ctx, vectorPromotion, resolved, start, running); err != nil {
 			return err
 		}
 	}
@@ -51,7 +57,8 @@ func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion
 			Namespace: ptr.To(stage.Namespace),
 		}
 	}
-	if err := r.transition(ctx, vectorPromotion, konfidence.ReasonPromotionSucceeded, msg, recordPromotedStage); err != nil {
+	if err := r.updateStatus(ctx, vectorPromotion, resolved, recordPromotedStage,
+		finish(metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, msg)); err != nil {
 		return err
 	}
 	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionSuccessful", EventActionExecution, msg)
@@ -59,9 +66,10 @@ func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion
 }
 
 // reportUnresolvedTarget surfaces a definitive resolution failure on the
-// promotion: it goes Blocked (non-terminal, retried). The config's Ready
-// condition is owned by the config reconciler, which watches the same
-// resources. Transient API errors are returned as-is for plain backoff.
+// TargetResolved condition; the promotion stays active and is retried. The
+// config's Ready condition is owned by the config reconciler, which watches
+// the same resources. Transient API errors are returned as-is for plain
+// backoff.
 func (r *VectorPromotionReconciler) reportUnresolvedTarget(ctx context.Context, vectorPromotion *konfidence.VectorPromotion, err error) error {
 	var resErr *resolutionError
 	if !errors.As(err, &resErr) {
@@ -70,7 +78,8 @@ func (r *VectorPromotionReconciler) reportUnresolvedTarget(ctx context.Context, 
 	message := fmt.Sprintf("cannot promote vector %q: %s", vectorPromotion.Spec.Vector, resErr.message)
 	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "PromotionTargetUnresolved",
 		EventActionExecution, message)
-	if patchErr := r.transition(ctx, vectorPromotion, konfidence.ReasonPromotionTargetUnresolved, message); patchErr != nil {
+	unresolved := setCondition(konfidence.ConditionTypeTargetResolved, metav1.ConditionFalse, resErr.reason, message)
+	if patchErr := r.updateStatus(ctx, vectorPromotion, unresolved); patchErr != nil {
 		return errors.Join(err, patchErr)
 	}
 	return err

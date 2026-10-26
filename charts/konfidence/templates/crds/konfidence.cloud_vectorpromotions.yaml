@@ -31,10 +31,23 @@ spec:
       jsonPath: .spec.target.name
       name: Target
       type: string
-    - description: Promotion state
-      jsonPath: .status.state
-      name: State
+    - description: Whether every gate is satisfied
+      jsonPath: .status.conditions[?(@.type=="GatesSatisfied")].status
+      name: Gates
       type: string
+    - description: Promotion outcome
+      jsonPath: .status.conditions[?(@.type=="Succeeded")].status
+      name: Succeeded
+      type: string
+    - description: Reason of the outcome
+      jsonPath: .status.conditions[?(@.type=="Succeeded")].reason
+      name: Reason
+      type: string
+    - description: Execution start
+      jsonPath: .status.startTime
+      name: Started
+      priority: 1
+      type: date
     - description: The promoted vector version
       jsonPath: .spec.vector
       name: Vector
@@ -73,7 +86,7 @@ spec:
               gates:
                 description: |-
                   Gates is an immutable snapshot of the config's gates at creation time.
-                  The promotion stays `Waiting` until every gate has a `Satisfied` entry
+                  The promotion does not execute until every gate has a `Satisfied` entry
                   in `status.gates`. An empty list promotes immediately.
                 items:
                   description: PromotionGate declares a gate a promotion must pass
@@ -182,7 +195,7 @@ spec:
               ttlAfterFinished:
                 description: |-
                   TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
-                  Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
+                  Once the TTL expires after the promotion finished (`status.completionTime`),
                   the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
                 type: string
               vector:
@@ -213,7 +226,14 @@ spec:
           status:
             description: VectorPromotionStatus defines the observed state of VectorPromotion.
             properties:
+              completionTime:
+                description: CompletionTime is when the promotion finished (Succeeded
+                  True or False).
+                format: date-time
+                type: string
               conditions:
+                description: Conditions report GatesSatisfied, TargetResolved and
+                  Succeeded.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -269,6 +289,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               gates:
                 description: |-
                   Gates reports the state and provenance of each declared gate, keyed by
@@ -350,28 +373,16 @@ spec:
                 - kind
                 - name
                 type: object
-              state:
+              startTime:
                 description: |-
-                  State summarizes the Succeeded condition. The condition's reason is the
-                  source of truth; State is derived from it and written in the same status
-                  patch, so the two never disagree. Gate writers may read it: gates can
-                  only change while State is empty or `Waiting`. `Superseded` is a
-                  terminal state: a superseded promotion can never be approved or
-                  executed afterward.
-                enum:
-                - Waiting
-                - Ready
-                - InProgress
-                - Blocked
-                - Succeeded
-                - Failed
-                - Superseded
+                  StartTime is when execution started, i.e. the promotion began writing
+                  its vector to the target Stage. Set at most once.
+                format: date-time
                 type: string
             type: object
         type: object
     selectableFields:
     - jsonPath: .spec.vectorPromotionConfigName
-    - jsonPath: .status.state
     served: true
     storage: true
     subresources:

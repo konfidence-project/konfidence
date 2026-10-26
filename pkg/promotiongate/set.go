@@ -18,8 +18,8 @@ var (
 	ErrNotFound = errors.New("vectorPromotion not found")
 	// ErrGateNotDeclared is returned when the promotion does not declare the gate type.
 	ErrGateNotDeclared = errors.New("gate is not declared on the promotion")
-	// ErrPromotionNotMutable is returned when the promotion already passed its
-	// gate phase (Ready, executing or terminal), so its gates are frozen.
+	// ErrPromotionNotMutable is returned when the promotion's gates are frozen:
+	// GatesSatisfied latched True or the promotion finished.
 	ErrPromotionNotMutable = errors.New("promotion gates can no longer change")
 	// ErrSetByMissing is returned when no setter identity was supplied.
 	ErrSetByMissing = errors.New("setBy must not be empty")

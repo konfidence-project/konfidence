@@ -2437,6 +2437,14 @@ func (in *VectorPromotionStatus) DeepCopyInto(out *VectorPromotionStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.StartTime != nil {
+		in, out := &in.StartTime, &out.StartTime
+		*out = (*in).DeepCopy()
+	}
+	if in.CompletionTime != nil {
+		in, out := &in.CompletionTime, &out.CompletionTime
+		*out = (*in).DeepCopy()
+	}
 	if in.Gates != nil {
 		in, out := &in.Gates, &out.Gates
 		*out = make([]PromotionGateStatus, len(*in))

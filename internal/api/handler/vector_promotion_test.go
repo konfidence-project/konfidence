@@ -228,6 +228,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 			VectorPromotionId: "promo-1",
 		})
 		expectAPIError(resp, err, http.StatusConflict)
+		Expect(apierror.As(err).Message).To(ContainSubstring(konfidence.ReasonPromotionSuperseded))
 	})
 
 	It("returns 409 when the promotion has already finished", func() {
@@ -249,16 +250,15 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		expectAPIError(resp, err, http.StatusConflict)
 	})
 
-	It("returns 409 when the promotion is already executing", func() {
+	It("returns 409 when the promotion gates already latched", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
 		promo.Status.Conditions = []metav1.Condition{{
-			Type:   konfidence.ConditionTypeSucceeded,
-			Status: metav1.ConditionUnknown,
-			Reason: konfidence.ReasonPromotionRunning,
+			Type:   konfidence.ConditionTypeGatesSatisfied,
+			Status: metav1.ConditionTrue,
+			Reason: konfidence.ReasonAllGatesSatisfied,
 		}}
-		promo.Status.State = konfidence.PromotionStateInProgress
 		h := newProjectHandlerForTest(project, promo)
 
 		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
@@ -338,3 +338,32 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		expectAPIError(resp, err, http.StatusUnauthorized)
 	})
 })
+
+var _ = DescribeTable("displayState summarizes the observed facts",
+	func(conditions []metav1.Condition, started bool, expected openapi.VectorPromotionStatus) {
+		p := &konfidence.VectorPromotion{Status: konfidence.VectorPromotionStatus{Conditions: conditions}}
+		if started {
+			now := metav1.Now()
+			p.Status.StartTime = &now
+		}
+		Expect(displayState(p)).To(Equal(expected))
+	},
+	Entry("never reconciled", nil, false, openapi.VectorPromotionStatusWaiting),
+	Entry("gates open", facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse), false,
+		openapi.VectorPromotionStatusWaiting),
+	Entry("gates satisfied", facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), false,
+		openapi.VectorPromotionStatusReady),
+	Entry("target unresolved", append(facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue),
+		facts(konfidence.ConditionTypeTargetResolved, metav1.ConditionFalse)...), false,
+		openapi.VectorPromotionStatusBlocked),
+	Entry("started", facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), true,
+		openapi.VectorPromotionStatusInProgress),
+	Entry("succeeded", facts(konfidence.ConditionTypeSucceeded, metav1.ConditionTrue), true,
+		openapi.VectorPromotionStatusSucceeded),
+	Entry("superseded", facts(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), false,
+		openapi.VectorPromotionStatusSuperseded),
+)
+
+func facts(conditionType string, status metav1.ConditionStatus) []metav1.Condition {
+	return []metav1.Condition{{Type: conditionType, Status: status, Reason: "SetByTest"}}
+}

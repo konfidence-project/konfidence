@@ -56,7 +56,7 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		reconcilePromotion(promotion.Name)
 		refreshPromotion(promotion)
 		Expect(promotion.Status.Gates).To(BeEmpty())
-		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(observedState(promotion)).To(Equal("Succeeded"))
 		succeeded := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 		Expect(succeeded).NotTo(BeNil())
 		Expect(succeeded.Status).To(Equal(metav1.ConditionTrue))
@@ -97,8 +97,11 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		Expect(err).To(MatchError(ContainSubstring(`landscape "missing-landscape" does not exist`)))
 
 		refreshPromotion(promotion)
-		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateBlocked))
-
+		Expect(observedState(promotion)).To(Equal("Blocked"))
+		Expect(promotion.Status.StartTime).To(BeNil())
+		cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeTargetResolved)
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Reason).To(Equal(konfidence.VectorPromotionConfigLandscapeNotFoundReason))
 	})
 
 	It("reports a missing stage on the config and promotes once it exists", func() {
@@ -115,7 +118,7 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		Expect(err).To(MatchError(ContainSubstring(`stage "late-stage" does not exist`)))
 
 		refreshPromotion(promotion)
-		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateBlocked))
+		Expect(observedState(promotion)).To(Equal("Blocked"))
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: "late-stage", Namespace: "kden-l-exec-nostage",
 		}, &konfidence.Stage{})).To(MatchError(ContainSubstring("not found")))
@@ -124,7 +127,7 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		stage := createStage("kden-l-exec-nostage", "late-stage", "registry.example//konfidence.io/promo/app:0.9.0")
 		reconcilePromotion(promotion.Name)
 		refreshPromotion(promotion)
-		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(observedState(promotion)).To(Equal("Succeeded"))
 
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: stage.Name, Namespace: stage.Namespace,
@@ -144,7 +147,7 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 			stageTargetInLandscape("preserve-stage", "exec-preserve-landscape"), false)
 		reconcilePromotion(first.Name)
 		refreshPromotion(first)
-		Expect(first.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(observedState(first)).To(Equal("Succeeded"))
 
 		By("the target stage disappears and a second promotion blocks")
 		stage := &konfidence.Stage{}
@@ -159,9 +162,10 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: config.Name, Namespace: testNamespace}, config)).To(Succeed())
-			blockedCond := meta.FindStatusCondition(config.Status.LastPromotionConditions, konfidence.ConditionTypeSucceeded)
+			blockedCond := meta.FindStatusCondition(config.Status.LastPromotionConditions, konfidence.ConditionTypeTargetResolved)
 			g.Expect(blockedCond).NotTo(BeNil())
-			g.Expect(blockedCond.Reason).To(Equal(konfidence.ReasonPromotionTargetUnresolved))
+			g.Expect(blockedCond.Status).To(Equal(metav1.ConditionFalse))
+			g.Expect(blockedCond.Reason).To(Equal(konfidence.VectorPromotionConfigStageNotFoundReason))
 			successCond := meta.FindStatusCondition(config.Status.LastSuccessfulPromotionConditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(successCond).NotTo(BeNil())
 			g.Expect(successCond.Status).To(Equal(metav1.ConditionTrue))
@@ -182,7 +186,7 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		By("the next reconcile completes without re-patching the stage")
 		reconcilePromotion(promotion.Name)
 		refreshPromotion(promotion)
-		Expect(promotion.Status.State).To(Equal(konfidence.PromotionStateSucceeded))
+		Expect(observedState(promotion)).To(Equal("Succeeded"))
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: stage.Name, Namespace: stage.Namespace,
 		}, stage)).To(Succeed())

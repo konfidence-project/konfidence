@@ -40,7 +40,7 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		promotion := createPromotionWithTTL("ttl-failed-promotion", "ttl-failed-config", 2*time.Second)
 
 		By("marking the promotion as failed")
-		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionFailed, time.Now())
+		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionSuperseded, time.Now())
 
 		By("asserting the VectorPromotion is eventually deleted")
 		Eventually(func() bool {
@@ -125,7 +125,7 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		Eventually(func(g Gomega) {
 			refreshPromotion(oldest)
 			condition := meta.FindStatusCondition(oldest.Status.Conditions, konfidence.ConditionTypeSucceeded)
-			g.Expect(oldest.Status.State).To(Equal(konfidence.PromotionStateSuperseded))
+			g.Expect(observedState(oldest)).To(Equal("Superseded"))
 			g.Expect(condition).NotTo(BeNil())
 			g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
 			g.Expect(condition.Reason).To(Equal(konfidence.ReasonPromotionOutstandingLimitReached))
@@ -134,8 +134,8 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		Consistently(func(g Gomega) {
 			refreshPromotion(middle)
 			refreshPromotion(newest)
-			g.Expect(promotion.DeriveState(middle).Terminal()).To(BeFalse())
-			g.Expect(promotion.DeriveState(newest).Terminal()).To(BeFalse())
+			g.Expect(promotion.IsFinished(middle)).To(BeFalse())
+			g.Expect(promotion.IsFinished(newest)).To(BeFalse())
 		}, 3*time.Second, interval).Should(Succeed())
 	})
 
@@ -159,7 +159,7 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		Eventually(func(g Gomega) {
 			refreshPromotion(oldest)
 			condition := meta.FindStatusCondition(oldest.Status.Conditions, konfidence.ConditionTypeSucceeded)
-			g.Expect(oldest.Status.State).To(Equal(konfidence.PromotionStateSuperseded))
+			g.Expect(observedState(oldest)).To(Equal("Superseded"))
 			g.Expect(condition).NotTo(BeNil())
 			g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
 			g.Expect(condition.Reason).To(Equal(konfidence.ReasonPromotionOutstandingLimitReached))
@@ -188,7 +188,7 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		Consistently(func(g Gomega) {
 			for _, vectorPromotion := range promotions {
 				refreshPromotion(vectorPromotion)
-				g.Expect(promotion.DeriveState(vectorPromotion).Terminal()).To(BeFalse())
+				g.Expect(promotion.IsFinished(vectorPromotion)).To(BeFalse())
 			}
 		}, 3*time.Second, interval).Should(Succeed())
 	})
