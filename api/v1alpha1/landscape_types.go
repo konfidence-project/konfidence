@@ -26,6 +26,9 @@ const (
 	LandscapeNamespaceTerminatingReason = "NamespaceTerminating"
 	// LandscapeNamespaceCreateFailedReason indicates that creating or updating the landscape namespace failed.
 	LandscapeNamespaceCreateFailedReason = "NamespaceCreateFailed"
+	// LandscapeNamespaceNotFoundReason indicates that namespacePolicy Adopt was requested
+	// but the target namespace does not exist yet.
+	LandscapeNamespaceNotFoundReason = "NamespaceNotFound"
 	// LandscapeInvalidNamespaceReason indicates that the landscape was created in a namespace that is not a project namespace.
 	LandscapeInvalidNamespaceReason = "InvalidNamespace"
 
@@ -33,12 +36,15 @@ const (
 	LandscapeNamespacePrefix = "kden-l-"
 )
 
+//nolint:lll // Kubebuilder annotations are intentionally long.
+// +kubebuilder:validation:XValidation:rule="has(self.namespace) == has(oldSelf.namespace)",message="namespace is immutable"
+// +kubebuilder:validation:XValidation:rule="self.namespacePolicy != 'Adopt' || has(self.namespace)",message="namespace is required when namespacePolicy is Adopt"
+
 // LandscapeSpec defines the desired state of Landscape.
 //
 // The transition rule catches namespace being set or unset after creation;
 // changing a set namespace is caught by the field-level rule. The two rules
 // are split to stay within the CEL cost budget of the schema.
-// +kubebuilder:validation:XValidation:rule="has(self.namespace) == has(oldSelf.namespace)",message="namespace is immutable"
 type LandscapeSpec struct {
 	// DisplayName is the human-readable name of the landscape, shown in user
 	// interfaces. It does not affect the namespace name or any label, and it
@@ -57,6 +63,23 @@ type LandscapeSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="namespace is immutable"
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
+
+	// NamespacePolicy controls how the landscape namespace is taken over. Create
+	// (the default) creates it and errors on conflict; Adopt takes over an
+	// existing namespace and requires both that namespace to already exist and
+	// spec.namespace to be set, so the adopted namespace is named explicitly.
+	// +kubebuilder:validation:Enum=Create;Adopt
+	// +kubebuilder:default=Create
+	// +optional
+	NamespacePolicy NamespacePolicy `json:"namespacePolicy,omitempty"`
+
+	// DeletionPolicy controls what happens to the landscape namespace when the
+	// Landscape is deleted. Orphan (the default) keeps the namespace and strips
+	// its management labels; Delete removes the namespace with the Landscape.
+	// +kubebuilder:validation:Enum=Delete;Orphan
+	// +kubebuilder:default=Orphan
+	// +optional
+	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
 }
 
 // LandscapeStatus defines the observed state of Landscape.

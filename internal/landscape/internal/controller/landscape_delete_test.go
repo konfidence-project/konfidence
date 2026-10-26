@@ -47,6 +47,13 @@ func withFinalizer(l *konfidence.Landscape) {
 	l.Finalizers = []string{landscapeFinalizer}
 }
 
+// withDeletionPolicyDelete sets the Delete deletion policy. The fake client
+// applies no CRD default, so specs that exercise the delete path must set it
+// explicitly (an unset policy defaults to Orphan).
+func withDeletionPolicyDelete(l *konfidence.Landscape) {
+	l.Spec.DeletionPolicy = konfidence.DeletionPolicyDelete
+}
+
 // newManagedNamespace builds a namespace managed by the given Landscape, as the
 // controller would create it (managed labels, no owner reference because
 // Landscape is namespace-scoped and cannot own a cluster-scoped resource).
@@ -80,7 +87,7 @@ var _ = Describe("Landscape reconcileDelete", func() {
 
 	It("deletes the managed namespace, then releases the finalizer once it is gone", func() {
 		const projectName = "proj1"
-		landscape := NewLandscape("alpha", "kden-p-proj1", withFinalizer, func(l *konfidence.Landscape) {
+		landscape := NewLandscape("alpha", "kden-p-proj1", withFinalizer, withDeletionPolicyDelete, func(l *konfidence.Landscape) {
 			l.Status.ProjectName = projectName
 			l.Status.Namespace = "kden-l-alpha-1ogisnw"
 		})
@@ -103,7 +110,7 @@ var _ = Describe("Landscape reconcileDelete", func() {
 
 	It("prefers the namespace recorded in the status over the recomputed name", func() {
 		const projectName = "proj2"
-		landscape := NewLandscape("beta", "kden-p-proj2", withFinalizer, func(l *konfidence.Landscape) {
+		landscape := NewLandscape("beta", "kden-p-proj2", withFinalizer, withDeletionPolicyDelete, func(l *konfidence.Landscape) {
 			l.Status.ProjectName = projectName
 			l.Status.Namespace = "beta-custom-ns"
 		})
@@ -113,6 +120,31 @@ var _ = Describe("Landscape reconcileDelete", func() {
 		_, err := r.reconcileDelete(ctx, landscape)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(namespaceMissing(ctx, c, "beta-custom-ns")).To(BeTrue())
+	})
+
+	It("orphans the managed namespace and releases the finalizer under Orphan", func() {
+		const projectName = "proj-orphan"
+		// An unset deletion policy defaults to Orphan.
+		landscape := NewLandscape("zeta", "kden-p-proj-orphan", withFinalizer, func(l *konfidence.Landscape) {
+			l.Status.ProjectName = projectName
+			l.Status.Namespace = "kden-l-zeta-orphan01"
+		})
+		ns := newManagedNamespace("kden-l-zeta-orphan01", projectName, landscape)
+		r, c := newFakeReconciler(landscape, ns)
+
+		result, err := r.reconcileDelete(ctx, landscape)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.IsZero()).To(BeTrue())
+
+		By("leaving the namespace alive with the management labels stripped")
+		got := &corev1.Namespace{}
+		Expect(c.Get(ctx, types.NamespacedName{Name: ns.Name}, got)).To(Succeed())
+		Expect(got.Labels).NotTo(HaveKey(pkgctrl.ManagedByLabel))
+		Expect(got.Labels).NotTo(HaveKey(pkgctrl.ProjectTypeLabel))
+		Expect(got.Labels).NotTo(HaveKey(pkgctrl.ProjectNameLabel))
+		Expect(got.Labels).NotTo(HaveKey(pkgctrl.LandscapeNameLabel))
+
+		Expect(landscapeFinalizers(ctx, c, "zeta", "kden-p-proj-orphan")).To(BeEmpty())
 	})
 
 	It("releases the finalizer immediately when the namespace is absent", func() {

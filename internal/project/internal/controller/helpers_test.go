@@ -69,25 +69,17 @@ func GetNamespace(ctx context.Context, k8sClient client.Client, name string, opt
 }
 
 // CleanupProject deletes the Project and waits until it is gone. Envtest runs
-// no namespace controller, so the project namespace never finishes
-// terminating; once its deletion has been initiated, the controller finalizer
-// is stripped so the Project itself can be released. Use unique project (and
-// namespace) names per spec, since terminating namespaces linger.
+// no namespace controller, so a Delete-policy project namespace never finishes
+// terminating and an Orphan-policy one is left behind entirely; either way we
+// do not wait on the namespace and just strip the controller finalizer so the
+// Project itself can be released. Use unique project (and namespace) names per
+// spec, since terminating namespaces linger.
 func CleanupProject(ctx context.Context, k8sClient client.Client, name string) {
 	project := GetProject(ctx, k8sClient, name, true)
 	if project == nil {
 		return
 	}
 	Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, project))).To(Succeed())
-
-	if nsName := project.Status.Namespace; nsName != "" {
-		Eventually(func(g Gomega) {
-			ns := GetNamespace(ctx, k8sClient, nsName, true)
-			if ns != nil {
-				g.Expect(ns.DeletionTimestamp.IsZero()).To(BeFalse())
-			}
-		}, helperTimeout, helperInterval).Should(Succeed())
-	}
 
 	Eventually(func(g Gomega) {
 		project := GetProject(ctx, k8sClient, name, true)

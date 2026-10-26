@@ -63,13 +63,9 @@ var _ = Describe("Project Controller", Ordered, func() {
 		g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ManagedByLabel, ControllerName))
 		g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ProjectTypeLabel, "project"))
 		g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ProjectNameLabel, projectName))
-		ownerRef := metav1.GetControllerOf(ns)
-		g.Expect(ownerRef).NotTo(BeNil())
-		g.Expect(ownerRef.Kind).To(Equal(konfidence.ProjectKind))
-		g.Expect(ownerRef.Name).To(Equal(projectName))
 	}
 
-	It("creates the default project namespace with labels and owner reference", func() {
+	It("creates the default project namespace with managed labels", func() {
 		const projectName = "proj-default"
 		controller.CreateProject(ctx, k8sClient, projectName)
 		DeferCleanup(func() { controller.CleanupProject(ctx, k8sClient, projectName) })
@@ -229,7 +225,6 @@ var _ = Describe("Project Controller", Ordered, func() {
 		Consistently(func(g Gomega) {
 			ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
 			g.Expect(ns.Labels).NotTo(HaveKey(pkgctrl.ManagedByLabel))
-			g.Expect(ns.OwnerReferences).To(BeEmpty())
 		}, time.Second*2, interval).Should(Succeed())
 
 		By("emitting a warning event")
@@ -244,31 +239,60 @@ var _ = Describe("Project Controller", Ordered, func() {
 		}, timeout, interval).Should(Succeed())
 	})
 
-	It("repairs label drift on the managed namespace", func() {
-		const projectName = "proj-drift"
-		controller.CreateProject(ctx, k8sClient, projectName)
+	It("adopts a pre-existing unmanaged namespace under namespacePolicy Adopt", func() {
+		const projectName = "proj-adopt"
+		const nsName = "proj-adopt-existing-ns"
+
+		unmanaged := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName}}
+		Expect(k8sClient.Create(ctx, unmanaged)).To(Succeed())
+
+		controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.Namespace = nsName
+			p.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+		})
 		DeferCleanup(func() { controller.CleanupProject(ctx, k8sClient, projectName) })
 
-		nsName := konfidence.ProjectNamespacePrefix + projectName
 		Eventually(func(g Gomega) {
-			expectManagedNamespace(g, controller.GetNamespace(ctx, k8sClient, nsName, true), projectName)
-		}, timeout, interval).Should(Succeed())
-
-		By("overwriting a managed label")
-		ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
-		ns.Labels[pkgctrl.ProjectNameLabel] = "drifted"
-		Expect(k8sClient.Update(ctx, ns)).To(Succeed())
-
-		By("waiting for the label to be restored")
-		Eventually(func(g Gomega) {
-			ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
-			g.Expect(ns.Labels).To(HaveKeyWithValue(pkgctrl.ProjectNameLabel, projectName))
+			expectManagedNamespace(g, controller.GetNamespace(ctx, k8sClient, nsName, false), projectName)
+			project := controller.GetProject(ctx, k8sClient, projectName, false)
+			g.Expect(project.Status.Namespace).To(Equal(nsName))
+			expectCondition(g, project, konfidence.ProjectNamespaceReadyCondition, metav1.ConditionTrue, konfidence.ProjectNamespaceReconciledReason)
 		}, timeout, interval).Should(Succeed())
 	})
 
-	It("deletes the project namespace and waits for its termination", func() {
+	It("reports NamespaceNotFound when namespacePolicy Adopt has no namespace to adopt", func() {
+		const projectName = "proj-adopt-missing"
+		const nsName = "proj-adopt-missing-ns"
+		controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.Namespace = nsName
+			p.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+		})
+		DeferCleanup(func() { controller.CleanupProject(ctx, k8sClient, projectName) })
+
+		Eventually(func(g Gomega) {
+			project := controller.GetProject(ctx, k8sClient, projectName, false)
+			expectCondition(g, project, konfidence.ProjectNamespaceReadyCondition, metav1.ConditionFalse, konfidence.ProjectNamespaceNotFoundReason)
+			expectCondition(g, project, konfidence.ProjectReadyCondition, metav1.ConditionFalse, konfidence.ProjectNamespaceNotFoundReason)
+		}, timeout, interval).Should(Succeed())
+
+		By("not creating the namespace")
+		Expect(controller.GetNamespace(ctx, k8sClient, nsName, true)).To(BeNil())
+	})
+
+	It("rejects namespacePolicy Adopt without an explicit namespace", func() {
+		project := controller.NewProject("proj-adopt-no-ns", func(p *konfidence.Project) {
+			p.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+		})
+		err := k8sClient.Create(ctx, project)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("namespace is required when namespacePolicy is Adopt"))
+	})
+
+	It("deletes the project namespace and waits for its termination under deletionPolicy Delete", func() {
 		const projectName = "proj-delete"
-		project := controller.CreateProject(ctx, k8sClient, projectName)
+		project := controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.DeletionPolicy = konfidence.DeletionPolicyDelete
+		})
 
 		nsName := konfidence.ProjectNamespacePrefix + projectName
 		Eventually(func(g Gomega) {
@@ -298,5 +322,38 @@ var _ = Describe("Project Controller", Ordered, func() {
 		}, timeout, interval).Should(Succeed())
 
 		controller.CleanupProject(ctx, k8sClient, projectName)
+	})
+
+	It("orphans the project namespace under deletionPolicy Orphan", func() {
+		const projectName = "proj-orphan"
+		project := controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.DeletionPolicy = konfidence.DeletionPolicyOrphan
+		})
+
+		nsName := konfidence.ProjectNamespacePrefix + projectName
+		Eventually(func(g Gomega) {
+			expectManagedNamespace(g, controller.GetNamespace(ctx, k8sClient, nsName, true), projectName)
+		}, timeout, interval).Should(Succeed())
+		// The orphaned namespace outlives the Project; clean it up by name.
+		DeferCleanup(func() {
+			ns := controller.GetNamespace(ctx, k8sClient, nsName, true)
+			if ns != nil {
+				Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, ns))).To(Succeed())
+			}
+		})
+
+		By("deleting the Project")
+		Expect(k8sClient.Delete(ctx, project)).To(Succeed())
+
+		By("releasing the Project while leaving the namespace alive without management labels")
+		Eventually(func(g Gomega) {
+			g.Expect(controller.GetProject(ctx, k8sClient, projectName, true)).To(BeNil())
+		}, timeout, interval).Should(Succeed())
+
+		ns := controller.GetNamespace(ctx, k8sClient, nsName, false)
+		Expect(ns.DeletionTimestamp.IsZero()).To(BeTrue(), "namespace should not be deleted")
+		Expect(ns.Labels).NotTo(HaveKey(pkgctrl.ManagedByLabel))
+		Expect(ns.Labels).NotTo(HaveKey(pkgctrl.ProjectTypeLabel))
+		Expect(ns.Labels).NotTo(HaveKey(pkgctrl.ProjectNameLabel))
 	})
 })
