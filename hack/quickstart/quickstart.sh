@@ -47,14 +47,35 @@ kubernetes_landscape_orchestrator_version=${KUBERNETES_LANDSCAPE_ORCHESTRATOR_VE
 vector_data_service_version=${VECTOR_DATA_SERVICE_VERSION:-0.0.0-4f194adf3c2e211514d41c59d1a446275bb093e3}
 namespace=konfidence-system
 
+# Set EDGE_HTTP_PORT to publish the edge Gateway on a different local port.
+edge_http_port=${EDGE_HTTP_PORT:-9090}
+# Konfidence ships no gateway. The admin's edge Gateway uses this NodePort,
+# see "Route traffic to stages with Envoy Gateway" in the docs. Keep both
+# values in sync.
+edge_node_port=30080
+
 # Reuse the cluster if it already exists and select its kubeconfig context
 # for the kubectl and Helm commands below.
 create_cluster() {
   clusters=$(kind get clusters)
   if ! printf '%s\n' "$clusters" | grep -Fxq -- "$cluster_name"; then
+    # kind can add port mappings only when it creates the cluster, so the
+    # edge Gateway port is mapped here even though the admin installs the
+    # gateway later.
     kind create cluster \
       --name "$cluster_name" \
-      --wait 120s
+      --wait 120s \
+      --config - <<EOF
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: $edge_node_port
+        hostPort: $edge_http_port
+        listenAddress: 127.0.0.1
+        protocol: TCP
+EOF
   fi
 
   kind export kubeconfig --name "$cluster_name"
