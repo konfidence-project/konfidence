@@ -61,10 +61,9 @@ type VectorTemplateReference struct {
 type PromotionSourceReference struct {
 	// Kind is the kind of the source resource. A `VectorTemplate` source
 	// promotes its latest assembled vector; a `Stage` source promotes the
-	// vector currently configured on that stage (`spec.vector`). Whether the resulting promotion
-	// requires approval is recorded on the promotion itself
-	// (`VectorPromotionSpec.RequireApproval`); the controller defaults it
-	// from the source kind.
+	// vector currently configured on that stage (`spec.vector`). Gates the
+	// resulting promotion must pass are declared on the config
+	// (`VectorPromotionConfigSpec.Gates`), independent of the source kind.
 	// +kubebuilder:validation:Enum=VectorTemplate;Stage
 	Kind string `json:"kind"`
 

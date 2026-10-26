@@ -11,8 +11,10 @@ const (
 
 	// ConditionTypeSucceeded is the condition type for promotion results.
 	ConditionTypeSucceeded = "Succeeded"
-	// ConditionTypeApproved is the condition type for promotion approval.
-	ConditionTypeApproved = "Approved"
+	// ConditionTypeGatesSatisfied reports whether every declared gate is
+	// satisfied. It is informational: gate state lives in `status.gates`.
+	// Promotions without gates carry no such condition.
+	ConditionTypeGatesSatisfied = "GatesSatisfied"
 
 	// ReasonPromotionSucceeded indicates the promotion completed successfully.
 	ReasonPromotionSucceeded = "PromotionSucceeded"
@@ -20,10 +22,12 @@ const (
 	ReasonPromotionFailed = "PromotionFailed"
 	// ReasonPromotionRunning indicates that the promotion is still running.
 	ReasonPromotionRunning = "PromotionRunning"
-	// ReasonPromotionWaitingForApproval indicates the promotion waits for manual approval.
-	ReasonPromotionWaitingForApproval = "WaitingForApproval"
-	// ReasonPromotionManuallyApproved indicates the promotion was approved manually.
-	ReasonPromotionManuallyApproved = "ManuallyApproved"
+	// ReasonGatesPending indicates at least one declared gate is still open.
+	ReasonGatesPending = "GatesPending"
+	// ReasonGateError indicates at least one declared gate reports an error.
+	ReasonGateError = "GateError"
+	// ReasonAllGatesSatisfied indicates every declared gate is satisfied.
+	ReasonAllGatesSatisfied = "AllGatesSatisfied"
 	// ReasonPromotionSuperseded indicates a newer promotion for the same config replaced this one.
 	ReasonPromotionSuperseded = "PromotionSuperseded"
 	// ReasonPromotionOutstandingLimitReached indicates an outstanding Promotion was superseded
@@ -42,11 +46,11 @@ const (
 type VectorPromotionState string
 
 const (
-	// PromotionStateWaiting means at least one gate is still open: the
-	// promotion requires approval and has not been approved yet.
+	// PromotionStateWaiting means at least one declared gate is not
+	// satisfied yet (Pending or Error).
 	PromotionStateWaiting VectorPromotionState = "Waiting"
-	// PromotionStateReady means every gate has passed and the promotion is
-	// queued for execution. Promotions that require no approval are Ready
+	// PromotionStateReady means every declared gate is satisfied and the
+	// promotion is queued for execution. Promotions without gates are Ready
 	// from their first reconcile.
 	PromotionStateReady VectorPromotionState = "Ready"
 	// PromotionStateInProgress means the promotion is executing.
@@ -65,6 +69,10 @@ const (
 )
 
 // VectorPromotionSpec defines the desired state of VectorPromotion.
+//
+// +kubebuilder:validation:XValidation:rule="has(self.gates) == has(oldSelf.gates) && (!has(self.gates) || self.gates == oldSelf.gates)",message="gates are immutable after they have been set"
+//
+//nolint:lll // Kubebuilder annotations are intentionally long.
 type VectorPromotionSpec struct {
 	// VectorPromotionConfigName is the name of the VectorPromotionConfig that defines the promotion flow to execute.
 	// +kubebuilder:validation:MinLength=1
@@ -87,14 +95,14 @@ type VectorPromotionSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="vector is immutable after it has been set"
 	Vector string `json:"vector"`
 
-	// RequireApproval is true when the promotion must be approved before
-	// execution; false means the promotion is approved automatically. It is
-	// independent of the source kind: the config controller defaults it to
-	// true for `Stage` sources, but any combination is valid.
-	// +kubebuilder:default=false
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="requireApproval is immutable after it has been set"
+	// Gates is an immutable snapshot of the config's gates at creation time.
+	// The promotion stays `Waiting` until every gate has a `Satisfied` entry
+	// in `status.gates`. An empty list promotes immediately.
+	// +listType=map
+	// +listMapKey=type
+	// +kubebuilder:validation:MaxItems=16
 	// +optional
-	RequireApproval bool `json:"requireApproval,omitempty"`
+	Gates []PromotionGate `json:"gates,omitempty"`
 
 	// TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
 	// Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),
@@ -111,34 +119,27 @@ type VectorPromotionSpec struct {
 	Sequence int64 `json:"sequence"`
 }
 
-// PromotionApproval records the granted approval.
-type PromotionApproval struct {
-	// ApprovedBy is the identity that granted the approval, as reported by the
-	// konfidence API. The value is an opaque, arbitrary string (username,
-	// email, subject, ...); it is recorded verbatim and never interpreted.
-	// +kubebuilder:validation:MinLength=1
-	ApprovedBy string `json:"approvedBy"`
-
-	// ApprovedAt is the time the approval was granted.
-	ApprovedAt metav1.Time `json:"approvedAt"`
-}
-
 // VectorPromotionStatus defines the observed state of VectorPromotion.
 type VectorPromotionStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// State summarizes Conditions for display. Conditions are the source of
-	// truth; State is recomputed whenever conditions are written. `Superseded`
-	// is a terminal state: a superseded promotion can never be
+	// truth; State is recomputed whenever conditions or gates are written.
+	// `Superseded` is a terminal state: a superseded promotion can never be
 	// approved or executed afterward.
 	// +kubebuilder:validation:Enum=Waiting;Ready;InProgress;Blocked;Succeeded;Failed;Superseded
 	// +optional
 	State VectorPromotionState `json:"state,omitempty"`
 
-	// Approval records the granted approval. A promotion is approved at most
-	// once; re-approval attempts are rejected.
+	// Gates reports the state and provenance of each declared gate, keyed by
+	// gate type. Entries are seeded `Pending` by the promotion controller and
+	// set by the gate's writer (a gate controller or the konfidence API)
+	// through `pkg/promotiongate`. A missing entry counts as `Pending`.
+	// +listType=map
+	// +listMapKey=type
+	// +kubebuilder:validation:MaxItems=16
 	// +optional
-	Approval *PromotionApproval `json:"approval,omitempty"`
+	Gates []PromotionGateStatus `json:"gates,omitempty"`
 
 	// PromotedStageRef records the Stage this promotion actually wrote its
 	// vector to, so the promotion is self-describing even after the config

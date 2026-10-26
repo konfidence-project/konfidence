@@ -74,13 +74,13 @@ var _ = Describe("VectorPromotionConfig drift detection", Ordered, Serial, func(
 		By("publishing a new latest vector on the template")
 		setLatestVector(template, testVector)
 
-		By("a sequence-stamped, owned, auto-approval promotion appears")
+		By("a sequence-stamped, owned, gateless promotion appears")
 		Eventually(func(g Gomega) {
 			promotions := promotionsOf(g, config.Name)
 			g.Expect(promotions).To(HaveLen(1))
 			created := promotions[0]
 			g.Expect(created.Spec.Vector).To(Equal(testVector))
-			g.Expect(created.Spec.RequireApproval).To(BeFalse())
+			g.Expect(created.Spec.Gates).To(BeEmpty())
 			g.Expect(created.Spec.Sequence).To(Equal(int64(1)))
 			g.Expect(created.Spec.TTLAfterFinished).NotTo(BeNil())
 			g.Expect(created.Spec.TTLAfterFinished.Duration).To(Equal(time.Hour))
@@ -116,22 +116,56 @@ var _ = Describe("VectorPromotionConfig drift detection", Ordered, Serial, func(
 		}, timeout, interval).Should(Succeed())
 	})
 
-	It("creates an approval-gated promotion when the source is a stage", func() {
+	It("snapshots the config's gates into created promotions", func() {
 		createLandscapeWithNamespace("drift-src-landscape", "kden-l-drift-src")
 		createLandscapeWithNamespace("drift-dst-landscape", "kden-l-drift-dst")
 		createStage("kden-l-drift-src", "source-stage", testVector)
 		createStage("kden-l-drift-dst", "target-stage", "registry.example//konfidence.io/promo/app:0.9.0")
+		gates := []konfidence.PromotionGate{
+			{Type: konfidence.GateTypeActivatedOnSourceStage},
+			{Type: konfidence.GateTypeExplicitApproval},
+			{Type: "e2e-tests.example.com"},
+		}
 		config := createConfig("drift-manual-config",
 			konfidence.PromotionSourceReference{
 				Kind: konfidence.StageKind, Name: "source-stage", Landscape: "drift-src-landscape",
 			},
-			stageTargetInLandscape("target-stage", "drift-dst-landscape"))
+			stageTargetInLandscape("target-stage", "drift-dst-landscape"), gates...)
 
 		Eventually(func(g Gomega) {
 			promotions := promotionsOf(g, config.Name)
 			g.Expect(promotions).To(HaveLen(1))
-			g.Expect(promotions[0].Spec.RequireApproval).To(BeTrue())
+			g.Expect(promotions[0].Spec.Gates).To(Equal(gates))
 			g.Expect(promotions[0].Spec.Vector).To(Equal(testVector))
+		}, timeout, interval).Should(Succeed())
+
+		By("editing the config's gates does not touch the existing promotion")
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: config.Name, Namespace: testNamespace}, config)).To(Succeed())
+		patch := client.MergeFrom(config.DeepCopy())
+		config.Spec.Gates = nil
+		Expect(k8sClient.Patch(ctx, config, patch)).To(Succeed())
+		Consistently(func(g Gomega) {
+			promotions := promotionsOf(g, config.Name)
+			g.Expect(promotions).To(HaveLen(1))
+			g.Expect(promotions[0].Spec.Gates).To(Equal(gates))
+		}, 2*time.Second, interval).Should(Succeed())
+	})
+
+	It("creates a gateless promotion for a stage source without gates", func() {
+		createLandscapeWithNamespace("drift-nogate-src-landscape", "kden-l-drift-nogate-src")
+		createLandscapeWithNamespace("drift-nogate-dst-landscape", "kden-l-drift-nogate-dst")
+		createStage("kden-l-drift-nogate-src", "source-stage", testVector)
+		createStage("kden-l-drift-nogate-dst", "target-stage", "registry.example//konfidence.io/promo/app:0.9.0")
+		config := createConfig("drift-nogate-config",
+			konfidence.PromotionSourceReference{
+				Kind: konfidence.StageKind, Name: "source-stage", Landscape: "drift-nogate-src-landscape",
+			},
+			stageTargetInLandscape("target-stage", "drift-nogate-dst-landscape"))
+
+		Eventually(func(g Gomega) {
+			promotions := promotionsOf(g, config.Name)
+			g.Expect(promotions).NotTo(BeEmpty())
+			g.Expect(promotions[0].Spec.Gates).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
 	})
 

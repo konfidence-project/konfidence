@@ -8,12 +8,11 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
+	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 )
 
 // PromotionConfigNameField is the field-index key that maps a VectorPromotion to its
@@ -41,11 +40,15 @@ var (
 	// a newer promotion. Superseded promotions are locked for good: the newer
 	// promotion is the one to approve.
 	ErrPromotionSuperseded = errors.New("promotion was superseded and is locked")
-	// ErrAlreadyApproved is returned when the promotion is already approved.
+	// ErrPromotionExecuting is returned when the promotion already started
+	// executing, so its gates can no longer change.
+	ErrPromotionExecuting = errors.New("promotion is already executing; its gates can no longer change")
+	// ErrAlreadyApproved is returned when the explicit-approval gate is
+	// already satisfied.
 	ErrAlreadyApproved = errors.New("promotion is already approved")
-	// ErrApprovalNotRequired is returned when the promotion has no approval
-	// gate: there is nothing to approve.
-	ErrApprovalNotRequired = errors.New("promotion does not require approval; nothing to approve")
+	// ErrApprovalNotRequired is returned when the promotion does not declare
+	// the explicit-approval gate: there is nothing to approve.
+	ErrApprovalNotRequired = errors.New("promotion has no explicit-approval gate; nothing to approve")
 	// ErrApproverMissing is returned when no approver identity was supplied:
 	// an approval without provenance is not an audit record.
 	ErrApproverMissing = errors.New("approvedBy must not be empty")
@@ -95,12 +98,15 @@ func (r *k8sRepository) ListForConfig(ctx context.Context, namespace string,
 	return list.Items, nil
 }
 
-// Approve marks a VectorPromotion approved on behalf of approvedBy. It is the
-// single entry point for granting approvals (used by the konfidence API): it
-// keeps the condition vocabulary, the derived `status.state`, and the
-// optimistic-locking discipline in one place. A missing resource is reported as
-// ErrVectorPromotionNotFound so callers can map it the same way they map a
-// failed Get; callers can map ErrPromotionSuperseded, ErrPromotionFinished,
+// Approve satisfies the promotion's `explicit-approval.konfidence.cloud` gate
+// on behalf of approvedBy. It is the single entry point for human approvals
+// (used by the konfidence API) and writes through pkg/promotiongate, like any
+// other gate writer, so state and provenance are set together under optimistic
+// locking. The derived `status.state` follows once the promotion controller
+// observes the gate change.
+//
+// A missing resource is reported as ErrVectorPromotionNotFound; callers can map
+// ErrPromotionSuperseded, ErrPromotionFinished, ErrPromotionExecuting,
 // ErrAlreadyApproved, ErrApprovalNotRequired and ErrApproverMissing to client
 // errors.
 func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionId, approvedBy string) error {
@@ -108,13 +114,9 @@ func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionI
 		return ErrApproverMissing
 	}
 
-	key := types.NamespacedName{Namespace: namespace, Name: vectorPromotionId}
-	vectorPromotion := &konfidence.VectorPromotion{}
-	if err := r.k8sClient.Get(ctx, key, vectorPromotion); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ErrVectorPromotionNotFound
-		}
-		return fmt.Errorf("failed to fetch VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
+	vectorPromotion, err := r.Get(ctx, namespace, vectorPromotionId)
+	if err != nil {
+		return err
 	}
 
 	if promotion.IsSuperseded(vectorPromotion) {
@@ -123,32 +125,31 @@ func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionI
 	if promotion.IsTerminal(vectorPromotion) {
 		return fmt.Errorf("%w: state is %q", ErrPromotionFinished, vectorPromotion.Status.State)
 	}
-	if !vectorPromotion.Spec.RequireApproval {
+	if !promotiongate.Declared(vectorPromotion, konfidence.GateTypeExplicitApproval) {
 		return ErrApprovalNotRequired
 	}
-	if promotion.IsApproved(vectorPromotion) {
+	if promotiongate.StateOf(vectorPromotion, konfidence.GateTypeExplicitApproval) == konfidence.PromotionGateStateSatisfied {
 		return ErrAlreadyApproved
 	}
 
-	original := vectorPromotion.DeepCopy()
-	meta.SetStatusCondition(&vectorPromotion.Status.Conditions, metav1.Condition{
-		Type:               konfidence.ConditionTypeApproved,
-		Status:             metav1.ConditionTrue,
-		ObservedGeneration: vectorPromotion.Generation,
-		Reason:             konfidence.ReasonPromotionManuallyApproved,
-		Message:            fmt.Sprintf("promotion of vector %q approved by %s", vectorPromotion.Spec.Vector, approvedBy),
+	key := types.NamespacedName{Namespace: namespace, Name: vectorPromotionId}
+	err = promotiongate.Set(ctx, r.k8sClient, key, promotiongate.Update{
+		Type:    konfidence.GateTypeExplicitApproval,
+		State:   konfidence.PromotionGateStateSatisfied,
+		Reason:  konfidence.ReasonGateApprovedByUser,
+		Message: fmt.Sprintf("approved by %s", approvedBy),
+		SetBy:   approvedBy,
 	})
-	vectorPromotion.Status.Approval = &konfidence.PromotionApproval{
-		ApprovedBy: approvedBy,
-		ApprovedAt: metav1.Now(),
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, promotiongate.ErrNotFound):
+		return ErrVectorPromotionNotFound
+	case errors.Is(err, promotiongate.ErrGateNotDeclared):
+		return ErrApprovalNotRequired
+	case errors.Is(err, promotiongate.ErrPromotionNotMutable):
+		return ErrPromotionExecuting
+	default:
+		return fmt.Errorf("failed to approve VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
 	}
-	vectorPromotion.Status.State = promotion.DeriveState(vectorPromotion)
-
-	patch := client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})
-	if err := r.k8sClient.Status().Patch(ctx, vectorPromotion, patch); err != nil {
-		return fmt.Errorf("failed to patch approval onto VectorPromotion %q in namespace %q: %w",
-			key.Name, key.Namespace, err)
-	}
-
-	return nil
 }

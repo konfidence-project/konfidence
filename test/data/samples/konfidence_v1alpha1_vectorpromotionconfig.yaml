@@ -11,6 +11,8 @@ spec:
     kind: Stage
     name: sample-stage
     landscape: sample-landscape
+  gates:
+    - type: explicit-approval.konfidence.cloud
   ttlAfterFinished: 1h
   keepLastPromotions: 10
   keepOutstandingPromotions: 10

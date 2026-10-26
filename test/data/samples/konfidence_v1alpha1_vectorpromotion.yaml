@@ -13,6 +13,7 @@ spec:
     name: sample-stage
     landscape: sample-landscape
   vector: registry.kdenv.lab/sample-project//konfidence-project.com/constructed-vector:2026.8.5-090000000Z
-  requireApproval: false
+  gates:
+    - type: explicit-approval.konfidence.cloud
   sequence: 1
   ttlAfterFinished: 1h

@@ -110,7 +110,7 @@ var _ = Describe("VectorPromotion serialization", Ordered, Serial, func() {
 	})
 
 	It("times itself out when stuck in progress past the deadline", func() {
-		promotion := createPromotion("exec-selftimeout", "selftimeout-config")
+		promotion := createPromotionRequiringApproval("exec-selftimeout", "selftimeout-config")
 		approvePromotion(promotion)
 		setSucceededCondition(promotion, metav1.ConditionFalse, konfidence.ReasonPromotionRunning,
 			time.Now().Add(-10*time.Minute))

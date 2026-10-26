@@ -66,6 +66,11 @@ func toVectorPromotionConfigResponse(c konfidence.VectorPromotionConfig,
 		Target: toPromotionTargetReferenceResponse(c.Spec.Target),
 	}
 
+	if len(c.Spec.Gates) > 0 {
+		gates := toPromotionGatesResponse(c.Spec.Gates)
+		config.Gates = &gates
+	}
+
 	if c.Spec.TTLAfterFinished != nil {
 		ttl := c.Spec.TTLAfterFinished.Duration.String()
 		config.TtlAfterFinished = &ttl

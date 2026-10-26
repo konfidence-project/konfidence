@@ -3,30 +3,36 @@
 // # Objects and writers
 //
 // A `VectorPromotionConfig` declares one promotion flow (source, target
-// landscape/stage) and is mutable. A `VectorPromotion` is one execution
-// request against it: `spec.vector`, `spec.requireApproval` and
-// `spec.sequence` are pinned at creation and immutable. Promotions are
+// landscape/stage, gates) and is mutable. A `VectorPromotion` is one execution
+// request against it: `spec.vector`, `spec.gates` and `spec.sequence` are
+// pinned at creation and immutable. Promotions are
 // created by the config reconciler (vectorpromotionconfig_controller.go) when
 // the source vector drifts from the target stage; it stamps `spec.sequence`
 // from the config's `status.sequence` and sets a controller owner reference,
 // so deleting a config garbage-collects its promotions.
 //
-// Conditions are the source of truth; `status.state` is display only,
-// recomputed from conditions on every write. Promotion status has two
-// writers — this controller and the external approver
-// (`vectorpromotion.Approve`) — so every promotion status patch is
-// optimistic-locked. Config status has two writers with disjoint fields —
+// Conditions and `status.gates` are the source of truth; `status.state` is
+// display only, recomputed from them on every write. Promotion status has
+// several writers — this controller, which only seeds missing gate entries as
+// `Pending` and writes conditions, and the gate writers (gate controllers and
+// the konfidence API via `vectorpromotion.Approve`), which set gate entries
+// through `pkg/promotiongate` — so every promotion status patch is
+// optimistic-locked: a stale write conflicts and is retried on fresh state
+// instead of overwriting another writer's entry. The controller never
+// interprets gate types. Config status has two writers with disjoint fields —
 // the execution controller mirrors `lastPromotion*`, the config reconciler
 // owns `conditions` (Ready) and `sequence` — so config status patches are
 // plain merge patches; that only holds while the fields stay disjoint.
 //
 // # Lifecycle
 //
-//	     (created by drift controller)
+//	     (created by drift controller, gates snapshotted from the config)
 //	                |
-//	requireApproval? ──no──> Ready (no Approved condition:
+//	gates declared? ──no──> Ready (no GatesSatisfied condition:
 //	     |yes                  |    absent gates leave no record)
-//	  Waiting ──Approve()──> Ready
+//	  Waiting ──every gate Satisfied──> Ready (GatesSatisfied=True)
+//	     |   (gate in Error: stays Waiting,
+//	     |    GatesSatisfied=False/GateError + warning event)
 //	     |
 //	     └── outstanding limit exceeded ──> Superseded
 //	          (oldest waiting promotion,
@@ -47,6 +53,11 @@
 // approved or executed. A value of 0 allows an unlimited number of waiting
 // promotions. Promotions in any other state do not count toward this limit.
 //
+// Gates can change only until execution starts (no Succeeded condition yet):
+// a satisfied gate may reopen while the promotion is Waiting or Ready, which
+// pulls it back to Waiting. Once execution started, the promotion counts as
+// cleared regardless of later gate edits.
+//
 // Superseded, Succeeded and other Succeeded=False reasons (except Running and
 // TargetUnresolved) are terminal. Terminal promotions are cleaned up by the
 // retention controller using `ttlAfterFinished` and bounded per config by
@@ -62,8 +73,8 @@
 //
 // # Files
 //
-// The reconciler is split by phase: approval
-// (vectorpromotion_approval.go), serialization
+// The reconciler is split by phase: gates
+// (vectorpromotion_gates.go), serialization
 // (vectorpromotion_serialization.go), execution and config mirroring
 // (vectorpromotion_execution.go), condition/patch plumbing
 // (vectorpromotion_status.go), TTL and retention

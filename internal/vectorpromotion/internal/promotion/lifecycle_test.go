@@ -140,36 +140,41 @@ var _ = Describe("Lifecycle", func() {
 	})
 
 	Describe("DeriveState", func() {
-		promotionWith := func(requireApproval bool, conditions ...metav1.Condition) *konfidence.VectorPromotion {
-			return &konfidence.VectorPromotion{
-				Spec:   konfidence.VectorPromotionSpec{RequireApproval: requireApproval},
+		promotionWith := func(gated bool, conditions ...metav1.Condition) *konfidence.VectorPromotion {
+			p := &konfidence.VectorPromotion{
 				Status: konfidence.VectorPromotionStatus{Conditions: conditions},
 			}
+			if gated {
+				p.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
+			}
+			return p
+		}
+		withGate := func(p *konfidence.VectorPromotion, state konfidence.PromotionGateState) *konfidence.VectorPromotion {
+			p.Status.Gates = []konfidence.PromotionGateStatus{{Type: konfidence.GateTypeExplicitApproval, State: state}}
+			return p
 		}
 		succeededCondition := func(status metav1.ConditionStatus, reason string) metav1.Condition {
 			return metav1.Condition{Type: konfidence.ConditionTypeSucceeded, Status: status, Reason: reason}
 		}
 
-		DescribeTable("derives the state from conditions",
+		DescribeTable("derives the state from conditions and gates",
 			func(p *konfidence.VectorPromotion, expected konfidence.VectorPromotionState) {
 				Expect(DeriveState(p)).To(Equal(expected))
 			},
-			Entry("no conditions, no approval required",
+			Entry("no conditions, no gates",
 				promotionWith(false), konfidence.PromotionStateReady),
-			Entry("no conditions, approval required",
+			Entry("no conditions, gate without status entry",
 				promotionWith(true), konfidence.PromotionStateWaiting),
-			Entry("approved, approval required, not started",
-				promotionWith(true, metav1.Condition{
-					Type:   konfidence.ConditionTypeApproved,
-					Status: metav1.ConditionTrue,
-					Reason: konfidence.ReasonPromotionManuallyApproved,
-				}), konfidence.PromotionStateReady),
-			Entry("approval condition false, approval required",
-				promotionWith(true, metav1.Condition{
-					Type:   konfidence.ConditionTypeApproved,
-					Status: metav1.ConditionFalse,
-					Reason: konfidence.ReasonPromotionWaitingForApproval,
-				}), konfidence.PromotionStateWaiting),
+			Entry("gate pending",
+				withGate(promotionWith(true), konfidence.PromotionGateStatePending), konfidence.PromotionStateWaiting),
+			Entry("gate in error",
+				withGate(promotionWith(true), konfidence.PromotionGateStateError), konfidence.PromotionStateWaiting),
+			Entry("gate satisfied, not started",
+				withGate(promotionWith(true), konfidence.PromotionGateStateSatisfied), konfidence.PromotionStateReady),
+			Entry("gate reopened after execution started",
+				withGate(promotionWith(true, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionRunning)),
+					konfidence.PromotionGateStatePending),
+				konfidence.PromotionStateInProgress),
 			Entry("running",
 				promotionWith(false, succeededCondition(metav1.ConditionFalse, konfidence.ReasonPromotionRunning)),
 				konfidence.PromotionStateInProgress),
@@ -233,40 +238,61 @@ var _ = Describe("Lifecycle", func() {
 	})
 
 	Describe("Cleared", func() {
-		It("treats a gateless promotion as cleared without any condition", func() {
+		gated := func(states ...konfidence.PromotionGateState) *konfidence.VectorPromotion {
 			p := &konfidence.VectorPromotion{
-				Spec: konfidence.VectorPromotionSpec{RequireApproval: false},
+				Spec: konfidence.VectorPromotionSpec{Gates: []konfidence.PromotionGate{
+					{Type: konfidence.GateTypeExplicitApproval},
+					{Type: "e2e-tests.example.com"},
+				}},
 			}
+			for i, state := range states {
+				p.Status.Gates = append(p.Status.Gates, konfidence.PromotionGateStatus{Type: p.Spec.Gates[i].Type, State: state})
+			}
+			return p
+		}
 
-			Expect(Cleared(p)).To(BeTrue())
+		It("treats a gateless promotion as cleared", func() {
+			Expect(Cleared(&konfidence.VectorPromotion{})).To(BeTrue())
 		})
 
-		It("treats an unapproved gated promotion as not cleared", func() {
-			p := &konfidence.VectorPromotion{
-				Spec: konfidence.VectorPromotionSpec{RequireApproval: true},
-			}
+		It("treats a promotion with unseeded gates as not cleared", func() {
+			Expect(Cleared(gated())).To(BeFalse())
+		})
 
-			Expect(Cleared(p)).To(BeFalse())
+		It("requires every declared gate to be satisfied", func() {
+			Expect(Cleared(gated(konfidence.PromotionGateStateSatisfied, konfidence.PromotionGateStatePending))).To(BeFalse())
+			Expect(Cleared(gated(konfidence.PromotionGateStateSatisfied, konfidence.PromotionGateStateError))).To(BeFalse())
+			Expect(Cleared(gated(konfidence.PromotionGateStateSatisfied, konfidence.PromotionGateStateSatisfied))).To(BeTrue())
+		})
+
+		It("keeps a promotion cleared once execution started", func() {
+			p := gated(konfidence.PromotionGateStatePending, konfidence.PromotionGateStatePending)
+			p.Status.Conditions = []metav1.Condition{{
+				Type: konfidence.ConditionTypeSucceeded, Status: metav1.ConditionFalse, Reason: konfidence.ReasonPromotionTargetUnresolved,
+			}}
+			Expect(Cleared(p)).To(BeTrue())
 		})
 	})
 
 	Describe("NewestCleared", func() {
+		approvalGate := []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
 		approvedAt := func(name string, sequence int64, conditions ...metav1.Condition) konfidence.VectorPromotion {
-			all := append([]metav1.Condition{{
-				Type:   konfidence.ConditionTypeApproved,
-				Status: metav1.ConditionTrue,
-				Reason: konfidence.ReasonPromotionManuallyApproved,
-			}}, conditions...)
 			return konfidence.VectorPromotion{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
-				Spec:       konfidence.VectorPromotionSpec{Sequence: sequence},
-				Status:     konfidence.VectorPromotionStatus{Conditions: all},
+				Spec:       konfidence.VectorPromotionSpec{Sequence: sequence, Gates: approvalGate},
+				Status: konfidence.VectorPromotionStatus{
+					Conditions: conditions,
+					Gates: []konfidence.PromotionGateStatus{{
+						Type:  konfidence.GateTypeExplicitApproval,
+						State: konfidence.PromotionGateStateSatisfied,
+					}},
+				},
 			}
 		}
 		waiting := func(name string, sequence int64) konfidence.VectorPromotion {
 			return konfidence.VectorPromotion{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
-				Spec:       konfidence.VectorPromotionSpec{Sequence: sequence, RequireApproval: true},
+				Spec:       konfidence.VectorPromotionSpec{Sequence: sequence, Gates: approvalGate},
 			}
 		}
 		gateless := func(name string, sequence int64) konfidence.VectorPromotion {

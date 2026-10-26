@@ -897,11 +897,48 @@ _Appears in:_
 | `namespace` _string_ | Namespace is the name of the namespace managed for this project. |  | Optional: \{\} <br /> |
 
 
-### PromotionApproval
+### PromotionGate
 
 
 
-PromotionApproval records the granted approval.
+PromotionGate declares a gate a promotion must pass before it executes.
+
+
+
+_Appears in:_
+- [VectorPromotionConfigSpec](#vectorpromotionconfigspec)
+- [VectorPromotionSpec](#vectorpromotionspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `type` _string_ | Type identifies the gate as `<gate-name>.<owner-domain>`, for example<br />`explicit-approval.konfidence.cloud` or `e2e-tests.example.com`. The<br />first label names the gate, the remaining labels name the party that<br />owns the gate type and ships its writer. The promotion controller never<br />interprets the type; it only tracks whether the gate is satisfied. |  | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)\{2,\}$` <br /> |
+
+
+### PromotionGateState
+
+_Underlying type:_ _string_
+
+PromotionGateState is the state of a single promotion gate.
+
+_Validation:_
+- Enum: [Pending Satisfied Error]
+
+_Appears in:_
+- [PromotionGateStatus](#promotiongatestatus)
+
+| Field | Description |
+| --- | --- |
+| `Pending` | PromotionGateStatePending means the gate is still open.<br /> |
+| `Satisfied` | PromotionGateStateSatisfied means the gate has passed.<br /> |
+| `Error` | PromotionGateStateError means the gate writer detected a problem (e.g. a<br />misconfiguration) that keeps the gate from ever passing as is.<br /> |
+
+
+### PromotionGateStatus
+
+
+
+PromotionGateStatus reports the state of one declared gate together with
+its provenance: who set it, when, and why.
 
 
 
@@ -910,8 +947,12 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `approvedBy` _string_ | ApprovedBy is the identity that granted the approval, as reported by the<br />konfidence API. The value is an opaque, arbitrary string (username,<br />email, subject, ...); it is recorded verbatim and never interpreted. |  | MinLength: 1 <br /> |
-| `approvedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#time-v1-meta)_ | ApprovedAt is the time the approval was granted. |  |  |
+| `type` _string_ | Type is the gate type this entry reports on. |  | MaxLength: 253 <br />MinLength: 1 <br /> |
+| `state` _[PromotionGateState](#promotiongatestate)_ | State is the current state of the gate. |  | Enum: [Pending Satisfied Error] <br /> |
+| `reason` _string_ | Reason is a machine-readable CamelCase reason for the latest state change. |  | MaxLength: 1024 <br />Optional: \{\} <br /> |
+| `message` _string_ | Message is a human-readable description of the latest state change,<br />e.g. what is misconfigured when State is `Error`. |  | MaxLength: 32768 <br />Optional: \{\} <br /> |
+| `setBy` _string_ | SetBy is the entity that last set the gate state: a controller name or,<br />for human actions, the authenticated subject. The value is advisory and<br />not a security boundary. |  | Optional: \{\} <br /> |
+| `setAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#time-v1-meta)_ | SetAt is the time the gate state was last set. |  | Optional: \{\} <br /> |
 
 
 ### PromotionSourceReference
@@ -931,7 +972,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `kind` _string_ | Kind is the kind of the source resource. A `VectorTemplate` source<br />promotes its latest assembled vector; a `Stage` source promotes the<br />vector currently configured on that stage (`spec.vector`). Whether the resulting promotion<br />requires approval is recorded on the promotion itself<br />(`VectorPromotionSpec.RequireApproval`); the controller defaults it<br />from the source kind. |  | Enum: [VectorTemplate Stage] <br /> |
+| `kind` _string_ | Kind is the kind of the source resource. A `VectorTemplate` source<br />promotes its latest assembled vector; a `Stage` source promotes the<br />vector currently configured on that stage (`spec.vector`). Gates the<br />resulting promotion must pass are declared on the config<br />(`VectorPromotionConfigSpec.Gates`), independent of the source kind. |  | Enum: [VectorTemplate Stage] <br /> |
 | `name` _string_ | Name is the name of the source resource. |  | MaxLength: 253 <br />MinLength: 1 <br /> |
 | `landscape` _string_ | Landscape is the `metadata.name` of the `Landscape` in the config's<br />namespace (not its managed namespace) whose namespace hosts the<br />referenced `Stage`. Required for `Stage` references; must be omitted<br />for `VectorTemplate` references, which are resolved in the config's<br />namespace. |  | MaxLength: 63 <br />MinLength: 1 <br />Optional: \{\} <br /> |
 
@@ -1886,7 +1927,8 @@ spec:
     name: sample-stage
     landscape: sample-landscape
   vector: registry.kdenv.lab/sample-project//konfidence-project.com/constructed-vector:2026.8.5-090000000Z
-  requireApproval: false
+  gates:
+    - type: explicit-approval.konfidence.cloud
   sequence: 1
   ttlAfterFinished: 1h
 ```
@@ -1928,6 +1970,8 @@ spec:
     kind: Stage
     name: sample-stage
     landscape: sample-landscape
+  gates:
+    - type: explicit-approval.konfidence.cloud
   ttlAfterFinished: 1h
   keepLastPromotions: 10
   keepOutstandingPromotions: 10
@@ -1948,6 +1992,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `source` _[PromotionSourceReference](#promotionsourcereference)_ | Source references the resource to promote from. |  |  |
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target references the Stage to promote to. |  |  |
+| `gates` _[PromotionGate](#promotiongate) array_ | Gates declares the gates every promotion created from this config must<br />pass before it executes. The list is snapshotted into each promotion at<br />creation; later edits only affect promotions created afterwards. An<br />empty list promotes immediately. |  | MaxItems: 16 <br />Optional: \{\} <br /> |
 | `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished will be copied onto every VectorPromotion the drift<br />controller creates for this config. See<br />`VectorPromotionSpec.TTLAfterFinished`. |  | Optional: \{\} <br /> |
 | `keepLastPromotions` _integer_ | KeepLastPromotions bounds how many terminal VectorPromotions are<br />retained per config; the oldest beyond the bound are deleted. Retention<br />by count keeps an audit trail even when `ttlAfterFinished` is short.<br />Non-terminal promotions are never deleted and do not count toward the<br />bound. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
 | `keepOutstandingPromotions` _integer_ | KeepOutstandingPromotions bounds how many gated and not yet processed VectorPromotions are<br />retained per config; the oldest beyond the bound are set to the terminal state "Superseded".<br />A value of 0 disables the bound and retains unlimited outstanding promotions. | 10 | Minimum: 0 <br />Optional: \{\} <br /> |
@@ -1989,7 +2034,7 @@ _Appears in:_
 | `source` _[PromotionSourceReference](#promotionsourcereference)_ | Source is a snapshot of the config's source reference at creation time,<br />recorded so a promotion is self-describing. |  |  |
 | `target` _[PromotionTargetReference](#promotiontargetreference)_ | Target is a snapshot of the config's target reference at creation time.<br />Execution resolves and writes this target: approving a promotion approves<br />exactly this destination, regardless of later config edits. |  |  |
 | `vector` _string_ | Vector is the concrete OCM component version reference<br />(`<registry>//<component>:<version>`) pinned when the promotion was created. |  | MinLength: 1 <br /> |
-| `requireApproval` _boolean_ | RequireApproval is true when the promotion must be approved before<br />execution; false means the promotion is approved automatically. It is<br />independent of the source kind: the config controller defaults it to<br />true for `Stage` sources, but any combination is valid. | false | Optional: \{\} <br /> |
+| `gates` _[PromotionGate](#promotiongate) array_ | Gates is an immutable snapshot of the config's gates at creation time.<br />The promotion stays `Waiting` until every gate has a `Satisfied` entry<br />in `status.gates`. An empty list promotes immediately. |  | MaxItems: 16 <br />Optional: \{\} <br /> |
 | `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion reaches a terminal state (Completed or Failed),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
 | `sequence` _integer_ | Sequence is a monotonic ordinal assigned by the creator (the config<br />reconciler, from the config's `status.sequence`). It is the sole<br />ordering between promotions of the same config; creation timestamps<br />only have second resolution and are never consulted. |  | Minimum: 0 <br /> |
 
@@ -2008,8 +2053,8 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `Waiting` | PromotionStateWaiting means at least one gate is still open: the<br />promotion requires approval and has not been approved yet.<br /> |
-| `Ready` | PromotionStateReady means every gate has passed and the promotion is<br />queued for execution. Promotions that require no approval are Ready<br />from their first reconcile.<br /> |
+| `Waiting` | PromotionStateWaiting means at least one declared gate is not<br />satisfied yet (Pending or Error).<br /> |
+| `Ready` | PromotionStateReady means every declared gate is satisfied and the<br />promotion is queued for execution. Promotions without gates are Ready<br />from their first reconcile.<br /> |
 | `InProgress` | PromotionStateInProgress means the promotion is executing.<br /> |
 | `Blocked` | PromotionStateBlocked means the promotion is ready but cannot execute<br />because its target does not resolve; see the config's Ready condition.<br /> |
 | `Succeeded` | PromotionStateSucceeded means the promotion completed successfully.<br /> |
@@ -2031,8 +2076,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#condition-v1-meta) array_ |  |  |  |
-| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes Conditions for display. Conditions are the source of<br />truth; State is recomputed whenever conditions are written. `Superseded`<br />is a terminal state: a superseded promotion can never be<br />approved or executed afterward. |  | Enum: [Waiting Ready InProgress Blocked Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
-| `approval` _[PromotionApproval](#promotionapproval)_ | Approval records the granted approval. A promotion is approved at most<br />once; re-approval attempts are rejected. |  | Optional: \{\} <br /> |
+| `state` _[VectorPromotionState](#vectorpromotionstate)_ | State summarizes Conditions for display. Conditions are the source of<br />truth; State is recomputed whenever conditions or gates are written.<br />`Superseded` is a terminal state: a superseded promotion can never be<br />approved or executed afterward. |  | Enum: [Waiting Ready InProgress Blocked Succeeded Failed Superseded] <br />Optional: \{\} <br /> |
+| `gates` _[PromotionGateStatus](#promotiongatestatus) array_ | Gates reports the state and provenance of each declared gate, keyed by<br />gate type. Entries are seeded `Pending` by the promotion controller and<br />set by the gate's writer (a gate controller or the konfidence API)<br />through `pkg/promotiongate`. A missing entry counts as `Pending`. |  | MaxItems: 16 <br />Optional: \{\} <br /> |
 | `promotedStageRef` _[TypedObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#typedobjectreference-v1-core)_ | PromotedStageRef records the Stage this promotion actually wrote its<br />vector to, so the promotion is self-describing even after the config<br />changed or was deleted. |  | Optional: \{\} <br /> |
 
 

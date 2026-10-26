@@ -70,17 +70,34 @@ spec:
           spec:
             description: VectorPromotionSpec defines the desired state of VectorPromotion.
             properties:
-              requireApproval:
-                default: false
+              gates:
                 description: |-
-                  RequireApproval is true when the promotion must be approved before
-                  execution; false means the promotion is approved automatically. It is
-                  independent of the source kind: the config controller defaults it to
-                  true for `Stage` sources, but any combination is valid.
-                type: boolean
-                x-kubernetes-validations:
-                - message: requireApproval is immutable after it has been set
-                  rule: self == oldSelf
+                  Gates is an immutable snapshot of the config's gates at creation time.
+                  The promotion stays `Waiting` until every gate has a `Satisfied` entry
+                  in `status.gates`. An empty list promotes immediately.
+                items:
+                  description: PromotionGate declares a gate a promotion must pass
+                    before it executes.
+                  properties:
+                    type:
+                      description: |-
+                        Type identifies the gate as `<gate-name>.<owner-domain>`, for example
+                        `explicit-approval.konfidence.cloud` or `e2e-tests.example.com`. The
+                        first label names the gate, the remaining labels name the party that
+                        owns the gate type and ships its writer. The promotion controller never
+                        interprets the type; it only tracks whether the gate is satisfied.
+                      maxLength: 253
+                      minLength: 1
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?){2,}$
+                      type: string
+                  required:
+                  - type
+                  type: object
+                maxItems: 16
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               sequence:
                 description: |-
                   Sequence is a monotonic ordinal assigned by the creator (the config
@@ -102,10 +119,9 @@ spec:
                     description: |-
                       Kind is the kind of the source resource. A `VectorTemplate` source
                       promotes its latest assembled vector; a `Stage` source promotes the
-                      vector currently configured on that stage (`spec.vector`). Whether the resulting promotion
-                      requires approval is recorded on the promotion itself
-                      (`VectorPromotionSpec.RequireApproval`); the controller defaults it
-                      from the source kind.
+                      vector currently configured on that stage (`spec.vector`). Gates the
+                      resulting promotion must pass are declared on the config
+                      (`VectorPromotionConfigSpec.Gates`), independent of the source kind.
                     enum:
                     - VectorTemplate
                     - Stage
@@ -195,29 +211,13 @@ spec:
             - vector
             - vectorPromotionConfigName
             type: object
+            x-kubernetes-validations:
+            - message: gates are immutable after they have been set
+              rule: has(self.gates) == has(oldSelf.gates) && (!has(self.gates) ||
+                self.gates == oldSelf.gates)
           status:
             description: VectorPromotionStatus defines the observed state of VectorPromotion.
             properties:
-              approval:
-                description: |-
-                  Approval records the granted approval. A promotion is approved at most
-                  once; re-approval attempts are rejected.
-                properties:
-                  approvedAt:
-                    description: ApprovedAt is the time the approval was granted.
-                    format: date-time
-                    type: string
-                  approvedBy:
-                    description: |-
-                      ApprovedBy is the identity that granted the approval, as reported by the
-                      konfidence API. The value is an opaque, arbitrary string (username,
-                      email, subject, ...); it is recorded verbatim and never interpreted.
-                    minLength: 1
-                    type: string
-                required:
-                - approvedAt
-                - approvedBy
-                type: object
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -274,6 +274,59 @@ spec:
                   - type
                   type: object
                 type: array
+              gates:
+                description: |-
+                  Gates reports the state and provenance of each declared gate, keyed by
+                  gate type. Entries are seeded `Pending` by the promotion controller and
+                  set by the gate's writer (a gate controller or the konfidence API)
+                  through `pkg/promotiongate`. A missing entry counts as `Pending`.
+                items:
+                  description: |-
+                    PromotionGateStatus reports the state of one declared gate together with
+                    its provenance: who set it, when, and why.
+                  properties:
+                    message:
+                      description: |-
+                        Message is a human-readable description of the latest state change,
+                        e.g. what is misconfigured when State is `Error`.
+                      maxLength: 32768
+                      type: string
+                    reason:
+                      description: Reason is a machine-readable CamelCase reason for
+                        the latest state change.
+                      maxLength: 1024
+                      type: string
+                    setAt:
+                      description: SetAt is the time the gate state was last set.
+                      format: date-time
+                      type: string
+                    setBy:
+                      description: |-
+                        SetBy is the entity that last set the gate state: a controller name or,
+                        for human actions, the authenticated subject. The value is advisory and
+                        not a security boundary.
+                      type: string
+                    state:
+                      description: State is the current state of the gate.
+                      enum:
+                      - Pending
+                      - Satisfied
+                      - Error
+                      type: string
+                    type:
+                      description: Type is the gate type this entry reports on.
+                      maxLength: 253
+                      minLength: 1
+                      type: string
+                  required:
+                  - state
+                  - type
+                  type: object
+                maxItems: 16
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               promotedStageRef:
                 description: |-
                   PromotedStageRef records the Stage this promotion actually wrote its
@@ -305,8 +358,8 @@ spec:
               state:
                 description: |-
                   State summarizes Conditions for display. Conditions are the source of
-                  truth; State is recomputed whenever conditions are written. `Superseded`
-                  is a terminal state: a superseded promotion can never be
+                  truth; State is recomputed whenever conditions or gates are written.
+                  `Superseded` is a terminal state: a superseded promotion can never be
                   approved or executed afterward.
                 enum:
                 - Waiting

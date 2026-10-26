@@ -272,13 +272,26 @@ const artifactDeployments: ArtifactDeployment[] = [
 
 const vectorPromotionConfigs: VectorPromotionConfig[] = [
   {
+    gates: [
+      { type: "activated-on-source-stage.konfidence.cloud" },
+      { type: "explicit-approval.konfidence.cloud" },
+    ],
     id: "delivery-vector-dev-to-test",
     keepLastPromotions: 5,
     // Ordered newest-first (descending sequence) to mirror the real API.
     promotions: [
       {
+        gates: [
+          {
+            reason: "ActivatedOnSource",
+            setAt: "2026-09-29T20:30:00Z",
+            setBy: "konfidence/activated-on-source-stage-controller",
+            state: "Satisfied",
+            type: "activated-on-source-stage.konfidence.cloud",
+          },
+          { state: "Pending", type: "explicit-approval.konfidence.cloud" },
+        ],
         id: "promo-dev-to-test-2",
-        requireApproval: true,
         sequence: 2,
         source: { kind: "Stage", landscape: "development", name: "dev-us30" },
         status: "Waiting",
@@ -286,12 +299,24 @@ const vectorPromotionConfigs: VectorPromotionConfig[] = [
         vector: `${VECTOR_REPOSITORY}//delivery-vector:2026.9.29-201426000Z`,
       },
       {
-        approval: {
-          approvedAt: "2026-08-28T09:15:00Z",
-          approvedBy: "alex.admin@example.com",
-        },
+        gates: [
+          {
+            reason: "ActivatedOnSource",
+            setAt: "2026-08-28T09:00:00Z",
+            setBy: "konfidence/activated-on-source-stage-controller",
+            state: "Satisfied",
+            type: "activated-on-source-stage.konfidence.cloud",
+          },
+          {
+            message: "approved by alex.admin@example.com",
+            reason: "ApprovedByUser",
+            setAt: "2026-08-28T09:15:00Z",
+            setBy: "alex.admin@example.com",
+            state: "Satisfied",
+            type: "explicit-approval.konfidence.cloud",
+          },
+        ],
         id: "promo-dev-to-test-1",
-        requireApproval: true,
         sequence: 1,
         source: { kind: "Stage", landscape: "development", name: "dev-us30" },
         status: "Succeeded",
@@ -309,7 +334,6 @@ const vectorPromotionConfigs: VectorPromotionConfig[] = [
     promotions: [
       {
         id: "promo-test-to-prod-1",
-        requireApproval: false,
         sequence: 1,
         source: { kind: "Stage", landscape: "test", name: "test-eu20" },
         status: "Ready",

@@ -6,21 +6,20 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 )
 
 func getSucceededCondition(p *konfidence.VectorPromotion) *metav1.Condition {
 	return meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
 
-func IsApproved(p *konfidence.VectorPromotion) bool {
-	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeApproved)
-}
-
-// Cleared reports whether every gate has passed: the approval gate is either
-// granted or absent. Promotions without gates carry no Approved condition at
-// all; a gate that does not exist leaves no record.
+// Cleared reports whether every declared gate is satisfied. Gates are only
+// evaluated until execution starts: a promotion that already carries a
+// Succeeded condition has passed its gates, so a later gate edit can neither
+// pull it back to Waiting nor make it count as outstanding again.
 func Cleared(p *konfidence.VectorPromotion) bool {
-	return IsApproved(p) || !p.Spec.RequireApproval
+	return getSucceededCondition(p) != nil || promotiongate.AllSatisfied(p)
 }
 
 func IsInProgress(p *konfidence.VectorPromotion) bool {
@@ -71,7 +70,7 @@ func IsTerminal(p *konfidence.VectorPromotion) bool {
 func DeriveState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState {
 	cond := getSucceededCondition(p)
 	if cond == nil {
-		return deriveApprovalState(p)
+		return deriveGateState(p)
 	}
 	if cond.Status == metav1.ConditionTrue {
 		return konfidence.PromotionStateSucceeded
@@ -124,10 +123,10 @@ func Newer(p, than *konfidence.VectorPromotion) bool {
 	return p.Spec.Sequence > than.Spec.Sequence
 }
 
-// deriveApprovalState projects the gate view: Ready means every gate has
-// passed (approval granted, or none required), Waiting means at least one
-// gate is still open.
-func deriveApprovalState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState {
+// deriveGateState projects the gate view: Ready means every declared gate is
+// satisfied (or none is declared), Waiting means at least one gate is still
+// Pending or in Error.
+func deriveGateState(p *konfidence.VectorPromotion) konfidence.VectorPromotionState {
 	if Cleared(p) {
 		return konfidence.PromotionStateReady
 	}

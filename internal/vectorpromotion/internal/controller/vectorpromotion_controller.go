@@ -21,7 +21,7 @@ const (
 	VectorPromotionControllerName = "vector-promotion-controller"
 
 	EventActionStatusPatch = "StatusPatch"
-	EventActionApproval    = "Approval"
+	EventActionGates       = "Gates"
 	EventActionExecution   = "Execution"
 
 	// promotionConfigNameField indexes promotions by their config name,
@@ -31,8 +31,8 @@ const (
 	promotionConfigNameField = "spec.vectorPromotionConfigName"
 )
 
-// VectorPromotionReconciler executes approved VectorPromotions: it gates on
-// approval (vectorpromotion_approval.go), serializes execution per
+// VectorPromotionReconciler executes cleared VectorPromotions: it waits for
+// every declared gate to be satisfied (vectorpromotion_gates.go), serializes execution per
 // VectorPromotionConfig (vectorpromotion_serialization.go), and writes the
 // promoted vector to the target Stage (vectorpromotion_execution.go). See
 // doc.go for the lifecycle narrative and the invariants that tie the phases
@@ -73,8 +73,13 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 func (r *VectorPromotionReconciler) reconcileState(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) (ctrl.Result, error) {
 	switch promotion.DeriveState(vectorPromotion) {
 	case konfidence.PromotionStateWaiting:
-		return ctrl.Result{}, r.reconcileApproval(ctx, vectorPromotion)
-	case konfidence.PromotionStateReady, konfidence.PromotionStateBlocked, konfidence.PromotionStateInProgress:
+		return ctrl.Result{}, r.reconcileGates(ctx, vectorPromotion)
+	case konfidence.PromotionStateReady:
+		if err := r.markGatesSatisfied(ctx, vectorPromotion); err != nil {
+			return ctrl.Result{}, err
+		}
+		return r.reconcileExecution(ctx, vectorPromotion)
+	case konfidence.PromotionStateBlocked, konfidence.PromotionStateInProgress:
 		return r.reconcileExecution(ctx, vectorPromotion)
 	default:
 		// A non-terminal promotion whose Succeeded condition has an
@@ -154,7 +159,7 @@ func NewVectorPromotionReconciler(mgr ctrl.Manager) *VectorPromotionReconciler {
 }
 
 // SetupWithManager sets up the controller with the Manager. Update events are
-// admitted because approvals and sibling terminations arrive as status updates.
+// admitted because gate changes and sibling terminations arrive as status updates.
 func (r *VectorPromotionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorPromotion{}, builder.WithPredicates(predicate.Funcs{
