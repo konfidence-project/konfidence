@@ -149,6 +149,7 @@ type VectorPromotionStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:selectablefield:JSONPath=`.spec.vectorPromotionConfigName`
 // +kubebuilder:selectablefield:JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="Config",type=string,JSONPath=".spec.vectorPromotionConfigName",description="The referenced VectorPromotionConfig"
