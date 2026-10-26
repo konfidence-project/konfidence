@@ -16,6 +16,7 @@ const contextSession contextKey = "session"
 
 // Session represents a client session for an authenticated user.
 type Session struct {
+	// Update clone method if session fields are changed
 	Context
 	Groups       []string `json:"groups,omitempty"`
 	AccessToken  string   `json:"access_token"`
@@ -54,19 +55,6 @@ func FromContext(ctx context.Context) (*Context, error) {
 	return &sess, nil
 }
 
-// cloning roles prevents a consumer from mutating the value held internally by the context
-func cloneProjectRoles(roles auth.ProjectRoles) auth.ProjectRoles {
-	if roles == nil {
-		return nil
-	}
-
-	cloned := make(auth.ProjectRoles, len(roles))
-	for project, projectRoles := range roles {
-		cloned[project] = slices.Clone(projectRoles)
-	}
-	return cloned
-}
-
 func UnixExpiry(expiry time.Time) int64 {
 	if expiry.IsZero() {
 		return 0
@@ -94,4 +82,37 @@ func (s *Session) ApplyOIDCValues(subject string, claims oidc.IDTokenAdditionalC
 
 func (c *Context) IsAuthenticatedForProject(projectId string) bool {
 	return len(c.ProjectRoles[projectId]) > 0
+}
+
+func cloneSession(source Session) Session {
+	cloned := source
+	cloned.Groups = slices.Clone(source.Groups)
+	cloned.ProjectRoles = cloneProjectRoles(source.ProjectRoles)
+	cloned.Name = cloneString(source.Name)
+	cloned.Email = cloneString(source.Email)
+	cloned.GivenName = cloneString(source.GivenName)
+	cloned.FamilyName = cloneString(source.FamilyName)
+	cloned.PreferredUsername = cloneString(source.PreferredUsername)
+	cloned.RefreshToken = cloneString(source.RefreshToken)
+	return cloned
+}
+
+// cloning roles prevents a consumer from mutating the value held internally by the context
+func cloneProjectRoles(roles auth.ProjectRoles) auth.ProjectRoles {
+	if roles == nil {
+		return nil
+	}
+
+	cloned := make(auth.ProjectRoles, len(roles))
+	for project, projectRoles := range roles {
+		cloned[project] = slices.Clone(projectRoles)
+	}
+	return cloned
+}
+
+func cloneString(source *string) *string {
+	if source == nil {
+		return nil
+	}
+	return new(*source)
 }

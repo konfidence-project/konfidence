@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/konfidence-project/konfidence/internal/api/config"
+	"github.com/konfidence-project/konfidence/internal/auth"
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -66,23 +67,60 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 		Expect(stored).To(Equal(input))
 	})
 
-	ginkgo.It("stores a value copy rather than the session pointer", func() {
+	ginkgo.It("isolates stored sessions from caller mutations", func() {
 		input := &Session{
-			AccessToken: "original-token",
-			Context:     Context{Subject: "original-subject"},
+			Context: Context{
+				Subject:           "original-subject",
+				Name:              new("Original Name"),
+				Email:             new("original@example.com"),
+				GivenName:         new("Original"),
+				FamilyName:        new("User"),
+				PreferredUsername: new("original.user"),
+				ProjectRoles: auth.ProjectRoles{
+					"project-a": {"admin", "viewer"},
+				},
+			},
+			Groups:       []string{"developers", "admins"},
+			AccessToken:  "original-access-token",
+			RefreshToken: new("original-refresh-token"),
+			TokenExpiry:  123456,
 		}
 
 		id, err := store.Save(ctx, input)
 		Expect(err).NotTo(HaveOccurred())
 
-		input.Subject = "changed-subject"
-		input.AccessToken = "changed-token"
+		expected := &Session{
+			Context: Context{
+				ID:                id,
+				Subject:           "original-subject",
+				Name:              new("Original Name"),
+				Email:             new("original@example.com"),
+				GivenName:         new("Original"),
+				FamilyName:        new("User"),
+				PreferredUsername: new("original.user"),
+				ProjectRoles: auth.ProjectRoles{
+					"project-a": {"admin", "viewer"},
+				},
+			},
+			Groups:       []string{"developers", "admins"},
+			AccessToken:  "original-access-token",
+			RefreshToken: new("original-refresh-token"),
+			TokenExpiry:  123456,
+		}
+
+		// Mutating the Save input must not affect the cached session.
+		mutateSession(input)
 
 		stored, err := store.Get(ctx, id)
-
 		Expect(err).NotTo(HaveOccurred())
-		Expect(stored.Subject).To(Equal("original-subject"))
-		Expect(stored.AccessToken).To(Equal("original-token"))
+		Expect(stored).To(Equal(expected))
+
+		// Mutating a Get result must not affect subsequent retrievals.
+		mutateSession(stored)
+
+		storedAgain, err := store.Get(ctx, id)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(storedAgain).To(Equal(expected))
 	})
 
 	ginkgo.It("returns nil for an unknown session", func() {
@@ -130,3 +168,21 @@ var _ = ginkgo.Describe("InMemoryStore", func() {
 		}, 3*expiration, expiration/10).Should(BeTrue())
 	})
 })
+
+func mutateSession(session *Session) {
+	session.ID = "changed-id"
+	session.Subject = "changed-subject"
+	*session.Name = "Changed Name"
+	*session.Email = "changed@example.com"
+	*session.GivenName = "Changed"
+	*session.FamilyName = "Person"
+	*session.PreferredUsername = "changed.user"
+
+	session.ProjectRoles["project-a"][0] = "changed-role"
+	session.ProjectRoles["project-b"] = []string{"admin"}
+
+	session.Groups[0] = "changed-group"
+	session.AccessToken = "changed-access-token"
+	*session.RefreshToken = "changed-refresh-token"
+	session.TokenExpiry = 654321
+}

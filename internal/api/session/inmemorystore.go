@@ -33,7 +33,7 @@ func (s *InMemoryStore) Save(_ context.Context, session *Session) (string, error
 
 	id := uuid7.String()
 	session.ID = id
-	s.cache.Set(id, *session)
+	s.cache.Set(id, cloneSession(*session))
 	return id, nil
 }
 
@@ -44,6 +44,7 @@ func (s *InMemoryStore) Delete(_ context.Context, id string) error {
 
 func (s *InMemoryStore) Get(_ context.Context, id string) (*Session, error) {
 	if data, ok := s.cache.GetIfPresent(id); ok {
+		data = cloneSession(data)
 		return &data, nil
 	}
 	return nil, nil
