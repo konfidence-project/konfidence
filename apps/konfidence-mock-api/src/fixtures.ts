@@ -1,12 +1,14 @@
 /* oxlint-disable eslint/no-magic-numbers, eslint/max-params -- Fixture builders keep explicit generations and API field values together. */
 import type { components } from "@konfidence/api-client/schema";
 
+type ArtifactContent = components["schemas"]["ArtifactContent"];
 type ArtifactDeployment = components["schemas"]["ArtifactDeployment"];
 type Identity = components["schemas"]["Identity"];
 type Landscape = components["schemas"]["Landscape"];
 type Project = components["schemas"]["Project"];
 type Stage = components["schemas"]["Stage"];
 type StageVersion = components["schemas"]["StageVersion"];
+type VectorContent = components["schemas"]["VectorContent"];
 type VectorDeployment = components["schemas"]["VectorDeployment"];
 type VectorPromotionConfig = components["schemas"]["VectorPromotionConfig"];
 
@@ -16,6 +18,8 @@ interface ProjectFixture {
   project: Project;
   roles: string[];
   stages: Stage[];
+  artifactContents: ArtifactContent[];
+  vectorContents: VectorContent[];
   // Only the list-page rows: backs listVectorDeploymentsV1.
   vectorDeployments: VectorDeployment[];
   // Superset the single-item fetch resolves: list-page rows plus every stageVersion-derived deployment.
@@ -221,6 +225,31 @@ const resolvableVectorDeployments: VectorDeployment[] = [
   ...stageVersionDeployments,
 ].filter((deployment, index, all) => all.findIndex(({ id }) => id === deployment.id) === index);
 
+const vectorContents: VectorContent[] = rows.map((row) => ({
+  ref: `${VECTOR_REPOSITORY}//test-vector:${row.version}`,
+  components: [
+    { componentName: PAYMENTS_API_COMPONENT, version: row.version },
+    { componentName: PAYMENTS_UI_COMPONENT, version: row.version },
+  ],
+}));
+
+const artifactContents: ArtifactContent[] = [
+  {
+    ref: `${VECTOR_REPOSITORY}//test-artifact/${PAYMENTS_API_COMPONENT}:${rows[0].version}`,
+    type: "Helm",
+    allowReuse: false,
+    tasks: [{ name: "deploy", type: "Helm" }],
+    resources: [{ name: "chart", type: "helmChart" }],
+  },
+  {
+    ref: `${VECTOR_REPOSITORY}//test-artifact/${PAYMENTS_UI_COMPONENT}:${rows[0].version}`,
+    type: "Helm",
+    allowReuse: true,
+    tasks: [{ name: "deploy", type: "Helm" }],
+    resources: [{ name: "chart", type: "helmChart" }],
+  },
+];
+
 const component = (componentName: string, componentVersion: string) => ({
   componentName,
   componentVersion,
@@ -347,23 +376,27 @@ const vectorPromotionConfigs: VectorPromotionConfig[] = [
 ];
 
 const populatedProject: ProjectFixture = {
+  artifactContents,
   artifactDeployments,
   landscapes,
   project: paymentsProject,
   resolvableVectorDeployments,
   roles: ["admin", "dev"],
   stages,
+  vectorContents,
   vectorDeployments,
   vectorPromotionConfigs,
 };
 
 const emptyProject = (project: Project, roles: string[]): ProjectFixture => ({
+  artifactContents: [],
   artifactDeployments: [],
   landscapes: [],
   project,
   resolvableVectorDeployments: [],
   roles,
   stages: [],
+  vectorContents: [],
   vectorDeployments: [],
   vectorPromotionConfigs: [],
 });

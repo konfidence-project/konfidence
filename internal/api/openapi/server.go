@@ -2248,6 +2248,20 @@ func (response GetArtifactContentV1403JSONResponse) VisitGetArtifactContentV1Res
 	return err
 }
 
+type GetArtifactContentV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetArtifactContentV1404JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetArtifactContentV1500JSONResponse struct{ InternalErrorJSONResponse }
 
 func (response GetArtifactContentV1500JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
@@ -3201,6 +3215,20 @@ func (response GetVectorContentV1403JSONResponse) VisitGetVectorContentV1Respons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetVectorContentV1404JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
