@@ -48,6 +48,7 @@ func (h *projectHandler) ApproveVectorPromotionV1(ctx context.Context,
 		return nil, apierror.NewNotFound("vectorPromotion", request.VectorPromotionId)
 	case errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
 		errors.Is(err, vectorpromotiondomain.ErrPromotionExecuting),
+		errors.Is(err, vectorpromotiondomain.ErrConflict),
 		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired):
 		return nil, apierror.NewConflict(err.Error())
 	default:

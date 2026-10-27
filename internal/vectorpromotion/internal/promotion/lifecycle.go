@@ -11,9 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 )
 
-// IsFinished reports whether the promotion's Succeeded condition is True or
+// IsTerminal reports whether the promotion's Succeeded condition is True or
 // False. A finished promotion never changes again.
-func IsFinished(p *konfidence.VectorPromotion) bool {
+func IsTerminal(p *konfidence.VectorPromotion) bool {
 	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeSucceeded) ||
 		meta.IsStatusConditionFalse(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
@@ -30,19 +30,19 @@ func GatesCleared(p *konfidence.VectorPromotion) bool {
 
 // IsWaiting reports whether the active promotion still waits on its gates.
 func IsWaiting(p *konfidence.VectorPromotion) bool {
-	return !GatesCleared(p) && !IsFinished(p)
+	return !GatesCleared(p) && !IsTerminal(p)
 }
 
 // IsCleared reports whether the active promotion passed its gates and
 // competes for execution.
 func IsCleared(p *konfidence.VectorPromotion) bool {
-	return GatesCleared(p) && !IsFinished(p)
+	return GatesCleared(p) && !IsTerminal(p)
 }
 
 // IsRunning reports whether the promotion is currently executing. At most
 // one promotion per config is running at a time.
 func IsRunning(p *konfidence.VectorPromotion) bool {
-	return p.Status.StartTime != nil && !IsFinished(p)
+	return p.Status.StartTime != nil && !IsTerminal(p)
 }
 
 // NewestCleared returns the highest-sequence promotion that passed its gates
@@ -87,7 +87,7 @@ func Newer(p, than *konfidence.VectorPromotion) bool {
 // Succeeded condition's transition time if it is missing). Returns (false, 0)
 // if no TTL is configured or the promotion is not finished.
 func TTLStatus(p *konfidence.VectorPromotion) (shouldDelete bool, remaining time.Duration) {
-	if p.Spec.TTLAfterFinished == nil || !IsFinished(p) {
+	if p.Spec.TTLAfterFinished == nil || !IsTerminal(p) {
 		return false, 0
 	}
 	finishedAt := meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded).LastTransitionTime

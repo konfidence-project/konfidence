@@ -49,7 +49,7 @@ func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !promotion.IsFinished(vectorPromotion) {
+	if !promotion.IsTerminal(vectorPromotion) {
 		return ctrl.Result{}, r.enforceOutstandingRetention(ctx, vectorPromotion)
 	}
 
@@ -137,7 +137,7 @@ func (r *VectorPromotionTTLReconciler) enforceTerminalRetention(ctx context.Cont
 	}
 	terminal := make([]konfidence.VectorPromotion, 0, len(siblings))
 	for _, sibling := range siblings {
-		if promotion.IsFinished(&sibling) {
+		if promotion.IsTerminal(&sibling) {
 			terminal = append(terminal, sibling)
 		}
 	}
@@ -203,7 +203,7 @@ func (r *VectorPromotionTTLReconciler) mapConfigToPromotions(
 	for i := range promotions {
 		candidate := &promotions[i]
 		switch {
-		case promotion.IsFinished(candidate):
+		case promotion.IsTerminal(candidate):
 			if terminal == nil || promotion.Newer(candidate, terminal) {
 				terminal = candidate
 			}

@@ -55,15 +55,43 @@ var _ = Describe("Set", func() {
 		Expect(konfidence.AddToScheme(scheme)).To(Succeed())
 	})
 
-	It("upserts the gate entry without a prior seed", func() {
+	It("upserts the gate with its state and provenance, stamping setAt", func() {
 		c := newClient(interceptor.Funcs{}, newPromotion())
 		Expect(promotiongate.Set(ctx, c, key, update)).To(Succeed())
 
 		entry := promotiongate.Find(get(c), approval)
 		Expect(entry).NotTo(BeNil())
 		Expect(entry.State).To(Equal(konfidence.PromotionGateStateSatisfied))
+		Expect(entry.Reason).To(Equal("ApprovedByUser"))
 		Expect(entry.SetBy).To(Equal("alice"))
 		Expect(entry.SetAt).NotTo(BeNil())
+	})
+
+	It("keeps the original provenance when the state does not change", func() {
+		c := newClient(interceptor.Funcs{}, newPromotion())
+		Expect(promotiongate.Set(ctx, c, key, update)).To(Succeed())
+		version := get(c).ResourceVersion
+
+		again := update
+		again.SetBy = "bob"
+		Expect(promotiongate.Set(ctx, c, key, again)).To(Succeed())
+
+		Expect(promotiongate.Find(get(c), approval).SetBy).To(Equal("alice"))
+		Expect(get(c).ResourceVersion).To(Equal(version), "a no-op must not patch")
+	})
+
+	It("overwrites the provenance on a state change", func() {
+		c := newClient(interceptor.Funcs{}, newPromotion())
+		Expect(promotiongate.Set(ctx, c, key, update)).To(Succeed())
+
+		Expect(promotiongate.Set(ctx, c, key, promotiongate.Update{
+			Type: approval, State: konfidence.PromotionGateStateError, Reason: "RevokedByUser", SetBy: "bob",
+		})).To(Succeed())
+
+		entry := promotiongate.Find(get(c), approval)
+		Expect(entry.State).To(Equal(konfidence.PromotionGateStateError))
+		Expect(entry.Reason).To(Equal("RevokedByUser"))
+		Expect(entry.SetBy).To(Equal("bob"))
 	})
 
 	It("returns ErrNotFound for a missing promotion", func() {
@@ -71,49 +99,67 @@ var _ = Describe("Set", func() {
 		Expect(promotiongate.Set(ctx, c, key, update)).To(MatchError(promotiongate.ErrNotFound))
 	})
 
-	It("returns ErrGateNotDeclared for an undeclared gate", func() {
-		c := newClient(interceptor.Funcs{}, newPromotion())
-		u := update
-		u.Type = "other.example.com"
-		Expect(promotiongate.Set(ctx, c, key, u)).To(MatchError(promotiongate.ErrGateNotDeclared))
-	})
+	DescribeTable("rejects invalid updates",
+		func(u promotiongate.Update, expected error) {
+			c := newClient(interceptor.Funcs{}, newPromotion())
+			Expect(promotiongate.Set(ctx, c, key, u)).To(MatchError(expected))
+		},
+		Entry("undeclared gate",
+			promotiongate.Update{Type: "other.example.com", State: konfidence.PromotionGateStateSatisfied, SetBy: "x"},
+			promotiongate.ErrGateNotDeclared),
+		Entry("missing setBy",
+			promotiongate.Update{Type: approval, State: konfidence.PromotionGateStateSatisfied},
+			promotiongate.ErrSetByMissing),
+		Entry("missing type",
+			promotiongate.Update{State: konfidence.PromotionGateStateSatisfied, SetBy: "x"},
+			promotiongate.ErrTypeMissing),
+		Entry("invalid state",
+			promotiongate.Update{Type: approval, State: "Open", SetBy: "x"},
+			promotiongate.ErrInvalidState),
+	)
 
-	It("retries on conflict and keeps a concurrent writer's entry", func() {
-		concurrentWrites := 0
+	DescribeTable("writes a gate only while the promotion is mutable",
+		func(conds []metav1.Condition, mutable bool) {
+			p := newPromotion()
+			p.Status.Conditions = conds
+			c := newClient(interceptor.Funcs{}, p)
+
+			err := promotiongate.Set(ctx, c, key, update)
+			if mutable {
+				Expect(err).To(Succeed())
+			} else {
+				Expect(err).To(MatchError(promotiongate.ErrPromotionNotMutable))
+			}
+		},
+		Entry("never reconciled", nil, true),
+		Entry("a gate not satisfied yet", setConditions(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse), true),
+		Entry("gates latched", setConditions(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), false),
+		Entry("active", setConditions(konfidence.ConditionTypeSucceeded, metav1.ConditionUnknown), true),
+		Entry("superseded while waiting", setConditions(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), false),
+		Entry("succeeded", setConditions(konfidence.ConditionTypeSucceeded, metav1.ConditionTrue), false),
+	)
+
+	It("returns ErrConflict when a concurrent write lands first", func() {
 		c := newClient(interceptor.Funcs{
 			SubResourcePatch: func(ctx context.Context, c client.Client, sub string, obj client.Object,
 				patch client.Patch, opts ...client.SubResourcePatchOption) error {
-				if concurrentWrites == 0 {
-					concurrentWrites++
-					// Another writer (e.g. the promotion controller seeding)
-					// lands between our read and our patch.
-					other := &konfidence.VectorPromotion{}
-					Expect(c.Get(ctx, key, other)).To(Succeed())
-					promotiongate.Seed(other)
-					Expect(c.Status().Update(ctx, other)).To(Succeed())
-				}
+				// Another writer (e.g. the promotion controller seeding) lands
+				// between our read and our patch, bumping the resourceVersion so
+				// our optimistic-locked patch conflicts.
+				other := &konfidence.VectorPromotion{}
+				Expect(c.Get(ctx, key, other)).To(Succeed())
+				other.Status.Gates = append(other.Status.Gates, konfidence.PromotionGateStatus{
+					Type: e2e, State: konfidence.PromotionGateStatePending,
+				})
+				Expect(c.Status().Update(ctx, other)).To(Succeed())
 				return c.Status().Patch(ctx, obj, patch, opts...)
 			},
 		}, newPromotion())
 
-		Expect(promotiongate.Set(ctx, c, key, update)).To(Succeed())
-		Expect(concurrentWrites).To(Equal(1))
-
-		p := get(c)
-		Expect(p.Status.Gates).To(HaveLen(2))
-		Expect(promotiongate.StateOf(p, approval)).To(Equal(konfidence.PromotionGateStateSatisfied))
-		Expect(promotiongate.StateOf(p, e2e)).To(Equal(konfidence.PromotionGateStatePending))
-	})
-
-	It("reads through the provided reader", func() {
-		reads := 0
-		reader := newClient(interceptor.Funcs{
-			Get: func(ctx context.Context, c client.WithWatch, k client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-				reads++
-				return c.Get(ctx, k, obj, opts...)
-			},
-		}, newPromotion())
-		Expect(promotiongate.Set(ctx, reader, key, update, promotiongate.WithReader(reader))).To(Succeed())
-		Expect(reads).To(BeNumerically(">=", 1))
+		Expect(promotiongate.Set(ctx, c, key, update)).To(MatchError(promotiongate.ErrConflict))
 	})
 })
+
+func setConditions(conditionType string, status metav1.ConditionStatus) []metav1.Condition {
+	return []metav1.Condition{{Type: conditionType, Status: status, Reason: "SetByTest"}}
+}

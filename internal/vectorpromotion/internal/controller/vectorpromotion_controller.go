@@ -55,7 +55,7 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if promotion.IsFinished(vectorPromotion) {
+	if promotion.IsTerminal(vectorPromotion) {
 		return ctrl.Result{}, nil
 	}
 	if !promotion.GatesCleared(vectorPromotion) {

@@ -44,7 +44,7 @@ var _ = Describe("Lifecycle", func() {
 				p.Status.StartTime = &now
 			}
 			Expect(predicates{
-				finished:     IsFinished(p),
+				finished:     IsTerminal(p),
 				succeeded:    IsSucceeded(p),
 				gatesCleared: GatesCleared(p),
 				waiting:      IsWaiting(p),
@@ -54,7 +54,7 @@ var _ = Describe("Lifecycle", func() {
 		},
 		Entry("never reconciled", facts{},
 			predicates{waiting: true}),
-		Entry("gates open", facts{conditions: []metav1.Condition{gates(metav1.ConditionFalse), succeeded(metav1.ConditionUnknown)}},
+		Entry("a gate not satisfied yet", facts{conditions: []metav1.Condition{gates(metav1.ConditionFalse), succeeded(metav1.ConditionUnknown)}},
 			predicates{waiting: true}),
 		Entry("gates satisfied", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionUnknown)}},
 			predicates{gatesCleared: true, cleared: true}),
@@ -68,9 +68,9 @@ var _ = Describe("Lifecycle", func() {
 
 	It("never reads a condition reason", func() {
 		p := withConditions(phase(metav1.ConditionUnknown, "SomeUnexpectedReason"))
-		Expect(IsFinished(p)).To(BeFalse())
+		Expect(IsTerminal(p)).To(BeFalse())
 		p = withConditions(phase(metav1.ConditionFalse, "SomeUnexpectedReason"))
-		Expect(IsFinished(p)).To(BeTrue())
+		Expect(IsTerminal(p)).To(BeTrue())
 	})
 
 	Describe("Newer", func() {

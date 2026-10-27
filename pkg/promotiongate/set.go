@@ -9,7 +9,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -27,6 +26,10 @@ var (
 	ErrInvalidState = errors.New("invalid gate state")
 	// ErrTypeMissing is returned when no gate type was supplied.
 	ErrTypeMissing = errors.New("gate type must not be empty")
+	// ErrConflict is returned when a concurrent write changed the promotion
+	// between Set's read and its optimistic-locked patch. The caller should
+	// retry: Set re-reads and re-applies cleanly.
+	ErrConflict = errors.New("promotion was modified concurrently")
 )
 
 // Update describes a gate state change and its provenance.
@@ -59,18 +62,19 @@ func (u Update) validate() error {
 	}
 }
 
-// Apply writes the update onto the in-memory promotion, stamping setAt with
+// apply writes the update onto the in-memory promotion, stamping setAt with
 // now. It reports whether the status changed. Setting a gate to the state it
 // already has is a no-op that keeps the original provenance, so a gate is set
-// to a given state at most once.
-func Apply(p *konfidence.VectorPromotion, u Update, now metav1.Time) (bool, error) {
+// to a given state at most once. It is idempotent, so Set can re-apply it
+// after a conflict retry.
+func apply(p *konfidence.VectorPromotion, u Update, now metav1.Time) (bool, error) {
 	if err := u.validate(); err != nil {
 		return false, err
 	}
 	if !Declared(p, u.Type) {
 		return false, fmt.Errorf("%w: %q", ErrGateNotDeclared, u.Type)
 	}
-	if !Mutable(p) {
+	if !mutable(p) {
 		return false, ErrPromotionNotMutable
 	}
 
@@ -94,57 +98,38 @@ func Apply(p *konfidence.VectorPromotion, u Update, now metav1.Time) (bool, erro
 	return true, nil
 }
 
-// Option configures Set.
-type Option func(*options)
-
-type options struct {
-	reader client.Reader
-}
-
-// WithReader reads the promotion through r instead of the writing client.
-// Pass an uncached reader (e.g. `mgr.GetAPIReader()`) so conflict retries
-// converge on the latest resourceVersion instead of a stale cache entry.
-func WithReader(r client.Reader) Option {
-	return func(o *options) { o.reader = r }
-}
-
 // Set sets the state and provenance of one gate on the promotion identified
-// by key in a single optimistic-locked status patch, retrying on conflict.
-// It returns ErrNotFound, ErrGateNotDeclared, ErrPromotionNotMutable,
-// ErrSetByMissing, ErrTypeMissing or ErrInvalidState (wrapped) for the
-// corresponding failures.
-func Set(ctx context.Context, c client.Client, key types.NamespacedName, u Update, opts ...Option) error {
+// by key in a single optimistic-locked status patch. A concurrent write
+// between the read and the patch returns ErrConflict; the caller retries (a
+// controller by requeuing, the API by surfacing 409). It returns ErrNotFound,
+// ErrGateNotDeclared, ErrPromotionNotMutable, ErrSetByMissing, ErrTypeMissing,
+// ErrInvalidState or ErrConflict (wrapped) for the corresponding failures.
+func Set(ctx context.Context, c client.Client, key types.NamespacedName, u Update) error {
 	if err := u.validate(); err != nil {
 		return err
 	}
-	o := options{reader: c}
-	for _, opt := range opts {
-		opt(&o)
+
+	vectorPromotion := &konfidence.VectorPromotion{}
+	if err := c.Get(ctx, key, vectorPromotion); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("failed to fetch VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		vectorPromotion := &konfidence.VectorPromotion{}
-		if err := o.reader.Get(ctx, key, vectorPromotion); err != nil {
-			if apierrors.IsNotFound(err) {
-				return ErrNotFound
-			}
-			return fmt.Errorf("failed to fetch VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
-		}
+	original := vectorPromotion.DeepCopy()
+	changed, err := apply(vectorPromotion, u, metav1.Now())
+	if err != nil || !changed {
+		return err
+	}
 
-		original := vectorPromotion.DeepCopy()
-		changed, err := Apply(vectorPromotion, u, metav1.Now())
-		if err != nil || !changed {
-			return err
+	patch := client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})
+	if err := c.Status().Patch(ctx, vectorPromotion, patch); err != nil {
+		if apierrors.IsConflict(err) {
+			return ErrConflict
 		}
-
-		patch := client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})
-		if err := c.Status().Patch(ctx, vectorPromotion, patch); err != nil {
-			if apierrors.IsConflict(err) {
-				return err
-			}
-			return fmt.Errorf("failed to patch gate %q onto VectorPromotion %q in namespace %q: %w",
-				u.Type, key.Name, key.Namespace, err)
-		}
-		return nil
-	})
+		return fmt.Errorf("failed to patch gate %q onto VectorPromotion %q in namespace %q: %w",
+			u.Type, key.Name, key.Namespace, err)
+	}
+	return nil
 }

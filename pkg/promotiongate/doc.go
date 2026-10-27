@@ -35,10 +35,13 @@
 //
 // Gates can only change until the promotion controller observes every gate
 // satisfied: it then latches the `GatesSatisfied` condition True and the gates
-// freeze. They also freeze once the promotion finished. Set writes are optimistic-locked and
-// retried on conflict, so concurrent writers (other gates, the promotion
-// controller seeding entries) never overwrite each other. Set upserts: it does
-// not depend on the promotion controller having seeded the entry first.
+// freeze. They also freeze once the promotion finished. Set writes are
+// optimistic-locked: if a concurrent writer (another gate, the promotion
+// controller seeding entries) changes the promotion between Set's read and its
+// patch, Set returns ErrConflict and the caller retries. Set re-reads and
+// re-applies on each call, and the apply step is idempotent, so a retry never
+// overwrites a concurrent writer's entry. Set upserts: it does not depend on
+// the promotion controller having seeded the entry first.
 //
 // The recorded provenance is advisory and not a security boundary: any actor
 // allowed to patch the promotion status can write arbitrary values.

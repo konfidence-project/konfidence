@@ -349,7 +349,7 @@ var _ = DescribeTable("displayState summarizes the observed facts",
 		Expect(displayState(p)).To(Equal(expected))
 	},
 	Entry("never reconciled", nil, false, openapi.VectorPromotionStatusWaiting),
-	Entry("gates open", facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse), false,
+	Entry("a gate not satisfied yet", facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse), false,
 		openapi.VectorPromotionStatusWaiting),
 	Entry("gates satisfied", facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), false,
 		openapi.VectorPromotionStatusReady),

@@ -16,9 +16,9 @@
 // level-based on these facts and never on a condition reason:
 //
 //	status.gates                 per-gate state and provenance (gate writers)
-//	GatesSatisfied condition     False while a gate is open (GatesPending,
-//	                             GateError); latches True once all are
-//	                             satisfied and is never written again
+//	GatesSatisfied condition     False while a gate is not satisfied yet
+//	                             (GatesPending, GateError); latches True once
+//	                             all are satisfied and is never written again
 //	TargetResolved condition     whether the target Stage resolves
 //	status.startTime             execution started (set once)
 //	Succeeded condition          Unknown while active; True (succeeded) or
@@ -70,7 +70,7 @@
 // or executed. A value of 0 allows an unlimited number of waiting promotions.
 //
 // Gates can change only until GatesSatisfied latches or the promotion
-// finishes (`promotiongate.Mutable`). The optimistic lock makes "all
+// finishes. The optimistic lock makes "all
 // satisfied → latch" atomic with respect to a gate being reopened
 // concurrently.
 //

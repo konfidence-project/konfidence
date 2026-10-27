@@ -62,7 +62,7 @@ func (r *VectorPromotionReconciler) supersedeStaleSiblings(
 	var errs []error
 	for i := range siblings {
 		sibling := &siblings[i]
-		if sibling.UID == newest.UID || promotion.IsFinished(sibling) || promotion.Newer(sibling, newest) {
+		if sibling.UID == newest.UID || promotion.IsTerminal(sibling) || promotion.Newer(sibling, newest) {
 			continue
 		}
 		errs = append(errs, r.supersede(ctx, sibling, newest))

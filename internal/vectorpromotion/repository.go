@@ -50,6 +50,9 @@ var (
 	// ErrApproverMissing is returned when no approver identity was supplied:
 	// an approval without provenance is not an audit record.
 	ErrApproverMissing = errors.New("approvedBy must not be empty")
+	// ErrConflict is returned when the approval raced a concurrent write to
+	// the promotion. The write did not happen; the caller should retry.
+	ErrConflict = errors.New("promotion was modified concurrently; retry the approval")
 )
 
 type Repository interface {
@@ -104,8 +107,8 @@ func (r *k8sRepository) ListForConfig(ctx context.Context, namespace string,
 // every gate satisfied.
 //
 // A missing resource is reported as ErrVectorPromotionNotFound; callers can map
-// ErrPromotionFinished, ErrPromotionExecuting,
-// ErrAlreadyApproved, ErrApprovalNotRequired and ErrApproverMissing to client
+// ErrPromotionFinished, ErrPromotionExecuting, ErrAlreadyApproved,
+// ErrApprovalNotRequired, ErrApproverMissing and ErrConflict to client
 // errors.
 func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionId, approvedBy string) error {
 	if approvedBy == "" {
@@ -117,7 +120,7 @@ func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionI
 		return err
 	}
 
-	if promotion.IsFinished(vectorPromotion) {
+	if promotion.IsTerminal(vectorPromotion) {
 		cond := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 		return fmt.Errorf("%w: %s: %s", ErrPromotionFinished, cond.Reason, cond.Message)
 	}
@@ -145,6 +148,8 @@ func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionI
 		return ErrApprovalNotRequired
 	case errors.Is(err, promotiongate.ErrPromotionNotMutable):
 		return ErrPromotionExecuting
+	case errors.Is(err, promotiongate.ErrConflict):
+		return ErrConflict
 	default:
 		return fmt.Errorf("failed to approve VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
 	}
