@@ -12,16 +12,63 @@ import (
 	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const defaultControllerName = "deploymenttarget"
 
-// ValidationFunc is called to validate spec.parameters. Validation should cover the contents of the referenced resource
-// which can be fetched with the client.Reader. Any returned error will be treated as validation failure. Return nil
-// to indicate successful validation.
-type ValidationFunc func(ctx context.Context, c client.Reader, target *konfidencev1alpha1.DeploymentTarget) error
+// ValidationResult describes whether DeploymentTarget parameters passed validation and provides a user-facing message.
+type ValidationResult interface {
+	// Valid reports whether the parameters passed validation.
+	Valid() bool
+	// Message returns additional information about the validation result.
+	Message() string
+}
+
+type validationResult struct {
+	success bool
+	message string
+}
+
+func (v validationResult) Valid() bool {
+	return v.success
+}
+
+func (v validationResult) Message() string {
+	return v.message
+}
+
+// ValidationSuccess creates causes the controller to set the target's Ready condition to True with reason
+// Accepted and the provided message.
+func ValidationSuccess(messages ...string) ValidationResult {
+	message := "parameters accepted"
+	if len(messages) > 0 {
+		message = messages[0]
+	}
+
+	return validationResult{
+		success: true,
+		message: message,
+	}
+}
+
+// ValidationFailure creates causes the controller to set the target's Ready condition to False with
+// reason InvalidParameters. It does not automatically retry reconciliation unless another event enqueues the
+// target.
+func ValidationFailure(message string) ValidationResult {
+	return validationResult{
+		success: false,
+		message: message,
+	}
+}
+
+// ValidationFunc validates spec.parameters, including the contents of referenced resources fetched with the
+// client.Reader. A non-nil error means validation could not be completed; the result is ignored and reconciliation
+// returns the error to trigger a retry. With a nil error, result must be non-nil and describes whether the parameters
+// are valid.
+type ValidationFunc func(ctx context.Context, c client.Reader, target *konfidencev1alpha1.DeploymentTarget) (ValidationResult, error)
 
 type watch struct {
 	object       client.Object
@@ -87,7 +134,7 @@ func (b *builder) Complete() error {
 	if b.controllerName == "" {
 		b.controllerName = defaultControllerName
 	}
-	r, err := b.build(b.manager.GetClient(), b.controllerName)
+	r, err := b.build(b.manager, b.controllerName)
 	if err != nil {
 		return err
 	}
@@ -156,11 +203,7 @@ func watchedResourceGVK(object client.Object, scheme *runtime.Scheme) (schema.Gr
 	return gvk, nil
 }
 
-func (b *builder) build(c client.Client, controllerName string) (*reconciler, error) {
-	if c == nil {
-		return nil, fmt.Errorf("must provide a non-nil Manager client")
-	}
-
+func (b *builder) build(mgr manager.Manager, controllerName string) (*reconciler, error) {
 	// copy relevant slices/maps to prevent modifications after initialization
 	supported := make(konfidencev1alpha1.ArtifactTypeSet, len(b.supportedArtifactTypes))
 	for artifactType := range b.supportedArtifactTypes {
@@ -168,9 +211,10 @@ func (b *builder) build(c client.Client, controllerName string) (*reconciler, er
 	}
 
 	return &reconciler{
-		client:                 c,
+		client:                 mgr.GetClient(),
 		controllerName:         controllerName,
 		supportedArtifactTypes: supported,
 		validateFunc:           b.validation,
+		recorder:               mgr.GetEventRecorder(controllerName),
 	}, nil
 }

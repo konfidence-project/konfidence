@@ -259,11 +259,11 @@ func TestReconcileValidatesSupportedTargets(t *testing.T) {
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&konfidencev1alpha1.DeploymentTarget{}).WithObjects(valid, invalid, unsupported).Build()
 	r, err := NewControllerManagedBy(nil).
 		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
-		WithValidation(func(_ context.Context, _ client.Reader, dt *konfidencev1alpha1.DeploymentTarget) error {
+		WithValidation(func(_ context.Context, _ client.Reader, dt *konfidencev1alpha1.DeploymentTarget) (ValidationResult, error) {
 			if dt.Name == invalid.Name {
-				return errors.New("invalid parameters")
+				return ValidationFailure("invalid parameters"), nil
 			}
-			return nil
+			return ValidationSuccess("parameters accepted"), nil
 		}).build(c, defaultControllerName)
 	if err != nil {
 		t.Fatal(err)
@@ -301,5 +301,38 @@ func TestReconcileValidatesSupportedTargets(t *testing.T) {
 	}
 	if gotUnsupported.Status.Controller != "" || len(gotUnsupported.Status.Conditions) != 0 {
 		t.Errorf("unsupported target status changed: %#v", gotUnsupported.Status)
+	}
+}
+
+func TestReconcileReturnsValidationErrorAfterUpdatingStatus(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	if err := konfidencev1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	target := &konfidencev1alpha1.DeploymentTarget{
+		ObjectMeta: metav1.ObjectMeta{Name: "transient", Namespace: "landscape", Generation: 1},
+		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "cloud.example.helm"},
+	}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(target).WithObjects(target).Build()
+	validationErr := errors.New("temporary read failure")
+	r, err := NewControllerManagedBy(nil).
+		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
+		WithValidation(func(context.Context, client.Reader, *konfidencev1alpha1.DeploymentTarget) (ValidationResult, error) {
+			return nil, validationErr
+		}).build(c, defaultControllerName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(target)}); !errors.Is(err, validationErr) {
+		t.Fatalf("Reconcile() error = %v, want %v", err, validationErr)
+	}
+	got := &konfidencev1alpha1.DeploymentTarget{}
+	if err := c.Get(ctx, client.ObjectKeyFromObject(target), got); err != nil {
+		t.Fatal(err)
+	}
+	condition := meta.FindStatusCondition(got.Status.Conditions, konfidencev1alpha1.DeploymentTargetReadyCondition)
+	if condition == nil || condition.Status != metav1.ConditionFalse || condition.Reason != ReasonValidationError || condition.Message != validationErr.Error() {
+		t.Fatalf("Ready condition = %#v, want transient validation error", condition)
 	}
 }

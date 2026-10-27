@@ -7,9 +7,9 @@
 //	    For(konfidencev1alpha1.ArtifactTypeSet{
 //	        MyArtifactType: {},
 //	    }).
-//	    WithValidation(func(ctx context.Context, c client.Reader, target *konfidencev1alpha1.DeploymentTarget) error {
+//	    WithValidation(func(ctx context.Context, c client.Reader, target *konfidencev1alpha1.DeploymentTarget) (deploymenttarget.ValidationResult, error) {
 //	        // Validate target.Spec.Parameters and any referenced resources.
-//	        return nil
+//	        return deploymenttarget.ValidationSuccess(), nil
 //	    }).
 //	    Watches(&mydeployer.DeployerCustomResource{}, deploymenttarget.EnqueueReferencedTargets()).
 //	    Named("my-deployer:v1.0.0").
@@ -17,7 +17,9 @@
 //
 // A deployer must declare at least one supported artifact type with For. The controller then watches DeploymentTargets
 // and reconciles only those targets whose artifact type it supports. A target is accepted when its parameters pass
-// validation. Without a validation function, all parameters are accepted without additional checks. Deployers must
+// validation. Without a validation function, all parameters are accepted without additional checks. A validation
+// function returns ValidationFailure for completed validation that found invalid parameters, or an error when it
+// could not complete validation. Errors trigger reconciliation retries with a default backoff strategy. Deployers must
 // validate their parameters before using them according to the deployer specification.
 //
 // Referenced resources should be read during validation and be part of the validation process. Use Watches to trigger
