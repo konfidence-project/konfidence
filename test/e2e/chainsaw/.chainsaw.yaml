@@ -1,0 +1,15 @@
+# Assembly and Flux reconciliation can take minutes.
+apiVersion: chainsaw.kyverno.io/v1alpha2
+kind: Configuration
+metadata:
+  name: konfidence-e2e
+spec:
+  timeouts:
+    apply: 2m
+    assert: 8m
+    cleanup: 2m
+    delete: 2m
+    error: 2m
+    exec: 3m
+  namespace: # Resources specify their namespaces explicitly.
+    name: chainsaw-konfidence-e2e

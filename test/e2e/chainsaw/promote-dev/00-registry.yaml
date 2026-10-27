@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: registry-credentials
+  namespace: konfidence-system
+type: kubernetes.io/dockerconfigjson
+stringData:
+  .dockerconfigjson: >-
+    (to_string({auths: object_from_lists([$registryHost], [{auth: $registryAuth}])}))
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flux-deployer-configuration
+  namespace: konfidence-system
+data:
+  authenticationSecretRefs: (to_string(object_from_lists([$registryHost], ['registry-credentials'])))

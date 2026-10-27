@@ -1,0 +1,136 @@
+# VectorTemplate -> Stage dev -> in-cluster /healthz checks.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: promote-dev
+spec:
+  concurrent: false # Fixed project and landscape names.
+  bindings:
+    - name: registry
+      value: (env('REGISTRY'))
+    - name: registryHost
+      value: (split($registry, '/')[0])
+    - name: registryAuth
+      value: (base64_encode(join(':', [env('REGISTRY_USERNAME'), env('REGISTRY_PASSWORD')])))
+    - name: componentRegistry
+      value: (env('COMPONENT_REGISTRY') || 'ghcr.io/konfidence-project/example-app')
+  steps:
+    - name: registry
+      try:
+        - assert:
+            timeout: 1s
+            resource:
+              (env('REGISTRY') != ''): true
+              (env('REGISTRY_USERNAME') != ''): true
+              (env('REGISTRY_PASSWORD') != ''): true
+        - apply: {file: 00-registry.yaml}
+      cleanup:
+        - script:
+            content: |
+              set -eu
+              kubectl rollout restart deployment/konfidence -n konfidence-system
+              kubectl rollout status deployment/konfidence -n konfidence-system --timeout=120s
+
+    - name: project
+      try:
+        - apply: {file: 01-project.yaml}
+        - assert:
+            resource: {apiVersion: v1, kind: Namespace, metadata: {name: kden-p-example-app}}
+
+    - name: landscape
+      try:
+        - apply: {file: 02-landscape.yaml}
+        - assert:
+            resource: {apiVersion: v1, kind: Namespace, metadata: {name: kden-l-dev}}
+
+    - name: platform
+      description: Set up the database, deployment targets, and vector-data-service.
+      try:
+        - apply: {file: 03-deploymenttargets.yaml}
+        - apply: {file: 04-database.yaml}
+        - apply: {file: 05-stage.yaml}
+        - script:
+            env:
+              - name: REGISTRY_HOST
+                value: ($registryHost)
+            content: |
+              set -eu
+
+              # Assembly and Flux resolve credentials in their resource namespace.
+              for ns in kden-p-example-app kden-l-dev; do
+                kubectl create secret docker-registry registry-credentials -n "$ns" \
+                  --docker-server="$REGISTRY_HOST" --docker-username="$REGISTRY_USERNAME" \
+                  --docker-password="$REGISTRY_PASSWORD" \
+                  --dry-run=client -o yaml | kubectl apply -f -
+              done
+
+              # Controller reads konfidence-system/registry-credentials at startup only.
+              # https://github.com/konfidence-project/konfidence/issues/393
+              kubectl rollout restart deployment/konfidence -n konfidence-system
+              kubectl rollout status deployment/konfidence -n konfidence-system --timeout=120s
+
+              vds="${VECTOR_DATA_SERVICE_VERSION:-0.0.0-4f194adf3c2e211514d41c59d1a446275bb093e3}"
+              helm upgrade --install vector-data-service \
+                oci://ghcr.io/konfidence-project/charts/vector-data-service \
+                --version "$vds" --namespace kden-l-dev --wait
+
+    - name: assemble-and-promote
+      description: Assemble the vector, promote to dev, and wait for Ready conditions.
+      try:
+        - apply: {file: 06-vectortemplate.yaml}
+        - apply: {file: 07-vectorpromotionconfig.yaml}
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorTemplate
+              metadata: {name: example-app, namespace: kden-p-example-app}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorPromotionConfig
+              metadata: {name: example-app, namespace: kden-p-example-app}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: Stage
+              metadata: {name: dev, namespace: kden-l-dev}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+        - assert: # VectorDeployment names have generated suffixes.
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorDeployment
+              metadata: {namespace: kden-l-dev}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+
+    - name: reachability
+      description: Check candidates and interviews /healthz endpoints.
+      try:
+        - script:
+            content: |
+              set -eu
+              ns=kden-l-dev
+              # Service names have generated suffixes; resolve by labels.
+              candidates=$(kubectl get svc -n "$ns" -l app=candidates -o jsonpath='{.items[0].metadata.name}')
+              interviews=$(kubectl get svc -n "$ns" -l app.kubernetes.io/name=interviews -o jsonpath='{.items[0].metadata.name}')
+              kubectl run e2e-curl -n "$ns" --rm -i --restart=Never \
+                --image=curlimages/curl:8.10.1 --command -- sh -c "
+                  set -e
+                  curl -fsS http://$candidates.$ns.svc.cluster.local/healthz; echo
+                  curl -fsS http://$interviews.$ns.svc.cluster.local/healthz; echo
+                "
+      catch:
+        - podLogs: {namespace: kden-l-dev, tail: 200}
+        - events: {namespace: kden-l-dev}
+  catch:
+    - podLogs: {namespace: konfidence-system, tail: 200}
+    - events: {namespace: konfidence-system}
+    - events: {namespace: kden-p-example-app}
+    - events: {namespace: kden-l-dev}
+    - describe: {apiVersion: konfidence.cloud/v1alpha1, kind: VectorTemplate, namespace: kden-p-example-app}
+    - describe: {apiVersion: konfidence.cloud/v1alpha1, kind: VectorDeployment, namespace: kden-l-dev}

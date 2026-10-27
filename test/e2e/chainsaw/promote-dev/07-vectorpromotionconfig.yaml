@@ -1,0 +1,14 @@
+# VectorTemplate promotions do not require approval.
+apiVersion: konfidence.cloud/v1alpha1
+kind: VectorPromotionConfig
+metadata:
+  name: example-app
+  namespace: kden-p-example-app
+spec:
+  source:
+    kind: VectorTemplate
+    name: example-app
+  target:
+    kind: Stage
+    name: dev
+    landscape: dev
