@@ -8,11 +8,11 @@ import (
 	konfidencev1alpha1 "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -67,7 +67,7 @@ func ValidationFailure(message string) ValidationResult {
 // ValidationFunc validates spec.parameters, including the contents of referenced resources fetched with the
 // client.Reader. A non-nil error means validation could not be completed; the result is ignored and reconciliation
 // returns the error to trigger a retry. With a nil error, result must be non-nil and describes whether the parameters
-// are valid.
+// are valid. Use ValidationSuccess and ValidationFailure to report a ValidationResult.
 type ValidationFunc func(ctx context.Context, c client.Reader, target *konfidencev1alpha1.DeploymentTarget) (ValidationResult, error)
 
 type watch struct {
@@ -134,10 +134,7 @@ func (b *builder) Complete() error {
 	if b.controllerName == "" {
 		b.controllerName = defaultControllerName
 	}
-	r, err := b.build(b.manager, b.controllerName)
-	if err != nil {
-		return err
-	}
+	r := b.build(b.manager.GetClient(), b.manager.GetEventRecorder(b.controllerName), b.controllerName)
 
 	return b.complete(r)
 }
@@ -203,7 +200,7 @@ func watchedResourceGVK(object client.Object, scheme *runtime.Scheme) (schema.Gr
 	return gvk, nil
 }
 
-func (b *builder) build(mgr manager.Manager, controllerName string) (*reconciler, error) {
+func (b *builder) build(c client.Client, recorder events.EventRecorder, controllerName string) *reconciler {
 	// copy relevant slices/maps to prevent modifications after initialization
 	supported := make(konfidencev1alpha1.ArtifactTypeSet, len(b.supportedArtifactTypes))
 	for artifactType := range b.supportedArtifactTypes {
@@ -211,10 +208,10 @@ func (b *builder) build(mgr manager.Manager, controllerName string) (*reconciler
 	}
 
 	return &reconciler{
-		client:                 mgr.GetClient(),
+		client:                 c,
 		controllerName:         controllerName,
 		supportedArtifactTypes: supported,
 		validateFunc:           b.validation,
-		recorder:               mgr.GetEventRecorder(controllerName),
-	}, nil
+		recorder:               recorder,
+	}
 }

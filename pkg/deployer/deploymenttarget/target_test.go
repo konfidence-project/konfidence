@@ -189,12 +189,9 @@ func TestSetReady(t *testing.T) {
 		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "cloud.example.helm"},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(dt).WithObjects(dt).Build()
-	r, err := NewControllerManagedBy(nil).
+	r := NewControllerManagedBy(nil).
 		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
-		Named("example.com/deployer:v1.2.3").build(c, "example.com/deployer:v1.2.3")
-	if err != nil {
-		t.Fatal(err)
-	}
+		Named("example.com/deployer:v1.2.3").build(c, nil, "example.com/deployer:v1.2.3")
 	original := dt.DeepCopy()
 	r.setReady(dt, metav1.ConditionTrue, "Accepted", "valid target")
 	if err := c.Status().Patch(context.Background(), dt, client.MergeFrom(original)); err != nil {
@@ -220,12 +217,9 @@ func TestSetController(t *testing.T) {
 		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "cloud.example.helm"},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(dt).WithObjects(dt).Build()
-	r, err := NewControllerManagedBy(nil).
+	r := NewControllerManagedBy(nil).
 		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
-		Named("example.com/deployer:v1.2.3").build(c, "example.com/deployer:v1.2.3")
-	if err != nil {
-		t.Fatal(err)
-	}
+		Named("example.com/deployer:v1.2.3").build(c, nil, "example.com/deployer:v1.2.3")
 	if _, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(dt)}); err != nil {
 		t.Fatal(err)
 	}
@@ -257,17 +251,14 @@ func TestReconcileValidatesSupportedTargets(t *testing.T) {
 		Spec:       konfidencev1alpha1.DeploymentTargetSpec{ArtifactType: "other.example.com"},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&konfidencev1alpha1.DeploymentTarget{}).WithObjects(valid, invalid, unsupported).Build()
-	r, err := NewControllerManagedBy(nil).
+	r := NewControllerManagedBy(nil).
 		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
 		WithValidation(func(_ context.Context, _ client.Reader, dt *konfidencev1alpha1.DeploymentTarget) (ValidationResult, error) {
 			if dt.Name == invalid.Name {
 				return ValidationFailure("invalid parameters"), nil
 			}
 			return ValidationSuccess("parameters accepted"), nil
-		}).build(c, defaultControllerName)
-	if err != nil {
-		t.Fatal(err)
-	}
+		}).build(c, nil, defaultControllerName)
 
 	for _, tc := range []struct {
 		name       string
@@ -316,14 +307,11 @@ func TestReconcileReturnsValidationErrorAfterUpdatingStatus(t *testing.T) {
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(target).WithObjects(target).Build()
 	validationErr := errors.New("temporary read failure")
-	r, err := NewControllerManagedBy(nil).
+	r := NewControllerManagedBy(nil).
 		For(konfidencev1alpha1.ArtifactTypeSet{"cloud.example.helm": {}}).
 		WithValidation(func(context.Context, client.Reader, *konfidencev1alpha1.DeploymentTarget) (ValidationResult, error) {
 			return nil, validationErr
-		}).build(c, defaultControllerName)
-	if err != nil {
-		t.Fatal(err)
-	}
+		}).build(c, nil, defaultControllerName)
 	if _, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(target)}); !errors.Is(err, validationErr) {
 		t.Fatalf("Reconcile() error = %v, want %v", err, validationErr)
 	}

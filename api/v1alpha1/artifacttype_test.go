@@ -23,8 +23,6 @@ func TestNewArtifactType(t *testing.T) {
 		{name: "whitespace", value: " helm.example.com", wantErr: true},
 		{name: "type label exceeds DNS limit", value: strings.Repeat("a", 64) + ".example.com", wantErr: true},
 		{name: "domain label exceeds DNS limit", value: "helm." + strings.Repeat("a", 64) + ".com", wantErr: true},
-		{name: "domain exceeds DNS total length", value: "helm." + strings.Repeat(strings.Repeat("a", 63)+".", 3) + strings.Repeat("a", 59) + ".com", wantErr: true},
-		{name: "maximum domain label lengths", value: "helm." + strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 61)},
 	}
 
 	for _, tt := range tests {

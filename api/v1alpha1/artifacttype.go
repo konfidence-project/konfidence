@@ -17,8 +17,9 @@ type ArtifactTypeProvider interface {
 	ArtifactType() ArtifactType
 }
 
-// artifactTypeRegex implements the <artifact-type> grammar in
-// conformance/specs/deployer.md section 1.1.
+// artifactTypeRegex implements the <artifact-type> grammar in conformance/specs/deployer.md section 1.1.
+//
+//nolint:lll // regexp is intentionally long
 var artifactTypeRegex = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
 
 // NewArtifactType validates s against the artifact type grammar and returns it
