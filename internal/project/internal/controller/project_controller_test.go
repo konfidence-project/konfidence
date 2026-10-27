@@ -203,6 +203,27 @@ var _ = Describe("Project Controller", Ordered, func() {
 		expectNamespaceUpdateRejected(pinnedName, "proj-immutable-other-ns")
 	})
 
+	It("rejects spec.namespacePolicy mutations", func() {
+		const projectName = "proj-policy-immutable"
+		// Pin a namespace so switching to Adopt satisfies the
+		// namespace-required rule, isolating the immutability rule under test.
+		controller.CreateProject(ctx, k8sClient, projectName, func(p *konfidence.Project) {
+			p.Spec.Namespace = "proj-policy-immutable-ns"
+		})
+		DeferCleanup(func() { controller.CleanupProject(ctx, k8sClient, projectName) })
+
+		// Refetch and retry via Eventually, since the controller concurrently
+		// updates the Project (finalizer, status) and a stale write would fail
+		// with a conflict instead of the expected CEL rejection.
+		Eventually(func(g Gomega) {
+			project := controller.GetProject(ctx, k8sClient, projectName, false)
+			project.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+			err := k8sClient.Update(ctx, project)
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(err.Error()).To(ContainSubstring("namespacePolicy is immutable"))
+		}, timeout, interval).Should(Succeed())
+	})
+
 	It("refuses to adopt an existing unmanaged namespace", func() {
 		const projectName = "proj-conflict"
 		const nsName = "proj-conflict-taken-ns"

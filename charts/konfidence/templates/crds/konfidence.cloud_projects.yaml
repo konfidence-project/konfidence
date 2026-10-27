@@ -105,11 +105,16 @@ spec:
                   NamespacePolicy controls how the project namespace is taken over. Create
                   (the default) creates it and errors on conflict; Adopt takes over an
                   existing namespace and requires both that namespace to already exist and
-                  spec.namespace to be set, so the adopted namespace is named explicitly.
+                  spec.namespace to be set, so the adopted namespace is named explicitly. It
+                  is immutable once the Project exists, because it only governs how the
+                  namespace is first acquired and has no effect once ownership is settled.
                 enum:
                 - Create
                 - Adopt
                 type: string
+                x-kubernetes-validations:
+                - message: namespacePolicy is immutable
+                  rule: self == oldSelf
               roleBindings:
                 additionalProperties:
                   description: |-

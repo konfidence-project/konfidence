@@ -67,9 +67,12 @@ type LandscapeSpec struct {
 	// NamespacePolicy controls how the landscape namespace is taken over. Create
 	// (the default) creates it and errors on conflict; Adopt takes over an
 	// existing namespace and requires both that namespace to already exist and
-	// spec.namespace to be set, so the adopted namespace is named explicitly.
+	// spec.namespace to be set, so the adopted namespace is named explicitly. It
+	// is immutable once the Landscape exists, because it only governs how the
+	// namespace is first acquired and has no effect once ownership is settled.
 	// +kubebuilder:validation:Enum=Create;Adopt
 	// +kubebuilder:default=Create
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="namespacePolicy is immutable"
 	// +optional
 	NamespacePolicy NamespacePolicy `json:"namespacePolicy,omitempty"`
 
