@@ -5,9 +5,7 @@ metadata:
     app.kubernetes.io/name: crds
   name: vectorassignment-sample
 spec:
-  manifest:
-    type: helm.konfidence.cloud
-    allowReuse: true
+  type: helm.konfidence.cloud
   artifactDeploymentRef:
     name: artifactdeployment-1
   vectorDeploymentRef:

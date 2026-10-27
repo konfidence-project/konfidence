@@ -32,7 +32,7 @@ type VectorAssignmentSpec struct {
 	// syntax defined in section 1.1 of the deployer specification.
 	//
 	// +kubebuilder:validation:Pattern=`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`
-	ArtifactType ArtifactType `json:"type"`
+	ArtifactType ArtifactType `json:"artifactType"`
 
 	// ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The
 	// referenced artifact must exist in the same namespace as this VectorAssignment.

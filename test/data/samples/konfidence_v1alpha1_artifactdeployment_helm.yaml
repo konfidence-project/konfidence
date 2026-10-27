@@ -14,7 +14,5 @@ spec:
         name: sample-service-1-helm-chart
         type: helmChart
     version: 1.0.0
-  manifest:
-    allowReuse: true
-    type: helm.konfidence.cloud
+  artifactType: helm.konfidence.cloud
   taskManifests: [ ]

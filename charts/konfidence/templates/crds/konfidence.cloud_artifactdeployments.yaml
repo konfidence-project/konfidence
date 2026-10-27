@@ -58,6 +58,12 @@ spec:
             description: Spec defines the desired state of the ArtifactDeployment
               and is immutable after it has been set
             properties:
+              artifactType:
+                description: |-
+                  ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the
+                  syntax defined in section 1.1 of the deployer specification.
+                pattern: ^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$
+                type: string
               component:
                 description: Component contains OCM metadata associated with the artifact.
                   This is a simplified mapping of the OCM ComponentVersion.
@@ -146,15 +152,9 @@ spec:
                   - type
                   type: object
                 type: array
-              type:
-                description: |-
-                  ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the
-                  syntax defined in section 1.1 of the deployer specification.
-                pattern: ^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$
-                type: string
             required:
+            - artifactType
             - taskManifests
-            - type
             type: object
             x-kubernetes-validations:
             - message: ArtifactDeployment spec is immutable after it has been set

@@ -225,9 +225,7 @@ spec:
         name: sample-service-1-helm-chart
         type: helmChart
     version: 1.0.0
-  manifest:
-    allowReuse: true
-    type: helm.konfidence.cloud
+  artifactType: helm.konfidence.cloud
   taskManifests: [ ]
 ```
 
@@ -246,7 +244,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?$` <br /> |
+| `artifactType` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?$` <br /> |
 | `taskManifests` _[TaskManifest](#taskmanifest) array_ | TaskManifests describes optional post-deployment tasks (commonly used for vector migrations such as database<br />schema updates). Tasks are executed after the artifact has been deployed and may form a dependency graph via<br />DependsOn. |  |  |
 | `component` _[OCMComponent](#ocmcomponent)_ | Component contains OCM metadata associated with the artifact. This is a simplified mapping of the OCM ComponentVersion. |  |  |
 
@@ -1476,9 +1474,7 @@ metadata:
     app.kubernetes.io/name: crds
   name: vectorassignment-sample
 spec:
-  manifest:
-    type: helm.konfidence.cloud
-    allowReuse: true
+  type: helm.konfidence.cloud
   artifactDeploymentRef:
     name: artifactdeployment-1
   vectorDeploymentRef:
@@ -1509,7 +1505,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the VectorAssignment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?$` <br /> |
+| `artifactType` _[ArtifactType](#artifacttype)_ | ArtifactType identifies which type of artifact is represented in the VectorAssignment. It must match the<br />syntax defined in section 1.1 of the deployer specification. |  | Pattern: `^[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]\{0,61\}[a-z0-9])?$` <br /> |
 | `artifactDeploymentRef` _[LocalArtifactDeploymentReference](#localartifactdeploymentreference)_ | ArtifactDeploymentRef references the ArtifactDeployment instance that is associated with the vector. The<br />referenced artifact must exist in the same namespace as this VectorAssignment. |  |  |
 | `vectorDeploymentRef` _[LocalVectorDeploymentReference](#localvectordeploymentreference)_ | VectorDeploymentRef references the VectorDeployment that this artifact is assigned to. This creates the explicit<br />mapping "artifact X belongs to vector Y". |  |  |
 
