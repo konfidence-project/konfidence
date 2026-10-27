@@ -12,6 +12,9 @@ metadata:
 spec:
   group: konfidence.cloud
   names:
+    categories:
+    - konfidence
+    - kden
     kind: VectorPromotion
     listKind: VectorPromotionList
     plural: vectorpromotions

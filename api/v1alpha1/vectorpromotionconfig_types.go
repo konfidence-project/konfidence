@@ -78,6 +78,7 @@ type VectorPromotionConfigStatus struct {
 //nolint:lll // Kubebuilder annotations are intentionally long.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:categories=konfidence;kden
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || has(self.spec)", message="Spec is required once set"
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description="Indicates if the config's references resolve"
 // +kubebuilder:printcolumn:name="Last-Succeeded",type=string,JSONPath=".status.lastPromotionConditions[?(@.type==\"Succeeded\")].status",description="Last promotion succeeded"
