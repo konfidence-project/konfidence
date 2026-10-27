@@ -324,6 +324,63 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/projects/{projectId}/vectors/diff": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the diff between two vectors by ref. */
+    get: operations["getVectorDiffV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/vectors/content": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get OCM content for vectors by refs.
+     * @description Returns the component list and configuration of any vector available in OCI, regardless of whether it has been deployed.
+     */
+    get: operations["getVectorContentV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/artifacts/content": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get OCM content for an artifact by ref.
+     * @description Returns the manifest details of any artifact available in OCI, including type, allowReuse, tasks, and OCM resources.
+     */
+    get: operations["getArtifactContentV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/projects/{projectId}/artifactDeployments": {
     parameters: {
       query?: never;
@@ -524,6 +581,50 @@ export interface components {
       projectRoles: {
         [key: string]: string[];
       };
+    };
+    VectorDiff: {
+      incoming: components["schemas"]["VectorContent"];
+      current: components["schemas"]["VectorContent"];
+    };
+    VectorContentList: {
+      data: components["schemas"]["VectorContent"][];
+    };
+    VectorContent: {
+      /** @description OCM ref string (registry//component:version) */
+      ref: string;
+      components: components["schemas"]["VectorComponent"][];
+      config?: components["schemas"]["VectorConfig"];
+    };
+    VectorComponent: {
+      componentName: string;
+      version: string;
+    };
+    VectorConfig: {
+      /** @description Raw features blob from VectorConfigurationV1 */
+      features?: {
+        [key: string]: unknown;
+      };
+      /** @description Raw authored blob from VectorConfigurationV1 */
+      authored?: {
+        [key: string]: unknown;
+      };
+    };
+    ArtifactContent: {
+      /** @description OCM ref string (registry//component:version) */
+      ref: string;
+      type: string;
+      allowReuse: boolean;
+      tasks?: components["schemas"]["ArtifactTask"][];
+      resources?: components["schemas"]["ArtifactResource"][];
+    };
+    ArtifactTask: {
+      name: string;
+      type: string;
+      dependsOn?: string[];
+    };
+    ArtifactResource: {
+      name: string;
+      type: string;
     };
     ArtifactReference: components["schemas"]["ComponentReference"];
     VectorReference: components["schemas"]["ComponentReference"];
@@ -1073,6 +1174,101 @@ export interface operations {
           "application/json": components["schemas"]["VectorPromotion"];
         };
       };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getVectorDiffV1: {
+    parameters: {
+      query: {
+        /** @description OCM ref string for the incoming vector (registry//component:version). Must be percent-encoded. */
+        incoming: string;
+        /** @description OCM ref string for the current vector (registry//component:version). Must be percent-encoded. */
+        current: string;
+      };
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VectorDiff"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getVectorContentV1: {
+    parameters: {
+      query: {
+        /** @description One or more OCM ref strings (registry//component:version). Must be percent-encoded. Repeat the parameter for multiple refs. */
+        refs: string[];
+      };
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VectorContentList"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getArtifactContentV1: {
+    parameters: {
+      query: {
+        /** @description OCM ref string identifying the artifact (registry//component:version). Must be percent-encoded. Passed as a query parameter because the OCM ref contains // which cannot be used in a path segment. */
+        ref: string;
+      };
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactContent"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];

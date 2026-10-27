@@ -115,6 +115,14 @@ const operationHandlers = {
       .setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS)
       .redirect(validatedReturnUrl(state, "Invalid authentication state"));
   },
+  getArtifactContentV1: (request, reply) => {
+    const { ref } = request.query as Query<"getArtifactContentV1">;
+    const found = projectFor(request).artifactContents.find((ac) => ac.ref === ref);
+    if (!found) {
+      throw httpError(404, "ArtifactContent not found");
+    }
+    return reply.send(found);
+  },
   getArtifactDeploymentV1: (request, reply) => {
     const { artifactDeploymentId } = request.params as { artifactDeploymentId: string };
     const deployment = projectFor(request).artifactDeployments.find(
@@ -124,6 +132,31 @@ const operationHandlers = {
       throw httpError(404, "ArtifactDeployment not found");
     }
     return reply.send(deployment);
+  },
+  getVectorContentV1: (request, reply) => {
+    const { refs } = request.query as Query<"getVectorContentV1">;
+    const project = projectFor(request);
+    const data = refs.map((ref) => {
+      const found = project.vectorContents.find((vc) => vc.ref === ref);
+      if (!found) {
+        throw httpError(404, `VectorContent not found for ref ${ref}`);
+      }
+      return found;
+    });
+    return reply.send({ data });
+  },
+  getVectorDiffV1: (request, reply) => {
+    const { incoming, current } = request.query as Query<"getVectorDiffV1">;
+    const project = projectFor(request);
+    const incomingContent = project.vectorContents.find((vc) => vc.ref === incoming);
+    if (!incomingContent) {
+      throw httpError(404, `VectorContent not found for ref ${incoming}`);
+    }
+    const currentContent = project.vectorContents.find((vc) => vc.ref === current);
+    if (!currentContent) {
+      throw httpError(404, `VectorContent not found for ref ${current}`);
+    }
+    return reply.send({ incoming: incomingContent, current: currentContent });
   },
   getLandscapeV1: (request, reply) => {
     const { landscapeId } = request.params as { landscapeId: string };
