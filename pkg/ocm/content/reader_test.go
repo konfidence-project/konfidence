@@ -19,7 +19,6 @@ import (
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
-	ociv1 "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 )
 
 // newTestReader constructs a Reader with a mock client, a no-op verifier, and no
@@ -36,12 +35,13 @@ func (noopVerifier) Verify(_ context.Context, _ credentials.Resolver, _ []crypto
 }
 
 // testRef builds an upstream compref.Ref for use in mock expectations.
+// It goes through kompref.Parse so the Repository.Type field is populated
+// identically to what toUpstreamRef produces at runtime.
 func testRef(component, version string) compref.Ref {
-	return compref.Ref{
-		Repository: &ociv1.Repository{BaseUrl: "registry.example.com"},
-		Component:  component,
-		Version:    version,
-	}
+	raw := fmt.Sprintf("registry.example.com//%s:%s", component, version)
+	parsed, err := kompref.Parse(raw)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+	return *parsed
 }
 
 // testComponentVersionRef builds the pkg-level ref used to call the reader.

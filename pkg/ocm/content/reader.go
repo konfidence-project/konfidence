@@ -169,6 +169,9 @@ func (r *ocmReader) GetArtifactContent(ctx context.Context, ref kompref.Componen
 			if err := json.Unmarshal(data, &dto); err != nil {
 				return ArtifactContent{}, fmt.Errorf("unmarshal artifact manifest in %s: %w", upstream.String(), err)
 			}
+			if dto.Type == "" {
+				return ArtifactContent{}, fmt.Errorf("artifact manifest in %s is missing required type field", upstream.String())
+			}
 			artifactType = dto.Type
 			allowReuse = dto.AllowReuse
 			foundManifest = true
@@ -281,16 +284,19 @@ func parseVectorConfig(blob []byte) (*VectorConfig, error) {
 	cfg := &VectorConfig{}
 	if len(env.Features) > 0 {
 		var f map[string]any
-		if json.Unmarshal(env.Features, &f) == nil {
-			cfg.Features = f
+		if err := json.Unmarshal(env.Features, &f); err != nil {
+			return nil, fmt.Errorf("vector config features blob is malformed: %w", err)
 		}
+		cfg.Features = f
 	}
 	if len(env.Authored) > 0 {
 		var a map[string]any
-		if json.Unmarshal(env.Authored, &a) == nil {
-			cfg.Authored = a
+		if err := json.Unmarshal(env.Authored, &a); err != nil {
+			return nil, fmt.Errorf("vector config authored blob is malformed: %w", err)
 		}
+		cfg.Authored = a
 	}
+
 	return cfg, nil
 }
 
