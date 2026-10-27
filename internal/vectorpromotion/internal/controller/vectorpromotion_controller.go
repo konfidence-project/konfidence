@@ -55,17 +55,14 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Decisions are level-based on observed facts (condition statuses and
-	// timestamps), never on condition reasons.
 	if promotion.IsFinished(vectorPromotion) {
 		return ctrl.Result{}, nil
 	}
 	if !promotion.GatesCleared(vectorPromotion) {
-		// May latch GatesSatisfied=True on the in-memory object, which lets
-		// the promotion move on to execution in this same reconcile.
 		if err := r.reconcileGates(ctx, vectorPromotion); err != nil {
 			return ctrl.Result{}, err
 		}
+		// Check if gates are now cleared after reconciliation
 		if !promotion.GatesCleared(vectorPromotion) {
 			return ctrl.Result{}, nil
 		}

@@ -39,9 +39,9 @@ func IsCleared(p *konfidence.VectorPromotion) bool {
 	return GatesCleared(p) && !IsFinished(p)
 }
 
-// IsStarted reports whether the active promotion started executing. At most
-// one promotion per config is started at a time.
-func IsStarted(p *konfidence.VectorPromotion) bool {
+// IsRunning reports whether the promotion is currently executing. At most
+// one promotion per config is running at a time.
+func IsRunning(p *konfidence.VectorPromotion) bool {
 	return p.Status.StartTime != nil && !IsFinished(p)
 }
 

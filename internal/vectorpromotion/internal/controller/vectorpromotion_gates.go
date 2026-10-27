@@ -21,18 +21,10 @@ import (
 // while a gate is open, True once every gate is satisfied (immediately for
 // promotions without gates). GatesSatisfied latches: it is never written again
 // after True, and pkg/promotiongate refuses gate changes from then on.
-//
-// The controller never interprets gate types and never satisfies a gate
-// itself; gate writers do that through pkg/promotiongate. Seeding only adds
-// missing entries and the status patch is optimistic-locked, so a gate written
-// concurrently is never overwritten: a stale patch conflicts and is retried on
-// fresh state. The same lock makes "all gates satisfied → latch" atomic with
-// respect to a gate being reopened.
 func (r *VectorPromotionReconciler) reconcileGates(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
 	log := logf.FromContext(ctx)
 	previous := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied).DeepCopy()
 
-	// gatesSummary treats a missing entry as Pending, so it can run before seeding.
 	status, reason, message := gatesSummary(vectorPromotion)
 	seed := func(p *konfidence.VectorPromotion) { promotiongate.Seed(p) }
 	if err := r.updateStatus(ctx, vectorPromotion,

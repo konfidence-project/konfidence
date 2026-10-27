@@ -17,9 +17,7 @@ import (
 
 const (
 	// siblingBlockedRequeueInterval paces re-evaluation while another
-	// promotion of the same config has started. With a single worker, a
-	// sibling is only ever observed started when its last reconcile did not
-	// finish (crash or retried error); its own retry completes it.
+	// promotion of the same config has started.
 	siblingBlockedRequeueInterval = 10 * time.Second
 )
 
@@ -36,7 +34,7 @@ func (r *VectorPromotionReconciler) reconcileExecution(ctx context.Context, vect
 
 	for i := range siblings {
 		sibling := &siblings[i]
-		if sibling.UID == vectorPromotion.UID || !promotion.IsStarted(sibling) {
+		if sibling.UID == vectorPromotion.UID || !promotion.IsRunning(sibling) {
 			continue
 		}
 		log.V(1).Info("execution blocked by started sibling", "sibling", sibling.Name)

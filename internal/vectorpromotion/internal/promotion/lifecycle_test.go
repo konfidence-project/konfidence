@@ -49,7 +49,7 @@ var _ = Describe("Lifecycle", func() {
 				gatesCleared: GatesCleared(p),
 				waiting:      IsWaiting(p),
 				cleared:      IsCleared(p),
-				started:      IsStarted(p),
+				started:      IsRunning(p),
 			}).To(Equal(expected))
 		},
 		Entry("never reconciled", facts{},
