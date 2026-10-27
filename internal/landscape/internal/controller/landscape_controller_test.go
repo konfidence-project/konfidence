@@ -224,6 +224,33 @@ var _ = Describe("Landscape Controller", Ordered, func() {
 		expectNamespaceUpdateRejected(landscapeName2, projectNsName, "land-immutable2-changed")
 	})
 
+	It("rejects spec.namespacePolicy mutations", func() {
+		const projectName = "proj4b"
+		const projectNsName = "kden-p-proj4b"
+		const landscapeName = "land-policy-immutable"
+
+		controller.CreateProjectNamespace(ctx, k8sClient, projectNsName, projectName)
+		DeferCleanup(func() { controller.CleanupProjectNamespace(ctx, k8sClient, projectNsName) })
+
+		// Pin a namespace so switching to Adopt satisfies the
+		// namespace-required rule, isolating the immutability rule under test.
+		controller.CreateLandscape(ctx, k8sClient, landscapeName, projectNsName, func(l *konfidence.Landscape) {
+			l.Spec.Namespace = "land-policy-immutable-ns"
+		})
+		DeferCleanup(func() { controller.CleanupLandscape(ctx, k8sClient, landscapeName, projectNsName) })
+
+		// Refetch and retry via Eventually, since the controller concurrently
+		// updates the Landscape (finalizer, status) and a stale write would fail
+		// with a conflict instead of the expected CEL rejection.
+		Eventually(func(g Gomega) {
+			landscape := controller.GetLandscape(ctx, k8sClient, landscapeName, projectNsName, false)
+			landscape.Spec.NamespacePolicy = konfidence.NamespacePolicyAdopt
+			err := k8sClient.Update(ctx, landscape)
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(err.Error()).To(ContainSubstring("namespacePolicy is immutable"))
+		}, timeout, interval).Should(Succeed())
+	})
+
 	It("generates unique namespace names for landscapes with same name in different projects", func() {
 		const landscapeName = "dev"
 		const projectName1 = "proj5a"
