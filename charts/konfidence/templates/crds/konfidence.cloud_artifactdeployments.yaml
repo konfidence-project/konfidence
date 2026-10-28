@@ -58,6 +58,12 @@ spec:
             description: Spec defines the desired state of the ArtifactDeployment
               and is immutable after it has been set
             properties:
+              artifactType:
+                description: |-
+                  ArtifactType identifies which type of artifact is represented in the ArtifactDeployment. It must match the
+                  syntax defined in section 1.1 of the deployer specification.
+                pattern: ^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$
+                type: string
               component:
                 description: Component contains OCM metadata associated with the artifact.
                   This is a simplified mapping of the OCM ComponentVersion.
@@ -98,26 +104,6 @@ spec:
                     type: string
                 required:
                 - name
-                type: object
-              manifest:
-                description: Manifest contains information about the artifact itself
-                  and the deployer implementation responsible for handling it.
-                properties:
-                  allowReuse:
-                    description: |-
-                      AllowReuse indicates whether the deployed artifact instance may be shared across multiple VectorDeployments.
-                      Reuse allows more efficient resource consumption but requires the artifact to be independent of vector-specific
-                      runtime context.
-                    type: boolean
-                  type:
-                    description: |-
-                      Type specifies the name of the DeploymentClass that should handle this artifact (e.g., "helm.konfidence.cloud").
-                      This must match a DeploymentClass.metadata.name in the cluster.
-                      Deployers implement their own interpretation of the artifact's contents.
-                    type: string
-                required:
-                - allowReuse
-                - type
                 type: object
               taskManifests:
                 description: |-
@@ -167,7 +153,7 @@ spec:
                   type: object
                 type: array
             required:
-            - manifest
+            - artifactType
             - taskManifests
             type: object
             x-kubernetes-validations:

@@ -15,10 +15,13 @@ const (
 
 // DeploymentTargetSpec defines the desired state of DeploymentTarget.
 type DeploymentTargetSpec struct {
-	// ArtifactType identifies which type of artifact should be deployed to the specified target. The ArtifactType is
-	// selected by a deployer whose controllers are responsible for reconciling the DeploymentTarget resource. If there
-	// is no deployer covering the given ArtifactType, the DeploymentTarget will never become ready. ArtifactType is
-	// immutable because changing it may transfer ownership of the DeploymentTarget to a different controller.
+	// ArtifactType identifies which type of artifact should be deployed to the specified target. It must match the
+	// syntax defined in section 1.1 of the deployer specification.
+	//
+	// The ArtifactType is selected by a deployer whose controllers are responsible for reconciling the
+	// DeploymentTarget resource. If there is no deployer covering the given ArtifactType, the DeploymentTarget
+	// will never become ready. ArtifactType is immutable because changing it may transfer ownership of the
+	// DeploymentTarget to a different controller.
 	//
 	// Currently, Konfidence only supports one DeploymentTarget per ArtifactType in a landscape, so this field should
 	// be unique across all DeploymentTargets in the same landscape namespace. If multiple DeploymentTargets with the
@@ -26,8 +29,9 @@ type DeploymentTargetSpec struct {
 	// determine which DeploymentTarget takes precedence.
 	//
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="artifactType is immutable"
-	ArtifactType string `json:"artifactType"`
+	ArtifactType ArtifactType `json:"artifactType"`
 
 	// Parameters define how to connect to the target runtime described by this DeploymentTarget. It may point to
 	// deployer-specific configuration containing connection details, credentials and further settings required to
@@ -105,4 +109,9 @@ type DeploymentTargetList struct {
 
 func init() {
 	SchemeBuilder.Register(&DeploymentTarget{}, &DeploymentTargetList{})
+}
+
+// ArtifactType returns the ArtifactType which the DeploymentTarget declares.
+func (dt *DeploymentTarget) ArtifactType() ArtifactType {
+	return dt.Spec.ArtifactType
 }

@@ -27,7 +27,7 @@ var _ = Describe("ArtifactDeployment deployment-result uniqueness", func() {
 		return &konfidence.ArtifactDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: drNamespace},
 			Spec: konfidence.ArtifactDeploymentSpec{
-				Manifest:      konfidence.ArtifactManifest{Type: "cloud.konfidence.flux.helm"},
+				ArtifactType:  konfidence.MustArtifactType("helm.konfidence.cloud"),
 				TaskManifests: []konfidence.TaskManifest{},
 				Component:     konfidence.OCMComponent{Name: "github.com/acme/svc", Version: "1.0.0"},
 			},

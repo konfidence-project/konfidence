@@ -472,10 +472,7 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 			Labels:      labels,
 		},
 		Spec: konfidence.ArtifactDeploymentSpec{
-			Manifest: konfidence.ArtifactManifest{
-				Type:       artifactManifest.Type,
-				AllowReuse: artifactManifest.AllowReuse,
-			},
+			ArtifactType:  artifactManifest.Type,
 			TaskManifests: taskManifests,
 			Component: konfidence.OCMComponent{
 				Name:      ref.Component,
