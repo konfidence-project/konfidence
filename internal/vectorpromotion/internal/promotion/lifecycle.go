@@ -23,20 +23,20 @@ func IsSucceeded(p *konfidence.VectorPromotion) bool {
 	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
 
-// GatesCleared reports whether the GatesSatisfied condition is True.
-func GatesCleared(p *konfidence.VectorPromotion) bool {
+// AllGatesSatisfied reports whether the GatesSatisfied condition is True.
+func AllGatesSatisfied(p *konfidence.VectorPromotion) bool {
 	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)
 }
 
 // IsWaiting reports whether the active promotion still waits on its gates.
 func IsWaiting(p *konfidence.VectorPromotion) bool {
-	return !GatesCleared(p) && !IsTerminal(p)
+	return !AllGatesSatisfied(p) && !IsTerminal(p)
 }
 
 // IsCleared reports whether the active promotion passed its gates and
 // competes for execution.
 func IsCleared(p *konfidence.VectorPromotion) bool {
-	return GatesCleared(p) && !IsTerminal(p)
+	return AllGatesSatisfied(p) && !IsTerminal(p)
 }
 
 // IsRunning reports whether the promotion is currently executing. At most

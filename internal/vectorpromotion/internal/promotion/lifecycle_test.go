@@ -33,7 +33,7 @@ var _ = Describe("Lifecycle", func() {
 		started    bool
 	}
 	type predicates struct {
-		finished, succeeded, gatesCleared, waiting, cleared, started bool
+		finished, succeeded, allGatesSatisfied, waiting, cleared, started bool
 	}
 
 	DescribeTable("derives every predicate from condition statuses and timestamps",
@@ -44,12 +44,12 @@ var _ = Describe("Lifecycle", func() {
 				p.Status.StartTime = &now
 			}
 			Expect(predicates{
-				finished:     IsTerminal(p),
-				succeeded:    IsSucceeded(p),
-				gatesCleared: GatesCleared(p),
-				waiting:      IsWaiting(p),
-				cleared:      IsCleared(p),
-				started:      IsRunning(p),
+				finished:          IsTerminal(p),
+				succeeded:         IsSucceeded(p),
+				allGatesSatisfied: AllGatesSatisfied(p),
+				waiting:           IsWaiting(p),
+				cleared:           IsCleared(p),
+				started:           IsRunning(p),
 			}).To(Equal(expected))
 		},
 		Entry("never reconciled", facts{},
@@ -57,11 +57,11 @@ var _ = Describe("Lifecycle", func() {
 		Entry("a gate not satisfied yet", facts{conditions: []metav1.Condition{gates(metav1.ConditionFalse), succeeded(metav1.ConditionUnknown)}},
 			predicates{waiting: true}),
 		Entry("gates satisfied", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionUnknown)}},
-			predicates{gatesCleared: true, cleared: true}),
+			predicates{allGatesSatisfied: true, cleared: true}),
 		Entry("started", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionUnknown)}, started: true},
-			predicates{gatesCleared: true, cleared: true, started: true}),
+			predicates{allGatesSatisfied: true, cleared: true, started: true}),
 		Entry("succeeded", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionTrue)}, started: true},
-			predicates{finished: true, succeeded: true, gatesCleared: true}),
+			predicates{finished: true, succeeded: true, allGatesSatisfied: true}),
 		Entry("superseded while waiting", facts{conditions: []metav1.Condition{gates(metav1.ConditionFalse), succeeded(metav1.ConditionFalse)}},
 			predicates{finished: true}),
 	)

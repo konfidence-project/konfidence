@@ -58,12 +58,12 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if promotion.IsTerminal(vectorPromotion) {
 		return ctrl.Result{}, nil
 	}
-	if !promotion.GatesCleared(vectorPromotion) {
+	if !promotion.AllGatesSatisfied(vectorPromotion) {
 		if err := r.reconcileGates(ctx, vectorPromotion); err != nil {
 			return ctrl.Result{}, err
 		}
-		// Check if gates are now cleared after reconciliation
-		if !promotion.GatesCleared(vectorPromotion) {
+		// Check if gates are now satisfied after reconciliation
+		if !promotion.AllGatesSatisfied(vectorPromotion) {
 			return ctrl.Result{}, nil
 		}
 	}
