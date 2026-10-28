@@ -13,9 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // FindReady lists ready targets for a given ArtifactType in the namespace. There should be at most one
@@ -54,44 +51,4 @@ func IsReady(target *konfidencev1alpha1.DeploymentTarget) bool {
 	}
 	condition := meta.FindStatusCondition(target.Status.Conditions, konfidencev1alpha1.DeploymentTargetReadyCondition)
 	return condition != nil && condition.Status == metav1.ConditionTrue && condition.ObservedGeneration == target.Generation
-}
-
-// EnqueueArtifactDeploymentsForTarget returns a handler that enqueues the
-// ArtifactDeployments of artifactType in the namespace of a changed matching
-// DeploymentTarget.
-func EnqueueArtifactDeploymentsForTarget(artifactType konfidencev1alpha1.ArtifactType, reader client.Reader) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-		requests, err := requestsForTarget(ctx, reader, obj, artifactType)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "map DeploymentTarget change to ArtifactDeployments", "namespace", obj.GetNamespace(), "artifactType", artifactType)
-			return nil
-		}
-		return requests
-	})
-}
-
-func requestsForTarget(
-	ctx context.Context,
-	reader client.Reader,
-	obj client.Object,
-	artifactType konfidencev1alpha1.ArtifactType,
-) ([]reconcile.Request, error) {
-	resource, ok := obj.(konfidencev1alpha1.ArtifactTypeProvider)
-	if !ok || resource.ArtifactType() != artifactType {
-		return nil, nil
-	}
-
-	deployments := &konfidencev1alpha1.ArtifactDeploymentList{}
-	if err := reader.List(ctx, deployments, client.InNamespace(obj.GetNamespace())); err != nil {
-		return nil, err
-	}
-
-	requests := make([]reconcile.Request, 0)
-	for i := range deployments.Items {
-		deployment := &deployments.Items[i]
-		if deployment.ArtifactType() == artifactType {
-			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(deployment)})
-		}
-	}
-	return requests, nil
 }

@@ -66,3 +66,43 @@ func requestsForReference(
 	}
 	return requests, nil
 }
+
+// EnqueueArtifactDeploymentsForTarget returns a handler that enqueues the
+// ArtifactDeployments of artifactType in the namespace of a changed matching
+// DeploymentTarget.
+func EnqueueArtifactDeploymentsForTarget(artifactType konfidencev1alpha1.ArtifactType, reader client.Reader) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+		requests, err := requestsForTarget(ctx, reader, obj, artifactType)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "map DeploymentTarget change to ArtifactDeployments", "namespace", obj.GetNamespace(), "artifactType", artifactType)
+			return nil
+		}
+		return requests
+	})
+}
+
+func requestsForTarget(
+	ctx context.Context,
+	reader client.Reader,
+	obj client.Object,
+	artifactType konfidencev1alpha1.ArtifactType,
+) ([]reconcile.Request, error) {
+	resource, ok := obj.(konfidencev1alpha1.ArtifactTypeProvider)
+	if !ok || resource.ArtifactType() != artifactType {
+		return nil, nil
+	}
+
+	deployments := &konfidencev1alpha1.ArtifactDeploymentList{}
+	if err := reader.List(ctx, deployments, client.InNamespace(obj.GetNamespace())); err != nil {
+		return nil, err
+	}
+
+	requests := make([]reconcile.Request, 0)
+	for i := range deployments.Items {
+		deployment := &deployments.Items[i]
+		if deployment.ArtifactType() == artifactType {
+			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(deployment)})
+		}
+	}
+	return requests, nil
+}
