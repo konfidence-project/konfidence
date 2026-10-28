@@ -51,10 +51,9 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 			Source:                    config.Spec.Source,
 			Target:                    config.Spec.Target,
 			Vector:                    sourceVector,
-			// Snapshot: later config edits never change this promotion's gates.
-			Gates:            slices.Clone(config.Spec.Gates),
-			TTLAfterFinished: config.Spec.TTLAfterFinished,
-			Sequence:         config.Status.Sequence,
+			Gates:                     slices.Clone(config.Spec.Gates),
+			TTLAfterFinished:          config.Spec.TTLAfterFinished,
+			Sequence:                  config.Status.Sequence,
 		},
 	}
 	if err := controllerutil.SetControllerReference(config, vectorPromotion, r.Scheme); err != nil {
@@ -67,18 +66,9 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 	log.Info("created promotion for drifted source",
 		"promotion", vectorPromotion.Name,
 		"vector", sourceVector,
-		"sequence", vectorPromotion.Spec.Sequence,
-		"gates", gateTypes(vectorPromotion.Spec.Gates))
+		"sequence", vectorPromotion.Spec.Sequence)
 	r.Recorder.Eventf(config, vectorPromotion, corev1.EventTypeNormal, "VectorPromotionCreated",
 		EventActionDriftDetection,
 		fmt.Sprintf("created promotion %q for vector %q", vectorPromotion.Name, sourceVector))
 	return nil
-}
-
-func gateTypes(gates []konfidence.PromotionGate) []string {
-	types := make([]string, 0, len(gates))
-	for _, gate := range gates {
-		types = append(types, gate.Type)
-	}
-	return types
 }
