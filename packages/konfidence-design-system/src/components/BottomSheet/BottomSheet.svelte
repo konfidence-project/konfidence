@@ -1,6 +1,8 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
     import PanelShell from "../PanelShell/PanelShell.svelte";
+    import PanelResizer from "../PanelResizer/PanelResizer.svelte";
+    import { clampPanelSize } from "../PanelResizer/panel-size";
 
     interface Props {
         open?: boolean;
@@ -20,7 +22,6 @@
     // collapse to a sliver; the maximum is computed from the viewport minus the
     // app-shell header so the sheet never exceeds the viewport.
     const MIN_HEIGHT = 220;
-    const KEYBOARD_STEP = 16;
     const FALLBACK_VIEWPORT_HEIGHT = 800;
 
     let {
@@ -64,66 +65,7 @@
     });
 
     const maxHeight = $derived(Math.max(MIN_HEIGHT, Math.round(viewportHeight - headerOffset)));
-    const clamp = (value: number): number =>
-        Math.min(maxHeight, Math.max(MIN_HEIGHT, Math.round(value)));
-    const effectiveHeight = $derived(clamp(height));
-
-    let resizing = $state(false);
-    let dragStartY = 0;
-    let dragStartHeight = 0;
-
-    const commitHeight = (next: number): void => {
-        const clamped = clamp(next);
-        if (clamped !== height) {
-            height = clamped;
-        }
-        onHeightChange?.(clamped);
-    };
-
-    const onHandlePointerDown = (event: PointerEvent): void => {
-        if (event.button !== 0) {
-            return;
-        }
-        event.preventDefault();
-        resizing = true;
-        dragStartY = event.clientY;
-        dragStartHeight = effectiveHeight;
-        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    };
-
-    const onHandlePointerMove = (event: PointerEvent): void => {
-        if (!resizing) {
-            return;
-        }
-        // Dragging the top edge up (smaller clientY) grows the sheet.
-        const delta = dragStartY - event.clientY;
-        height = clamp(dragStartHeight + delta);
-    };
-
-    const onHandlePointerUp = (event: PointerEvent): void => {
-        if (!resizing) {
-            return;
-        }
-        resizing = false;
-        (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-        onHeightChange?.(effectiveHeight);
-    };
-
-    const onHandleKeydown = (event: KeyboardEvent): void => {
-        if (event.key === "ArrowUp") {
-            event.preventDefault();
-            commitHeight(effectiveHeight + KEYBOARD_STEP);
-        } else if (event.key === "ArrowDown") {
-            event.preventDefault();
-            commitHeight(effectiveHeight - KEYBOARD_STEP);
-        } else if (event.key === "Home") {
-            event.preventDefault();
-            commitHeight(maxHeight);
-        } else if (event.key === "End") {
-            event.preventDefault();
-            commitHeight(MIN_HEIGHT);
-        }
-    };
+    const effectiveHeight = $derived(clampPanelSize(height, MIN_HEIGHT, maxHeight));
 </script>
 
 <PanelShell
@@ -141,23 +83,14 @@
     {footer}
 >
     {#snippet resizer()}
-        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-            class="bottom-sheet__resizer absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize touch-none bg-transparent transition-colors hover:bg-[var(--border-strong,rgba(120,90,40,0.5))] focus-visible:bg-[var(--border-strong,rgba(120,90,40,0.7))] focus-visible:outline-none"
-            role="separator"
-            aria-orientation="horizontal"
-            aria-label="Resize panel"
-            aria-valuemin={MIN_HEIGHT}
-            aria-valuemax={maxHeight}
-            aria-valuenow={effectiveHeight}
-            tabindex="0"
-            data-testid="bottom-sheet-resizer"
-            onpointerdown={onHandlePointerDown}
-            onpointermove={onHandlePointerMove}
-            onpointerup={onHandlePointerUp}
-            onkeydown={onHandleKeydown}
-        ></div>
+        <PanelResizer
+            edge="top"
+            bind:size={height}
+            min={MIN_HEIGHT}
+            max={maxHeight}
+            testid="bottom-sheet-resizer"
+            onResize={onHeightChange}
+        />
     {/snippet}
     {@render children()}
 </PanelShell>
@@ -178,9 +111,4 @@
         background: var(--bottom-sheet-scrim);
     }
 
-    @media (max-width: 767px) {
-        :global(.bottom-sheet .bottom-sheet__resizer) {
-            display: none;
-        }
-    }
 </style>

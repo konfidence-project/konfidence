@@ -3,6 +3,8 @@
     import "@ui5/webcomponents-icons/dist/resize.js";
     import "@ui5/webcomponents/dist/Icon.js";
     import PanelShell from "../PanelShell/PanelShell.svelte";
+    import PanelResizer from "../PanelResizer/PanelResizer.svelte";
+    import { clampPanelSize } from "../PanelResizer/panel-size";
 
     interface Props {
         open?: boolean;
@@ -21,7 +23,6 @@
     const DEFAULT_WIDTH = 544;
     const MIN_WIDTH = 360;
     const MAX_WIDTH = 960;
-    const KEYBOARD_STEP = 16;
 
     let {
         open = $bindable(false),
@@ -37,65 +38,7 @@
         onCloseComplete,
     }: Props = $props();
 
-    const clamp = (value: number): number => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(value)));
-
-    const effectiveWidth = $derived(clamp(width));
-
-    let resizing = $state(false);
-    let dragStartX = 0;
-    let dragStartWidth = 0;
-
-    const commitWidth = (next: number): void => {
-        const clamped = clamp(next);
-        if (clamped !== width) {
-            width = clamped;
-        }
-        onWidthChange?.(clamped);
-    };
-
-    const onHandlePointerDown = (event: PointerEvent): void => {
-        if (event.button !== 0) {
-            return;
-        }
-        event.preventDefault();
-        resizing = true;
-        dragStartX = event.clientX;
-        dragStartWidth = effectiveWidth;
-        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    };
-
-    const onHandlePointerMove = (event: PointerEvent): void => {
-        if (!resizing) {
-            return;
-        }
-        const delta = dragStartX - event.clientX;
-        width = clamp(dragStartWidth + delta);
-    };
-
-    const onHandlePointerUp = (event: PointerEvent): void => {
-        if (!resizing) {
-            return;
-        }
-        resizing = false;
-        (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-        onWidthChange?.(effectiveWidth);
-    };
-
-    const onHandleKeydown = (event: KeyboardEvent): void => {
-        if (event.key === "ArrowLeft") {
-            event.preventDefault();
-            commitWidth(effectiveWidth + KEYBOARD_STEP);
-        } else if (event.key === "ArrowRight") {
-            event.preventDefault();
-            commitWidth(effectiveWidth - KEYBOARD_STEP);
-        } else if (event.key === "Home") {
-            event.preventDefault();
-            commitWidth(MAX_WIDTH);
-        } else if (event.key === "End") {
-            event.preventDefault();
-            commitWidth(MIN_WIDTH);
-        }
-    };
+    const effectiveWidth = $derived(clampPanelSize(width, MIN_WIDTH, MAX_WIDTH));
 </script>
 
 <PanelShell
@@ -112,23 +55,14 @@
     {footer}
 >
     {#snippet resizer()}
-        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-            class="side-panel__resizer absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize touch-none bg-transparent transition-colors hover:bg-[var(--border-strong,rgba(120,90,40,0.5))] focus-visible:bg-[var(--border-strong,rgba(120,90,40,0.7))] focus-visible:outline-none"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize panel"
-            aria-valuemin={MIN_WIDTH}
-            aria-valuemax={MAX_WIDTH}
-            aria-valuenow={effectiveWidth}
-            tabindex="0"
-            data-testid="side-panel-resizer"
-            onpointerdown={onHandlePointerDown}
-            onpointermove={onHandlePointerMove}
-            onpointerup={onHandlePointerUp}
-            onkeydown={onHandleKeydown}
-        ></div>
+        <PanelResizer
+            edge="left"
+            bind:size={width}
+            min={MIN_WIDTH}
+            max={MAX_WIDTH}
+            testid="side-panel-resizer"
+            onResize={onWidthChange}
+        />
     {/snippet}
     {#snippet headerAction()}
         {#if fullPageHref}
@@ -152,8 +86,5 @@
             width: 100vw !important;
         }
 
-        :global(.side-panel .side-panel__resizer) {
-            display: none;
-        }
     }
 </style>
