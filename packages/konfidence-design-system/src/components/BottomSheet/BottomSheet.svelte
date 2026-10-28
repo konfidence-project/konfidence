@@ -37,7 +37,7 @@
         onCloseComplete,
     }: Props = $props();
 
-    let dialog: HTMLDialogElement | undefined = $state();
+    let panel: HTMLDivElement | undefined = $state();
     let viewportHeight = $state(
         typeof globalThis.innerHeight === "number"
             ? globalThis.innerHeight
@@ -55,7 +55,7 @@
     });
 
     const headerOffset = $derived.by((): number => {
-        const target = dialog;
+        const target = panel;
         if (target === undefined) {
             return 0;
         }
@@ -70,11 +70,12 @@
 
 <PanelShell
     bind:open
-    bind:dialog
+    bind:panel
     {title}
     placement="bottom"
     testid="bottom-sheet"
     dialogClass="bottom-sheet border-t border-t-outline-subtle shadow-[0_-8px_24px_rgba(0,0,0,0.12)]"
+    backdropClass="bottom-sheet-backdrop"
     dialogStyle="height: {effectiveHeight}px"
     {onClose}
     {modal}
@@ -99,16 +100,12 @@
     /* Lighter, theme-aware backdrop scoped to BottomSheet so the landscape
        behind the sheet stays legible. The global --scrim token and the right
        panel's backdrop are left unchanged. */
-    :global(.bottom-sheet) {
-        --bottom-sheet-scrim: rgba(45, 30, 8, 0.1);
+    :global(.bottom-sheet-backdrop) {
+        background: rgba(45, 30, 8, 0.1);
     }
 
-    :global(.dark .bottom-sheet) {
-        --bottom-sheet-scrim: rgba(0, 0, 0, 0.22);
-    }
-
-    :global(.bottom-sheet::backdrop) {
-        background: var(--bottom-sheet-scrim);
+    :global(.dark .bottom-sheet-backdrop) {
+        background: rgba(0, 0, 0, 0.22);
     }
 
 </style>

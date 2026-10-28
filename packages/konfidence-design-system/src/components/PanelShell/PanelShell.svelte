@@ -1,40 +1,31 @@
 <script lang="ts">
+    import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
     import type { Snippet } from "svelte";
+    import { onDestroy, tick, untrack } from "svelte";
     import "@ui5/webcomponents-icons/dist/decline.js";
     import "@ui5/webcomponents/dist/Icon.js";
-    import {
-        isTopmostNonModalPanel,
-        registerNonModalPanel,
-        unregisterNonModalPanel,
-    } from "./panel-stack";
-
-    type Placement = "right" | "bottom";
 
     interface Props {
         open?: boolean;
         title: string;
-        placement: Placement;
-        /** Extra class applied to the dialog, e.g. placement-specific geometry/backdrop. */
+        placement: "right" | "bottom";
         dialogClass?: string;
-        /** Inline style applied to the dialog, e.g. the resolved width/height. */
         dialogStyle?: string;
+        backdropClass?: string;
         testid: string;
         closeLabel?: string;
         children: Snippet;
         footer?: Snippet;
-        /** Resize affordance (resizer handle) rendered at the panel edge. */
         resizer?: Snippet;
-        /** Optional extra header action rendered left of the close button (e.g. open full page). */
         headerAction?: Snippet;
         onClose?: () => void;
-        /** Whether the dialog makes the surrounding page inert. */
         modal?: boolean;
-        /** Changing this value moves focus to the close button without replaying the panel animation. */
+        /** Changing this value refocuses the panel without replaying its animation. */
         focusKey?: string;
         /** Called after the closing transition has completed. */
         onCloseComplete?: () => void;
-        /** Bindable reference to the underlying dialog element for measurement. */
-        dialog?: HTMLDialogElement;
+        /** Bindable reference to the panel surface for measurement. */
+        panel?: HTMLDivElement;
     }
 
     let {
@@ -43,6 +34,7 @@
         placement,
         dialogClass = "",
         dialogStyle = "",
+        backdropClass = "",
         testid,
         closeLabel = "Close details",
         children,
@@ -53,16 +45,27 @@
         modal = true,
         focusKey,
         onCloseComplete,
-        dialog = $bindable(),
+        panel = $bindable(),
     }: Props = $props();
 
+    let anchor: HTMLSpanElement | undefined = $state();
     let closeButton: HTMLButtonElement | undefined = $state();
-    let presentedModally: boolean | undefined = undefined;
+    let dialogOpen = $state(false);
+    let converting = $state(false);
+    let conversionFocus: HTMLElement | undefined = undefined;
+    let previousModal: boolean | undefined = undefined;
+    let previouslyPresentedOpen = false;
     let previouslyOpen = false;
+    let previouslyFocusedOpen = false;
     let previousFocusKey: string | undefined = undefined;
     let closing = false;
     let closeCompletionTimer: ReturnType<typeof setTimeout> | undefined = undefined;
-    const panelInstance = Symbol("panel-shell");
+
+    // The portal escapes clipping/stacking ancestors. Carry the local app-shell
+    // offset with it instead of relying on inheritance from the original parent.
+    const headerHeight = $derived(anchor
+        ? getComputedStyle(anchor).height
+        : "0px");
 
     const CLOSE_TRANSITION_BUFFER_MS = 50;
     const MILLISECONDS_PER_SECOND = 1000;
@@ -72,200 +75,200 @@
         return value.trim().endsWith("ms") ? parsed : parsed * MILLISECONDS_PER_SECOND;
     };
 
-    const showDialog = (target: HTMLDialogElement): void => {
-        if (modal) {
-            target.showModal();
-        } else {
-            target.show();
-        }
-        presentedModally = modal;
-    };
-
-    const convertDialogModality = (target: HTMLDialogElement): void => {
-        const focusedElement = target.contains(document.activeElement)
-            ? (document.activeElement as HTMLElement)
-            : undefined;
-        target.close();
-        showDialog(target);
-        queueMicrotask(() =>
-            (focusedElement ?? closeButton)?.focus({ preventScroll: true }),
-        );
-    };
-
-    const completeClose = (): void => {
-        if (!closing) {
-            return;
-        }
+    const clearCloseTimer = (): void => {
         if (closeCompletionTimer !== undefined) {
             clearTimeout(closeCompletionTimer);
             closeCompletionTimer = undefined;
         }
+    };
+
+    const completeClose = (): void => {
+        if (!closing || open) {
+            return;
+        }
+        clearCloseTimer();
         closing = false;
         onCloseComplete?.();
     };
 
-    $effect(() => {
-        const target = dialog;
-        if (!target) {
-            return;
-        }
-        if (open && !target.open) {
-            showDialog(target);
-        } else if (open && presentedModally !== modal) {
-            // Native dialogs cannot change modality while open. Closing and
-            // reopening in the same task avoids replaying the CSS transition.
-            convertDialogModality(target);
-        } else if (!open && target.open) {
-            closing = true;
-            target.close();
-        }
-    });
-
-    $effect(() => {
-        const shouldFocus = open && (!previouslyOpen || focusKey !== previousFocusKey);
-        previouslyOpen = open;
-        previousFocusKey = focusKey;
-        if (!shouldFocus) {
-            return;
-        }
-        queueMicrotask(() => closeButton?.focus({ preventScroll: true }));
-    });
-
-    $effect(() => {
-        if (!open || modal) {
-            return;
-        }
-        registerNonModalPanel(panelInstance);
-        // oxlint-disable-next-line unicorn/consistent-function-scoping -- closes over this panel's requestClose.
-        const handleEscape = (event: KeyboardEvent): void => {
-            if (
-                event.key !== "Escape" ||
-                !isTopmostNonModalPanel(panelInstance)
-            ) {
+    const scheduleCloseCompletion = (): void => {
+        // oxlint-disable-next-line eslint/max-statements -- CSS duration/delay lists determine the fallback deadline.
+        queueMicrotask(() => {
+            if (!closing || open) {
                 return;
             }
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            requestClose();
-        };
-        globalThis.document.addEventListener("keydown", handleEscape, true);
-        return () => {
-            globalThis.document.removeEventListener("keydown", handleEscape, true);
-            unregisterNonModalPanel(panelInstance);
-        };
-    });
-
-    const requestClose = (): void => {
-        if (!open) {
-            return;
-        }
-        open = false;
-        onClose?.();
-    };
-
-    const handleBackdropClick = (event: MouseEvent): void => {
-        if (modal && event.target === dialog) {
-            requestClose();
-        }
-    };
-
-    const scheduleCloseCompletion = (): void => {
-        // oxlint-disable-next-line eslint/max-statements -- transition timing requires parsing duration and delay lists together.
-        queueMicrotask(() => {
-            if (!dialog) {
+            if (!panel) {
                 completeClose();
                 return;
             }
-            const style = getComputedStyle(dialog);
-            const durations = style.transitionDuration
-                .split(",")
-                .map(cssTimeToMilliseconds);
-            const delays = style.transitionDelay
-                .split(",")
-                .map(cssTimeToMilliseconds);
-            const transitionTime = Math.max(
-                0,
-                ...durations.map((duration, index) => duration + (delays[index] ?? delays[0] ?? 0)),
-            );
+            const style = getComputedStyle(panel);
+            const durations = style.transitionDuration.split(",").map(cssTimeToMilliseconds);
+            const delays = style.transitionDelay.split(",").map(cssTimeToMilliseconds);
+            const transitionTime = Math.max(0, ...durations.map((duration, index) =>
+                duration + (delays[index] ?? delays[0] ?? 0)));
             if (transitionTime === 0) {
                 completeClose();
                 return;
             }
-            closeCompletionTimer = setTimeout(
-                completeClose,
-                transitionTime + CLOSE_TRANSITION_BUFFER_MS,
-            );
+            closeCompletionTimer = setTimeout(completeClose, transitionTime + CLOSE_TRANSITION_BUFFER_MS);
         });
     };
 
-    const handleNativeClose = (): void => {
-        // A live modality conversion closes and immediately reopens the same
-        // element; it is not a user dismissal.
-        if (dialog?.open) {
-            return;
+    $effect(() => {
+        if (open) {
+            clearCloseTimer();
+            closing = false;
+        } else if (previouslyOpen) {
+            closing = true;
+            scheduleCloseCompletion();
         }
-        closing = true;
-        requestClose();
-        scheduleCloseCompletion();
+        previouslyOpen = open;
+    });
+
+    const restartDialog = (): (() => void) => {
+        // Skeleton 5 starts modality effects on entry to its open state.
+        // Cycle that state, not the DOM: keep content mounted and visually
+        // open so changing modality preserves form state and the animation.
+        conversionFocus = panel?.contains(document.activeElement)
+            && document.activeElement instanceof HTMLElement
+            ? document.activeElement : closeButton;
+        converting = true;
+        dialogOpen = false;
+        let cancelled = false;
+        void tick().then(() => {
+            if (!cancelled) {
+                dialogOpen = open;
+                converting = false;
+            }
+        });
+        return () => { cancelled = true; };
     };
+
+    $effect(() => {
+        const restart = open && previouslyPresentedOpen && previousModal !== modal;
+        previouslyPresentedOpen = open;
+        previousModal = modal;
+        if (restart) {
+            return untrack(restartDialog);
+        }
+        dialogOpen = open;
+        converting = false;
+        if (!open) {
+            conversionFocus = undefined;
+        }
+    });
+
+    $effect(() => {
+        if (open && previouslyFocusedOpen && previousFocusKey !== focusKey) {
+            queueMicrotask(() => closeButton?.focus({ preventScroll: true }));
+        }
+        previouslyFocusedOpen = open;
+        previousFocusKey = focusKey;
+    });
+
+    // oxlint-disable-next-line unicorn/no-null -- Skeleton's MaybeElement requires null rather than undefined.
+    const initialFocus = (): HTMLElement | null => conversionFocus ?? closeButton ?? null;
+
+    const handleOpenChange = (details: { open: boolean }): void => {
+        if (!details.open && open) {
+            open = false;
+            onClose?.();
+        }
+    };
+
+    onDestroy(() => {
+        closing = false;
+        clearCloseTimer();
+    });
 </script>
 
-<dialog
-    bind:this={dialog}
-    class={[
-        "panel-shell fixed z-40 m-0 flex flex-col overflow-hidden border-0 bg-surface-default p-0 text-content-primary",
-        placement === "right" &&
-            "top-[var(--app-shell-header-height,0px)] right-0 bottom-0 left-auto h-auto max-h-[calc(100dvh-var(--app-shell-header-height,0px))] max-w-screen",
-        placement === "bottom" &&
-            "inset-x-0 bottom-0 top-auto max-h-[calc(100dvh-var(--app-shell-header-height,0px))] w-screen max-w-screen",
-        dialogClass,
-    ]}
-    style={dialogStyle}
-    aria-label={title}
-    data-testid={testid}
-    data-placement={placement}
-    data-panel-surface
-    onclose={handleNativeClose}
-    onclick={handleBackdropClick}
-    ontransitionend={(event) => {
-        if (event.target === dialog && event.propertyName === "translate") {
-            completeClose();
-        }
+<span bind:this={anchor} hidden style:height="var(--app-shell-header-height, 0px)"></span>
+
+<Dialog
+    open={dialogOpen}
+    {modal}
+    trapFocus={modal}
+    preventScroll={modal}
+    closeOnInteractOutside={modal}
+    restoreFocus={!converting}
+    initialFocusEl={initialFocus}
+    onOpenChange={handleOpenChange}
+    onRequestDismiss={(event) => {
+        // Panels are independently controlled siblings, not nested dialogs.
+        // Closing/reconfiguring an older panel must not dismiss newer ones.
+        event.preventDefault();
     }}
 >
-    {@render resizer?.()}
-    <header
-        class="flex items-center justify-between gap-2 border-b border-[color:var(--border-subtle)] px-5 py-4"
-    >
-        <h2 class="m-0 text-h3 font-semibold text-content-primary">
-            {title}
-        </h2>
-        <div class="flex items-center gap-1">
-            {@render headerAction?.()}
-            <button
-                bind:this={closeButton}
-                type="button"
-                class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:size-icon-md"
-                aria-label={closeLabel}
-                onclick={requestClose}
-                data-testid="{testid}-close"
-            >
-                <ui5-icon class="text-current" name="decline" aria-hidden="true"></ui5-icon>
-            </button>
+    <Portal>
+        <div class="contents" style:--app-shell-header-height={headerHeight}>
+            <Dialog.Backdrop
+                class="panel-shell-backdrop pointer-events-auto fixed inset-0 z-40 {backdropClass}"
+                hidden={!open || !modal}
+                data-state={open && modal ? "open" : "closed"}
+                data-testid="{testid}-backdrop"
+            />
+            <Dialog.Positioner class="panel-shell-positioner pointer-events-none fixed inset-0 z-40">
+                <Dialog.Content
+                    class={[
+                        "panel-shell pointer-events-auto fixed m-0 flex flex-col overflow-hidden border-0 bg-surface-default p-0 text-content-primary outline-none",
+                        placement === "right" && "top-[var(--app-shell-header-height,0px)] right-0 bottom-0 left-auto h-auto max-h-[calc(100dvh-var(--app-shell-header-height,0px))] max-w-screen",
+                        placement === "bottom" && "inset-x-0 bottom-0 top-auto max-h-[calc(100dvh-var(--app-shell-header-height,0px))] w-screen max-w-screen",
+                        dialogClass,
+                    ]}
+                    style={dialogStyle}
+                    hidden={!open}
+                    data-state={open ? "open" : "closed"}
+                    data-testid={testid}
+                    data-placement={placement}
+                    data-panel-surface
+                    ontransitionend={(event) => {
+                        if (event.target === panel && event.propertyName === "translate") {
+                            completeClose();
+                        }
+                    }}
+                >
+                    {#snippet element(attributes)}
+                        <div {...attributes} bind:this={panel}>
+                            {@render resizer?.()}
+                            <header class="flex items-center justify-between gap-2 border-b border-[color:var(--border-subtle)] px-5 py-4">
+                                <Dialog.Title>
+                                    {#snippet element(titleAttributes)}
+                                        <h2 {...titleAttributes} class="m-0 text-h3 font-semibold text-content-primary">{title}</h2>
+                                    {/snippet}
+                                </Dialog.Title>
+                                <div class="flex items-center gap-1">
+                                    {@render headerAction?.()}
+                                    <Dialog.CloseTrigger
+                                        class="cursor-pointer rounded-[var(--radius-sm)] border-0 bg-transparent p-1.5 leading-none text-content-tertiary hover:bg-surface-sunken hover:text-content-primary focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] [&_ui5-icon]:size-icon-md"
+                                        aria-label={closeLabel}
+                                        data-testid="{testid}-close"
+                                    >
+                                        {#snippet element(closeAttributes)}
+                                            <button {...closeAttributes} bind:this={closeButton}>
+                                                <ui5-icon class="text-current" name="decline" aria-hidden="true"></ui5-icon>
+                                            </button>
+                                        {/snippet}
+                                    </Dialog.CloseTrigger>
+                                </div>
+                            </header>
+                            <div class="flex-1 overflow-auto px-5 py-4">
+                                {@render children()}
+                            </div>
+                            {#if footer}
+                                <footer class="border-t border-outline-subtle bg-surface-subtle px-5 py-3">
+                                    {@render footer()}
+                                </footer>
+                            {/if}
+                        </div>
+                    {/snippet}
+                </Dialog.Content>
+            </Dialog.Positioner>
         </div>
-    </header>
-    <div class="flex-1 overflow-auto px-5 py-4">
-        {@render children()}
-    </div>
-    {#if footer}
-        <footer class="border-t border-outline-subtle bg-surface-subtle px-5 py-3">
-            {@render footer()}
-        </footer>
-    {/if}
-</dialog>
+    </Portal>
+</Dialog>
 
 <style>
-    .panel-shell {
+    :global(.panel-shell) {
         --panel-closed-translate: 0 100%;
 
         translate: 0 0;
@@ -273,54 +276,54 @@
         transition:
             translate var(--motion-base, 240ms) cubic-bezier(var(--ease-out, 0.16, 1, 0.3, 1)),
             opacity var(--motion-base, 240ms) cubic-bezier(var(--ease-out, 0.16, 1, 0.3, 1)),
-            display var(--motion-base, 240ms) allow-discrete,
-            overlay var(--motion-base, 240ms) allow-discrete;
+            display var(--motion-base, 240ms) allow-discrete;
     }
 
-    .panel-shell[data-placement="right"] {
+    :global(.panel-shell[data-placement="right"]) {
         --panel-closed-translate: 100% 0;
     }
 
-    .panel-shell:not([open]) {
+    :global(.panel-shell[data-state="closed"]) {
         display: none;
         translate: var(--panel-closed-translate);
         opacity: 0;
     }
 
     @starting-style {
-        .panel-shell[open] {
+        :global(.panel-shell[data-state="open"]) {
             translate: var(--panel-closed-translate);
             opacity: 0;
         }
     }
 
-    .panel-shell::backdrop {
+    :global(.panel-shell-backdrop) {
+        z-index: calc(40 + var(--layer-index, 0) * 2);
+        background: var(--scrim);
         opacity: 1;
         transition:
             opacity var(--motion-base, 240ms) cubic-bezier(var(--ease, 0.4, 0, 0.2, 1)),
-            display var(--motion-base, 240ms) allow-discrete,
-            overlay var(--motion-base, 240ms) allow-discrete;
+            display var(--motion-base, 240ms) allow-discrete;
     }
 
-    .panel-shell:not([open])::backdrop {
+    :global(.panel-shell-positioner) {
+        z-index: calc(41 + var(--layer-index, 0) * 2);
+    }
+
+    :global(.panel-shell-backdrop[data-state="closed"]) {
+        display: none;
         opacity: 0;
     }
 
     @starting-style {
-        .panel-shell[open]::backdrop {
+        :global(.panel-shell-backdrop[data-state="open"]) {
             opacity: 0;
         }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .panel-shell,
-        .panel-shell::backdrop {
+        :global(.panel-shell),
+        :global(.panel-shell-backdrop) {
             transition: none;
-        }
-
-        .panel-shell:not([open]) {
-            translate: 0 0;
-            opacity: 1;
         }
     }
 </style>

@@ -1,4 +1,4 @@
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -23,12 +23,14 @@ describe("<BottomSheet>", () => {
     await page.viewport(1200, 800);
     const onClose = vi.fn();
     await render(BottomSheetFixture, { modal: false, onClose, open: true });
-    const dialog = page.getByTestId("bottom-sheet").element() as HTMLDialogElement;
-    expect(dialog.matches(":modal")).toBe(false);
+    await expect.element(page.getByTestId("bottom-sheet")).toHaveAttribute("aria-modal", "false");
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(page.getByTestId("bottom-sheet-close").element()),
+    );
 
     const outside = page.getByTestId("outside-btn").element() as HTMLButtonElement;
     outside.focus();
-    outside.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    await userEvent.keyboard("{Escape}");
     await expect.element(page.getByTestId("bottom-sheet")).not.toBeVisible();
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -45,10 +47,9 @@ describe("<BottomSheet>", () => {
     const onClose = vi.fn();
     await render(BottomSheetFixture, { onClose, open: true });
     await page.viewport(1200, 800);
-    const dialog = page.getByTestId("bottom-sheet").element() as HTMLDialogElement;
     await expect.element(page.getByTestId("bottom-sheet")).toBeVisible();
-    // Click the dialog element itself (the backdrop region), not its content.
-    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    // oxlint-disable-next-line eslint/id-length -- Playwright names the coordinate fields x/y.
+    await page.getByTestId("bottom-sheet-backdrop").click({ position: { x: 600, y: 50 } });
     await expect.element(page.getByTestId("bottom-sheet")).not.toBeVisible();
     expect(onClose).toHaveBeenCalled();
   });

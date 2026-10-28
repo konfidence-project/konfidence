@@ -1,4 +1,4 @@
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -23,8 +23,7 @@ describe("<SidePanel>", () => {
     await page.viewport(1200, 600);
     const onClose = vi.fn();
     await render(SidePanelFixture, { modal: false, onClose, open: true });
-    const dialog = page.getByTestId("side-panel").element() as HTMLDialogElement;
-    expect(dialog.matches(":modal")).toBe(false);
+    await expect.element(page.getByTestId("side-panel")).toHaveAttribute("aria-modal", "false");
 
     await page.getByTestId("outside-btn").click();
     await expect.element(page.getByTestId("side-panel")).toBeVisible();
@@ -46,11 +45,11 @@ describe("<SidePanel>", () => {
 
   it("converts an open panel between non-modal and modal presentation", async () => {
     await render(SidePanelFixture, { modal: false, open: true });
-    const dialog = page.getByTestId("side-panel").element() as HTMLDialogElement;
-    expect(dialog.matches(":modal")).toBe(false);
+    const dialog = page.getByTestId("side-panel").element() as HTMLElement;
+    expect(dialog.getAttribute("aria-modal")).toBe("false");
 
     await page.getByTestId("toggle-modal").click();
-    await vi.waitFor(() => expect(dialog.matches(":modal")).toBe(true));
+    await expect.element(dialog).toHaveAttribute("aria-modal", "true");
     await expect.element(page.getByTestId("side-panel")).toBeVisible();
   });
 
@@ -60,7 +59,15 @@ describe("<SidePanel>", () => {
     await expect.element(page.getByRole("dialog", { name: "Details" })).toBeVisible();
     await expect.element(page.getByRole("dialog", { name: "Second details" })).toBeVisible();
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(
+        page
+          .getByRole("dialog", { name: "Second details" })
+          .getByTestId("side-panel-close")
+          .element(),
+      ),
+    );
+    await userEvent.keyboard("{Escape}");
 
     await expect
       .element(page.getByRole("dialog", { name: "Second details" }))
@@ -97,8 +104,8 @@ describe("<SidePanel>", () => {
     });
     const dialog = page.getByRole("dialog", { name: "Closing panel" });
     await dialog.getByTestId("side-panel-close").click();
-    const element = dialog.element() as HTMLDialogElement;
-    await vi.waitFor(() => expect(element.open).toBe(false));
+    const element = dialog.element() as HTMLElement;
+    await expect.element(element).toHaveAttribute("data-state", "closed");
     element.dispatchEvent(
       new TransitionEvent("transitionend", { bubbles: true, propertyName: "translate" }),
     );
@@ -144,9 +151,10 @@ describe("<SidePanel>", () => {
     it("insets the backdrop to clear the header when the header-height variable is present", async () => {
       await page.viewport(560, 480);
       await render(SidePanelFixture, { headerHeight: "60px", open: true });
-      const dialog = page.getByTestId("side-panel").element() as HTMLElement;
       await expect.element(page.getByTestId("side-panel")).toBeVisible();
-      const backdrop = getComputedStyle(dialog, "::backdrop").backgroundImage;
+      const backdrop = getComputedStyle(
+        page.getByTestId("side-panel-backdrop").element(),
+      ).backgroundImage;
       expect(backdrop).toContain("60px");
       expect(backdrop).toMatch(/rgba\(0, 0, 0, 0\)\s+60px,\s*rgba\(45, 30, 8, 0\.42\)\s+60px/);
     });

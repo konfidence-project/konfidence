@@ -46,7 +46,8 @@
     {title}
     placement="right"
     testid="side-panel"
-    dialogClass="side-panel border-l border-l-outline-subtle shadow-[-8px_0_24px_rgba(0,0,0,0.12)] backdrop:bg-[linear-gradient(to_bottom,transparent_0,transparent_var(--app-shell-header-height,0px),var(--scrim)_var(--app-shell-header-height,0px))]"
+    dialogClass="side-panel border-l border-l-outline-subtle shadow-[-8px_0_24px_rgba(0,0,0,0.12)]"
+    backdropClass="side-panel-backdrop"
     dialogStyle="width: min({effectiveWidth}px, 100vw)"
     {onClose}
     {modal}
@@ -81,6 +82,10 @@
 </PanelShell>
 
 <style>
+    :global(.side-panel-backdrop) {
+        background: linear-gradient(to bottom, transparent 0, transparent var(--app-shell-header-height, 0px), var(--scrim) var(--app-shell-header-height, 0px));
+    }
+
     @media (max-width: 767px) {
         :global(.side-panel) {
             width: 100vw !important;
