@@ -1,24 +1,27 @@
 // Package controller implements the VectorPromotion lifecycle.
 //
-// # Objects and writers
+// # Objects
 //
-// A `VectorPromotionConfig` declares one promotion flow (source, target
-// landscape/stage, gates) and is mutable. A `VectorPromotion` is one execution
-// request against it: `spec.vector`, `spec.gates` and `spec.sequence` are
-// pinned at creation and immutable. Promotions are
-// created by the config reconciler (vectorpromotionconfig_controller.go) when
-// the source vector drifts from the target stage; it stamps `spec.sequence`
-// from the config's `status.sequence` and sets a controller owner reference,
-// so deleting a config garbage-collects its promotions.
+// A VectorPromotionConfig declares one promotion flow (source, target
+// landscape/stage, and gates) and is mutable. A VectorPromotion is a single
+// execution request against that config: its spec.vector, spec.gates, and
+// spec.sequence are pinned at creation and immutable.
 //
-// Following the Kubernetes API conventions, a promotion has no phase field
-// and its conditions are observations, not a state machine. Every decision is
-// level-based on these facts and never on a condition reason:
+// The config reconciler (vectorpromotionconfig_controller.go) creates a
+// VectorPromotion whenever the source vector drifts from the target stage. It
+// sets a controller owner reference, so deleting a config garbage-collects its
+// promotions.
+//
+// # Status and writers
+//
+// Following the Kubernetes API conventions, a promotion has no phase field;
+// its conditions are observations, not a state machine.
 //
 //	status.gates                 per-gate state and provenance (gate writers)
-//	GatesSatisfied condition     False while a gate is not satisfied yet
-//	                             (GatesPending, GateError); latches True once
-//	                             all are satisfied and is never written again
+//	GatesSatisfied condition     False while any gate is unsatisfied
+//	                             (GatesPending, GateError); becomes True once
+//	                             all gates are satisfied, then is never written
+//	                             again
 //	TargetResolved condition     whether the target Stage resolves
 //	status.startTime             execution started (set once)
 //	Succeeded condition          Unknown while active; True (succeeded) or
@@ -26,80 +29,91 @@
 //	                             with status.completionTime; never changes
 //	                             after that
 //
-// Reasons only explain a status. The display status of the konfidence API
-// (Waiting, Ready, InProgress, Blocked, Succeeded, Superseded) is derived
-// from these facts in the API layer. All writes go through `updateStatus`,
-// which applies a set of mutations in one optimistic-locked status patch.
-// Promotion status has several writers — this controller, and the gate
-// writers (gate controllers and the konfidence API via
-// `vectorpromotion.Approve`), which set gate entries through
-// `pkg/promotiongate` — so a stale write conflicts and is retried on fresh
-// state instead of overwriting another writer's entry. The controller never
-// interprets gate types. Config status has two writers with disjoint fields —
-// the config reconciler mirrors `lastPromotion*` from the promotions and owns
-// `conditions` (Ready) and `sequence` — so config status patches are plain
-// merge patches; that only holds while the fields stay disjoint.
+// Reasons only explain a status. The API layer derives the konfidence display
+// status (Waiting, Ready, InProgress, Blocked, Succeeded, Superseded) from
+// these facts.
+//
+// Promotion status has several writers: this controller, and the gate writers
+// (gate controllers and the konfidence API via vectorpromotion.Approve) that
+// set gate entries through pkg/promotiongate. Status writes use optimistic
+// locking to handle conflicts. The controller never interprets gate types.
 //
 // # Lifecycle
 //
-//	   (created by drift controller, gates snapshotted from the config)
-//	              |
-//	gate phase: seed Pending entries, Succeeded=Unknown,
-//	   |        GatesSatisfied=False ──all Satisfied──> GatesSatisfied=True
-//	   |   (gate in Error: reason GateError + warning event)
-//	   |   (no gates: GatesSatisfied=True on the first reconcile)
-//	   └── outstanding limit exceeded ──> Succeeded=False
-//	        (oldest waiting promotion, reason OutstandingLimitReached)
-//	                         v
-//	   serialization (one started promotion per config, newest with
-//	   latched gates wins, older siblings Succeeded=False/PromotionSuperseded)
-//	                         |
-//	          target resolves? ──no──> TargetResolved=False (retried,
-//	               |yes                  config Ready=False)
-//	               v
-//	 TargetResolved=True, startTime ──> Stage write ──> Succeeded=True,
-//	                                                    completionTime
+//	a VectorPromotion is created by the drift controller;
+//	its gates are copied from the config and frozen at creation
+//	  │
+//	  ▼
+//	┌──────────────────────────────────────────────────┐
+//	│ GATE PHASE                                       │
+//	│   seed a Pending entry per declared gate         │
+//	│   Succeeded=Unknown, GatesSatisfied=False        │
+//	└──────────────────────────────────────────────────┘
+//	  │
+//	  ├──▶ a gate errors → GateError reason + warning event (keeps waiting)
+//	  │
+//	  ├──▶ outstanding limit exceeded → Succeeded=False
+//	  │        (OutstandingLimitReached, terminal)
+//	  │
+//	  ▼   all gates satisfied (immediately when there are none)
+//	GatesSatisfied=True → gates freeze
+//	  │
+//	  ▼
+//	┌──────────────────────────────────────────────────┐
+//	│ SERIALIZATION                                    │
+//	│   one started promotion per config               │
+//	│   newest with satisfied gates wins               │
+//	└──────────────────────────────────────────────────┘
+//	  │
+//	  ├──▶ older siblings → Succeeded=False
+//	  │        (PromotionSuperseded, terminal)
+//	  │
+//	  ▼
+//	target Stage resolves?
+//	  │
+//	  ├──▶ no → TargetResolved=False, retried (config Ready=False)
+//	  │
+//	  ▼   yes
+//	TargetResolved=True, startTime set
+//	  │
+//	  ▼
+//	┌──────────────────────────────────────────────────┐
+//	│ EXECUTION                                        │
+//	│   write the promoted vector to the Stage         │
+//	└──────────────────────────────────────────────────┘
+//	  │
+//	  ▼
+//	Succeeded=True, completionTime set
 //
-// A reconcile stops for a finished promotion, runs the gate phase until
-// GatesSatisfied latches and, in the same pass, continues to execution.
+// keepOutstandingPromotions limits how many promotions per config may have
+// unsatisfied gates (default 10). When the limit is exceeded, the oldest of
+// them, ordered by spec.sequence, finish with
+// Succeeded=False/OutstandingLimitReached and can no longer be approved or
+// executed. A value of 0 allows unlimited waiting promotions.
 //
-// `keepOutstandingPromotions` limits the number of promotions per
-// configuration whose gates have not latched. The default limit is 10. If the
-// limit is exceeded, the oldest of them, ordered by `spec.sequence`, finish
-// with Succeeded=False/OutstandingLimitReached and can no longer be approved
-// or executed. A value of 0 allows an unlimited number of waiting promotions.
+// Gates can change only until GatesSatisfied is set or the promotion finishes.
+// The optimistic lock makes "all satisfied → GatesSatisfied set" atomic with
+// respect to a gate being reopened concurrently.
 //
-// Gates can change only until GatesSatisfied latches or the promotion
-// finishes. The optimistic lock makes "all
-// satisfied → latch" atomic with respect to a gate being reopened
-// concurrently.
-//
-// Finished promotions are cleaned up by the retention controller using
-// `ttlAfterFinished` (measured from `completionTime`) and bounded per config
-// by `keepLastPromotions`.
-//
-// # Crash recovery
-//
-// Execution is idempotent: on resume `startTime` is already set and
-// `promoteStage` no-ops when the stage already carries the vector, so a
-// crashed reconcile simply re-runs. There is no execution deadline: with a
-// single worker, a promotion is only observed started-but-unfinished when its
-// last reconcile did not finish (crash or returned error), and its own retry
-// completes it. A promotion whose Stage write is rejected for good stays
-// started and keeps blocking newer promotions of its config until the cause
-// is fixed.
+// The retention controller cleans up finished promotions using ttlAfterFinished
+// (measured from completionTime) and bounds them per config by
+// keepLastPromotions.
 //
 // # Files
 //
-// The reconciler is split by phase: gates
-// (vectorpromotion_gates.go), serialization
-// (vectorpromotion_serialization.go), execution and config mirroring
-// (vectorpromotion_execution.go), status update helpers
-// (vectorpromotion_status.go), TTL and retention
-// (vectorpromotion_ttl_controller.go). The config reconciler is split the
-// same way: reference resolution (vectorpromotionconfig_resolution.go),
-// drift creation (vectorpromotionconfig_drift.go), watch mapping and
-// predicates (vectorpromotionconfig_watches.go), config status plumbing
-// (vectorpromotionconfig_status.go), with the reconciler and wiring in
-// vectorpromotionconfig_controller.go.
+// The VectorPromotion reconciler spans several files:
+//
+//   - vectorpromotion_gates.go: gate seeding and the GatesSatisfied condition
+//   - vectorpromotion_serialization.go: serialization and superseding siblings
+//   - vectorpromotion_execution.go: target resolution, Stage write, and config mirroring
+//   - vectorpromotion_status.go: status update helpers
+//   - vectorpromotion_ttl_controller.go: TTL and retention
+//
+// The VectorPromotionConfig reconciler spans several files too:
+//
+//   - vectorpromotionconfig_resolution.go: reference resolution
+//   - vectorpromotionconfig_drift.go: drift detection and promotion creation
+//   - vectorpromotionconfig_watches.go: watch mapping and predicates
+//   - vectorpromotionconfig_status.go: config status plumbing
+//   - vectorpromotionconfig_controller.go: reconciler and wiring
 package controller

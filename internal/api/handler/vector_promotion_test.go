@@ -250,7 +250,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		expectAPIError(resp, err, http.StatusConflict)
 	})
 
-	It("returns 409 when the promotion gates already latched", func() {
+	It("returns 409 when the promotion gates are already satisfied", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}

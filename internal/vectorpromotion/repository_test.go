@@ -134,7 +134,7 @@ var _ = Describe("Repository", func() {
 			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrAlreadyApproved))
 		})
 
-		It("rejects a promotion whose gates already latched", func() {
+		It("rejects a promotion whose gates are already satisfied", func() {
 			repo := newRepository(newPromotion(metav1.Condition{
 				Type:   konfidence.ConditionTypeGatesSatisfied,
 				Status: metav1.ConditionTrue,

@@ -23,7 +23,7 @@ func IsSucceeded(p *konfidence.VectorPromotion) bool {
 	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
 
-// GatesCleared reports whether the GatesSatisfied condition latched True.
+// GatesCleared reports whether the GatesSatisfied condition is True.
 func GatesCleared(p *konfidence.VectorPromotion) bool {
 	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)
 }

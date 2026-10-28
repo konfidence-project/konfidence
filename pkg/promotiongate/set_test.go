@@ -133,7 +133,7 @@ var _ = Describe("Set", func() {
 		},
 		Entry("never reconciled", nil, true),
 		Entry("a gate not satisfied yet", setConditions(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse), true),
-		Entry("gates latched", setConditions(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), false),
+		Entry("gates satisfied", setConditions(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), false),
 		Entry("active", setConditions(konfidence.ConditionTypeSucceeded, metav1.ConditionUnknown), true),
 		Entry("superseded while waiting", setConditions(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), false),
 		Entry("succeeded", setConditions(konfidence.ConditionTypeSucceeded, metav1.ConditionTrue), false),

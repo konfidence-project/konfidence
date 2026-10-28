@@ -10,9 +10,8 @@ const (
 	VectorPromotionKind = "VectorPromotion"
 
 	// ConditionTypeGatesSatisfied reports whether every declared gate is
-	// satisfied. It latches: once True it never changes again, and the gates
-	// are frozen from then on. Promotions without gates get True on their
-	// first reconcile.
+	// satisfied. Once True it never changes again, and the gates are frozen
+	// from then on. Promotions without gates get True on their first reconcile.
 	ConditionTypeGatesSatisfied = "GatesSatisfied"
 	// ConditionTypeTargetResolved reports whether the target Stage and its
 	// Landscape resolve. Execution retries while it is False.

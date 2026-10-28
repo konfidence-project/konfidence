@@ -19,9 +19,8 @@ import (
 // the active promotion (Succeeded=Unknown) on first sight, and reports the
 // gates on the GatesSatisfied condition: False (GatesPending or GateError)
 // while a gate is not satisfied yet, True once every gate is satisfied
-// (immediately for
-// promotions without gates). GatesSatisfied latches: it is never written again
-// after True, and pkg/promotiongate refuses gate changes from then on.
+// (immediately for promotions without gates). Once True, GatesSatisfied is
+// never written again, and pkg/promotiongate refuses gate changes from then on.
 func (r *VectorPromotionReconciler) reconcileGates(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
 	log := logf.FromContext(ctx)
 	previous := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied).DeepCopy()

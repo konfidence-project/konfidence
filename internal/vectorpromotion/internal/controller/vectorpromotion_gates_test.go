@@ -78,11 +78,11 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 		Expect(stage.Spec.Vector).To(Equal(testVector))
 	})
 
-	It("freezes the gates once GatesSatisfied latched", func() {
+	It("freezes the gates once GatesSatisfied is True", func() {
 		promotion := createPromotionRequiringApproval("gates-freeze", "some-config")
 		approvePromotion(promotion)
 
-		By("the gate phase latches GatesSatisfied")
+		By("the gate phase sets GatesSatisfied")
 		Expect(newExecutionReconciler().reconcileGates(ctx, promotion)).To(Succeed())
 		refreshPromotion(promotion)
 		expectCondition(promotion, konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue, konfidence.ReasonAllGatesSatisfied)
@@ -169,14 +169,14 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 		expectCondition(promotion, konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue, konfidence.ReasonAllGatesSatisfied)
 	})
 
-	It("never rewrites a latched GatesSatisfied condition", func() {
-		promotion := createPromotionRequiringApproval("gates-latch", "some-config")
+	It("never rewrites a satisfied GatesSatisfied condition", func() {
+		promotion := createPromotionRequiringApproval("gates-satisfied", "some-config")
 		approvePromotion(promotion)
 		Expect(newExecutionReconciler().reconcileGates(ctx, promotion)).To(Succeed())
 		refreshPromotion(promotion)
-		latched := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied).DeepCopy()
+		satisfied := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied).DeepCopy()
 
-		By("a reconcile after the latch skips the gate phase and goes to execution")
+		By("a reconcile after it is set skips the gate phase and goes to execution")
 		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: promotion.Name, Namespace: testNamespace},
 		})
@@ -184,7 +184,7 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 		refreshPromotion(promotion)
 		expectCondition(promotion, konfidence.ConditionTypeTargetResolved, metav1.ConditionFalse,
 			konfidence.VectorPromotionConfigLandscapeNotFoundReason)
-		Expect(*meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)).To(Equal(*latched))
+		Expect(*meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)).To(Equal(*satisfied))
 	})
 
 	It("does not touch a terminal promotion", func() {

@@ -103,8 +103,8 @@ func (r *k8sRepository) ListForConfig(ctx context.Context, namespace string,
 // on behalf of approvedBy. It is the single entry point for human approvals
 // (used by the konfidence API) and writes through pkg/promotiongate, like any
 // other gate writer, so state and provenance are set together under optimistic
-// locking. The promotion controller latches GatesSatisfied once it observes
-// every gate satisfied.
+// locking. The promotion controller sets GatesSatisfied True once it observes
+// every gate satisfied, after which it never changes.
 //
 // A missing resource is reported as ErrVectorPromotionNotFound; callers can map
 // ErrPromotionFinished, ErrPromotionExecuting, ErrAlreadyApproved,

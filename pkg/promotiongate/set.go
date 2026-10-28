@@ -18,7 +18,7 @@ var (
 	// ErrGateNotDeclared is returned when the promotion does not declare the gate type.
 	ErrGateNotDeclared = errors.New("gate is not declared on the promotion")
 	// ErrPromotionNotMutable is returned when the promotion's gates are frozen:
-	// GatesSatisfied latched True or the promotion finished.
+	// GatesSatisfied became True or the promotion finished.
 	ErrPromotionNotMutable = errors.New("promotion gates can no longer change")
 	// ErrSetByMissing is returned when no setter identity was supplied.
 	ErrSetByMissing = errors.New("setBy must not be empty")
@@ -27,8 +27,7 @@ var (
 	// ErrTypeMissing is returned when no gate type was supplied.
 	ErrTypeMissing = errors.New("gate type must not be empty")
 	// ErrConflict is returned when a concurrent write changed the promotion
-	// between Set's read and its optimistic-locked patch. The caller should
-	// retry: Set re-reads and re-applies cleanly.
+	// between Set's read and its optimistic-locked patch. The caller should retry.
 	ErrConflict = errors.New("promotion was modified concurrently")
 )
 
@@ -62,19 +61,18 @@ func (u Update) validate() error {
 	}
 }
 
-// apply writes the update onto the in-memory promotion, stamping setAt with
+// applyUpdate writes the update onto the in-memory promotion, stamping setAt with
 // now. It reports whether the status changed. Setting a gate to the state it
 // already has is a no-op that keeps the original provenance, so a gate is set
-// to a given state at most once. It is idempotent, so Set can re-apply it
-// after a conflict retry.
-func apply(p *konfidence.VectorPromotion, u Update, now metav1.Time) (bool, error) {
+// to a given state at most once.
+func applyUpdate(p *konfidence.VectorPromotion, u Update, now metav1.Time) (bool, error) {
 	if err := u.validate(); err != nil {
 		return false, err
 	}
 	if !Declared(p, u.Type) {
 		return false, fmt.Errorf("%w: %q", ErrGateNotDeclared, u.Type)
 	}
-	if !mutable(p) {
+	if !GatesMutable(p) {
 		return false, ErrPromotionNotMutable
 	}
 
@@ -99,26 +97,25 @@ func apply(p *konfidence.VectorPromotion, u Update, now metav1.Time) (bool, erro
 }
 
 // Set sets the state and provenance of one gate on the promotion identified
-// by key in a single optimistic-locked status patch. A concurrent write
-// between the read and the patch returns ErrConflict; the caller retries (a
-// controller by requeuing, the API by surfacing 409). It returns ErrNotFound,
+// by name in a single optimistic-locked status patch. A concurrent write
+// between the read and the patch returns ErrConflict. It returns ErrNotFound,
 // ErrGateNotDeclared, ErrPromotionNotMutable, ErrSetByMissing, ErrTypeMissing,
-// ErrInvalidState or ErrConflict (wrapped) for the corresponding failures.
-func Set(ctx context.Context, c client.Client, key types.NamespacedName, u Update) error {
-	if err := u.validate(); err != nil {
+// ErrInvalidState or ErrConflict for the corresponding failures.
+func Set(ctx context.Context, c client.Client, vectorPromotionName types.NamespacedName, update Update) error {
+	if err := update.validate(); err != nil {
 		return err
 	}
 
 	vectorPromotion := &konfidence.VectorPromotion{}
-	if err := c.Get(ctx, key, vectorPromotion); err != nil {
+	if err := c.Get(ctx, vectorPromotionName, vectorPromotion); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ErrNotFound
 		}
-		return fmt.Errorf("failed to fetch VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
+		return fmt.Errorf("failed to fetch VectorPromotion %q in namespace %q: %w", vectorPromotionName.Name, vectorPromotionName.Namespace, err)
 	}
 
 	original := vectorPromotion.DeepCopy()
-	changed, err := apply(vectorPromotion, u, metav1.Now())
+	changed, err := applyUpdate(vectorPromotion, update, metav1.Now())
 	if err != nil || !changed {
 		return err
 	}
@@ -129,7 +126,7 @@ func Set(ctx context.Context, c client.Client, key types.NamespacedName, u Updat
 			return ErrConflict
 		}
 		return fmt.Errorf("failed to patch gate %q onto VectorPromotion %q in namespace %q: %w",
-			u.Type, key.Name, key.Namespace, err)
+			update.Type, vectorPromotionName.Name, vectorPromotionName.Namespace, err)
 	}
 	return nil
 }

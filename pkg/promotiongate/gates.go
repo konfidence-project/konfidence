@@ -34,11 +34,11 @@ func StateOf(p *konfidence.VectorPromotion, gateType string) konfidence.Promotio
 	return konfidence.PromotionGateStatePending
 }
 
-// mutable reports whether the promotion's gates may still change: only while
-// its GatesSatisfied condition is not True and it has not finished (Succeeded
-// is not True or False). GatesSatisfied latches True once every gate is
-// satisfied, which freezes the gates.
-func mutable(p *konfidence.VectorPromotion) bool {
+// GatesMutable reports whether a gate write can still change the promotion.
+// Gates stay mutable while GatesSatisfied is not yet True and the promotion has
+// not finished (Succeeded is neither True nor False); GatesSatisfied freezes
+// them once every gate is satisfied.
+func GatesMutable(p *konfidence.VectorPromotion) bool {
 	return !meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeGatesSatisfied) &&
 		!meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeSucceeded) &&
 		!meta.IsStatusConditionFalse(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
