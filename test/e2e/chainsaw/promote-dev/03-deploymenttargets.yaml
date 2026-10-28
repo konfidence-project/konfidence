@@ -1,13 +1,11 @@
-# One local target per deployment class.
+# No parameters means deployment to the local cluster.
 apiVersion: konfidence.cloud/v1alpha1
 kind: DeploymentTarget
 metadata:
   name: local-kustomize
   namespace: kden-l-dev
 spec:
-  deploymentClassName: kustomize.konfidence.cloud
-  connection:
-    type: local
+  artifactType: kustomize.konfidence.cloud
 ---
 apiVersion: konfidence.cloud/v1alpha1
 kind: DeploymentTarget
@@ -15,6 +13,4 @@ metadata:
   name: local-helm
   namespace: kden-l-dev
 spec:
-  deploymentClassName: helm.konfidence.cloud
-  connection:
-    type: local
+  artifactType: helm.konfidence.cloud

@@ -5,15 +5,17 @@ in-cluster `/healthz` requests. See [#371](https://github.com/konfidence-project
 
 ## Run
 
-Requires Chainsaw, kubectl, Helm, and registry write access. Use a fresh disposable
-cluster with konfidence, Kubernetes Landscape Orchestrator, and Flux installed.
-The quickstart installer reuses an existing cluster.
+Requires Docker, Python 3, and registry write access. Activate Hermit for the
+pinned build and cluster tools. The bootstrap builds the operator, API, and UI
+from the working tree and installs the local chart.
 
 ```sh
-sh hack/quickstart/quickstart.sh install
+source bin/activate-hermit
+export KUBECONFIG="$PWD/.tmp/e2e/kubeconfig"
 export REGISTRY=registry.example/e2e
 export REGISTRY_USERNAME=...
 export REGISTRY_PASSWORD=...
+make e2e-up
 make test-e2e
 ```
 
@@ -21,6 +23,10 @@ Export the registry variables in each new shell; Docker login only stores creden
 
 `COMPONENT_REGISTRY` defaults to `ghcr.io/konfidence-project/example-app`.
 `VECTOR_DATA_SERVICE_VERSION` overrides the pinned chart version.
+
+Flux, Gateway API, the kind node image, and the orchestrator commit are pinned in
+`hack/e2e/versions.env`. The orchestrator is built against this checkout's deployer
+library. It currently uses the compatible commit from orchestrator PR #86.
 
 JUnit report:
 
@@ -34,6 +40,18 @@ Keep resources for debugging:
 ```sh
 make test-e2e CHAINSAW_ARGS="--skip-delete"
 ```
+
+## Pipeline
+
+Add the `e2e` label to a same-repository PR, or select a branch under
+Actions → E2E → Run workflow. New commits to a labelled PR cancel its previous run.
+Fork PRs are skipped because their token cannot publish packages.
+
+The workflow builds the checked-out PR merge commit, runs the suite in fresh kind,
+and publishes JUnit results and logs. Vectors use a run-specific GHCR prefix:
+`ghcr.io/konfidence-project/konfidence/e2e/run-<id>-<attempt>`.
+PR images stay local to kind. This workflow is not part of `ci-gate` or required
+checks. Whole-cluster snapshots are not included.
 
 ## Checks
 
@@ -49,14 +67,18 @@ earlier `--skip-delete` run.
 
 On a fresh cluster, cleanup removes the app and database fixtures, then the
 registry Secret and Flux ConfigMap in `konfidence-system`. Project and Landscape
-controllers delete their namespaces. `--skip-delete` preserves newly created resources.
+fixtures set `deletionPolicy: Delete` to remove their namespaces.
+`--skip-delete` preserves newly created resources.
 
 Registry credentials are read at controller startup
 ([#393](https://github.com/konfidence-project/konfidence/issues/393)); the test
-restarts the controller after setup and cleanup.
+restarts the controller after setup and after cleanup removes the credentials.
 
 The kind cluster remains. Remove it with:
 
 ```sh
-sh hack/quickstart/quickstart.sh uninstall
+make e2e-down
 ```
+
+`E2E_CLUSTER_NAME` defaults to `konfidence-e2e`. Use the same name for setup and teardown.
+The workflow always tears down its cluster; GHCR packages remain in the run prefix.

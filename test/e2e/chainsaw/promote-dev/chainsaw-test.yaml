@@ -28,8 +28,10 @@ spec:
         - script:
             content: |
               set -eu
-              kubectl rollout restart deployment/konfidence -n konfidence-system
-              kubectl rollout status deployment/konfidence -n konfidence-system --timeout=120s
+              if [ -z "$(kubectl get secret registry-credentials -n konfidence-system --ignore-not-found -o name)" ]; then
+                kubectl rollout restart deployment/konfidence -n konfidence-system
+                kubectl rollout status deployment/konfidence -n konfidence-system --timeout=120s
+              fi
 
     - name: project
       try:

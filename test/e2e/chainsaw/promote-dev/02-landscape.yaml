@@ -6,3 +6,4 @@ metadata:
 spec:
   displayName: Development
   namespace: kden-l-dev
+  deletionPolicy: Delete

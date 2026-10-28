@@ -4,6 +4,7 @@ metadata:
   name: example-app
 spec:
   displayName: Example App
+  deletionPolicy: Delete
   roleBindings:
     admin:
       - session:

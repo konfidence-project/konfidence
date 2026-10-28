@@ -153,10 +153,7 @@ func CreateArtifactDeployment(ctx context.Context, k8sClient client.Client, name
 			Namespace: namespace,
 		},
 		Spec: konfidence.ArtifactDeploymentSpec{
-			Manifest: konfidence.ArtifactManifest{
-				Type:       "image",
-				AllowReuse: true,
-			},
+			ArtifactType:  konfidence.MustArtifactType("image.example.com"),
 			TaskManifests: taskManifest,
 			Component: konfidence.OCMComponent{
 				Name: "service",

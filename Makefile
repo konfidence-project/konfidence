@@ -285,6 +285,15 @@ test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden AP
 # Setup and registry variables: test/e2e/chainsaw/README.md.
 CHAINSAW      ?= chainsaw
 CHAINSAW_ARGS ?=
+
+.PHONY: e2e-up
+e2e-up: hermit ## Build current images and install them in an isolated kind cluster.
+	bash hack/e2e/cluster.sh up
+
+.PHONY: e2e-down
+e2e-down: ## Delete the e2e kind cluster.
+	bash hack/e2e/cluster.sh down
+
 .PHONY: test-e2e
 test-e2e: ## Run Chainsaw e2e tests against the current cluster.
 	@: "$${REGISTRY:?Set REGISTRY}" \
