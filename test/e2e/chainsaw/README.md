@@ -1,12 +1,13 @@
-# Chainsaw e2e test
+# Example-app e2e test
 
-Tests VectorTemplate assembly, promotion to Stage `dev`, and deployment of the
-example app. See [#371](https://github.com/konfidence-project/konfidence/issues/371).
+Tests VectorTemplate assembly, promotion to Stage `dev`, deployment, and
+in-cluster `/healthz` requests. See [#371](https://github.com/konfidence-project/konfidence/issues/371).
 
 ## Run
 
-Requires Chainsaw, kubectl, Helm, and registry write access. Use a disposable
+Requires Chainsaw, kubectl, Helm, and registry write access. Use a fresh disposable
 cluster with konfidence, Kubernetes Landscape Orchestrator, and Flux installed.
+The quickstart installer reuses an existing cluster.
 
 ```sh
 sh hack/quickstart/quickstart.sh install
@@ -15,6 +16,8 @@ export REGISTRY_USERNAME=...
 export REGISTRY_PASSWORD=...
 make test-e2e
 ```
+
+Export the registry variables in each new shell; Docker login only stores credentials.
 
 `COMPONENT_REGISTRY` defaults to `ghcr.io/konfidence-project/example-app`.
 `VECTOR_DATA_SERVICE_VERSION` overrides the pinned chart version.
@@ -40,10 +43,13 @@ make test-e2e CHAINSAW_ARGS="--skip-delete"
 
 ## Cleanup
 
-Chainsaw removes applied resources in reverse order. Project and Landscape
-controllers remove their namespaces. This also removes the database and app.
-The registry Secret and Flux ConfigMap in `konfidence-system` are applied first
-and removed last. `--skip-delete` preserves the resources.
+Chainsaw removes resources created during the current run in reverse order.
+Pre-existing resources are patched and kept, including fixtures left by an
+earlier `--skip-delete` run.
+
+On a fresh cluster, cleanup removes the app and database fixtures, then the
+registry Secret and Flux ConfigMap in `konfidence-system`. Project and Landscape
+controllers delete their namespaces. `--skip-delete` preserves newly created resources.
 
 Registry credentials are read at controller startup
 ([#393](https://github.com/konfidence-project/konfidence/issues/393)); the test

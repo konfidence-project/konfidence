@@ -125,10 +125,11 @@ spec:
                   curl -fsS http://$interviews.$ns.svc.cluster.local/healthz; echo
                 "
       catch:
-        - podLogs: {namespace: kden-l-dev, tail: 200}
+        - podLogs: {namespace: kden-l-dev, selector: app=candidates, tail: 200}
+        - podLogs: {namespace: kden-l-dev, selector: app.kubernetes.io/name, tail: 200}
         - events: {namespace: kden-l-dev}
   catch:
-    - podLogs: {namespace: konfidence-system, tail: 200}
+    - podLogs: {namespace: konfidence-system, selector: app.kubernetes.io/name, tail: 200}
     - events: {namespace: konfidence-system}
     - events: {namespace: kden-p-example-app}
     - events: {namespace: kden-l-dev}
