@@ -285,14 +285,31 @@ test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden AP
 # Setup and registry variables: test/e2e/chainsaw/README.md.
 CHAINSAW      ?= chainsaw
 CHAINSAW_ARGS ?=
+E2E_CLUSTER   ?= konfidence-e2e
+E2E_TAG       := e2e-$(shell date +%s)
+KLO_REPO      ?= konfidence-project/kubernetes-landscape-orchestrator
 
 .PHONY: e2e-up
-e2e-up: hermit ## Build current images and install them in an isolated kind cluster.
-	bash hack/e2e/cluster.sh up
+e2e-up: hermit ## Create a kind cluster with this checkout's operator and the latest orchestrator main build.
+	$(KIND) get clusters | grep -qx $(E2E_CLUSTER) || $(KIND) create cluster --name $(E2E_CLUSTER)
+	$(KIND) export kubeconfig --name $(E2E_CLUSTER)
+	$(KUBECTL) apply --server-side -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml
+	$(KUBECTL) apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/latest/download/standard-install.yaml
+	$(MAKE) docker-build TAG=$(E2E_TAG)
+	$(KIND) load docker-image $(REGISTRY)/konfidence-operator:$(E2E_TAG) --name $(E2E_CLUSTER)
+	$(MAKE) webhook-certs deploy TAG=$(E2E_TAG)
+	@# Orchestrator main publishes images per commit but no charts; use the chart from that commit.
+	ref=$${KLO_REF:-$$(gh run list --repo github.com/$(KLO_REPO) --workflow main-pipeline.yaml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha')}; \
+	test -n "$$ref" || { echo "Set KLO_REF; no successful $(KLO_REPO) main build found." >&2; exit 1; }; \
+	rm -rf .tmp/klo && mkdir -p .tmp/klo && \
+	curl -fsSL "https://github.com/$(KLO_REPO)/archive/$$ref.tar.gz" | tar -xz -C .tmp/klo --strip-components=1 && \
+	$(HELM) upgrade --install kubernetes-landscape-orchestrator .tmp/klo/charts/kubernetes-landscape-orchestrator \
+		--namespace $(NAMESPACE) --set-string image.tag=$$ref --wait
+	$(KUBECTL) wait deployment --all --all-namespaces --for=condition=Available --timeout=300s
 
 .PHONY: e2e-down
-e2e-down: ## Delete the e2e kind cluster.
-	bash hack/e2e/cluster.sh down
+e2e-down: hermit ## Delete the e2e kind cluster.
+	$(KIND) delete cluster --name $(E2E_CLUSTER)
 
 .PHONY: test-e2e
 test-e2e: ## Run Chainsaw e2e tests against the current cluster.
