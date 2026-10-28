@@ -304,7 +304,6 @@ func cleanupVectorDeploymentNamespace(
 ) {
 	gomega.Expect(k8sClient.DeleteAllOf(ctx, &konfidence.VectorDeployment{}, client.InNamespace(namespace))).To(gomega.Succeed())
 	gomega.Expect(k8sClient.DeleteAllOf(ctx, &konfidence.ArtifactDeployment{}, client.InNamespace(namespace))).To(gomega.Succeed())
-	gomega.Expect(k8sClient.DeleteAllOf(ctx, &konfidence.VectorAssignment{}, client.InNamespace(namespace))).To(gomega.Succeed())
 	gomega.Eventually(func(g gomega.Gomega) {
 		list := &konfidence.VectorDeploymentList{}
 		g.Expect(k8sClient.List(ctx, list, client.InNamespace(namespace))).To(gomega.Succeed())

@@ -25,18 +25,6 @@ type LocalArtifactDeploymentReference struct {
 	CollisionCount *int32 `json:"collisionCount,omitempty"`
 }
 
-// LocalVectorDeploymentReference holds a reference to a VectorDeployment in the same namespace.
-type LocalVectorDeploymentReference struct {
-	// Name	is the name of the VectorDeployment. Required.
-	Name string `json:"name"`
-}
-
-// LocalVectorAssignmentReference holds a reference to a VectorAssignment in the same namespace.
-type LocalVectorAssignmentReference struct {
-	// Name	is the name of the VectorAssignment. Required.
-	Name string `json:"name"`
-}
-
 // VectorTemplateReference holds a reference to a VectorTemplate in the same namespace,
 // used as the base of another VectorTemplate.
 type VectorTemplateReference struct {

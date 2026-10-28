@@ -43,8 +43,6 @@ rules:
   - taskexecutions/status
   - vectoractivations
   - vectoractivations/status
-  - vectorassignments
-  - vectorassignments/status
   - vectordeployments
   - vectordeployments/status
   - vectormigrations
