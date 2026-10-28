@@ -1,0 +1,75 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, labeled, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  example-app:
+    name: Example app
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       contains(github.event.pull_request.labels.*.name, 'e2e') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'e2e'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: e2e-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    env:
+      E2E_CLUSTER_NAME: konfidence-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+      KUBECONFIG: ${{ github.workspace }}/.tmp/e2e/kubeconfig
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Activate Hermit
+        uses: cashapp/activate-hermit@v1
+
+      - name: Build and install PR images
+        id: bootstrap
+        run: |
+          mkdir -p e2e-report
+          make e2e-up 2>&1 | tee e2e-report/bootstrap.log
+
+      - name: Test
+        id: test
+        env:
+          REGISTRY: ghcr.io/${{ github.repository }}/e2e/run-${{ github.run_id }}-${{ github.run_attempt }}
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          COMPONENT_REGISTRY: ghcr.io/konfidence-project/example-app
+        run: |
+          auth=$(printf '%s:%s' "$REGISTRY_USERNAME" "$REGISTRY_PASSWORD" | base64 -w0)
+          echo "::add-mask::$auth"
+          make test-e2e CHAINSAW_ARGS="--no-color --report-format JUNIT-TEST --report-path e2e-report" \
+            2>&1 | tee e2e-report/chainsaw.log
+
+      - name: Test summary
+        if: always() && steps.checkout.outcome == 'success'
+        run: python3 hack/e2e/summary.py e2e-report/chainsaw-report.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always() && steps.checkout.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results
+          path: e2e-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Delete kind cluster
+        if: always() && steps.bootstrap.outcome != 'skipped' && steps.bootstrap.outcome != ''
+        run: make e2e-down

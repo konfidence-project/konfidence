@@ -282,6 +282,25 @@ test-kden-cli: hermit ginkgo ## Run unit tests for the kden CLI.
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
 	$(GINKGO) --coverprofile=cover-api.out -v ./cmd/api/... ./internal/api/... ./internal/kden/apiclient/... ./internal/auth/... ./internal/artifactdeployment/...
 
+# Setup and registry variables: test/e2e/chainsaw/README.md.
+CHAINSAW      ?= chainsaw
+CHAINSAW_ARGS ?=
+
+.PHONY: e2e-up
+e2e-up: hermit ## Build current images and install them in an isolated kind cluster.
+	bash hack/e2e/cluster.sh up
+
+.PHONY: e2e-down
+e2e-down: ## Delete the e2e kind cluster.
+	bash hack/e2e/cluster.sh down
+
+.PHONY: test-e2e
+test-e2e: ## Run Chainsaw e2e tests against the current cluster.
+	@: "$${REGISTRY:?Set REGISTRY}" \
+	   "$${REGISTRY_USERNAME:?Set REGISTRY_USERNAME}" \
+	   "$${REGISTRY_PASSWORD:?Set REGISTRY_PASSWORD}"
+	$(CHAINSAW) test test/e2e/chainsaw --config test/e2e/chainsaw/.chainsaw.yaml $(CHAINSAW_ARGS)
+
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
 	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
