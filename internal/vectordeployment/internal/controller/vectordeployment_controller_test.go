@@ -469,7 +469,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 				},
 			},
 			Spec: konfidence.ArtifactDeploymentSpec{
-				Manifest:      konfidence.ArtifactManifest{Type: "cloud.konfidence.flux.helm", AllowReuse: true},
+				ArtifactType:  konfidence.MustArtifactType("helm.konfidence.cloud"),
 				TaskManifests: []konfidence.TaskManifest{},
 				Component:     konfidence.OCMComponent{Name: "github.com/konfidence-project/some-other-service", Version: "9.9.9"},
 			},
@@ -549,7 +549,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 					},
 				},
 				Spec: konfidence.ArtifactDeploymentSpec{
-					Manifest:      konfidence.ArtifactManifest{Type: "cloud.konfidence.flux.helm", AllowReuse: true},
+					ArtifactType:  konfidence.MustArtifactType("helm.konfidence.cloud"),
 					TaskManifests: []konfidence.TaskManifest{},
 					Component:     konfidence.OCMComponent{Name: "github.com/konfidence-project/some-other-service", Version: "9.9.9"},
 				},
