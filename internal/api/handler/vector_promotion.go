@@ -84,20 +84,27 @@ func toVectorPromotionResponse(p konfidence.VectorPromotion) openapi.VectorPromo
 }
 
 // displayState summarizes the promotion's observed facts into the single
-// status shown by the API. It exists only for display; the controllers decide
-// on the facts themselves. Condition reasons are not consulted.
+// status shown by the API.
 func displayState(p *konfidence.VectorPromotion) openapi.VectorPromotionStatus {
 	conditions := p.Status.Conditions
+
+	succeeded := meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeSucceeded)
+	superseded := meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded)
+	finished := succeeded || superseded
+	started := p.Status.StartTime != nil
+	targetUnresolved := meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeTargetResolved)
+	gatesSatisfied := meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeGatesSatisfied)
+
 	switch {
-	case meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeSucceeded):
+	case succeeded:
 		return openapi.VectorPromotionStatusSucceeded
-	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded):
+	case superseded:
 		return openapi.VectorPromotionStatusSuperseded
-	case p.Status.StartTime != nil:
+	case !finished && started:
 		return openapi.VectorPromotionStatusInProgress
-	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeTargetResolved):
+	case !finished && !started && targetUnresolved:
 		return openapi.VectorPromotionStatusBlocked
-	case meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeGatesSatisfied):
+	case !finished && !started && !targetUnresolved && gatesSatisfied:
 		return openapi.VectorPromotionStatusReady
 	default:
 		return openapi.VectorPromotionStatusWaiting
