@@ -13,6 +13,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	vectorocm "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
@@ -70,6 +71,7 @@ type VectorTemplateReconciler struct {
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectortemplates/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
 // Reconcile the VectorTemplate object to detect a vector drift and act upon it.
 func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -80,6 +82,12 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	vectorTemplate := &konfidence.VectorTemplate{}
 	if err := r.Get(ctx, req.NamespacedName, vectorTemplate); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if res, err := pkgctrl.MustBeInProjectNamespace(
+		ctx, r.Client, vectorTemplate, &vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition,
+	); res != nil {
+		return *res, err
 	}
 
 	// preserve original vector template status for patching it later

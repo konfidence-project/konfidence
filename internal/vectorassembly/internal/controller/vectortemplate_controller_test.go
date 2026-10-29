@@ -7,10 +7,12 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	ocm2 "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -653,5 +655,55 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		// The dependent's content did not change, so it converges to NoDriftDetected
 		// (still Ready=True) rather than re-assembling.
 		expectReadyCondition(dependent, metav1.ConditionTrue, konfidence.VectorTemplateNoDriftDetectedReason)
+	})
+})
+
+var _ = Describe("VectorTemplate namespace validation", Serial, func() {
+	It("reports NamespaceNotReady until the project namespace is labeled, then progresses", func() {
+		const unlabeledNS = "vt-without-project-labels"
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: unlabeledNS}}
+		Expect(client.IgnoreAlreadyExists(k8sClient.Create(ctx, ns))).To(Succeed())
+		DeferCleanup(func() {
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, ns))).To(Succeed())
+		})
+
+		vt := &konfidence.VectorTemplate{
+			ObjectMeta: metav1.ObjectMeta{Name: "ns-check-template", Namespace: unlabeledNS},
+			Spec: konfidence.VectorTemplateSpec{
+				UploadTarget: "registry.example/upload",
+				Components:   []konfidence.Component{{Name: "component"}},
+			},
+		}
+		Expect(k8sClient.Create(ctx, vt)).To(Succeed())
+		DeferCleanup(func() {
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, vt))).To(Succeed())
+		})
+
+		By("the Ready condition reports the namespace is not ready")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vt), vt)).To(Succeed())
+			cond := meta.FindStatusCondition(vt.Status.Conditions, konfidence.VectorTemplateReadyCondition)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+			g.Expect(cond.Reason).To(Equal(pkgctrl.NamespaceNotReadyReason))
+		}, timeout, interval).Should(Succeed())
+
+		By("labeling the namespace as a project namespace lets reconcile progress past the check")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: unlabeledNS}, ns)).To(Succeed())
+			if ns.Labels == nil {
+				ns.Labels = map[string]string{}
+			}
+			ns.Labels[pkgctrl.ProjectTypeLabel] = "project"
+			ns.Labels[pkgctrl.ProjectNameLabel] = "test-project"
+			g.Expect(k8sClient.Update(ctx, ns)).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(vt), vt)).To(Succeed())
+			cond := meta.FindStatusCondition(vt.Status.Conditions, konfidence.VectorTemplateReadyCondition)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Reason).NotTo(Equal(pkgctrl.NamespaceNotReadyReason))
+		}, timeout, interval).Should(Succeed())
 	})
 })

@@ -105,7 +105,7 @@ var _ = Describe("Landscape Controller", Ordered, func() {
 		Expect(controller.GetNamespace(ctx, k8sClient, defaultNsName, true)).To(BeNil())
 	})
 
-	It("sets InvalidNamespace status when created in non-project namespace", func() {
+	It("sets NamespaceNotReady status when created in non-project namespace", func() {
 		const regularNsName = "regular-namespace"
 		const landscapeName = "land-invalid"
 
@@ -125,8 +125,7 @@ var _ = Describe("Landscape Controller", Ordered, func() {
 
 		Eventually(func(g Gomega) {
 			landscape := controller.GetLandscape(ctx, k8sClient, landscapeName, regularNsName, false)
-			expectCondition(g, landscape, konfidence.LandscapeReadyCondition, metav1.ConditionFalse, konfidence.LandscapeInvalidNamespaceReason)
-			expectCondition(g, landscape, konfidence.LandscapeNamespaceReadyCondition, metav1.ConditionFalse, konfidence.LandscapeInvalidNamespaceReason)
+			expectCondition(g, landscape, konfidence.LandscapeReadyCondition, metav1.ConditionFalse, pkgctrl.NamespaceNotReadyReason)
 
 			g.Expect(landscape.Status.ProjectName).To(BeEmpty())
 			g.Expect(landscape.Status.Namespace).To(BeEmpty())
@@ -155,6 +154,8 @@ var _ = Describe("Landscape Controller", Ordered, func() {
 		controller.CreateLandscape(ctx, k8sClient, landscapeName, incompleteNsName)
 		DeferCleanup(func() { controller.CleanupLandscape(ctx, k8sClient, landscapeName, incompleteNsName) })
 
+		// The MustBeInProjectNamespace guard only checks konfidence.cloud/type, which is present,
+		// so getProjectName still catches the missing project name label.
 		Eventually(func(g Gomega) {
 			landscape := controller.GetLandscape(ctx, k8sClient, landscapeName, incompleteNsName, false)
 			expectCondition(g, landscape, konfidence.LandscapeReadyCondition, metav1.ConditionFalse, konfidence.LandscapeInvalidNamespaceReason)

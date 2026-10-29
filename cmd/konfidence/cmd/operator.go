@@ -120,24 +120,6 @@ func startOperator(_ *cobra.Command, _ []string) error {
 	if enableWebhooks {
 		setupLog.Info("setting up webhooks")
 
-		// Project namespace resources
-		if err := konfidence.SetupLandscapeWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to set up Landscape webhook")
-			return err
-		}
-		if err := konfidence.SetupVectorTemplateWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to set up VectorTemplate webhook")
-			return err
-		}
-		if err := konfidence.SetupVectorPromotionConfigWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to set up VectorPromotionConfig webhook")
-			return err
-		}
-		// Landscape namespace resources
-		if err := konfidence.SetupStageWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to set up Stage webhook")
-			return err
-		}
 		if err := konfidence.SetupDeploymentTargetWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to set up DeploymentTarget webhook")
 			return err

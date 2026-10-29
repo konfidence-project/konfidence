@@ -1,4 +1,4 @@
-package webhook_test
+package utils_test
 
 import (
 	"testing"
@@ -9,5 +9,5 @@ import (
 
 func TestSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Webhook Validation Suite")
+	RunSpecs(t, "Controller Utils Suite")
 }
