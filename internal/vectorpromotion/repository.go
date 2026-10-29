@@ -124,9 +124,6 @@ func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionI
 		cond := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
 		return fmt.Errorf("%w: %s: %s", ErrPromotionFinished, cond.Reason, cond.Message)
 	}
-	if !promotiongate.Declared(vectorPromotion, konfidence.GateTypeExplicitApproval) {
-		return ErrApprovalNotRequired
-	}
 	if promotiongate.StateOf(vectorPromotion, konfidence.GateTypeExplicitApproval) == konfidence.PromotionGateStateSatisfied {
 		return ErrAlreadyApproved
 	}
