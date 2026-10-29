@@ -202,8 +202,8 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 			}
 
 			var konfidenceManifestDto struct {
-				Type       string `json:"type"`
-				AllowReuse bool   `json:"allowReuse"`
+				Type       konfidence.ArtifactType `json:"type"`
+				AllowReuse bool                    `json:"allowReuse"`
 			}
 			if err := json.Unmarshal(data, &konfidenceManifestDto); err != nil {
 				return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,

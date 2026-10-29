@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 
+	"github.com/konfidence-project/konfidence/api/v1alpha1"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 )
 
@@ -40,7 +41,7 @@ type VectorDescriptor struct {
 }
 
 type ArtifactManifest struct {
-	Type       string
+	Type       v1alpha1.ArtifactType
 	AllowReuse bool
 	Tasks      []TaskManifest
 	Resources  []OCMResource

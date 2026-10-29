@@ -87,10 +87,9 @@ spec:
                1. Pulling the vector from the OCI registry and parsing its contents -> VectorDownloadedCondition
                2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition
                3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition
-               4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition
-               5. Creating the VectorData CR with the resolved authored configuration + aggregated DeploymentResults; the
+               4. Creating the VectorData CR with the resolved authored configuration + aggregated DeploymentResults; the
                   runtime-specific implementor then materialises it (e.g. as a ConfigMap on Kubernetes) -> VectorDataCreatedCondition
-               6. Marking the vector as ready for use once VectorData reports its own Ready=True -> VectorReadyCondition
+               5. Marking the vector as ready for use once VectorData reports its own Ready=True -> VectorReadyCondition
             properties:
               conditions:
                 description: |-
@@ -224,29 +223,11 @@ spec:
                   map key is the component name of the artifact as defined inside the vector. Keys remain stable across
                   reconciliations and re-creations.
                 type: object
-              resultingVectorAssignments:
-                additionalProperties:
-                  description: LocalVectorAssignmentReference holds a reference to
-                    a VectorAssignment in the same namespace.
-                  properties:
-                    name:
-                      description: "Name\tis the name of the VectorAssignment. Required."
-                      type: string
-                  required:
-                  - name
-                  type: object
-                description: |-
-                  ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are
-                  not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of
-                  assignments.
-
-                  The map key is the component name of the artifact. Keys are stable across reconcilations.
-                type: object
               resultingVectorData:
                 description: |-
                   ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData
                   CR is the contract between the vector deployment controller (which resolves the OCM payload) and the runtime-specific implementor
-                  (which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the
+                  (which materialises it on the target runtime). The field is empty until step 4 of the lifecycle has produced the
                   CR. Names are stable across reconciliations.
                 properties:
                   name:

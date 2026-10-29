@@ -5,7 +5,6 @@ const (
 	StageVersionNameLabel   = "konfidence.cloud/stage-version-name"
 	VectorReferenceLabel    = "konfidence.cloud/vector-ref"
 	StageVersionUsageTarget = "konfidence.cloud/target-for-stage"
-	ArtifactReferenceLabel  = "konfidence.cloud/artifact-ref"
 
 	// ManagedByLabel marks objects materialized by a Konfidence controller. Its value
 	// is the name of the controller (e.g. "vector-deployment-controller").

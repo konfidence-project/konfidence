@@ -10,7 +10,6 @@ import (
 	"github.com/go-logr/logr"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
-	"github.com/konfidence-project/konfidence/pkg/hash"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -57,7 +56,6 @@ type resolvedVector struct {
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments/finalizers,verbs=update
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=artifactdeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorassignments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordata,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
@@ -134,34 +132,10 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	allAssignmentsReady, err := r.handleVectorAssignments(ctx, vectorDeployment, log)
-	if err == nil && !allAssignmentsReady {
-		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonVectorAssignmentsNotReady, "Waiting for the VectorAssignments to be ready")
-	}
-	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
-		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
-			patchErrorMessage := "unable to update vectorDeployment status"
-
-			if err != nil {
-				reconcileError := fmt.Errorf("failed to handle vector assignments for vector deployment %s : %w", vectorDeployment.Name, err)
-				return ctrl.Result{}, fmt.Errorf("%s: %w; %w", patchErrorMessage, patchError, reconcileError)
-			}
-
-			return ctrl.Result{}, fmt.Errorf("%s: %w", patchErrorMessage, patchError)
-		}
-	}
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to handle vector assignments for vector deployment %s: %w", vectorDeployment.Name, err)
-	}
-	if !allAssignmentsReady {
-		log.Info("waiting for vector assignments to be ready")
-		return ctrl.Result{}, nil
-	}
-
 	// Create (or re-use) the VectorData CR carrying the resolved authored configuration and aggregated
-	// DeploymentResults. This step is a singleton action per vector, distinct from the per-artifact VectorAssignment
-	// work above. The runtime-specific implementor (e.g. the in-tree Kubernetes adapter in `internal/vectordata`)
-	// watches VectorData and materialises it on the target runtime (e.g. as a ConfigMap).
+	// DeploymentResults. This step is a singleton action per vector.
+	// The runtime-specific implementor (e.g. the in-tree Kubernetes adapter in `internal/vectordata`)
+	// watches VectorData and materializes it on the target runtime (e.g. as a ConfigMap).
 	resolvedVector, err = r.ensureVectorDataConfigResolved(ctx, vectorDeployment, *vectorRef, resolvedVector)
 	if err != nil {
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
@@ -427,123 +401,6 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	return allReady, nil
 }
 
-func (r *VectorDeploymentReconciler) handleVectorAssignments(
-	ctx context.Context, vectorDeployment *konfidence.VectorDeployment, log logr.Logger,
-) (bool, error) {
-	resultingVectorAssignments := make(map[string]konfidence.LocalVectorAssignmentReference, len(vectorDeployment.Status.ResultingArtifactDeployments))
-	allReady := true
-
-	for componentName, artifactDeployment := range vectorDeployment.Status.ResultingArtifactDeployments {
-		// fetch existing artifact assignment from k8s api
-		vectorAssignment := &konfidence.VectorAssignment{}
-		assignmentName := constructVectorAssignmentName(vectorDeployment.Name, artifactDeployment.Name)
-		err := r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: assignmentName}, vectorAssignment)
-		if err != nil {
-			// if error is not NotFound then return error
-			if !apierrors.IsNotFound(err) {
-				return false, fmt.Errorf("failed to get vector assignment %q: %w", assignmentName, err)
-			}
-
-			// create a new VectorAssignment
-			ad := &konfidence.ArtifactDeployment{}
-			err = r.Get(ctx, types.NamespacedName{Namespace: vectorDeployment.Namespace, Name: artifactDeployment.Name}, ad)
-			if err != nil {
-				return false, fmt.Errorf("failed to get artifact deployment %q for vector assignment %q: %w", artifactDeployment.Name, assignmentName, err)
-			}
-
-			log.Info("VectorAssignment not found, create new one", "name", assignmentName)
-
-			vectorAssignment = &konfidence.VectorAssignment{
-				ObjectMeta: ctrl.ObjectMeta{
-					Name:      assignmentName,
-					Namespace: vectorDeployment.Namespace,
-					Labels: map[string]string{
-						pkgctrl.ArtifactReferenceLabel: artifactDeployment.Name,
-					},
-				},
-				Spec: konfidence.VectorAssignmentSpec{
-					Manifest:              ad.Spec.Manifest,
-					ArtifactDeploymentRef: artifactDeployment,
-					VectorDeploymentRef: konfidence.LocalVectorDeploymentReference{
-						Name: vectorDeployment.Name,
-					},
-				},
-			}
-			if err := r.Create(ctx, vectorAssignment); err != nil {
-				return false, fmt.Errorf("failed to create VectorAssignment %q: %w", assignmentName, err)
-			}
-			msg := fmt.Sprintf("Created VectorAssignment %s", assignmentName)
-			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal, "VectorAssignmentCreated", "VectorAssignmentCreated", msg)
-			log.Info(msg)
-		} else {
-			log.Info("VectorAssignment found, update existing one", "name", assignmentName)
-		}
-		if vectorAssignment.Labels == nil {
-			vectorAssignment.Labels = make(map[string]string)
-		}
-		labelsChanged := vectorAssignment.Labels[pkgctrl.ArtifactReferenceLabel] != artifactDeployment.Name
-		vectorAssignment.Labels[pkgctrl.ArtifactReferenceLabel] = artifactDeployment.Name
-
-		var ownerRef *metav1.OwnerReference = nil
-		for _, ref := range vectorAssignment.OwnerReferences {
-			if ref.UID == vectorDeployment.UID {
-				ownerRef = &ref
-				break
-			}
-		}
-
-		if ownerRef == nil {
-			log.Info("Adding owner reference to existing vector assignment", "vector", vectorDeployment.Spec.Vector, "name", vectorAssignment.Name)
-			if err := controllerutil.SetControllerReference(vectorDeployment, vectorAssignment, r.Scheme); err != nil {
-				return false, fmt.Errorf("unable to add vectorDeployment owner reference to vectorAssignment: %w", err)
-			}
-
-		} else {
-			log.Info("Vector deployment already has owner reference", "vector", vectorDeployment.Spec.Vector, "name", vectorAssignment.Name)
-		}
-		if ownerRef == nil || labelsChanged {
-			if err := r.Update(ctx, vectorAssignment); err != nil {
-				return false, fmt.Errorf("failed to update metadata for VectorAssignment %q: %w", vectorAssignment.Name, err)
-			}
-			r.Recorder.Eventf(vectorDeployment, nil, corev1.EventTypeNormal,
-				"VectorAssignmentUpdated", "VectorAssignmentUpdated",
-				fmt.Sprintf("Updated metadata for VectorAssignment %s", vectorAssignment.Name))
-		}
-
-		// Update the artifact assignment to the status map of the VectorDeployment
-		resultingVectorAssignments[componentName] = konfidence.LocalVectorAssignmentReference{
-			Name: vectorAssignment.Name,
-		}
-
-		// state management for VectorAssignmentsCreatedCondition
-		if !meta.IsStatusConditionTrue(vectorAssignment.Status.Conditions, konfidence.VectorReadyCondition) {
-			allReady = false
-		}
-	}
-
-	// Write local map back to status. Assign nil when empty so that the
-	// omitempty JSON tag round-trips cleanly and reflect.DeepEqual stays stable.
-	if len(resultingVectorAssignments) > 0 {
-		vectorDeployment.Status.ResultingVectorAssignments = resultingVectorAssignments
-	} else {
-		vectorDeployment.Status.ResultingVectorAssignments = nil
-	}
-
-	// set status condition VectorAssignmentsCreatedCondition. VectorReady is intentionally NOT set here any more
-	// — it now exclusively flips after VectorData has been materialised by the runtime-specific orchestrator,
-	// see the post-handleVectorData block in Reconcile().
-	meta.SetStatusCondition(&vectorDeployment.Status.Conditions, metav1.Condition{
-		Type:               konfidence.VectorAssignmentsCreatedCondition,
-		Status:             metav1.ConditionTrue,
-		Reason:             konfidence.VectorAssignmentsCreatedCondition,
-		Message:            fmt.Sprintf("Successfully created vector assignments for vector deployment %s", vectorDeployment.Name),
-		ObservedGeneration: vectorDeployment.Generation,
-		LastTransitionTime: metav1.Now(),
-	})
-
-	return allReady, nil
-}
-
 func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []konfidence.TaskManifest {
 	landscapeTaskManifests := make([]konfidence.TaskManifest, len(taskManifests))
 	for i, taskManifest := range taskManifests {
@@ -574,7 +431,6 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controll
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorDeployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&konfidence.ArtifactDeployment{}, builder.MatchEveryOwner).
-		Owns(&konfidence.VectorAssignment{}, builder.MatchEveryOwner).
 		// Re-reconcile the parent VectorDeployment when the runtime-specific implementor flips
 		// VectorData.Status.Ready, so the lifecycle can progress to VectorReady without polling.
 		Owns(&konfidence.VectorData{}).
@@ -616,10 +472,7 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 			Labels:      labels,
 		},
 		Spec: konfidence.ArtifactDeploymentSpec{
-			Manifest: konfidence.ArtifactManifest{
-				Type:       artifactManifest.Type,
-				AllowReuse: artifactManifest.AllowReuse,
-			},
+			ArtifactType:  artifactManifest.Type,
 			TaskManifests: taskManifests,
 			Component: konfidence.OCMComponent{
 				Name:      ref.Component,
@@ -681,9 +534,4 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 	resolved.config = descr.Configuration
 	resolved.configResolved = true
 	return resolved, nil
-}
-
-func constructVectorAssignmentName(vectorName string, artifactName string) string {
-	h := hash.Fnv(fmt.Sprintf("%s-%s", vectorName, artifactName), 13)
-	return fmt.Sprintf("%s-%s", vectorName, h)
 }

@@ -1,4 +1,4 @@
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 
@@ -19,6 +19,62 @@ describe("<SidePanel>", () => {
     await expect.element(page.getByTestId("panel-body")).toBeVisible();
   });
 
+  it("can open non-modally and keeps the surrounding page interactive", async () => {
+    await page.viewport(1200, 600);
+    const onClose = vi.fn();
+    await render(SidePanelFixture, { modal: false, onClose, open: true });
+    await expect.element(page.getByTestId("side-panel")).toHaveAttribute("aria-modal", "false");
+
+    await page.getByTestId("outside-btn").click();
+    await expect.element(page.getByTestId("side-panel")).toBeVisible();
+
+    await page
+      .getByTestId("outside-btn")
+      .element()
+      .dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("focuses the close button when opened", async () => {
+    await render(SidePanelFixture, { modal: false, open: true });
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(page.getByTestId("side-panel-close").element());
+    });
+  });
+
+  it("converts an open panel between non-modal and modal presentation", async () => {
+    await render(SidePanelFixture, { modal: false, open: true });
+    const dialog = page.getByTestId("side-panel").element() as HTMLElement;
+    expect(dialog.getAttribute("aria-modal")).toBe("false");
+
+    await page.getByTestId("toggle-modal").click();
+    await expect.element(dialog).toHaveAttribute("aria-modal", "true");
+    await expect.element(page.getByTestId("side-panel")).toBeVisible();
+  });
+
+  it("closes only the topmost non-modal panel with Escape", async () => {
+    await page.viewport(1200, 600);
+    await render(SidePanelFixture, { modal: false, open: true, secondOpen: true });
+    await expect.element(page.getByRole("dialog", { name: "Details" })).toBeVisible();
+    await expect.element(page.getByRole("dialog", { name: "Second details" })).toBeVisible();
+
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(
+        page
+          .getByRole("dialog", { name: "Second details" })
+          .getByTestId("side-panel-close")
+          .element(),
+      ),
+    );
+    await userEvent.keyboard("{Escape}");
+
+    await expect
+      .element(page.getByRole("dialog", { name: "Second details" }))
+      .not.toBeInTheDocument();
+    await expect.element(page.getByRole("dialog", { name: "Details" })).toBeVisible();
+  });
+
   it("closes when the close button is clicked", async () => {
     await render(SidePanelFixture, { open: true });
     await page.getByTestId("side-panel-close").click();
@@ -36,6 +92,24 @@ describe("<SidePanel>", () => {
     await page.getByTestId("side-panel-close").click();
     await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("reports when the closing transition completes", async () => {
+    const onCloseComplete = vi.fn();
+    await render(SidePanelFixture, {
+      modal: false,
+      onCloseComplete,
+      open: true,
+      title: "Closing panel",
+    });
+    const dialog = page.getByRole("dialog", { name: "Closing panel" });
+    await dialog.getByTestId("side-panel-close").click();
+    const element = dialog.element() as HTMLElement;
+    await expect.element(element).toHaveAttribute("data-state", "closed");
+    element.dispatchEvent(
+      new TransitionEvent("transitionend", { bubbles: true, propertyName: "translate" }),
+    );
+    await vi.waitFor(() => expect(onCloseComplete).toHaveBeenCalledOnce());
   });
 
   describe("full-page link", () => {
@@ -77,9 +151,10 @@ describe("<SidePanel>", () => {
     it("insets the backdrop to clear the header when the header-height variable is present", async () => {
       await page.viewport(560, 480);
       await render(SidePanelFixture, { headerHeight: "60px", open: true });
-      const dialog = page.getByTestId("side-panel").element() as HTMLElement;
       await expect.element(page.getByTestId("side-panel")).toBeVisible();
-      const backdrop = getComputedStyle(dialog, "::backdrop").backgroundImage;
+      const backdrop = getComputedStyle(
+        page.getByTestId("side-panel-backdrop").element(),
+      ).backgroundImage;
       expect(backdrop).toContain("60px");
       expect(backdrop).toMatch(/rgba\(0, 0, 0, 0\)\s+60px,\s*rgba\(45, 30, 8, 0\.42\)\s+60px/);
     });
@@ -183,9 +258,18 @@ describe("<SidePanel>", () => {
           open: true,
           title: "payments-api@3.4.1",
         });
-        await expect
-          .element(page.getByRole("dialog", { name: "payments-api@3.4.1" }))
-          .toMatchScreenshot();
+        const screenshotPanel = page.getByRole("dialog", { name: "payments-api@3.4.1" });
+        await vi.waitFor(() =>
+          expect(document.activeElement).toBe(
+            screenshotPanel.getByTestId("side-panel-close").element(),
+          ),
+        );
+        const screenshotResizer = screenshotPanel
+          .getByTestId("side-panel-resizer")
+          .element() as HTMLElement;
+        screenshotResizer.focus();
+        screenshotResizer.style.background = "var(--border-strong, rgba(120, 90, 40, 0.7))";
+        await expect.element(screenshotPanel).toMatchScreenshot();
       });
     }
   });
