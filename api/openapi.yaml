@@ -508,6 +508,7 @@ paths:
             items:
               type: string
             minItems: 1
+            maxItems: 20
           style: form
           explode: true
       description: >

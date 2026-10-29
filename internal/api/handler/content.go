@@ -26,13 +26,11 @@ func (h *projectHandler) GetVectorContentV1(ctx context.Context,
 
 	results := make([]openapi.VectorContent, 0, len(request.Params.Refs))
 	for _, rawOcmRef := range request.Params.Refs {
-		ref, err := kompref.ParseComponentVersionReference(rawOcmRef)
+		vectorContent, err := h.ocmReader.GetVectorContent(ctx, rawOcmRef)
 		if err != nil {
-			return nil, apierror.NewBadRequest(fmt.Sprintf("invalid ref %q: %s", rawOcmRef, err))
-		}
-
-		vectorContent, err := h.ocmReader.GetVectorContent(ctx, ref)
-		if err != nil {
+			if errors.Is(err, kompref.ErrInvalidComponentReference) {
+				return nil, apierror.NewBadRequest(fmt.Sprintf("invalid ref %q: %s", rawOcmRef, err))
+			}
 			if errors.Is(err, pkgocm.ErrNotFound) {
 				return nil, apierror.NewNotFound("vector", rawOcmRef)
 			}
@@ -61,13 +59,11 @@ func (h *projectHandler) GetArtifactContentV1(ctx context.Context,
 		return nil, err
 	}
 
-	ref, err := kompref.ParseComponentVersionReference(request.Params.Ref)
+	artifactContent, err := h.ocmReader.GetArtifactContent(ctx, request.Params.Ref)
 	if err != nil {
-		return nil, apierror.NewBadRequest(fmt.Sprintf("invalid ref %q: %s", request.Params.Ref, err))
-	}
-
-	artifactContent, err := h.ocmReader.GetArtifactContent(ctx, ref)
-	if err != nil {
+		if errors.Is(err, kompref.ErrInvalidComponentReference) {
+			return nil, apierror.NewBadRequest(fmt.Sprintf("invalid ref %q: %s", request.Params.Ref, err))
+		}
 		if errors.Is(err, pkgocm.ErrNotFound) {
 			return nil, apierror.NewNotFound("artifact", request.Params.Ref)
 		}
@@ -129,28 +125,24 @@ func (h *projectHandler) GetVectorDiffV1(ctx context.Context,
 		return nil, err
 	}
 
-	incomingRef, err := kompref.ParseComponentVersionReference(request.Params.Incoming)
-	if err != nil {
-		return nil, apierror.NewBadRequest(fmt.Sprintf("invalid incoming ref: %s", err))
-	}
-
-	currentRef, err := kompref.ParseComponentVersionReference(request.Params.Current)
-	if err != nil {
-		return nil, apierror.NewBadRequest(fmt.Sprintf("invalid current ref: %s", err))
-	}
-
-	incomingVC, err := h.ocmReader.GetVectorContent(ctx, incomingRef)
+	incomingVC, err := h.ocmReader.GetVectorContent(ctx, request.Params.Incoming)
 	if err != nil {
 		if errors.Is(err, pkgocm.ErrNotFound) {
 			return nil, apierror.NewNotFound("incoming vector", request.Params.Incoming)
 		}
+		if errors.Is(err, kompref.ErrInvalidComponentReference) {
+			return nil, apierror.NewBadRequest(fmt.Sprintf("invalid incoming ref: %s", err))
+		}
 		return nil, apierror.NewInternal(err)
 	}
 
-	currentVC, err := h.ocmReader.GetVectorContent(ctx, currentRef)
+	currentVC, err := h.ocmReader.GetVectorContent(ctx, request.Params.Current)
 	if err != nil {
 		if errors.Is(err, pkgocm.ErrNotFound) {
 			return nil, apierror.NewNotFound("current vector", request.Params.Current)
+		}
+		if errors.Is(err, kompref.ErrInvalidComponentReference) {
+			return nil, apierror.NewBadRequest(fmt.Sprintf("invalid current ref: %s", err))
 		}
 		return nil, apierror.NewInternal(err)
 	}

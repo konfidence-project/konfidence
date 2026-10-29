@@ -3,10 +3,12 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/auth"
+	kompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	pkgcontent "github.com/konfidence-project/konfidence/pkg/ocm/content"
 	contentmocks "github.com/konfidence-project/konfidence/pkg/ocm/content/mocks"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -27,8 +29,7 @@ var _ = Describe("GetVectorContentV1", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockReader = contentmocks.NewMockReader(mockCtrl)
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		h = newProjectHandlerForTest(project)
-		h.ocmReader = mockReader
+		h = newProjectHandlerWithReader(mockReader, project)
 		ctx = ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
 	})
 
@@ -57,6 +58,9 @@ var _ = Describe("GetVectorContentV1", func() {
 	})
 
 	It("returns 400 for a malformed ref", func() {
+		mockReader.EXPECT().GetVectorContent(gomock.Any(), "not-a-valid-ref").
+			Return(pkgcontent.VectorContent{}, fmt.Errorf("%w", kompref.ErrInvalidComponentReference))
+
 		resp, err := h.GetVectorContentV1(ctx, openapi.GetVectorContentV1RequestObject{
 			ProjectId: "my-project",
 			Params:    openapi.GetVectorContentV1Params{Refs: []string{"not-a-valid-ref"}},
@@ -116,8 +120,7 @@ var _ = Describe("GetArtifactContentV1", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockReader = contentmocks.NewMockReader(mockCtrl)
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		h = newProjectHandlerForTest(project)
-		h.ocmReader = mockReader
+		h = newProjectHandlerWithReader(mockReader, project)
 		ctx = ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
 	})
 
@@ -156,6 +159,9 @@ var _ = Describe("GetArtifactContentV1", func() {
 	})
 
 	It("returns 400 for a malformed ref", func() {
+		mockReader.EXPECT().GetArtifactContent(gomock.Any(), "not-a-valid-ref").
+			Return(pkgcontent.ArtifactContent{}, fmt.Errorf("%w", kompref.ErrInvalidComponentReference))
+
 		resp, err := h.GetArtifactContentV1(ctx, openapi.GetArtifactContentV1RequestObject{
 			ProjectId: "my-project",
 			Params:    openapi.GetArtifactContentV1Params{Ref: "not-a-valid-ref"},
@@ -204,8 +210,7 @@ var _ = Describe("GetVectorDiffV1", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockReader = contentmocks.NewMockReader(mockCtrl)
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
-		h = newProjectHandlerForTest(project)
-		h.ocmReader = mockReader
+		h = newProjectHandlerWithReader(mockReader, project)
 		ctx = ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
 	})
 
@@ -242,6 +247,9 @@ var _ = Describe("GetVectorDiffV1", func() {
 	})
 
 	It("returns 400 for a malformed incoming ref", func() {
+		mockReader.EXPECT().GetVectorContent(gomock.Any(), "not-a-valid-ref").
+			Return(pkgcontent.VectorContent{}, fmt.Errorf("%w", kompref.ErrInvalidComponentReference))
+
 		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
 			ProjectId: "my-project",
 			Params: openapi.GetVectorDiffV1Params{
@@ -253,6 +261,13 @@ var _ = Describe("GetVectorDiffV1", func() {
 	})
 
 	It("returns 400 for a malformed current ref", func() {
+		mockReader.EXPECT().GetVectorContent(gomock.Any(), "registry.example.com//github.com/example/my-vector:2.0.0").
+			Return(pkgcontent.VectorContent{
+				Components: []pkgcontent.VectorComponent{{ComponentName: "github.com/example/svc-a", Version: "2.0.0"}},
+			}, nil)
+		mockReader.EXPECT().GetVectorContent(gomock.Any(), "not-a-valid-ref").
+			Return(pkgcontent.VectorContent{}, fmt.Errorf("%w", kompref.ErrInvalidComponentReference))
+
 		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
 			ProjectId: "my-project",
 			Params: openapi.GetVectorDiffV1Params{
