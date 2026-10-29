@@ -84,7 +84,9 @@ func toVectorPromotionResponse(p konfidence.VectorPromotion) openapi.VectorPromo
 }
 
 // displayState summarizes the promotion's observed facts into the single
-// status shown by the API.
+// status shown by the API. An unresolved target takes precedence over
+// InProgress: once execution can no longer resolve its target the promotion is
+// stuck, so it reads as Blocked even if it had already started.
 func displayState(p *konfidence.VectorPromotion) openapi.VectorPromotionStatus {
 	conditions := p.Status.Conditions
 
@@ -100,11 +102,11 @@ func displayState(p *konfidence.VectorPromotion) openapi.VectorPromotionStatus {
 		return openapi.VectorPromotionStatusSucceeded
 	case superseded:
 		return openapi.VectorPromotionStatusSuperseded
+	case !finished && targetUnresolved:
+		return openapi.VectorPromotionStatusBlocked
 	case !finished && started:
 		return openapi.VectorPromotionStatusInProgress
-	case !finished && !started && targetUnresolved:
-		return openapi.VectorPromotionStatusBlocked
-	case !finished && !started && !targetUnresolved && gatesSatisfied:
+	case !finished && gatesSatisfied:
 		return openapi.VectorPromotionStatusReady
 	default:
 		return openapi.VectorPromotionStatusWaiting
