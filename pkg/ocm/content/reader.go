@@ -4,24 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	kompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/pkg/ocm/util"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
-	"ocm.software/open-component-model/bindings/go/oci/compref"
 )
 
 //go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_reader.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/content Reader
 
 const (
-	// ResourceTypeVectorConfig is the OCM resource name used to mark the optional,
-	// singleton vector-scoped configuration resource on a vector ComponentVersion.
-	// Exported so that assembly and deployment sides can reuse the same identifier.
-	ResourceTypeVectorConfig         = "cloud-konfidence-vector-config"
 	resourceTypeArtifactManifest     = "cloud.konfidence.artifact.manifest"
 	resourceTypeArtifactTaskManifest = "cloud.konfidence.artifact.task.manifest"
 )
@@ -67,8 +62,8 @@ type ArtifactResource struct {
 
 // Reader fetches OCM content directly from OCI registries.
 type Reader interface {
-	GetVectorContent(ctx context.Context, ref kompref.ComponentVersionReference) (VectorContent, error)
-	GetArtifactContent(ctx context.Context, ref kompref.ComponentVersionReference) (ArtifactContent, error)
+	GetVectorContent(ctx context.Context, rawOcmRef string) (VectorContent, error)
+	GetArtifactContent(ctx context.Context, rawOcmRef string) (ArtifactContent, error)
 }
 
 type ocmReader struct {
@@ -96,13 +91,13 @@ func NewReader(
 	}
 }
 
-func (r *ocmReader) GetVectorContent(ctx context.Context, ref kompref.ComponentVersionReference) (VectorContent, error) {
-	upstream, err := toUpstreamRef(ref)
+func (r *ocmReader) GetVectorContent(ctx context.Context, rawOcmRef string) (VectorContent, error) {
+	upstream, err := kompref.Parse(rawOcmRef)
 	if err != nil {
-		return VectorContent{}, err
+		return VectorContent{}, fmt.Errorf("invalid vector ref %s: %w", rawOcmRef, err)
 	}
 
-	descriptor, err := r.client.Get(ctx, upstream)
+	descriptor, err := r.client.Get(ctx, *upstream)
 	if err != nil {
 		return VectorContent{}, fmt.Errorf("get vector descriptor for %s: %w", upstream.String(), err)
 	}
@@ -111,7 +106,7 @@ func (r *ocmReader) GetVectorContent(ctx context.Context, ref kompref.ComponentV
 		return VectorContent{}, fmt.Errorf("verify vector signature for %s: %w", upstream.String(), err)
 	}
 
-	vectorConfigBlob, prunedResources, err := extractVectorConfig(ctx, r, upstream, descriptor.Component.Resources)
+	vectorConfigBlob, prunedResources, err := util.ExtractVectorConfigResource(ctx, r.client, *upstream, descriptor.Component.Resources)
 	if err != nil {
 		return VectorContent{}, err
 	}
@@ -133,13 +128,13 @@ func (r *ocmReader) GetVectorContent(ctx context.Context, ref kompref.ComponentV
 	return VectorContent{Components: components, Config: config}, nil
 }
 
-func (r *ocmReader) GetArtifactContent(ctx context.Context, ref kompref.ComponentVersionReference) (ArtifactContent, error) {
-	upstream, err := toUpstreamRef(ref)
+func (r *ocmReader) GetArtifactContent(ctx context.Context, rawOcmRef string) (ArtifactContent, error) {
+	upstream, err := kompref.Parse(rawOcmRef)
 	if err != nil {
-		return ArtifactContent{}, err
+		return ArtifactContent{}, fmt.Errorf("invalid vector ref %s: %w", rawOcmRef, err)
 	}
 
-	descriptor, err := r.client.Get(ctx, upstream)
+	descriptor, err := r.client.Get(ctx, *upstream)
 	if err != nil {
 		return ArtifactContent{}, fmt.Errorf("get artifact descriptor for %s: %w", upstream.String(), err)
 	}
@@ -158,7 +153,7 @@ func (r *ocmReader) GetArtifactContent(ctx context.Context, ref kompref.Componen
 		res := &descriptor.Component.Resources[i]
 		switch res.Type {
 		case resourceTypeArtifactManifest:
-			data, err := r.getLocalBlob(ctx, upstream, res)
+			data, err := util.GetLocalResourceBlob(ctx, r.client, *upstream, res)
 			if err != nil {
 				return ArtifactContent{}, fmt.Errorf("read artifact manifest blob in %s: %w", upstream.String(), err)
 			}
@@ -177,7 +172,7 @@ func (r *ocmReader) GetArtifactContent(ctx context.Context, ref kompref.Componen
 			foundManifest = true
 
 		case resourceTypeArtifactTaskManifest:
-			data, err := r.getLocalBlob(ctx, upstream, res)
+			data, err := util.GetLocalResourceBlob(ctx, r.client, *upstream, res)
 			if err != nil {
 				return ArtifactContent{}, fmt.Errorf("read task manifest blob for resource %s in %s: %w", res.Name, upstream.String(), err)
 			}
@@ -215,61 +210,6 @@ func (r *ocmReader) GetArtifactContent(ctx context.Context, ref kompref.Componen
 	}, nil
 }
 
-func (r *ocmReader) getLocalBlob(ctx context.Context, ref compref.Ref, res *descruntime.Resource) ([]byte, error) {
-	b, _, err := r.client.GetLocalResource(ctx, ref, res.ToIdentity())
-	if err != nil {
-		return nil, fmt.Errorf("get local resource %s from %s: %w", res.Name, ref.String(), err)
-	}
-	rc, err := b.ReadCloser()
-	if err != nil {
-		return nil, fmt.Errorf("open blob reader: %w", err)
-	}
-	defer func() { _ = rc.Close() }()
-	data, err := io.ReadAll(rc)
-	if err != nil {
-		return nil, fmt.Errorf("read blob: %w", err)
-	}
-	return data, nil
-}
-
-// extractVectorConfig scans resources for the singleton vector-config resource,
-// fetches its blob, removes it from the slice, and returns the blob and pruned slice.
-// Multiple matches are an authoring error.
-func extractVectorConfig(
-	ctx context.Context,
-	r *ocmReader,
-	ref compref.Ref,
-	resources []descruntime.Resource,
-) ([]byte, []descruntime.Resource, error) {
-	var (
-		blob   []byte
-		picked *descruntime.Resource
-		pruned = make([]descruntime.Resource, 0, len(resources))
-	)
-	for i := range resources {
-		res := resources[i]
-		if res.Name != ResourceTypeVectorConfig {
-			pruned = append(pruned, res)
-			continue
-		}
-		if picked != nil {
-			return nil, nil, fmt.Errorf(
-				"vector %s declares more than one resource named %q (versions %q and %q); at most one is permitted",
-				ref.String(), ResourceTypeVectorConfig, picked.Version, res.Version,
-			)
-		}
-		picked = &resources[i]
-	}
-	if picked != nil {
-		data, err := r.getLocalBlob(ctx, ref, picked)
-		if err != nil {
-			return nil, nil, fmt.Errorf("read vector config resource from %s: %w", ref.String(), err)
-		}
-		blob = data
-	}
-	return blob, pruned, nil
-}
-
 func parseVectorConfig(blob []byte) (*VectorConfig, error) {
 	if len(blob) == 0 {
 		return nil, nil
@@ -277,6 +217,10 @@ func parseVectorConfig(blob []byte) (*VectorConfig, error) {
 	var env jsonschema.VectorConfigurationV1
 	if err := json.Unmarshal(blob, &env); err != nil {
 		return nil, fmt.Errorf("vector config blob is not valid: %w", err)
+	}
+	if env.SchemaVersion != "" && env.SchemaVersion != jsonschema.VectorConfigurationV1SchemaVersion {
+		return nil, fmt.Errorf("unsupported vector config schemaVersion %q (want %q)",
+			env.SchemaVersion, jsonschema.VectorConfigurationV1SchemaVersion)
 	}
 	if len(env.Features) == 0 && len(env.Authored) == 0 {
 		return nil, nil
@@ -298,15 +242,4 @@ func parseVectorConfig(blob []byte) (*VectorConfig, error) {
 	}
 
 	return cfg, nil
-}
-
-// toUpstreamRef converts a pkg/ocm/compref.ComponentVersionReference to the upstream
-// oci/compref.Ref required by pkg/ocm/repository.Client.
-func toUpstreamRef(ref kompref.ComponentVersionReference) (compref.Ref, error) {
-	raw := fmt.Sprintf("%s//%s:%s", ref.Repository, ref.Component, ref.Version)
-	parsed, err := kompref.Parse(raw)
-	if err != nil {
-		return compref.Ref{}, fmt.Errorf("re-parse ref %q: %w", raw, err)
-	}
-	return *parsed, nil
 }

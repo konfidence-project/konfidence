@@ -13,7 +13,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	compref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	content "github.com/konfidence-project/konfidence/pkg/ocm/content"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -43,31 +42,31 @@ func (m *MockReader) EXPECT() *MockReaderMockRecorder {
 }
 
 // GetArtifactContent mocks base method.
-func (m *MockReader) GetArtifactContent(ctx context.Context, ref compref.ComponentVersionReference) (content.ArtifactContent, error) {
+func (m *MockReader) GetArtifactContent(ctx context.Context, rawOcmRef string) (content.ArtifactContent, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetArtifactContent", ctx, ref)
+	ret := m.ctrl.Call(m, "GetArtifactContent", ctx, rawOcmRef)
 	ret0, _ := ret[0].(content.ArtifactContent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetArtifactContent indicates an expected call of GetArtifactContent.
-func (mr *MockReaderMockRecorder) GetArtifactContent(ctx, ref any) *gomock.Call {
+func (mr *MockReaderMockRecorder) GetArtifactContent(ctx, rawOcmRef any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetArtifactContent", reflect.TypeOf((*MockReader)(nil).GetArtifactContent), ctx, ref)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetArtifactContent", reflect.TypeOf((*MockReader)(nil).GetArtifactContent), ctx, rawOcmRef)
 }
 
 // GetVectorContent mocks base method.
-func (m *MockReader) GetVectorContent(ctx context.Context, ref compref.ComponentVersionReference) (content.VectorContent, error) {
+func (m *MockReader) GetVectorContent(ctx context.Context, rawOcmRef string) (content.VectorContent, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVectorContent", ctx, ref)
+	ret := m.ctrl.Call(m, "GetVectorContent", ctx, rawOcmRef)
 	ret0, _ := ret[0].(content.VectorContent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetVectorContent indicates an expected call of GetVectorContent.
-func (mr *MockReaderMockRecorder) GetVectorContent(ctx, ref any) *gomock.Call {
+func (mr *MockReaderMockRecorder) GetVectorContent(ctx, rawOcmRef any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVectorContent", reflect.TypeOf((*MockReader)(nil).GetVectorContent), ctx, ref)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVectorContent", reflect.TypeOf((*MockReader)(nil).GetVectorContent), ctx, rawOcmRef)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/konfidence-project/konfidence/pkg/ocm/content/mocks"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/pkg/ocm/util"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -36,21 +37,12 @@ func (noopVerifier) Verify(_ context.Context, _ credentials.Resolver, _ []crypto
 
 // testRef builds an upstream compref.Ref for use in mock expectations.
 // It goes through kompref.Parse so the Repository.Type field is populated
-// identically to what toUpstreamRef produces at runtime.
+// identically to what the reader does at runtime.
 func testRef(component, version string) compref.Ref {
 	raw := fmt.Sprintf("registry.example.com//%s:%s", component, version)
 	parsed, err := kompref.Parse(raw)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	return *parsed
-}
-
-// testComponentVersionRef builds the pkg-level ref used to call the reader.
-func testComponentVersionRef(component, version string) kompref.ComponentVersionReference {
-	return kompref.ComponentVersionReference{
-		Repository: "registry.example.com",
-		Component:  component,
-		Version:    version,
-	}
 }
 
 func mustMarshal(v any) []byte {
@@ -79,11 +71,7 @@ var _ = Describe("Reader", func() {
 	})
 
 	Describe("GetVectorContent", func() {
-		var ref kompref.ComponentVersionReference
-
-		BeforeEach(func() {
-			ref = testComponentVersionRef("github.com/example/my-vector", "1.0.0")
-		})
+		const ref = "registry.example.com//github.com/example/my-vector:1.0.0"
 
 		Context("when the OCM client returns a valid descriptor with references", func() {
 			It("returns VectorContent with all component references", func() {
@@ -131,7 +119,7 @@ var _ = Describe("Reader", func() {
 
 				configResource := descruntime.Resource{
 					ElementMeta: descruntime.ElementMeta{
-						ObjectMeta: descruntime.ObjectMeta{Name: content.ResourceTypeVectorConfig, Version: "1.0.0"},
+						ObjectMeta: descruntime.ObjectMeta{Name: util.KonfidenceResourceNameVectorConfig, Version: "1.0.0"},
 					},
 					Type: "plain-text",
 				}
@@ -160,12 +148,12 @@ var _ = Describe("Reader", func() {
 			It("returns an error", func() {
 				r1 := descruntime.Resource{
 					ElementMeta: descruntime.ElementMeta{
-						ObjectMeta: descruntime.ObjectMeta{Name: content.ResourceTypeVectorConfig, Version: "1.0.0"},
+						ObjectMeta: descruntime.ObjectMeta{Name: util.KonfidenceResourceNameVectorConfig, Version: "1.0.0"},
 					},
 				}
 				r2 := descruntime.Resource{
 					ElementMeta: descruntime.ElementMeta{
-						ObjectMeta: descruntime.ObjectMeta{Name: content.ResourceTypeVectorConfig, Version: "2.0.0"},
+						ObjectMeta: descruntime.ObjectMeta{Name: util.KonfidenceResourceNameVectorConfig, Version: "2.0.0"},
 					},
 				}
 				descriptor := descruntime.Descriptor{
@@ -209,11 +197,7 @@ var _ = Describe("Reader", func() {
 	})
 
 	Describe("GetArtifactContent", func() {
-		var ref kompref.ComponentVersionReference
-
-		BeforeEach(func() {
-			ref = testComponentVersionRef("github.com/example/my-artifact", "2.0.0")
-		})
+		const ref = "registry.example.com//github.com/example/my-artifact:2.0.0"
 
 		Context("when the descriptor has a valid artifact manifest and tasks", func() {
 			It("returns ArtifactContent with type, allowReuse, tasks, and resources", func() {
