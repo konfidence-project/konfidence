@@ -43,10 +43,6 @@ const (
 )
 
 // VectorPromotionSpec defines the desired state of VectorPromotion.
-//
-// +kubebuilder:validation:XValidation:rule="has(self.gates) == has(oldSelf.gates) && (!has(self.gates) || self.gates == oldSelf.gates)",message="gates are immutable after they have been set"
-//
-//nolint:lll // Kubebuilder annotations are intentionally long.
 type VectorPromotionSpec struct {
 	// VectorPromotionConfigName is the name of the VectorPromotionConfig that defines the promotion flow to execute.
 	// +kubebuilder:validation:MinLength=1
@@ -71,12 +67,13 @@ type VectorPromotionSpec struct {
 
 	// Gates is an immutable snapshot of the config's gates at creation time.
 	// The promotion does not execute until every gate has a `Satisfied` entry
-	// in `status.gates`. An empty list promotes immediately.
+	// in `status.gates`. An empty list promotes immediately. The field is
+	// required: creators set an empty list rather than omitting it.
 	// +listType=map
 	// +listMapKey=type
-	// +kubebuilder:validation:MaxItems=16
-	// +optional
-	Gates []PromotionGate `json:"gates,omitempty"`
+	// +kubebuilder:validation:MaxItems=32
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="gates are immutable after they have been set"
+	Gates []PromotionGate `json:"gates"`
 
 	// TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
 	// Once the TTL expires after the promotion finished (`status.completionTime`),
@@ -116,7 +113,7 @@ type VectorPromotionStatus struct {
 	// through `pkg/promotiongate`. A missing entry counts as `Pending`.
 	// +listType=map
 	// +listMapKey=type
-	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:MaxItems=32
 	// +optional
 	Gates []PromotionGateStatus `json:"gates,omitempty"`
 

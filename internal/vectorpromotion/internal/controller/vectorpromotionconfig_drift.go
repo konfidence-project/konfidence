@@ -41,6 +41,13 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 		return err
 	}
 
+	// Gates is a required field on the promotion, so snapshot it as a non-nil
+	// empty list when the config declares none.
+	gates := slices.Clone(config.Spec.Gates)
+	if gates == nil {
+		gates = []konfidence.PromotionGate{}
+	}
+
 	vectorPromotion := &konfidence.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      promotionName(config.Name, config.Status.Sequence),
@@ -51,7 +58,7 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 			Source:                    config.Spec.Source,
 			Target:                    config.Spec.Target,
 			Vector:                    sourceVector,
-			Gates:                     slices.Clone(config.Spec.Gates),
+			Gates:                     gates,
 			TTLAfterFinished:          config.Spec.TTLAfterFinished,
 			Sequence:                  config.Status.Sequence,
 		},

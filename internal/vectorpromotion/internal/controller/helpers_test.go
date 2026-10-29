@@ -133,6 +133,7 @@ func createPromotion(name, configRef string) *konfidence.VectorPromotion {
 			Target:                    stageTarget("some-stage"),
 			Vector:                    testVector,
 			Sequence:                  nextSequence(),
+			Gates:                     []konfidence.PromotionGate{},
 		},
 	}
 	ownPromotionIfConfigExists(promotion, configRef)
@@ -183,6 +184,7 @@ func createPromotionTargeting(name, configRef string, target konfidence.Promotio
 			Target:                    target,
 			Vector:                    testVector,
 			Sequence:                  nextSequence(),
+			Gates:                     []konfidence.PromotionGate{},
 		},
 	}
 	if withApprovalGate {
@@ -201,6 +203,9 @@ func createPromotionRequiringApproval(name, configRef string) *konfidence.Vector
 
 // createGatedPromotion creates a VectorPromotion declaring the given gates.
 func createGatedPromotion(name, configRef string, gates ...konfidence.PromotionGate) *konfidence.VectorPromotion {
+	if gates == nil {
+		gates = []konfidence.PromotionGate{}
+	}
 	promotion := &konfidence.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -253,6 +258,7 @@ func createPromotionWithTTL(name, configRef string, ttl time.Duration) *konfiden
 			Target:                    stageTarget("some-stage"),
 			Vector:                    testVector,
 			Sequence:                  nextSequence(),
+			Gates:                     []konfidence.PromotionGate{},
 			TTLAfterFinished:          &metav1.Duration{Duration: ttl},
 		},
 	}

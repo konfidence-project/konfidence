@@ -87,7 +87,8 @@ spec:
                 description: |-
                   Gates is an immutable snapshot of the config's gates at creation time.
                   The promotion does not execute until every gate has a `Satisfied` entry
-                  in `status.gates`. An empty list promotes immediately.
+                  in `status.gates`. An empty list promotes immediately. The field is
+                  required: creators set an empty list rather than omitting it.
                 items:
                   description: PromotionGate declares a gate a promotion must pass
                     before it executes.
@@ -106,11 +107,14 @@ spec:
                   required:
                   - type
                   type: object
-                maxItems: 16
+                maxItems: 32
                 type: array
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+                x-kubernetes-validations:
+                - message: gates are immutable after they have been set
+                  rule: self == oldSelf
               sequence:
                 description: |-
                   Sequence is a monotonic ordinal assigned by the creator (the config
@@ -213,16 +217,13 @@ spec:
                 minLength: 1
                 type: string
             required:
+            - gates
             - sequence
             - source
             - target
             - vector
             - vectorPromotionConfigName
             type: object
-            x-kubernetes-validations:
-            - message: gates are immutable after they have been set
-              rule: has(self.gates) == has(oldSelf.gates) && (!has(self.gates) ||
-                self.gates == oldSelf.gates)
           status:
             description: VectorPromotionStatus defines the observed state of VectorPromotion.
             properties:
@@ -340,7 +341,7 @@ spec:
                   - state
                   - type
                   type: object
-                maxItems: 16
+                maxItems: 32
                 type: array
                 x-kubernetes-list-map-keys:
                 - type

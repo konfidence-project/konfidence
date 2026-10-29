@@ -122,10 +122,10 @@ var _ = Describe("Promotion CRD schema validation", Ordered, Serial, func() {
 			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
 				MatchError(ContainSubstring("gates are immutable after they have been set")))
 
-			By("removing all gates")
+			By("emptying the gate list")
 			refreshPromotion(promotion)
 			patch = client.MergeFrom(promotion.DeepCopy())
-			promotion.Spec.Gates = nil
+			promotion.Spec.Gates = []konfidence.PromotionGate{}
 			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
 				MatchError(ContainSubstring("gates are immutable after they have been set")))
 		})

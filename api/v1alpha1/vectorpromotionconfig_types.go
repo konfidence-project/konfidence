@@ -37,7 +37,7 @@ type VectorPromotionConfigSpec struct {
 	// empty list promotes immediately.
 	// +listType=map
 	// +listMapKey=type
-	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:MaxItems=32
 	// +optional
 	Gates []PromotionGate `json:"gates,omitempty"`
 
