@@ -28,13 +28,11 @@ var _ = Describe("gate aggregation helpers", func() {
 	It("treats a promotion without gates as satisfied", func() {
 		p := gatedPromotion()
 		Expect(allGatesSatisfied(p)).To(BeTrue())
-		Expect(allGatesNotSatisfied(p)).To(BeEmpty())
 	})
 
 	It("treats a missing status entry as a gate not satisfied yet", func() {
 		p := gatedPromotion(approval)
 		Expect(allGatesSatisfied(p)).To(BeFalse())
-		Expect(allGatesNotSatisfied(p)).To(ConsistOf(approval))
 	})
 
 	It("requires every declared gate to be Satisfied", func() {
@@ -42,8 +40,7 @@ var _ = Describe("gate aggregation helpers", func() {
 		withState(p, approval, konfidence.PromotionGateStateSatisfied)
 		withState(p, e2eGate, konfidence.PromotionGateStateError)
 		Expect(allGatesSatisfied(p)).To(BeFalse())
-		Expect(allGatesNotSatisfied(p)).To(ConsistOf(e2eGate))
-		Expect(erroredGates(p)).To(HaveLen(1))
+		Expect(anyGateInError(p)).To(BeTrue())
 
 		p.Status.Gates[1].State = konfidence.PromotionGateStateSatisfied
 		Expect(allGatesSatisfied(p)).To(BeTrue())
@@ -52,7 +49,7 @@ var _ = Describe("gate aggregation helpers", func() {
 	It("ignores status entries for undeclared gates", func() {
 		p := withState(gatedPromotion(), e2eGate, konfidence.PromotionGateStatePending)
 		Expect(allGatesSatisfied(p)).To(BeTrue())
-		Expect(erroredGates(p)).To(BeEmpty())
+		Expect(anyGateInError(p)).To(BeFalse())
 	})
 
 	It("seeds only missing entries and keeps existing ones", func() {

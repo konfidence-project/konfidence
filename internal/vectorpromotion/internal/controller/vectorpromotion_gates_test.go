@@ -23,9 +23,6 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 	conditionOf := func(promotion *konfidence.VectorPromotion, conditionType string) *metav1.Condition {
 		return meta.FindStatusCondition(promotion.Status.Conditions, conditionType)
 	}
-	gatesOf := func(promotion *konfidence.VectorPromotion) *metav1.Condition {
-		return conditionOf(promotion, konfidence.ConditionTypeGatesSatisfied)
-	}
 	expectCondition := func(promotion *konfidence.VectorPromotion, conditionType string, status metav1.ConditionStatus, reason string) {
 		GinkgoHelper()
 		cond := conditionOf(promotion, conditionType)
@@ -52,7 +49,6 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 		}))
 		expectCondition(promotion, konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse, konfidence.ReasonGatesPending)
 		expectCondition(promotion, konfidence.ConditionTypeSucceeded, metav1.ConditionUnknown, konfidence.ReasonPromotionPending)
-		Expect(gatesOf(promotion).Message).To(ContainSubstring(konfidence.GateTypeExplicitApproval))
 
 		By("reconciling again without approval does not execute")
 		reconcilePromotion(promotion.Name)
@@ -112,8 +108,6 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 		Expect(promotiongate.Find(promotion, e2eGate)).To(Equal(early))
 		Expect(promotiongate.StateOf(promotion, konfidence.GateTypeExplicitApproval)).
 			To(Equal(konfidence.PromotionGateStatePending))
-		Expect(gatesOf(promotion).Message).To(ContainSubstring(konfidence.GateTypeExplicitApproval))
-		Expect(gatesOf(promotion).Message).NotTo(ContainSubstring(e2eGate))
 	})
 
 	It("rejects a seed patch built from a stale read instead of overwriting a gate", func() {
@@ -155,8 +149,6 @@ var _ = Describe("VectorPromotion gates phase", Ordered, Serial, func() {
 		Expect(observedState(promotion)).To(Equal("Waiting"))
 		expectCondition(promotion, konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse, konfidence.ReasonGateError)
 		expectCondition(promotion, konfidence.ConditionTypeSucceeded, metav1.ConditionUnknown, konfidence.ReasonPromotionPending)
-		Expect(gatesOf(promotion).Message).To(ContainSubstring(e2eGate))
-		Expect(gatesOf(promotion).Message).To(ContainSubstring("Misconfigured"))
 
 		recorder, ok := reconciler.Recorder.(*events.FakeRecorder)
 		Expect(ok).To(BeTrue())

@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +41,7 @@ func (r *VectorPromotionReconciler) reconcileGates(ctx context.Context, vectorPr
 	switch {
 	case status == metav1.ConditionTrue:
 		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionGatesSatisfied", EventActionGates, message)
-	case len(erroredGates(vectorPromotion)) > 0:
+	case anyGateInError(vectorPromotion):
 		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeWarning, "PromotionGateError", EventActionGates, message)
 	default:
 		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionWaitingForGates", EventActionGates, message)
@@ -63,22 +62,12 @@ func gatesSummary(vectorPromotion *konfidence.VectorPromotion) (status metav1.Co
 			fmt.Sprintf("all %d gates of the promotion of vector %q are satisfied",
 				len(vectorPromotion.Spec.Gates), vectorPromotion.Spec.Vector)
 	}
-	if errored := erroredGates(vectorPromotion); len(errored) > 0 {
-		details := make([]string, 0, len(errored))
-		for _, gate := range errored {
-			detail := gate.Type
-			if why := strings.TrimSpace(gate.Reason + " " + gate.Message); why != "" {
-				detail = fmt.Sprintf("%s (%s)", gate.Type, why)
-			}
-			details = append(details, detail)
-		}
+	if anyGateInError(vectorPromotion) {
 		return metav1.ConditionFalse, konfidence.ReasonGateError,
-			fmt.Sprintf("promotion of vector %q is blocked by gates in error: %s",
-				vectorPromotion.Spec.Vector, strings.Join(details, ", "))
+			fmt.Sprintf("promotion of vector %q is blocked by gates in error", vectorPromotion.Spec.Vector)
 	}
 	return metav1.ConditionFalse, konfidence.ReasonGatesPending,
-		fmt.Sprintf("promotion of vector %q is waiting for gates: %s",
-			vectorPromotion.Spec.Vector, strings.Join(allGatesNotSatisfied(vectorPromotion), ", "))
+		fmt.Sprintf("promotion of vector %q is waiting for gates", vectorPromotion.Spec.Vector)
 }
 
 // seedGates adds a Pending status entry for every declared gate that has none
@@ -112,26 +101,12 @@ func allGatesSatisfied(p *konfidence.VectorPromotion) bool {
 	return true
 }
 
-// allGatesNotSatisfied returns the declared gate types that are not Satisfied,
-// in declaration order.
-func allGatesNotSatisfied(p *konfidence.VectorPromotion) []string {
-	var notSatisfied []string
+// anyGateInError reports whether any declared gate is in state Error.
+func anyGateInError(p *konfidence.VectorPromotion) bool {
 	for _, gate := range p.Spec.Gates {
-		if promotiongate.StateOf(p, gate.Type) != konfidence.PromotionGateStateSatisfied {
-			notSatisfied = append(notSatisfied, gate.Type)
+		if promotiongate.StateOf(p, gate.Type) == konfidence.PromotionGateStateError {
+			return true
 		}
 	}
-	return notSatisfied
-}
-
-// erroredGates returns the status entries of declared gates in state Error, in
-// declaration order.
-func erroredGates(p *konfidence.VectorPromotion) []konfidence.PromotionGateStatus {
-	var errored []konfidence.PromotionGateStatus
-	for _, gate := range p.Spec.Gates {
-		if entry := promotiongate.Find(p, gate.Type); entry != nil && entry.State == konfidence.PromotionGateStateError {
-			errored = append(errored, *entry)
-		}
-	}
-	return errored
+	return false
 }
