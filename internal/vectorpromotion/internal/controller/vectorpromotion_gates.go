@@ -25,10 +25,9 @@ func (r *VectorPromotionReconciler) reconcileGates(ctx context.Context, vectorPr
 	previous := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied).DeepCopy()
 
 	status, reason, message := gatesSummary(vectorPromotion)
-	seed := func(p *konfidence.VectorPromotion) { seedGates(p) }
 	if err := r.updateStatus(ctx, vectorPromotion,
-		seed,
-		initSucceeded(fmt.Sprintf("promotion of vector %q has not started", vectorPromotion.Spec.Vector)),
+		func(p *konfidence.VectorPromotion) { seedGates(p) },
+		initSucceededCondition(fmt.Sprintf("promotion of vector %q has not started", vectorPromotion.Spec.Vector)),
 		setCondition(konfidence.ConditionTypeGatesSatisfied, status, reason, message),
 	); err != nil {
 		return err

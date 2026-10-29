@@ -65,9 +65,9 @@ func setCondition(conditionType string, status metav1.ConditionStatus, reason, m
 	}
 }
 
-// initSucceeded returns a mutation that records the promotion as active
+// initSucceededCondition returns a mutation that records the promotion as active
 // (Succeeded=Unknown/PromotionPending) unless a Succeeded condition exists.
-func initSucceeded(message string) statusMutation {
+func initSucceededCondition(message string) statusMutation {
 	return func(p *konfidence.VectorPromotion) {
 		if meta.FindStatusCondition(p.Status.Conditions, konfidence.ConditionTypeSucceeded) == nil {
 			setCondition(konfidence.ConditionTypeSucceeded, metav1.ConditionUnknown,
