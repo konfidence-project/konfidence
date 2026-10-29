@@ -1,6 +1,7 @@
 export { default as AppShell } from "./AppShell/AppShell.svelte";
 export { default as Avatar } from "./Avatar/Avatar.svelte";
 export { default as AvatarGroup } from "./AvatarGroup/AvatarGroup.svelte";
+export { default as BottomSheet } from "./BottomSheet/BottomSheet.svelte";
 export { default as Brandbar } from "./Brandbar/Brandbar.svelte";
 export { default as BrandLogo } from "./BrandLogo/BrandLogo.svelte";
 export { default as Breadcrumbs } from "./Breadcrumbs/Breadcrumbs.svelte";
