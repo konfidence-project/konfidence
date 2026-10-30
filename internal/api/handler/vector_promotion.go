@@ -9,6 +9,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
+	"github.com/konfidence-project/konfidence/pkg/util"
 	"k8s.io/apimachinery/pkg/api/meta"
 )
 
@@ -124,9 +125,9 @@ func toPromotionGateStatusesResponse(p *konfidence.VectorPromotion) []openapi.Pr
 		}
 		if entry := promotiongate.Find(p, declared.Type); entry != nil {
 			gate.State = openapi.PromotionGateStatusState(entry.State)
-			gate.Reason = optionalString(entry.Reason)
-			gate.Message = optionalString(entry.Message)
-			gate.SetBy = optionalString(entry.SetBy)
+			gate.Reason = util.OptionalString(entry.Reason)
+			gate.Message = util.OptionalString(entry.Message)
+			gate.SetBy = util.OptionalString(entry.SetBy)
 			if entry.SetAt != nil {
 				setAt := entry.SetAt.Time
 				gate.SetAt = &setAt
@@ -145,22 +146,12 @@ func toPromotionGatesResponse(gates []konfidence.PromotionGate) []openapi.Promot
 	return result
 }
 
-func optionalString(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}
-
 func toPromotionSourceReferenceResponse(s konfidence.PromotionSourceReference) openapi.PromotionSourceReference {
 	source := openapi.PromotionSourceReference{
 		Kind: openapi.PromotionSourceReferenceKind(s.Kind),
 		Name: s.Name,
 	}
-	if s.Landscape != "" {
-		landscape := s.Landscape
-		source.Landscape = &landscape
-	}
+	source.Landscape = util.OptionalString(s.Landscape)
 	return source
 }
 

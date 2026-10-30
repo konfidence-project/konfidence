@@ -16,6 +16,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/oidc"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
+	"github.com/konfidence-project/konfidence/pkg/util"
 	"github.com/samber/lo"
 	"golang.org/x/oauth2"
 )
@@ -236,10 +237,7 @@ func (a *authHandler) AuthCallbackV1(ctx context.Context, request openapi.AuthCa
 		}, nil
 	}
 
-	var refreshToken *string
-	if tokenResponse.RefreshToken != "" {
-		refreshToken = &tokenResponse.RefreshToken
-	}
+	refreshToken := util.OptionalString(tokenResponse.RefreshToken)
 
 	// create and save session
 	sess := session.Session{}
