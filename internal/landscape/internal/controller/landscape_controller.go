@@ -91,6 +91,12 @@ func (r *LandscapeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
+	if res, err := pkgctrl.MustBeInProjectNamespace(
+		ctx, r.Client, landscape, &landscape.Status.Conditions, konfidence.LandscapeReadyCondition,
+	); res != nil {
+		return *res, err
+	}
+
 	originalLandscape := landscape.DeepCopy()
 	err := r.reconcileLandscape(ctx, landscape)
 

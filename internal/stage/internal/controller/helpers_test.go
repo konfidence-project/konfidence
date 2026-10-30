@@ -7,12 +7,26 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+// EnsureLandscapeNamespace labels namespace so it passes the Stage reconciler's
+// landscape-namespace check.
+func EnsureLandscapeNamespace(ctx context.Context, k8sClient client.Client, namespace string) {
+	ns := &corev1.Namespace{}
+	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, ns)).To(Succeed())
+	if ns.Labels == nil {
+		ns.Labels = map[string]string{}
+	}
+	ns.Labels[pkgctrl.ProjectTypeLabel] = "landscape"
+	ns.Labels[pkgctrl.LandscapeNameLabel] = namespace
+	Expect(k8sClient.Update(ctx, ns)).To(Succeed())
+}
 
 func CreateStage(ctx context.Context, k8sClient client.Client, name string, namespace string, vectorName string) {
 	stage := &konfidence.Stage{

@@ -4,8 +4,11 @@ import (
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -277,6 +280,58 @@ var _ = Describe("VectorPromotionConfig drift detection", Ordered, Serial, func(
 			promotions := promotionsOf(g, config.Name)
 			g.Expect(promotions).To(HaveLen(1))
 			g.Expect(promotions[0].Spec.Vector).To(Equal(testVector))
+		}, timeout, interval).Should(Succeed())
+	})
+})
+
+var _ = Describe("VectorPromotionConfig namespace validation", Serial, func() {
+	It("reports NamespaceNotReady until the project namespace is labeled, then progresses", func() {
+		const unlabeledNS = "vpc-without-project-labels"
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: unlabeledNS}}
+		Expect(client.IgnoreAlreadyExists(k8sClient.Create(ctx, ns))).To(Succeed())
+		DeferCleanup(func() {
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, ns))).To(Succeed())
+		})
+
+		config := &konfidence.VectorPromotionConfig{
+			ObjectMeta: metav1.ObjectMeta{Name: "ns-check-config", Namespace: unlabeledNS},
+			Spec: konfidence.VectorPromotionConfigSpec{
+				Source: templateSource("some-template"),
+				Target: stageTarget("some-stage"),
+			},
+		}
+		Expect(k8sClient.Create(ctx, config)).To(Succeed())
+		DeferCleanup(func() {
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, config))).To(Succeed())
+		})
+
+		key := types.NamespacedName{Name: config.Name, Namespace: unlabeledNS}
+		Eventually(func(g Gomega) {
+			fetched := &konfidence.VectorPromotionConfig{}
+			g.Expect(k8sClient.Get(ctx, key, fetched)).To(Succeed())
+			cond := meta.FindStatusCondition(fetched.Status.Conditions, konfidence.VectorPromotionConfigReadyCondition)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+			g.Expect(cond.Reason).To(Equal(pkgctrl.NamespaceNotReadyReason))
+		}, timeout, interval).Should(Succeed())
+
+		By("labeling the namespace as a project namespace lets the config progress past the check")
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: unlabeledNS}, ns)).To(Succeed())
+			if ns.Labels == nil {
+				ns.Labels = map[string]string{}
+			}
+			ns.Labels[pkgctrl.ProjectTypeLabel] = "project"
+			ns.Labels[pkgctrl.ProjectNameLabel] = "test-project"
+			g.Expect(k8sClient.Update(ctx, ns)).To(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			fetched := &konfidence.VectorPromotionConfig{}
+			g.Expect(k8sClient.Get(ctx, key, fetched)).To(Succeed())
+			cond := meta.FindStatusCondition(fetched.Status.Conditions, konfidence.VectorPromotionConfigReadyCondition)
+			g.Expect(cond).NotTo(BeNil())
+			g.Expect(cond.Reason).NotTo(Equal(pkgctrl.NamespaceNotReadyReason))
 		}, timeout, interval).Should(Succeed())
 	})
 })
