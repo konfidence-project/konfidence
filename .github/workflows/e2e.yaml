@@ -1,0 +1,55 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+    types: [labeled, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  example-app:
+    name: Example app
+    # Fork PR tokens cannot publish packages.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       contains(github.event.pull_request.labels.*.name, 'e2e') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'e2e'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: e2e-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: cashapp/activate-hermit@v1
+
+      - name: Create cluster
+        run: make e2e-up
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Test
+        run: |
+          mkdir -p e2e-report
+          make test-e2e CHAINSAW_ARGS="--report-format JUNIT-STEP --report-path e2e-report"
+        env:
+          REGISTRY: ghcr.io/${{ github.repository }}/e2e/run-${{ github.run_id }}-${{ github.run_attempt }}
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ github.token }}
+
+      - name: Summary
+        if: always() && hashFiles('e2e-report/*.xml') != ''
+        uses: test-summary/action@v2
+        with:
+          paths: e2e-report/*.xml
+          show: all

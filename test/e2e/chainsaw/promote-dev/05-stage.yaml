@@ -1,0 +1,7 @@
+# Promotion fills spec.vector.
+apiVersion: konfidence.cloud/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: kden-l-dev
+spec: {}

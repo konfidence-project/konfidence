@@ -54,6 +54,9 @@ test/data/crds/
 # Generated validation schemas
 .tmp/
 
+# chainsaw e2e JUnit reports
+/e2e-report/
+
 # Generated ClusterRole manifests fed to charts/patch-clusterrole.sh
 config/rbac/
 

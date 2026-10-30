@@ -1,0 +1,15 @@
+# URLs use Chainsaw test bindings.
+apiVersion: konfidence.cloud/v1alpha1
+kind: VectorTemplate
+metadata:
+  name: example-app
+  namespace: kden-p-example-app
+spec:
+  uploadTarget: (join('', ['oci::https://', $registry, '//github.com/konfidence-project/e2e-test/vector']))
+  credentials:
+    ocm:
+      refs:
+        - name: registry-credentials
+  components:
+    - name: (join('', ['oci::https://', $componentRegistry, '//github.com/konfidence-project/example-app/candidates:edge']))
+    - name: (join('', ['oci::https://', $componentRegistry, '//github.com/konfidence-project/example-app/interviews:edge']))
