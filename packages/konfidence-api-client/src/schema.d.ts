@@ -295,7 +295,7 @@ export interface paths {
     put?: never;
     /**
      * Approves the given vectorPromotion for the specified project
-     * @description Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
+     * @description Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
      */
     post: operations["approveVectorPromotionV1"];
     delete?: never;
@@ -420,6 +420,8 @@ export interface components {
       id: components["schemas"]["VectorPromotionConfigId"];
       source: components["schemas"]["PromotionSourceReference"];
       target: components["schemas"]["PromotionTargetReference"];
+      /** @description Gates every promotion created from this config must pass. */
+      gates?: components["schemas"]["PromotionGate"][];
       ttlAfterFinished?: string;
       keepLastPromotions?: number;
       promotions: components["schemas"]["VectorPromotion"][];
@@ -430,28 +432,36 @@ export interface components {
       target: components["schemas"]["PromotionTargetReference"];
       vector: string;
       /** @enum {string} */
-      status?:
-        | "Waiting"
-        | "Ready"
-        | "InProgress"
-        | "Blocked"
-        | "Succeeded"
-        | "Failed"
-        | "Superseded";
-      requireApproval?: boolean;
+      status?: "Waiting" | "Ready" | "InProgress" | "Blocked" | "Succeeded" | "Superseded";
       ttlAfterFinished?: string;
       /** Format: int64 */
       sequence?: number;
-      approval?: components["schemas"]["PromotionApproval"];
+      /** @description State of every gate declared on the promotion, in declaration order. A declared gate without a recorded state is reported as Pending. */
+      gates?: components["schemas"]["PromotionGateStatus"][];
     };
-    PromotionApproval: {
-      /** @description Identity that granted the approval */
-      approvedBy: string;
+    PromotionGate: {
+      /** @description Gate type as `<gate-name>.<owner-domain>`, e.g. `explicit-approval.konfidence.cloud` */
+      type: string;
+    };
+    PromotionGateStatus: {
+      /** @description Gate type as `<gate-name>.<owner-domain>`, e.g. `explicit-approval.konfidence.cloud` */
+      type: string;
+      /**
+       * @description Current state of the gate
+       * @enum {string}
+       */
+      state: "Pending" | "Satisfied" | "Error";
+      /** @description Machine-readable reason for the latest state change */
+      reason?: string;
+      /** @description Human-readable description of the latest state change */
+      message?: string;
+      /** @description Entity that last set the gate state (controller name or user subject) */
+      setBy?: string;
       /**
        * Format: date-time
-       * @description Time the approval was granted
+       * @description Time the gate state was last set
        */
-      approvedAt: string;
+      setAt?: string;
     };
     PromotionSourceReference: {
       /**

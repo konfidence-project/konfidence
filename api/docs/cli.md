@@ -1034,7 +1034,7 @@ Approve a vector promotion for a specific project id
 
 ### Synopsis
 
-Grant approval for a vector promotion with the given vector promotion id for a specific project id.
+Satisfy the explicit-approval.konfidence.cloud gate of the vector promotion with the given vector promotion id for a specific project id. The promotion must declare that gate.
 
 ```
 kden vector-promotion approve <vectorPromotionId> [flags]

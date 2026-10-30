@@ -6,13 +6,14 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 )
 
 var _ = Describe("Repository", func() {
@@ -27,7 +28,7 @@ var _ = Describe("Repository", func() {
 			Spec: konfidence.VectorPromotionSpec{
 				VectorPromotionConfigName: "config",
 				Vector:                    "registry.example//konfidence.io/promo/app:1.0.0",
-				RequireApproval:           true,
+				Gates:                     []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}},
 			},
 			Status: konfidence.VectorPromotionStatus{Conditions: conditions},
 		}
@@ -89,52 +90,76 @@ var _ = Describe("Repository", func() {
 	})
 
 	Describe("Approve", func() {
-		It("approves a promotion waiting for approval", func() {
-			repo := newRepository(newPromotion(metav1.Condition{
-				Type:   konfidence.ConditionTypeApproved,
-				Status: metav1.ConditionFalse,
-				Reason: konfidence.ReasonPromotionWaitingForApproval,
-			}))
+		It("satisfies the explicit-approval gate with provenance", func() {
+			waiting := newPromotion()
+			waiting.Spec.Gates = append(waiting.Spec.Gates, konfidence.PromotionGate{Type: "e2e-tests.example.com"})
+			waiting.Status.Gates = []konfidence.PromotionGateStatus{
+				{Type: konfidence.GateTypeExplicitApproval, State: konfidence.PromotionGateStatePending},
+				{Type: "e2e-tests.example.com", State: konfidence.PromotionGateStatePending},
+			}
+			repo := newRepository(waiting)
 
 			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(Succeed())
 
 			approved, err := repo.Get(ctx, key.Namespace, key.Name)
 			Expect(err).NotTo(HaveOccurred())
-			cond := meta.FindStatusCondition(approved.Status.Conditions, konfidence.ConditionTypeApproved)
-			Expect(cond).NotTo(BeNil())
-			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(konfidence.ReasonPromotionManuallyApproved))
-			Expect(cond.Message).To(Equal(
-				`promotion of vector "registry.example//konfidence.io/promo/app:1.0.0" approved by alice@example.com`))
-			Expect(approved.Status.State).To(Equal(konfidence.PromotionStateReady))
-			Expect(approved.Status.Approval).NotTo(BeNil())
-			Expect(approved.Status.Approval.ApprovedBy).To(Equal("alice@example.com"))
-			Expect(approved.Status.Approval.ApprovedAt.IsZero()).To(BeFalse())
+			gate := promotiongate.Find(approved, konfidence.GateTypeExplicitApproval)
+			Expect(gate).NotTo(BeNil())
+			Expect(gate.State).To(Equal(konfidence.PromotionGateStateSatisfied))
+			Expect(gate.Reason).To(Equal(konfidence.ReasonGateApprovedByUser))
+			Expect(gate.Message).To(Equal("approved by alice@example.com"))
+			Expect(gate.SetBy).To(Equal("alice@example.com"))
+			Expect(gate.SetAt).NotTo(BeNil())
+			Expect(promotiongate.StateOf(approved, "e2e-tests.example.com")).To(Equal(konfidence.PromotionGateStatePending))
+		})
+
+		It("approves a promotion whose gates were not seeded yet", func() {
+			repo := newRepository(newPromotion())
+
+			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(Succeed())
+
+			approved, err := repo.Get(ctx, key.Namespace, key.Name)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(promotiongate.StateOf(approved, konfidence.GateTypeExplicitApproval)).
+				To(Equal(konfidence.PromotionGateStateSatisfied))
 		})
 
 		It("rejects an already approved promotion", func() {
-			repo := newRepository(newPromotion(metav1.Condition{
-				Type:   konfidence.ConditionTypeApproved,
-				Status: metav1.ConditionTrue,
-				Reason: konfidence.ReasonPromotionManuallyApproved,
-			}))
+			approved := newPromotion()
+			approved.Status.Gates = []konfidence.PromotionGateStatus{
+				{Type: konfidence.GateTypeExplicitApproval, State: konfidence.PromotionGateStateSatisfied, SetBy: "bob"},
+			}
+			repo := newRepository(approved)
 
 			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrAlreadyApproved))
 		})
 
-		DescribeTable("rejects terminal promotions",
+		It("rejects a promotion whose gates are already satisfied", func() {
+			repo := newRepository(newPromotion(metav1.Condition{
+				Type:   konfidence.ConditionTypeGatesSatisfied,
+				Status: metav1.ConditionTrue,
+				Reason: konfidence.ReasonAllGatesSatisfied,
+			}))
+
+			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrPromotionExecuting))
+		})
+
+		DescribeTable("rejects finished promotions and forwards the outcome",
 			func(reason string, status metav1.ConditionStatus) {
 				repo := newRepository(newPromotion(metav1.Condition{
-					Type:   konfidence.ConditionTypeSucceeded,
-					Status: status,
-					Reason: reason,
+					Type:    konfidence.ConditionTypeSucceeded,
+					Status:  status,
+					Reason:  reason,
+					Message: "set by test",
 				}))
 
 				err := repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")
 				Expect(err).To(MatchError(ErrPromotionFinished))
+				Expect(err).To(MatchError(ContainSubstring(reason + ": set by test")))
 			},
 			Entry("succeeded", konfidence.ReasonPromotionSucceeded, metav1.ConditionTrue),
-			Entry("failed", konfidence.ReasonPromotionFailed, metav1.ConditionFalse),
+			Entry("superseded by a newer promotion", konfidence.ReasonPromotionSuperseded, metav1.ConditionFalse),
+			Entry("outstanding limit reached", konfidence.ReasonPromotionOutstandingLimitReached, metav1.ConditionFalse),
 		)
 
 		It("rejects an empty approver", func() {
@@ -145,24 +170,11 @@ var _ = Describe("Repository", func() {
 
 		It("rejects a promotion that has no approval gate", func() {
 			gateless := newPromotion()
-			gateless.Spec.RequireApproval = false
+			gateless.Spec.Gates = []konfidence.PromotionGate{{Type: "e2e-tests.example.com"}}
 			repo := newRepository(gateless)
 
 			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrApprovalNotRequired))
 		})
-
-		DescribeTable("rejects a superseded promotion as locked", func(reason string) {
-			repo := newRepository(newPromotion(metav1.Condition{
-				Type:   konfidence.ConditionTypeSucceeded,
-				Status: metav1.ConditionFalse,
-				Reason: reason,
-			}))
-
-			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(MatchError(ErrPromotionSuperseded))
-		},
-			Entry("superseded by a newer promotion", konfidence.ReasonPromotionSuperseded),
-			Entry("outstanding limit reached", konfidence.ReasonPromotionOutstandingLimitReached),
-		)
 
 		It("reports a missing promotion as not found", func() {
 			repo := newRepository()

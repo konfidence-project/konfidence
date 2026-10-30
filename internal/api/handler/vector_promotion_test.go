@@ -45,20 +45,27 @@ var _ = Describe("GetVectorPromotionV1", func() {
 		Expect(ok.Vector).To(Equal("registry//component:v1"))
 		Expect(ok.Sequence).NotTo(BeNil())
 		Expect(*ok.Sequence).To(Equal(int64(7)))
-		Expect(ok.RequireApproval).NotTo(BeNil())
-		Expect(*ok.RequireApproval).To(BeFalse())
+		Expect(ok.Gates).To(BeNil())
 	})
 
-	It("includes approval metadata when the promotion has been approved", func() {
+	It("reports every declared gate with its state and provenance", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		// Use a fixed time with zero nanoseconds: the fake k8s client round-trips
 		// objects through JSON, which truncates metav1.Time to second precision.
 		approvalTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
-		promo.Status.Approval = &konfidence.PromotionApproval{
-			ApprovedBy: "alice@example.com",
-			ApprovedAt: metav1.NewTime(approvalTime),
+		promo.Spec.Gates = []konfidence.PromotionGate{
+			{Type: konfidence.GateTypeExplicitApproval},
+			{Type: "e2e-tests.example.com"},
 		}
+		promo.Status.Gates = []konfidence.PromotionGateStatus{{
+			Type:    konfidence.GateTypeExplicitApproval,
+			State:   konfidence.PromotionGateStateSatisfied,
+			Reason:  konfidence.ReasonGateApprovedByUser,
+			Message: "approved by alice@example.com",
+			SetBy:   "alice@example.com",
+			SetAt:   &metav1.Time{Time: approvalTime},
+		}}
 		h := newProjectHandlerForTest(project, promo)
 
 		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
@@ -69,9 +76,22 @@ var _ = Describe("GetVectorPromotionV1", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		ok := resp.(openapi.GetVectorPromotionV1200JSONResponse)
-		Expect(ok.Approval).NotTo(BeNil())
-		Expect(ok.Approval.ApprovedBy).To(Equal("alice@example.com"))
-		Expect(ok.Approval.ApprovedAt).To(BeTemporally("~", approvalTime, time.Second))
+		Expect(ok.Gates).NotTo(BeNil())
+		gates := *ok.Gates
+		Expect(gates).To(HaveLen(2))
+
+		Expect(gates[0].Type).To(Equal(konfidence.GateTypeExplicitApproval))
+		Expect(gates[0].State).To(Equal(openapi.PromotionGateStatusState("Satisfied")))
+		Expect(*gates[0].Reason).To(Equal(konfidence.ReasonGateApprovedByUser))
+		Expect(*gates[0].Message).To(Equal("approved by alice@example.com"))
+		Expect(*gates[0].SetBy).To(Equal("alice@example.com"))
+		Expect(*gates[0].SetAt).To(BeTemporally("~", approvalTime, time.Second))
+
+		// A declared gate without a status entry is reported as Pending.
+		Expect(gates[1].Type).To(Equal("e2e-tests.example.com"))
+		Expect(gates[1].State).To(Equal(openapi.PromotionGateStatusState("Pending")))
+		Expect(gates[1].SetBy).To(BeNil())
+		Expect(gates[1].SetAt).To(BeNil())
 	})
 
 	It("returns 404 when the promotion does not exist", func() {
@@ -147,11 +167,11 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 	It("returns 204 when the promotion is already approved (idempotent success)", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
-		promo.Spec.RequireApproval = true
-		promo.Status.Conditions = []metav1.Condition{{
-			Type:   konfidence.ConditionTypeApproved,
-			Status: metav1.ConditionTrue,
-			Reason: konfidence.ReasonPromotionManuallyApproved,
+		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
+		promo.Status.Gates = []konfidence.PromotionGateStatus{{
+			Type:  konfidence.GateTypeExplicitApproval,
+			State: konfidence.PromotionGateStateSatisfied,
+			SetBy: "bob@example.com",
 		}}
 		h := newProjectHandlerForTest(project, promo)
 
@@ -194,7 +214,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 	It("returns 409 when the promotion is superseded", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
-		promo.Spec.RequireApproval = true
+		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
 		promo.Status.Conditions = []metav1.Condition{{
 			Type:   konfidence.ConditionTypeSucceeded,
 			Status: metav1.ConditionFalse,
@@ -208,12 +228,13 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 			VectorPromotionId: "promo-1",
 		})
 		expectAPIError(resp, err, http.StatusConflict)
+		Expect(apierror.As(err).Message).To(ContainSubstring(konfidence.ReasonPromotionSuperseded))
 	})
 
 	It("returns 409 when the promotion has already finished", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
-		promo.Spec.RequireApproval = true
+		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
 		promo.Status.Conditions = []metav1.Condition{{
 			Type:   konfidence.ConditionTypeSucceeded,
 			Status: metav1.ConditionTrue,
@@ -229,11 +250,29 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		expectAPIError(resp, err, http.StatusConflict)
 	})
 
-	It("returns 409 when the promotion has no approval gate", func() {
+	It("returns 409 when the promotion gates are already satisfied", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
-		// RequireApproval is false by default in the fixture; make it explicit.
-		promo.Spec.RequireApproval = false
+		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
+		promo.Status.Conditions = []metav1.Condition{{
+			Type:   konfidence.ConditionTypeGatesSatisfied,
+			Status: metav1.ConditionTrue,
+			Reason: konfidence.ReasonAllGatesSatisfied,
+		}}
+		h := newProjectHandlerForTest(project, promo)
+
+		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+		resp, err := h.ApproveVectorPromotionV1(ctx, openapi.ApproveVectorPromotionV1RequestObject{
+			ProjectId:         "my-project",
+			VectorPromotionId: "promo-1",
+		})
+		expectAPIError(resp, err, http.StatusConflict)
+	})
+
+	It("returns 409 when the promotion has no explicit-approval gate", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
+		promo.Spec.Gates = []konfidence.PromotionGate{{Type: "e2e-tests.example.com"}}
 		h := newProjectHandlerForTest(project, promo)
 
 		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
@@ -273,7 +312,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 	It("returns 500 when the session carries no subject to record as approver", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
-		promo.Spec.RequireApproval = true
+		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
 		h := newProjectHandlerForTest(project, promo)
 
 		// Authorized for the project but with an empty subject: the repository
@@ -299,3 +338,35 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		expectAPIError(resp, err, http.StatusUnauthorized)
 	})
 })
+
+var _ = DescribeTable("displayState summarizes the observed facts",
+	func(conditions []metav1.Condition, started bool, expected openapi.VectorPromotionStatus) {
+		p := &konfidence.VectorPromotion{Status: konfidence.VectorPromotionStatus{Conditions: conditions}}
+		if started {
+			now := metav1.Now()
+			p.Status.StartTime = &now
+		}
+		Expect(displayState(p)).To(Equal(expected))
+	},
+	Entry("never reconciled", nil, false, openapi.VectorPromotionStatusWaiting),
+	Entry("a gate not satisfied yet", facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse), false,
+		openapi.VectorPromotionStatusWaiting),
+	Entry("gates satisfied", facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), false,
+		openapi.VectorPromotionStatusReady),
+	Entry("target unresolved", append(facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue),
+		facts(konfidence.ConditionTypeTargetResolved, metav1.ConditionFalse)...), false,
+		openapi.VectorPromotionStatusBlocked),
+	Entry("started", facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), true,
+		openapi.VectorPromotionStatusInProgress),
+	Entry("started but target no longer resolves", append(facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue),
+		facts(konfidence.ConditionTypeTargetResolved, metav1.ConditionFalse)...), true,
+		openapi.VectorPromotionStatusBlocked),
+	Entry("succeeded", facts(konfidence.ConditionTypeSucceeded, metav1.ConditionTrue), true,
+		openapi.VectorPromotionStatusSucceeded),
+	Entry("superseded", facts(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), false,
+		openapi.VectorPromotionStatusSuperseded),
+)
+
+func facts(conditionType string, status metav1.ConditionStatus) []metav1.Condition {
+	return []metav1.Condition{{Type: conditionType, Status: status, Reason: "SetByTest"}}
+}
