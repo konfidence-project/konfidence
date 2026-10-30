@@ -49,6 +49,13 @@ class DeploymentFilters<Row extends MatchableRow, Status extends string> {
     this.#rows = options.rows;
     this.#dimensions = options.dimensions;
     this.#matchers = options.matchers;
+
+    $effect(() => {
+      const { selected } = this;
+      if (selected !== undefined && !this.visibleRows.some((row) => row.id === selected.id)) {
+        this.closePanel();
+      }
+    });
   }
 
   get visibleRows(): Row[] {
@@ -84,25 +91,45 @@ class DeploymentFilters<Row extends MatchableRow, Status extends string> {
     return this.serverFiltersActive || this.clientFiltersActive;
   }
 
-  #updateUrl(mutate: (params: URLSearchParams) => void): void {
+  #updateUrl(
+    mutate: (params: URLSearchParams) => void,
+    options: { replace?: boolean; state?: App.PageState } = {},
+  ): void {
     const next = new globalThis.URL(page.url.href);
     mutate(next.searchParams);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- reusing the current page URL.
-    void goto(next, { reset: false });
+    void goto(next, {
+      replace: options.replace,
+      reset: false,
+      state: options.state,
+    });
   }
 
   openRow = (row: Row): void => {
     if (page.url.searchParams.get(DEEP_LINK_PARAM) === row.id) {
       return;
     }
-    this.#updateUrl((params) => params.set(DEEP_LINK_PARAM, row.id));
+    this.#updateUrl((params) => params.set(DEEP_LINK_PARAM, row.id), {
+      replace: this.panelOpen,
+      state: {
+        ...page.state,
+        overlayOrigin: page.state.overlayOrigin ?? "deployment",
+      },
+    });
   };
 
   closePanel = (): void => {
     if (!page.url.searchParams.has(DEEP_LINK_PARAM)) {
       return;
     }
-    this.#updateUrl((params) => params.delete(DEEP_LINK_PARAM));
+    if (page.state.overlayOrigin === "deployment") {
+      globalThis.history.back();
+      return;
+    }
+    this.#updateUrl((params) => params.delete(DEEP_LINK_PARAM), {
+      replace: true,
+      state: { ...page.state, overlayOrigin: undefined },
+    });
   };
 
   /**
@@ -114,31 +141,37 @@ class DeploymentFilters<Row extends MatchableRow, Status extends string> {
   changeDimension = (param: string, value: string): void => {
     const index = this.#dimensions.findIndex((dimension) => dimension.param === param);
 
-    this.#updateUrl((params) => {
-      if (value === "") {
-        params.delete(param);
-      } else {
-        params.set(param, value);
-      }
-      if (index !== -1) {
-        for (const dimension of this.#dimensions.slice(index + 1)) {
-          params.delete(dimension.param);
+    this.#updateUrl(
+      (params) => {
+        if (value === "") {
+          params.delete(param);
+        } else {
+          params.set(param, value);
         }
-      }
-      params.delete(DEEP_LINK_PARAM);
-    });
+        if (index !== -1) {
+          for (const dimension of this.#dimensions.slice(index + 1)) {
+            params.delete(dimension.param);
+          }
+        }
+        params.delete(DEEP_LINK_PARAM);
+      },
+      { replace: this.panelOpen },
+    );
   };
 
   clearFilters = (): void => {
     this.query = "";
     this.status = "";
     if (this.serverFiltersActive || page.url.searchParams.has(DEEP_LINK_PARAM)) {
-      this.#updateUrl((params) => {
-        for (const dimension of this.#dimensions) {
-          params.delete(dimension.param);
-        }
-        params.delete(DEEP_LINK_PARAM);
-      });
+      this.#updateUrl(
+        (params) => {
+          for (const dimension of this.#dimensions) {
+            params.delete(dimension.param);
+          }
+          params.delete(DEEP_LINK_PARAM);
+        },
+        { replace: this.panelOpen },
+      );
     }
   };
 }

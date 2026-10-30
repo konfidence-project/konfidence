@@ -54,13 +54,17 @@ describe("buildLandscapeGraph", () => {
     expect(columnOf("production", "prod-a")).toBe(2);
     expect(graph.edges).toEqual([
       {
-        id: `${stageKey("development", "dev-a")}=>${stageKey("test", "test-a")}`,
+        id: "dev-to-test",
+        sourceName: "dev-a",
         sourceStageKey: stageKey("development", "dev-a"),
+        targetName: "test-a",
         targetStageKey: stageKey("test", "test-a"),
       },
       {
-        id: `${stageKey("test", "test-a")}=>${stageKey("production", "prod-a")}`,
+        id: "test-to-prod",
+        sourceName: "test-a",
         sourceStageKey: stageKey("test", "test-a"),
+        targetName: "prod-a",
         targetStageKey: stageKey("production", "prod-a"),
       },
     ]);

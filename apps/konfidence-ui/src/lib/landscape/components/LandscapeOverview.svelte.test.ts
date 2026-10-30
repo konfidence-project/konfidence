@@ -11,8 +11,9 @@ import type {
 import LandscapeOverview from "#lib/landscape/components/LandscapeOverview.svelte";
 
 const navigation = vi.hoisted(() => ({
-  goto: vi.fn<(url: URL, options: { keepFocus: boolean; noScroll: boolean }) => Promise<void>>(),
+  goto: vi.fn<(url: URL | string, options?: Record<string, unknown>) => Promise<void>>(),
   pushState: vi.fn<(url: string | URL, state: App.PageState) => void>(),
+  replaceState: vi.fn<(url: string | URL, state: App.PageState) => void>(),
 }));
 const appState = vi.hoisted(() => ({
   page: {
@@ -70,7 +71,11 @@ const vectorDeploymentResource = (overrides: Partial<VectorDeployment>): VectorD
   ...overrides,
 });
 
-vi.mock("$app/navigation", () => ({ goto: navigation.goto, pushState: navigation.pushState }));
+vi.mock("$app/navigation", () => ({
+  goto: navigation.goto,
+  pushState: navigation.pushState,
+  replaceState: navigation.replaceState,
+}));
 vi.mock("$app/state", () => appState);
 
 const setUrl = (search: string): void => {
@@ -79,6 +84,7 @@ const setUrl = (search: string): void => {
 
 const setStageOverlay = (landscapeId: string, stageId: string): void => {
   appState.page.state = {
+    overlayOrigin: "landscape",
     stageOverlay: { landscapeId, projectId: "payments", stageId },
   };
 };
@@ -136,6 +142,7 @@ beforeEach(() => {
   navigation.goto.mockReset();
   navigation.goto.mockResolvedValue();
   navigation.pushState.mockReset();
+  navigation.replaceState.mockReset();
   vectorDeployment.states.clear();
   vectorDeployment.reload.mockReset();
   appState.page.state = {};
@@ -211,6 +218,7 @@ describe("<LandscapeOverview> stage overlay", () => {
     expect(navigation.pushState).toHaveBeenCalledWith(
       "/projects/payments/landscape/primary/stages/dev-api",
       {
+        overlayOrigin: "landscape",
         stageOverlay: {
           landscapeId: "primary",
           projectId: "payments",
@@ -366,5 +374,187 @@ describe("<LandscapeOverview> vector deployment sections", () => {
     await expect.element(ids.nth(1)).not.toBeInTheDocument();
     await expect.element(page.getByRole("region", { name: "Target version" })).toBeVisible();
     await expect.element(page.getByRole("region", { name: "Active version" })).toBeVisible();
+  });
+});
+
+describe("<LandscapeOverview> promotion overlay", () => {
+  const promotionConfig: VectorPromotionConfig = {
+    id: "dev-to-prod",
+    promotions: [
+      {
+        id: "promo-1",
+        source: { kind: "Stage", landscape: "primary", name: "dev-api" },
+        status: "InProgress",
+        target: { kind: "Stage", landscape: "primary", name: "prod-api" },
+        vector: "registry.example.com/delivery/vector:2.0.0",
+      },
+    ],
+    source: { kind: "Stage", landscape: "primary", name: "dev-api" },
+    target: { kind: "Stage", landscape: "primary", name: "prod-api" },
+  };
+
+  const promotionProps = {
+    ...baseProps,
+    promotionConfigs: [promotionConfig],
+    stages: [stage, rolledOutStage],
+  };
+
+  const promotionId = "dev-to-prod";
+
+  it("keeps the bottom sheet closed with no promotion param", async () => {
+    await render(LandscapeOverview, promotionProps);
+
+    await expect.element(page.getByTestId("bottom-sheet")).not.toBeVisible();
+  });
+
+  it("opens the bottom sheet titled source → target for the selected promotion", async () => {
+    setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
+    await render(LandscapeOverview, promotionProps);
+
+    await expect.element(page.getByRole("dialog", { name: "dev-api → prod-api" })).toBeVisible();
+    const details = page.getByTestId("promotion-details");
+    await expect.element(details).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Artifact Changes" })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Feature Toggles" })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Info" })).toBeVisible();
+  });
+
+  it("opens promotion details with Enter from an accessible edge button", async () => {
+    await page.viewport(1200, 800);
+    await render(LandscapeOverview, promotionProps);
+
+    const edge = page.getByRole("button", {
+      name: "View promotion details from dev-api to prod-api",
+    });
+    await expect.element(edge).toBeInTheDocument();
+    edge.element().dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+
+    await vi.waitFor(() => expect(navigation.goto).toHaveBeenCalledOnce());
+    const [next] = navigation.goto.mock.calls[0]!;
+    expect(new URL(next).searchParams.get("promotion")).toBe(promotionId);
+  });
+
+  it("closes promotion details when blank canvas is clicked but not when it is panned", async () => {
+    await page.viewport(1200, 800);
+    setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
+    await render(LandscapeOverview, promotionProps);
+
+    const pane = document.querySelector<HTMLElement>(".svelte-flow__pane")!;
+    pane.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    await vi.waitFor(() => expect(navigation.goto).toHaveBeenCalledOnce());
+    const [next] = navigation.goto.mock.calls[0]!;
+    expect(new URL(next).searchParams.has("promotion")).toBe(false);
+  });
+
+  it("uses a non-modal sheet on desktop and converts it to modal on mobile", async () => {
+    await page.viewport(1200, 800);
+    setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
+    await render(LandscapeOverview, promotionProps);
+    const dialog = page.getByTestId("bottom-sheet");
+    await expect.element(dialog).toHaveAttribute("aria-modal", "false");
+
+    await page.viewport(390, 700);
+    await expect.element(dialog).toHaveAttribute("aria-modal", "true");
+    await expect.element(dialog).toBeVisible();
+  });
+
+  it("does not open the bottom sheet for an unknown promotion id", async () => {
+    setUrl("?promotion=missing");
+    await render(LandscapeOverview, promotionProps);
+
+    await expect.element(page.getByTestId("bottom-sheet")).not.toBeVisible();
+  });
+
+  it("highlights both stages connected by the selected promotion", async () => {
+    setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
+    await render(LandscapeOverview, promotionProps);
+
+    const sourceCard = page
+      .getByRole("link", { name: "View details for stage dev-api in Primary" })
+      .element() as HTMLElement;
+    const targetCard = page
+      .getByRole("link", { name: "View details for stage prod-api in Primary" })
+      .element() as HTMLElement;
+    await vi.waitFor(() => {
+      expect(sourceCard.classList.contains("stage-card--selected")).toBe(true);
+      expect(targetCard.classList.contains("stage-card--selected")).toBe(true);
+    });
+  });
+
+  it("clears the promotion param when the sheet is closed", async () => {
+    setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
+    await render(LandscapeOverview, promotionProps);
+
+    const dialog = page.getByRole("dialog", { name: "dev-api → prod-api" });
+    await expect.element(dialog).toBeVisible();
+    (dialog.getByTestId("bottom-sheet-close").element() as HTMLButtonElement).click();
+
+    expect(navigation.goto).toHaveBeenCalled();
+    const [next, options] = navigation.goto.mock.calls[0]!;
+    expect(new URL(next).searchParams.has("promotion")).toBe(false);
+    expect(options).toEqual({ replace: true, reset: false });
+  });
+
+  it("keeps the stage and promotion panels mutually exclusive", async () => {
+    setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
+    await render(LandscapeOverview, promotionProps);
+
+    await expect.element(page.getByTestId("bottom-sheet")).toBeVisible();
+    // The stage (right) panel must not be open while a promotion is selected.
+    await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
+  });
+
+  it("finishes closing the stage panel before selecting a promotion", async () => {
+    await page.viewport(1200, 800);
+    setStageOverlay("primary", "dev-api");
+    await render(LandscapeOverview, promotionProps);
+    let edge: Element | null = null;
+    await vi.waitFor(() => {
+      edge = document.querySelector(".svelte-flow__edge[data-id='dev-to-prod']");
+      expect(edge).not.toBeNull();
+    });
+
+    edge!.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 }));
+    expect(navigation.goto).not.toHaveBeenCalled();
+    const sidePanel = page.getByTestId("side-panel").element();
+    await expect.element(sidePanel).toHaveAttribute("data-state", "closed");
+    expect(navigation.goto).not.toHaveBeenCalled();
+    sidePanel.dispatchEvent(
+      new TransitionEvent("transitionend", { bubbles: true, propertyName: "translate" }),
+    );
+
+    await vi.waitFor(() => expect(navigation.goto).toHaveBeenCalledOnce(), { timeout: 1000 });
+    const [next, options] = navigation.goto.mock.calls[0]!;
+    expect(new URL(next).searchParams.get("promotion")).toBe(promotionId);
+    expect(options?.replace).toBe(true);
+  });
+
+  it("finishes closing promotion details before selecting a stage", async () => {
+    await page.viewport(1200, 800);
+    setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
+    appState.page.state = { overlayOrigin: "landscape" };
+    await render(LandscapeOverview, promotionProps);
+    const stageCard = page.getByRole("link", {
+      name: "View details for stage dev-api in Primary",
+    });
+
+    stageCard
+      .element()
+      .dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0, cancelable: true }));
+    expect(navigation.replaceState).not.toHaveBeenCalled();
+    const bottomSheet = page.getByTestId("bottom-sheet").element();
+    await expect.element(bottomSheet).toHaveAttribute("data-state", "closed");
+    expect(navigation.replaceState).not.toHaveBeenCalled();
+    bottomSheet.dispatchEvent(
+      new TransitionEvent("transitionend", { bubbles: true, propertyName: "translate" }),
+    );
+
+    await vi.waitFor(() => expect(navigation.replaceState).toHaveBeenCalledOnce(), {
+      timeout: 1000,
+    });
+    expect(navigation.replaceState.mock.calls[0]![0]).toBe(
+      "/projects/payments/landscape/primary/stages/dev-api",
+    );
   });
 });
