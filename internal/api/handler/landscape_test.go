@@ -15,6 +15,7 @@ import (
 	stagedomain "github.com/konfidence-project/konfidence/internal/stage"
 	vectordeploymentdomain "github.com/konfidence-project/konfidence/internal/vectordeployment"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
+	"github.com/konfidence-project/konfidence/pkg/ocm/content"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,6 +66,10 @@ func (r *failingGetLandscapeRepository) Get(_ context.Context, _, _ string) (*ko
 }
 
 func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
+	return newProjectHandlerWithReader(nil, objs...)
+}
+
+func newProjectHandlerWithReader(reader content.Reader, objs ...client.Object) *projectHandler {
 	k8s := fakeK8s(objs...)
 	return newProjectHandler(
 		projectdomain.NewRepository(k8s),
@@ -74,6 +79,7 @@ func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
 		vectordeploymentdomain.NewRepository(k8s),
 		vectorpromotiondomain.NewRepository(k8s),
 		vectorpromotiondomain.NewConfigRepository(k8s),
+		reader,
 	)
 }
 
