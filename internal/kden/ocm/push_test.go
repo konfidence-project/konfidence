@@ -90,6 +90,34 @@ func (m *failingTargetRepository) RemoveComponentVersionAlias(_ context.Context,
 	return fmt.Errorf("alias failed")
 }
 
+// existingVersionsRepository reports only the listed "name:version" pairs as
+// present, like a target repository that holds some components already.
+type existingVersionsRepository struct {
+	mockTargetRepository
+	existing map[string]bool
+	lookups  []string
+}
+
+func (r *existingVersionsRepository) GetComponentVersion(_ context.Context, name, version string) (*descriptorruntime.Descriptor, error) {
+	r.lookups = append(r.lookups, name+":"+version)
+	if !r.existing[name+":"+version] {
+		return nil, repository.ErrNotFound
+	}
+	return &descriptorruntime.Descriptor{}, nil
+}
+
+func newComponent(name, version string, refs ...ocmconstructorruntime.Reference) ocmconstructorruntime.Component {
+	c := ocmconstructorruntime.Component{References: refs}
+	c.Name, c.Version = name, version
+	return c
+}
+
+func newReference(component, version string) ocmconstructorruntime.Reference {
+	ref := ocmconstructorruntime.Reference{Component: component}
+	ref.Name, ref.Version = component, version
+	return ref
+}
+
 var _ = BeforeEach(func() {
 	ocmGetPluginManager = func(_ context.Context, _ *ocmgenericspecv1.Config) (*manager.PluginManager, error) {
 		return &manager.PluginManager{}, nil
@@ -245,6 +273,70 @@ var _ = Describe("PushComponentConstructor", func() {
 			err := PushComponentConstructor(ctx, &constructorOptionsProvider, &constructor)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("construct failed"))
+		})
+	})
+
+	// Regression for #414: copying referenced components that already live in
+	// the target repository fails intermittently with "context canceled".
+	Context("choosing the copy policy for referenced components", func() {
+		var target *existingVersionsRepository
+		var targetErr error
+		var opts ocmconstructor.Options
+		// The OCM constant is untyped, so convert it for Equal.
+		skip := ocmconstructor.ExternalComponentVersionCopyPolicy(ocmconstructor.ExternalComponentVersionCopyPolicySkip)
+
+		push := func(components ...ocmconstructorruntime.Component) {
+			ocmConvertToRuntimeConstructor = func(_ *ocmconstructorspecv1.ComponentConstructor) *ocmconstructorruntime.ComponentConstructor {
+				return &ocmconstructorruntime.ComponentConstructor{Components: components}
+			}
+			Expect(PushComponentConstructor(ctx, &constructorOptionsProvider, &constructor)).To(Succeed())
+		}
+
+		BeforeEach(func() {
+			target = &existingVersionsRepository{existing: map[string]bool{"example.com/candidates:1.0.0": true}}
+			targetErr = nil
+			ocmGetTargetRepository = func(_ context.Context, _ *ocmconstructorruntime.Component,
+				_ *ConstructorProvider) (ocmconstructor.TargetRepository, error) {
+				return target, targetErr
+			}
+			ocmCreateConstructor = func(_ *ocmconstructorruntime.ComponentConstructor, o ocmconstructor.Options) ocmconstructor.Constructor {
+				opts = o
+				return &mockConstructor{}
+			}
+		})
+
+		It("skips the copy when every referenced component exists in the target repository", func() {
+			push(newComponent("example.com/vector", "2.0.0", newReference("example.com/candidates", "1.0.0")))
+			Expect(opts.ExternalComponentVersionCopyPolicy).To(Equal(skip))
+		})
+
+		It("copies when a referenced component is missing from the target repository", func() {
+			push(newComponent("example.com/vector", "2.0.0",
+				newReference("example.com/candidates", "1.0.0"),
+				newReference("example.com/interviews", "1.0.0")))
+			Expect(opts.ExternalComponentVersionCopyPolicy).To(Equal(ocmconstructor.ExternalComponentVersionCopyPolicyCopyOrFail))
+		})
+
+		It("copies when the target repository cannot be opened", func() {
+			targetErr = fmt.Errorf("no repository")
+			push(newComponent("example.com/vector", "2.0.0", newReference("example.com/candidates", "1.0.0")))
+			Expect(opts.ExternalComponentVersionCopyPolicy).To(Equal(ocmconstructor.ExternalComponentVersionCopyPolicyCopyOrFail))
+		})
+
+		It("ignores references to components built by the same constructor", func() {
+			push(
+				newComponent("example.com/vector", "2.0.0",
+					newReference("example.com/candidates", "1.0.0"),
+					newReference("example.com/config", "2.0.0")),
+				newComponent("example.com/config", "2.0.0"))
+			Expect(opts.ExternalComponentVersionCopyPolicy).To(Equal(skip))
+			Expect(target.lookups).To(Equal([]string{"example.com/candidates:1.0.0"}))
+		})
+
+		It("keeps the default and does not query the target repository without references", func() {
+			push(newComponent("example.com/candidates", "1.0.0"))
+			Expect(opts.ExternalComponentVersionCopyPolicy).To(Equal(ocmconstructor.ExternalComponentVersionCopyPolicyCopyOrFail))
+			Expect(target.lookups).To(BeEmpty())
 		})
 	})
 })
