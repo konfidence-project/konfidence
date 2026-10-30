@@ -219,12 +219,12 @@ Whether a health check or deployment result is required for every artifact type,
 
 ## 5. Vector association and artifact reuse
 
-* **Ownership and resource selection:** Core creates a `VectorAssignment` for each vector/artifact pair and uses `ArtifactManifest.allowReuse` when creating the `ArtifactDeployment`. One artifact may be referenced by several vectors; the deployer for the artifact type handles vector-specific work.
-* **Interpretation of inputs / generic fields:** `VectorAssignment` references the vector and artifact. When reuse is enabled, a deployer MUST NOT infer a single vector from the artifact alone.
+* **Ownership and resource selection:** Core records each vector/artifact association in `VectorDeployment.status.resultingArtifactDeployments` and uses `ArtifactManifest.allowReuse` when creating the `ArtifactDeployment`. One artifact may be referenced by several vectors; the deployer for the artifact type handles vector-specific work.
+* **Interpretation of inputs / generic fields:** A reusable `ArtifactDeployment` MUST NOT depend on vector-specific runtime context. Vector-scoped authored data and aggregated deployment results are transported through `VectorData`. When reuse is enabled, a deployer MUST NOT infer a single vector from the artifact alone.
 * **Processing and guarantees, failure/retry handling:** Vector-specific data MUST remain isolated across vectors sharing an artifact. Define what happens if an artifact requests reuse but the deployer cannot support it, and how missing references or failed assignment work are handled.
-* **Status reporting via conditions:** Define what `VectorAssignment.Ready` proves, including whether a no-op assignment can be ready and what happens when the referenced artifact becomes unavailable.
+* **Status reporting via conditions:** `ArtifactDeployment.status` is the source of artifact readiness and deployment results. `VectorDeployment` reflects the aggregate readiness of its referenced artifact deployments.
 * **Resource deletion and undeployment:** Removing one vector MUST NOT undeploy an artifact still in use by another; define cleanup of its vector-specific state.
-* **Optional behavior:** Decide whether reuse is an artifact-type capability and whether the `VectorAssignment` CRD remains the representation of association (`konfidence` issue #83). Preserve the semantic contract if the CRD changes.
+* **Optional behavior:** Decide whether reuse is an artifact-type capability.
 
 ## 6. VectorData: vector-scoped data
 
@@ -249,4 +249,4 @@ For every condition, specify its owner, meaning of `True`/`False`/`Unknown`, rea
 
 Before declaring a specification version, define how it relates to CRD versions and any published Go bindings, how compatible changes are introduced, and how optional capabilities are declared. Each normative clause should receive an identifier for conformance checks. Validate the mandatory subset against KLO and a substantially different target platform; track KLO deviations as implementation gaps rather than weakening requirements to match existing behavior.
 
-Initial decision list: target multiplicity and mutation; condition ownership/fallback; meaning of artifact and vector readiness; reuse capability; fate of `VectorAssignment`; VectorData implementor selection; result versus inventory schemas; cleanup guarantees; capability discovery and compatibility policy.
+Initial decision list: target multiplicity and mutation; condition ownership/fallback; meaning of artifact and vector readiness; reuse capability; VectorData implementor selection; result versus inventory schemas; cleanup guarantees; capability discovery and compatibility policy.

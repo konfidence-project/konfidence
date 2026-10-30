@@ -14,9 +14,6 @@ const (
 	// ArtifactDeploymentsCreatedCondition indicates that all ArtifactDeployment resources have been created successfully.
 	ArtifactDeploymentsCreatedCondition = "ArtifactDeploymentsCreated"
 
-	// VectorAssignmentsCreatedCondition indicates that all VectorAssignment resources have been created successfully.
-	VectorAssignmentsCreatedCondition = "VectorAssignmentsCreated"
-
 	// VectorDataCreatedCondition indicates that the vector deployment controller has created the VectorData CR. Materialisation of the data
 	// (e.g. as a ConfigMap on Kubernetes) is reported separately on the VectorData object and reflected on the
 	// parent VectorDeployment through VectorReadyCondition.
@@ -27,9 +24,6 @@ const (
 
 	// VectorReadyReasonArtifactDeploymentsNotReady indicates that Ready is False while ArtifactDeployments are not ready.
 	VectorReadyReasonArtifactDeploymentsNotReady = "ArtifactDeploymentsNotReady"
-
-	// VectorReadyReasonVectorAssignmentsNotReady indicates that Ready is False while VectorAssignments are not ready.
-	VectorReadyReasonVectorAssignmentsNotReady = "VectorAssignmentsNotReady"
 
 	// VectorReadyReasonVectorDataNotReady indicates that Ready is False while the VectorData is not materialized.
 	VectorReadyReasonVectorDataNotReady = "VectorDataNotReady"
@@ -74,10 +68,9 @@ type VectorDeploymentSpec struct {
 //  1. Pulling the vector from the OCI registry and parsing its contents -> VectorDownloadedCondition
 //  2. Creating (or re-using) one ArtifactDeployment per artifact in the vector -> ArtifactDeploymentsCreatedCondition
 //  3. Waiting until all ArtifactDeployments have successfully deployed -> VectorDeployedCondition
-//  4. Creating all VectorAssignment resources associated with this vector -> VectorAssignmentsCreatedCondition
-//  5. Creating the VectorData CR with the resolved authored configuration + aggregated DeploymentResults; the
+//  4. Creating the VectorData CR with the resolved authored configuration + aggregated DeploymentResults; the
 //     runtime-specific implementor then materialises it (e.g. as a ConfigMap on Kubernetes) -> VectorDataCreatedCondition
-//  6. Marking the vector as ready for use once VectorData reports its own Ready=True -> VectorReadyCondition
+//  5. Marking the vector as ready for use once VectorData reports its own Ready=True -> VectorReadyCondition
 type VectorDeploymentStatus struct {
 
 	// Conditions represents the current set of status conditions for this vector
@@ -94,7 +87,7 @@ type VectorDeploymentStatus struct {
 
 	// ResultingVectorData records the name of the VectorData object created for this VectorDeployment. The VectorData
 	// CR is the contract between the vector deployment controller (which resolves the OCM payload) and the runtime-specific implementor
-	// (which materialises it on the target runtime). The field is empty until step 5 of the lifecycle has produced the
+	// (which materialises it on the target runtime). The field is empty until step 4 of the lifecycle has produced the
 	// CR. Names are stable across reconciliations.
 	ResultingVectorData *LocalObjectReference `json:"resultingVectorData,omitempty"`
 
@@ -102,13 +95,6 @@ type VectorDeploymentStatus struct {
 	// map key is the component name of the artifact as defined inside the vector. Keys remain stable across
 	// reconciliations and re-creations.
 	ResultingArtifactDeployments map[string]LocalArtifactDeploymentReference `json:"resultingArtifactDeployments,omitempty"`
-
-	// ResultingVectorAssignments lists all VectorAssignment resources created for this vector. VectorAssignments are
-	// not re-used like ArtifactDeployments, but instead each VectorDeployment results in a complete new set of
-	// assignments.
-	//
-	// The map key is the component name of the artifact. Keys are stable across reconcilations.
-	ResultingVectorAssignments map[string]LocalVectorAssignmentReference `json:"resultingVectorAssignments,omitempty"`
 
 	// DeploymentResults exposes an aggregated view of the deployment results produced
 	// by all underlying ArtifactDeployments. The map key is the artifact component name;

@@ -2,6 +2,7 @@ export {
   AppShell,
   Avatar,
   AvatarGroup,
+  BottomSheet,
   Brandbar,
   Breadcrumbs,
   Button,

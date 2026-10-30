@@ -69,7 +69,6 @@ rules:
   - stageversionusages
   - taskexecutions
   - vectoractivations
-  - vectorassignments
   - vectordeployments
   - vectormigrations
   verbs:
