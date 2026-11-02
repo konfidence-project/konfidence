@@ -304,6 +304,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke the approval of the given vectorPromotion for the specified project
+     * @description Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+     */
+    post: operations["revokeApprovalVectorPromotionV1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}": {
     parameters: {
       query?: never;
@@ -1164,6 +1184,34 @@ export interface operations {
     requestBody?: never;
     responses: {
       /** @description VectorPromotion successfully approved. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  revokeApprovalVectorPromotionV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description VectorPromotion Id */
+        vectorPromotionId: components["parameters"]["VectorPromotionPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Approval of the VectorPromotion successfully revoked. */
       204: {
         headers: {
           [name: string]: unknown;

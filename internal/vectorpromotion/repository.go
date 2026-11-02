@@ -44,12 +44,17 @@ var (
 	// ErrAlreadyApproved is returned when the explicit-approval gate is
 	// already satisfied.
 	ErrAlreadyApproved = errors.New("promotion is already approved")
+	// ErrNotApproved is returned when there is no satisfied approval to revoke.
+	ErrNotApproved = errors.New("promotion is not approved; nothing to revoke")
 	// ErrApprovalNotRequired is returned when the promotion does not declare
 	// the explicit-approval gate: there is nothing to approve.
 	ErrApprovalNotRequired = errors.New("promotion has no explicit-approval gate; nothing to approve")
 	// ErrApproverMissing is returned when no approver identity was supplied:
 	// an approval without provenance is not an audit record.
 	ErrApproverMissing = errors.New("approvedBy must not be empty")
+	// ErrRevokerMissing is returned when no revoker identity was supplied:
+	// a revocation without provenance is not an audit record.
+	ErrRevokerMissing = errors.New("revokedBy must not be empty")
 	// ErrConflict is returned when the approval raced a concurrent write to
 	// the promotion. The write did not happen; the caller should retry.
 	ErrConflict = errors.New("promotion was modified concurrently; retry the approval")
@@ -59,6 +64,7 @@ type Repository interface {
 	Get(ctx context.Context, namespace string, vectorPromotionId string) (*konfidence.VectorPromotion, error)
 	ListForConfig(ctx context.Context, namespace string, vectorPromotionConfigName string) ([]konfidence.VectorPromotion, error)
 	Approve(ctx context.Context, namespace string, vectorPromotionId string, approvedBy string) error
+	RevokeApproval(ctx context.Context, namespace string, vectorPromotionId string, revokedBy string) error
 }
 
 type k8sRepository struct{ k8sClient client.Client }
@@ -149,5 +155,62 @@ func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionI
 		return ErrConflict
 	default:
 		return fmt.Errorf("failed to approve VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
+	}
+}
+
+// RevokeApproval sets the promotion's explicit-approval gate back to Pending
+// on behalf of revokedBy. Repeating a recorded revocation is an idempotent
+// success that preserves its provenance; other unsatisfied gates cannot be revoked.
+// Revocation is rejected once the promotion has passed its gates or finished.
+func (r *k8sRepository) RevokeApproval(ctx context.Context, namespace, vectorPromotionId, revokedBy string) error {
+	if revokedBy == "" {
+		return ErrRevokerMissing
+	}
+
+	vectorPromotion, err := r.Get(ctx, namespace, vectorPromotionId)
+	if err != nil {
+		return err
+	}
+
+	if promotion.IsTerminal(vectorPromotion) {
+		cond := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
+		return fmt.Errorf("%w: %s: %s", ErrPromotionFinished, cond.Reason, cond.Message)
+	}
+	if !promotiongate.Declared(vectorPromotion, konfidence.GateTypeExplicitApproval) {
+		return ErrApprovalNotRequired
+	}
+	if !promotiongate.GatesMutable(vectorPromotion) {
+		return ErrPromotionExecuting
+	}
+	gate := promotiongate.Find(vectorPromotion, konfidence.GateTypeExplicitApproval)
+	if gate != nil && gate.State == konfidence.PromotionGateStatePending &&
+		gate.Reason == konfidence.ReasonGateApprovalRevokedByUser {
+		return nil
+	}
+	if promotiongate.StateOf(vectorPromotion, konfidence.GateTypeExplicitApproval) != konfidence.PromotionGateStateSatisfied {
+		return ErrNotApproved
+	}
+
+	key := types.NamespacedName{Namespace: namespace, Name: vectorPromotionId}
+	err = promotiongate.Set(ctx, r.k8sClient, key, promotiongate.Update{
+		Type:    konfidence.GateTypeExplicitApproval,
+		State:   konfidence.PromotionGateStatePending,
+		Reason:  konfidence.ReasonGateApprovalRevokedByUser,
+		Message: fmt.Sprintf("approval revoked by %s", revokedBy),
+		SetBy:   revokedBy,
+	})
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, promotiongate.ErrNotFound):
+		return ErrVectorPromotionNotFound
+	case errors.Is(err, promotiongate.ErrGateNotDeclared):
+		return ErrApprovalNotRequired
+	case errors.Is(err, promotiongate.ErrPromotionNotMutable):
+		return ErrPromotionExecuting
+	case errors.Is(err, promotiongate.ErrConflict):
+		return ErrConflict
+	default:
+		return fmt.Errorf("failed to revoke approval of VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
 	}
 }
