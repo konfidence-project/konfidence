@@ -13,6 +13,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 )
 
 const (
@@ -91,6 +93,7 @@ func createConfig(
 	name string,
 	source konfidence.PromotionSourceReference,
 	target konfidence.PromotionTargetReference,
+	gates ...konfidence.PromotionGate,
 ) *konfidence.VectorPromotionConfig {
 	config := &konfidence.VectorPromotionConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -100,6 +103,7 @@ func createConfig(
 		Spec: konfidence.VectorPromotionConfigSpec{
 			Source: source,
 			Target: target,
+			Gates:  gates,
 		},
 	}
 	ExpectWithOffset(1, k8sClient.Create(ctx, config)).To(Succeed())
@@ -129,6 +133,7 @@ func createPromotion(name, configRef string) *konfidence.VectorPromotion {
 			Target:                    stageTarget("some-stage"),
 			Vector:                    testVector,
 			Sequence:                  nextSequence(),
+			Gates:                     []konfidence.PromotionGate{},
 		},
 	}
 	ownPromotionIfConfigExists(promotion, configRef)
@@ -165,8 +170,9 @@ func ownPromotionIfConfigExists(promotion *konfidence.VectorPromotion, configRef
 }
 
 // createPromotionTargeting creates a VectorPromotion carrying a real target
-// snapshot, for specs that execute against an actual Stage.
-func createPromotionTargeting(name, configRef string, target konfidence.PromotionTargetReference, requireApproval bool) *konfidence.VectorPromotion {
+// snapshot, for specs that execute against an actual Stage. withApprovalGate
+// declares the explicit-approval gate.
+func createPromotionTargeting(name, configRef string, target konfidence.PromotionTargetReference, withApprovalGate bool) *konfidence.VectorPromotion {
 	promotion := &konfidence.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -178,16 +184,28 @@ func createPromotionTargeting(name, configRef string, target konfidence.Promotio
 			Target:                    target,
 			Vector:                    testVector,
 			Sequence:                  nextSequence(),
-			RequireApproval:           requireApproval,
+			Gates:                     []konfidence.PromotionGate{},
 		},
+	}
+	if withApprovalGate {
+		promotion.Spec.Gates = approvalGate()
 	}
 	ownPromotionIfConfigExists(promotion, configRef)
 	ExpectWithOffset(1, k8sClient.Create(ctx, promotion)).To(Succeed())
 	return promotion
 }
 
-// createPromotionRequiringApproval creates a VectorPromotion with requireApproval set.
+// createPromotionRequiringApproval creates a VectorPromotion declaring the
+// explicit-approval gate.
 func createPromotionRequiringApproval(name, configRef string) *konfidence.VectorPromotion {
+	return createGatedPromotion(name, configRef, approvalGate()...)
+}
+
+// createGatedPromotion creates a VectorPromotion declaring the given gates.
+func createGatedPromotion(name, configRef string, gates ...konfidence.PromotionGate) *konfidence.VectorPromotion {
+	if gates == nil {
+		gates = []konfidence.PromotionGate{}
+	}
 	promotion := &konfidence.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -199,7 +217,7 @@ func createPromotionRequiringApproval(name, configRef string) *konfidence.Vector
 			Target:                    stageTarget("some-stage"),
 			Vector:                    testVector,
 			Sequence:                  nextSequence(),
-			RequireApproval:           true,
+			Gates:                     gates,
 		},
 	}
 	ownPromotionIfConfigExists(promotion, configRef)
@@ -207,20 +225,24 @@ func createPromotionRequiringApproval(name, configRef string) *konfidence.Vector
 	return promotion
 }
 
-// approvePromotion sets the Approved condition, as the konfidence API would.
+func approvalGate() []konfidence.PromotionGate {
+	return []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
+}
+
+// approvePromotion satisfies the explicit-approval gate through the public
+// gate library, as the konfidence API does.
 func approvePromotion(promotion *konfidence.VectorPromotion) {
-	EventuallyWithOffset(1, func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, types.NamespacedName{
-			Name: promotion.Name, Namespace: testNamespace,
-		}, promotion)).To(Succeed())
-		meta.SetStatusCondition(&promotion.Status.Conditions, metav1.Condition{
-			Type:    konfidence.ConditionTypeApproved,
-			Status:  metav1.ConditionTrue,
-			Reason:  konfidence.ReasonPromotionManuallyApproved,
-			Message: "approved by test",
-		})
-		g.Expect(k8sClient.Status().Update(ctx, promotion)).To(Succeed())
-	}, timeout, interval).Should(Succeed())
+	setGate(promotion, konfidence.GateTypeExplicitApproval, konfidence.PromotionGateStateSatisfied, "ApprovedByUser")
+}
+
+// setGate writes a gate state through the public gate library, as a gate
+// writer would, and refreshes the in-memory promotion.
+func setGate(promotion *konfidence.VectorPromotion, gateType string, state konfidence.PromotionGateState, reason string) {
+	key := types.NamespacedName{Name: promotion.Name, Namespace: testNamespace}
+	ExpectWithOffset(2, promotiongate.Set(ctx, k8sClient, key, promotiongate.Update{
+		Type: gateType, State: state, Reason: reason, SetBy: "test",
+	})).To(Succeed())
+	ExpectWithOffset(2, k8sClient.Get(ctx, key, promotion)).To(Succeed())
 }
 
 // createPromotionWithTTL creates a VectorPromotion with TTLAfterFinished set.
@@ -236,6 +258,7 @@ func createPromotionWithTTL(name, configRef string, ttl time.Duration) *konfiden
 			Target:                    stageTarget("some-stage"),
 			Vector:                    testVector,
 			Sequence:                  nextSequence(),
+			Gates:                     []konfidence.PromotionGate{},
 			TTLAfterFinished:          &metav1.Duration{Duration: ttl},
 		},
 	}
@@ -243,16 +266,19 @@ func createPromotionWithTTL(name, configRef string, ttl time.Duration) *konfiden
 	return promotion
 }
 
-// setSucceededCondition writes the Succeeded condition on a promotion directly.
-// The execution controller is not registered in this suite; tests drive
-// promotion conditions manually to exercise the TTL and status propagation
-// controllers.
+// setSucceededCondition writes the Succeeded condition on a promotion directly,
+// together with the facts the controller would have recorded alongside it: an
+// active (Unknown) promotion passed its gates and started at transitionTime; a
+// finished (True/False) one completed at transitionTime. The execution
+// controller is not registered in this suite; tests drive promotion facts
+// manually to exercise the TTL and status propagation controllers.
 func setSucceededCondition(
 	promotion *konfidence.VectorPromotion,
 	status metav1.ConditionStatus,
 	reason string,
 	transitionTime time.Time,
 ) {
+	at := metav1.NewTime(transitionTime.Truncate(time.Second))
 	EventuallyWithOffset(1, func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: promotion.Name, Namespace: testNamespace,
@@ -264,8 +290,36 @@ func setSucceededCondition(
 			Message: "set by test",
 		})
 		// meta.SetStatusCondition stamps its own transition time; force the test-controlled one.
-		cond := meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-		cond.LastTransitionTime = metav1.NewTime(transitionTime.Truncate(time.Second))
+		meta.FindStatusCondition(promotion.Status.Conditions, konfidence.ConditionTypeSucceeded).LastTransitionTime = at
+		if status == metav1.ConditionUnknown {
+			meta.SetStatusCondition(&promotion.Status.Conditions, metav1.Condition{
+				Type: konfidence.ConditionTypeGatesSatisfied, Status: metav1.ConditionTrue,
+				Reason: konfidence.ReasonAllGatesSatisfied, Message: "set by test",
+			})
+			promotion.Status.StartTime = &at
+		} else {
+			promotion.Status.CompletionTime = &at
+		}
 		g.Expect(k8sClient.Status().Update(ctx, promotion)).To(Succeed())
 	}, timeout, interval).Should(Succeed())
+}
+
+// observedState summarizes a promotion's facts the way the API displays them,
+// to keep lifecycle assertions short.
+func observedState(p *konfidence.VectorPromotion) string {
+	conditions := p.Status.Conditions
+	switch {
+	case meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeSucceeded):
+		return "Succeeded"
+	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded):
+		return "Superseded"
+	case p.Status.StartTime != nil:
+		return "InProgress"
+	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeTargetResolved):
+		return "Blocked"
+	case meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeGatesSatisfied):
+		return "Ready"
+	default:
+		return "Waiting"
+	}
 }

@@ -75,7 +75,7 @@ func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req ctrl.R
 }
 
 // enforceOutstandingRetention supersedes the oldest promotions that are still
-// waiting at an approval gate when the configured bound is exceeded.
+// in their gate phase (Waiting) when the configured bound is exceeded.
 func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
 	ctx context.Context,
 	vectorPromotion *konfidence.VectorPromotion,
@@ -94,7 +94,7 @@ func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
 	}
 	outstanding := make([]konfidence.VectorPromotion, 0, len(siblings))
 	for i := range siblings {
-		if !promotion.IsTerminal(&siblings[i]) && !promotion.Cleared(&siblings[i]) {
+		if promotion.IsWaiting(&siblings[i]) {
 			outstanding = append(outstanding, siblings[i])
 		}
 	}
@@ -109,15 +109,13 @@ func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
 	var errs []error
 	for i := range outstanding[:len(outstanding)-keep] {
 		candidate := &outstanding[i]
-		original := candidate.DeepCopy()
 		message := fmt.Sprintf(
 			"promotion of vector %q was superseded because the limit of %d outstanding promotions was exceeded",
 			candidate.Spec.Vector,
 			keep,
 		)
-		setPromotionCondition(candidate, metav1.ConditionFalse,
-			konfidence.ReasonPromotionOutstandingLimitReached, message)
-		if err := patchPromotionStatus(ctx, r.Client, candidate, original); err != nil {
+		if err := updateStatus(ctx, r.Client, candidate,
+			finish(metav1.ConditionFalse, konfidence.ReasonPromotionOutstandingLimitReached, message)); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -209,7 +207,7 @@ func (r *VectorPromotionTTLReconciler) mapConfigToPromotions(
 			if terminal == nil || promotion.Newer(candidate, terminal) {
 				terminal = candidate
 			}
-		case !promotion.Cleared(candidate):
+		case promotion.IsWaiting(candidate):
 			if outstanding == nil || promotion.Newer(candidate, outstanding) {
 				outstanding = candidate
 			}

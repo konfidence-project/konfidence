@@ -14,8 +14,9 @@ func NewApproveCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 	return &cobra.Command{
 		Use:   "approve <vectorPromotionId>",
 		Short: "Approve a vector promotion for a specific project id",
-		Long:  "Grant approval for a vector promotion with the given vector promotion id for a specific project id.",
-		Args:  cobra.ExactArgs(1),
+		Long: "Satisfy the explicit-approval.konfidence.cloud gate of the vector promotion with the given " +
+			"vector promotion id for a specific project id. The promotion must declare that gate.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectId, _ := cmd.Flags().GetString("projectId")
 			vectorPromotionId := args[0]

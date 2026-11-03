@@ -64,6 +64,35 @@ spec:
           spec:
             description: Spec defines the desired state of the VectorPromotionConfig.
             properties:
+              gates:
+                description: |-
+                  Gates declares the gates every promotion created from this config must
+                  pass before it executes. The list is snapshotted into each promotion at
+                  creation; later edits only affect promotions created afterwards. An
+                  empty list promotes immediately.
+                items:
+                  description: PromotionGate declares a gate a promotion must pass
+                    before it executes.
+                  properties:
+                    type:
+                      description: |-
+                        Type identifies the gate as `<gate-name>.<owner-domain>`, for example
+                        `explicit-approval.konfidence.cloud` or `e2e-tests.example.com`. The
+                        first label names the gate, the remaining labels name the party that
+                        owns the gate type and ships its writer. The promotion controller never
+                        interprets the type; it only tracks whether the gate is satisfied.
+                      maxLength: 253
+                      minLength: 1
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?){2,}$
+                      type: string
+                  required:
+                  - type
+                  type: object
+                maxItems: 32
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               keepLastPromotions:
                 default: 10
                 description: |-
@@ -88,13 +117,7 @@ spec:
                 description: Source references the resource to promote from.
                 properties:
                   kind:
-                    description: |-
-                      Kind is the kind of the source resource. A `VectorTemplate` source
-                      promotes its latest assembled vector; a `Stage` source promotes the
-                      vector currently configured on that stage (`spec.vector`). Whether the resulting promotion
-                      requires approval is recorded on the promotion itself
-                      (`VectorPromotionSpec.RequireApproval`); the controller defaults it
-                      from the source kind.
+                    description: Kind is the kind of the source resource.
                     enum:
                     - VectorTemplate
                     - Stage

@@ -8,6 +8,7 @@ import (
 	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/output"
+	"github.com/konfidence-project/konfidence/pkg/util"
 	"github.com/spf13/cobra"
 )
 
@@ -21,9 +22,7 @@ func NewListCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 			landscapeId, _ := cmd.Flags().GetString("landscapeId")
 
 			params := &apiclient.ListVectorDeploymentsV1Params{}
-			if landscapeId != "" {
-				params.LandscapeId = &landscapeId
-			}
+			params.LandscapeId = util.OptionalString(landscapeId)
 
 			authClient, err := appConfig.APIProvider.AuthClient()
 			if err != nil {

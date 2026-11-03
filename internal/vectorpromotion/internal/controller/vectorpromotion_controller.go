@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/client-go/tools/events"
@@ -21,7 +20,7 @@ const (
 	VectorPromotionControllerName = "vector-promotion-controller"
 
 	EventActionStatusPatch = "StatusPatch"
-	EventActionApproval    = "Approval"
+	EventActionGates       = "Gates"
 	EventActionExecution   = "Execution"
 
 	// promotionConfigNameField indexes promotions by their config name,
@@ -31,8 +30,8 @@ const (
 	promotionConfigNameField = "spec.vectorPromotionConfigName"
 )
 
-// VectorPromotionReconciler executes approved VectorPromotions: it gates on
-// approval (vectorpromotion_approval.go), serializes execution per
+// VectorPromotionReconciler executes cleared VectorPromotions: it waits for
+// every declared gate to be satisfied (vectorpromotion_gates.go), serializes execution per
 // VectorPromotionConfig (vectorpromotion_serialization.go), and writes the
 // promoted vector to the target Stage (vectorpromotion_execution.go). See
 // doc.go for the lifecycle narrative and the invariants that tie the phases
@@ -59,36 +58,16 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if promotion.IsTerminal(vectorPromotion) {
 		return ctrl.Result{}, nil
 	}
-
-	result, err := r.reconcileState(ctx, vectorPromotion)
-	// Phase handlers write conditions; the derived state is applied centrally
-	// so no exit path can leave it stale (e.g. a Ready promotion parked
-	// behind an in-progress sibling writes no condition at all).
-	return result, errors.Join(err, r.syncDerivedState(ctx, vectorPromotion))
-}
-
-// reconcileState dispatches on the derived state: each case runs the phase
-// that can move the promotion onward. promotion.DeriveState computes and
-// never sets; the handlers set conditions and never derive.
-func (r *VectorPromotionReconciler) reconcileState(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) (ctrl.Result, error) {
-	switch promotion.DeriveState(vectorPromotion) {
-	case konfidence.PromotionStateWaiting:
-		return ctrl.Result{}, r.reconcileApproval(ctx, vectorPromotion)
-	case konfidence.PromotionStateReady, konfidence.PromotionStateBlocked, konfidence.PromotionStateInProgress:
-		return r.reconcileExecution(ctx, vectorPromotion)
-	default:
-		// A non-terminal promotion whose Succeeded condition has an
-		// unrecognized shape (e.g. a hand-set Unknown status) is parked
-		// rather than executed on a guess.
-		return ctrl.Result{}, nil
+	if !promotion.AllGatesSatisfied(vectorPromotion) {
+		if err := r.reconcileGates(ctx, vectorPromotion); err != nil {
+			return ctrl.Result{}, err
+		}
+		// Check if gates are now satisfied after reconciliation
+		if !promotion.AllGatesSatisfied(vectorPromotion) {
+			return ctrl.Result{}, nil
+		}
 	}
-}
-
-// syncDerivedState re-applies the derived display state; a no-op whenever a
-// phase handler already patched it alongside a condition write.
-func (r *VectorPromotionReconciler) syncDerivedState(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
-	original := vectorPromotion.DeepCopy()
-	return client.IgnoreNotFound(patchPromotionStatus(ctx, r.Client, vectorPromotion, original))
+	return r.reconcileExecution(ctx, vectorPromotion)
 }
 
 // RegisterFieldIndexes registers the cache indexes the promotion controllers
@@ -154,7 +133,7 @@ func NewVectorPromotionReconciler(mgr ctrl.Manager) *VectorPromotionReconciler {
 }
 
 // SetupWithManager sets up the controller with the Manager. Update events are
-// admitted because approvals and sibling terminations arrive as status updates.
+// admitted because gate changes and sibling terminations arrive as status updates.
 func (r *VectorPromotionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorPromotion{}, builder.WithPredicates(predicate.Funcs{

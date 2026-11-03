@@ -41,6 +41,27 @@ func (e ArtifactDeploymentStatus) Valid() bool {
 	}
 }
 
+// Defines values for PromotionGateStatusState.
+const (
+	Error     PromotionGateStatusState = "Error"
+	Pending   PromotionGateStatusState = "Pending"
+	Satisfied PromotionGateStatusState = "Satisfied"
+)
+
+// Valid indicates whether the value is a known member of the PromotionGateStatusState enum.
+func (e PromotionGateStatusState) Valid() bool {
+	switch e {
+	case Error:
+		return true
+	case Pending:
+		return true
+	case Satisfied:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PromotionSourceReferenceKind.
 const (
 	PromotionSourceReferenceKindStage          PromotionSourceReferenceKind = "Stage"
@@ -128,7 +149,6 @@ func (e VectorDeploymentStatus) Valid() bool {
 // Defines values for VectorPromotionStatus.
 const (
 	VectorPromotionStatusBlocked    VectorPromotionStatus = "Blocked"
-	VectorPromotionStatusFailed     VectorPromotionStatus = "Failed"
 	VectorPromotionStatusInProgress VectorPromotionStatus = "InProgress"
 	VectorPromotionStatusReady      VectorPromotionStatus = "Ready"
 	VectorPromotionStatusSucceeded  VectorPromotionStatus = "Succeeded"
@@ -140,8 +160,6 @@ const (
 func (e VectorPromotionStatus) Valid() bool {
 	switch e {
 	case VectorPromotionStatusBlocked:
-		return true
-	case VectorPromotionStatusFailed:
 		return true
 	case VectorPromotionStatusInProgress:
 		return true
@@ -246,14 +264,35 @@ type ProjectList struct {
 	Data []Project `json:"data"`
 }
 
-// PromotionApproval defines model for PromotionApproval.
-type PromotionApproval struct {
-	// ApprovedAt Time the approval was granted
-	ApprovedAt time.Time `json:"approvedAt"`
-
-	// ApprovedBy Identity that granted the approval
-	ApprovedBy string `json:"approvedBy"`
+// PromotionGate defines model for PromotionGate.
+type PromotionGate struct {
+	// Type Gate type as `<gate-name>.<owner-domain>`, e.g. `explicit-approval.konfidence.cloud`
+	Type string `json:"type"`
 }
+
+// PromotionGateStatus defines model for PromotionGateStatus.
+type PromotionGateStatus struct {
+	// Message Human-readable description of the latest state change
+	Message *string `json:"message,omitempty"`
+
+	// Reason Machine-readable reason for the latest state change
+	Reason *string `json:"reason,omitempty"`
+
+	// SetAt Time the gate state was last set
+	SetAt *time.Time `json:"setAt,omitempty"`
+
+	// SetBy Entity that last set the gate state (controller name or user subject)
+	SetBy *string `json:"setBy,omitempty"`
+
+	// State Current state of the gate
+	State PromotionGateStatusState `json:"state"`
+
+	// Type Gate type as `<gate-name>.<owner-domain>`, e.g. `explicit-approval.konfidence.cloud`
+	Type string `json:"type"`
+}
+
+// PromotionGateStatusState Current state of the gate
+type PromotionGateStatusState string
 
 // PromotionSourceReference defines model for PromotionSourceReference.
 type PromotionSourceReference struct {
@@ -361,11 +400,11 @@ type VectorDeploymentList struct {
 
 // VectorPromotion defines model for VectorPromotion.
 type VectorPromotion struct {
-	Approval *PromotionApproval `json:"approval,omitempty"`
+	// Gates State of every gate declared on the promotion, in declaration order. A declared gate without a recorded state is reported as Pending.
+	Gates *[]PromotionGateStatus `json:"gates,omitempty"`
 
 	// Id The vectorPromotion id
 	Id               VectorPromotionId        `json:"id"`
-	RequireApproval  *bool                    `json:"requireApproval,omitempty"`
 	Sequence         *int64                   `json:"sequence,omitempty"`
 	Source           PromotionSourceReference `json:"source"`
 	Status           *VectorPromotionStatus   `json:"status,omitempty"`
@@ -379,6 +418,9 @@ type VectorPromotionStatus string
 
 // VectorPromotionConfig defines model for VectorPromotionConfig.
 type VectorPromotionConfig struct {
+	// Gates Gates every promotion created from this config must pass.
+	Gates *[]PromotionGate `json:"gates,omitempty"`
+
 	// Id The vectorPromotionConfig id
 	Id                 VectorPromotionConfigId  `json:"id"`
 	KeepLastPromotions *int                     `json:"keepLastPromotions,omitempty"`
@@ -700,7 +742,7 @@ type ClientInterface interface {
 
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 	//
-	// Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
+	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
 	//
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 	ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1018,7 +1060,7 @@ func (c *Client) GetVectorPromotionV1(ctx context.Context, projectId ProjectPath
 
 // ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 //
-// Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
+// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
 //
 // Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 func (c *Client) ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2081,7 +2123,7 @@ type ClientWithResponsesInterface interface {
 
 	// ApproveVectorPromotionV1WithResponse Approves the given vectorPromotion for the specified project
 	//
-	// Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
+	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -3520,7 +3562,7 @@ func (c *ClientWithResponses) GetVectorPromotionV1WithResponse(ctx context.Conte
 
 // ApproveVectorPromotionV1WithResponse Approves the given vectorPromotion for the specified project
 //
-// Grants approval for a vectorPromotion that has an approval gate. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, or requires no approval.
+// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
 //
 // Returns a wrapper object for the known response body format(s).
 //

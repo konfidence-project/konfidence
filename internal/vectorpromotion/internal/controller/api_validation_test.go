@@ -106,23 +106,78 @@ var _ = Describe("Promotion CRD schema validation", Ordered, Serial, func() {
 				MatchError(ContainSubstring("vector is immutable after it has been set")))
 		})
 
-		It("rejects updates to requireApproval", func() {
+		It("rejects changes to gates", func() {
+			promotion := createPromotionRequiringApproval("schema-immutable-gates", "some-config")
+
+			By("changing a gate type")
+			patch := client.MergeFrom(promotion.DeepCopy())
+			promotion.Spec.Gates = []konfidence.PromotionGate{{Type: "e2e-tests.example.com"}}
+			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
+				MatchError(ContainSubstring("gates are immutable after they have been set")))
+
+			By("adding a gate")
+			refreshPromotion(promotion)
+			patch = client.MergeFrom(promotion.DeepCopy())
+			promotion.Spec.Gates = append(promotion.Spec.Gates, konfidence.PromotionGate{Type: "e2e-tests.example.com"})
+			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
+				MatchError(ContainSubstring("gates are immutable after they have been set")))
+
+			By("emptying the gate list")
+			refreshPromotion(promotion)
+			patch = client.MergeFrom(promotion.DeepCopy())
+			promotion.Spec.Gates = []konfidence.PromotionGate{}
+			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
+				MatchError(ContainSubstring("gates are immutable after they have been set")))
+		})
+
+		It("rejects adding gates to a gateless promotion", func() {
+			promotion := createPromotion("schema-immutable-no-gates", "some-config")
+
+			patch := client.MergeFrom(promotion.DeepCopy())
+			promotion.Spec.Gates = approvalGate()
+			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
+				MatchError(ContainSubstring("gates are immutable after they have been set")))
+		})
+
+		DescribeTable("validates gate types",
+			func(gateType string, valid bool) {
+				promotion := &konfidence.VectorPromotion{
+					ObjectMeta: metav1.ObjectMeta{GenerateName: "schema-gate-type-", Namespace: testNamespace},
+					Spec: konfidence.VectorPromotionSpec{
+						VectorPromotionConfigName: "some-config",
+						Source:                    templateSource("some-template"),
+						Target:                    stageTarget("some-stage"),
+						Vector:                    testVector,
+						Gates:                     []konfidence.PromotionGate{{Type: gateType}},
+					},
+				}
+				err := k8sClient.Create(ctx, promotion)
+				if valid {
+					Expect(err).NotTo(HaveOccurred())
+				} else {
+					Expect(err).To(MatchError(ContainSubstring("spec.gates[0].type")))
+				}
+			},
+			Entry("core gate", konfidence.GateTypeExplicitApproval, true),
+			Entry("third-party gate", "e2e-tests.example.com", true),
+			Entry("missing owner domain", "explicit-approval", false),
+			Entry("domain without gate name", "konfidence.cloud", false),
+			Entry("legacy slash notation", "konfidence.cloud/ExplicitApproval", false),
+			Entry("uppercase", "Explicit-Approval.konfidence.cloud", false),
+		)
+
+		It("rejects duplicate gate types", func() {
 			promotion := &konfidence.VectorPromotion{
-				ObjectMeta: metav1.ObjectMeta{Name: "schema-immutable-approval", Namespace: testNamespace},
+				ObjectMeta: metav1.ObjectMeta{Name: "schema-duplicate-gates", Namespace: testNamespace},
 				Spec: konfidence.VectorPromotionSpec{
 					VectorPromotionConfigName: "some-config",
 					Source:                    templateSource("some-template"),
 					Target:                    stageTarget("some-stage"),
 					Vector:                    testVector,
-					RequireApproval:           true,
+					Gates:                     append(approvalGate(), approvalGate()...),
 				},
 			}
-			Expect(k8sClient.Create(ctx, promotion)).To(Succeed())
-
-			patch := client.MergeFrom(promotion.DeepCopy())
-			promotion.Spec.RequireApproval = false
-			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
-				MatchError(ContainSubstring("requireApproval is immutable after it has been set")))
+			Expect(k8sClient.Create(ctx, promotion)).To(MatchError(ContainSubstring("Duplicate value")))
 		})
 	})
 })

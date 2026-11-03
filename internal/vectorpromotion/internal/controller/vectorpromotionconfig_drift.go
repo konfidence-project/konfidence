@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +41,13 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 		return err
 	}
 
+	// Gates is a required field on the promotion, so snapshot it as a non-nil
+	// empty list when the config declares none.
+	gates := slices.Clone(config.Spec.Gates)
+	if gates == nil {
+		gates = []konfidence.PromotionGate{}
+	}
+
 	vectorPromotion := &konfidence.VectorPromotion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      promotionName(config.Name, config.Status.Sequence),
@@ -50,7 +58,7 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 			Source:                    config.Spec.Source,
 			Target:                    config.Spec.Target,
 			Vector:                    sourceVector,
-			RequireApproval:           config.Spec.Source.Kind == konfidence.StageKind,
+			Gates:                     gates,
 			TTLAfterFinished:          config.Spec.TTLAfterFinished,
 			Sequence:                  config.Status.Sequence,
 		},
@@ -65,8 +73,7 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 	log.Info("created promotion for drifted source",
 		"promotion", vectorPromotion.Name,
 		"vector", sourceVector,
-		"sequence", vectorPromotion.Spec.Sequence,
-		"requireApproval", vectorPromotion.Spec.RequireApproval)
+		"sequence", vectorPromotion.Spec.Sequence)
 	r.Recorder.Eventf(config, vectorPromotion, corev1.EventTypeNormal, "VectorPromotionCreated",
 		EventActionDriftDetection,
 		fmt.Sprintf("created promotion %q for vector %q", vectorPromotion.Name, sourceVector))

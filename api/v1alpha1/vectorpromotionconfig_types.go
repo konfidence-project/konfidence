@@ -31,6 +31,16 @@ type VectorPromotionConfigSpec struct {
 	// Target references the Stage to promote to.
 	Target PromotionTargetReference `json:"target"`
 
+	// Gates declares the gates every promotion created from this config must
+	// pass before it executes. The list is snapshotted into each promotion at
+	// creation; later edits only affect promotions created afterwards. An
+	// empty list promotes immediately.
+	// +listType=map
+	// +listMapKey=type
+	// +kubebuilder:validation:MaxItems=32
+	// +optional
+	Gates []PromotionGate `json:"gates,omitempty"`
+
 	// TTLAfterFinished will be copied onto every VectorPromotion the drift
 	// controller creates for this config. See
 	// `VectorPromotionSpec.TTLAfterFinished`.

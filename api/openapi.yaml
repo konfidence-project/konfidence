@@ -402,9 +402,11 @@ paths:
       operationId: approveVectorPromotionV1
       summary: Approves the given vectorPromotion for the specified project
       description: >
-        Grants approval for a vectorPromotion that has an approval gate. Approving
-        an already-approved promotion is idempotent and returns 204. Returns 409
-        when the promotion is superseded, finished, or requires no approval.
+        Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion,
+        recording the authenticated caller as the approver. Approving an
+        already-approved promotion is idempotent and returns 204. Returns 409 when
+        the promotion is superseded, finished, already executing, or does not
+        declare the explicit-approval gate.
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
         - $ref: "#/components/parameters/VectorPromotionPathId"
@@ -696,6 +698,11 @@ components:
           $ref: "#/components/schemas/PromotionSourceReference"
         target:
           $ref: "#/components/schemas/PromotionTargetReference"
+        gates:
+          type: array
+          description: Gates every promotion created from this config must pass.
+          items:
+            $ref: "#/components/schemas/PromotionGate"
         ttlAfterFinished:
           type: string
         keepLastPromotions:
@@ -719,28 +726,52 @@ components:
           type: string
         status:
           type: string
-          enum: [Waiting, Ready, InProgress, Blocked, Succeeded, Failed, Superseded]
-        requireApproval:
-          type: boolean
+          enum: [Waiting, Ready, InProgress, Blocked, Succeeded, Superseded]
         ttlAfterFinished:
           type: string
         sequence:
           type: integer
           format: int64
-        approval:
-          $ref: "#/components/schemas/PromotionApproval"
+        gates:
+          type: array
+          description: >
+            State of every gate declared on the promotion, in declaration order.
+            A declared gate without a recorded state is reported as Pending.
+          items:
+            $ref: "#/components/schemas/PromotionGateStatus"
 
-    PromotionApproval:
+    PromotionGate:
       type: object
-      required: [ approvedBy, approvedAt ]
+      required: [ type ]
       properties:
-        approvedBy:
+        type:
           type: string
-          description: Identity that granted the approval
-        approvedAt:
+          description: Gate type as `<gate-name>.<owner-domain>`, e.g. `explicit-approval.konfidence.cloud`
+
+    PromotionGateStatus:
+      type: object
+      required: [ type, state ]
+      properties:
+        type:
+          type: string
+          description: Gate type as `<gate-name>.<owner-domain>`, e.g. `explicit-approval.konfidence.cloud`
+        state:
+          type: string
+          enum: [ Pending, Satisfied, Error ]
+          description: Current state of the gate
+        reason:
+          type: string
+          description: Machine-readable reason for the latest state change
+        message:
+          type: string
+          description: Human-readable description of the latest state change
+        setBy:
+          type: string
+          description: Entity that last set the gate state (controller name or user subject)
+        setAt:
           type: string
           format: date-time
-          description: Time the approval was granted
+          description: Time the gate state was last set
 
     PromotionSourceReference:
       type: object
