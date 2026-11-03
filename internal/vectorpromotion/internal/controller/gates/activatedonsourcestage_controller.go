@@ -7,7 +7,6 @@ import (
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
-	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -205,7 +204,7 @@ func (r *ActivatedOnSourceStageReconciler) mapStageVersionToPromotions(
 		}
 		for j := range promotions.Items {
 			vectorPromotion := &promotions.Items[j]
-			if vectorPromotion.Spec.Vector != stageVersion.Spec.Vector || !promotion.IsWaiting(vectorPromotion) {
+			if vectorPromotion.Spec.Vector != stageVersion.Spec.Vector || !promotiongate.GatesMutable(vectorPromotion) {
 				continue
 			}
 			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(vectorPromotion)})
