@@ -26,12 +26,13 @@ const (
 	ActivatedOnSourceStageControllerName = "activated-on-source-stage-controller"
 
 	ReasonActivatedOnSourceStage             = "ActivatedOnSource"
+	ReasonSourceStageMissing                 = "SourceStageMissing"
 	ReasonSourceStageUnavailable             = "SourceStageUnavailable"
 	ReasonWaitingForSourceStageActivation    = "WaitingForSourceStageActivation"
 	activatedOnSourceStageSetBy              = "konfidence/activated-on-source-stage-controller"
 	promotionSourceStageField                = "activatedOnSourceStage.sourceStage"
 	activatedOnSourceStageLandscapeNamespace = "activatedOnSourceStage.landscapeNamespace"
-	pendingGateRequeueAfter                  = time.Minute
+	unresolvedGateRequeueAfter               = time.Minute
 )
 
 // ActivatedOnSourceStageReconciler owns the core gate that requires a vector
@@ -97,10 +98,15 @@ func (r *ActivatedOnSourceStageReconciler) Reconcile(ctx context.Context, req ct
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if update.State == konfidence.PromotionGateStatePending {
-		return ctrl.Result{RequeueAfter: pendingGateRequeueAfter}, nil
+	if update.State == konfidence.PromotionGateStatePending || isRecoverableSourceError(update) {
+		return ctrl.Result{RequeueAfter: unresolvedGateRequeueAfter}, nil
 	}
 	return ctrl.Result{}, nil
+}
+
+func isRecoverableSourceError(update promotiongate.Update) bool {
+	return update.State == konfidence.PromotionGateStateError &&
+		update.Reason == ReasonSourceStageUnavailable
 }
 
 func (r *ActivatedOnSourceStageReconciler) evaluateGate(
@@ -117,7 +123,7 @@ func (r *ActivatedOnSourceStageReconciler) evaluateGate(
 	source := vectorPromotion.Spec.Source
 	if source.Kind != konfidence.StageKind || source.Landscape == "" || source.Name == "" {
 		update.State = konfidence.PromotionGateStateError
-		update.Reason = ReasonSourceStageUnavailable
+		update.Reason = ReasonSourceStageMissing
 		update.Message = "The ActivatedOnSourceStage gate requires a Stage source"
 		return update, nil
 	}

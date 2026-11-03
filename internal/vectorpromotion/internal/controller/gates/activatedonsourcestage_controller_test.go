@@ -67,7 +67,7 @@ func TestActivatedOnSourceStageRejectsNonStageSource(t *testing.T) {
 	gate := promotiongate.Find(updated, konfidence.GateTypeActivatedOnSourceStage)
 	g.Expect(gate).NotTo(gomega.BeNil())
 	g.Expect(gate.State).To(gomega.Equal(konfidence.PromotionGateStateError))
-	g.Expect(gate.Reason).To(gomega.Equal(ReasonSourceStageUnavailable))
+	g.Expect(gate.Reason).To(gomega.Equal(ReasonSourceStageMissing))
 }
 
 func TestActivatedOnSourceStageWaitsForReadyStageVersion(t *testing.T) {
@@ -79,7 +79,7 @@ func TestActivatedOnSourceStageWaitsForReadyStageVersion(t *testing.T) {
 
 	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(promotion)})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(result.RequeueAfter).To(gomega.Equal(pendingGateRequeueAfter))
+	g.Expect(result.RequeueAfter).To(gomega.Equal(unresolvedGateRequeueAfter))
 
 	updated := &konfidence.VectorPromotion{}
 	g.Expect(c.Get(context.Background(), client.ObjectKeyFromObject(promotion), updated)).To(gomega.Succeed())
@@ -126,7 +126,7 @@ func TestActivatedOnSourceStagePeriodicReconcileRecoversMissedReadyEvent(t *test
 
 	result, err := r.Reconcile(ctx, request)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(result.RequeueAfter).To(gomega.Equal(pendingGateRequeueAfter))
+	g.Expect(result.RequeueAfter).To(gomega.Equal(unresolvedGateRequeueAfter))
 
 	g.Expect(c.Create(ctx, readyStageVersion())).To(gomega.Succeed())
 	result, err = r.Reconcile(ctx, request)
@@ -134,6 +134,37 @@ func TestActivatedOnSourceStagePeriodicReconcileRecoversMissedReadyEvent(t *test
 	g.Expect(result.RequeueAfter).To(gomega.BeZero())
 
 	updated := &konfidence.VectorPromotion{}
+	g.Expect(c.Get(ctx, client.ObjectKeyFromObject(promotion), updated)).To(gomega.Succeed())
+	g.Expect(promotiongate.StateOf(updated, konfidence.GateTypeActivatedOnSourceStage)).
+		To(gomega.Equal(konfidence.PromotionGateStateSatisfied))
+}
+
+func TestActivatedOnSourceStagePeriodicReconcileRecoversUnavailableLandscape(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	promotion := stagePromotion("promotion")
+	unavailableLandscape := landscape()
+	unavailableLandscape.Status.Namespace = ""
+	c := gateClient(t, promotion, unavailableLandscape, stage(), readyStageVersion())
+	r := &ActivatedOnSourceStageReconciler{Client: c}
+	request := ctrl.Request{NamespacedName: client.ObjectKeyFromObject(promotion)}
+
+	result, err := r.Reconcile(ctx, request)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(result.RequeueAfter).To(gomega.Equal(unresolvedGateRequeueAfter))
+
+	updated := &konfidence.VectorPromotion{}
+	g.Expect(c.Get(ctx, client.ObjectKeyFromObject(promotion), updated)).To(gomega.Succeed())
+	g.Expect(promotiongate.StateOf(updated, konfidence.GateTypeActivatedOnSourceStage)).
+		To(gomega.Equal(konfidence.PromotionGateStateError))
+
+	unavailableLandscape.Status.Namespace = landscapeNamespace
+	g.Expect(c.Update(ctx, unavailableLandscape)).To(gomega.Succeed())
+	result, err = r.Reconcile(ctx, request)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(result.RequeueAfter).To(gomega.BeZero())
+
 	g.Expect(c.Get(ctx, client.ObjectKeyFromObject(promotion), updated)).To(gomega.Succeed())
 	g.Expect(promotiongate.StateOf(updated, konfidence.GateTypeActivatedOnSourceStage)).
 		To(gomega.Equal(konfidence.PromotionGateStateSatisfied))
