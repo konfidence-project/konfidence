@@ -1,0 +1,17 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: Redactor
+metadata:
+  name: konfidence-e2e
+spec:
+  redactors:
+    - name: credential assignments
+      removals:
+        regex:
+          - redactor: >-
+              (?i)(\b[a-z_]*(?:password|token|secret|api_key)[a-z_]*["']?\s*[:=]\s*["']?)(?P<mask>[^\s"',]+)
+          - selector: '(?i)"name"\s*:\s*"[^"]*(password|token|secret|api_key)[^"]*"'
+            redactor: '("value"\s*:\s*")(?P<mask>[^"]*)(")'
+    - name: GitHub tokens
+      removals:
+        regex:
+          - redactor: '(?P<mask>gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)'

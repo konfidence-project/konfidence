@@ -288,6 +288,8 @@ CHAINSAW_ARGS ?=
 E2E_CLUSTER   ?= konfidence-e2e
 E2E_TAG       := e2e-$(shell date +%s)
 KLO_REPO      ?= konfidence-project/kubernetes-landscape-orchestrator
+SUPPORT_BUNDLE ?= support-bundle
+E2E_SNAPSHOT_DIR ?= $(REPO_ROOT)/.tmp/e2e-snapshot
 
 .PHONY: e2e-up
 e2e-up: hermit ## Create a kind cluster with this checkout's operator and the latest orchestrator main build.
@@ -311,6 +313,20 @@ e2e-up: hermit ## Create a kind cluster with this checkout's operator and the la
 .PHONY: e2e-down
 e2e-down: hermit ## Delete the e2e kind cluster.
 	$(KIND) delete cluster --name $(E2E_CLUSTER)
+
+.PHONY: e2e-snapshot
+e2e-snapshot: hermit ## Collect cluster state and kind logs into a local support bundle.
+	@command -v "$(firstword $(SUPPORT_BUNDLE))" >/dev/null || { \
+		echo "Install the Troubleshoot CLI or set SUPPORT_BUNDLE." >&2; exit 1; \
+	}
+	@test "$$($(KUBECTL) config current-context)" = "kind-$(E2E_CLUSTER)" || { \
+		echo "Select kind-$(E2E_CLUSTER) before collecting a snapshot." >&2; exit 1; \
+	}
+	@umask 077; mkdir -p "$(E2E_SNAPSHOT_DIR)"; \
+	E2E_CLUSTER="$(E2E_CLUSTER)" $(SUPPORT_BUNDLE) test/e2e/support-bundle.yaml \
+		--interactive=false --auto-update=false --request-timeout=2s \
+		--redactors=test/e2e/snapshot-redactors.yaml \
+		--output="$(E2E_SNAPSHOT_DIR)/snapshot.tar.gz"
 
 .PHONY: test-e2e
 test-e2e: ## Run Chainsaw e2e tests against the current cluster.

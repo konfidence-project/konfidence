@@ -76,3 +76,31 @@ Registry credentials are read at controller startup
 restarts the controller after setup and after cleanup removes the credentials.
 
 The kind cluster remains until `make e2e-down`. GHCR packages remain in the run prefix.
+
+## Failure snapshot
+
+Install the [Troubleshoot support-bundle CLI](https://github.com/replicatedhq/troubleshoot/releases)
+(tested with v0.134.3). For a failed run, keep fixtures until capture:
+
+```sh
+make test-e2e CHAINSAW_ARGS="--skip-delete"
+make e2e-snapshot
+make e2e-down
+```
+
+The snapshot is written to `.tmp/e2e-snapshot/snapshot.tar.gz`. Override the directory
+with `E2E_SNAPSHOT_DIR`; use the same `E2E_CLUSTER` as bootstrap.
+Krew installations can use `SUPPORT_BUNDLE="kubectl support-bundle"`.
+
+The bundle includes kind node/container logs, resource descriptions, events,
+custom resources, and Helm release history. It does not deploy collectors or upload data.
+Individual collection failures are recorded; a nonzero exit can still leave a useful
+partial archive. Kind logs remain available when the API is unreachable.
+
+Built-in and targeted credential redaction are enabled; Helm values are excluded.
+Treat snapshots as sensitive:
+application logs, ConfigMaps, or custom resources can contain credentials the redactors miss.
+
+CI preserves test fixtures until failure capture, uploads any resulting archive as
+`e2e-snapshot-<attempt>` (7-day retention), and deletes kind afterward on success or failure.
+Partial snapshots are uploaded even when collection returns nonzero.
