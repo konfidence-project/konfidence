@@ -249,6 +249,97 @@ var _ = Describe("GetVectorDiffV1", func() {
 		Expect(*ok.Components[0].RightVersion).To(Equal("1.0.0"))
 	})
 
+	It("returns empty non-null slices when vectors have no components or config", func() {
+		gomock.InOrder(
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(pkgcontent.VectorContent{}, nil),
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(pkgcontent.VectorContent{}, nil),
+		)
+
+		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
+			ProjectId: "my-project",
+			Params: openapi.GetVectorDiffV1Params{
+				Left:  "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right: "registry.example.com//github.com/example/my-vector:1.0.0",
+			},
+		})
+
+		Expect(err).NotTo(HaveOccurred())
+		ok := resp.(openapi.GetVectorDiffV1200JSONResponse)
+		Expect(ok.Components).NotTo(BeNil())
+		Expect(ok.Components).To(BeEmpty())
+		Expect(ok.Config).NotTo(BeNil())
+		Expect(*ok.Config.Features).NotTo(BeNil())
+		Expect(*ok.Config.Features).To(BeEmpty())
+		Expect(*ok.Config.Authored).NotTo(BeNil())
+		Expect(*ok.Config.Authored).To(BeEmpty())
+	})
+
+	It("returns correct config diff with changed, unchanged, removed, and added entries", func() {
+		leftContent := pkgcontent.VectorContent{
+			Components: []pkgcontent.VectorComponent{},
+			Config: &pkgcontent.VectorConfig{
+				Features: map[string]any{
+					"darkMode":   false,
+					"betaLayout": true,
+					"oldFeature": true,
+				},
+				Authored: map[string]any{
+					"replicaCount": 3,
+				},
+			},
+		}
+		rightContent := pkgcontent.VectorContent{
+			Components: []pkgcontent.VectorComponent{},
+			Config: &pkgcontent.VectorConfig{
+				Features: map[string]any{
+					"darkMode":   true,
+					"betaLayout": true,
+					"newFeature": false,
+				},
+				Authored: map[string]any{
+					"replicaCount": 3,
+				},
+			},
+		}
+		gomock.InOrder(
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(leftContent, nil),
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(rightContent, nil),
+		)
+
+		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
+			ProjectId: "my-project",
+			Params: openapi.GetVectorDiffV1Params{
+				Left:  "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right: "registry.example.com//github.com/example/my-vector:1.0.0",
+			},
+		})
+
+		Expect(err).NotTo(HaveOccurred())
+		ok := resp.(openapi.GetVectorDiffV1200JSONResponse)
+		Expect(ok.Config).NotTo(BeNil())
+
+		features := *ok.Config.Features
+		findFeature := func(key string) openapi.ConfigEntryDiff {
+			for _, e := range features {
+				if e.Key == key {
+					return e
+				}
+			}
+			Fail("feature key not found: " + key)
+			return openapi.ConfigEntryDiff{}
+		}
+
+		Expect(findFeature("darkMode").ChangeType).To(Equal(openapi.Changed))
+		Expect(findFeature("betaLayout").ChangeType).To(Equal(openapi.Unchanged))
+		Expect(findFeature("oldFeature").ChangeType).To(Equal(openapi.Removed))
+		Expect(findFeature("newFeature").ChangeType).To(Equal(openapi.Added))
+
+		authored := *ok.Config.Authored
+		Expect(authored).To(HaveLen(1))
+		Expect(authored[0].Key).To(Equal("replicaCount"))
+		Expect(authored[0].ChangeType).To(Equal(openapi.Unchanged))
+	})
+
 	It("returns 400 for a malformed left ref", func() {
 		mockReader.EXPECT().GetVectorContent(gomock.Any(), "not-a-valid-ref").
 			Return(pkgcontent.VectorContent{}, fmt.Errorf("%w", kompref.ErrInvalidComponentReference))

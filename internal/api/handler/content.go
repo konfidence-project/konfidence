@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
@@ -189,7 +190,7 @@ func calculateDiffComponents(left, right []pkgcontent.VectorComponent) []openapi
 	}
 
 	seen := make(map[string]bool)
-	var result []openapi.VectorComponentDiff
+	result := make([]openapi.VectorComponentDiff, 0)
 
 	for _, c := range left {
 		seen[c.ComponentName] = true
@@ -255,13 +256,10 @@ func calculateDiffConfig(left, right *pkgcontent.VectorConfig) *openapi.VectorCo
 	}
 }
 
-// TODO: should we use generics for both iteration methods
 func createDiffConfigMap(left, right map[string]any) []openapi.ConfigEntryDiff {
-	var result []openapi.ConfigEntryDiff
-	seen := make(map[string]bool)
+	result := make([]openapi.ConfigEntryDiff, 0)
 
 	for k, lv := range left {
-		seen[k] = true
 		rv, inRight := right[k]
 		switch {
 		case !inRight:
@@ -270,7 +268,7 @@ func createDiffConfigMap(left, right map[string]any) []openapi.ConfigEntryDiff {
 				LeftValue:  &lv,
 				ChangeType: openapi.Removed,
 			})
-		case fmt.Sprintf("%v", lv) != fmt.Sprintf("%v", rv):
+		case !reflect.DeepEqual(lv, rv):
 			result = append(result, openapi.ConfigEntryDiff{
 				Key:        k,
 				LeftValue:  &lv,
@@ -288,7 +286,7 @@ func createDiffConfigMap(left, right map[string]any) []openapi.ConfigEntryDiff {
 	}
 
 	for k, rv := range right {
-		if !seen[k] {
+		if _, exists := left[k]; !exists {
 			result = append(result, openapi.ConfigEntryDiff{
 				Key:        k,
 				RightValue: &rv,
