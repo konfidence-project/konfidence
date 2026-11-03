@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
@@ -183,6 +184,10 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 	}
 
 	if err := a.verifier.Verify(ctx, a.resolver, a.artifactSpecs, []*descruntime.Descriptor{&descriptor}); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return controller.ArtifactManifest{}, ctxErr
+		}
+
 		return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed,
 			fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w", ref.String(), err))
 	}
@@ -192,6 +197,10 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 	artifactResources := make([]controller.OCMResource, 0, len(descriptor.Component.Resources))
 
 	for i := range descriptor.Component.Resources {
+		if err := ctx.Err(); err != nil {
+			return controller.ArtifactManifest{}, err
+		}
+
 		resource := &descriptor.Component.Resources[i]
 
 		switch resource.Type {
@@ -280,8 +289,22 @@ func (a Adapter) getLocalResourceBlob(ctx context.Context, ref compref.Ref, reso
 	if err != nil {
 		return nil, fmt.Errorf("opening blob reader: %w", err)
 	}
-	defer func() { _ = rc.Close() }()
+
+	var closeOnce sync.Once
+	closeReader := func() {
+		closeOnce.Do(func() { _ = rc.Close() })
+	}
+
+	stopCancellation := context.AfterFunc(ctx, closeReader)
+	defer func() {
+		stopCancellation()
+		closeReader()
+	}()
+
 	data, err := io.ReadAll(rc)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, ctxErr
+	}
 	if err != nil {
 		return nil, fmt.Errorf("reading blob content: %w", err)
 	}
