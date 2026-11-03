@@ -128,10 +128,6 @@ spec:
                   curl -fsS http://$candidates.$ns.svc.cluster.local/healthz; echo
                   curl -fsS http://$interviews.$ns.svc.cluster.local/healthz; echo
                 "
-        - assert: # Temporary CI snapshot probe; removed in the next commit.
-            timeout: 1s
-            resource:
-              (true): false
       catch:
         - podLogs: {namespace: kden-l-dev, selector: app=candidates, tail: 200}
         - podLogs: {namespace: kden-l-dev, selector: app.kubernetes.io/name, tail: 200}
