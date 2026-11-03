@@ -301,6 +301,7 @@ e2e-up: hermit ## Create a kind cluster with this checkout's operator and the la
 	@# Orchestrator main publishes images per commit but no charts; use the chart from that commit.
 	ref=$${KLO_REF:-$$(gh run list --repo github.com/$(KLO_REPO) --workflow main-pipeline.yaml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha')}; \
 	test -n "$$ref" || { echo "Set KLO_REF; no successful $(KLO_REPO) main build found." >&2; exit 1; }; \
+	printf 'KLO/VDS revision: %s\n' "$$ref"; \
 	rm -rf .tmp/klo && mkdir -p .tmp/klo && \
 	curl -fsSL "https://github.com/$(KLO_REPO)/archive/$$ref.tar.gz" | tar -xz -C .tmp/klo --strip-components=1 && \
 	$(HELM) upgrade --install kubernetes-landscape-orchestrator .tmp/klo/charts/kubernetes-landscape-orchestrator \

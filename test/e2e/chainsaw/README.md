@@ -22,12 +22,13 @@ Export the registry variables in each new shell; Docker login only stores creden
 latest Flux and Gateway API releases, and deploys this checkout's operator with
 `docker-build`, `webhook-certs`, and `deploy`. The API is not deployed.
 
-The orchestrator comes from the latest successful `main` build of
+The orchestrator and vector-data-service use the same latest successful `main` build of
 [kubernetes-landscape-orchestrator](https://github.com/konfidence-project/kubernetes-landscape-orchestrator),
-resolved with `gh`. Set `KLO_REF=<commit>` to use another published build.
+resolved once with `gh`. Both charts come from that commit. Vector-data-service
+is installed per landscape by the suite, using the deployed orchestrator's image tag.
+Set `KLO_REF=<commit>` during `make e2e-up` to select another published build for both.
 
 `COMPONENT_REGISTRY` defaults to `ghcr.io/konfidence-project/example-app`.
-`VECTOR_DATA_SERVICE_VERSION` overrides the pinned chart version.
 
 JUnit report:
 

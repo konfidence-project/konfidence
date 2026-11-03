@@ -71,10 +71,12 @@ spec:
               kubectl rollout restart deployment/konfidence -n konfidence-system
               kubectl rollout status deployment/konfidence -n konfidence-system --timeout=120s
 
-              vds="${VECTOR_DATA_SERVICE_VERSION:-0.0.0-4f194adf3c2e211514d41c59d1a446275bb093e3}"
+              image=$(kubectl get deployment kubernetes-landscape-orchestrator -n konfidence-system \
+                -o jsonpath='{.spec.template.spec.containers[0].image}')
+              ref="${image##*:}"
               helm upgrade --install vector-data-service \
-                oci://ghcr.io/konfidence-project/charts/vector-data-service \
-                --version "$vds" --namespace kden-l-dev --wait
+                "$(git rev-parse --show-toplevel)/.tmp/klo/charts/vector-data-service" \
+                --set-string image.tag="$ref" --namespace kden-l-dev --wait
 
     - name: assemble-and-promote
       description: Assemble the vector, promote to dev, and wait for Ready conditions.
