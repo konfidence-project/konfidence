@@ -226,27 +226,27 @@ const resolvableVectorDeployments: VectorDeployment[] = [
 ].filter((deployment, index, all) => all.findIndex(({ id }) => id === deployment.id) === index);
 
 const vectorContents: VectorContent[] = rows.map((row) => ({
-  ref: `${VECTOR_REPOSITORY}//test-vector:${row.version}`,
   components: [
     { componentName: PAYMENTS_API_COMPONENT, version: row.version },
     { componentName: PAYMENTS_UI_COMPONENT, version: row.version },
   ],
+  ref: `${VECTOR_REPOSITORY}//test-vector:${row.version}`,
 }));
 
 const artifactContents: ArtifactContent[] = [
   {
-    ref: `${VECTOR_REPOSITORY}//test-artifact/${PAYMENTS_API_COMPONENT}:${rows[0].version}`,
-    type: "Helm",
     allowReuse: false,
-    tasks: [{ name: "deploy", type: "Helm" }],
+    ref: `${VECTOR_REPOSITORY}//test-artifact/${PAYMENTS_API_COMPONENT}:${rows[0].version}`,
     resources: [{ name: "chart", type: "helmChart" }],
+    tasks: [{ name: "deploy", type: "Helm" }],
+    type: "Helm",
   },
   {
-    ref: `${VECTOR_REPOSITORY}//test-artifact/${PAYMENTS_UI_COMPONENT}:${rows[0].version}`,
-    type: "Helm",
     allowReuse: true,
-    tasks: [{ name: "deploy", type: "Helm" }],
+    ref: `${VECTOR_REPOSITORY}//test-artifact/${PAYMENTS_UI_COMPONENT}:${rows[0].version}`,
     resources: [{ name: "chart", type: "helmChart" }],
+    tasks: [{ name: "deploy", type: "Helm" }],
+    type: "Helm",
   },
 ];
 

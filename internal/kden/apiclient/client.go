@@ -41,6 +41,30 @@ func (e ArtifactDeploymentStatus) Valid() bool {
 	}
 }
 
+// Defines values for ChangeType.
+const (
+	Added     ChangeType = "added"
+	Changed   ChangeType = "changed"
+	Removed   ChangeType = "removed"
+	Unchanged ChangeType = "unchanged"
+)
+
+// Valid indicates whether the value is a known member of the ChangeType enum.
+func (e ChangeType) Valid() bool {
+	switch e {
+	case Added:
+		return true
+	case Changed:
+		return true
+	case Removed:
+		return true
+	case Unchanged:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PromotionGateStatusState.
 const (
 	Error     PromotionGateStatusState = "Error"
@@ -230,11 +254,26 @@ type ArtifactTask struct {
 	Type      string    `json:"type"`
 }
 
+// ChangeType defines model for ChangeType.
+type ChangeType string
+
 // ComponentReference defines model for ComponentReference.
 type ComponentReference struct {
 	ComponentName    string `json:"componentName"`
 	ComponentVersion string `json:"componentVersion"`
 	Repository       string `json:"repository"`
+}
+
+// ConfigEntryDiff defines model for ConfigEntryDiff.
+type ConfigEntryDiff struct {
+	ChangeType ChangeType `json:"changeType"`
+	Key        string     `json:"key"`
+
+	// LeftValue Value on the left side. Absent when changeType is "added".
+	LeftValue interface{} `json:"leftValue,omitempty"`
+
+	// RightValue Value on the right side. Absent when changeType is "removed".
+	RightValue interface{} `json:"rightValue,omitempty"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -401,6 +440,18 @@ type VectorComponent struct {
 	Version       string `json:"version"`
 }
 
+// VectorComponentDiff defines model for VectorComponentDiff.
+type VectorComponentDiff struct {
+	ChangeType    ChangeType `json:"changeType"`
+	ComponentName string     `json:"componentName"`
+
+	// LeftVersion Version on the left side. Absent when changeType is "added".
+	LeftVersion *string `json:"leftVersion,omitempty"`
+
+	// RightVersion Version on the right side. Absent when changeType is "removed".
+	RightVersion *string `json:"rightVersion,omitempty"`
+}
+
 // VectorConfig defines model for VectorConfig.
 type VectorConfig struct {
 	// Authored Raw authored blob from VectorConfigurationV1
@@ -408,6 +459,12 @@ type VectorConfig struct {
 
 	// Features Raw features blob from VectorConfigurationV1
 	Features *map[string]interface{} `json:"features,omitempty"`
+}
+
+// VectorConfigDiff defines model for VectorConfigDiff.
+type VectorConfigDiff struct {
+	Authored *[]ConfigEntryDiff `json:"authored,omitempty"`
+	Features *[]ConfigEntryDiff `json:"features,omitempty"`
 }
 
 // VectorContent defines model for VectorContent.
@@ -453,8 +510,14 @@ type VectorDeploymentList struct {
 
 // VectorDiff defines model for VectorDiff.
 type VectorDiff struct {
-	Current  VectorContent `json:"current"`
-	Incoming VectorContent `json:"incoming"`
+	Components []VectorComponentDiff `json:"components"`
+	Config     *VectorConfigDiff     `json:"config,omitempty"`
+
+	// Left OCM ref string of the left-hand vector
+	Left string `json:"left"`
+
+	// Right OCM ref string of the right-hand vector
+	Right string `json:"right"`
 }
 
 // VectorPromotion defines model for VectorPromotion.
@@ -606,11 +669,11 @@ type GetVectorContentV1Params struct {
 
 // GetVectorDiffV1Params defines parameters for GetVectorDiffV1.
 type GetVectorDiffV1Params struct {
-	// Incoming OCM ref string for the incoming vector (registry//component:version). Must be percent-encoded.
-	Incoming string `form:"incoming" json:"incoming"`
+	// Left OCM ref string for the one of the compared vectors (registry//component:version). Must be percent-encoded.
+	Left string `form:"left" json:"left"`
 
-	// Current OCM ref string for the current vector (registry//component:version). Must be percent-encoded.
-	Current string `form:"current" json:"current"`
+	// Right OCM ref string for the other compared vector (registry//component:version). Must be percent-encoded.
+	Right string `form:"right" json:"right"`
 }
 
 // PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
@@ -2216,7 +2279,7 @@ func NewGetVectorDiffV1Request(server string, projectId ProjectPathId, params *G
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
-		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "incoming", params.Incoming, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "left", params.Left, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 			return nil, err
 		} else {
 			for _, qp := range strings.Split(queryFrag, "&") {
@@ -2224,7 +2287,7 @@ func NewGetVectorDiffV1Request(server string, projectId ProjectPathId, params *G
 			}
 		}
 
-		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "current", params.Current, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "right", params.Right, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 			return nil, err
 		} else {
 			for _, qp := range strings.Split(queryFrag, "&") {

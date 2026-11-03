@@ -218,49 +218,52 @@ var _ = Describe("GetVectorDiffV1", func() {
 		mockCtrl.Finish()
 	})
 
-	It("returns VectorDiff with incoming and current populated", func() {
-		incomingContent := pkgcontent.VectorContent{
+	It("returns VectorDiff with computed component diff", func() {
+		leftContent := pkgcontent.VectorContent{
 			Components: []pkgcontent.VectorComponent{{ComponentName: "github.com/example/svc-a", Version: "2.0.0"}},
 		}
-		currentContent := pkgcontent.VectorContent{
+		rightContent := pkgcontent.VectorContent{
 			Components: []pkgcontent.VectorComponent{{ComponentName: "github.com/example/svc-a", Version: "1.0.0"}},
 		}
 		gomock.InOrder(
-			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(incomingContent, nil),
-			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(currentContent, nil),
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(leftContent, nil),
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(rightContent, nil),
 		)
 
 		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
 			ProjectId: "my-project",
 			Params: openapi.GetVectorDiffV1Params{
-				Incoming: "registry.example.com//github.com/example/my-vector:2.0.0",
-				Current:  "registry.example.com//github.com/example/my-vector:1.0.0",
+				Left:  "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right: "registry.example.com//github.com/example/my-vector:1.0.0",
 			},
 		})
 
 		Expect(err).NotTo(HaveOccurred())
 		ok := resp.(openapi.GetVectorDiffV1200JSONResponse)
-		Expect(ok.Incoming.Ref).To(Equal("registry.example.com//github.com/example/my-vector:2.0.0"))
-		Expect(ok.Incoming.Components[0].Version).To(Equal("2.0.0"))
-		Expect(ok.Current.Ref).To(Equal("registry.example.com//github.com/example/my-vector:1.0.0"))
-		Expect(ok.Current.Components[0].Version).To(Equal("1.0.0"))
+		Expect(ok.Left).To(Equal("registry.example.com//github.com/example/my-vector:2.0.0"))
+		Expect(ok.Right).To(Equal("registry.example.com//github.com/example/my-vector:1.0.0"))
+		Expect(ok.Components).To(HaveLen(1))
+		Expect(ok.Components[0].ComponentName).To(Equal("github.com/example/svc-a"))
+		Expect(ok.Components[0].ChangeType).To(Equal(openapi.Changed))
+		Expect(*ok.Components[0].LeftVersion).To(Equal("2.0.0"))
+		Expect(*ok.Components[0].RightVersion).To(Equal("1.0.0"))
 	})
 
-	It("returns 400 for a malformed incoming ref", func() {
+	It("returns 400 for a malformed left ref", func() {
 		mockReader.EXPECT().GetVectorContent(gomock.Any(), "not-a-valid-ref").
 			Return(pkgcontent.VectorContent{}, fmt.Errorf("%w", kompref.ErrInvalidComponentReference))
 
 		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
 			ProjectId: "my-project",
 			Params: openapi.GetVectorDiffV1Params{
-				Incoming: "not-a-valid-ref",
-				Current:  "registry.example.com//github.com/example/my-vector:1.0.0",
+				Left:  "not-a-valid-ref",
+				Right: "registry.example.com//github.com/example/my-vector:1.0.0",
 			},
 		})
 		expectAPIError(resp, err, http.StatusBadRequest)
 	})
 
-	It("returns 400 for a malformed current ref", func() {
+	It("returns 400 for a malformed right ref", func() {
 		mockReader.EXPECT().GetVectorContent(gomock.Any(), "registry.example.com//github.com/example/my-vector:2.0.0").
 			Return(pkgcontent.VectorContent{
 				Components: []pkgcontent.VectorComponent{{ComponentName: "github.com/example/svc-a", Version: "2.0.0"}},
@@ -271,27 +274,27 @@ var _ = Describe("GetVectorDiffV1", func() {
 		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
 			ProjectId: "my-project",
 			Params: openapi.GetVectorDiffV1Params{
-				Incoming: "registry.example.com//github.com/example/my-vector:2.0.0",
-				Current:  "not-a-valid-ref",
+				Left:  "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right: "not-a-valid-ref",
 			},
 		})
 		expectAPIError(resp, err, http.StatusBadRequest)
 	})
 
-	It("returns 404 when incoming vector is not found", func() {
+	It("returns 404 when left vector is not found", func() {
 		mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(pkgcontent.VectorContent{}, pkgocm.ErrNotFound)
 
 		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
 			ProjectId: "my-project",
 			Params: openapi.GetVectorDiffV1Params{
-				Incoming: "registry.example.com//github.com/example/my-vector:2.0.0",
-				Current:  "registry.example.com//github.com/example/my-vector:1.0.0",
+				Left:  "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right: "registry.example.com//github.com/example/my-vector:1.0.0",
 			},
 		})
 		expectAPIError(resp, err, http.StatusNotFound)
 	})
 
-	It("returns 404 when current vector is not found", func() {
+	It("returns 404 when right vector is not found", func() {
 		mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(pkgcontent.VectorContent{
 			Components: []pkgcontent.VectorComponent{{ComponentName: "github.com/example/svc-a", Version: "2.0.0"}},
 		}, nil)
@@ -300,8 +303,8 @@ var _ = Describe("GetVectorDiffV1", func() {
 		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
 			ProjectId: "my-project",
 			Params: openapi.GetVectorDiffV1Params{
-				Incoming: "registry.example.com//github.com/example/my-vector:2.0.0",
-				Current:  "registry.example.com//github.com/example/my-vector:1.0.0",
+				Left:  "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right: "registry.example.com//github.com/example/my-vector:1.0.0",
 			},
 		})
 		expectAPIError(resp, err, http.StatusNotFound)
@@ -311,8 +314,8 @@ var _ = Describe("GetVectorDiffV1", func() {
 		resp, err := h.GetVectorDiffV1(context.Background(), openapi.GetVectorDiffV1RequestObject{
 			ProjectId: "my-project",
 			Params: openapi.GetVectorDiffV1Params{
-				Incoming: "registry.example.com//github.com/example/my-vector:2.0.0",
-				Current:  "registry.example.com//github.com/example/my-vector:1.0.0",
+				Left:  "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right: "registry.example.com//github.com/example/my-vector:1.0.0",
 			},
 		})
 		expectAPIError(resp, err, http.StatusUnauthorized)

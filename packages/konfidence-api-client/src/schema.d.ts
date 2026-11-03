@@ -583,9 +583,35 @@ export interface components {
       };
     };
     VectorDiff: {
-      incoming: components["schemas"]["VectorContent"];
-      current: components["schemas"]["VectorContent"];
+      /** @description OCM ref string of the left-hand vector */
+      left: string;
+      /** @description OCM ref string of the right-hand vector */
+      right: string;
+      components: components["schemas"]["VectorComponentDiff"][];
+      config?: components["schemas"]["VectorConfigDiff"];
     };
+    VectorComponentDiff: {
+      componentName: string;
+      /** @description Version on the left side. Absent when changeType is "added". */
+      leftVersion?: string;
+      /** @description Version on the right side. Absent when changeType is "removed". */
+      rightVersion?: string;
+      changeType: components["schemas"]["ChangeType"];
+    };
+    VectorConfigDiff: {
+      features?: components["schemas"]["ConfigEntryDiff"][];
+      authored?: components["schemas"]["ConfigEntryDiff"][];
+    };
+    ConfigEntryDiff: {
+      key: string;
+      /** @description Value on the left side. Absent when changeType is "added". */
+      leftValue?: unknown;
+      /** @description Value on the right side. Absent when changeType is "removed". */
+      rightValue?: unknown;
+      changeType: components["schemas"]["ChangeType"];
+    };
+    /** @enum {string} */
+    ChangeType: "added" | "removed" | "changed" | "unchanged";
     VectorContentList: {
       data: components["schemas"]["VectorContent"][];
     };
@@ -1183,10 +1209,10 @@ export interface operations {
   getVectorDiffV1: {
     parameters: {
       query: {
-        /** @description OCM ref string for the incoming vector (registry//component:version). Must be percent-encoded. */
-        incoming: string;
-        /** @description OCM ref string for the current vector (registry//component:version). Must be percent-encoded. */
-        current: string;
+        /** @description OCM ref string for the one of the compared vectors (registry//component:version). Must be percent-encoded. */
+        left: string;
+        /** @description OCM ref string for the other compared vector (registry//component:version). Must be percent-encoded. */
+        right: string;
       };
       header?: never;
       path: {

@@ -456,19 +456,19 @@ paths:
       summary: Get the diff between two vectors by ref.
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
-        - name: incoming
+        - name: left
           in: query
           required: true
           description: >
-            OCM ref string for the incoming vector (registry//component:version).
+            OCM ref string for the one of the compared vectors (registry//component:version).
             Must be percent-encoded.
           schema:
             type: string
-        - name: current
+        - name: right
           in: query
           required: true
           description: >
-            OCM ref string for the current vector (registry//component:version).
+            OCM ref string for the other compared vector (registry//component:version).
             Must be percent-encoded.
           schema:
             type: string
@@ -996,12 +996,64 @@ components:
 
     VectorDiff:
       type: object
-      required: [ incoming, current ]
+      required: [ left, right, components ]
       properties:
-        incoming:
-          $ref: "#/components/schemas/VectorContent"
-        current:
-          $ref: "#/components/schemas/VectorContent"
+        left:
+          type: string
+          description: OCM ref string of the left-hand vector
+        right:
+          type: string
+          description: OCM ref string of the right-hand vector
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/VectorComponentDiff"
+        config:
+          $ref: "#/components/schemas/VectorConfigDiff"
+
+    VectorComponentDiff:
+      type: object
+      required: [ componentName, changeType ]
+      properties:
+        componentName:
+          type: string
+        leftVersion:
+          type: string
+          description: Version on the left side. Absent when changeType is "added".
+        rightVersion:
+          type: string
+          description: Version on the right side. Absent when changeType is "removed".
+        changeType:
+          $ref: "#/components/schemas/ChangeType"
+
+    VectorConfigDiff:
+      type: object
+      properties:
+        features:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfigEntryDiff"
+        authored:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfigEntryDiff"
+
+    ConfigEntryDiff:
+      type: object
+      required: [ key, changeType ]
+      properties:
+        key:
+          type: string
+        leftValue:
+          description: Value on the left side. Absent when changeType is "added".
+        rightValue:
+          description: Value on the right side. Absent when changeType is "removed".
+        changeType:
+          $ref: "#/components/schemas/ChangeType"
+
+    ChangeType:
+      type: string
+      enum: [ added, removed, changed, unchanged ]
 
     VectorContentList:
       type: object

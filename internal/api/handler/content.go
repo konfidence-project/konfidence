@@ -125,39 +125,33 @@ func (h *projectHandler) GetVectorDiffV1(ctx context.Context,
 		return nil, err
 	}
 
-	incomingVC, err := h.ocmReader.GetVectorContent(ctx, request.Params.Incoming)
+	leftVC, err := h.ocmReader.GetVectorContent(ctx, request.Params.Left)
 	if err != nil {
 		if errors.Is(err, pkgocm.ErrNotFound) {
-			return nil, apierror.NewNotFound("incoming vector", request.Params.Incoming)
+			return nil, apierror.NewNotFound("left vector", request.Params.Left)
 		}
 		if errors.Is(err, kompref.ErrInvalidComponentReference) {
-			return nil, apierror.NewBadRequest(fmt.Sprintf("invalid incoming ref: %s", err))
+			return nil, apierror.NewBadRequest(fmt.Sprintf("invalid left ref: %s", err))
 		}
 		return nil, apierror.NewInternal(err)
 	}
 
-	currentVC, err := h.ocmReader.GetVectorContent(ctx, request.Params.Current)
+	rightVC, err := h.ocmReader.GetVectorContent(ctx, request.Params.Right)
 	if err != nil {
 		if errors.Is(err, pkgocm.ErrNotFound) {
-			return nil, apierror.NewNotFound("current vector", request.Params.Current)
+			return nil, apierror.NewNotFound("right vector", request.Params.Right)
 		}
 		if errors.Is(err, kompref.ErrInvalidComponentReference) {
-			return nil, apierror.NewBadRequest(fmt.Sprintf("invalid current ref: %s", err))
+			return nil, apierror.NewBadRequest(fmt.Sprintf("invalid right ref: %s", err))
 		}
 		return nil, apierror.NewInternal(err)
 	}
 
 	return openapi.GetVectorDiffV1200JSONResponse(openapi.VectorDiff{
-		Incoming: openapi.VectorContent{
-			Ref:        request.Params.Incoming,
-			Components: toVectorComponents(incomingVC.Components),
-			Config:     toVectorConfig(incomingVC.Config),
-		},
-		Current: openapi.VectorContent{
-			Ref:        request.Params.Current,
-			Components: toVectorComponents(currentVC.Components),
-			Config:     toVectorConfig(currentVC.Config),
-		},
+		Left:       request.Params.Left,
+		Right:      request.Params.Right,
+		Components: calculateDiffComponents(leftVC.Components, rightVC.Components),
+		Config:     calculateDiffConfig(leftVC.Config, rightVC.Config),
 	}), nil
 }
 
@@ -184,6 +178,123 @@ func toVectorConfig(cfg *pkgcontent.VectorConfig) *openapi.VectorConfig {
 	if len(cfg.Authored) > 0 {
 		a := cfg.Authored
 		result.Authored = &a
+	}
+	return result
+}
+
+func calculateDiffComponents(left, right []pkgcontent.VectorComponent) []openapi.VectorComponentDiff {
+	rightMap := make(map[string]string, len(right))
+	for _, c := range right {
+		rightMap[c.ComponentName] = c.Version
+	}
+
+	seen := make(map[string]bool)
+	var result []openapi.VectorComponentDiff
+
+	for _, c := range left {
+		seen[c.ComponentName] = true
+		rv, inRight := rightMap[c.ComponentName]
+		switch {
+		case !inRight:
+			lv := c.Version
+			result = append(result, openapi.VectorComponentDiff{
+				ComponentName: c.ComponentName,
+				LeftVersion:   &lv,
+				ChangeType:    openapi.Removed,
+			})
+		case c.Version != rv:
+			lv := c.Version
+			result = append(result, openapi.VectorComponentDiff{
+				ComponentName: c.ComponentName,
+				LeftVersion:   &lv,
+				RightVersion:  &rv,
+				ChangeType:    openapi.Changed,
+			})
+		default:
+			lv := c.Version
+			result = append(result, openapi.VectorComponentDiff{
+				ComponentName: c.ComponentName,
+				LeftVersion:   &lv,
+				RightVersion:  &rv,
+				ChangeType:    openapi.Unchanged,
+			})
+		}
+	}
+
+	for _, c := range right {
+		if !seen[c.ComponentName] {
+			rv := c.Version
+			result = append(result, openapi.VectorComponentDiff{
+				ComponentName: c.ComponentName,
+				RightVersion:  &rv,
+				ChangeType:    openapi.Added,
+			})
+		}
+	}
+	return result
+}
+
+func calculateDiffConfig(left, right *pkgcontent.VectorConfig) *openapi.VectorConfigDiff {
+	var leftFeatures, leftAuthored map[string]any
+	var rightFeatures, rightAuthored map[string]any
+
+	if left != nil {
+		leftFeatures = left.Features
+		leftAuthored = left.Authored
+	}
+	if right != nil {
+		rightFeatures = right.Features
+		rightAuthored = right.Authored
+	}
+
+	features := createDiffConfigMap(leftFeatures, rightFeatures)
+	authored := createDiffConfigMap(leftAuthored, rightAuthored)
+	return &openapi.VectorConfigDiff{
+		Features: &features,
+		Authored: &authored,
+	}
+}
+
+// TODO: should we use generics for both iteration methods
+func createDiffConfigMap(left, right map[string]any) []openapi.ConfigEntryDiff {
+	var result []openapi.ConfigEntryDiff
+	seen := make(map[string]bool)
+
+	for k, lv := range left {
+		seen[k] = true
+		rv, inRight := right[k]
+		switch {
+		case !inRight:
+			result = append(result, openapi.ConfigEntryDiff{
+				Key:        k,
+				LeftValue:  &lv,
+				ChangeType: openapi.Removed,
+			})
+		case fmt.Sprintf("%v", lv) != fmt.Sprintf("%v", rv):
+			result = append(result, openapi.ConfigEntryDiff{
+				Key:        k,
+				LeftValue:  &lv,
+				RightValue: &rv,
+				ChangeType: openapi.Changed,
+			})
+		default:
+			result = append(result, openapi.ConfigEntryDiff{
+				Key:        k,
+				LeftValue:  &lv,
+				RightValue: &rv,
+				ChangeType: openapi.Unchanged,
+			})
+		}
+	}
+
+	for k, rv := range right {
+		if !seen[k] {
+			result = append(result, openapi.ConfigEntryDiff{
+				Key:        k,
+				RightValue: &rv,
+				ChangeType: openapi.Added,
+			})
+		}
 	}
 	return result
 }

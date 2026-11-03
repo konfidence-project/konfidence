@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { scenarios, type ProjectFixture, type ScenarioFixture } from "./fixtures.js";
-import type { operations } from "@konfidence/api-client/schema";
+import type { components, operations } from "@konfidence/api-client/schema";
 
 const SESSION_COOKIE = "kden-session";
 const SCENARIO_COOKIE = "konfidence_mock_scenario";
@@ -97,6 +97,94 @@ const promotionFor = (request: FastifyRequest) => {
   return promotion;
 };
 
+type VectorComponent = components["schemas"]["VectorComponent"];
+type VectorConfig = components["schemas"]["VectorConfig"];
+type VectorComponentDiff = components["schemas"]["VectorComponentDiff"];
+type ConfigEntryDiff = components["schemas"]["ConfigEntryDiff"];
+type VectorConfigDiff = components["schemas"]["VectorConfigDiff"];
+
+const diffComponents = (
+  left: VectorComponent[],
+  right: VectorComponent[],
+): VectorComponentDiff[] => {
+  const rightMap = new Map(right.map((comp) => [comp.componentName, comp.version]));
+  const seen = new Set<string>();
+  const result: VectorComponentDiff[] = [];
+
+  for (const comp of left) {
+    seen.add(comp.componentName);
+    const rightVal = rightMap.get(comp.componentName);
+    if (rightVal === undefined) {
+      result.push({
+        changeType: "removed",
+        componentName: comp.componentName,
+        leftVersion: comp.version,
+      });
+    } else if (comp.version !== rightVal) {
+      result.push({
+        changeType: "changed",
+        componentName: comp.componentName,
+        leftVersion: comp.version,
+        rightVersion: rightVal,
+      });
+    } else {
+      result.push({
+        changeType: "unchanged",
+        componentName: comp.componentName,
+        leftVersion: comp.version,
+        rightVersion: rightVal,
+      });
+    }
+  }
+
+  for (const comp of right) {
+    if (!seen.has(comp.componentName)) {
+      result.push({
+        changeType: "added",
+        componentName: comp.componentName,
+        rightVersion: comp.version,
+      });
+    }
+  }
+  return result;
+};
+
+const diffConfigMap = (
+  left: Record<string, unknown> | undefined,
+  right: Record<string, unknown> | undefined,
+): ConfigEntryDiff[] => {
+  const leftMap = left ?? {};
+  const rightMap = right ?? {};
+  const seen = new Set<string>();
+  const result: ConfigEntryDiff[] = [];
+
+  for (const [key, leftVal] of Object.entries(leftMap)) {
+    seen.add(key);
+    if (!(key in rightMap)) {
+      result.push({ changeType: "removed", key, leftValue: leftVal });
+    } else if (JSON.stringify(leftVal) !== JSON.stringify(rightMap[key])) {
+      result.push({ changeType: "changed", key, leftValue: leftVal, rightValue: rightMap[key] });
+    } else {
+      result.push({ changeType: "unchanged", key, leftValue: leftVal, rightValue: rightMap[key] });
+    }
+  }
+
+  for (const [key, rightVal] of Object.entries(rightMap)) {
+    if (!seen.has(key)) {
+      result.push({ changeType: "added", key, rightValue: rightVal });
+    }
+  }
+  return result;
+};
+
+const diffConfig = (
+  left: VectorConfig | undefined,
+  right: VectorConfig | undefined,
+): VectorConfigDiff => ({
+  authored: diffConfigMap(left?.authored, right?.authored),
+  features: diffConfigMap(left?.features, right?.features),
+});
+
 const operationHandlers = {
   approveVectorPromotionV1: (request, reply) => {
     promotionFor(request);
@@ -133,6 +221,29 @@ const operationHandlers = {
     }
     return reply.send(deployment);
   },
+  getIdentityV1: (request, reply) => {
+    const { projects, user } = scenarioFor(request);
+    const projectRoles = Object.fromEntries(
+      projects.map(({ project, roles }) => [project.id, roles]),
+    );
+    return reply.send({ ...user, projectRoles });
+  },
+  getLandscapeV1: (request, reply) => {
+    const { landscapeId } = request.params as { landscapeId: string };
+    const landscape = projectFor(request).landscapes.find(({ id }) => id === landscapeId);
+    if (!landscape) {
+      throw httpError(404, "Landscape not found");
+    }
+    return reply.send(landscape);
+  },
+  getStageV1: (request, reply) => {
+    const { stageId } = request.params as { stageId: string };
+    const stage = projectFor(request).stages.find(({ id }) => id === stageId);
+    if (!stage) {
+      throw httpError(404, "Stage not found");
+    }
+    return reply.send(stage);
+  },
   getVectorContentV1: (request, reply) => {
     const { refs } = request.query as Query<"getVectorContentV1">;
     const project = projectFor(request);
@@ -144,42 +255,6 @@ const operationHandlers = {
       return found;
     });
     return reply.send({ data });
-  },
-  getVectorDiffV1: (request, reply) => {
-    const { incoming, current } = request.query as Query<"getVectorDiffV1">;
-    const project = projectFor(request);
-    const incomingContent = project.vectorContents.find((vc) => vc.ref === incoming);
-    if (!incomingContent) {
-      throw httpError(404, `VectorContent not found for ref ${incoming}`);
-    }
-    const currentContent = project.vectorContents.find((vc) => vc.ref === current);
-    if (!currentContent) {
-      throw httpError(404, `VectorContent not found for ref ${current}`);
-    }
-    return reply.send({ incoming: incomingContent, current: currentContent });
-  },
-  getLandscapeV1: (request, reply) => {
-    const { landscapeId } = request.params as { landscapeId: string };
-    const landscape = projectFor(request).landscapes.find(({ id }) => id === landscapeId);
-    if (!landscape) {
-      throw httpError(404, "Landscape not found");
-    }
-    return reply.send(landscape);
-  },
-  getIdentityV1: (request, reply) => {
-    const { projects, user } = scenarioFor(request);
-    const projectRoles = Object.fromEntries(
-      projects.map(({ project, roles }) => [project.id, roles]),
-    );
-    return reply.send({ ...user, projectRoles });
-  },
-  getStageV1: (request, reply) => {
-    const { stageId } = request.params as { stageId: string };
-    const stage = projectFor(request).stages.find(({ id }) => id === stageId);
-    if (!stage) {
-      throw httpError(404, "Stage not found");
-    }
-    return reply.send(stage);
   },
   getVectorDeploymentV1: (request, reply) => {
     const { landscapeId, vectorDeploymentId } = request.params as {
@@ -196,6 +271,24 @@ const operationHandlers = {
       throw httpError(404, "VectorDeployment not found");
     }
     return reply.send(deployment);
+  },
+  getVectorDiffV1: (request, reply) => {
+    const { left, right } = request.query as Query<"getVectorDiffV1">;
+    const project = projectFor(request);
+    const leftContent = project.vectorContents.find((vc) => vc.ref === left);
+    if (!leftContent) {
+      throw httpError(404, `VectorContent not found for ref ${left}`);
+    }
+    const rightContent = project.vectorContents.find((vc) => vc.ref === right);
+    if (!rightContent) {
+      throw httpError(404, `VectorContent not found for ref ${right}`);
+    }
+    return reply.send({
+      components: diffComponents(leftContent.components, rightContent.components),
+      config: diffConfig(leftContent.config, rightContent.config),
+      left,
+      right,
+    });
   },
   getVectorPromotionConfigV1: (request, reply) => {
     const { vectorPromotionConfigId } = request.params as { vectorPromotionConfigId: string };
