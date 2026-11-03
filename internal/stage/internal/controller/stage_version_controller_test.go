@@ -157,7 +157,25 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			// check that the stageVersion has status vectorMigrated, vectorActivationCreated and stageVersionReady
+			// activation creation alone must not make the StageVersion ready
+			Consistently(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorMigratedCondition)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorActivationCreatedCondition)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.StageVersionReady)).To(BeFalse())
+			}, time.Second, interval).Should(Succeed())
+
+			meta.SetStatusCondition(&vectorActivation.Status.Conditions, metav1.Condition{
+				Type:               konfidence.ActivationSucceeded,
+				Status:             metav1.ConditionTrue,
+				Reason:             konfidence.ActivationSucceeded,
+				Message:            "Vector activation succeeded",
+				ObservedGeneration: vectorActivation.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
+			Expect(k8sClient.Status().Update(ctx, vectorActivation)).To(Succeed())
+
+			// check that the stageVersion is ready only after activation succeeded
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(stageVersion.Name).To(Equal(StageVersionDev))
