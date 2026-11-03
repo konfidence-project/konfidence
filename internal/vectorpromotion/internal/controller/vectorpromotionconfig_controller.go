@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
@@ -48,6 +49,7 @@ type VectorPromotionConfigReconciler struct {
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectortemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=stages,verbs=get;list;watch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=landscapes,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
 func (r *VectorPromotionConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
@@ -56,6 +58,12 @@ func (r *VectorPromotionConfigReconciler) Reconcile(ctx context.Context, req ctr
 	config := &konfidence.VectorPromotionConfig{}
 	if err := r.Get(ctx, req.NamespacedName, config); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if res, err := pkgctrl.MustBeInProjectNamespace(
+		ctx, r.Client, config, &config.Status.Conditions, konfidence.VectorPromotionConfigReadyCondition,
+	); res != nil {
+		return *res, err
 	}
 
 	// Owns() delivers promotion status changes here; the aggregate is

@@ -80,48 +80,5 @@ var _ = Describe("DeploymentTargetValidator", func() {
 				Expect(warnings).To(BeEmpty())
 			})
 		})
-
-		Context("when the namespace is not a landscape namespace", func() {
-			It("should reject creation", func() {
-				ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ordinary"}}
-				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns).Build()
-				validator := &DeploymentTargetValidator{Client: fakeClient}
-
-				warnings, err := validator.ValidateCreate(ctx, target("target", ns.Name, ArtifactType("helm.konfidence.cloud")))
-				Expect(err).To(HaveOccurred())
-				Expect(warnings).To(BeEmpty())
-			})
-		})
-	})
-
-	Describe("ValidateUpdate", func() {
-		Context("when parameters change in a landscape namespace", func() {
-			It("should allow the update", func() {
-				ns := landscapeNamespace("landscape")
-				oldTarget := target("target", ns.Name, ArtifactType("helm.konfidence.cloud"))
-				newTarget := oldTarget.DeepCopy()
-				newTarget.Spec.Parameters = &Parameters{Kind: "Secret", Name: "updated"}
-				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, oldTarget).Build()
-				validator := &DeploymentTargetValidator{Client: fakeClient}
-
-				warnings, err := validator.ValidateUpdate(ctx, oldTarget, newTarget)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(warnings).To(BeEmpty())
-			})
-		})
-		Context("when the namespace is not a landscape namespace", func() {
-			It("should reject the update", func() {
-				ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ordinary"}}
-				oldTarget := target("target", ns.Name, ArtifactType("helm.konfidence.cloud"))
-				newTarget := oldTarget.DeepCopy()
-				newTarget.Spec.Parameters = &Parameters{Kind: "Secret", Name: "kubeconfig"}
-				fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, oldTarget).Build()
-				validator := &DeploymentTargetValidator{Client: fakeClient}
-
-				warnings, err := validator.ValidateUpdate(ctx, oldTarget, newTarget)
-				Expect(err).To(HaveOccurred())
-				Expect(warnings).To(BeEmpty())
-			})
-		})
 	})
 })

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	pkgwebhook "github.com/konfidence-project/konfidence/pkg/webhook"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -25,7 +24,7 @@ func SetupDeploymentTargetWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 //nolint:lll // Kubebuilder annotations are intentionally long.
-// +kubebuilder:webhook:path=/validate-konfidence-cloud-v1alpha1-deploymenttarget,mutating=false,failurePolicy=fail,sideEffects=None,groups=konfidence.cloud,resources=deploymenttargets,verbs=create;update,versions=v1alpha1,name=vdeploymenttarget.konfidence.cloud,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-konfidence-cloud-v1alpha1-deploymenttarget,mutating=false,failurePolicy=fail,sideEffects=None,groups=konfidence.cloud,resources=deploymenttargets,verbs=create,versions=v1alpha1,name=vdeploymenttarget.konfidence.cloud,admissionReviewVersions=v1
 
 // DeploymentTargetValidator validates DeploymentTarget resources.
 // +kubebuilder:object:generate=false
@@ -40,21 +39,12 @@ func (v *DeploymentTargetValidator) ValidateCreate(ctx context.Context, obj *Dep
 		"namespace", obj.Namespace,
 		"artifactType", obj.Spec.ArtifactType,
 	)
-	if err := pkgwebhook.ValidateLandscapeNamespace(ctx, v.Client, obj.Namespace); err != nil {
-		return nil, err
-	}
 	return nil, v.validateArtifactTypeUniqueness(ctx, obj)
 }
 
 // ValidateUpdate validates a DeploymentTarget on update.
-func (v *DeploymentTargetValidator) ValidateUpdate(ctx context.Context, _ *DeploymentTarget, newObj *DeploymentTarget) (admission.Warnings, error) {
-	deploymenttargetlog.Info("validating DeploymentTarget update",
-		"name", newObj.Name,
-		"namespace", newObj.Namespace,
-		"artifactType", newObj.Spec.ArtifactType,
-	)
-
-	return nil, pkgwebhook.ValidateLandscapeNamespace(ctx, v.Client, newObj.Namespace)
+func (v *DeploymentTargetValidator) ValidateUpdate(_ context.Context, _, _ *DeploymentTarget) (admission.Warnings, error) {
+	return nil, nil
 }
 
 // ValidateDelete validates a DeploymentTarget on deletion.

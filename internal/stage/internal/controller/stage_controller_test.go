@@ -9,6 +9,7 @@ import (
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -55,6 +56,7 @@ var _ = Describe("Stage Controller", Ordered, func() {
 
 	BeforeEach(func() {
 		controller.CleanupResources(k8sClient)
+		controller.EnsureLandscapeNamespace(context.Background(), k8sClient, Namespace)
 	})
 
 	AfterEach(func() {
@@ -225,6 +227,34 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			// ... and dropping it again clears the mirrored reference
 			controller.ClearActiveStageVersionUsageRef(ctx, k8sClient, stage)
 			verifyActiveStageVersion(ctx, k8sClient, StageDev, Namespace, nil, timeout, interval)
+		})
+	})
+
+	Context("When the Stage namespace is not a landscape namespace", func() {
+		It("should report NamespaceNotReady until the namespace is labeled, then become ready", func() {
+			ctx := context.Background()
+			const unlabeledNS = "stage-without-landscape-labels"
+
+			ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: unlabeledNS}}
+			Expect(client.IgnoreAlreadyExists(k8sClient.Create(ctx, ns))).To(Succeed())
+			DeferCleanup(func() {
+				Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, ns))).To(Succeed())
+			})
+
+			controller.CreateStage(ctx, k8sClient, StageDev, unlabeledNS, "")
+
+			stageKey := types.NamespacedName{Name: StageDev, Namespace: unlabeledNS}
+			Eventually(func(g Gomega) {
+				stage := &konfidence.Stage{}
+				g.Expect(k8sClient.Get(ctx, stageKey, stage)).To(Succeed())
+				cond := meta.FindStatusCondition(stage.Status.Conditions, konfidence.StageReady)
+				g.Expect(cond).NotTo(BeNil())
+				g.Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+				g.Expect(cond.Reason).To(Equal(pkgctrl.NamespaceNotReadyReason))
+			}, timeout, interval).Should(Succeed())
+
+			controller.EnsureLandscapeNamespace(ctx, k8sClient, unlabeledNS)
+			verifyStageReady(ctx, k8sClient, StageDev, unlabeledNS, timeout, interval)
 		})
 	})
 })

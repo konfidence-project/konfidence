@@ -38,6 +38,7 @@ type StageReconciler struct {
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=stages/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=stageversions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -55,8 +56,14 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	if res, err := pkgctrl.MustBeInLandscapeNamespace(
+		ctx, r.Client, stage, &stage.Status.Conditions, konfidence.StageReady,
+	); res != nil {
+		return *res, err
+	}
+
 	originalStage := stage.DeepCopy()
-	err := r.reconcileStage(ctx, req, stage)
+	reconcileErr := r.reconcileStage(ctx, req, stage)
 
 	return ctrl.Result{}, pkgctrl.PatchStatusIfChanged(
 		ctx,
@@ -66,7 +73,7 @@ func (r *StageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		stage.Status,
 		originalStage.Status,
 		"unable to update stage status",
-		err,
+		reconcileErr,
 		"an error occurred while reconciling stage",
 	)
 
@@ -83,6 +90,7 @@ func (r *StageReconciler) reconcileStage(ctx context.Context, req ctrl.Request, 
 		ObservedGeneration: stage.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
+
 	if stage.Spec.Vector == "" {
 		meta.SetStatusCondition(&stage.Status.Conditions, metav1.Condition{
 			Type:               konfidence.StageReady,
