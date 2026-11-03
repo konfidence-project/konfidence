@@ -11,6 +11,12 @@ const (
 	// DeploymentTargetReadyCondition is the Ready condition for the DeploymentTarget resource.
 	// It is set by the deployer controller once it has accepted the resource.
 	DeploymentTargetReadyCondition = "Ready"
+
+	// DeploymentTargetForceDeleteAnnotation can be set to "true" to allow deleting a DeploymentTarget
+	// while ArtifactDeployments of its artifact type still exist in the same namespace. This may leave
+	// runtime resources unmanaged, because deployers lose the connection to the runtime before they can
+	// clean up.
+	DeploymentTargetForceDeleteAnnotation = "konfidence.cloud/force-delete"
 )
 
 // DeploymentTargetSpec defines the desired state of DeploymentTarget.

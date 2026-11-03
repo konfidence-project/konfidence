@@ -81,4 +81,49 @@ var _ = Describe("DeploymentTargetValidator", func() {
 			})
 		})
 	})
+
+	Describe("ValidateDelete", func() {
+		It("allows deletion when there are no matching ArtifactDeployments", func() {
+			ns := landscapeNamespace("landscape")
+			other := &ArtifactDeployment{ObjectMeta: metav1.ObjectMeta{Name: "other", Namespace: ns.Name}, Spec: ArtifactDeploymentSpec{ArtifactType: "other.example.com"}}
+			validator := &DeploymentTargetValidator{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, other).Build()}
+
+			warnings, err := validator.ValidateDelete(ctx, target("helm", ns.Name, ArtifactType("helm.example.com")))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(warnings).To(BeEmpty())
+		})
+
+		It("blocks deletion when matching ArtifactDeployments exist", func() {
+			ns := landscapeNamespace("landscape")
+			matching := &ArtifactDeployment{ObjectMeta: metav1.ObjectMeta{Name: "one", Namespace: ns.Name}, Spec: ArtifactDeploymentSpec{ArtifactType: "helm.example.com"}}
+			other := &ArtifactDeployment{ObjectMeta: metav1.ObjectMeta{Name: "other", Namespace: "other-landscape"}, Spec: ArtifactDeploymentSpec{ArtifactType: "helm.example.com"}}
+			validator := &DeploymentTargetValidator{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, matching, other).Build()}
+
+			_, err := validator.ValidateDelete(ctx, target("helm", ns.Name, ArtifactType("helm.example.com")))
+			Expect(err).To(MatchError(ContainSubstring("found existing ArtifactDeployments of artifact type \"helm.example.com\"")))
+		})
+
+		It("allows forced deletion when matching ArtifactDeployments exist", func() {
+			ns := landscapeNamespace("landscape")
+			matching := &ArtifactDeployment{ObjectMeta: metav1.ObjectMeta{Name: "one", Namespace: ns.Name}, Spec: ArtifactDeploymentSpec{ArtifactType: "helm.example.com"}}
+			obj := target("helm", ns.Name, ArtifactType("helm.example.com"))
+			obj.Annotations = map[string]string{DeploymentTargetForceDeleteAnnotation: "true"}
+			validator := &DeploymentTargetValidator{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, matching).Build()}
+
+			warnings, err := validator.ValidateDelete(ctx, obj)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(warnings).To(BeEmpty())
+		})
+
+		It("does not allow forced deletion for any value other than true", func() {
+			ns := landscapeNamespace("landscape")
+			matching := &ArtifactDeployment{ObjectMeta: metav1.ObjectMeta{Name: "one", Namespace: ns.Name}, Spec: ArtifactDeploymentSpec{ArtifactType: "helm.example.com"}}
+			obj := target("helm", ns.Name, ArtifactType("helm.example.com"))
+			obj.Annotations = map[string]string{DeploymentTargetForceDeleteAnnotation: "yes"}
+			validator := &DeploymentTargetValidator{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(ns, matching).Build()}
+
+			_, err := validator.ValidateDelete(ctx, obj)
+			Expect(err).To(HaveOccurred())
+		})
+	})
 })

@@ -15,6 +15,7 @@ import (
 var deploymenttargetlog = logf.Log.WithName("deploymenttarget-webhook")
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=deploymenttargets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=artifactdeployments,verbs=list
 
 // SetupDeploymentTargetWebhookWithManager registers the webhook with the manager.
 func SetupDeploymentTargetWebhookWithManager(mgr ctrl.Manager) error {
@@ -24,7 +25,7 @@ func SetupDeploymentTargetWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 //nolint:lll // Kubebuilder annotations are intentionally long.
-// +kubebuilder:webhook:path=/validate-konfidence-cloud-v1alpha1-deploymenttarget,mutating=false,failurePolicy=fail,sideEffects=None,groups=konfidence.cloud,resources=deploymenttargets,verbs=create,versions=v1alpha1,name=vdeploymenttarget.konfidence.cloud,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-konfidence-cloud-v1alpha1-deploymenttarget,mutating=false,failurePolicy=fail,sideEffects=None,groups=konfidence.cloud,resources=deploymenttargets,verbs=create;delete,versions=v1alpha1,name=vdeploymenttarget.konfidence.cloud,admissionReviewVersions=v1
 
 // DeploymentTargetValidator validates DeploymentTarget resources.
 // +kubebuilder:object:generate=false
@@ -48,7 +49,22 @@ func (v *DeploymentTargetValidator) ValidateUpdate(_ context.Context, _, _ *Depl
 }
 
 // ValidateDelete validates a DeploymentTarget on deletion.
-func (v *DeploymentTargetValidator) ValidateDelete(_ context.Context, _ *DeploymentTarget) (admission.Warnings, error) {
+func (v *DeploymentTargetValidator) ValidateDelete(ctx context.Context, obj *DeploymentTarget) (admission.Warnings, error) {
+	if obj.Annotations[DeploymentTargetForceDeleteAnnotation] == "true" {
+		return nil, nil
+	}
+
+	deployments := &ArtifactDeploymentList{}
+	if err := v.Client.List(ctx, deployments, client.InNamespace(obj.Namespace)); err != nil {
+		return nil, apierrors.NewInternalError(fmt.Errorf("failed to list ArtifactDeployments in namespace %q: %w", obj.Namespace, err))
+	}
+
+	for i := range deployments.Items {
+		if deployments.Items[i].Spec.ArtifactType == obj.Spec.ArtifactType {
+			return nil, fmt.Errorf("cannot delete DeploymentTarget: found existing ArtifactDeployments of artifact type %q", obj.Spec.ArtifactType)
+		}
+	}
+
 	return nil, nil
 }
 
