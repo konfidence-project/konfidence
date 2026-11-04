@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
@@ -23,14 +24,20 @@ func getPromotionConfig(
 }
 
 // listSiblingPromotions returns all promotions in the promotion's namespace
-// that reference the same VectorPromotionConfig, including the promotion
-// itself. The field selector is served by the manager cache index
+// that reference the same VectorPromotionConfig, excluding the promotion
+// itself by UID. The field selector is served by the manager cache index
 // (RegisterFieldIndexes) for cached clients and by the CRD's selectableFields
 // for direct clients.
 func listSiblingPromotions(
 	ctx context.Context, clusterClient client.Client, vectorPromotion *konfidence.VectorPromotion,
 ) ([]konfidence.VectorPromotion, error) {
-	return listPromotionsForConfig(ctx, clusterClient, vectorPromotion.Namespace, vectorPromotion.Spec.VectorPromotionConfigName)
+	promotions, err := listPromotionsForConfig(ctx, clusterClient, vectorPromotion.Namespace, vectorPromotion.Spec.VectorPromotionConfigName)
+	if err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(promotions, func(p konfidence.VectorPromotion) bool {
+		return p.UID == vectorPromotion.UID
+	}), nil
 }
 
 // listPromotionsForConfig returns all promotions in the namespace referencing
