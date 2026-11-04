@@ -56,9 +56,8 @@ This also includes changes where the deployer can read the payload but cannot co
 An artifact is an OCM component version following the [OCM spec](https://github.com/open-component-model/ocm-spec).
 The OCM component version identifies the packaged artifact; it is separate from the artifact type.
 Its resources MUST contain exactly one resource of type `cloud.konfidence.artifact.manifest`, and that resource MUST be named `konfidence-manifest`.
-This resource MUST contain a JSON object with a `type` property whose value is the complete artifact type:
-
-[//]: # (TODO: can we use type: UTF8/v1 instead and use inline yaml)
+This resource MUST contain a JSON or YAML object with a `type` property whose value is the complete artifact type.
+It can be written inline with the OCM [`UTF8/v1`](https://ocm.software/docs/reference/input-and-access-types/#utf8v1) input:
 
 ```yaml
 # component-constructor.yaml
@@ -67,17 +66,12 @@ resources:
     relation: local
     type: cloud.konfidence.artifact.manifest
     input:
-      type: file/v1
-      path: ./konfidence-manifest.json
+      type: UTF8/v1
+      yaml:
+        type: kustomize.konfidence.cloud
 ```
 
-The referenced JSON file contains the artifact's type declaration:
-
-```json
-{
-  "type": "kustomize.konfidence.cloud"
-}
-```
+A `file/v1` input that points to a JSON file with the same content, such as `{"type": "kustomize.konfidence.cloud"}`, also works.
 
 The component version MAY contain additional resources that a deployer uses to understand what needs to be deployed.
 
