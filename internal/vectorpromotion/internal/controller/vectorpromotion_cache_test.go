@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,11 +39,10 @@ func TestReconcileWithCachedGateSummary(t *testing.T) {
 		{name: "running-sibling/requeue/stale", approval: true, stale: true, siblingSequence: 1, siblingCleared: true, siblingRunning: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			g := gomega.NewWithT(t)
 			ctx := context.Background()
 			scheme := runtime.NewScheme()
-			if err := konfidence.AddToScheme(scheme); err != nil {
-				t.Fatal(err)
-			}
+			g.Expect(konfidence.AddToScheme(scheme)).To(gomega.Succeed())
 			promotion := &konfidence.VectorPromotion{
 				ObjectMeta: metav1.ObjectMeta{Name: "promotion", Namespace: "project-test", UID: "promotion-uid", Generation: 1},
 				Spec: konfidence.VectorPromotionSpec{
@@ -111,72 +111,47 @@ func TestReconcileWithCachedGateSummary(t *testing.T) {
 			r := VectorPromotionReconciler{Client: c, Recorder: events.NewFakeRecorder(20)}
 			key := types.NamespacedName{Name: promotion.Name, Namespace: promotion.Namespace}
 			result, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: key})
-			if err != nil {
-				t.Fatal(err)
-			}
+			g.Expect(err).NotTo(gomega.HaveOccurred())
 			actual := &konfidence.VectorPromotion{}
 			if test.siblingRunning {
-				if result.RequeueAfter != siblingBlockedRequeueInterval {
-					t.Fatalf("expected requeue while sibling runs, got %v", result)
-				}
-				if err := base.Get(ctx, key, actual); err != nil {
-					t.Fatal(err)
-				}
-				if !meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.ConditionTypeGatesSatisfied) ||
-					actual.Status.StartTime != nil {
-					t.Fatalf("expected promotion to wait with satisfied gates, got %+v", actual.Status)
-				}
-				if err := base.Get(ctx, client.ObjectKeyFromObject(stage), stage); err != nil {
-					t.Fatal(err)
-				}
-				if stage.Spec.Vector != "" {
-					t.Fatalf("promotion wrote stage while sibling was running: %q", stage.Spec.Vector)
-				}
-				if err := base.Get(ctx, client.ObjectKeyFromObject(sibling), sibling); err != nil {
-					t.Fatal(err)
-				}
+				g.Expect(result.RequeueAfter).To(gomega.Equal(siblingBlockedRequeueInterval))
+				g.Expect(base.Get(ctx, key, actual)).To(gomega.Succeed())
+				g.Expect(meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)).To(gomega.BeTrue())
+				g.Expect(actual.Status.StartTime).To(gomega.BeNil())
+				g.Expect(base.Get(ctx, client.ObjectKeyFromObject(stage), stage)).To(gomega.Succeed())
+				g.Expect(stage.Spec.Vector).To(gomega.BeEmpty(), "promotion must not write the stage while a sibling is running")
+				g.Expect(base.Get(ctx, client.ObjectKeyFromObject(sibling), sibling)).To(gomega.Succeed())
 				finish(metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, "sibling finished")(sibling)
-				if err := base.Status().Update(ctx, sibling); err != nil {
-					t.Fatal(err)
-				}
-				if _, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: key}); err != nil {
-					t.Fatal(err)
-				}
+				g.Expect(base.Status().Update(ctx, sibling)).To(gomega.Succeed())
+				_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: key})
+				g.Expect(err).NotTo(gomega.HaveOccurred())
 			}
-			if err := base.Get(ctx, key, actual); err != nil {
-				t.Fatal(err)
-			}
+			g.Expect(base.Get(ctx, key, actual)).To(gomega.Succeed())
+			condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.ConditionTypeSucceeded)
+			g.Expect(condition).NotTo(gomega.BeNil())
 			if test.wantSuperseded {
-				condition := meta.FindStatusCondition(actual.Status.Conditions, konfidence.ConditionTypeSucceeded)
-				if condition == nil || condition.Status != metav1.ConditionFalse || condition.Reason != konfidence.ReasonPromotionSuperseded {
-					t.Fatalf("expected promotion to be superseded, got %v", actual.Status.Conditions)
-				}
-			} else if !meta.IsStatusConditionTrue(actual.Status.Conditions, konfidence.ConditionTypeSucceeded) {
-				t.Fatalf("expected promotion to succeed, got %v", actual.Status.Conditions)
+				g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionFalse))
+				g.Expect(condition.Reason).To(gomega.Equal(konfidence.ReasonPromotionSuperseded))
+			} else {
+				g.Expect(condition.Status).To(gomega.Equal(metav1.ConditionTrue))
 			}
-			if err := base.Get(ctx, client.ObjectKeyFromObject(stage), stage); err != nil {
-				t.Fatal(err)
-			}
+			g.Expect(base.Get(ctx, client.ObjectKeyFromObject(stage), stage)).To(gomega.Succeed())
 			wantVector := promotion.Spec.Vector
 			if test.wantSuperseded {
 				wantVector = ""
 			}
-			if stage.Spec.Vector != wantVector {
-				t.Fatalf("expected stage vector %q, got %q", wantVector, stage.Spec.Vector)
-			}
+			g.Expect(stage.Spec.Vector).To(gomega.Equal(wantVector))
 			if sibling != nil {
-				if err := base.Get(ctx, client.ObjectKeyFromObject(sibling), sibling); err != nil {
-					t.Fatal(err)
-				}
+				g.Expect(base.Get(ctx, client.ObjectKeyFromObject(sibling), sibling)).To(gomega.Succeed())
 				wantStatus := metav1.ConditionUnknown
 				if test.siblingRunning {
 					wantStatus = metav1.ConditionTrue
 				} else if test.siblingSequence < promotion.Spec.Sequence {
 					wantStatus = metav1.ConditionFalse
 				}
-				if !meta.IsStatusConditionPresentAndEqual(sibling.Status.Conditions, konfidence.ConditionTypeSucceeded, wantStatus) {
-					t.Fatalf("expected sibling Succeeded=%s, got %v", wantStatus, sibling.Status.Conditions)
-				}
+				condition := meta.FindStatusCondition(sibling.Status.Conditions, konfidence.ConditionTypeSucceeded)
+				g.Expect(condition).NotTo(gomega.BeNil())
+				g.Expect(condition.Status).To(gomega.Equal(wantStatus))
 			}
 		})
 	}
