@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sync"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
@@ -289,17 +288,7 @@ func (a Adapter) getLocalResourceBlob(ctx context.Context, ref compref.Ref, reso
 	if err != nil {
 		return nil, fmt.Errorf("opening blob reader: %w", err)
 	}
-
-	var closeOnce sync.Once
-	closeReader := func() {
-		closeOnce.Do(func() { _ = rc.Close() })
-	}
-
-	stopCancellation := context.AfterFunc(ctx, closeReader)
-	defer func() {
-		stopCancellation()
-		closeReader()
-	}()
+	defer func() { _ = rc.Close() }()
 
 	data, err := io.ReadAll(rc)
 	if ctxErr := ctx.Err(); ctxErr != nil {

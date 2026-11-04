@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"io"
-	"sync"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"sync/atomic"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -14,10 +16,12 @@ import (
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.uber.org/mock/gomock"
-	"ocm.software/open-component-model/bindings/go/blob"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
+	ociblob "ocm.software/open-component-model/bindings/go/oci/blob"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ociv1 "ocm.software/open-component-model/bindings/go/oci/spec/repository/v1/oci"
 )
@@ -28,43 +32,6 @@ func (f verifierFunc) Verify(ctx context.Context, resolver credentials.Resolver,
 	return f(ctx, resolver, specs, descriptors)
 }
 
-type readCloserBlob struct {
-	reader io.ReadCloser
-}
-
-var _ blob.ReadOnlyBlob = readCloserBlob{}
-
-func (b readCloserBlob) ReadCloser() (io.ReadCloser, error) {
-	return b.reader, nil
-}
-
-type blockingReadCloser struct {
-	started    chan struct{}
-	closed     chan struct{}
-	startOnce  sync.Once
-	closeOnce  sync.Once
-	closeCalls atomic.Int32
-}
-
-func newBlockingReadCloser() *blockingReadCloser {
-	return &blockingReadCloser{
-		started: make(chan struct{}),
-		closed:  make(chan struct{}),
-	}
-}
-
-func (r *blockingReadCloser) Read([]byte) (int, error) {
-	r.startOnce.Do(func() { close(r.started) })
-	<-r.closed
-	return 0, errors.New("reader closed")
-}
-
-func (r *blockingReadCloser) Close() error {
-	r.closeCalls.Add(1)
-	r.closeOnce.Do(func() { close(r.closed) })
-	return nil
-}
-
 type countingReadCloser struct {
 	io.Reader
 	closeCalls atomic.Int32
@@ -73,6 +40,20 @@ type countingReadCloser struct {
 func (r *countingReadCloser) Close() error {
 	r.closeCalls.Add(1)
 	return nil
+}
+
+type readStartedReadCloser struct {
+	io.ReadCloser
+	started chan<- struct{}
+}
+
+func (r *readStartedReadCloser) Read(p []byte) (int, error) {
+	select {
+	case r.started <- struct{}{}:
+	default:
+	}
+
+	return r.ReadCloser.Read(p)
 }
 
 var _ = Describe("OCM adapter cancellation", func() {
@@ -135,44 +116,85 @@ var _ = Describe("OCM adapter cancellation", func() {
 		Expect(errors.As(err, &permanent)).To(BeFalse())
 	})
 
-	It("closes a blocked blob reader exactly once on cancellation", func() {
-		reader := newBlockingReadCloser()
-		adapter := NewAdapterWithClient(mockClient)
+	It("returns context cancellation while reading a descriptor blob", func() {
+		const content = `{"type":"test.konfidence.cloud","allowReuse":true}`
 
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Length", strconv.Itoa(len(content)))
+
+			// Send only part of the blob so io.ReadAll waits for more data.
+			_, _ = io.WriteString(w, content[:1])
+			w.(http.Flusher).Flush()
+
+			<-r.Context().Done()
+		}))
+		defer server.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
+		Expect(err).NotTo(HaveOccurred())
+
+		response, err := http.DefaultClient.Do(request)
+		Expect(err).NotTo(HaveOccurred())
+
+		readStarted := make(chan struct{}, 1)
+		reader := &readStartedReadCloser{
+			ReadCloser: response.Body,
+			started:    readStarted,
+		}
+
+		descriptorBlob := ociblob.NewDescriptorBlob(
+			reader,
+			ocispec.Descriptor{
+				Digest: digest.FromString(content),
+				Size:   int64(len(content)),
+			},
+		)
+
+		adapter := NewAdapterWithClient(mockClient)
 		mockClient.EXPECT().Get(gomock.Any(), artifactRef).Return(descriptor, nil)
 		mockClient.EXPECT().
 			GetLocalResource(gomock.Any(), artifactRef, resource.ToIdentity()).
-			Return(readCloserBlob{reader: reader}, &resource, nil)
+			Return(descriptorBlob, &resource, nil)
 
-		ctx, cancel := context.WithCancel(context.Background())
 		result := make(chan error, 1)
-
 		go func() {
 			_, err := adapter.GetArtifactManifestByReference(ctx, artifactRef)
 			result <- err
 		}()
 
-		Eventually(reader.started).Should(BeClosed())
+		// Ensure GetLocalResource has returned and io.ReadAll is reading the blob.
+		Eventually(readStarted).Should(Receive())
+
 		cancel()
 
-		var err error
-		Eventually(result).Should(Receive(&err))
-		Expect(errors.Is(err, context.Canceled)).To(BeTrue())
-		Expect(reader.closeCalls.Load()).To(Equal(int32(1)))
+		var resultErr error
+		Eventually(result).Should(Receive(&resultErr))
+		Expect(errors.Is(resultErr, context.Canceled)).To(BeTrue())
 	})
 
-	It("closes a normally consumed reader exactly once", func() {
+	It("closes a normally consumed descriptor blob exactly once", func() {
+		content := []byte(`{"type":"test.konfidence.cloud","allowReuse":true}`)
 		reader := &countingReadCloser{
-			Reader: bytes.NewReader(
-				[]byte(`{"type":"test.konfidence.cloud","allowReuse":true}`),
-			),
+			Reader: bytes.NewReader(content),
 		}
+
+		descriptorBlob := ociblob.NewDescriptorBlob(
+			reader,
+			ocispec.Descriptor{
+				Digest: digest.FromBytes(content),
+				Size:   int64(len(content)),
+			},
+		)
+
 		adapter := NewAdapterWithClient(mockClient)
 
 		mockClient.EXPECT().Get(gomock.Any(), artifactRef).Return(descriptor, nil)
 		mockClient.EXPECT().
 			GetLocalResource(gomock.Any(), artifactRef, resource.ToIdentity()).
-			Return(readCloserBlob{reader: reader}, &resource, nil)
+			Return(descriptorBlob, &resource, nil)
 
 		manifest, err := adapter.GetArtifactManifestByReference(
 			context.Background(),
