@@ -469,6 +469,32 @@ var _ = Describe("Artifact manifest jobs", func() {
 		Expect(errors.As(result.err, &actual)).To(BeTrue())
 		Expect(actual.Reason).To(Equal(permanent.Reason))
 	})
+
+	It("converts an artifact manifest download panic into an error", func() {
+		ref := testArtifactRef("example.com/a", "1.0.0")
+		var calls atomic.Int32
+
+		port := &testVectorOcmPort{
+			getManifest: func(context.Context, compref.Ref) (ArtifactManifest, error) {
+				if calls.Add(1) == 1 {
+					panic("malformed registry content")
+				}
+				return testManifest(ref), nil
+			},
+		}
+
+		r := newManifestTestReconciler(port, 1, 1)
+
+		result := r.downloadArtifactManifests(context.Background(), []compref.Ref{ref})
+		Expect(result.err).To(HaveOccurred())
+		Expect(result.err.Error()).To(ContainSubstring("malformed registry content"))
+		Expect(result.err.Error()).To(ContainSubstring(ref.String()))
+
+		By("releasing the download slot after the panic")
+		result = r.downloadArtifactManifests(context.Background(), []compref.Ref{ref})
+		Expect(result.err).NotTo(HaveOccurred())
+		Expect(result.artifacts).To(HaveLen(1))
+	})
 })
 
 var _ = Describe("Ready generation matching", func() {

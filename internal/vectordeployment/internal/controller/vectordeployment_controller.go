@@ -692,15 +692,19 @@ func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Conte
 	pool.SetLimit(min(r.MaxArtifactManifestDownloadsPerDeployment, len(artifactReferences)))
 
 	for i, artifactRef := range artifactReferences {
-		pool.Go(func() error {
+		pool.Go(func() (err error) {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					err = fmt.Errorf("panic while downloading artifact manifest for %q: %v", artifactRef.String(), recovered)
+				}
+			}()
+
 			release, err := r.manifestDownloadLimiter.acquire(poolCtx)
 			if err != nil {
 				return fmt.Errorf("waiting to download artifact manifest for %q: %w", artifactRef.String(), err)
 			}
 			defer release()
 
-			// the timeout covers one artifact's OCI operation, not semaphore
-			// waiting or the complete vector download.
 			downloadCtx, cancel := context.WithTimeout(poolCtx, r.manifestDownloadTimeout)
 			defer cancel()
 
@@ -720,7 +724,6 @@ func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Conte
 	if err := pool.Wait(); err != nil {
 		return artifactManifestResult{err: err}
 	}
-
 	return artifactManifestResult{artifacts: artifacts}
 }
 
