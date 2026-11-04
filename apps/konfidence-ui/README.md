@@ -29,35 +29,38 @@ The flag is preserved across internal client-side navigation, so subsequent `<a>
 
 `/projects/<id>/promotions` lists all promotion configurations and their retained
 history. Newest currently means highest sequence, not creation time. Headers
-describe the current configuration; instance filters use saved
+describe the current configuration; instance filters and details use saved
 execution references. Succeeded confirms a stage update, not rollout completion.
 
 Groups start collapsed with only the flow header, landscape and latest-waiting
 chips visible. Expansion reveals all matching promotions once in sequence order,
-even for single-promotion groups. Clear filters is hidden until a dropdown or
-nonblank search is active. Rows can be selected locally; a details panel is not
-part of the overview.
+even for single-promotion groups. Valid deep links reveal the selected row; later
+collapse does not close its details. Selecting the active promotion again closes
+the panel; selecting another switches its contents. Clear filters is hidden until a dropdown or
+nonblank search is active.
 
 Vector previews use the final repository component with its tag/digest instead
-of the registry path, and ellipsize long labels on one line. Hover titles retain
-the complete reference; search still uses the original value.
+of the registry path, and ellipsize long labels on one line. Hover titles and
+instance details retain the complete reference; search still uses the original
+value.
 
-Rows show read-only gate progress from the API's declared gate states. Pending explicit approval is
+Rows show read-only gate progress from the API's declared gate states. Details
+list gate types, states and available metadata. Pending explicit approval is
 highlighted, not executable. Unknown gate types retain their full identifiers;
 missing data does not imply satisfied gates. No creation ages or initiator
 identities are fabricated from gate records.
 
 Filters use `promotionLandscape`, `promotionStage` (a JSON `[landscapeId, stageName]`
-pair), and `promotionConfig`. Search and
+pair), and `promotionConfig`. `promotion` deep-links to an instance. Search and
 independent expansion stay local to the page; embedded mode is preserved.
 
 The page refreshes its existing project-scoped query every ten seconds while
 visible and immediately on tab return. Background errors retain content and offer
-Retry. Successful responses update the retained history without resetting filters
-or expansion. This page-local lifecycle is temporary pending the shared refreshing mechanism.
+Retry. A successful response confirming removal closes the selected instance.
+This page-local lifecycle is temporary pending the shared refreshing mechanism.
 
 Approve and Reject are disabled placeholders and send no mutation requests.
 Eligibility uses the current API: Waiting plus a Pending
 `explicit-approval.konfidence.cloud` gate. The plan's legacy `requireApproval` and
-approval fields were replaced by gates. No backend or API schema changes are part
-of this view.
+approval fields were replaced by gates; recorded gate identity is shown when
+available. No backend or API schema changes are part of this view.

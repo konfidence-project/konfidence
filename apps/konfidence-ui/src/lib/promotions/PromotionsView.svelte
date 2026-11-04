@@ -1,11 +1,16 @@
 <script lang="ts">
-    import { Button, EmptyState, ExpandableGroup, Link, OrbitLoader, PageHeader, SearchInput, Select } from "@konfidence/design-system/components";
+    import { Button, EmptyState, ExpandableGroup, Link, OrbitLoader, PageHeader, SearchInput, Select, SidePanel } from "@konfidence/design-system/components";
     import type { Landscape, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
     import { isActionable, landscapeLabels } from "./promotions.ts";
     import { compatibleOptions, filterPromotionGroups } from "./filters.ts";
     import { usePromotionFilters } from "./usePromotionFilters.svelte.ts";
     import PromotionRow from "./PromotionRow.svelte";
     import { vectorLabel } from "./vector-label.ts";
+    import PromotionDetail from "./PromotionDetail.svelte";
+    import PromotionActions from "./PromotionActions.svelte";
+    import { panelDimensions } from "#lib/shell/panelDimensions.svelte.ts";
+    import { createDesktopPanelViewport } from "#lib/shell/panelPresentation.svelte.ts";
+    import { outsidePanelDismiss } from "#lib/shell/panel-outside-dismiss.ts";
 
     interface Props {
         configs?: readonly VectorPromotionConfig[];
@@ -17,14 +22,51 @@
     }
     let { configs = [], landscapes = [], loading = false, hasLoaded = false, error, onRetry }: Props = $props();
     let expanded = $state<Record<string, boolean>>({});
-    let selectedId = $state<string>();
     const filters = usePromotionFilters();
     const groups = $derived(filterPromotionGroups(configs, landscapes, filters.values));
     const options = $derived(compatibleOptions(configs, landscapes, filters.values));
     const labelClass = "text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary";
+    const selected = $derived(groups.flatMap((group) => group.promotions).find((promotion) => promotion.id === filters.selectedId));
+    const desktop = createDesktopPanelViewport();
+    let revealedId: string | undefined = undefined;
+    let lastSelectedId: string | undefined = undefined;
+    let lastConfigId: string | undefined = undefined;
+    let wasOpen = false;
+    let restoreFocus = false;
+
+    const closePanel = (): void => { restoreFocus = true; filters.close(); };
+    const restoreRowFocus = (): void => {
+        if (!restoreFocus) {return;}
+        restoreFocus = false;
+        queueMicrotask(() => {
+            const row = document.getElementById(`promotion-row-${lastSelectedId}`);
+            const group = document.getElementById(`promotion-group-${lastConfigId}`);
+            const target = row?.getClientRects().length ? row : group ?? document.getElementById("promotions-view-title");
+            if (target) { if (!(target instanceof HTMLButtonElement)) {target.tabIndex = -1;} target.focus({ preventScroll: true }); }
+        });
+    };
+
+    $effect(() => {
+        const id = filters.selectedId;
+        const group = groups.find((item) => item.promotions.some((promotion) => promotion.id === id));
+        if (id && hasLoaded && !group) {filters.clearSelection();}
+        if (id && group && id !== revealedId) {
+            expanded[group.config.id] = true;
+            revealedId = id;
+        } else if (!id) {revealedId = undefined;}
+    });
+
+    $effect.pre(() => {
+        if (selected) {
+            lastSelectedId = selected.id;
+            lastConfigId = groups.find((group) => group.promotions.some((promotion) => promotion.id === selected.id))?.config.id;
+        } else if (wasOpen && document.activeElement?.closest("[data-panel-surface]")) {restoreFocus = true;}
+        wasOpen = selected !== undefined;
+    });
 </script>
 
-<section class="mx-auto flex w-full max-w-[84rem] flex-col gap-5 px-6 pt-6 pb-10" aria-labelledby="promotions-view-title">
+<section use:outsidePanelDismiss={{ dismiss: filters.close, enabled: () => selected !== undefined && desktop.current, ignoreSelector: "[data-promotion-group], [data-promotion-filters], [data-promotion-refresh]" }}
+    class="mx-auto flex w-full max-w-[84rem] flex-col gap-5 px-6 pt-6 pb-10" aria-labelledby="promotions-view-title">
     <PageHeader id="promotions-view-title" title="Promotions" />
     {#if hasLoaded}
         {#if error}
@@ -33,7 +75,7 @@
                 <Button variant="secondary" onclick={onRetry}>Retry</Button>
             </div>
         {/if}
-        <div class="flex flex-wrap items-end gap-3 rounded-[var(--card-radius)] border border-outline-subtle bg-surface-subtle px-4 py-3">
+        <div data-promotion-filters class="flex flex-wrap items-end gap-3 rounded-[var(--card-radius)] border border-outline-subtle bg-surface-subtle px-4 py-3">
             <label class="flex min-w-0 grow basis-64 flex-col gap-1">
                 <span class={labelClass}>Search</span>
                 <SearchInput bind:value={filters.query} aria-label="Search promotions" placeholder="Search configuration, promotion, vector, approval…" class="w-full max-w-none" />
@@ -92,9 +134,10 @@
             {#each groups as group (group.config.id)}
                 {#snippet history()}
                     {#each group.promotions as promotion (promotion.id)}
-                        <PromotionRow {promotion} selected={selectedId === promotion.id} onselect={() => selectedId = promotion.id} />
+                        <PromotionRow {promotion} selected={filters.selectedId === promotion.id} onselect={() => filters.open(promotion)} />
                     {/each}
                 {/snippet}
+                <div data-promotion-group>
                 <ExpandableGroup ariaLabel={`Promotion configuration ${group.config.id}`} triggerId={`promotion-group-${group.config.id}`}
                     expanded={expanded[group.config.id] ?? false} onExpandedChange={(value) => expanded[group.config.id] = value}
                     children={group.promotions.length ? history : undefined}>
@@ -122,7 +165,15 @@
                         </span>
                     {/snippet}
                 </ExpandableGroup>
+                </div>
             {/each}
         </div>
     {/if}
 </section>
+
+{#snippet footer()}<PromotionActions />{/snippet}
+<SidePanel open={selected !== undefined} title={selected?.id ?? "Promotion"} onClose={closePanel} onCloseComplete={restoreRowFocus}
+    width={panelDimensions.width} onWidthChange={panelDimensions.setWidth} modal={!desktop.current} focusKey={filters.selectedId}
+    footer={selected && isActionable(selected) ? footer : undefined}>
+    {#if selected}<PromotionDetail promotion={selected} {landscapes} />{/if}
+</SidePanel>

@@ -18,6 +18,8 @@
         resizer?: Snippet;
         headerAction?: Snippet;
         onClose?: () => void;
+        /** Called after dialog cleanup and default focus restoration, including programmatic closes. */
+        onCloseComplete?: () => void;
         modal?: boolean;
         /** Changing this value refocuses the panel without replaying its animation. */
         focusKey?: string;
@@ -36,6 +38,7 @@
         resizer,
         headerAction,
         onClose,
+        onCloseComplete,
         modal = true,
         focusKey,
     }: Props = $props();
@@ -50,6 +53,7 @@
     let previouslyPresentedOpen = false;
     let previouslyFocusedOpen = false;
     let previousFocusKey: string | undefined = undefined;
+    let previouslyOpen = false;
 
     // The portal escapes clipping/stacking ancestors. Carry the local app-shell
     // offset with it instead of relying on inheritance from the original parent.
@@ -96,6 +100,28 @@
         }
         previouslyFocusedOpen = open;
         previousFocusKey = focusKey;
+    });
+
+    $effect(() => {
+        const closed = previouslyOpen && !open;
+        previouslyOpen = open;
+        if (!closed) {return;}
+
+        let cancelled = false;
+        let timer: ReturnType<typeof setTimeout> | undefined = undefined;
+        // Flush the controlled Dialog state first. Skeleton defers its default
+        // focus restoration to a timer; let that finish before caller overrides.
+        void tick().then(() => {
+            if (!cancelled) {
+                timer = setTimeout(() => {
+                    if (!open) {onCloseComplete?.();}
+                }, 0);
+            }
+        });
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
     });
 
     // oxlint-disable-next-line unicorn/no-null -- Skeleton's MaybeElement requires null rather than undefined.

@@ -60,7 +60,7 @@ test("refreshes every ten visible seconds, suspends while hidden, refreshes on r
   expect(requests).toBe(departed);
 });
 
-test("keeps expansion, filters and selected rows stable as promotions arrive and states change", async ({
+test("keeps expansion, filters and selected details stable as promotions arrive and states change", async ({
   page,
 }) => {
   await page.clock.install();
@@ -74,9 +74,10 @@ test("keeps expansion, filters and selected rows stable as promotions arrive and
     .getByRole("combobox", { name: "Filter by promotion configuration" })
     .selectOption("a-flow");
   await expect(page).toHaveURL(/promotionConfig=a-flow/);
-  const row = page.getByRole("button", { exact: true, name: "View promotion a-waiting" });
-  await row.click();
-  await row.evaluate((element) => {
+  await page.getByRole("button", { exact: true, name: "View promotion a-waiting" }).click();
+  const panel = page.getByTestId("side-panel");
+  await expect(panel).toBeVisible();
+  await panel.evaluate((element) => {
     element.setAttribute("data-continuity-check", "retained");
   });
   current = configs.map((config) =>
@@ -107,15 +108,15 @@ test("keeps expansion, filters and selected rows stable as promotions arrive and
   await page.clock.runFor(10_000);
   await expect(page.getByRole("button", { name: "View promotion a-arrived" })).toBeVisible();
   await expect(group).toHaveAttribute("aria-expanded", "true");
-  await expect(row).toHaveAttribute("data-continuity-check", "retained");
-  await expect(row).toHaveAttribute("aria-pressed", "true");
-  await expect(row).toContainText("Succeeded");
-  await expect(row.getByRole("button", { exact: true, name: "Approve" })).toHaveCount(0);
-  await expect(page).toHaveURL(/promotionConfig=a-flow/);
+  await expect(panel).toHaveAttribute("data-continuity-check", "retained");
+  await expect(panel).toContainText("external-approver");
+  await expect(panel).toContainText("Succeeded");
+  await expect(panel.getByRole("button", { exact: true, name: "Approve" })).toHaveCount(0);
+  await expect(page).toHaveURL(/promotion=a-waiting/);
   await expect(page.getByRole("searchbox", { name: "Search promotions" })).toHaveValue("a-flow");
 });
 
-test("retains data on failed refreshes, retries and removes rows only after success", async ({
+test("retains data on failed refreshes, retries and closes removed selection only after success", async ({
   page,
 }) => {
   await page.clock.install();
@@ -124,32 +125,35 @@ test("retains data on failed refreshes, retries and removes rows only after succ
   await page.route(API, (route) =>
     route.fulfill(fail ? { json: {}, status: 503 } : { json: { data: current } }),
   );
-  await signIn(page, PATH, PATH);
-  const group = page.getByRole("button", { name: "Promotion configuration a-flow" });
-  await group.click();
-  const row = page.getByRole("button", { exact: true, name: "View promotion a-history" });
-  await expect(row).toBeVisible();
+  const path = `${PATH}?promotion=a-history`;
+  await signIn(page, path, path);
+  const panel = page.getByTestId("side-panel");
+  await expect(panel).toBeVisible();
   fail = true;
   await page.clock.runFor(10_000);
   await expect(page.getByRole("alert")).toContainText("Showing previously loaded data");
-  await expect(row).toBeVisible();
-  await expect(group).toHaveAttribute("aria-expanded", "true");
-  fail = false;
-  current = structuredClone(configs);
-  current[1].promotions.push(promotion("retried", 20));
-  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(panel).toBeVisible();
+  await expect(page).toHaveURL(path);
   await expect(
-    page.getByRole("button", { exact: true, name: "View promotion retried" }),
-  ).toBeVisible();
+    page.getByRole("button", { name: "Promotion configuration a-flow" }),
+  ).toHaveAttribute("aria-expanded", "true");
+  fail = false;
+  await page.getByRole("button", { name: "Retry" }).click();
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(row).toBeVisible();
+  await expect(panel).toBeVisible();
+  await page.getByTestId("side-panel-close").focus();
   current = structuredClone(configs);
   for (const config of current) {
     config.promotions = config.promotions.filter((item) => item.id !== "a-history");
   }
   await page.clock.runFor(10_000);
-  await expect(row).toHaveCount(0);
-  await expect(group).toHaveAttribute("aria-expanded", "true");
+  await expect(panel).toBeHidden();
+  await expect(page).not.toHaveURL(/promotion=/);
+  await expect(
+    page.getByRole("button", { exact: true, name: "View promotion a-history" }),
+  ).toHaveCount(0);
+  await page.clock.runFor(1000);
+  await expect(page.getByRole("button", { name: "Promotion configuration a-flow" })).toBeFocused();
 });
 
 test("continues polling without waiting promotions and recovers automatically after failures", async ({
@@ -179,7 +183,9 @@ test("continues polling without waiting promotions and recovers automatically af
   ).toHaveAttribute("aria-expanded", "false");
 });
 
-test("deduplicates slow refreshes without unmounting loaded content", async ({ page }) => {
+test("deduplicates slow refreshes without unmounting loaded content or details", async ({
+  page,
+}) => {
   await page.clock.install();
   let requests = 0;
   let release = () => {};
@@ -193,14 +199,15 @@ test("deduplicates slow refreshes without unmounting loaded content", async ({ p
     }
     await route.fulfill({ json: { data: configs } });
   });
-  await signIn(page, PATH, PATH);
-  const group = page.getByRole("button", { name: "Promotion configuration a-flow" });
-  await group.click();
+  const path = `${PATH}?promotion=a-waiting`;
+  await signIn(page, path, path);
+  const panel = page.getByTestId("side-panel");
+  await expect(panel).toBeVisible();
   await page.clock.runFor(10_000);
   await expect.poll(() => requests).toBe(2);
   await page.clock.runFor(20_000);
   expect(requests).toBe(2);
-  await expect(group).toHaveAttribute("aria-expanded", "true");
+  await expect(panel).toBeVisible();
   await expect(
     page.getByRole("button", { exact: true, name: "View promotion a-waiting" }),
   ).toBeVisible();
