@@ -5,3 +5,10 @@ metadata:
   name: dev
   namespace: kden-l-dev
 spec: {}
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: kden-l-dev
+spec: {}

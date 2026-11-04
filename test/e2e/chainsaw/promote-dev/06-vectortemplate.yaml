@@ -13,3 +13,7 @@ spec:
   components:
     - name: (join('', ['oci::https://', $componentRegistry, '//github.com/konfidence-project/example-app/candidates:edge']))
     - name: (join('', ['oci::https://', $componentRegistry, '//github.com/konfidence-project/example-app/interviews:edge']))
+  vectorConfig:
+    features:
+      allow-video-slots: false
+      enable-candidate-notes: false

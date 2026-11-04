@@ -1,11 +1,13 @@
 # Example-app e2e test
 
-Tests VectorTemplate assembly, promotion to Stage `dev`, deployment, and
-in-cluster `/healthz` requests. See [#371](https://github.com/konfidence-project/konfidence/issues/371).
+One Chainsaw test covers VectorTemplate assembly, automatic promotion to `dev`,
+manual promotion to `prod`, artifact reuse, and a feature-only rollout through
+both stages on the same landscape. See [#371](https://github.com/konfidence-project/konfidence/issues/371)
+and [#375](https://github.com/konfidence-project/konfidence/issues/375).
 
 ## Run
 
-Requires Docker, `gh`, Hermit (`source bin/activate-hermit`), and registry write access.
+Requires Docker, `gh`, `jq`, Hermit (`source bin/activate-hermit`), and registry write access.
 
 ```sh
 make e2e-up
@@ -56,9 +58,29 @@ This workflow is not part of `ci-gate` or required checks.
 
 ## Checks
 
-- VectorTemplate, VectorPromotionConfig, Stage, and VectorDeployment report `Ready=True`.
-- Candidates and interviews `/healthz` endpoints respond from inside the cluster.
+- VectorTemplate, VectorPromotionConfig, StageVersion, Stage, and VectorDeployment report `Ready=True`.
+- Each stage's active StageVersion references the expected vector.
+- `prod` remains unassigned until the first explicit promotion.
+- ArtifactDeployment references and UIDs stay unchanged across both stages and the flag-only rollout.
+- Candidates and interviews `/healthz` and `/debug` endpoints respond from inside the cluster.
 - Pod logs, events, and resource descriptions are collected on failure.
+
+| Phase | Dev flags | Prod flags |
+|---|---|---|
+| Initial automatic promotion | `false` | No vector |
+| First manual promotion | `false` | `false` |
+| Feature-only template change | `true` | Still `false` |
+| Second manual promotion | `true` | `true` |
+
+Both `allow-video-slots` and `enable-candidate-notes` are checked through
+`/candidates/debug` and `/interviews/debug`, with `X-Konfidence-Routing-Key` set
+to the active VectorDeployment name. The second assembly pins the initially
+resolved component versions so moving `edge` aliases cannot change the artifacts.
+HTTP requests use `kubectl exec` in one test-owned curl pod; attaching to a short-lived
+`kubectl run -i` pod can miss early response output.
+
+Manual steps satisfy the pending `explicit-approval.konfidence.cloud` gate via
+`kubectl patch --subresource=status`. API/CLI approval authorization is not tested.
 
 ## Cleanup
 
@@ -69,6 +91,8 @@ earlier `--skip-delete` run.
 On a fresh cluster, cleanup removes the app and database fixtures, then the
 registry Secret and Flux ConfigMap in `konfidence-system`. Project and Landscape
 fixtures set `deletionPolicy: Delete` to remove their namespaces.
+The test-owned `e2e-baseline` ConfigMap stores cross-step comparison state and is
+tracked by Chainsaw cleanup.
 `--skip-delete` preserves newly created resources.
 
 Registry credentials are read at controller startup

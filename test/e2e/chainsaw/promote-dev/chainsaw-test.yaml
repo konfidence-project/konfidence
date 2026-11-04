@@ -1,4 +1,4 @@
-# VectorTemplate -> Stage dev -> in-cluster /healthz checks.
+# VectorTemplate -> dev -> manual prod, then a feature-only rollout.
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
@@ -51,6 +51,17 @@ spec:
         - apply: {file: 03-deploymenttargets.yaml}
         - apply: {file: 04-database.yaml}
         - apply: {file: 05-stage.yaml}
+        - apply:
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata: {name: e2e-curl, namespace: kden-l-dev}
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: curl
+                    image: curlimages/curl:8.10.1
+                    command: [sleep, "3600"]
         - script:
             env:
               - name: REGISTRY_HOST
@@ -77,6 +88,13 @@ spec:
               helm upgrade --install vector-data-service \
                 "$(git rev-parse --show-toplevel)/.tmp/klo/charts/vector-data-service" \
                 --set-string image.tag="$ref" --namespace kden-l-dev --wait
+        - assert:
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata: {name: e2e-curl, namespace: kden-l-dev}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
 
     - name: assemble-and-promote
       description: Assemble the vector, promote to dev, and wait for Ready conditions.
@@ -111,27 +129,242 @@ spec:
               metadata: {namespace: kden-l-dev}
               status:
                 (conditions[?type == 'Ready']): [{status: "True"}]
-
-    - name: reachability
-      description: Check candidates and interviews /healthz endpoints.
-      try:
         - script:
             content: |
               set -eu
+              vector=$(kubectl get vectortemplate example-app -n kden-p-example-app -o jsonpath='{.status.latestVector}')
+              deployments=$(kubectl get vectordeployments -n kden-l-dev -o json)
+              deployment=$(printf '%s' "$deployments" | jq -ce --arg vector "$vector" \
+                '[.items[] | select(.spec.vector == $vector)] | select(length == 1) | .[0]')
+              artifacts=$(kubectl get artifactdeployments -n kden-l-dev -o json)
+              jq -n --argjson deployment "$deployment" --argjson artifacts "$artifacts" \
+                '{vector: $deployment.spec.vector, refs: $deployment.status.resultingArtifactDeployments,
+                  components: ($deployment.status.resolvedVectorOcm | fromjson | .component.componentReferences),
+                  artifacts: ([$artifacts.items[] | {name: .metadata.name, uid: .metadata.uid}] | sort_by(.name))}'
+            outputs:
+              - name: baseline
+                value: (json_parse($stdout))
+        - apply:
+            resource:
+              apiVersion: v1
+              kind: ConfigMap
+              metadata: {name: e2e-baseline, namespace: kden-l-dev}
+              data: {baseline: (to_string($baseline))}
+
+    - name: reachability
+      description: Check active dev, HTTP endpoints, flags, and artifact identity.
+      bindings:
+        - {name: stage, value: dev}
+        - {name: enabled, value: false}
+      try: &check-stage
+        - script: &load-state
+            content: kubectl get configmap e2e-baseline -n kden-l-dev -o json
+            outputs:
+              - {name: state, value: (json_parse($stdout))}
+              - {name: baseline, value: (json_parse($state.data.baseline))}
+              - {name: vector, value: ($enabled && $state.data.updatedVector || $baseline.vector)}
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: StageVersion
+              metadata: {namespace: kden-l-dev, labels: {konfidence.cloud/stage-name: ($stage)}}
+              spec: {vector: ($vector)}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+        - script:
+            env:
+              - {name: STAGE, value: ($stage)}
+              - {name: VECTOR, value: ($vector)}
+            content: |
+              set -eu
+              versions=$(kubectl get stageversions -n kden-l-dev -l "konfidence.cloud/stage-name=$STAGE" -o json)
+              version=$(printf '%s' "$versions" | jq -re --arg vector "$VECTOR" \
+                '[.items[] | select(.spec.vector == $vector)] | select(length == 1) | .[0].metadata.name')
+              deployments=$(kubectl get vectordeployments -n kden-l-dev -l "konfidence.cloud/stage-version-name=$version" -o json)
+              printf '%s' "$deployments" | jq -ce --arg version "$version" \
+                '.items | select(length == 1) | .[0] | {stageVersion: $version, deployment: .metadata.name}'
+            outputs:
+              - name: active
+                value: (json_parse($stdout))
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorDeployment
+              metadata: {name: ($active.deployment), namespace: kden-l-dev}
+              spec: {vector: ($vector)}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+                (resultingArtifactDeployments == $baseline.refs): true
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: Stage
+              metadata: {name: ($stage), namespace: kden-l-dev}
+              spec: {vector: ($vector)}
+              status:
+                activeStageVersion: {name: ($active.stageVersion)}
+                (conditions[?type == 'Ready']): [{status: "True"}]
+        - script:
+            env:
+              - {name: ROUTING_KEY, value: ($active.deployment)}
+              - {name: ENABLED, value: (to_string($enabled))}
+              - {name: ARTIFACTS, value: (to_string($baseline.artifacts))}
+            content: |
+              set -eu
               ns=kden-l-dev
+              artifacts=$(kubectl get artifactdeployments -n "$ns" -o json)
+              printf '%s' "$artifacts" | jq -e --argjson baseline "$ARTIFACTS" \
+                '([.items[] | {name: .metadata.name, uid: .metadata.uid}] | sort_by(.name)) == $baseline and ($baseline | length) == 2' >/dev/null
               # Service names have generated suffixes; resolve by labels.
               candidates=$(kubectl get svc -n "$ns" -l app=candidates -o jsonpath='{.items[0].metadata.name}')
               interviews=$(kubectl get svc -n "$ns" -l app.kubernetes.io/name=interviews -o jsonpath='{.items[0].metadata.name}')
-              kubectl run e2e-curl -n "$ns" --rm -i --restart=Never \
-                --image=curlimages/curl:8.10.1 --command -- sh -c "
+              responses=$(kubectl exec e2e-curl -n "$ns" -- sh -c "
                   set -e
-                  curl -fsS http://$candidates.$ns.svc.cluster.local/healthz; echo
-                  curl -fsS http://$interviews.$ns.svc.cluster.local/healthz; echo
-                "
+                  curl -fsS http://$candidates.$ns.svc.cluster.local/healthz >/dev/null
+                  curl -fsS http://$interviews.$ns.svc.cluster.local/healthz >/dev/null
+                  curl -fsS -H 'X-Konfidence-Routing-Key: $ROUTING_KEY' http://$candidates.$ns.svc.cluster.local/candidates/debug; echo
+                  curl -fsS -H 'X-Konfidence-Routing-Key: $ROUTING_KEY' http://$interviews.$ns.svc.cluster.local/interviews/debug; echo
+                ")
+              printf '%s\n' "$responses"
+              printf '%s' "$responses" | jq -se --arg key "$ROUTING_KEY" --argjson enabled "$ENABLED" '
+                length == 2 and ([.[].service] | sort) == ["candidates", "interviews"] and
+                all(.[]; .routingKey == $key and .flags["allow-video-slots"] == $enabled and .flags["enable-candidate-notes"] == $enabled)'
       catch:
         - podLogs: {namespace: kden-l-dev, selector: app=candidates, tail: 200}
         - podLogs: {namespace: kden-l-dev, selector: app.kubernetes.io/name, tail: 200}
         - events: {namespace: kden-l-dev}
+
+    - name: prod-waits-for-approval
+      bindings:
+        - {name: enabled, value: false}
+      try: &waiting-promotion
+        - script: *load-state
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorPromotion
+              metadata: {namespace: kden-p-example-app}
+              spec: {vectorPromotionConfigName: dev-to-prod, vector: ($vector)}
+              status:
+                (conditions[?type == 'GatesSatisfied']): [{status: "False", reason: GatesPending}]
+                (conditions[?type == 'Succeeded']): [{status: "Unknown"}]
+                (gates[?type == 'explicit-approval.konfidence.cloud']): [{state: Pending}]
+                (startTime == null): true
+
+    - name: prod-unassigned
+      try:
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: Stage
+              metadata: {name: prod, namespace: kden-l-dev}
+              spec: {(vector || ''): ""}
+              status: {(activeStageVersion == null): true}
+        - error:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: StageVersion
+              metadata: {namespace: kden-l-dev, labels: {konfidence.cloud/stage-name: prod}}
+
+    - name: approve-prod
+      bindings:
+        - {name: enabled, value: false}
+      try: &approve-promotion
+        - script: *load-state
+        - script:
+            env:
+              - {name: VECTOR, value: ($vector)}
+            content: |
+              set -eu
+              promotions=$(kubectl get vectorpromotions -n kden-p-example-app -o json)
+              promotion=$(printf '%s' "$promotions" | jq -re --arg vector "$VECTOR" \
+                '[.items[] | select(.spec.vectorPromotionConfigName == "dev-to-prod" and .spec.vector == $vector)] | select(length == 1) | .[0].metadata.name')
+              patch=$(jq -nc --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                '{status: {gates: [{type: "explicit-approval.konfidence.cloud", state: "Satisfied", reason: "ApprovedBySuite", setBy: "chainsaw", setAt: $now}]}}')
+              kubectl patch vectorpromotion "$promotion" -n kden-p-example-app --subresource=status --type=merge -p "$patch"
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorPromotion
+              metadata: {namespace: kden-p-example-app}
+              spec: {vectorPromotionConfigName: dev-to-prod, vector: ($vector)}
+              status:
+                (conditions[?type == 'Succeeded']): [{status: "True"}]
+
+    - name: prod-ready
+      bindings:
+        - {name: stage, value: prod}
+        - {name: enabled, value: false}
+      try: *check-stage
+
+    - name: change-features
+      description: Pin the deployed artifact versions and enable both flags.
+      bindings:
+        - {name: enabled, value: false}
+      try:
+        - script: *load-state
+        - patch:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorTemplate
+              metadata: {name: example-app, namespace: kden-p-example-app}
+              spec:
+                components: ($baseline.components[].{name:join('', ['oci::https://', $componentRegistry, '//', componentName, ':', version])})
+                vectorConfig:
+                  features:
+                    allow-video-slots: true
+                    enable-candidate-notes: true
+        - script:
+            content: kubectl get vectortemplate example-app -n kden-p-example-app -o json
+            outputs:
+              - {name: expectedGeneration, value: (json_parse($stdout).metadata.generation)}
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorTemplate
+              metadata: {name: example-app, namespace: kden-p-example-app}
+              status:
+                (latestVector != $baseline.vector): true
+                (latestVector != ''): true
+                (conditions[?type == 'Ready']): [{status: "True", observedGeneration: ($expectedGeneration)}]
+        - script:
+            content: kubectl get vectortemplate example-app -n kden-p-example-app -o json
+            outputs:
+              - {name: updatedVector, value: (json_parse($stdout).status.latestVector)}
+        - patch:
+            resource:
+              apiVersion: v1
+              kind: ConfigMap
+              metadata: {name: e2e-baseline, namespace: kden-l-dev}
+              data: {updatedVector: ($updatedVector)}
+
+    - name: dev-updated
+      bindings:
+        - {name: stage, value: dev}
+        - {name: enabled, value: true}
+      try: *check-stage
+
+    - name: prod-waits-for-feature-approval
+      bindings:
+        - {name: enabled, value: true}
+      try: *waiting-promotion
+
+    - name: prod-still-original
+      bindings:
+        - {name: stage, value: prod}
+        - {name: enabled, value: false}
+      try: *check-stage
+
+    - name: approve-feature-promotion
+      bindings:
+        - {name: enabled, value: true}
+      try: *approve-promotion
+
+    - name: prod-updated
+      bindings:
+        - {name: stage, value: prod}
+        - {name: enabled, value: true}
+      try: *check-stage
   catch:
     - podLogs: {namespace: konfidence-system, selector: app.kubernetes.io/name, tail: 200}
     - events: {namespace: konfidence-system}

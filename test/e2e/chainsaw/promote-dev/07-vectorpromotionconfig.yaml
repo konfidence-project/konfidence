@@ -12,3 +12,14 @@ spec:
     kind: Stage
     name: dev
     landscape: dev
+---
+apiVersion: konfidence.cloud/v1alpha1
+kind: VectorPromotionConfig
+metadata:
+  name: dev-to-prod
+  namespace: kden-p-example-app
+spec:
+  source: {kind: Stage, name: dev, landscape: dev}
+  target: {kind: Stage, name: prod, landscape: dev}
+  gates:
+    - type: explicit-approval.konfidence.cloud
