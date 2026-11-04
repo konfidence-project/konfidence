@@ -77,12 +77,6 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	logf.IntoContext(ctx, log)
 	log.Info("Reconciling VectorTemplate", "name", req.NamespacedName)
 
-	// TEMPORARY e2e snapshot probe; removed in the next commit.
-	if req.Name != "" {
-		log.Error(errors.New("e2e snapshot probe: refusing to reconcile"), "e2e snapshot probe", "name", req.NamespacedName)
-		return ctrl.Result{}, errors.New("e2e snapshot probe: refusing to reconcile VectorTemplate")
-	}
-
 	vectorTemplate := &konfidence.VectorTemplate{}
 	if err := r.Get(ctx, req.NamespacedName, vectorTemplate); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
