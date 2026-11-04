@@ -3,8 +3,10 @@ package ocm
 //go:generate go run go.uber.org/mock/mockgen -destination=mocks/mock_ocm_client.go -package=mocks github.com/konfidence-project/konfidence/pkg/ocm/repository Client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
@@ -16,6 +18,7 @@ import (
 	"ocm.software/open-component-model/bindings/go/oci/compref"
 	ocmruntime "ocm.software/open-component-model/bindings/go/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/yaml"
 
 	"github.com/konfidence-project/konfidence/internal/vectordeployment/internal/controller"
 )
@@ -205,7 +208,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 				Type       konfidence.ArtifactType `json:"type"`
 				AllowReuse bool                    `json:"allowReuse"`
 			}
-			if err := json.Unmarshal(data, &konfidenceManifestDto); err != nil {
+			if err := unmarshalManifest(data, &konfidenceManifestDto); err != nil {
 				return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,
 					fmt.Errorf("failed to unmarshal manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err))
 			}
@@ -227,7 +230,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 				DependsOn []string        `json:"dependsOn"`
 				Spec      json.RawMessage `json:"spec"`
 			}
-			if err := json.Unmarshal(data, &konfidenceTaskManifestDto); err != nil {
+			if err := unmarshalManifest(data, &konfidenceTaskManifestDto); err != nil {
 				return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,
 					fmt.Errorf("failed to unmarshal task manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err))
 			}
@@ -286,6 +289,20 @@ func (a Adapter) getLocalResourceBlob(ctx context.Context, ref compref.Ref, reso
 		return nil, fmt.Errorf("reading blob content: %w", err)
 	}
 	return data, nil
+}
+
+func unmarshalManifest(data []byte, v any) error {
+	if json.Valid(data) {
+		return json.Unmarshal(data, v)
+	}
+	converted, err := yaml.YAMLToJSON(data)
+	if err != nil {
+		return err
+	}
+	if bytes.Equal(converted, []byte("null")) {
+		return errors.New("manifest is empty")
+	}
+	return json.Unmarshal(converted, v)
 }
 
 func permanent(reason string, err error) error {
