@@ -11,6 +11,11 @@ export default defineConfig({
       {
         test: {
           browser: {
+            commands: {
+              resetPointer: async ({ page }) => {
+                await page.mouse.move(0, 0);
+              },
+            },
             enabled: true,
             instances: [{ browser: "chromium", headless: true }],
             provider: playwright(),
@@ -18,6 +23,7 @@ export default defineConfig({
           },
           include: ["src/**/*.svelte.test.{js,ts}"],
           name: "client",
+          setupFiles: ["./src/test/browser-setup.ts"],
         },
       },
       {
