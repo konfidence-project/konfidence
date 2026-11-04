@@ -34,7 +34,12 @@ func (r *VectorPromotionReconciler) reconcileExecution(ctx context.Context, vect
 
 	for i := range siblings {
 		sibling := &siblings[i]
-		if sibling.UID == vectorPromotion.UID || !promotion.IsRunning(sibling) {
+		if sibling.UID == vectorPromotion.UID {
+			// The cache may lag this reconcile's gate status patch.
+			*sibling = *vectorPromotion
+			continue
+		}
+		if !promotion.IsRunning(sibling) {
 			continue
 		}
 		log.V(1).Info("execution blocked by started sibling", "sibling", sibling.Name)
