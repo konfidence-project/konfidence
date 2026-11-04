@@ -3,7 +3,7 @@ import { signIn } from "../../../../../../e2e/helpers.ts";
 import { configs, promotion } from "./fixtures.ts";
 import { API, PATH, openPromotions } from "./helpers.ts";
 
-test("Latest waiting opens its group, selects locally and never toggles the selection off", async ({
+test("Latest waiting opens its group, selects details and never toggles the selection off", async ({
   page,
 }) => {
   await openPromotions(page);
@@ -13,6 +13,8 @@ test("Latest waiting opens its group, selects locally and never toggles the sele
   await shortcut.click();
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
   await expect(row).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(`${PATH}?promotion=a-waiting`);
+  await expect(page.getByTestId("side-panel")).toContainText("vector-a-waiting");
   await shortcut.click();
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
   await row.click();
@@ -22,8 +24,14 @@ test("Latest waiting opens its group, selects locally and never toggles the sele
   await expect(row).toBeVisible();
   await expect(row).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Promotion configuration z-template" }).click();
-  await page.getByRole("button", { name: "View promotion z-newest" }).click();
+  await page.getByRole("button", { name: "View promotion z-newest" }).focus();
+  await page.keyboard.press("Enter");
   await expect(row).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "View promotion z-newest" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByTestId("side-panel")).toContainText("vector-z-newest");
 });
 
 test("a single-promotion group expands and collapses all content", async ({ page }) => {

@@ -3,7 +3,7 @@ import { signIn } from "../../../../../../e2e/helpers.ts";
 import { configs, promotion } from "./fixtures.ts";
 import { API, PATH } from "./helpers.ts";
 
-test("wraps long identifiers and references in narrow dark-mode overview", async ({
+test("wraps long identifiers and references in narrow dark-mode overview and details", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ height: 844, width: 390 });
@@ -45,5 +45,14 @@ test("wraps long identifiers and references in narrow dark-mode overview", async
   await page.screenshot({
     fullPage: true,
     path: testInfo.outputPath("promotions-overview-mobile-dark.png"),
+  });
+  await row.click();
+  const panel = page.getByTestId("side-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText(long.vector);
+  expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({
+    fullPage: true,
+    path: testInfo.outputPath("promotions-details-mobile-dark.png"),
   });
 });

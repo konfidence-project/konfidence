@@ -6,7 +6,7 @@ declare global {
     // interface Locals {}
     // interface PageData {}
     interface PageState {
-      readonly overlayOrigin?: "landscape" | "deployment";
+      readonly overlayOrigin?: "landscape" | "deployment" | "promotion";
       readonly stageOverlay?: {
         readonly projectId: string;
         readonly landscapeId: string;
