@@ -674,6 +674,9 @@ type GetVectorDiffV1Params struct {
 
 	// Right OCM ref string for the other compared vector (registry//component:version). Must be percent-encoded.
 	Right string `form:"right" json:"right"`
+
+	// IncludeUnchanged When true, unchanged components and config entries are included in the diff.
+	IncludeUnchanged *bool `form:"includeUnchanged,omitempty" json:"includeUnchanged,omitempty"`
 }
 
 // PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
@@ -2293,6 +2296,18 @@ func NewGetVectorDiffV1Request(server string, projectId ProjectPathId, params *G
 			for _, qp := range strings.Split(queryFrag, "&") {
 				rawQueryFragments = append(rawQueryFragments, qp)
 			}
+		}
+
+		if params.IncludeUnchanged != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeUnchanged", *params.IncludeUnchanged, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
 		}
 
 		if encoded := queryValues.Encode(); encoded != "" {

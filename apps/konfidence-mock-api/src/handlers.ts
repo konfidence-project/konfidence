@@ -106,13 +106,13 @@ type VectorConfigDiff = components["schemas"]["VectorConfigDiff"];
 const diffComponents = (
   left: VectorComponent[],
   right: VectorComponent[],
+  includeUnchanged: boolean,
 ): VectorComponentDiff[] => {
   const rightMap = new Map(right.map((comp) => [comp.componentName, comp.version]));
-  const seen = new Set<string>();
+  const leftMap = new Map(left.map((comp) => [comp.componentName, comp.version]));
   const result: VectorComponentDiff[] = [];
 
   for (const comp of left) {
-    seen.add(comp.componentName);
     const rightVal = rightMap.get(comp.componentName);
     if (rightVal === undefined) {
       result.push({
@@ -127,7 +127,7 @@ const diffComponents = (
         leftVersion: comp.version,
         rightVersion: rightVal,
       });
-    } else {
+    } else if (includeUnchanged) {
       result.push({
         changeType: "unchanged",
         componentName: comp.componentName,
@@ -138,7 +138,7 @@ const diffComponents = (
   }
 
   for (const comp of right) {
-    if (!seen.has(comp.componentName)) {
+    if (!leftMap.has(comp.componentName)) {
       result.push({
         changeType: "added",
         componentName: comp.componentName,
@@ -152,25 +152,24 @@ const diffComponents = (
 const diffConfigMap = (
   left: Record<string, unknown> | undefined,
   right: Record<string, unknown> | undefined,
+  includeUnchanged: boolean,
 ): ConfigEntryDiff[] => {
   const leftMap = left ?? {};
   const rightMap = right ?? {};
-  const seen = new Set<string>();
   const result: ConfigEntryDiff[] = [];
 
   for (const [key, leftVal] of Object.entries(leftMap)) {
-    seen.add(key);
     if (!(key in rightMap)) {
       result.push({ changeType: "removed", key, leftValue: leftVal });
     } else if (JSON.stringify(leftVal) !== JSON.stringify(rightMap[key])) {
       result.push({ changeType: "changed", key, leftValue: leftVal, rightValue: rightMap[key] });
-    } else {
+    } else if (includeUnchanged) {
       result.push({ changeType: "unchanged", key, leftValue: leftVal, rightValue: rightMap[key] });
     }
   }
 
   for (const [key, rightVal] of Object.entries(rightMap)) {
-    if (!seen.has(key)) {
+    if (!(key in leftMap)) {
       result.push({ changeType: "added", key, rightValue: rightVal });
     }
   }
@@ -180,9 +179,10 @@ const diffConfigMap = (
 const diffConfig = (
   left: VectorConfig | undefined,
   right: VectorConfig | undefined,
+  includeUnchanged: boolean,
 ): VectorConfigDiff => ({
-  authored: diffConfigMap(left?.authored, right?.authored),
-  features: diffConfigMap(left?.features, right?.features),
+  authored: diffConfigMap(left?.authored, right?.authored, includeUnchanged),
+  features: diffConfigMap(left?.features, right?.features, includeUnchanged),
 });
 
 const operationHandlers = {
@@ -273,7 +273,7 @@ const operationHandlers = {
     return reply.send(deployment);
   },
   getVectorDiffV1: (request, reply) => {
-    const { left, right } = request.query as Query<"getVectorDiffV1">;
+    const { left, right, includeUnchanged } = request.query as Query<"getVectorDiffV1">;
     const project = projectFor(request);
     const leftContent = project.vectorContents.find((vc) => vc.ref === left);
     if (!leftContent) {
@@ -284,8 +284,12 @@ const operationHandlers = {
       throw httpError(404, `VectorContent not found for ref ${right}`);
     }
     return reply.send({
-      components: diffComponents(leftContent.components, rightContent.components),
-      config: diffConfig(leftContent.config, rightContent.config),
+      components: diffComponents(
+        leftContent.components,
+        rightContent.components,
+        includeUnchanged === true,
+      ),
+      config: diffConfig(leftContent.config, rightContent.config, includeUnchanged === true),
       left,
       right,
     });

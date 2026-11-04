@@ -206,6 +206,19 @@ var _ = Describe("GetVectorDiffV1", func() {
 		ctx        context.Context
 	)
 
+	leftContent := pkgcontent.VectorContent{
+		Components: []pkgcontent.VectorComponent{
+			{ComponentName: "github.com/example/svc-a", Version: "2.0.0"},
+			{ComponentName: "github.com/example/svc-b", Version: "1.0.0"},
+		},
+	}
+	rightContent := pkgcontent.VectorContent{
+		Components: []pkgcontent.VectorComponent{
+			{ComponentName: "github.com/example/svc-a", Version: "1.0.0"},
+			{ComponentName: "github.com/example/svc-b", Version: "1.0.0"},
+		},
+	}
+
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockReader = contentmocks.NewMockReader(mockCtrl)
@@ -249,6 +262,50 @@ var _ = Describe("GetVectorDiffV1", func() {
 		Expect(*ok.Components[0].RightVersion).To(Equal("1.0.0"))
 	})
 
+	It("includes unchanged components when includeUnchanged is tru", func() {
+		includeUnchanged := true
+		gomock.InOrder(
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(leftContent, nil),
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(rightContent, nil),
+		)
+
+		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
+			ProjectId: "my-project",
+			Params: openapi.GetVectorDiffV1Params{
+				Left:             "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right:            "registry.example.com//github.com/example/my-vector:1.0.0",
+				IncludeUnchanged: &includeUnchanged,
+			},
+		})
+
+		Expect(err).NotTo(HaveOccurred())
+		ok := resp.(openapi.GetVectorDiffV1200JSONResponse)
+		Expect(ok.Components).To(HaveLen(2))
+		Expect(ok.Components[0].ChangeType).To(Equal(openapi.Changed))
+		Expect(ok.Components[1].ChangeType).To(Equal(openapi.Unchanged))
+	})
+
+	It("omits unchanged components when includeUnchanged is false", func() {
+		gomock.InOrder(
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(leftContent, nil),
+			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(rightContent, nil),
+		)
+
+		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
+			ProjectId: "my-project",
+			Params: openapi.GetVectorDiffV1Params{
+				Left:  "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right: "registry.example.com//github.com/example/my-vector:1.0.0",
+			},
+		})
+
+		Expect(err).NotTo(HaveOccurred())
+		ok := resp.(openapi.GetVectorDiffV1200JSONResponse)
+		Expect(ok.Components).To(HaveLen(1))
+		Expect(ok.Components[0].ComponentName).To(Equal("github.com/example/svc-a"))
+		Expect(ok.Components[0].ChangeType).To(Equal(openapi.Changed))
+	})
+
 	It("returns empty non-null slices when vectors have no components or config", func() {
 		gomock.InOrder(
 			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(pkgcontent.VectorContent{}, nil),
@@ -275,6 +332,7 @@ var _ = Describe("GetVectorDiffV1", func() {
 	})
 
 	It("returns correct config diff with changed, unchanged, removed, and added entries", func() {
+		includeUnchanged := true
 		leftContent := pkgcontent.VectorContent{
 			Components: []pkgcontent.VectorComponent{},
 			Config: &pkgcontent.VectorConfig{
@@ -309,8 +367,9 @@ var _ = Describe("GetVectorDiffV1", func() {
 		resp, err := h.GetVectorDiffV1(ctx, openapi.GetVectorDiffV1RequestObject{
 			ProjectId: "my-project",
 			Params: openapi.GetVectorDiffV1Params{
-				Left:  "registry.example.com//github.com/example/my-vector:2.0.0",
-				Right: "registry.example.com//github.com/example/my-vector:1.0.0",
+				Left:             "registry.example.com//github.com/example/my-vector:2.0.0",
+				Right:            "registry.example.com//github.com/example/my-vector:1.0.0",
+				IncludeUnchanged: &includeUnchanged,
 			},
 		})
 

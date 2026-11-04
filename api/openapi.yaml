@@ -472,6 +472,13 @@ paths:
             Must be percent-encoded.
           schema:
             type: string
+        - name: includeUnchanged
+          in: query
+          required: false
+          description: When true, unchanged components and config entries are included in the diff.
+          schema:
+            type: boolean
+            default: false
       tags: [ projects ]
       responses:
         "200":

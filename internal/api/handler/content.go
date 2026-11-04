@@ -148,11 +148,13 @@ func (h *projectHandler) GetVectorDiffV1(ctx context.Context,
 		return nil, apierror.NewInternal(err)
 	}
 
+	includeUnchanged := request.Params.IncludeUnchanged != nil && *request.Params.IncludeUnchanged
+
 	return openapi.GetVectorDiffV1200JSONResponse(openapi.VectorDiff{
 		Left:       request.Params.Left,
 		Right:      request.Params.Right,
-		Components: calculateDiffComponents(leftVC.Components, rightVC.Components),
-		Config:     calculateDiffConfig(leftVC.Config, rightVC.Config),
+		Components: calculateDiffComponents(leftVC.Components, rightVC.Components, includeUnchanged),
+		Config:     calculateDiffConfig(leftVC.Config, rightVC.Config, includeUnchanged),
 	}), nil
 }
 
@@ -183,17 +185,15 @@ func toVectorConfig(cfg *pkgcontent.VectorConfig) *openapi.VectorConfig {
 	return result
 }
 
-func calculateDiffComponents(left, right []pkgcontent.VectorComponent) []openapi.VectorComponentDiff {
+func calculateDiffComponents(left, right []pkgcontent.VectorComponent, includeUnchanged bool) []openapi.VectorComponentDiff {
 	rightMap := make(map[string]string, len(right))
 	for _, c := range right {
 		rightMap[c.ComponentName] = c.Version
 	}
 
-	seen := make(map[string]bool)
 	result := make([]openapi.VectorComponentDiff, 0)
 
 	for _, c := range left {
-		seen[c.ComponentName] = true
 		rv, inRight := rightMap[c.ComponentName]
 		switch {
 		case !inRight:
@@ -212,6 +212,9 @@ func calculateDiffComponents(left, right []pkgcontent.VectorComponent) []openapi
 				ChangeType:    openapi.Changed,
 			})
 		default:
+			if !includeUnchanged {
+				continue
+			}
 			lv := c.Version
 			result = append(result, openapi.VectorComponentDiff{
 				ComponentName: c.ComponentName,
@@ -222,8 +225,13 @@ func calculateDiffComponents(left, right []pkgcontent.VectorComponent) []openapi
 		}
 	}
 
+	leftMap := make(map[string]string, len(left))
+	for _, c := range left {
+		leftMap[c.ComponentName] = c.Version
+	}
+
 	for _, c := range right {
-		if !seen[c.ComponentName] {
+		if _, inLeft := leftMap[c.ComponentName]; !inLeft {
 			rv := c.Version
 			result = append(result, openapi.VectorComponentDiff{
 				ComponentName: c.ComponentName,
@@ -232,10 +240,11 @@ func calculateDiffComponents(left, right []pkgcontent.VectorComponent) []openapi
 			})
 		}
 	}
+
 	return result
 }
 
-func calculateDiffConfig(left, right *pkgcontent.VectorConfig) *openapi.VectorConfigDiff {
+func calculateDiffConfig(left, right *pkgcontent.VectorConfig, includeUnchanged bool) *openapi.VectorConfigDiff {
 	var leftFeatures, leftAuthored map[string]any
 	var rightFeatures, rightAuthored map[string]any
 
@@ -248,15 +257,15 @@ func calculateDiffConfig(left, right *pkgcontent.VectorConfig) *openapi.VectorCo
 		rightAuthored = right.Authored
 	}
 
-	features := createDiffConfigMap(leftFeatures, rightFeatures)
-	authored := createDiffConfigMap(leftAuthored, rightAuthored)
+	features := createDiffConfigMap(leftFeatures, rightFeatures, includeUnchanged)
+	authored := createDiffConfigMap(leftAuthored, rightAuthored, includeUnchanged)
 	return &openapi.VectorConfigDiff{
 		Features: &features,
 		Authored: &authored,
 	}
 }
 
-func createDiffConfigMap(left, right map[string]any) []openapi.ConfigEntryDiff {
+func createDiffConfigMap(left, right map[string]any, includeUnchanged bool) []openapi.ConfigEntryDiff {
 	result := make([]openapi.ConfigEntryDiff, 0)
 
 	for k, lv := range left {
@@ -276,6 +285,9 @@ func createDiffConfigMap(left, right map[string]any) []openapi.ConfigEntryDiff {
 				ChangeType: openapi.Changed,
 			})
 		default:
+			if !includeUnchanged {
+				continue
+			}
 			result = append(result, openapi.ConfigEntryDiff{
 				Key:        k,
 				LeftValue:  &lv,
@@ -294,5 +306,6 @@ func createDiffConfigMap(left, right map[string]any) []openapi.ConfigEntryDiff {
 			})
 		}
 	}
+
 	return result
 }

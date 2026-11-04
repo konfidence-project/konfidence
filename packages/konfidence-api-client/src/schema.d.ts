@@ -1213,6 +1213,8 @@ export interface operations {
         left: string;
         /** @description OCM ref string for the other compared vector (registry//component:version). Must be percent-encoded. */
         right: string;
+        /** @description When true, unchanged components and config entries are included in the diff. */
+        includeUnchanged?: boolean;
       };
       header?: never;
       path: {
