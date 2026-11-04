@@ -1,8 +1,9 @@
-import { pushState } from "$app/navigation";
+import { goto, pushState, replaceState } from "$app/navigation";
 import { page } from "$app/state";
 
 import type { Stage } from "#lib/konfidence-api/types.ts";
 import { stageDetailsUrl } from "#lib/landscape/url.ts";
+import { projectLandscapeUrl } from "#lib/projects/url.ts";
 
 interface StageOverlayOptions {
   embedded: () => boolean;
@@ -12,24 +13,20 @@ interface StageOverlayOptions {
 
 type StageOverlayReference = NonNullable<App.PageState["stageOverlay"]>;
 
-const openStageOverlay = (
-  event: MouseEvent,
+const setStageOverlay = (
   href: string,
   reference: StageOverlayReference,
+  replace: boolean,
 ): void => {
-  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-    return;
+  const state: App.PageState = {
+    overlayOrigin: page.state.overlayOrigin ?? "landscape",
+    stageOverlay: reference,
+  };
+  if (replace) {
+    void replaceState(href, state);
+  } else {
+    void pushState(href, state);
   }
-
-  event.preventDefault();
-  // SvelteFlow proxies node data; copy the primitive fields into a structured-cloneable history value.
-  pushState(href, {
-    stageOverlay: {
-      landscapeId: reference.landscapeId,
-      projectId: reference.projectId,
-      stageId: reference.stageId,
-    },
-  });
 };
 
 class StageOverlay {
@@ -72,12 +69,23 @@ class StageOverlay {
     stageId: stage.id,
   });
 
+  open = (stage: Stage, replace: boolean): void => {
+    setStageOverlay(this.hrefFor(stage), this.referenceFor(stage), replace);
+  };
+
   close = (): void => {
-    globalThis.history.back();
+    if (page.state.overlayOrigin === "landscape") {
+      globalThis.history.back();
+      return;
+    }
+    void goto(projectLandscapeUrl(this.#projectId(), this.#embedded()), {
+      replace: true,
+      reset: false,
+    });
   };
 }
 
 const useStageOverlay = (options: StageOverlayOptions): StageOverlay => new StageOverlay(options);
 
-export { StageOverlay, openStageOverlay, useStageOverlay };
+export { StageOverlay, useStageOverlay };
 export type { StageOverlayOptions, StageOverlayReference };

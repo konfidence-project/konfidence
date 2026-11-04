@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -78,6 +80,16 @@ func startManager() {
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
+
+	By("labeling the default namespace as a project namespace")
+	defaultNS := &corev1.Namespace{}
+	Expect(k8sClient.Get(ctx, client.ObjectKey{Name: testNamespace}, defaultNS)).To(Succeed())
+	if defaultNS.Labels == nil {
+		defaultNS.Labels = map[string]string{}
+	}
+	defaultNS.Labels[pkgctrl.ProjectTypeLabel] = "project"
+	defaultNS.Labels[pkgctrl.ProjectNameLabel] = "test-project"
+	Expect(k8sClient.Update(ctx, defaultNS)).To(Succeed())
 
 	Expect(RegisterFieldIndexes(ctx, mgr)).To(Succeed())
 

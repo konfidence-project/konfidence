@@ -20,7 +20,9 @@
     import type { ArtifactDeploymentRow, ArtifactDeploymentStatus } from "./deployments.js";
     import { useDeploymentFilters } from "#lib/deployments/useDeploymentFilters.svelte.ts";
     import { LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "#lib/deployments/params.ts";
-    import { sidePanelWidth } from "#lib/shell/sidePanelWidth.svelte.ts";
+    import { panelDimensions } from "#lib/shell/panelDimensions.svelte.ts";
+    import { createDesktopPanelViewport } from "#lib/shell/panelPresentation.svelte.ts";
+    import { outsidePanelDismiss } from "#lib/shell/panel-outside-dismiss.ts";
 
 
     interface Props {
@@ -49,6 +51,8 @@
         onRetry,
     }: Props = $props();
 
+    const desktopPanelViewport = createDesktopPanelViewport();
+
     const rows = $derived(
         toArtifactDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
     );
@@ -74,9 +78,58 @@
 
     const labelTextClass =
         "text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary";
+
+    let panelWasOpen = false;
+    let restoreFocusAfterClose = false;
+    let lastSelectedId: string | undefined = undefined;
+
+    const restoreDeploymentFocus = (selectedId: string | undefined): void => {
+        queueMicrotask(() => {
+            const row = selectedId
+                ? document.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(selectedId)}"]`)
+                : undefined;
+            if (row && row.getClientRects().length > 0) {
+                row.focus({ preventScroll: true });
+                return;
+            }
+            const fallback =
+                document.querySelector<HTMLElement>("[data-testid='artifact-row']") ??
+                document.querySelector<HTMLElement>("#artifact-view-title");
+            if (fallback) {
+                fallback.tabIndex = -1;
+                fallback.focus({ preventScroll: true });
+            }
+        });
+    };
+
+    const closePanelAndRestoreFocus = (): void => {
+        restoreFocusAfterClose = true;
+        filters.closePanel();
+    };
+
+    $effect(() => {
+        const panelOpen = filters.panelOpen && !loading && !error;
+        if (panelOpen) {
+            lastSelectedId = filters.selectedId;
+        } else if (panelWasOpen) {
+            const focusWasInPanel =
+                document.activeElement instanceof Element &&
+                document.activeElement.closest("[data-panel-surface]") !== null;
+            if (restoreFocusAfterClose || focusWasInPanel) {
+                restoreDeploymentFocus(lastSelectedId);
+            }
+            restoreFocusAfterClose = false;
+        }
+        panelWasOpen = panelOpen;
+    });
+
 </script>
 
 <section
+    use:outsidePanelDismiss={{
+        dismiss: filters.closePanel,
+        enabled: () => filters.panelOpen && desktopPanelViewport.current,
+    }}
     class="mx-auto flex w-full max-w-[84rem] flex-col gap-5 px-6 pt-6 pb-10"
     aria-labelledby="artifact-view-title"
 >
@@ -233,9 +286,11 @@
 <SidePanel
     open={filters.panelOpen && !loading && !error}
     title={filters.selected ? `${filters.selected.component}@${filters.selected.version}` : "Artifact deployment"}
-    onClose={filters.closePanel}
-    width={sidePanelWidth.current}
-    onWidthChange={sidePanelWidth.set}
+    onClose={closePanelAndRestoreFocus}
+    width={panelDimensions.width}
+    onWidthChange={panelDimensions.setWidth}
+    modal={!desktopPanelViewport.current}
+    focusKey={filters.selectedId}
 >
     {#if filters.selected}
         <ArtifactDeploymentDetail row={filters.selected} />
