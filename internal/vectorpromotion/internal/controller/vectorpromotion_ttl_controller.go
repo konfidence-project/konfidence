@@ -88,14 +88,14 @@ func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
 		return nil
 	}
 
-	siblings, err := listSiblingPromotions(ctx, r.Client, vectorPromotion)
+	promotions, err := listPromotionsForConfig(ctx, r.Client, vectorPromotion.Namespace, vectorPromotion.Spec.VectorPromotionConfigName)
 	if err != nil {
 		return err
 	}
-	outstanding := make([]konfidence.VectorPromotion, 0, len(siblings))
-	for i := range siblings {
-		if promotion.IsWaiting(&siblings[i]) {
-			outstanding = append(outstanding, siblings[i])
+	outstanding := make([]konfidence.VectorPromotion, 0, len(promotions))
+	for i := range promotions {
+		if promotion.IsWaiting(&promotions[i]) {
+			outstanding = append(outstanding, promotions[i])
 		}
 	}
 	if len(outstanding) <= keep {
@@ -131,14 +131,14 @@ func (r *VectorPromotionTTLReconciler) enforceTerminalRetention(ctx context.Cont
 		return err
 	}
 
-	siblings, err := listSiblingPromotions(ctx, r.Client, vectorPromotion)
+	promotions, err := listPromotionsForConfig(ctx, r.Client, vectorPromotion.Namespace, vectorPromotion.Spec.VectorPromotionConfigName)
 	if err != nil {
 		return err
 	}
-	terminal := make([]konfidence.VectorPromotion, 0, len(siblings))
-	for _, sibling := range siblings {
-		if promotion.IsTerminal(&sibling) {
-			terminal = append(terminal, sibling)
+	terminal := make([]konfidence.VectorPromotion, 0, len(promotions))
+	for _, candidate := range promotions {
+		if promotion.IsTerminal(&candidate) {
+			terminal = append(terminal, candidate)
 		}
 	}
 	if len(terminal) <= keep {
