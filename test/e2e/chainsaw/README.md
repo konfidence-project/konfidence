@@ -92,13 +92,15 @@ The snapshot is written to `.tmp/e2e-snapshot/snapshot.tar.gz`. Override the dir
 with `E2E_SNAPSHOT_DIR`; use the same `E2E_CLUSTER` as bootstrap.
 Krew installations can use `SUPPORT_BUNDLE="kubectl support-bundle"`.
 
-The bundle includes kind node/container logs, resource descriptions, events,
-custom resources, and Helm release history. It does not deploy collectors or upload data.
+The bundle includes kind node/container logs, events, custom resources, and Helm
+release history (resource specs and status stand in for `kubectl describe`). It
+does not deploy collectors or upload data.
 Individual collection failures are recorded; a nonzero exit can still leave a useful
 partial archive. Kind logs remain available when the API is unreachable.
 
-Built-in and targeted credential redaction are enabled; Helm values are excluded.
-Treat snapshots as sensitive:
+Built-in redaction is enabled, with credential-token masking everywhere and
+key/value assignment masking in log files only (JSON resources stay valid).
+Helm values are excluded. Treat snapshots as sensitive:
 application logs, ConfigMaps, or custom resources can contain credentials the redactors miss.
 
 CI preserves test fixtures until failure capture, uploads any resulting archive as

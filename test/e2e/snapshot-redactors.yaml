@@ -4,14 +4,18 @@ metadata:
   name: konfidence-e2e
 spec:
   redactors:
-    - name: credential assignments
-      removals:
-        regex:
-          - redactor: >-
-              (?i)(\b[a-z_]*(?:password|token|secret|api_key)[a-z_]*["']?\s*[:=]\s*["']?)(?P<mask>[^\s"',]+)
-          - selector: '(?i)"name"\s*:\s*"[^"]*(password|token|secret|api_key)[^"]*"'
-            redactor: '("value"\s*:\s*")(?P<mask>[^"]*)(")'
-    - name: GitHub tokens
+    # Token literals are masked in place, so JSON stays valid everywhere.
+    - name: credential tokens
       removals:
         regex:
           - redactor: '(?P<mask>gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)'
+    # key=value / key: value only in text logs; never applied to JSON resources.
+    - name: credential assignments in logs
+      fileSelector:
+        files:
+          - host-collectors/**
+          - cluster-resources/pods/logs/**
+      removals:
+        regex:
+          - redactor: >-
+              (?i)([a-z0-9_]*(?:password|token|secret|api_key)[a-z0-9_]*\s*[:=]\s*)(?P<mask>[^\s"',]+)
