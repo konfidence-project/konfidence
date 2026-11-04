@@ -57,6 +57,7 @@ require (
 	ocm.software/open-component-model/bindings/go/descriptor/v2 v2.0.3-alpha3
 	ocm.software/open-component-model/bindings/go/input/dir v0.0.4
 	ocm.software/open-component-model/bindings/go/input/file v0.0.5
+	ocm.software/open-component-model/bindings/go/input/utf8 v0.0.0-20260811140339-29bc20eb921b
 	ocm.software/open-component-model/bindings/go/oci v0.0.49
 	ocm.software/open-component-model/bindings/go/plugin v0.0.17
 	ocm.software/open-component-model/bindings/go/repository v0.0.10
@@ -235,7 +236,6 @@ require (
 	ocm.software/open-component-model/bindings/go/gpg v0.0.0-20260811140339-29bc20eb921b // indirect
 	ocm.software/open-component-model/bindings/go/helm v0.0.0-20260811140339-29bc20eb921b // indirect
 	ocm.software/open-component-model/bindings/go/http v0.0.0-20260811140339-29bc20eb921b // indirect
-	ocm.software/open-component-model/bindings/go/input/utf8 v0.0.0-20260811140339-29bc20eb921b // indirect
 	ocm.software/open-component-model/bindings/go/sigstore v0.0.0-20260811140339-29bc20eb921b // indirect
 	ocm.software/open-component-model/bindings/go/wget v0.0.0-20260811140339-29bc20eb921b // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect

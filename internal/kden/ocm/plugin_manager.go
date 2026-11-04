@@ -8,6 +8,7 @@ import (
 	ocmgenericspecv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
 	"ocm.software/open-component-model/bindings/go/input/dir"
 	"ocm.software/open-component-model/bindings/go/input/file"
+	"ocm.software/open-component-model/bindings/go/input/utf8"
 	ocicredentials "ocm.software/open-component-model/bindings/go/oci/credentials"
 	"ocm.software/open-component-model/bindings/go/oci/repository/provider"
 	ocires "ocm.software/open-component-model/bindings/go/oci/repository/resource"
@@ -79,6 +80,10 @@ func setupPluginManager(_ context.Context, pm *manager.PluginManager, r pluginMa
 
 	if err := r.registerResourceInputPlugin(&dir.InputMethod{WorkingDirectory: "./"}); err != nil {
 		return nil, fmt.Errorf("failed to register dir input plugin: %w", err)
+	}
+
+	if err := r.registerResourceInputPlugin(&utf8.InputMethod{}); err != nil {
+		return nil, fmt.Errorf("failed to register utf8 input plugin: %w", err)
 	}
 
 	if err := r.registerSourceInputPlugin(&file.InputMethod{WorkingDirectory: "./"}); err != nil {
