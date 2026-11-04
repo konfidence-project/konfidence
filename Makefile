@@ -330,9 +330,6 @@ e2e-snapshot: hermit ## Collect cluster state and kind logs into a local support
 
 .PHONY: test-e2e
 test-e2e: ## Run Chainsaw e2e tests against the current cluster.
-	@: "$${REGISTRY:?Set REGISTRY}" \
-	   "$${REGISTRY_USERNAME:?Set REGISTRY_USERNAME}" \
-	   "$${REGISTRY_PASSWORD:?Set REGISTRY_PASSWORD}"
 	$(CHAINSAW) test test/e2e/chainsaw --config test/e2e/chainsaw/.chainsaw.yaml $(CHAINSAW_ARGS)
 
 .PHONY: setup-envtest

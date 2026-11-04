@@ -7,7 +7,7 @@ and [#375](https://github.com/konfidence-project/konfidence/issues/375).
 
 ## Run
 
-Requires Docker, `gh`, `jq`, Hermit (`source bin/activate-hermit`), and registry write access.
+Requires Docker, `gh`, Hermit (`source bin/activate-hermit`), and registry write access.
 
 ```sh
 make e2e-up
@@ -61,7 +61,7 @@ This workflow is not part of `ci-gate` or required checks.
 - VectorTemplate, VectorPromotionConfig, StageVersion, Stage, and VectorDeployment report `Ready=True`.
 - Each stage's active StageVersion references the expected vector.
 - `prod` remains unassigned until the first explicit promotion.
-- ArtifactDeployment references and UIDs stay unchanged across both stages and the flag-only rollout.
+- Exactly two ArtifactDeployments exist; dev and prod reference the same artifacts throughout the flag-only rollout.
 - Candidates and interviews `/healthz` and `/debug` endpoints respond from inside the cluster.
 - Pod logs, events, and resource descriptions are collected on failure.
 
@@ -75,9 +75,13 @@ This workflow is not part of `ci-gate` or required checks.
 Both `allow-video-slots` and `enable-candidate-notes` are checked through
 `/candidates/debug` and `/interviews/debug`, with `X-Konfidence-Routing-Key` set
 to the active VectorDeployment name. The second assembly pins the initially
-resolved component versions so moving `edge` aliases cannot change the artifacts.
+resolved component versions from prod so moving `edge` aliases cannot change the artifacts.
 HTTP requests use `kubectl exec` in one test-owned curl pod; attaching to a short-lived
 `kubectl run -i` pod can miss early response output.
+
+Resource setup and checks use native Chainsaw operations and `x_k8s_get`/`x_k8s_list`.
+HTTP responses use `command.check` with `json_parse`. Reuse is checked by count and
+references, not by a same-name delete/recreate ledger.
 
 Manual steps satisfy the pending `explicit-approval.konfidence.cloud` gate via
 `kubectl patch --subresource=status`. API/CLI approval authorization is not tested.
@@ -91,13 +95,11 @@ earlier `--skip-delete` run.
 On a fresh cluster, cleanup removes the app and database fixtures, then the
 registry Secret and Flux ConfigMap in `konfidence-system`. Project and Landscape
 fixtures set `deletionPolicy: Delete` to remove their namespaces.
-The test-owned `e2e-baseline` ConfigMap stores cross-step comparison state and is
-tracked by Chainsaw cleanup.
 `--skip-delete` preserves newly created resources.
 
 Registry credentials are read at controller startup
 ([#393](https://github.com/konfidence-project/konfidence/issues/393)); the test
-restarts the controller after setup and after cleanup removes the credentials.
+restarts the controller after installing credentials, not during cleanup.
 
 The kind cluster remains until `make e2e-down`. GHCR packages remain in the run prefix.
 
@@ -119,6 +121,8 @@ Krew installations can use `SUPPORT_BUNDLE="kubectl support-bundle"`.
 The bundle includes kind node/container logs, events, custom resources, and Helm
 release history (resource specs and status stand in for `kubectl describe`). It
 does not deploy collectors or upload data.
+`test/e2e/support-bundle.yaml` and `test/e2e/snapshot-redactors.yaml` are host CLI
+specifications, not resources applied to Kubernetes.
 Individual collection failures are recorded; a nonzero exit can still leave a useful
 partial archive. Kind logs remain available when the API is unreachable.
 
@@ -128,5 +132,5 @@ Helm values are excluded. Treat snapshots as sensitive:
 application logs, ConfigMaps, or custom resources can contain credentials the redactors miss.
 
 CI preserves test fixtures until failure capture, uploads any resulting archive as
-`e2e-snapshot-<attempt>` (7-day retention), and deletes kind afterward on success or failure.
+`e2e-snapshot-<attempt>` (7-day retention), then deletes kind in an `always()` step.
 Partial snapshots are uploaded even when collection returns nonzero.
