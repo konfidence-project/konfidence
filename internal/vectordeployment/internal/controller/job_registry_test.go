@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -17,14 +18,17 @@ var _ = Describe("Artifact manifest job registry", func() {
 		started := make(chan struct{})
 		canceled := make(chan struct{})
 
-		Expect(registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
+		launched, retryAfter := registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
+
 			func(ctx context.Context) artifactManifestResult {
 				close(started)
 				<-ctx.Done()
 				close(canceled)
 				return artifactManifestResult{err: ctx.Err()}
 			},
-		)).To(BeTrue())
+		)
+		Expect(launched).To(BeTrue())
+		Expect(retryAfter).To(BeZero())
 
 		Eventually(started).Should(BeClosed())
 		registry.remove(nn)
@@ -32,6 +36,49 @@ var _ = Describe("Artifact manifest job registry", func() {
 
 		_, exists := registry.get(nn)
 		Expect(exists).To(BeFalse())
+	})
+
+	It("clears retry state when a job succeeds or is removed", func() {
+		registry := newJobRegistry()
+		nn := types.NamespacedName{Namespace: "default", Name: "vector"}
+
+		launched, retryAfter := registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
+			func(context.Context) artifactManifestResult {
+				return artifactManifestResult{err: errors.New("registry unavailable")}
+			},
+		)
+		Expect(launched).To(BeTrue())
+		Expect(retryAfter).To(BeZero())
+
+		var job *inflightJob
+		Eventually(func() bool {
+			var exists bool
+			job, exists = registry.get(nn)
+			return exists && job.done()
+		}).Should(BeTrue())
+
+		result := <-job.result
+		registry.complete(nn, job, result.err)
+		Expect(registry.retryLimiter.NumRequeues(nn)).To(Equal(1))
+
+		registry.remove(nn)
+		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
+
+		launched, retryAfter = registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
+			func(context.Context) artifactManifestResult {
+				return artifactManifestResult{}
+			},
+		)
+		Expect(launched).To(BeTrue())
+		Expect(retryAfter).To(BeZero())
+
+		Eventually(func() bool {
+			job, _ = registry.get(nn)
+			return job != nil && job.done()
+		}).Should(BeTrue())
+		result = <-job.result
+		registry.complete(nn, job, result.err)
+		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
 	})
 
 	It("shuts down all jobs and rejects later launches", func() {
@@ -42,7 +89,7 @@ var _ = Describe("Artifact manifest job registry", func() {
 
 		for _, name := range []string{"a", "b"} {
 			nn := types.NamespacedName{Namespace: "default", Name: name}
-			Expect(registry.launch(nn, 1, types.UID(name), []string{name},
+			launched, retryAfter := registry.launch(nn, 1, types.UID(name), []string{name},
 				func(ctx context.Context) artifactManifestResult {
 					running.Add(1)
 					<-ctx.Done()
@@ -50,7 +97,9 @@ var _ = Describe("Artifact manifest job registry", func() {
 					exited <- struct{}{}
 					return artifactManifestResult{err: ctx.Err()}
 				},
-			)).To(BeTrue())
+			)
+			Expect(launched).To(BeTrue())
+			Expect(retryAfter).To(BeZero())
 		}
 
 		Eventually(running.Load).Should(Equal(int32(2)))
@@ -68,11 +117,13 @@ var _ = Describe("Artifact manifest job registry", func() {
 
 		Expect(registry.inflight).To(BeEmpty())
 
-		Expect(registry.launch(types.NamespacedName{Name: "late"}, 1, types.UID("late"), nil,
+		launched, retryAfter := registry.launch(types.NamespacedName{Name: "late"}, 1, types.UID("late"), nil,
 			func(context.Context) artifactManifestResult {
 				return artifactManifestResult{}
 			},
-		)).To(BeFalse())
+		)
+		Expect(launched).To(BeFalse())
+		Expect(retryAfter).To(BeZero())
 
 		By("allowing repeated shutdown")
 		registry.shutdown()

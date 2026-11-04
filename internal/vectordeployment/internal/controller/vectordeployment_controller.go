@@ -141,9 +141,9 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		)
 	}
 
-	manifestResult, manifestsPending := r.resolveArtifactManifestsAsync(req.NamespacedName, vectorDeployment.Generation,
+	manifestResult, manifestRequeueAfter := r.resolveArtifactManifestsAsync(req.NamespacedName, vectorDeployment.Generation,
 		vectorDeployment.UID, resolvedVector.artifactRefs)
-	if manifestsPending {
+	if manifestRequeueAfter > 0 {
 		if !isReadyForCurrentGeneration(vectorDeployment) {
 			setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonArtifactDeploymentsNotReady, "Waiting for download of artifactManifests")
 		}
@@ -154,8 +154,8 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			}
 		}
 
-		log.Info("waiting for artifactManifest download job")
-		return ctrl.Result{RequeueAfter: r.manifestPollInterval}, nil
+		log.Info("waiting for artifactManifest download job", "requeueAfter", manifestRequeueAfter)
+		return ctrl.Result{RequeueAfter: manifestRequeueAfter}, nil
 	}
 
 	if manifestResult.err != nil {
@@ -637,14 +637,15 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 	return resolved, nil
 }
 
-// resolveArtifactManifestsAsync returns pending=true while a background job is
-// running. A completed result is consumed and removed from the registry.
+// resolveArtifactManifestsAsync returns a positive requeue duration while a
+// background job is running or while a failed job is in retry backoff.
 func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.NamespacedName, generation int64,
-	uid types.UID, artifactReferences []compref.Ref) (artifactManifestResult, bool) {
+	uid types.UID, artifactReferences []compref.Ref) (artifactManifestResult, time.Duration) {
 	if len(artifactReferences) == 0 {
-		// Remove any registered job so an obsolete result cannot be applied later.
+		// Remove any registered job and retry state so an obsolete result cannot
+		// be applied later.
 		r.jobs.remove(nn)
-		return artifactManifestResult{}, false
+		return artifactManifestResult{}, 0
 	}
 
 	references := sortedArtifactReferences(artifactReferences)
@@ -653,27 +654,32 @@ func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.Name
 	if job, exists := r.jobs.get(nn); exists {
 		if job.matches(generation, uid, referenceKeys) {
 			if !job.done() {
-				return artifactManifestResult{}, true
+				return artifactManifestResult{}, r.manifestPollInterval
 			}
 
 			result := <-job.result
-			r.jobs.remove(nn)
-			return result, false
+			r.jobs.complete(nn, job, result.err)
+			return result, 0
 		}
 
 		// The VectorDeployment was updated or recreated. Previous result
-		// must not be applied to the current object.
+		// and retry state must not be applied to the current object.
 		r.jobs.remove(nn)
 	}
 
 	// Do not capture storage owned by the current reconciliation after it returns.
-	if launched := r.jobs.launch(nn, generation, uid, referenceKeys, func(ctx context.Context) artifactManifestResult {
+	launched, retryAfter := r.jobs.launch(nn, generation, uid, referenceKeys, func(ctx context.Context) artifactManifestResult {
 		return r.downloadArtifactManifests(ctx, references)
-	}); !launched {
-		return artifactManifestResult{err: context.Canceled}, false
+	})
+
+	if retryAfter > 0 {
+		return artifactManifestResult{}, retryAfter
+	}
+	if !launched {
+		return artifactManifestResult{err: context.Canceled}, 0
 	}
 
-	return artifactManifestResult{}, true
+	return artifactManifestResult{}, r.manifestPollInterval
 }
 
 func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Context, artifactReferences []compref.Ref) artifactManifestResult {

@@ -225,42 +225,48 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Updating ArtifactDeployment.status")
-		// Re-fetch to get the latest resourceVersion (the controller may have added an owner reference since the list).
 		artifactDeployment := &konfidence.ArtifactDeployment{}
-		gomega.Expect(k8sClient.Get(ctx, types.NamespacedName{
-			Name:      artifactDeploymentList.Items[0].Name,
-			Namespace: testNamespace,
-		}, artifactDeployment)).To(gomega.Succeed())
 
-		artifactDeployment.Status.DeploymentResults = []konfidence.DeploymentResult{
-			{Name: "result-1", Type: "test", Spec: runtime.RawExtension{Raw: []byte("{\"test-deployment-result\": true}")}},
-		}
-		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               konfidence.ArtifactDeployedCondition,
-			Reason:             konfidence.ArtifactDeployedCondition,
-			Status:             metav1.ConditionTrue,
-			Message:            "",
-			ObservedGeneration: artifactDeployment.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               konfidence.DeploymentResultCreatedCondition,
-			Reason:             konfidence.DeploymentResultCreatedCondition,
-			Status:             metav1.ConditionTrue,
-			Message:            "",
-			ObservedGeneration: artifactDeployment.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
-		meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
-			Type:               konfidence.ArtifactDeploymentReadyCondition,
-			Reason:             konfidence.ArtifactDeploymentReadyCondition,
-			Status:             metav1.ConditionTrue,
-			Message:            "",
-			ObservedGeneration: artifactDeployment.Generation,
-			LastTransitionTime: metav1.Now(),
-		})
+		gomega.Eventually(func(g gomega.Gomega) {
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      artifactDeploymentList.Items[0].Name,
+				Namespace: testNamespace,
+			}, artifactDeployment)).To(gomega.Succeed())
 
-		gomega.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
+			artifactDeployment.Status.DeploymentResults = []konfidence.DeploymentResult{
+				{
+					Name: "result-1",
+					Type: "test",
+					Spec: runtime.RawExtension{
+						Raw: []byte(`{"test-deployment-result": true}`),
+					},
+				},
+			}
+
+			meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+				Type:               konfidence.ArtifactDeployedCondition,
+				Reason:             konfidence.ArtifactDeployedCondition,
+				Status:             metav1.ConditionTrue,
+				ObservedGeneration: artifactDeployment.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
+			meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+				Type:               konfidence.DeploymentResultCreatedCondition,
+				Reason:             konfidence.DeploymentResultCreatedCondition,
+				Status:             metav1.ConditionTrue,
+				ObservedGeneration: artifactDeployment.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
+			meta.SetStatusCondition(&artifactDeployment.Status.Conditions, metav1.Condition{
+				Type:               konfidence.ArtifactDeploymentReadyCondition,
+				Reason:             konfidence.ArtifactDeploymentReadyCondition,
+				Status:             metav1.ConditionTrue,
+				ObservedGeneration: artifactDeployment.Generation,
+				LastTransitionTime: metav1.Now(),
+			})
+
+			g.Expect(k8sClient.Status().Update(ctx, artifactDeployment)).To(gomega.Succeed())
+		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Verifying VectorDeployed condition is set")
 		gomega.Eventually(func(g gomega.Gomega) {
