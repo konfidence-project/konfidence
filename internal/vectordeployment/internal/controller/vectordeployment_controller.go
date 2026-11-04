@@ -155,6 +155,10 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 
 		log.Info("waiting for artifactManifest download job", "requeueAfter", manifestRequeueAfter)
+
+		// Returning nil intentionally resets controller-runtime's queue backoff.
+		// Manifest download backoff is tracked independently by jobRegistry, and
+		// treating an in-flight job as an error would increase backoff for healthy work.
 		return ctrl.Result{RequeueAfter: manifestRequeueAfter}, nil
 	}
 
@@ -663,6 +667,10 @@ func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.Name
 
 		// Generation, UID, or references changed. Discard any running job,
 		// successful cached result, and retry state belonging to the old identity.
+		logf.Log.WithName(VectorDeploymentControllerName).Info("discarding artifact manifest job with stale identity",
+			"jobKey", nn.String(), "existingGeneration", job.generation, "requestedGeneration", generation,
+			"existingUID", string(job.uid), "requestedUID", string(uid),
+		)
 		r.jobs.remove(nn)
 	}
 
