@@ -216,13 +216,15 @@ For each `ArtifactDeployment`, the deployer MUST:
 1. Validate its component resources and payloads as described in section 3.2. 
 2. Find the `DeploymentTarget` for the artifact type in the deployment's landscape namespace as described in section 2. 
 The target MUST have a `Ready=True` condition and its `spec.artifactType` MUST match exactly. 
-If no such target exists, the deployer MUST write a `Ready=False` condition with reason `NoReadyDeploymentTarget`. 
+If no such target exists, the deployer MUST write a `Stalled=True` condition with reason `NoReadyDeploymentTarget`. 
 3. Use the target's parameters to connect to the target runtime.
 The deployer MAY cache the credentials or reuse connections across different reconciliations, including across targets that refer to the same runtime infrastructure.  
 4. Apply the resources described by `ArtifactDeployment.spec.component` to the target runtime. 
 The deployer MAY create intermediate resources (including custom resources on the control plane) to track or identify the runtime resources managed by the `ArtifactDeployment`.
 If runtime resources corresponding to an `ArtifactDeployment` already exist, the deployer MAY adopt and manage them instead of creating duplicate resources.
-Before adoption, it MUST establish that the resources correspond to that exact `ArtifactDeployment` and are safe for it to manage. 
+Before adoption, it MUST establish that the resources correspond to that exact `ArtifactDeployment` and are safe for it to manage.
+
+[//]: # (TODO: 5. write DeploymentResult to ArtifactDeployment.status)
 
 The deployer MAY record events on an `ArtifactDeployment` to help users understand the deployment process. 
 Events are informational and do not replace the status conditions used to report deployment state.
@@ -236,8 +238,11 @@ The deployer MUST maintain the following conditions:
 
 * It MUST ensure that no more than one of `Reconciling`, `Stalled`, and `Ready` is `True` simultaneously.
 * `Ready` MUST be present after the initial status update and MUST have a status of `True` or `False`.
-* `Reconciling` MUST be present with `status=True` while reconciliation is in progress and MUST be removed when reconciliation is no longer in progress (abnormal-true condition).
-* `Stalled` MUST be present with `status=True` when reconciliation is stalled and MUST be removed when reconciliation is no longer stalled (abnormal-true condition).
+* `Reconciling` MUST be present with `status=True` while reconciliation is in progress and SHOULD be removed when reconciliation is no longer in progress (abnormal-true condition).
+* `Stalled` MUST be present with `status=True` when reconciliation is stalled and SHOULD be removed when reconciliation is no longer stalled (abnormal-true condition).
+
+The deployer MAY report additional deployment-related information in separate deployer-owned conditions.
+These conditions MUST NOT change the meaning of `Reconciling`, `Stalled`, or `Ready`.
 
 The deployer SHOULD NOT report `Reconciling=False` or `Stalled=False`. 
 Their absence MUST be interpreted as `False`.
@@ -280,13 +285,12 @@ It MUST NOT be set merely because deployment operations have been submitted succ
 
 ### 3.5 Deletion and undeployment
 
-The deployer MUST add a finalizer to an `ArtifactDeployment` before creating runtime resources for it.
-On deletion, it MUST remove the runtime resources it created on behalf of that `ArtifactDeployment`, including resources on a remote runtime, before removing its finalizer.
-It MUST NOT remove the finalizer while any such resources are known or reasonably believed to remain deployed.
+When an `ArtifactDeployment` is deleted, the deployer MUST remove the runtime resources it created on its behalf, including resources on a remote runtime.
+The deployer MUST NOT consider deletion complete while any such resources are known or reasonably believed to remain deployed.
+The deployer SHOULD use a Kubernetes finalizer or an equivalent mechanism to keep the `ArtifactDeployment` available until cleanup succeeds.
 
-The deployer MUST retain the finalizer if cleanup fails, including when credentials are unavailable or access to the target runtime is lost, and MUST retry cleanup until it succeeds.
-While cleanup is blocked, the `ArtifactDeployment` remains pending deletion (Kubernetes `metadata.deletionTimestamp` is set).
-The deployer SHOULD report the cleanup progress with the `Reconiling=True` condition and an appropriate `reason` and `message`.
+If cleanup fails, including because credentials are unavailable or access to the target runtime is lost, the deployer MUST continue with its cleanup procedure until it succeeds.
+While cleanup is blocked, the deployer SHOULD report cleanup progress with the `Reconciling=True` condition and an appropriate `reason` and `message`.
 
 Deleting the `DeploymentTarget` before deleting associated `ArtifactDeployments` can leave those deployments pending deletion until access to the original destination is restored.
 
