@@ -94,24 +94,6 @@ describe("<SidePanel>", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("reports when the closing transition completes", async () => {
-    const onCloseComplete = vi.fn();
-    await render(SidePanelFixture, {
-      modal: false,
-      onCloseComplete,
-      open: true,
-      title: "Closing panel",
-    });
-    const dialog = page.getByRole("dialog", { name: "Closing panel" });
-    await dialog.getByTestId("side-panel-close").click();
-    const element = dialog.element() as HTMLElement;
-    await expect.element(element).toHaveAttribute("data-state", "closed");
-    element.dispatchEvent(
-      new TransitionEvent("transitionend", { bubbles: true, propertyName: "translate" }),
-    );
-    await vi.waitFor(() => expect(onCloseComplete).toHaveBeenCalledOnce());
-  });
-
   describe("full-page link", () => {
     it("hides the link when no full-page URL is given", async () => {
       await render(SidePanelFixture, { open: true });

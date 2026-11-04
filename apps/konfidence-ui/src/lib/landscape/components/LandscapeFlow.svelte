@@ -197,7 +197,7 @@
 </div>
 
 <style>
-    /* Promotion edges are interactive: clicking one opens the promotion sheet.
+    /* Promotion edges are interactive: clicking one opens the promotion details.
        The wide invisible interaction path gets the pointer cursor, and the
        selected edge is highlighted. */
     :global(.landscape-promotion-edge .svelte-flow__edge-interaction),

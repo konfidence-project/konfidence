@@ -2,7 +2,6 @@
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import {
-        BottomSheet,
         Button,
         OrbitLoader,
         PageHeader,
@@ -73,21 +72,16 @@
             : promotionConfigs.find((config) => config.id === selectedPromotion.id),
     );
 
-    type PanelPlacement = "right" | "bottom";
     type CloseFocus = "trigger" | "canvas";
-    interface PendingSelection {
-        placement: PanelPlacement;
-        run: () => void;
-    }
-
-    const activePlacement = $derived.by((): PanelPlacement | undefined => {
-        if (selectedPromotion !== undefined) {
-            return "bottom";
+    const panelOpen = $derived(selectedStage !== undefined || selectedPromotion !== undefined);
+    const panelFocusKey = $derived.by(() => {
+        if (selectedStage) {
+            return JSON.stringify(["stage", projectId, selectedStage.landscapeId, selectedStage.id]);
         }
-        return selectedStage === undefined ? undefined : "right";
+        return selectedPromotion
+            ? JSON.stringify(["promotion", projectId, selectedPromotion.id])
+            : undefined;
     });
-    let closingPlacement: PanelPlacement | undefined = $state();
-    let pendingSelection: PendingSelection | undefined = undefined;
     let lastTrigger: Element | undefined = undefined;
     let focusAfterClose: CloseFocus | undefined = undefined;
     let overlayWasOpen = false;
@@ -153,20 +147,13 @@
     };
 
     const dismissOverlay = (restoreFocus: boolean): void => {
-        const close = (): void => {
-            suppressStageFocusReveal = true;
-            focusAfterClose = restoreFocus ? "trigger" : "canvas";
-            closeActiveOverlay();
-        };
-        if (closingPlacement !== undefined) {
-            pendingSelection = { placement: closingPlacement, run: close };
-            return;
-        }
-        close();
+        suppressStageFocusReveal = true;
+        focusAfterClose = restoreFocus ? "trigger" : "canvas";
+        closeActiveOverlay();
     };
 
     $effect(() => {
-        const overlayOpen = activePlacement !== undefined;
+        const overlayOpen = panelOpen;
         if (overlayWasOpen && !overlayOpen) {
             if (focusAfterClose === "canvas") {
                 focusCanvas();
@@ -181,76 +168,26 @@
         overlayWasOpen = overlayOpen;
     });
 
-    const switchOverlay = (selection: PendingSelection): void => {
-        if (closingPlacement !== undefined) {
-            pendingSelection = selection;
-            return;
-        }
-        if (activePlacement !== undefined && activePlacement !== selection.placement) {
-            pendingSelection = selection;
-            closingPlacement = activePlacement;
-            return;
-        }
-        selection.run();
-    };
-
-    const finishPanelClose = (placement: PanelPlacement): void => {
-        if (closingPlacement !== placement) {
-            return;
-        }
-        closingPlacement = undefined;
-        const selection = pendingSelection;
-        pendingSelection = undefined;
-        selection?.run();
-    };
-
-    // The stage (right) and promotion (bottom) panels are mutually exclusive:
-    // selecting a promotion replaces any selected stage so at most one is open.
+    // Stage and promotion selections share one panel and replace the current
+    // overlay history entry, so switching details does not add a close/reopen step.
     const selectPromotion = (promotionId: string, trigger: Element): void => {
         lastTrigger = trigger;
-        const replace = activePlacement !== undefined;
-        switchOverlay({
-            placement: "bottom",
-            run: () => {
-                const next = overviewUrl();
-                next.searchParams.set(PROMOTION_PARAM, promotionId);
-                // eslint-disable-next-line svelte/no-navigation-without-resolve -- projectLandscapeUrl is already resolved.
-                void goto(next, {
-                    replace,
-                    reset: false,
-                    state: {
-                        overlayOrigin: page.state.overlayOrigin ?? "landscape",
-                    },
-                });
+        const next = overviewUrl();
+        next.searchParams.set(PROMOTION_PARAM, promotionId);
+        // eslint-disable-next-line svelte/no-navigation-without-resolve -- projectLandscapeUrl is already resolved.
+        void goto(next, {
+            replace: panelOpen,
+            reset: false,
+            state: {
+                overlayOrigin: page.state.overlayOrigin ?? "landscape",
             },
         });
     };
 
     const selectStage = (stage: Stage, trigger: HTMLElement): void => {
         lastTrigger = trigger;
-        const replace = activePlacement !== undefined;
-        switchOverlay({
-            placement: "right",
-            run: () => overlay.open(stage, replace),
-        });
+        overlay.open(stage, panelOpen);
     };
-
-    $effect(() => {
-        if (closingPlacement === undefined) {
-            return;
-        }
-        // oxlint-disable-next-line unicorn/consistent-function-scoping -- closes over the current component coordinator.
-        const cancelPending = (event: KeyboardEvent): void => {
-            if (event.key !== "Escape") {
-                return;
-            }
-            event.preventDefault();
-            event.stopPropagation();
-            dismissOverlay(true);
-        };
-        document.addEventListener("keydown", cancelPending, true);
-        return () => document.removeEventListener("keydown", cancelPending, true);
-    });
 </script>
 
 <section
@@ -304,34 +241,20 @@
 </section>
 
 <SidePanel
-    open={selectedStage !== undefined && selectedPromotion === undefined && closingPlacement !== "right"}
-    title={selectedStage?.name ?? "Stage"}
+    open={panelOpen}
+    title={selectedStage?.name ?? (selectedPromotion
+        ? `${selectedPromotion.sourceName} → ${selectedPromotion.targetName}`
+        : "Details")}
     onClose={() => dismissOverlay(true)}
-    onCloseComplete={() => finishPanelClose("right")}
     fullPageHref={overlay.selectedHref}
     width={panelDimensions.width}
     onWidthChange={panelDimensions.setWidth}
     modal={!desktopPanelViewport.current}
-    focusKey={selectedStage?.id}
+    focusKey={panelFocusKey}
 >
     {#if selectedStage}
         <StageDetails {projectId} stage={selectedStage} status="ready" onRetry={() => undefined} />
-    {/if}
-</SidePanel>
-
-<BottomSheet
-    open={selectedPromotion !== undefined && closingPlacement !== "bottom"}
-    title={selectedPromotion
-        ? `${selectedPromotion.sourceName} → ${selectedPromotion.targetName}`
-        : "Promotion"}
-    onClose={() => dismissOverlay(true)}
-    onCloseComplete={() => finishPanelClose("bottom")}
-    height={panelDimensions.height}
-    onHeightChange={panelDimensions.setHeight}
-    modal={!desktopPanelViewport.current}
-    focusKey={selectedPromotion?.id}
->
-    {#if selectedPromotion}
+    {:else if selectedPromotion}
         <PromotionDetails promotion={selectedPromotion} config={selectedPromotionConfig} />
     {/if}
-</BottomSheet>
+</SidePanel>

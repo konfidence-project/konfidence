@@ -11,7 +11,7 @@
 <Section
     id="overlays"
     title="Dialogs & side panels"
-    subtitle="Real <SidePanel> from @konfidence/design-system (right-anchored `<dialog>` with backdrop, drag/keyboard resizable left edge). Modal dialogs and master-detail layout are still on the roadmap."
+    subtitle="Real <SidePanel> from @konfidence/design-system (right-anchored Skeleton Dialog with backdrop, drag/keyboard resizable left edge). Modal dialogs and master-detail layout are still on the roadmap."
     status="partial"
 >
     <div class="stack flex flex-col gap-5">
@@ -22,9 +22,8 @@
             <Button variant="primary" onclick={() => (panelOpen = true)}>Open details</Button>
             <SidePanel bind:open={panelOpen} title="Deployment d-001">
                 <p class="paragraph mb-3 text-compact leading-[1.5] text-content-secondary">
-                    Konfidence's <code>&lt;SidePanel&gt;</code> renders a native
-                    <code>&lt;dialog&gt;</code> element opened via
-                    <code>showModal()</code>, so the browser handles the focus trap,
+                    Konfidence's <code>&lt;SidePanel&gt;</code> uses Skeleton Dialog
+                    to handle the focus trap,
                     <kbd>Esc</kbd> to close, and the tinted backdrop.
                 </p>
                 <p class="paragraph mb-3 text-compact leading-[1.5] text-content-secondary">
@@ -53,8 +52,8 @@
         </Sample>
 
         <NotYetImplemented
-            note="Skeleton v5 provides Dialog primitives. Konfidence has not yet wrapped them."
-            planned={["<Dialog> / <ConfirmDialog>", "<SidePanel side='bottom'>", "<MasterDetail> layout"]}
+            note="Standalone confirmation dialogs and master-detail layouts are not yet available."
+            planned={["<Dialog> / <ConfirmDialog>", "<MasterDetail> layout"]}
         />
     </div>
 </Section>
