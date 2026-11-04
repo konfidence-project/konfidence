@@ -95,9 +95,12 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		vectorDescriptor := VectorDescriptor{
 			References: []compref.Ref{
 				{
-					Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
-					Component:  "github.com/konfidence-project/sample-service-1",
-					Version:    "0.0.1",
+					Repository: &ociv1.Repository{
+						BaseUrl: "https://registry.kdenv.lab",
+						SubPath: "sample-project",
+					},
+					Component: "github.com/konfidence-project/sample-service-1",
+					Version:   "0.0.1",
 				},
 			},
 			DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +
@@ -159,28 +162,14 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			},
 		}
 
-		var blockManifestRefresh atomic.Bool
-		refreshStarted := make(chan struct{}, 1)
-		releaseRefresh := make(chan struct{})
-
-		ocmAdapterMock.EXPECT().GetArtifactManifestByReference(gomock.Any(), gomock.Any()).
-			DoAndReturn(func(ctx context.Context, ref compref.Ref) (ArtifactManifest, error) {
-				if blockManifestRefresh.Load() {
-					select {
-					case refreshStarted <- struct{}{}:
-					default:
-					}
-
-					select {
-					case <-releaseRefresh:
-					case <-ctx.Done():
-						return ArtifactManifest{}, ctx.Err()
-					}
-				}
-
+		var manifestDownloads atomic.Int32
+		ocmAdapterMock.EXPECT().
+			GetArtifactManifestByReference(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(context.Context, compref.Ref) (ArtifactManifest, error) {
+				manifestDownloads.Add(1)
 				return artifactManifest, nil
 			}).
-			MinTimes(1)
+			AnyTimes()
 
 		// GIVEN: create a VectorDeployment resource
 		vectorDeployment := &konfidence.VectorDeployment{
@@ -373,8 +362,10 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(meta.IsStatusConditionTrue(actualVectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(gomega.BeTrue())
 		}, timeout, interval).Should(gomega.Succeed())
 
-		By("Preserving Ready=True while a routine manifest refresh is pending")
-		blockManifestRefresh.Store(true)
+		By("Verifying manifests were downloaded only once during the lifecycle")
+		gomega.Expect(manifestDownloads.Load()).To(gomega.Equal(int32(1)))
+
+		By("Reusing cached manifests when an owned VectorData changes")
 		vectorData := &konfidence.VectorData{}
 		gomega.Expect(k8sClient.Get(
 			ctx,
@@ -388,10 +379,12 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		if vectorData.Labels == nil {
 			vectorData.Labels = map[string]string{}
 		}
-		vectorData.Labels["test.konfidence.cloud/refresh"] = "trigger"
+		vectorData.Labels["test.konfidence.cloud/cache-check"] = "trigger"
 		gomega.Expect(k8sClient.Update(ctx, vectorData)).To(gomega.Succeed())
-		gomega.Eventually(refreshStarted, timeout).Should(gomega.Receive())
+
 		gomega.Consistently(func(g gomega.Gomega) {
+			g.Expect(manifestDownloads.Load()).To(gomega.Equal(int32(1)))
+
 			current := &konfidence.VectorDeployment{}
 			g.Expect(k8sClient.Get(
 				ctx,
@@ -407,8 +400,6 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(ready.Status).To(gomega.Equal(metav1.ConditionTrue))
 			g.Expect(ready.ObservedGeneration).To(gomega.Equal(current.Generation))
 		}, time.Second, interval).Should(gomega.Succeed())
-
-		close(releaseRefresh)
 	})
 
 	It("should recover from an ArtifactDeployment name collision by bumping the collision salt", func() {
@@ -988,9 +979,12 @@ func sampleService1VectorDescriptor() VectorDescriptor {
 	return VectorDescriptor{
 		References: []compref.Ref{
 			{
-				Repository: &ociv1.Repository{BaseUrl: "https://registry.kdenv.lab"},
-				Component:  "github.com/konfidence-project/sample-service-1",
-				Version:    "0.0.1",
+				Repository: &ociv1.Repository{
+					BaseUrl: "https://registry.kdenv.lab",
+					SubPath: "sample-project",
+				},
+				Component: "github.com/konfidence-project/sample-service-1",
+				Version:   "0.0.1",
 			},
 		},
 		DescriptorJSON: []byte(`{"meta":{"schemaVersion":"v2"},"component":{"name":"github.com/konfidence-project/sample-vector",` +

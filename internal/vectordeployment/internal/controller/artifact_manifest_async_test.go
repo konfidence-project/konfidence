@@ -136,6 +136,13 @@ var _ = Describe("Artifact manifest jobs", func() {
 		Expect(result.artifacts[0].Manifest.Resources[0].Name).To(Equal(refA.String()))
 		Expect(result.artifacts[1].Reference.String()).To(Equal(refB.String()))
 		Expect(result.artifacts[1].Manifest.Resources[0].Name).To(Equal(refB.String()))
+
+		By("reusing the successful result without another download")
+		cachedResult, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), []compref.Ref{refB, refA})
+		Expect(retryAfter).To(BeZero())
+		Expect(cachedResult.err).NotTo(HaveOccurred())
+		Expect(cachedResult.artifacts).To(HaveLen(2))
+		Expect(calls.Load()).To(Equal(int32(2)))
 	})
 
 	DescribeTable("replaces stale jobs",
@@ -495,6 +502,59 @@ var _ = Describe("Artifact manifest jobs", func() {
 		Expect(result.err).NotTo(HaveOccurred())
 		Expect(result.artifacts).To(HaveLen(1))
 	})
+
+	DescribeTable("invalidates a successful cached result when its identity changes",
+		func(oldGeneration, newGeneration int64, oldUID, newUID types.UID, oldRefs, newRefs []compref.Ref) {
+			var calls atomic.Int32
+
+			port := &testVectorOcmPort{
+				getManifest: func(_ context.Context, ref compref.Ref) (ArtifactManifest, error) {
+					calls.Add(1)
+					return testManifest(ref), nil
+				},
+			}
+
+			r := newManifestTestReconciler(port, 1, 1)
+
+			_, retryAfter := r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs)
+			Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
+
+			Eventually(func() bool {
+				job, exists := r.jobs.get(nn)
+				return exists && job.done()
+			}).Should(BeTrue())
+
+			result, retryAfter := r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs)
+			Expect(result.err).NotTo(HaveOccurred())
+			Expect(retryAfter).To(BeZero())
+			Expect(calls.Load()).To(Equal(int32(1)))
+
+			_, retryAfter = r.resolveArtifactManifestsAsync(nn, newGeneration, newUID, newRefs)
+			Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
+			Eventually(calls.Load).Should(Equal(int32(2)))
+		},
+		Entry(
+			"when generation changes",
+			int64(1), int64(2),
+			types.UID("uid"), types.UID("uid"),
+			[]compref.Ref{testArtifactRef("example.com/a", "1.0.0")},
+			[]compref.Ref{testArtifactRef("example.com/a", "1.0.0")},
+		),
+		Entry(
+			"when UID changes",
+			int64(1), int64(1),
+			types.UID("old"), types.UID("new"),
+			[]compref.Ref{testArtifactRef("example.com/a", "1.0.0")},
+			[]compref.Ref{testArtifactRef("example.com/a", "1.0.0")},
+		),
+		Entry(
+			"when references change",
+			int64(1), int64(1),
+			types.UID("uid"), types.UID("uid"),
+			[]compref.Ref{testArtifactRef("example.com/a", "1.0.0")},
+			[]compref.Ref{testArtifactRef("example.com/a", "2.0.0")},
+		),
+	)
 })
 
 var _ = Describe("Ready generation matching", func() {

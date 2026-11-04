@@ -46,8 +46,9 @@ func (i manifestJobIdentity) matches(generation int64, uid types.UID, artifactRe
 
 type inflightJob struct {
 	manifestJobIdentity
-	cancel context.CancelFunc
-	result chan artifactManifestResult
+	cancel       context.CancelFunc
+	result       chan artifactManifestResult
+	cachedResult *artifactManifestResult
 }
 
 func (j *inflightJob) done() bool {
@@ -130,30 +131,47 @@ func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid type
 	return true, 0
 }
 
-// complete removes a finished job and updates its retry state. Failed jobs are
-// delayed independently of controller-runtime's reconcile queue because a
-// RequeueAfter result causes controller-runtime to forget its own failure count.
-func (r *jobRegistry) complete(nn types.NamespacedName, job *inflightJob, err error) {
+// completedResult returns a finished job result. Successful results remain
+// cached while the job identity matches. Failed jobs are removed and enter
+// exponential retry backoff.
+func (r *jobRegistry) completedResult(nn types.NamespacedName, job *inflightJob) (artifactManifestResult, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	current, exists := r.inflight[nn]
 	if !exists || current != job {
-		return
+		return artifactManifestResult{}, false
 	}
 
-	job.cancel()
-	delete(r.inflight, nn)
-
-	if err == nil {
-		r.clearRetryLocked(nn)
-		return
+	if job.cachedResult != nil {
+		return *job.cachedResult, true
 	}
 
-	delay := r.retryLimiter.When(nn)
-	r.retries[nn] = &manifestRetry{
-		manifestJobIdentity: job.manifestJobIdentity,
-		notBefore:           r.now().Add(delay),
+	select {
+	case result := <-job.result:
+		if job.cancel != nil {
+			job.cancel()
+			job.cancel = nil
+		}
+
+		if result.err == nil {
+			job.cachedResult = &result
+			r.clearRetryLocked(nn)
+			return result, true
+		}
+
+		delete(r.inflight, nn)
+
+		delay := r.retryLimiter.When(nn)
+		r.retries[nn] = &manifestRetry{
+			manifestJobIdentity: job.manifestJobIdentity,
+			notBefore:           r.now().Add(delay),
+		}
+
+		return result, true
+
+	default:
+		return artifactManifestResult{}, false
 	}
 }
 
@@ -161,8 +179,10 @@ func (r *jobRegistry) remove(nn types.NamespacedName) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if job, ok := r.inflight[nn]; ok {
-		job.cancel()
+	if job, exists := r.inflight[nn]; exists {
+		if job.cancel != nil {
+			job.cancel()
+		}
 		delete(r.inflight, nn)
 	}
 

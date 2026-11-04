@@ -57,8 +57,9 @@ var _ = Describe("Artifact manifest job registry", func() {
 			return exists && job.done()
 		}).Should(BeTrue())
 
-		result := <-job.result
-		registry.complete(nn, job, result.err)
+		result, completed := registry.completedResult(nn, job)
+		Expect(completed).To(BeTrue())
+		Expect(result.err).To(MatchError("registry unavailable"))
 		Expect(registry.retryLimiter.NumRequeues(nn)).To(Equal(1))
 
 		registry.remove(nn)
@@ -76,8 +77,20 @@ var _ = Describe("Artifact manifest job registry", func() {
 			job, _ = registry.get(nn)
 			return job != nil && job.done()
 		}).Should(BeTrue())
-		result = <-job.result
-		registry.complete(nn, job, result.err)
+
+		result, completed = registry.completedResult(nn, job)
+		Expect(completed).To(BeTrue())
+		Expect(result.err).NotTo(HaveOccurred())
+		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
+
+		By("retaining the successful result in the registry")
+		cachedJob, exists := registry.get(nn)
+		Expect(exists).To(BeTrue())
+		Expect(cachedJob).To(BeIdenticalTo(job))
+
+		cachedResult, completed := registry.completedResult(nn, cachedJob)
+		Expect(completed).To(BeTrue())
+		Expect(cachedResult.err).NotTo(HaveOccurred())
 		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
 	})
 

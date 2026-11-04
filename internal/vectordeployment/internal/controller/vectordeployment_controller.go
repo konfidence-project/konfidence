@@ -653,17 +653,16 @@ func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.Name
 
 	if job, exists := r.jobs.get(nn); exists {
 		if job.matches(generation, uid, referenceKeys) {
-			if !job.done() {
+			result, completed := r.jobs.completedResult(nn, job)
+			if !completed {
 				return artifactManifestResult{}, r.manifestPollInterval
 			}
 
-			result := <-job.result
-			r.jobs.complete(nn, job, result.err)
 			return result, 0
 		}
 
-		// The VectorDeployment was updated or recreated. Previous result
-		// and retry state must not be applied to the current object.
+		// Generation, UID, or references changed. Discard any running job,
+		// successful cached result, and retry state belonging to the old identity.
 		r.jobs.remove(nn)
 	}
 
