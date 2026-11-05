@@ -54,7 +54,7 @@
         },
     ];
 
-    let selectedId = $state<string | undefined>(undefined);
+    let selectedId = $state<string | undefined>("d-004");
 
     type SortKey = "artifact" | "version" | "stage";
     let sortKey = $state<SortKey>("artifact");
@@ -91,7 +91,7 @@
     <div class="stack flex flex-col gap-5">
         <Sample
             title="Sortable, selectable table"
-            description="Click any row to select it; click a header to cycle its sort. Uses <TableHeaderCell onsort>, <TableRow onselect>, and <StatusBadge> for the state column."
+            description="Select a row by click, Enter or Space. Selection keeps its amber background and left marker on hover. Tab shows the independent amber focus outline. Click a column header to change the sort."
         >
             <div class="table-wrap w-full">
                 <Table caption="Artifact deployments">
