@@ -15,19 +15,30 @@ const isOutsidePanelKeyboardActivation = (event: MouseEvent): boolean =>
 interface OutsidePanelDismissOptions {
   dismiss: () => void;
   enabled: () => boolean;
+  /** Feature controls that remain interactive without dismissing their panel. */
+  ignoreSelector?: string;
 }
 
 const outsidePanelDismiss = (
   node: HTMLElement,
   options: OutsidePanelDismissOptions,
 ): { destroy: () => void } => {
+  const isIgnored = (event: Event): boolean => {
+    const selector = options.ignoreSelector;
+    return (
+      selector !== undefined &&
+      event
+        .composedPath()
+        .some((target) => target instanceof Element && target.closest(selector) !== null)
+    );
+  };
   const handlePointerDown = (event: PointerEvent): void => {
-    if (options.enabled() && isOutsidePanelPointerActivation(event)) {
+    if (options.enabled() && !isIgnored(event) && isOutsidePanelPointerActivation(event)) {
       options.dismiss();
     }
   };
   const handleClick = (event: MouseEvent): void => {
-    if (options.enabled() && isOutsidePanelKeyboardActivation(event)) {
+    if (options.enabled() && !isIgnored(event) && isOutsidePanelKeyboardActivation(event)) {
       options.dismiss();
     }
   };

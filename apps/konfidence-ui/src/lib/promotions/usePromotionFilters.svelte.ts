@@ -1,12 +1,50 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import type { PromotionFilter } from "./filters.ts";
+import type { Promotion } from "./promotions.ts";
 
 const FILTER_PARAMS = ["promotionLandscape", "promotionStage", "promotionConfig"] as const;
 type FilterParam = (typeof FILTER_PARAMS)[number];
 
 class PromotionFilters {
   query = $state("");
+
+  get selectedId(): string | undefined {
+    return page.url.searchParams.get("promotion") ?? undefined;
+  }
+
+  open = (promotion: Promotion): void => {
+    if (this.selectedId === promotion.id) {
+      this.close();
+      return;
+    }
+    this.updateUrl(
+      (params) => params.set("promotion", promotion.id),
+      this.selectedId !== undefined,
+      { ...page.state, overlayOrigin: this.selectedId ? page.state.overlayOrigin : "promotion" },
+    );
+  };
+
+  clearSelection = (): void => {
+    if (!this.selectedId) {
+      return;
+    }
+    this.updateUrl((params) => params.delete("promotion"), true, {
+      ...page.state,
+      overlayOrigin: undefined,
+    });
+  };
+
+  close = (): void => {
+    if (!this.selectedId) {
+      return;
+    }
+    if (page.state.overlayOrigin === "promotion") {
+      globalThis.history.back();
+    } else {
+      this.clearSelection();
+    }
+  };
 
   get values(): PromotionFilter {
     return {
@@ -33,25 +71,33 @@ class PromotionFilters {
   }
 
   change = (param: FilterParam, value: string): void => {
-    this.updateUrl((params) => {
-      if (value) {
-        params.set(param, value);
-      } else {
-        params.delete(param);
-      }
-      for (const downstream of FILTER_PARAMS.slice(FILTER_PARAMS.indexOf(param) + 1)) {
-        params.delete(downstream);
-      }
-    });
+    this.updateUrl(
+      (params) => {
+        if (value) {
+          params.set(param, value);
+        } else {
+          params.delete(param);
+        }
+        for (const downstream of FILTER_PARAMS.slice(FILTER_PARAMS.indexOf(param) + 1)) {
+          params.delete(downstream);
+        }
+      },
+      this.selectedId !== undefined,
+      { ...page.state, overlayOrigin: undefined },
+    );
   };
 
   clear = (): void => {
     this.query = "";
-    this.updateUrl((params) => {
-      for (const param of FILTER_PARAMS) {
-        params.delete(param);
-      }
-    });
+    this.updateUrl(
+      (params) => {
+        for (const param of FILTER_PARAMS) {
+          params.delete(param);
+        }
+      },
+      this.selectedId !== undefined,
+      { ...page.state, overlayOrigin: undefined },
+    );
   };
 }
 
