@@ -22,8 +22,9 @@ const (
 	timeout       = 30 * time.Second
 	interval      = 250 * time.Millisecond
 
-	testVector    = "registry.example//konfidence.io/promo/app:1.0.0"
-	testLandscape = "test-landscape"
+	testVector      = "registry.example//konfidence.io/promo/app:1.0.0"
+	otherTestVector = "registry.example//konfidence.io/promo/app:2.0.0"
+	testLandscape   = "test-landscape"
 )
 
 func templateSource(name string) konfidence.PromotionSourceReference {
@@ -245,6 +246,20 @@ func setGate(promotion *konfidence.VectorPromotion, gateType string, state konfi
 	ExpectWithOffset(2, k8sClient.Get(ctx, key, promotion)).To(Succeed())
 }
 
+// setOverride records an override as the konfidence API does.
+func setOverride(promotion *konfidence.VectorPromotion, overrideType konfidence.PromotionOverrideType) {
+	EventuallyWithOffset(1, func(g Gomega) {
+		key := types.NamespacedName{Name: promotion.Name, Namespace: testNamespace}
+		g.Expect(k8sClient.Get(ctx, key, promotion)).To(Succeed())
+		original := promotion.DeepCopy()
+		promotion.Status.Override = &konfidence.PromotionOverride{
+			Type: overrideType, SetBy: "alice", SetAt: metav1.Now(), Reason: "set by test",
+		}
+		g.Expect(k8sClient.Status().Patch(ctx, promotion,
+			client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{}))).To(Succeed())
+	}, timeout, interval).Should(Succeed())
+}
+
 // createPromotionWithTTL creates a VectorPromotion with TTLAfterFinished set.
 func createPromotionWithTTL(name, configRef string, ttl time.Duration) *konfidence.VectorPromotion {
 	promotion := &konfidence.VectorPromotion{
@@ -311,6 +326,9 @@ func observedState(p *konfidence.VectorPromotion) string {
 	switch {
 	case meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeSucceeded):
 		return "Succeeded"
+	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded) &&
+		p.Status.Override != nil && p.Status.Override.Type == konfidence.PromotionOverrideTypeReject:
+		return "Rejected"
 	case meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded):
 		return "Superseded"
 	case p.Status.StartTime != nil:

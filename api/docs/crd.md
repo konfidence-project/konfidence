@@ -865,6 +865,44 @@ _Appears in:_
 | `setAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#time-v1-meta)_ | SetAt is the time the gate state was last set. |  | Optional: \{\} <br /> |
 
 
+### PromotionOverride
+
+
+
+PromotionOverride records an operator decision that overrides the normal
+gate flow, together with its provenance: who, when, and why.
+
+
+
+_Appears in:_
+- [VectorPromotionStatus](#vectorpromotionstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `type` _[PromotionOverrideType](#promotionoverridetype)_ | Type is the operator decision. |  | Enum: [Reject BypassGates] <br /> |
+| `setBy` _string_ | SetBy is the authenticated subject that made the decision. |  | MaxLength: 1024 <br />MinLength: 1 <br /> |
+| `setAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#time-v1-meta)_ | SetAt is the time the decision was made. |  |  |
+| `reason` _string_ | Reason is the operator's justification for the decision. |  | MaxLength: 1024 <br />MinLength: 1 <br /> |
+
+
+### PromotionOverrideType
+
+_Underlying type:_ _string_
+
+PromotionOverrideType is the operator decision recorded in `status.override`.
+
+_Validation:_
+- Enum: [Reject BypassGates]
+
+_Appears in:_
+- [PromotionOverride](#promotionoverride)
+
+| Field | Description |
+| --- | --- |
+| `Reject` | PromotionOverrideTypeReject terminally rejects a waiting promotion.<br /> |
+| `BypassGates` | PromotionOverrideTypeBypassGates lets a waiting promotion proceed as if all its gates were satisfied.<br /> |
+
+
 ### PromotionSourceReference
 
 
@@ -1869,6 +1907,7 @@ _Appears in:_
 | `startTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#time-v1-meta)_ | StartTime is when execution started, i.e. the promotion began writing<br />its vector to the target Stage. Set at most once. |  | Optional: \{\} <br /> |
 | `completionTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#time-v1-meta)_ | CompletionTime is when the promotion finished (Succeeded True or False). |  | Optional: \{\} <br /> |
 | `gates` _[PromotionGateStatus](#promotiongatestatus) array_ | Gates reports the state and provenance of each declared gate, keyed by<br />gate type. Entries are seeded `Pending` by the promotion controller and<br />set by the gate's writer (a gate controller or the konfidence API)<br />through `pkg/promotiongate`. A missing entry counts as `Pending`. |  | MaxItems: 32 <br />Optional: \{\} <br /> |
+| `override` _[PromotionOverride](#promotionoverride)_ | Override records an operator decision that overrides the gate flow:<br />`Reject` terminally rejects the promotion, `BypassGates` lets it proceed<br />regardless of its gates. It is written only by the konfidence API, at<br />most once while the promotion waits on its gates, and never cleared. |  | Optional: \{\} <br /> |
 | `promotedStageRef` _[TypedObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#typedobjectreference-v1-core)_ | PromotedStageRef records the Stage this promotion actually wrote its<br />vector to, so the promotion is self-describing even after the config<br />changed or was deleted. |  | Optional: \{\} <br /> |
 
 

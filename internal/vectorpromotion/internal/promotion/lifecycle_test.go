@@ -73,6 +73,17 @@ var _ = Describe("Lifecycle", func() {
 		Expect(IsTerminal(p)).To(BeTrue())
 	})
 
+	DescribeTable("reads the operator decision from status.override",
+		func(override *konfidence.PromotionOverride, rejected, bypassed bool) {
+			p := &konfidence.VectorPromotion{Status: konfidence.VectorPromotionStatus{Override: override}}
+			Expect(IsRejected(p)).To(Equal(rejected))
+			Expect(IsGatesBypassed(p)).To(Equal(bypassed))
+		},
+		Entry("no override", nil, false, false),
+		Entry("rejected", &konfidence.PromotionOverride{Type: konfidence.PromotionOverrideTypeReject}, true, false),
+		Entry("gates bypassed", &konfidence.PromotionOverride{Type: konfidence.PromotionOverrideTypeBypassGates}, false, true),
+	)
+
 	Describe("Newer", func() {
 		promo := func(sequence int64) *konfidence.VectorPromotion {
 			return &konfidence.VectorPromotion{

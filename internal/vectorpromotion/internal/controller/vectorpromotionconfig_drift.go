@@ -16,21 +16,22 @@ import (
 )
 
 // createPromotionForDrift creates the next sequence-stamped promotion for the
-// drifted source vector, unless a live promotion already pins it.
+// drifted source vector, unless the newest promotion already pins it.
 func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 	ctx context.Context, config *konfidence.VectorPromotionConfig, sourceVector string, promotions []konfidence.VectorPromotion,
 ) error {
 	log := logf.FromContext(ctx)
 
-	for i := range promotions {
-		// A live promotion only satisfies the drift if it pins the same vector
-		// AND aims at the config's current target: after a target repoint, a
-		// promotion snapshotted for the old target must not suppress the new one.
-		if !promotion.IsTerminal(&promotions[i]) &&
-			promotions[i].Spec.Vector == sourceVector &&
-			promotions[i].Spec.Target == config.Spec.Target {
-			return nil
-		}
+	// Only the newest promotion can satisfy the drift, so the sequence order
+	// always follows the source order and the newest cleared promotion carries
+	// the latest source vector. Returning to an older vector (e.g. a rollback)
+	// is a new decision, even if a promotion for it is still waiting or was
+	// rejected. A promotion for a previous target never satisfies it.
+	if newest := promotion.Newest(promotions); newest != nil &&
+		(!promotion.IsTerminal(newest) || promotion.IsRejected(newest)) &&
+		newest.Spec.Vector == sourceVector &&
+		newest.Spec.Target == config.Spec.Target {
+		return nil
 	}
 
 	// The sequence is committed before the create: a crash in between leaves a
