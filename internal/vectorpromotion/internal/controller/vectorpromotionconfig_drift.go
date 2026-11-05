@@ -22,11 +22,7 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 ) error {
 	log := logf.FromContext(ctx)
 
-	// Only the newest promotion can satisfy the drift, so the sequence order
-	// always follows the source order and the newest cleared promotion carries
-	// the latest source vector. Returning to an older vector (e.g. a rollback)
-	// is a new decision, even if a promotion for it is still waiting or was
-	// rejected. A promotion for a previous target never satisfies it.
+	// Check if the newest promotion already tracks the drift
 	if newest := promotion.Newest(promotions); newest != nil &&
 		(!promotion.IsTerminal(newest) || promotion.IsRejected(newest)) &&
 		newest.Spec.Vector == sourceVector &&
