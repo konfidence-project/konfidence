@@ -157,11 +157,16 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				})).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			// activation creation alone must not make the StageVersion ready
-			Consistently(func(g Gomega) {
+			// Activation creation and the StageVersion status patch are separate writes.
+			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorMigratedCondition)).To(BeTrue())
 				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.VectorActivationCreatedCondition)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			// activation creation alone must not make the StageVersion ready
+			Consistently(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, stageVersionLookupKey, stageVersion)).To(Succeed())
 				g.Expect(meta.IsStatusConditionTrue(stageVersion.Status.Conditions, konfidence.StageVersionReady)).To(BeFalse())
 			}, time.Second, interval).Should(Succeed())
 
