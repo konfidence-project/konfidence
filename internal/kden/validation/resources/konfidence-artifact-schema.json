@@ -16,7 +16,9 @@
           "type": "string",
           "enum": [
             "file/v1",
-            "File/v1"
+            "File/v1",
+            "UTF8/v1",
+            "utf8/v1"
           ]
         }
       },

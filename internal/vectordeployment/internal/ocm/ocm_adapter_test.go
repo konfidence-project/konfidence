@@ -435,6 +435,82 @@ var _ = Describe("OcmAdapter", func() {
 			})
 		})
 
+		Context("with YAML manifest blobs", func() {
+			It("decodes the manifest and its tasks", func() {
+				manifestYAML := []byte("allowReuse: true\ntype: cloud.konfidence.flux.helm\n")
+				taskYAML := []byte("dependsOn:\n- verify-db\nname: migrate-db\nspec:\n  image: migrate:1.0\ntype: k8s-job\n")
+				manifestResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "artifact-manifest"}},
+					Type:        "cloud.konfidence.artifact.manifest",
+				}
+				taskResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "task-migrate-db"}},
+					Type:        "cloud.konfidence.artifact.task.manifest",
+				}
+				descriptor := buildDescriptor([]descruntime.Resource{manifestResource, taskResource})
+
+				mockClient.EXPECT().Get(gomock.Any(), artifactRef).Return(descriptor, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), artifactRef, manifestResource.ToIdentity()).
+					Return(inmemory.New(bytes.NewReader(manifestYAML)), &manifestResource, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), artifactRef, taskResource.ToIdentity()).
+					Return(inmemory.New(bytes.NewReader(taskYAML)), &taskResource, nil)
+
+				manifest, err := adapter.GetArtifactManifestByReference(ctx, artifactRef)
+
+				gomega.Expect(err).ToNot(gomega.HaveOccurred())
+				gomega.Expect(manifest.Type).To(gomega.Equal(konfidence.ArtifactType("cloud.konfidence.flux.helm")))
+				gomega.Expect(manifest.AllowReuse).To(gomega.BeTrue())
+				gomega.Expect(manifest.Tasks).To(gomega.HaveLen(1))
+				gomega.Expect(manifest.Tasks[0].Name).To(gomega.Equal("migrate-db"))
+				gomega.Expect(manifest.Tasks[0].Type).To(gomega.Equal("k8s-job"))
+				gomega.Expect(manifest.Tasks[0].DependsOn).To(gomega.ConsistOf("verify-db"))
+				gomega.Expect(manifest.Tasks[0].Spec).To(gomega.MatchJSON(`{"image":"migrate:1.0"}`))
+			})
+
+			It("keeps a JSON task spec byte for byte", func() {
+				taskJSON := []byte(`{"name": "migrate-db", "type": "k8s-job", "spec": {"image": "migrate:1.0"}}`)
+				manifestResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "artifact-manifest"}},
+					Type:        "cloud.konfidence.artifact.manifest",
+				}
+				taskResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "task-migrate-db"}},
+					Type:        "cloud.konfidence.artifact.task.manifest",
+				}
+				descriptor := buildDescriptor([]descruntime.Resource{manifestResource, taskResource})
+
+				mockClient.EXPECT().Get(gomock.Any(), artifactRef).Return(descriptor, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), artifactRef, manifestResource.ToIdentity()).
+					Return(inmemory.New(bytes.NewReader([]byte(`{"type":"cloud.konfidence.flux.helm"}`))), &manifestResource, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), artifactRef, taskResource.ToIdentity()).
+					Return(inmemory.New(bytes.NewReader(taskJSON)), &taskResource, nil)
+
+				manifest, err := adapter.GetArtifactManifestByReference(ctx, artifactRef)
+
+				gomega.Expect(err).ToNot(gomega.HaveOccurred())
+				gomega.Expect(manifest.Tasks).To(gomega.HaveLen(1))
+				gomega.Expect(manifest.Tasks[0].Spec).To(gomega.Equal(`{"image": "migrate:1.0"}`))
+			})
+
+			It("rejects an empty manifest blob", func() {
+				manifestResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{ObjectMeta: descruntime.ObjectMeta{Name: "artifact-manifest"}},
+					Type:        "cloud.konfidence.artifact.manifest",
+				}
+				descriptor := buildDescriptor([]descruntime.Resource{manifestResource})
+
+				mockClient.EXPECT().Get(gomock.Any(), artifactRef).Return(descriptor, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), artifactRef, manifestResource.ToIdentity()).
+					Return(inmemory.New(bytes.NewReader([]byte("# no content\n"))), &manifestResource, nil)
+
+				_, err := adapter.GetArtifactManifestByReference(ctx, artifactRef)
+
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("manifest is empty"))
+				expectPermanent(err, konfidence.VectorDeploymentStalledReasonManifestInvalid)
+			})
+		})
+
 		Context("with non-manifest resources (helmChart, ociImage)", func() {
 			It("collects their access specs into the Resources slice of the ArtifactManifest", func() {
 				manifestJSON := []byte(`{"type":"cloud.konfidence.flux.helm","allowReuse":true}`)

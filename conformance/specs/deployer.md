@@ -55,29 +55,26 @@ This also includes changes where the deployer can read the payload but cannot co
 
 An artifact is an OCM component version following the [OCM spec](https://github.com/open-component-model/ocm-spec).
 The OCM component version identifies the packaged artifact; it is separate from the artifact type.
-Its resources MUST contain exactly one resource of type `cloud.konfidence.artifact.manifest`, and that resource MUST be named `konfidence-manifest`.
-This resource MUST contain a JSON object with a `type` property whose value is the complete artifact type:
+Its resources MUST contain exactly one resource with the OCM resource type `cloud.konfidence.artifact.manifest`, and that resource MUST be named `konfidence-manifest`.
+The content of this resource is the *artifact manifest*.
+The artifact manifest MUST be a JSON or YAML object with a `type` property whose value is the complete artifact type as defined in section 1.1.
 
-[//]: # (TODO: can we use type: UTF8/v1 instead and use inline yaml)
+In an OCM component constructor, the artifact manifest can be written inline with the [`UTF8/v1`](https://ocm.software/docs/reference/input-and-access-types/#utf8v1) input:
 
 ```yaml
 # component-constructor.yaml
 resources:
   - name: konfidence-manifest
     relation: local
-    type: cloud.konfidence.artifact.manifest
+    type: cloud.konfidence.artifact.manifest # OCM resource type
     input:
-      type: file/v1
-      path: ./konfidence-manifest.json
+      type: UTF8/v1                          # OCM input type
+      yaml:
+        type: kustomize.konfidence.cloud     # artifact type
 ```
 
-The referenced JSON file contains the artifact's type declaration:
-
-```json
-{
-  "type": "kustomize.konfidence.cloud"
-}
-```
+The OCM input type only tells the OCM tooling how to read the content when the component version is built. It is not part of this contract.
+A `file/v1` input that reads the artifact manifest from a JSON file, such as `{"type": "kustomize.konfidence.cloud"}`, is equally valid.
 
 The component version MAY contain additional resources that a deployer uses to understand what needs to be deployed.
 
