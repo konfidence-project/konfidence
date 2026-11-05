@@ -307,7 +307,8 @@ e2e-up: hermit ## Create a kind cluster with this checkout's operator and the la
 	rm -rf .tmp/klo && mkdir -p .tmp/klo && \
 	curl -fsSL "https://github.com/$(KLO_REPO)/archive/$$ref.tar.gz" | tar -xz -C .tmp/klo --strip-components=1 && \
 	$(HELM) upgrade --install kubernetes-landscape-orchestrator .tmp/klo/charts/kubernetes-landscape-orchestrator \
-		--namespace $(NAMESPACE) --set-string image.tag=$$ref --wait
+		--namespace $(NAMESPACE) --set-string image.tag=$$ref --wait && \
+	printf '%s\n' "$$ref" > .tmp/klo/ref
 	$(KUBECTL) wait deployment --all --all-namespaces --for=condition=Available --timeout=300s
 
 .PHONY: e2e-down
@@ -330,7 +331,9 @@ e2e-snapshot: hermit ## Collect cluster state and kind logs into a local support
 
 .PHONY: test-e2e
 test-e2e: ## Run Chainsaw e2e tests against the current cluster.
-	$(CHAINSAW) test test/e2e/chainsaw --config test/e2e/chainsaw/.chainsaw.yaml $(CHAINSAW_ARGS)
+	@ref=$$(cat .tmp/klo/ref); \
+	test -n "$$ref"; \
+	KLO_REF="$$ref" $(CHAINSAW) test test/e2e/chainsaw --config test/e2e/chainsaw/.chainsaw.yaml $(CHAINSAW_ARGS)
 
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.

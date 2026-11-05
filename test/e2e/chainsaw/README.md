@@ -27,7 +27,9 @@ latest Flux and Gateway API releases, and deploys this checkout's operator with
 The orchestrator and vector-data-service use the same latest successful `main` build of
 [kubernetes-landscape-orchestrator](https://github.com/konfidence-project/kubernetes-landscape-orchestrator),
 resolved once with `gh`. Both charts come from that commit. Vector-data-service
-is installed per landscape by the suite, using the deployed orchestrator's image tag.
+is installed per landscape by the suite. Bootstrap saves the SHA in `.tmp/klo/ref`;
+`make test-e2e` passes it as `KLO_REF`, without looking up the deployed image.
+Run `make e2e-up` first to populate the cached charts and revision.
 Set `KLO_REF=<commit>` during `make e2e-up` to select another published build for both.
 
 `COMPONENT_REGISTRY` defaults to `ghcr.io/konfidence-project/example-app`.

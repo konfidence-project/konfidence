@@ -1,4 +1,6 @@
-# VectorTemplate -> dev -> manual prod, then a feature-only rollout.
+# Assemble example-app, promote automatically to dev, then approve promotion to prod.
+# Enable both flags and repeat, leaving prod unchanged until the second approval.
+# Check active vectors, HTTP responses, flag isolation, and artifact reuse.
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
@@ -80,9 +82,6 @@ spec:
         - command:
             entrypoint: helm
             workDir: ../../../..
-            env:
-              - name: KLO_REF
-                value: (split(x_k8s_get($client, 'apps/v1', 'Deployment', 'konfidence-system', 'kubernetes-landscape-orchestrator').spec.template.spec.containers[0].image, ':')[-1])
             args: [upgrade, --install, vector-data-service, .tmp/klo/charts/vector-data-service,
               --set-string, 'image.tag=$KLO_REF', --namespace, kden-l-dev, --wait]
         - assert:
