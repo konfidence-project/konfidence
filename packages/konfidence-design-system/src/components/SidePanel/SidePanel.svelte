@@ -17,7 +17,6 @@
         onWidthChange?: (width: number) => void;
         modal?: boolean;
         focusKey?: string;
-        onCloseComplete?: () => void;
     }
 
     const DEFAULT_WIDTH = 544;
@@ -35,7 +34,6 @@
         onWidthChange,
         modal = true,
         focusKey,
-        onCloseComplete,
     }: Props = $props();
 
     const effectiveWidth = $derived(clampPanelSize(width, MIN_WIDTH, MAX_WIDTH));
@@ -44,7 +42,6 @@
 <PanelShell
     bind:open
     {title}
-    placement="right"
     testid="side-panel"
     dialogClass="side-panel border-l border-l-outline-subtle shadow-[-8px_0_24px_rgba(0,0,0,0.12)]"
     backdropClass="side-panel-backdrop"
@@ -52,12 +49,10 @@
     {onClose}
     {modal}
     {focusKey}
-    {onCloseComplete}
     {footer}
 >
     {#snippet resizer()}
         <PanelResizer
-            edge="left"
             bind:size={width}
             min={MIN_WIDTH}
             max={MAX_WIDTH}

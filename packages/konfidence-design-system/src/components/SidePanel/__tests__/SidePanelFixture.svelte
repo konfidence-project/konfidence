@@ -11,7 +11,6 @@
         onWidthChange?: (width: number) => void;
         headerHeight?: string;
         modal?: boolean;
-        onCloseComplete?: () => void;
         secondOpen?: boolean;
     }
     let {
@@ -24,7 +23,6 @@
         onWidthChange,
         headerHeight,
         modal = true,
-        onCloseComplete,
         secondOpen = $bindable(false),
     }: Props = $props();
 
@@ -37,14 +35,14 @@
     <button type="button" data-testid="outside-btn">Outside action</button>
     <button type="button" data-testid="toggle-modal" onclick={() => (modal = !modal)}>Toggle modality</button>
     {#if width === undefined}
-        <SidePanel bind:open {title} {onClose} {onCloseComplete} {fullPageHref} {onWidthChange} {modal}>
+        <SidePanel bind:open {title} {onClose} {fullPageHref} {onWidthChange} {modal}>
             {@render body()}
             {#snippet footer()}
                 {@render footerContent()}
             {/snippet}
         </SidePanel>
     {:else}
-        <SidePanel bind:open bind:width={panelWidth} {title} {onClose} {onCloseComplete} {fullPageHref} {onWidthChange} {modal}>
+        <SidePanel bind:open bind:width={panelWidth} {title} {onClose} {fullPageHref} {onWidthChange} {modal}>
             {@render body()}
             {#snippet footer()}
                 {@render footerContent()}

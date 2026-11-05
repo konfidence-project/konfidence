@@ -15,7 +15,7 @@
 </script>
 
 <div class="flex flex-col gap-4" data-testid="promotion-details">
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div class="grid grid-cols-1 gap-4">
         <section class={columnClass} aria-labelledby="promotion-artifacts-title">
             <h3 id="promotion-artifacts-title" class={columnTitleClass}>Artifact Changes</h3>
             <p class="m-0 text-compact text-content-tertiary">

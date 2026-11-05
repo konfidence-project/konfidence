@@ -2,7 +2,6 @@
     import { clampPanelSize } from "./panel-size";
 
     interface Props {
-        edge: "left" | "top";
         size: number;
         min: number;
         max: number;
@@ -13,15 +12,12 @@
 
     const KEYBOARD_STEP = 16;
 
-    let { edge, size = $bindable(), min, max, testid, onResize }: Props = $props();
+    let { size = $bindable(), min, max, testid, onResize }: Props = $props();
 
     const effectiveSize = $derived(clampPanelSize(size, min, max));
     let pointerId: number | undefined = undefined;
     let dragStart = 0;
     let dragStartSize = 0;
-
-    const coordinate = (event: PointerEvent): number =>
-        edge === "left" ? event.clientX : event.clientY;
 
     const commitSize = (next: number): void => {
         size = clampPanelSize(next, min, max);
@@ -34,7 +30,7 @@
         }
         event.preventDefault();
         ({ pointerId } = event);
-        dragStart = coordinate(event);
+        dragStart = event.clientX;
         dragStartSize = effectiveSize;
         (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     };
@@ -43,8 +39,8 @@
         if (pointerId !== event.pointerId) {
             return;
         }
-        // Moving the left/top edge towards smaller coordinates grows the panel.
-        size = clampPanelSize(dragStartSize + dragStart - coordinate(event), min, max);
+        // Moving the left edge towards smaller coordinates grows the panel.
+        size = clampPanelSize(dragStartSize + dragStart - event.clientX, min, max);
     };
 
     const finishDrag = (event: PointerEvent): void => {
@@ -60,13 +56,11 @@
     };
 
     const handleKeydown = (event: KeyboardEvent): void => {
-        const growKey = edge === "left" ? "ArrowLeft" : "ArrowUp";
-        const shrinkKey = edge === "left" ? "ArrowRight" : "ArrowDown";
         const next = {
+            ArrowLeft: effectiveSize + KEYBOARD_STEP,
+            ArrowRight: effectiveSize - KEYBOARD_STEP,
             End: min,
             Home: max,
-            [growKey]: effectiveSize + KEYBOARD_STEP,
-            [shrinkKey]: effectiveSize - KEYBOARD_STEP,
         }[event.key];
         if (next === undefined) {
             return;
@@ -79,12 +73,9 @@
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
-    class={[
-        "panel-resizer absolute z-10 touch-none bg-transparent transition-colors hover:bg-[var(--border-strong,rgba(120,90,40,0.5))] focus-visible:bg-[var(--border-strong,rgba(120,90,40,0.7))] focus-visible:outline-none",
-        edge === "left" ? "inset-y-0 left-0 w-1.5 cursor-ew-resize" : "inset-x-0 top-0 h-1.5 cursor-ns-resize",
-    ]}
+    class="panel-resizer absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize touch-none bg-transparent transition-colors hover:bg-[var(--border-strong,rgba(120,90,40,0.5))] focus-visible:bg-[var(--border-strong,rgba(120,90,40,0.7))] focus-visible:outline-none"
     role="separator"
-    aria-orientation={edge === "left" ? "vertical" : "horizontal"}
+    aria-orientation="vertical"
     aria-label="Resize panel"
     aria-valuemin={min}
     aria-valuemax={max}

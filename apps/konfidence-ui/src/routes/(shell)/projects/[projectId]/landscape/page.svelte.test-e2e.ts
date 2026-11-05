@@ -513,7 +513,8 @@ test("keeps the canvas viewport when Escape closes stage details", async ({ page
   await expect.poll(() => viewport.getAttribute("style")).toBe(transformBefore);
 });
 
-test("clears promotion highlights when stage details replace the sheet", async ({ page }) => {
+// oxlint-disable-next-line eslint/max-statements -- Follow both selection directions on the same drawer, including focus, links, and highlights.
+test("switches stage and promotion details in the same open drawer", async ({ page }) => {
   await signIn(
     page,
     "/projects/payments-platform/landscape",
@@ -521,7 +522,16 @@ test("clears promotion highlights when stage details replace the sheet", async (
   );
   const edge = page.getByRole("button", { name: /View promotion details from/ }).first();
   await edge.click();
-  await expect(page.getByTestId("bottom-sheet")).toBeVisible();
+  const panel = page.getByTestId("side-panel");
+  const readPanelWidth = (): Promise<number> =>
+    panel.evaluate((element) => element.getBoundingClientRect().width);
+  await expect(panel).toBeVisible();
+  const surface = await panel.elementHandle();
+  await panel.getByRole("separator", { name: "Resize panel" }).focus();
+  await page.keyboard.press("End");
+  await expect.poll(readPanelWidth).toBe(360);
+  await expect(page.getByTestId("promotion-details")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open full page" })).toHaveCount(0);
   await expect(page.locator(".stage-card--selected")).toHaveCount(2);
   await expect(page.locator(".landscape-promotion-edge.selected")).toHaveCount(1);
 
@@ -530,10 +540,62 @@ test("clears promotion highlights when stage details replace the sheet", async (
     .first()
     .click();
 
-  await expect(page.getByTestId("side-panel")).toBeVisible();
-  await expect(page.getByTestId("bottom-sheet")).not.toBeVisible();
+  await expect(panel).toBeVisible();
+  await expect(panel).toHaveAttribute("data-state", "open");
+  expect(await panel.evaluate((current, original) => current === original, surface)).toBe(true);
+  await expect.poll(readPanelWidth).toBe(360);
+  await expect(page.getByTestId("promotion-details")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Target version" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open full page" })).toBeVisible();
+  await expect(page.getByTestId("side-panel-close")).toBeFocused();
   await expect(page.locator(".landscape-promotion-edge.selected")).toHaveCount(0);
   await expect(page.locator(".stage-card--selected")).toHaveCount(1);
+
+  await edge.click();
+  await expect(page.getByTestId("promotion-details")).toBeVisible();
+  await expect(panel).toHaveAttribute("data-state", "open");
+  expect(await panel.evaluate((current, original) => current === original, surface)).toBe(true);
+  await expect(page.getByRole("region", { name: "Target version" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Open full page" })).toHaveCount(0);
+  await expect(page.getByTestId("side-panel-close")).toBeFocused();
+  await expect(page.locator(".stage-card--selected")).toHaveCount(2);
+  await page.reload();
+  await expect(page.getByTestId("promotion-details")).toBeVisible();
+  await expect.poll(readPanelWidth).toBe(360);
+});
+
+// oxlint-disable-next-line eslint/max-statements -- Exercise promotion keyboard activation, replacement history, and close-focus without moving the canvas.
+test("preserves promotion history and falls back to canvas focus on close", async ({ page }) => {
+  const overview = "/projects/payments-platform/landscape";
+  await signIn(page, overview, overview);
+  const edge = page.getByRole("button", { name: /View promotion details from/ }).first();
+  const viewport = page.locator(".svelte-flow__viewport");
+  await edge.focus();
+  const transform = await viewport.getAttribute("style");
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("promotion-details")).toBeVisible();
+  const promotionUrl = page.url();
+  await expect(page.getByTestId("side-panel-close")).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(overview);
+  await expect(page.getByTestId("side-panel")).not.toBeVisible();
+  // Promotion navigation replaces the SVG edge, so its disconnected trigger
+  // falls back to the canvas rather than scrolling to a replacement element.
+  await expect(page.getByTestId("landscape-flow")).toBeFocused();
+  await expect.poll(() => viewport.getAttribute("style")).toBe(transform);
+
+  await page.goForward();
+  await expect(page).toHaveURL(promotionUrl);
+  await expect(page.getByTestId("promotion-details")).toBeVisible();
+  await page
+    .getByRole("link", { name: /View details for stage/ })
+    .first()
+    .click();
+  await expect(page.getByRole("region", { name: "Target version" })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(overview);
+  await expect(page.getByTestId("side-panel")).not.toBeVisible();
 });
 
 // oxlint-disable-next-line eslint/max-statements -- Verify initial readability, explicit fit, and keyboard recovery to an offscreen stage.

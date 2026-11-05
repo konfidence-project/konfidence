@@ -1,14 +1,13 @@
 <script lang="ts">
     import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
     import type { Snippet } from "svelte";
-    import { onDestroy, tick, untrack } from "svelte";
+    import { tick, untrack } from "svelte";
     import "@ui5/webcomponents-icons/dist/decline.js";
     import "@ui5/webcomponents/dist/Icon.js";
 
     interface Props {
         open?: boolean;
         title: string;
-        placement: "right" | "bottom";
         dialogClass?: string;
         dialogStyle?: string;
         backdropClass?: string;
@@ -22,16 +21,11 @@
         modal?: boolean;
         /** Changing this value refocuses the panel without replaying its animation. */
         focusKey?: string;
-        /** Called after the closing transition has completed. */
-        onCloseComplete?: () => void;
-        /** Bindable reference to the panel surface for measurement. */
-        panel?: HTMLDivElement;
     }
 
     let {
         open = $bindable(false),
         title,
-        placement,
         dialogClass = "",
         dialogStyle = "",
         backdropClass = "",
@@ -44,86 +38,24 @@
         onClose,
         modal = true,
         focusKey,
-        onCloseComplete,
-        panel = $bindable(),
     }: Props = $props();
 
     let anchor: HTMLSpanElement | undefined = $state();
+    let panel: HTMLDivElement | undefined = $state();
     let closeButton: HTMLButtonElement | undefined = $state();
     let dialogOpen = $state(false);
     let converting = $state(false);
     let conversionFocus: HTMLElement | undefined = undefined;
     let previousModal: boolean | undefined = undefined;
     let previouslyPresentedOpen = false;
-    let previouslyOpen = false;
     let previouslyFocusedOpen = false;
     let previousFocusKey: string | undefined = undefined;
-    let closing = false;
-    let closeCompletionTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
     // The portal escapes clipping/stacking ancestors. Carry the local app-shell
     // offset with it instead of relying on inheritance from the original parent.
     const headerHeight = $derived(anchor
         ? getComputedStyle(anchor).height
         : "0px");
-
-    const CLOSE_TRANSITION_BUFFER_MS = 50;
-    const MILLISECONDS_PER_SECOND = 1000;
-
-    const cssTimeToMilliseconds = (value: string): number => {
-        const parsed = Number.parseFloat(value);
-        return value.trim().endsWith("ms") ? parsed : parsed * MILLISECONDS_PER_SECOND;
-    };
-
-    const clearCloseTimer = (): void => {
-        if (closeCompletionTimer !== undefined) {
-            clearTimeout(closeCompletionTimer);
-            closeCompletionTimer = undefined;
-        }
-    };
-
-    const completeClose = (): void => {
-        if (!closing || open) {
-            return;
-        }
-        clearCloseTimer();
-        closing = false;
-        onCloseComplete?.();
-    };
-
-    const scheduleCloseCompletion = (): void => {
-        // oxlint-disable-next-line eslint/max-statements -- CSS duration/delay lists determine the fallback deadline.
-        queueMicrotask(() => {
-            if (!closing || open) {
-                return;
-            }
-            if (!panel) {
-                completeClose();
-                return;
-            }
-            const style = getComputedStyle(panel);
-            const durations = style.transitionDuration.split(",").map(cssTimeToMilliseconds);
-            const delays = style.transitionDelay.split(",").map(cssTimeToMilliseconds);
-            const transitionTime = Math.max(0, ...durations.map((duration, index) =>
-                duration + (delays[index] ?? delays[0] ?? 0)));
-            if (transitionTime === 0) {
-                completeClose();
-                return;
-            }
-            closeCompletionTimer = setTimeout(completeClose, transitionTime + CLOSE_TRANSITION_BUFFER_MS);
-        });
-    };
-
-    $effect(() => {
-        if (open) {
-            clearCloseTimer();
-            closing = false;
-        } else if (previouslyOpen) {
-            closing = true;
-            scheduleCloseCompletion();
-        }
-        previouslyOpen = open;
-    });
 
     const restartDialog = (): (() => void) => {
         // Skeleton 5 starts modality effects on entry to its open state.
@@ -176,10 +108,6 @@
         }
     };
 
-    onDestroy(() => {
-        closing = false;
-        clearCloseTimer();
-    });
 </script>
 
 <span bind:this={anchor} hidden style:height="var(--app-shell-header-height, 0px)"></span>
@@ -211,21 +139,14 @@
                 <Dialog.Content
                     class={[
                         "panel-shell pointer-events-auto fixed m-0 flex flex-col overflow-hidden border-0 bg-surface-default p-0 text-content-primary outline-none",
-                        placement === "right" && "top-[var(--app-shell-header-height,0px)] right-0 bottom-0 left-auto h-auto max-h-[calc(100dvh-var(--app-shell-header-height,0px))] max-w-screen",
-                        placement === "bottom" && "inset-x-0 bottom-0 top-auto max-h-[calc(100dvh-var(--app-shell-header-height,0px))] w-screen max-w-screen",
+                        "top-[var(--app-shell-header-height,0px)] right-0 bottom-0 left-auto h-auto max-h-[calc(100dvh-var(--app-shell-header-height,0px))] max-w-screen",
                         dialogClass,
                     ]}
                     style={dialogStyle}
                     hidden={!open}
                     data-state={open ? "open" : "closed"}
                     data-testid={testid}
-                    data-placement={placement}
                     data-panel-surface
-                    ontransitionend={(event) => {
-                        if (event.target === panel && event.propertyName === "translate") {
-                            completeClose();
-                        }
-                    }}
                 >
                     {#snippet element(attributes)}
                         <div {...attributes} bind:this={panel}>
@@ -269,7 +190,7 @@
 
 <style>
     :global(.panel-shell) {
-        --panel-closed-translate: 0 100%;
+        --panel-closed-translate: 100% 0;
 
         translate: 0 0;
         opacity: 1;
@@ -277,10 +198,6 @@
             translate var(--motion-base, 240ms) cubic-bezier(var(--ease-out, 0.16, 1, 0.3, 1)),
             opacity var(--motion-base, 240ms) cubic-bezier(var(--ease-out, 0.16, 1, 0.3, 1)),
             display var(--motion-base, 240ms) allow-discrete;
-    }
-
-    :global(.panel-shell[data-placement="right"]) {
-        --panel-closed-translate: 100% 0;
     }
 
     :global(.panel-shell[data-state="closed"]) {
