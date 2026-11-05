@@ -71,5 +71,17 @@ func NewVectorPromotionCmd(appConfig *cfg.AppConfig) *cobra.Command {
 	vectorPromotionCmd.AddCommand(getCmd)
 	vectorPromotionCmd.AddCommand(approveCmd)
 	vectorPromotionCmd.AddCommand(revokeApprovalCmd)
+
+	for _, newCmd := range []func(*cfg.AppConfig) (*cobra.Command, error){NewRejectCmd, NewBypassGatesCmd} {
+		overrideCmd, err := newCmd(appConfig)
+		if err != nil {
+			panic(err)
+		}
+		overrideCmd.Flags().StringP("projectId", "p", "", "The ID of the project the vector promotion belongs to (required)")
+		if err := overrideCmd.MarkFlagRequired("projectId"); err != nil {
+			panic(err)
+		}
+		vectorPromotionCmd.AddCommand(overrideCmd)
+	}
 	return vectorPromotionCmd
 }
