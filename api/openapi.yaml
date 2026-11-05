@@ -477,8 +477,9 @@ paths:
           required: false
           description: When true, unchanged components and config entries are included in the diff.
           schema:
-            type: boolean
-            default: false
+            type: string
+            enum: ["true", "false"]
+            default: "false"
       tags: [ projects ]
       responses:
         "200":

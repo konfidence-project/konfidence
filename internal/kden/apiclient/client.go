@@ -200,6 +200,24 @@ func (e VectorPromotionStatus) Valid() bool {
 	}
 }
 
+// Defines values for GetVectorDiffV1ParamsIncludeUnchanged.
+const (
+	False GetVectorDiffV1ParamsIncludeUnchanged = "false"
+	True  GetVectorDiffV1ParamsIncludeUnchanged = "true"
+)
+
+// Valid indicates whether the value is a known member of the GetVectorDiffV1ParamsIncludeUnchanged enum.
+func (e GetVectorDiffV1ParamsIncludeUnchanged) Valid() bool {
+	switch e {
+	case False:
+		return true
+	case True:
+		return true
+	default:
+		return false
+	}
+}
+
 // ArtifactContent defines model for ArtifactContent.
 type ArtifactContent struct {
 	AllowReuse bool `json:"allowReuse"`
@@ -676,8 +694,11 @@ type GetVectorDiffV1Params struct {
 	Right string `form:"right" json:"right"`
 
 	// IncludeUnchanged When true, unchanged components and config entries are included in the diff.
-	IncludeUnchanged *bool `form:"includeUnchanged,omitempty" json:"includeUnchanged,omitempty"`
+	IncludeUnchanged *GetVectorDiffV1ParamsIncludeUnchanged `form:"includeUnchanged,omitempty" json:"includeUnchanged,omitempty"`
 }
+
+// GetVectorDiffV1ParamsIncludeUnchanged defines parameters for GetVectorDiffV1.
+type GetVectorDiffV1ParamsIncludeUnchanged string
 
 // PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
 type PostExchangeCodeV1JSONRequestBody PostExchangeCodeV1JSONBody
@@ -2300,7 +2321,7 @@ func NewGetVectorDiffV1Request(server string, projectId ProjectPathId, params *G
 
 		if params.IncludeUnchanged != nil {
 
-			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeUnchanged", *params.IncludeUnchanged, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeUnchanged", *params.IncludeUnchanged, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {

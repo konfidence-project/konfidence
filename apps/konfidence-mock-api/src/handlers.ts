@@ -287,9 +287,9 @@ const operationHandlers = {
       components: diffComponents(
         leftContent.components,
         rightContent.components,
-        includeUnchanged === true,
+        includeUnchanged === "true",
       ),
-      config: diffConfig(leftContent.config, rightContent.config, includeUnchanged === true),
+      config: diffConfig(leftContent.config, rightContent.config, includeUnchanged === "true"),
       left,
       right,
     });

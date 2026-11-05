@@ -205,6 +205,24 @@ func (e VectorPromotionStatus) Valid() bool {
 	}
 }
 
+// Defines values for GetVectorDiffV1ParamsIncludeUnchanged.
+const (
+	False GetVectorDiffV1ParamsIncludeUnchanged = "false"
+	True  GetVectorDiffV1ParamsIncludeUnchanged = "true"
+)
+
+// Valid indicates whether the value is a known member of the GetVectorDiffV1ParamsIncludeUnchanged enum.
+func (e GetVectorDiffV1ParamsIncludeUnchanged) Valid() bool {
+	switch e {
+	case False:
+		return true
+	case True:
+		return true
+	default:
+		return false
+	}
+}
+
 // ArtifactContent defines model for ArtifactContent.
 type ArtifactContent struct {
 	AllowReuse bool `json:"allowReuse"`
@@ -681,8 +699,11 @@ type GetVectorDiffV1Params struct {
 	Right string `form:"right" json:"right"`
 
 	// IncludeUnchanged When true, unchanged components and config entries are included in the diff.
-	IncludeUnchanged *bool `form:"includeUnchanged,omitempty" json:"includeUnchanged,omitempty"`
+	IncludeUnchanged *GetVectorDiffV1ParamsIncludeUnchanged `form:"includeUnchanged,omitempty" json:"includeUnchanged,omitempty"`
 }
+
+// GetVectorDiffV1ParamsIncludeUnchanged defines parameters for GetVectorDiffV1.
+type GetVectorDiffV1ParamsIncludeUnchanged string
 
 // PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
 type PostExchangeCodeV1JSONRequestBody PostExchangeCodeV1JSONBody
@@ -1660,7 +1681,7 @@ func (siw *ServerInterfaceWrapper) GetVectorDiffV1(w http.ResponseWriter, r *htt
 
 	// ------------- Optional query parameter "includeUnchanged" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "includeUnchanged", r.URL.Query(), &params.IncludeUnchanged, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "includeUnchanged", r.URL.Query(), &params.IncludeUnchanged, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
@@ -4168,9 +4189,9 @@ var swaggerSpec = []string{
 	"yCXw8o07/b5dbP95RE96U+PJk6dIbqI6SzFjvEowMtk+Yu+EpivIAcvyvTibyaR2MitSSXL9KG1i87mU",
 	"XtC1SSbzqCdHSQwmKfU/AJ7hz+fm46tjneluf/P+e5C1LvdMGM+ew7bXX8X5num0Z6aTlWmb5SQm+2uF",
 	"2L6mYlVC3z0JSZKnzzAslR6jLgKtxtXPfJQr3lM2exMBy0dPdinaHbcIrfFa9B+c/PKxlkfQ/6t2fFQv",
-	"5P4zSGUARE35I6CSK7dPOTcmldVkXar1KiD1VeXYtr/Q6p+QVATGkOAilcEswamAsPO/s54jmqkf7Pmu",
-	"jMaX/qnddq8LyHvW0kh9Cml74UrYfGPBlrLoEjZfYd1160rshZUliNHp5fkPQRgUPA1mwRTnJNjcbv4v",
-	"AAD//w==",
+	"5P4zSGUARE35I6CSK7dPOTcmldVkXar1KiD1VeXYtr/Q6p+QVATGkOAilUoF4VTUX6BWROl/RpAK38O/",
+	"zxHm1C/5fNdS42sCFQzcswPynrVUVZ+m2l7REjYfX7A1Lrq2zVdxd926K3thhQxidHp5/kMQBgVPg1kw",
+	"xTkJNreb/wsAAP//",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

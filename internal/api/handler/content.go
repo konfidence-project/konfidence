@@ -148,7 +148,7 @@ func (h *projectHandler) GetVectorDiffV1(ctx context.Context,
 		return nil, apierror.NewInternal(err)
 	}
 
-	includeUnchanged := request.Params.IncludeUnchanged != nil && *request.Params.IncludeUnchanged
+	includeUnchanged := request.Params.IncludeUnchanged != nil && *request.Params.IncludeUnchanged == "true"
 
 	return openapi.GetVectorDiffV1200JSONResponse(openapi.VectorDiff{
 		Left:       request.Params.Left,

@@ -263,7 +263,7 @@ var _ = Describe("GetVectorDiffV1", func() {
 	})
 
 	It("includes unchanged components when includeUnchanged is tru", func() {
-		includeUnchanged := true
+		includeUnchanged := openapi.GetVectorDiffV1ParamsIncludeUnchanged("true")
 		gomock.InOrder(
 			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(leftContent, nil),
 			mockReader.EXPECT().GetVectorContent(gomock.Any(), gomock.Any()).Return(rightContent, nil),
@@ -332,7 +332,7 @@ var _ = Describe("GetVectorDiffV1", func() {
 	})
 
 	It("returns correct config diff with changed, unchanged, removed, and added entries", func() {
-		includeUnchanged := true
+		includeUnchanged := openapi.GetVectorDiffV1ParamsIncludeUnchanged("true")
 		leftContent := pkgcontent.VectorContent{
 			Components: []pkgcontent.VectorComponent{},
 			Config: &pkgcontent.VectorConfig{
