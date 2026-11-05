@@ -1,10 +1,9 @@
 import { addSortBy } from "@humanspeak/svelte-headless-table/plugins";
 import { createTable } from "@humanspeak/svelte-headless-table";
-import type { Readable } from "svelte/store";
 
 import type { ArtifactDeploymentRow } from "./deployments.js";
 
-const createArtifactTable = (deployments: Readable<ArtifactDeploymentRow[]>) => {
+const createArtifactTable = (deployments: () => ArtifactDeploymentRow[]) => {
   const table = createTable(deployments, {
     sort: addSortBy({ disableMultiSort: true }),
   });
