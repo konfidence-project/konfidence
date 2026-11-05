@@ -238,7 +238,8 @@ The deployer MUST maintain the following conditions:
 
 * It MUST ensure that no more than one of `Reconciling`, `Stalled`, and `Ready` is `True` simultaneously.
 * `Ready` MUST be present after the initial status update and MUST have a status of `True` or `False`.
-* `Reconciling` MUST be present with `status=True` while reconciliation is in progress and SHOULD be removed when reconciliation is no longer in progress (abnormal-true condition).
+* `Reconciling` MUST be present with `status=True` while the deployment has not reached the desired state and the deployer expects automatic reconciliation to make further progress. 
+It SHOULD be removed once that is no longer the case (abnormal-true condition).
 * `Stalled` MUST be present with `status=True` when reconciliation is stalled and SHOULD be removed when reconciliation is no longer stalled (abnormal-true condition).
 
 The deployer MAY report additional deployment-related information in separate deployer-owned conditions.
@@ -251,10 +252,11 @@ Their absence MUST be interpreted as `False`.
 
 **`Reconciling=True`**
 
-Reconciliation is in progress. 
-Deployment has started but is not yet finished, and the deployer is actively working towards reaching the desired state in the target runtime.
-It MUST be set while the deployer is applying changes or waiting for the target runtime to reach the desired state. 
-It MUST NOT be set when reconciliation has permanently failed or external intervention is required. 
+Deployment of the artifact is in progress.
+It MUST be set while the deployer is actively applying changes or waiting for the target runtime to converge to the desired state.
+This condition is independent of whether a controller is currently executing its `Reconcile` method.
+It MAY remain `True` across multiple reconcile calls, including while the deployer is waiting for a runtime resource to become ready.
+It MUST NOT be set when further automatic reconciliation cannot make progress.
 Its `reason` and `message` MAY be used to describe the current activity of the deployer.  
 
 **`Stalled=True`** 
@@ -285,7 +287,7 @@ It MUST NOT be set merely because deployment operations have been submitted succ
 
 ### 3.5 Deletion and undeployment
 
-When an `ArtifactDeployment` is deleted, the deployer MUST remove the runtime resources it created on its behalf, including resources on a remote runtime.
+When an `ArtifactDeployment` is deleted, the deployer MUST remove the runtime resources it manages on its behalf, including resources on a remote runtime.
 The deployer MUST NOT consider deletion complete while any such resources are known or reasonably believed to remain deployed.
 The deployer SHOULD use a Kubernetes finalizer or an equivalent mechanism to keep the `ArtifactDeployment` available until cleanup succeeds.
 
