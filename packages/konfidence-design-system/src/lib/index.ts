@@ -27,6 +27,8 @@ export {
   TableHeaderCell,
   TableRow,
   TopBar,
+  TreeGroup,
+  TreeRow,
 } from "../components/index.js";
 export type {
   BreadcrumbItem,

@@ -34,3 +34,5 @@ export { default as TableCell } from "./Table/TableCell.svelte";
 export { default as TableHeaderCell } from "./Table/TableHeaderCell.svelte";
 export { default as TableRow } from "./Table/TableRow.svelte";
 export { default as TopBar } from "./TopBar/TopBar.svelte";
+export { default as TreeGroup } from "./TreeGroup/TreeGroup.svelte";
+export { default as TreeRow } from "./TreeGroup/TreeRow.svelte";

@@ -114,6 +114,14 @@ manage mode or storage itself.
 <StatusBadge status="deploying">Deploying</StatusBadge>
 ```
 
+### Tree groups
+
+`TreeGroup` and `TreeRow` provide collapsible groups with independent row selection.
+Both expansion and selection can be bound to application state. See the
+[component guide](src/components/TreeGroup/README.md) for the API, accessibility
+behavior and Designer DS mapping. Try the examples in the design preview under
+**Tree Group**.
+
 ### Panel coexistence
 
 `SidePanel` (right) and `BottomSheet` (bottom) are modal by default. Pass

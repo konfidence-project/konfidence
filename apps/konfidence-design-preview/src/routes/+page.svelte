@@ -22,6 +22,7 @@
     import StatusBadges from "#lib/gallery/sections/StatusBadges.svelte";
     import Tags from "#lib/gallery/sections/Tags.svelte";
     import Typography from "#lib/gallery/sections/Typography.svelte";
+    import TreeGroups from "#lib/gallery/sections/TreeGroups.svelte";
 
     const TOC: readonly { id: string; label: string; status: "implemented" | "partial" | "placeholder" }[] = [
         { id: "signature", label: "Signature", status: "implemented" },
@@ -38,6 +39,7 @@
         { id: "shell-patterns", label: "Shell patterns", status: "partial" },
         { id: "data-blocks", label: "Data blocks", status: "partial" },
         { id: "lists", label: "Lists", status: "placeholder" },
+        { id: "tree-group", label: "Tree Group", status: "implemented" },
         { id: "pipeline", label: "Pipeline", status: "partial" },
         { id: "hero", label: "Page header", status: "partial" },
         { id: "logs-code", label: "Logs & code", status: "placeholder" },
@@ -101,6 +103,7 @@
         <ShellPatterns />
         <DataBlocks />
         <Lists />
+        <TreeGroups />
         <Pipeline />
         <Hero />
         <LogsAndCode />
