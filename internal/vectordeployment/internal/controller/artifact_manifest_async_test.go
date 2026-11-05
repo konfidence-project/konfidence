@@ -122,13 +122,12 @@ var _ = Describe("Artifact manifest jobs", func() {
 
 		close(release)
 
-		Eventually(func() bool {
-			job, exists := r.jobs.get(nn)
-			return exists && job.done()
-		}).Should(BeTrue())
+		var result artifactManifestResult
+		Eventually(func() time.Duration {
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), []compref.Ref{refA, refB})
+			return retryAfter
+		}).Should(BeZero())
 
-		result, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid-1"), []compref.Ref{refA, refB})
-		Expect(retryAfter).To(BeZero())
 		Expect(result.err).NotTo(HaveOccurred())
 		Expect(result.artifacts).To(HaveLen(2))
 
@@ -173,13 +172,12 @@ var _ = Describe("Artifact manifest jobs", func() {
 			Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 			Eventually(firstCanceled).Should(BeClosed())
 
-			Eventually(func() bool {
-				job, exists := r.jobs.get(nn)
-				return exists && job.done()
-			}).Should(BeTrue())
+			var result artifactManifestResult
+			Eventually(func() time.Duration {
+				result, retryAfter = r.resolveArtifactManifestsAsync(nn, newGeneration, newUID, newRefs)
+				return retryAfter
+			}).Should(BeZero())
 
-			result, retryAfter := r.resolveArtifactManifestsAsync(nn, newGeneration, newUID, newRefs)
-			Expect(retryAfter).To(BeZero())
 			Expect(result.err).NotTo(HaveOccurred())
 			Expect(result.artifacts).To(HaveLen(1))
 			Expect(result.artifacts[0].Reference.String()).To(Equal(newRefs[0].String()))
@@ -258,12 +256,12 @@ var _ = Describe("Artifact manifest jobs", func() {
 		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 		Eventually(calls.Load).Should(Equal(int32(1)))
-		Eventually(func() bool {
-			job, exists := r.jobs.get(nn)
-			return exists && job.done()
-		}).Should(BeTrue())
+		var result artifactManifestResult
+		Eventually(func() time.Duration {
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+			return retryAfter
+		}).Should(BeZero())
 
-		result, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
 		Expect(result.err).To(MatchError(ContainSubstring("registry unavailable")))
 		Expect(retryAfter).To(BeZero())
 
@@ -280,12 +278,11 @@ var _ = Describe("Artifact manifest jobs", func() {
 		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 		Eventually(calls.Load).Should(Equal(int32(2)))
-		Eventually(func() bool {
-			job, exists := r.jobs.get(nn)
-			return exists && job.done()
-		}).Should(BeTrue())
+		Eventually(func() time.Duration {
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+			return retryAfter
+		}).Should(BeZero())
 
-		result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
 		Expect(result.err).To(HaveOccurred())
 		Expect(retryAfter).To(BeZero())
 
@@ -310,12 +307,12 @@ var _ = Describe("Artifact manifest jobs", func() {
 
 		_, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
 		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
-		Eventually(func() bool {
-			job, exists := r.jobs.get(nn)
-			return exists && job.done()
-		}).Should(BeTrue())
+		var result artifactManifestResult
+		Eventually(func() time.Duration {
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+			return retryAfter
+		}).Should(BeZero())
 
-		result, retryAfter := r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
 		Expect(result.err).To(HaveOccurred())
 		Expect(retryAfter).To(BeZero())
 
@@ -519,12 +516,12 @@ var _ = Describe("Artifact manifest jobs", func() {
 			_, retryAfter := r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs)
 			Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
 
-			Eventually(func() bool {
-				job, exists := r.jobs.get(nn)
-				return exists && job.done()
-			}).Should(BeTrue())
+			var result artifactManifestResult
+			Eventually(func() time.Duration {
+				result, retryAfter = r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs)
+				return retryAfter
+			}).Should(BeZero())
 
-			result, retryAfter := r.resolveArtifactManifestsAsync(nn, oldGeneration, oldUID, oldRefs)
 			Expect(result.err).NotTo(HaveOccurred())
 			Expect(retryAfter).To(BeZero())
 			Expect(calls.Load()).To(Equal(int32(1)))

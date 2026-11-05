@@ -51,10 +51,6 @@ type inflightJob struct {
 	cachedResult *artifactManifestResult
 }
 
-func (j *inflightJob) done() bool {
-	return len(j.result) > 0
-}
-
 type manifestRetry struct {
 	manifestJobIdentity
 	notBefore time.Time

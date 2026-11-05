@@ -50,15 +50,16 @@ var _ = Describe("Artifact manifest job registry", func() {
 		Expect(launched).To(BeTrue())
 		Expect(retryAfter).To(BeZero())
 
-		var job *inflightJob
+		job, exists := registry.get(nn)
+		Expect(exists).To(BeTrue())
+
+		var result artifactManifestResult
 		Eventually(func() bool {
-			var exists bool
-			job, exists = registry.get(nn)
-			return exists && job.done()
+			var completed bool
+			result, completed = registry.completedResult(nn, job)
+			return completed
 		}).Should(BeTrue())
 
-		result, completed := registry.completedResult(nn, job)
-		Expect(completed).To(BeTrue())
 		Expect(result.err).To(MatchError("registry unavailable"))
 		Expect(registry.retryLimiter.NumRequeues(nn)).To(Equal(1))
 
@@ -73,13 +74,15 @@ var _ = Describe("Artifact manifest job registry", func() {
 		Expect(launched).To(BeTrue())
 		Expect(retryAfter).To(BeZero())
 
+		job, exists = registry.get(nn)
+		Expect(exists).To(BeTrue())
+
 		Eventually(func() bool {
-			job, _ = registry.get(nn)
-			return job != nil && job.done()
+			var completed bool
+			result, completed = registry.completedResult(nn, job)
+			return completed
 		}).Should(BeTrue())
 
-		result, completed = registry.completedResult(nn, job)
-		Expect(completed).To(BeTrue())
 		Expect(result.err).NotTo(HaveOccurred())
 		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
 
@@ -180,15 +183,18 @@ var _ = Describe("Artifact manifest job registry", func() {
 		Expect(exists).To(BeTrue())
 		Expect(replacement).NotTo(BeIdenticalTo(oldJob))
 		Expect(replacement.matches(2, types.UID("uid"), []string{"new-ref"})).To(BeTrue())
-		Eventually(replacement.done).Should(BeTrue())
-
 		By("rejecting results from the replaced job")
 		_, completed := registry.completedResult(nn, oldJob)
 		Expect(completed).To(BeFalse())
 
 		By("preserving the replacement result")
-		result, completed := registry.completedResult(nn, replacement)
-		Expect(completed).To(BeTrue())
+		var result artifactManifestResult
+		Eventually(func() bool {
+			var completed bool
+			result, completed = registry.completedResult(nn, replacement)
+			return completed
+		}).Should(BeTrue())
+
 		Expect(result.err).NotTo(HaveOccurred())
 	})
 })
