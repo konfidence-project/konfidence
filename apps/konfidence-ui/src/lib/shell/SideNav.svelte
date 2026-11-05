@@ -31,6 +31,7 @@
         return {
             artifactDeployments: resolve("/(shell)/projects/[projectId]/artifact-deployments", { projectId }),
             landscape: resolve("/(shell)/projects/[projectId]/landscape", { projectId }),
+            promotions: resolve("/(shell)/projects/[projectId]/promotions", { projectId }),
             vectorDeployments: resolve("/(shell)/projects/[projectId]/vector-deployments", { projectId }),
         };
     });
@@ -62,6 +63,15 @@
             onclick={closeDrawer}
         >
             Vector Deployments
+        </NavItem>
+        <NavItem
+            href={destinations.promotions}
+            active={isActive(activePath, destinations.promotions)}
+            icon="arrow-right"
+            data-testid="nav-promotions"
+            onclick={closeDrawer}
+        >
+            Promotions
         </NavItem>
         <NavItem
             href={destinations.artifactDeployments}
