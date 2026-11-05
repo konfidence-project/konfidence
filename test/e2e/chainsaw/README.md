@@ -34,6 +34,25 @@ Set `KLO_REF=<commit>` during `make e2e-up` to select another published build fo
 
 `COMPONENT_REGISTRY` defaults to `ghcr.io/konfidence-project/example-app`.
 
+### Latest released stack
+
+Use a fresh cluster; run `make e2e-down` first if switching from the PR/main stack.
+
+```sh
+make e2e-up-release
+make test-e2e
+make e2e-down
+```
+
+Bootstrap resolves the latest published Konfidence and KLO releases once and prints
+their versions. It installs their OCI charts and caches the matching VDS chart/version.
+No operator build or fallback to `main` occurs. The API remains disabled.
+The same suite and registry variables are used; Flux, Gateway API, and example-app
+component selection are unchanged. This mode requires network access.
+
+Older releases may not support the suite's current APIs. Such failures remain failures;
+the fixtures and assertions are not changed to accommodate them.
+
 JUnit report:
 
 ```sh
@@ -53,7 +72,11 @@ Add the `e2e` label to a same-repository PR, or select a branch under
 Actions → E2E → Run workflow. New commits to a labelled PR cancel its previous run.
 Fork PRs are skipped because their token cannot publish packages.
 
-The workflow runs `make e2e-up` and `make test-e2e` on the PR merge commit and shows
+Manual runs offer **PR + main** (default) and **Latest releases**. Release mode uses
+`make e2e-up-release`; label-triggered PR runs always use `make e2e-up`.
+There is no automatic trigger on release publication.
+
+The workflow runs the selected bootstrap and `make test-e2e`, and shows
 the step results in the job summary. Vectors use a run-specific GHCR prefix:
 `ghcr.io/konfidence-project/konfidence/e2e/run-<id>-<attempt>`.
 This workflow is not part of `ci-gate` or required checks.

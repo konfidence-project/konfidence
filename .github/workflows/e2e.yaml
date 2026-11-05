@@ -5,6 +5,15 @@ on:
     branches: [main]
     types: [labeled, synchronize, reopened]
   workflow_dispatch:
+    inputs:
+      stack:
+        description: Stack to test
+        type: choice
+        required: true
+        default: PR + main
+        options:
+          - PR + main
+          - Latest releases
 
 permissions:
   contents: read
@@ -47,9 +56,15 @@ jobs:
 
       - name: Create cluster
         id: cluster
-        run: make e2e-up
+        run: |
+          case "$E2E_STACK" in
+            'Latest releases') make e2e-up-release ;;
+            ''|'PR + main') make e2e-up ;;
+            *) echo "Unknown E2E stack: $E2E_STACK" >&2; exit 1 ;;
+          esac
         env:
           GH_TOKEN: ${{ github.token }}
+          E2E_STACK: ${{ inputs.stack }}
 
       - name: Test
         run: |

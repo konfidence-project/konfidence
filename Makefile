@@ -291,12 +291,15 @@ KLO_REPO      ?= konfidence-project/kubernetes-landscape-orchestrator
 SUPPORT_BUNDLE ?= support-bundle
 E2E_SNAPSHOT_DIR ?= $(REPO_ROOT)/.tmp/e2e-snapshot
 
-.PHONY: e2e-up
-e2e-up: hermit ## Create a kind cluster with this checkout's operator and the latest orchestrator main build.
+.PHONY: e2e-cluster
+e2e-cluster: hermit
 	$(KIND) get clusters | grep -qx $(E2E_CLUSTER) || $(KIND) create cluster --name $(E2E_CLUSTER)
 	$(KIND) export kubeconfig --name $(E2E_CLUSTER)
 	$(KUBECTL) apply --server-side -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml
 	$(KUBECTL) apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/latest/download/standard-install.yaml
+
+.PHONY: e2e-up
+e2e-up: e2e-cluster ## Create a kind cluster with this checkout's operator and the latest orchestrator main build.
 	$(MAKE) docker-build TAG=$(E2E_TAG)
 	$(KIND) load docker-image $(REGISTRY)/konfidence-operator:$(E2E_TAG) --name $(E2E_CLUSTER)
 	$(MAKE) webhook-certs deploy TAG=$(E2E_TAG)
@@ -309,6 +312,35 @@ e2e-up: hermit ## Create a kind cluster with this checkout's operator and the la
 	$(HELM) upgrade --install kubernetes-landscape-orchestrator .tmp/klo/charts/kubernetes-landscape-orchestrator \
 		--namespace $(NAMESPACE) --set-string image.tag=$$ref --wait && \
 	printf '%s\n' "$$ref" > .tmp/klo/ref
+	$(KUBECTL) wait deployment --all --all-namespaces --for=condition=Available --timeout=300s
+
+.PHONY: e2e-up-release
+e2e-up-release: hermit ## Create a fresh kind cluster with the latest published Konfidence, orchestrator, and VDS releases.
+	@clusters=$$($(KIND) get clusters); \
+	if printf '%s\n' "$$clusters" | grep -qx "$(E2E_CLUSTER)"; then \
+		echo "Run make e2e-down E2E_CLUSTER=$(E2E_CLUSTER) before selecting a released stack." >&2; exit 1; \
+	fi
+	$(MAKE) e2e-cluster
+	$(MAKE) webhook-certs
+	$(KUBECTL) create namespace $(NAMESPACE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	$(KUBECTL) create secret tls konfidence-webhook-server-cert -n $(NAMESPACE) \
+		--cert=/tmp/k8s-webhook-server/serving-certs/tls.crt \
+		--key=/tmp/k8s-webhook-server/serving-certs/tls.key --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	@konfidence_version=$$(gh release view --repo github.com/konfidence-project/konfidence --json tagName --jq '.tagName'); \
+	klo_version=$$(gh release view --repo github.com/$(KLO_REPO) --json tagName --jq '.tagName'); \
+	test -n "$$konfidence_version" && test -n "$$klo_version"; \
+	printf 'Released Konfidence: %s\nReleased KLO/VDS: %s\n' "$$konfidence_version" "$$klo_version"; \
+	rm -rf .tmp/klo && mkdir -p .tmp/klo/charts; \
+	$(HELM) pull oci://ghcr.io/konfidence-project/charts/vector-data-service \
+		--version "$$klo_version" --untar --untardir .tmp/klo/charts; \
+	ca_bundle=$$(base64 < /tmp/k8s-webhook-server/serving-certs/ca.crt | tr -d '\n'); \
+	$(HELM) upgrade --install konfidence oci://ghcr.io/konfidence-project/charts/konfidence \
+		--version "$$konfidence_version" --namespace $(NAMESPACE) --set api.enabled=false \
+		--set-string webhook.caBundle="$$ca_bundle" --wait; \
+	$(HELM) upgrade --install kubernetes-landscape-orchestrator \
+		oci://ghcr.io/konfidence-project/charts/kubernetes-landscape-orchestrator \
+		--version "$$klo_version" --namespace $(NAMESPACE) --wait; \
+	printf '%s\n' "$$klo_version" > .tmp/klo/ref
 	$(KUBECTL) wait deployment --all --all-namespaces --for=condition=Available --timeout=300s
 
 .PHONY: e2e-down
