@@ -54,7 +54,7 @@
             </div>
         </Sample>
 
-        <Sample title="Status roles" description="Semantic color pairs used by StatusBadge.">
+        <Sample title="Status roles" description="Semantic color pairs used by Badge.">
             <div class="flex flex-wrap gap-2.5">
                 {#each STATUS_ROLES as role (role.key)}
                     <div class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-compact font-semibold" style:background={role.bg} style:color={role.fg}>

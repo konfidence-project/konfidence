@@ -1,6 +1,7 @@
 export { default as AppShell } from "./AppShell/AppShell.svelte";
 export { default as Avatar } from "./Avatar/Avatar.svelte";
 export { default as AvatarGroup } from "./AvatarGroup/AvatarGroup.svelte";
+export { default as Badge } from "./Badge/Badge.svelte";
 export { default as Brandbar } from "./Brandbar/Brandbar.svelte";
 export { default as BrandLogo } from "./BrandLogo/BrandLogo.svelte";
 export { default as Breadcrumbs } from "./Breadcrumbs/Breadcrumbs.svelte";
@@ -34,4 +35,6 @@ export { default as Table } from "./Table/Table.svelte";
 export { default as TableCell } from "./Table/TableCell.svelte";
 export { default as TableHeaderCell } from "./Table/TableHeaderCell.svelte";
 export { default as TableRow } from "./Table/TableRow.svelte";
+export { default as Tag } from "./Tag/Tag.svelte";
+export type { TagColor, TagSize } from "./Tag/types.js";
 export { default as TopBar } from "./TopBar/TopBar.svelte";
