@@ -37,7 +37,7 @@
         { id: "shell", label: "App shell", status: "implemented" },
         { id: "shell-patterns", label: "Shell patterns", status: "partial" },
         { id: "data-blocks", label: "Data blocks", status: "partial" },
-        { id: "lists", label: "Lists", status: "placeholder" },
+        { id: "lists", label: "Lists", status: "partial" },
         { id: "pipeline", label: "Pipeline", status: "partial" },
         { id: "hero", label: "Page header", status: "partial" },
         { id: "logs-code", label: "Logs & code", status: "placeholder" },
