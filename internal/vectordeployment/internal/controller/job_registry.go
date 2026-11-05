@@ -118,6 +118,13 @@ func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid type
 		result:              make(chan artifactManifestResult, 1),
 	}
 
+	// cancel existing job before replacing it
+	if previous, exists := r.inflight[nn]; exists {
+		if previous.cancel != nil {
+			previous.cancel()
+		}
+	}
+
 	r.inflight[nn] = job
 	r.wg.Add(1)
 	r.mu.Unlock()

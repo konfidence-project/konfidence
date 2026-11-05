@@ -141,4 +141,54 @@ var _ = Describe("Artifact manifest job registry", func() {
 		By("allowing repeated shutdown")
 		registry.shutdown()
 	})
+
+	It("cancels an existing job before replacing it", func() {
+		registry := newJobRegistry()
+		DeferCleanup(registry.shutdown)
+
+		nn := types.NamespacedName{
+			Namespace: "default",
+			Name:      "vector",
+		}
+
+		started := make(chan struct{})
+		canceled := make(chan struct{})
+
+		launched, _ := registry.launch(nn, 1, types.UID("uid"), []string{"old-ref"},
+			func(ctx context.Context) artifactManifestResult {
+				close(started)
+				<-ctx.Done()
+				close(canceled)
+				return artifactManifestResult{err: ctx.Err()}
+			},
+		)
+		Expect(launched).To(BeTrue())
+		Eventually(started).Should(BeClosed())
+
+		oldJob, exists := registry.get(nn)
+		Expect(exists).To(BeTrue())
+
+		launched, _ = registry.launch(nn, 2, types.UID("uid"), []string{"new-ref"},
+			func(context.Context) artifactManifestResult {
+				return artifactManifestResult{}
+			},
+		)
+		Expect(launched).To(BeTrue())
+		Eventually(canceled).Should(BeClosed())
+
+		replacement, exists := registry.get(nn)
+		Expect(exists).To(BeTrue())
+		Expect(replacement).NotTo(BeIdenticalTo(oldJob))
+		Expect(replacement.matches(2, types.UID("uid"), []string{"new-ref"})).To(BeTrue())
+		Eventually(replacement.done).Should(BeTrue())
+
+		By("rejecting results from the replaced job")
+		_, completed := registry.completedResult(nn, oldJob)
+		Expect(completed).To(BeFalse())
+
+		By("preserving the replacement result")
+		result, completed := registry.completedResult(nn, replacement)
+		Expect(completed).To(BeTrue())
+		Expect(result.err).NotTo(HaveOccurred())
+	})
 })
