@@ -6,11 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
+	"github.com/konfidence-project/konfidence/pkg/ocm/util"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -68,14 +68,6 @@ func NewAdapterWithClient(client pkgocm.Client) Adapter {
 const (
 	konfidenceResourceTypeArtifactManifest     = "cloud.konfidence.artifact.manifest"
 	konfidenceResourceTypeArtifactTaskManifest = "cloud.konfidence.artifact.task.manifest"
-
-	// KonfidenceResourceTypeVectorConfig is the OCM resource name used during vector assembly
-	// to mark the optional, singleton vector-scoped configuration resource on a vector
-	// ComponentVersion. Note that this value is matched against `Resource.Name`, not `Resource.Type` -- the Type field
-	// is left to the vector author. The character set is constrained to lowercase letters, digits and dashes because
-	// dots are not permitted in OCM resource names per the schema. The constant is exported so that the assembly and
-	// deployment sides can reuse the exact same identifier.
-	KonfidenceResourceTypeVectorConfig = "cloud-konfidence-vector-config"
 )
 
 func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (controller.VectorDescriptor, error) {
@@ -94,7 +86,7 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 	// serialization. The resource is a Konfidence-internal concern, not part of the public OCM contract that is later
 	// re-read from the persisted JSON, so removing it keeps the V2 representation clean and avoids serialization
 	// problems for access types that may not be wired into the runtime registry of every consumer (e.g. tests).
-	vectorConfig, prunedResources, err := extractVectorConfigResource(ctx, a, ref, descriptor.Component.Resources)
+	vectorConfig, prunedResources, err := util.ExtractVectorConfigResource(ctx, a.client, ref, descriptor.Component.Resources)
 	if err != nil {
 		return controller.VectorDescriptor{}, err
 	}
@@ -131,50 +123,6 @@ func (a Adapter) GetVectorDescriptor(ctx context.Context, ref compref.Ref) (cont
 	}, nil
 }
 
-// extractVectorConfigResource scans the given resource slice for the optional, singleton vector-scoped configuration
-// resource. The match is performed on the resource Name (KonfidenceResourceTypeVectorConfig), mirroring the producer
-// side during vector assembly which sets that field to the same constant. When present, the resource's blob is
-// fetched and the resource is removed from the slice that is returned to the caller. The function returns the blob
-// bytes (or nil), the pruned resource slice, and any error encountered. Multiple matches are an authoring mistake and
-// produce an error rather than a silently-chosen winner.
-func extractVectorConfigResource(
-	ctx context.Context,
-	a Adapter,
-	ref compref.Ref,
-	resources []descruntime.Resource,
-) ([]byte, []descruntime.Resource, error) {
-	var (
-		blob   []byte
-		picked *descruntime.Resource
-		pruned = make([]descruntime.Resource, 0, len(resources))
-	)
-	for i := range resources {
-		resource := resources[i]
-		if resource.Name != KonfidenceResourceTypeVectorConfig {
-			pruned = append(pruned, resource)
-			continue
-		}
-		if picked != nil {
-			return nil, nil, fmt.Errorf(
-				"vector component %s declares more than one resource named %q (versions %q and %q); at most one is permitted",
-				ref.String(), KonfidenceResourceTypeVectorConfig, picked.Version, resource.Version,
-			)
-		}
-		picked = &resources[i]
-	}
-	if picked != nil {
-		data, err := a.getLocalResourceBlob(ctx, ref, picked)
-		if err != nil {
-			return nil, nil, fmt.Errorf(
-				"failed to read vector config blob for resource %s in vector %s: %w",
-				picked.Name, ref.String(), err,
-			)
-		}
-		blob = data
-	}
-	return blob, pruned, nil
-}
-
 // GetArtifactManifestByReference fetches the artifact manifest for the given artifact reference.
 func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref.Ref) (controller.ArtifactManifest, error) {
 	descriptor, err := a.client.Get(ctx, ref)
@@ -196,7 +144,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 
 		switch resource.Type {
 		case konfidenceResourceTypeArtifactManifest:
-			data, err := a.getLocalResourceBlob(ctx, ref, resource)
+			data, err := util.GetLocalResourceBlob(ctx, a.client, ref, resource)
 			if err != nil {
 				return controller.ArtifactManifest{}, fmt.Errorf("failed to get manifest blob for resource %s in component %s: %w", resource.Name, ref.String(), err)
 			}
@@ -216,7 +164,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 			}
 
 		case konfidenceResourceTypeArtifactTaskManifest:
-			data, err := a.getLocalResourceBlob(ctx, ref, resource)
+			data, err := util.GetLocalResourceBlob(ctx, a.client, ref, resource)
 			if err != nil {
 				return controller.ArtifactManifest{}, fmt.Errorf("failed to get task manifest blob for resource %s in component %s: %w", resource.Name, ref.String(), err)
 			}
@@ -267,25 +215,6 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 	konfidenceArtifactManifest.Resources = artifactResources
 
 	return *konfidenceArtifactManifest, nil
-}
-
-// getLocalResourceBlob retrieves the raw bytes of a locally-stored resource blob.
-func (a Adapter) getLocalResourceBlob(ctx context.Context, ref compref.Ref, resource *descruntime.Resource) ([]byte, error) {
-	identity := resource.ToIdentity()
-	b, _, err := a.client.GetLocalResource(ctx, ref, identity)
-	if err != nil {
-		return nil, fmt.Errorf("getting local resource for %s identity %v: %w", ref, identity, err)
-	}
-	rc, err := b.ReadCloser()
-	if err != nil {
-		return nil, fmt.Errorf("opening blob reader: %w", err)
-	}
-	defer func() { _ = rc.Close() }()
-	data, err := io.ReadAll(rc)
-	if err != nil {
-		return nil, fmt.Errorf("reading blob content: %w", err)
-	}
-	return data, nil
 }
 
 func permanent(reason string, err error) error {

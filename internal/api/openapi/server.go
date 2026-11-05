@@ -46,6 +46,30 @@ func (e ArtifactDeploymentStatus) Valid() bool {
 	}
 }
 
+// Defines values for ChangeType.
+const (
+	Added     ChangeType = "added"
+	Changed   ChangeType = "changed"
+	Removed   ChangeType = "removed"
+	Unchanged ChangeType = "unchanged"
+)
+
+// Valid indicates whether the value is a known member of the ChangeType enum.
+func (e ChangeType) Valid() bool {
+	switch e {
+	case Added:
+		return true
+	case Changed:
+		return true
+	case Removed:
+		return true
+	case Unchanged:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PromotionGateStatusState.
 const (
 	Error     PromotionGateStatusState = "Error"
@@ -181,6 +205,35 @@ func (e VectorPromotionStatus) Valid() bool {
 	}
 }
 
+// Defines values for GetVectorDiffV1ParamsIncludeUnchanged.
+const (
+	False GetVectorDiffV1ParamsIncludeUnchanged = "false"
+	True  GetVectorDiffV1ParamsIncludeUnchanged = "true"
+)
+
+// Valid indicates whether the value is a known member of the GetVectorDiffV1ParamsIncludeUnchanged enum.
+func (e GetVectorDiffV1ParamsIncludeUnchanged) Valid() bool {
+	switch e {
+	case False:
+		return true
+	case True:
+		return true
+	default:
+		return false
+	}
+}
+
+// ArtifactContent defines model for ArtifactContent.
+type ArtifactContent struct {
+	AllowReuse bool `json:"allowReuse"`
+
+	// Ref OCM ref string (registry//component:version)
+	Ref       string              `json:"ref"`
+	Resources *[]ArtifactResource `json:"resources,omitempty"`
+	Tasks     *[]ArtifactTask     `json:"tasks,omitempty"`
+	Type      string              `json:"type"`
+}
+
 // ArtifactDeployment defines model for ArtifactDeployment.
 type ArtifactDeployment struct {
 	Artifact ArtifactReference `json:"artifact"`
@@ -211,11 +264,39 @@ type ArtifactDeploymentList struct {
 // ArtifactReference defines model for ArtifactReference.
 type ArtifactReference = ComponentReference
 
+// ArtifactResource defines model for ArtifactResource.
+type ArtifactResource struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// ArtifactTask defines model for ArtifactTask.
+type ArtifactTask struct {
+	DependsOn *[]string `json:"dependsOn,omitempty"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+}
+
+// ChangeType defines model for ChangeType.
+type ChangeType string
+
 // ComponentReference defines model for ComponentReference.
 type ComponentReference struct {
 	ComponentName    string `json:"componentName"`
 	ComponentVersion string `json:"componentVersion"`
 	Repository       string `json:"repository"`
+}
+
+// ConfigEntryDiff defines model for ConfigEntryDiff.
+type ConfigEntryDiff struct {
+	ChangeType ChangeType `json:"changeType"`
+	Key        string     `json:"key"`
+
+	// LeftValue Value on the left side. Absent when changeType is "added".
+	LeftValue interface{} `json:"leftValue,omitempty"`
+
+	// RightValue Value on the right side. Absent when changeType is "removed".
+	RightValue interface{} `json:"rightValue,omitempty"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -376,6 +457,53 @@ type StageVersionStatus string
 // StageVersionId The stageVersion id
 type StageVersionId = string
 
+// VectorComponent defines model for VectorComponent.
+type VectorComponent struct {
+	ComponentName string `json:"componentName"`
+	Version       string `json:"version"`
+}
+
+// VectorComponentDiff defines model for VectorComponentDiff.
+type VectorComponentDiff struct {
+	ChangeType    ChangeType `json:"changeType"`
+	ComponentName string     `json:"componentName"`
+
+	// LeftVersion Version on the left side. Absent when changeType is "added".
+	LeftVersion *string `json:"leftVersion,omitempty"`
+
+	// RightVersion Version on the right side. Absent when changeType is "removed".
+	RightVersion *string `json:"rightVersion,omitempty"`
+}
+
+// VectorConfig defines model for VectorConfig.
+type VectorConfig struct {
+	// Authored Raw authored blob from VectorConfigurationV1
+	Authored *map[string]interface{} `json:"authored,omitempty"`
+
+	// Features Raw features blob from VectorConfigurationV1
+	Features *map[string]interface{} `json:"features,omitempty"`
+}
+
+// VectorConfigDiff defines model for VectorConfigDiff.
+type VectorConfigDiff struct {
+	Authored *[]ConfigEntryDiff `json:"authored,omitempty"`
+	Features *[]ConfigEntryDiff `json:"features,omitempty"`
+}
+
+// VectorContent defines model for VectorContent.
+type VectorContent struct {
+	Components []VectorComponent `json:"components"`
+	Config     *VectorConfig     `json:"config,omitempty"`
+
+	// Ref OCM ref string (registry//component:version)
+	Ref string `json:"ref"`
+}
+
+// VectorContentList defines model for VectorContentList.
+type VectorContentList struct {
+	Data []VectorContent `json:"data"`
+}
+
 // VectorDeployment defines model for VectorDeployment.
 type VectorDeployment struct {
 	// Id The vectorDeployment id
@@ -401,6 +529,18 @@ type VectorDeploymentId = string
 // VectorDeploymentList defines model for VectorDeploymentList.
 type VectorDeploymentList struct {
 	Data []VectorDeployment `json:"data"`
+}
+
+// VectorDiff defines model for VectorDiff.
+type VectorDiff struct {
+	Components []VectorComponentDiff `json:"components"`
+	Config     *VectorConfigDiff     `json:"config,omitempty"`
+
+	// Left OCM ref string of the left-hand vector
+	Left string `json:"left"`
+
+	// Right OCM ref string of the right-hand vector
+	Right string `json:"right"`
 }
 
 // VectorPromotion defines model for VectorPromotion.
@@ -526,6 +666,12 @@ type ListArtifactDeploymentsV1Params struct {
 	VectorDeploymentId *VectorDeploymentQueryId `form:"vectorDeploymentId,omitempty" json:"vectorDeploymentId,omitempty"`
 }
 
+// GetArtifactContentV1Params defines parameters for GetArtifactContentV1.
+type GetArtifactContentV1Params struct {
+	// Ref OCM ref string identifying the artifact (registry//component:version). Must be percent-encoded. Passed as a query parameter because the OCM ref contains // which cannot be used in a path segment.
+	Ref string `form:"ref" json:"ref"`
+}
+
 // ListStagesV1Params defines parameters for ListStagesV1.
 type ListStagesV1Params struct {
 	// LandscapeId Filter by landscapeId
@@ -537,6 +683,27 @@ type ListVectorDeploymentsV1Params struct {
 	// LandscapeId Filter by landscapeId
 	LandscapeId *LandscapeQueryId `form:"landscapeId,omitempty" json:"landscapeId,omitempty"`
 }
+
+// GetVectorContentV1Params defines parameters for GetVectorContentV1.
+type GetVectorContentV1Params struct {
+	// Refs One or more OCM ref strings (registry//component:version). Must be percent-encoded. Repeat the parameter for multiple refs.
+	Refs []string `form:"refs" json:"refs"`
+}
+
+// GetVectorDiffV1Params defines parameters for GetVectorDiffV1.
+type GetVectorDiffV1Params struct {
+	// Left OCM ref string for the one of the compared vectors (registry//component:version). Must be percent-encoded.
+	Left string `form:"left" json:"left"`
+
+	// Right OCM ref string for the other compared vector (registry//component:version). Must be percent-encoded.
+	Right string `form:"right" json:"right"`
+
+	// IncludeUnchanged When true, unchanged components and config entries are included in the diff.
+	IncludeUnchanged *GetVectorDiffV1ParamsIncludeUnchanged `form:"includeUnchanged,omitempty" json:"includeUnchanged,omitempty"`
+}
+
+// GetVectorDiffV1ParamsIncludeUnchanged defines parameters for GetVectorDiffV1.
+type GetVectorDiffV1ParamsIncludeUnchanged string
 
 // PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
 type PostExchangeCodeV1JSONRequestBody PostExchangeCodeV1JSONBody
@@ -564,6 +731,9 @@ type ServerInterface interface {
 	// ListArtifactDeploymentsV1 List all artifactDeployments for a project.
 	// (GET /v1/projects/{projectId}/artifactDeployments)
 	ListArtifactDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsV1Params)
+	// GetArtifactContentV1 Get OCM content for an artifact by ref.
+	// (GET /v1/projects/{projectId}/artifacts/content)
+	GetArtifactContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetArtifactContentV1Params)
 	// ListLandscapesV1 List all landscapes for a specific project
 	// (GET /v1/projects/{projectId}/landscapes)
 	ListLandscapesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId)
@@ -597,6 +767,12 @@ type ServerInterface interface {
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve)
 	ApproveVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId)
+	// GetVectorContentV1 Get OCM content for vectors by refs.
+	// (GET /v1/projects/{projectId}/vectors/content)
+	GetVectorContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorContentV1Params)
+	// GetVectorDiffV1 Get the diff between two vectors by ref.
+	// (GET /v1/projects/{projectId}/vectors/diff)
+	GetVectorDiffV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorDiffV1Params)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -642,6 +818,12 @@ func (_ Unimplemented) ListProjectsV1(w http.ResponseWriter, r *http.Request) {
 // ListArtifactDeploymentsV1 List all artifactDeployments for a project.
 // (GET /v1/projects/{projectId}/artifactDeployments)
 func (_ Unimplemented) ListArtifactDeploymentsV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params ListArtifactDeploymentsV1Params) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetArtifactContentV1 Get OCM content for an artifact by ref.
+// (GET /v1/projects/{projectId}/artifacts/content)
+func (_ Unimplemented) GetArtifactContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetArtifactContentV1Params) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -708,6 +890,18 @@ func (_ Unimplemented) GetVectorPromotionV1(w http.ResponseWriter, r *http.Reque
 // ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 // (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve)
 func (_ Unimplemented) ApproveVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetVectorContentV1 Get OCM content for vectors by refs.
+// (GET /v1/projects/{projectId}/vectors/content)
+func (_ Unimplemented) GetVectorContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorContentV1Params) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetVectorDiffV1 Get the diff between two vectors by ref.
+// (GET /v1/projects/{projectId}/vectors/diff)
+func (_ Unimplemented) GetVectorDiffV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorDiffV1Params) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -940,6 +1134,48 @@ func (siw *ServerInterfaceWrapper) ListArtifactDeploymentsV1(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListArtifactDeploymentsV1(w, r, projectId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetArtifactContentV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetArtifactContentV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetArtifactContentV1Params
+
+	// ------------- Required query parameter "ref" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "ref", r.URL.Query(), &params.Ref, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "ref"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ref", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetArtifactContentV1(w, r, projectId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1357,6 +1593,116 @@ func (siw *ServerInterfaceWrapper) ApproveVectorPromotionV1(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
+// GetVectorContentV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetVectorContentV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetVectorContentV1Params
+
+	// ------------- Required query parameter "refs" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "refs", r.URL.Query(), &params.Refs, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "refs"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "refs", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVectorContentV1(w, r, projectId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetVectorDiffV1 operation middleware
+func (siw *ServerInterfaceWrapper) GetVectorDiffV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetVectorDiffV1Params
+
+	// ------------- Required query parameter "left" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "left", r.URL.Query(), &params.Left, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "left"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "left", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "right" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "right", r.URL.Query(), &params.Right, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "right"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "right", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "includeUnchanged" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "includeUnchanged", r.URL.Query(), &params.IncludeUnchanged, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "includeUnchanged"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "includeUnchanged", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVectorDiffV1(w, r, projectId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -1517,6 +1863,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}", wrapper.GetVectorPromotionV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectors/diff", wrapper.GetVectorDiffV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectors/content", wrapper.GetVectorContentV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/projects/{projectId}/artifacts/content", wrapper.GetArtifactContentV1)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/v1/projects/{projectId}/artifactDeployments", wrapper.ListArtifactDeploymentsV1)
@@ -1917,6 +2272,99 @@ func (response ListArtifactDeploymentsV1404JSONResponse) VisitListArtifactDeploy
 type ListArtifactDeploymentsV1500JSONResponse struct{ InternalErrorJSONResponse }
 
 func (response ListArtifactDeploymentsV1500JSONResponse) VisitListArtifactDeploymentsV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1RequestObject struct {
+	ProjectId ProjectPathId `json:"projectId"`
+	Params    GetArtifactContentV1Params
+}
+
+type GetArtifactContentV1ResponseObject interface {
+	VisitGetArtifactContentV1Response(w http.ResponseWriter) error
+}
+
+type GetArtifactContentV1200JSONResponse ArtifactContent
+
+func (response GetArtifactContentV1200JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetArtifactContentV1400JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetArtifactContentV1401JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetArtifactContentV1403JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetArtifactContentV1404JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetArtifactContentV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetArtifactContentV1500JSONResponse) VisitGetArtifactContentV1Response(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2806,6 +3254,192 @@ func (response ApproveVectorPromotionV1500JSONResponse) VisitApproveVectorPromot
 	return err
 }
 
+type GetVectorContentV1RequestObject struct {
+	ProjectId ProjectPathId `json:"projectId"`
+	Params    GetVectorContentV1Params
+}
+
+type GetVectorContentV1ResponseObject interface {
+	VisitGetVectorContentV1Response(w http.ResponseWriter) error
+}
+
+type GetVectorContentV1200JSONResponse VectorContentList
+
+func (response GetVectorContentV1200JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetVectorContentV1400JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetVectorContentV1401JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetVectorContentV1403JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetVectorContentV1404JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorContentV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetVectorContentV1500JSONResponse) VisitGetVectorContentV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1RequestObject struct {
+	ProjectId ProjectPathId `json:"projectId"`
+	Params    GetVectorDiffV1Params
+}
+
+type GetVectorDiffV1ResponseObject interface {
+	VisitGetVectorDiffV1Response(w http.ResponseWriter) error
+}
+
+type GetVectorDiffV1200JSONResponse VectorDiff
+
+func (response GetVectorDiffV1200JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetVectorDiffV1400JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetVectorDiffV1401JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetVectorDiffV1403JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetVectorDiffV1404JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVectorDiffV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetVectorDiffV1500JSONResponse) VisitGetVectorDiffV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// AuthCallbackV1 OIDC callback
@@ -2829,6 +3463,9 @@ type StrictServerInterface interface {
 	// ListArtifactDeploymentsV1 List all artifactDeployments for a project.
 	// (GET /v1/projects/{projectId}/artifactDeployments)
 	ListArtifactDeploymentsV1(ctx context.Context, request ListArtifactDeploymentsV1RequestObject) (ListArtifactDeploymentsV1ResponseObject, error)
+	// GetArtifactContentV1 Get OCM content for an artifact by ref.
+	// (GET /v1/projects/{projectId}/artifacts/content)
+	GetArtifactContentV1(ctx context.Context, request GetArtifactContentV1RequestObject) (GetArtifactContentV1ResponseObject, error)
 	// ListLandscapesV1 List all landscapes for a specific project
 	// (GET /v1/projects/{projectId}/landscapes)
 	ListLandscapesV1(ctx context.Context, request ListLandscapesV1RequestObject) (ListLandscapesV1ResponseObject, error)
@@ -2862,6 +3499,12 @@ type StrictServerInterface interface {
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve)
 	ApproveVectorPromotionV1(ctx context.Context, request ApproveVectorPromotionV1RequestObject) (ApproveVectorPromotionV1ResponseObject, error)
+	// GetVectorContentV1 Get OCM content for vectors by refs.
+	// (GET /v1/projects/{projectId}/vectors/content)
+	GetVectorContentV1(ctx context.Context, request GetVectorContentV1RequestObject) (GetVectorContentV1ResponseObject, error)
+	// GetVectorDiffV1 Get the diff between two vectors by ref.
+	// (GET /v1/projects/{projectId}/vectors/diff)
+	GetVectorDiffV1(ctx context.Context, request GetVectorDiffV1RequestObject) (GetVectorDiffV1ResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -3078,6 +3721,33 @@ func (sh *strictHandler) ListArtifactDeploymentsV1(w http.ResponseWriter, r *htt
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListArtifactDeploymentsV1ResponseObject); ok {
 		if err := validResponse.VisitListArtifactDeploymentsV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetArtifactContentV1 operation middleware
+func (sh *strictHandler) GetArtifactContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetArtifactContentV1Params) {
+	var request GetArtifactContentV1RequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetArtifactContentV1(ctx, request.(GetArtifactContentV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetArtifactContentV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetArtifactContentV1ResponseObject); ok {
+		if err := validResponse.VisitGetArtifactContentV1Response(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3383,75 +4053,145 @@ func (sh *strictHandler) ApproveVectorPromotionV1(w http.ResponseWriter, r *http
 	}
 }
 
+// GetVectorContentV1 operation middleware
+func (sh *strictHandler) GetVectorContentV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorContentV1Params) {
+	var request GetVectorContentV1RequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVectorContentV1(ctx, request.(GetVectorContentV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVectorContentV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetVectorContentV1ResponseObject); ok {
+		if err := validResponse.VisitGetVectorContentV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetVectorDiffV1 operation middleware
+func (sh *strictHandler) GetVectorDiffV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, params GetVectorDiffV1Params) {
+	var request GetVectorDiffV1RequestObject
+
+	request.ProjectId = projectId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVectorDiffV1(ctx, request.(GetVectorDiffV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVectorDiffV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetVectorDiffV1ResponseObject); ok {
+		if err := validResponse.VisitGetVectorDiffV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"CSbBGGckWF+u/xMAAP//",
+	"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",
+	"xTkJNreb/wsAAP//",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
