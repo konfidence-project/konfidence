@@ -113,6 +113,16 @@ manage mode or storage itself.
 <StatusBadge status="deploying">Deploying</StatusBadge>
 ```
 
+### Expandable lists and selectable rows
+
+`ExpandableGroup` and `SelectableRow` support bindable expansion and persistent
+single selection per group, disabled selection buttons, standard labels and
+metadata, and independent actions. Existing application-controlled
+`selected`/`onselect` rows remain supported. Selected rows use a full-height
+amber marker and the shared selection background. See the
+[component guide](src/components/ExpandableGroup/README.md) and **Lists & rows**
+in the design preview for examples.
+
 ### Panel presentation
 
 `SidePanel` is modal by default. Pass
