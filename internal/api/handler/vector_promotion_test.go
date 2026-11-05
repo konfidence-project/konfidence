@@ -14,6 +14,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // expectAPIError asserts that a handler returned no response object and instead
@@ -94,6 +95,35 @@ var _ = Describe("GetVectorPromotionV1", func() {
 		Expect(gates[1].State).To(Equal(openapi.PromotionGateStatusState("Pending")))
 		Expect(gates[1].SetBy).To(BeNil())
 		Expect(gates[1].SetAt).To(BeNil())
+	})
+
+	It("reports the operator override and the Rejected status", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
+		setAt := time.Date(2026, 10, 23, 10, 0, 0, 0, time.UTC)
+		promo.Status.Override = &konfidence.PromotionOverride{
+			Type:   konfidence.PromotionOverrideTypeReject,
+			SetBy:  "alice@example.com",
+			SetAt:  metav1.Time{Time: setAt},
+			Reason: "known data-corruption bug",
+		}
+		promo.Status.Conditions = facts(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse)
+		h := newProjectHandlerForTest(project, promo)
+
+		ctx := ctxWithProjectRoles(auth.ProjectRoles{"my-project": {"admin"}})
+		resp, err := h.GetVectorPromotionV1(ctx, openapi.GetVectorPromotionV1RequestObject{
+			ProjectId:         "my-project",
+			VectorPromotionId: "promo-1",
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		ok := resp.(openapi.GetVectorPromotionV1200JSONResponse)
+		Expect(*ok.Status).To(Equal(openapi.VectorPromotionStatusRejected))
+		Expect(ok.Override).NotTo(BeNil())
+		Expect(ok.Override.Type).To(Equal(openapi.Reject))
+		Expect(ok.Override.SetBy).To(Equal("alice@example.com"))
+		Expect(ok.Override.SetAt).To(BeTemporally("==", setAt))
+		Expect(ok.Override.Reason).To(Equal("known data-corruption bug"))
 	})
 
 	It("returns 404 when the promotion does not exist", func() {
@@ -282,6 +312,24 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		expectAPIError(resp, err, http.StatusConflict)
 	})
 
+	It("returns 409 when an operator already rejected the promotion", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
+		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
+		promo.Status.Override = &konfidence.PromotionOverride{
+			Type: konfidence.PromotionOverrideTypeReject, SetBy: "bob@example.com", Reason: "known bad",
+		}
+		h := newProjectHandlerForTest(project, promo)
+
+		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+		resp, err := h.ApproveVectorPromotionV1(ctx, openapi.ApproveVectorPromotionV1RequestObject{
+			ProjectId:         "my-project",
+			VectorPromotionId: "promo-1",
+		})
+		expectAPIError(resp, err, http.StatusConflict)
+		Expect(apierror.As(err).Message).To(ContainSubstring("Reject by bob@example.com"))
+	})
+
 	It("returns 403 when the caller has no role for the project", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		h := newProjectHandlerForTest(project)
@@ -315,7 +363,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		h := newProjectHandlerForTest(project, promo)
 
 		// Authorized for the project but with an empty subject: the repository
-		// rejects the approval with ErrApproverMissing, which the handler maps
+		// rejects the approval with ErrActorMissing, which the handler maps
 		// to a 500 via its default case.
 		ctx := ctxWithSubjectAndProjectRoles("", auth.ProjectRoles{"my-project": {"admin"}})
 		resp, err := h.ApproveVectorPromotionV1(ctx, openapi.ApproveVectorPromotionV1RequestObject{
@@ -459,6 +507,144 @@ var _ = DescribeTable("displayState summarizes the observed facts",
 	Entry("superseded", facts(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), false,
 		openapi.VectorPromotionStatusSuperseded),
 )
+
+var _ = DescribeTable("displayState reads the operator override",
+	func(overrideType konfidence.PromotionOverrideType, conditions []metav1.Condition, expected openapi.VectorPromotionStatus) {
+		p := &konfidence.VectorPromotion{Status: konfidence.VectorPromotionStatus{
+			Conditions: conditions,
+			Override:   &konfidence.PromotionOverride{Type: overrideType},
+		}}
+		Expect(displayState(p)).To(Equal(expected))
+	},
+	Entry("rejection not yet observed", konfidence.PromotionOverrideTypeReject,
+		facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse), openapi.VectorPromotionStatusWaiting),
+	Entry("rejected", konfidence.PromotionOverrideTypeReject,
+		facts(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), openapi.VectorPromotionStatusRejected),
+	Entry("gates bypassed", konfidence.PromotionOverrideTypeBypassGates,
+		facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), openapi.VectorPromotionStatusReady),
+	Entry("gates bypassed, then superseded", konfidence.PromotionOverrideTypeBypassGates,
+		facts(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), openapi.VectorPromotionStatusSuperseded),
+)
+
+var _ = Describe("RejectVectorPromotionV1 and BypassVectorPromotionGatesV1", func() {
+	type operation func(h *projectHandler, ctx context.Context, body *openapi.PromotionOverrideRequestBody) (any, error)
+	reject := func(h *projectHandler, ctx context.Context, body *openapi.PromotionOverrideRequestBody) (any, error) {
+		resp, err := h.RejectVectorPromotionV1(ctx, openapi.RejectVectorPromotionV1RequestObject{
+			ProjectId: "my-project", VectorPromotionId: "promo-1", Body: body,
+		})
+		if resp == nil {
+			return nil, err
+		}
+		return resp, err
+	}
+	bypassGates := func(h *projectHandler, ctx context.Context, body *openapi.PromotionOverrideRequestBody) (any, error) {
+		resp, err := h.BypassVectorPromotionGatesV1(ctx, openapi.BypassVectorPromotionGatesV1RequestObject{
+			ProjectId: "my-project", VectorPromotionId: "promo-1", Body: body,
+		})
+		if resp == nil {
+			return nil, err
+		}
+		return resp, err
+	}
+	reason := &openapi.PromotionOverrideRequestBody{Reason: "known data-corruption bug"}
+	admin := func() context.Context {
+		return ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+	}
+	waitingPromotion := func() *konfidence.VectorPromotion {
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
+		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
+		return promo
+	}
+	withOverride := func(promo *konfidence.VectorPromotion, overrideType konfidence.PromotionOverrideType) *konfidence.VectorPromotion {
+		promo.Status.Override = &konfidence.PromotionOverride{
+			Type: overrideType, SetBy: "bob@example.com", SetAt: metav1.Now(), Reason: "first decision",
+		}
+		return promo
+	}
+
+	DescribeTable("records the decision for the session subject",
+		func(op operation, expectedType konfidence.PromotionOverrideType, expectedResponse any) {
+			project := landscapeProjectFixture("my-project", "kden-p-my-project")
+			h := newProjectHandlerForTest(project, waitingPromotion())
+
+			resp, err := op(h, admin(), reason)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp).To(BeAssignableToTypeOf(expectedResponse))
+
+			got, err := h.vectorPromotionRepo.Get(context.Background(), "kden-p-my-project", "promo-1")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got.Status.Override).NotTo(BeNil())
+			Expect(got.Status.Override.Type).To(Equal(expectedType))
+			Expect(got.Status.Override.SetBy).To(Equal("alice@example.com"))
+			Expect(got.Status.Override.Reason).To(Equal(reason.Reason))
+		},
+		Entry("reject", operation(reject), konfidence.PromotionOverrideTypeReject,
+			openapi.RejectVectorPromotionV1204Response{}),
+		Entry("bypass gates", operation(bypassGates), konfidence.PromotionOverrideTypeBypassGates,
+			openapi.BypassVectorPromotionGatesV1204Response{}),
+	)
+
+	DescribeTable("is idempotent for the same decision",
+		func(op operation, existing konfidence.PromotionOverrideType) {
+			project := landscapeProjectFixture("my-project", "kden-p-my-project")
+			h := newProjectHandlerForTest(project, withOverride(waitingPromotion(), existing))
+
+			resp, err := op(h, admin(), reason)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp).NotTo(BeNil())
+		},
+		Entry("reject twice", operation(reject), konfidence.PromotionOverrideTypeReject),
+		Entry("bypass twice", operation(bypassGates), konfidence.PromotionOverrideTypeBypassGates),
+	)
+
+	DescribeTable("maps failures to client errors",
+		func(op operation, promo *konfidence.VectorPromotion, body *openapi.PromotionOverrideRequestBody, status int) {
+			objects := []client.Object{landscapeProjectFixture("my-project", "kden-p-my-project")}
+			if promo != nil {
+				objects = append(objects, promo)
+			}
+			h := newProjectHandlerForTest(objects...)
+
+			resp, err := op(h, admin(), body)
+			expectAPIError(resp, err, status)
+		},
+		Entry("reject after the gates were bypassed", operation(reject),
+			withOverride(waitingPromotion(), konfidence.PromotionOverrideTypeBypassGates), reason, http.StatusConflict),
+		Entry("bypass after a rejection", operation(bypassGates),
+			withOverride(waitingPromotion(), konfidence.PromotionOverrideTypeReject), reason, http.StatusConflict),
+		Entry("reject a finished promotion", operation(reject),
+			withConditions(waitingPromotion(), facts(konfidence.ConditionTypeSucceeded, metav1.ConditionTrue)),
+			reason, http.StatusConflict),
+		Entry("bypass gates that are already satisfied", operation(bypassGates),
+			withConditions(waitingPromotion(), facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue)),
+			reason, http.StatusConflict),
+		Entry("reject without a body", operation(reject), waitingPromotion(), nil, http.StatusBadRequest),
+		Entry("bypass with an empty reason", operation(bypassGates), waitingPromotion(),
+			&openapi.PromotionOverrideRequestBody{}, http.StatusBadRequest),
+		Entry("reject a missing promotion", operation(reject), nil, reason, http.StatusNotFound),
+		Entry("bypass a missing promotion", operation(bypassGates), nil, reason, http.StatusNotFound),
+	)
+
+	DescribeTable("requires access to the project",
+		func(op operation) {
+			project := landscapeProjectFixture("my-project", "kden-p-my-project")
+			h := newProjectHandlerForTest(project, waitingPromotion())
+
+			resp, err := op(h, ctxWithProjectRoles(auth.ProjectRoles{"other-project": {"admin"}}), reason)
+			expectAPIError(resp, err, http.StatusForbidden)
+
+			resp, err = op(h, context.Background(), reason)
+			expectAPIError(resp, err, http.StatusUnauthorized)
+		},
+		Entry("reject", operation(reject)),
+		Entry("bypass gates", operation(bypassGates)),
+	)
+})
+
+func withConditions(promo *konfidence.VectorPromotion, conditions []metav1.Condition) *konfidence.VectorPromotion {
+	promo.Status.Conditions = conditions
+	return promo
+}
 
 func facts(conditionType string, status metav1.ConditionStatus) []metav1.Condition {
 	return []metav1.Condition{{Type: conditionType, Status: status, Reason: "SetByTest"}}

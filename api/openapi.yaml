@@ -405,8 +405,8 @@ paths:
         Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion,
         recording the authenticated caller as the approver. Approving an
         already-approved promotion is idempotent and returns 204. Returns 409 when
-        the promotion is superseded, finished, already executing, or does not
-        declare the explicit-approval gate.
+        the promotion is superseded, finished, already executing, rejected, has its
+        gates bypassed, or does not declare the explicit-approval gate.
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
         - $ref: "#/components/parameters/VectorPromotionPathId"
@@ -444,6 +444,72 @@ paths:
       responses:
         "204":
           description: Approval of the VectorPromotion successfully revoked.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject:
+    post:
+      operationId: rejectVectorPromotionV1
+      summary: Rejects the given vectorPromotion for the specified project
+      description: >
+        Terminally rejects a vectorPromotion that is still waiting on its gates,
+        regardless of their state. The authenticated caller and the given reason are
+        recorded in the promotion's override; its gates are left untouched.
+        Rejecting an already-rejected promotion is idempotent and returns 204.
+        Returns 409 when the promotion is finished, its gates are already satisfied,
+        or its gates were bypassed.
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/VectorPromotionPathId"
+      tags: [projects]
+      requestBody:
+        $ref: "#/components/requestBodies/PromotionOverrideRequest"
+      responses:
+        "204":
+          description: VectorPromotion successfully rejected.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates:
+    post:
+      operationId: bypassVectorPromotionGatesV1
+      summary: Bypasses the gates of the given vectorPromotion for the specified project
+      description: >
+        Lets a vectorPromotion that is still waiting on its gates proceed as if all of
+        them were satisfied. The authenticated caller and the given reason are
+        recorded in the promotion's override; its gates are left exactly as their
+        writers reported them. Bypassing the gates of a promotion whose gates were
+        already bypassed is idempotent and returns 204. Returns 409 when the
+        promotion is finished, its gates are already satisfied, or it was rejected.
+      parameters:
+        - $ref: "#/components/parameters/ProjectPathId"
+        - $ref: "#/components/parameters/VectorPromotionPathId"
+      tags: [projects]
+      requestBody:
+        $ref: "#/components/requestBodies/PromotionOverrideRequest"
+      responses:
+        "204":
+          description: VectorPromotion gates successfully bypassed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -883,7 +949,7 @@ components:
           type: string
         status:
           type: string
-          enum: [Waiting, Ready, InProgress, Blocked, Succeeded, Superseded]
+          enum: [Waiting, Ready, InProgress, Blocked, Succeeded, Superseded, Rejected]
         ttlAfterFinished:
           type: string
         sequence:
@@ -896,6 +962,41 @@ components:
             A declared gate without a recorded state is reported as Pending.
           items:
             $ref: "#/components/schemas/PromotionGateStatus"
+        override:
+          $ref: "#/components/schemas/PromotionOverride"
+
+    PromotionOverride:
+      type: object
+      description: >
+        Operator decision that overrides the gate flow, with its provenance.
+        `Reject` terminally rejects the promotion; `BypassGates` lets it proceed
+        regardless of its gates, whose states are left as their writers reported them.
+      required: [ type, setBy, setAt, reason ]
+      properties:
+        type:
+          type: string
+          enum: [ Reject, BypassGates ]
+        setBy:
+          type: string
+          description: Authenticated subject that made the decision
+        setAt:
+          type: string
+          format: date-time
+          description: Time the decision was made
+        reason:
+          type: string
+          description: Justification given for the decision
+
+    PromotionOverrideRequestBody:
+      type: object
+      required: [ reason ]
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: Justification for the decision, recorded with the acting identity
 
     PromotionGate:
       type: object
@@ -1242,6 +1343,14 @@ components:
               type: string
             message:
               type: string
+
+  requestBodies:
+    PromotionOverrideRequest:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PromotionOverrideRequestBody"
 
   responses:
     Unauthorized:

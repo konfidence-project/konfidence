@@ -91,6 +91,24 @@ func (e PromotionGateStatusState) Valid() bool {
 	}
 }
 
+// Defines values for PromotionOverrideType.
+const (
+	BypassGates PromotionOverrideType = "BypassGates"
+	Reject      PromotionOverrideType = "Reject"
+)
+
+// Valid indicates whether the value is a known member of the PromotionOverrideType enum.
+func (e PromotionOverrideType) Valid() bool {
+	switch e {
+	case BypassGates:
+		return true
+	case Reject:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PromotionSourceReferenceKind.
 const (
 	PromotionSourceReferenceKindStage          PromotionSourceReferenceKind = "Stage"
@@ -180,6 +198,7 @@ const (
 	VectorPromotionStatusBlocked    VectorPromotionStatus = "Blocked"
 	VectorPromotionStatusInProgress VectorPromotionStatus = "InProgress"
 	VectorPromotionStatusReady      VectorPromotionStatus = "Ready"
+	VectorPromotionStatusRejected   VectorPromotionStatus = "Rejected"
 	VectorPromotionStatusSucceeded  VectorPromotionStatus = "Succeeded"
 	VectorPromotionStatusSuperseded VectorPromotionStatus = "Superseded"
 	VectorPromotionStatusWaiting    VectorPromotionStatus = "Waiting"
@@ -193,6 +212,8 @@ func (e VectorPromotionStatus) Valid() bool {
 	case VectorPromotionStatusInProgress:
 		return true
 	case VectorPromotionStatusReady:
+		return true
+	case VectorPromotionStatusRejected:
 		return true
 	case VectorPromotionStatusSucceeded:
 		return true
@@ -380,6 +401,28 @@ type PromotionGateStatus struct {
 // PromotionGateStatusState Current state of the gate
 type PromotionGateStatusState string
 
+// PromotionOverride Operator decision that overrides the gate flow, with its provenance. `Reject` terminally rejects the promotion; `BypassGates` lets it proceed regardless of its gates, whose states are left as their writers reported them.
+type PromotionOverride struct {
+	// Reason Justification given for the decision
+	Reason string `json:"reason"`
+
+	// SetAt Time the decision was made
+	SetAt time.Time `json:"setAt"`
+
+	// SetBy Authenticated subject that made the decision
+	SetBy string                `json:"setBy"`
+	Type  PromotionOverrideType `json:"type"`
+}
+
+// PromotionOverrideType defines model for PromotionOverride.Type.
+type PromotionOverrideType string
+
+// PromotionOverrideRequestBody defines model for PromotionOverrideRequestBody.
+type PromotionOverrideRequestBody struct {
+	// Reason Justification for the decision, recorded with the acting identity
+	Reason string `json:"reason"`
+}
+
 // PromotionSourceReference defines model for PromotionSourceReference.
 type PromotionSourceReference struct {
 	// Kind Promotion source kind
@@ -549,7 +592,10 @@ type VectorPromotion struct {
 	Gates *[]PromotionGateStatus `json:"gates,omitempty"`
 
 	// Id The vectorPromotion id
-	Id               VectorPromotionId        `json:"id"`
+	Id VectorPromotionId `json:"id"`
+
+	// Override Operator decision that overrides the gate flow, with its provenance. `Reject` terminally rejects the promotion; `BypassGates` lets it proceed regardless of its gates, whose states are left as their writers reported them.
+	Override         *PromotionOverride       `json:"override,omitempty"`
 	Sequence         *int64                   `json:"sequence,omitempty"`
 	Source           PromotionSourceReference `json:"source"`
 	Status           *VectorPromotionStatus   `json:"status,omitempty"`
@@ -634,6 +680,9 @@ type NotFound = ErrorResponse
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = ErrorResponse
 
+// PromotionOverrideRequest defines model for PromotionOverrideRequest.
+type PromotionOverrideRequest = PromotionOverrideRequestBody
+
 // AuthCallbackV1Params defines parameters for AuthCallbackV1.
 type AuthCallbackV1Params struct {
 	State            string  `form:"state" json:"state"`
@@ -708,6 +757,12 @@ type GetVectorDiffV1ParamsIncludeUnchanged string
 // PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
 type PostExchangeCodeV1JSONRequestBody PostExchangeCodeV1JSONBody
 
+// BypassVectorPromotionGatesV1JSONRequestBody defines body for BypassVectorPromotionGatesV1 for application/json ContentType.
+type BypassVectorPromotionGatesV1JSONRequestBody = PromotionOverrideRequestBody
+
+// RejectVectorPromotionV1JSONRequestBody defines body for RejectVectorPromotionV1 for application/json ContentType.
+type RejectVectorPromotionV1JSONRequestBody = PromotionOverrideRequestBody
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// AuthCallbackV1 OIDC callback
@@ -767,6 +822,12 @@ type ServerInterface interface {
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve)
 	ApproveVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId)
+	// BypassVectorPromotionGatesV1 Bypasses the gates of the given vectorPromotion for the specified project
+	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates)
+	BypassVectorPromotionGatesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId)
+	// RejectVectorPromotionV1 Rejects the given vectorPromotion for the specified project
+	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject)
+	RejectVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId)
 	// RevokeApprovalVectorPromotionV1 Revoke the approval of the given vectorPromotion for the specified project
 	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval)
 	RevokeApprovalVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId)
@@ -893,6 +954,18 @@ func (_ Unimplemented) GetVectorPromotionV1(w http.ResponseWriter, r *http.Reque
 // ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 // (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve)
 func (_ Unimplemented) ApproveVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// BypassVectorPromotionGatesV1 Bypasses the gates of the given vectorPromotion for the specified project
+// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates)
+func (_ Unimplemented) BypassVectorPromotionGatesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RejectVectorPromotionV1 Rejects the given vectorPromotion for the specified project
+// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject)
+func (_ Unimplemented) RejectVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1602,6 +1675,76 @@ func (siw *ServerInterfaceWrapper) ApproveVectorPromotionV1(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
+// BypassVectorPromotionGatesV1 operation middleware
+func (siw *ServerInterfaceWrapper) BypassVectorPromotionGatesV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "vectorPromotionId" -------------
+	var vectorPromotionId VectorPromotionPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "vectorPromotionId", chi.URLParam(r, "vectorPromotionId"), &vectorPromotionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "vectorPromotionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BypassVectorPromotionGatesV1(w, r, projectId, vectorPromotionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RejectVectorPromotionV1 operation middleware
+func (siw *ServerInterfaceWrapper) RejectVectorPromotionV1(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "projectId" -------------
+	var projectId ProjectPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "projectId", chi.URLParam(r, "projectId"), &projectId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "projectId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "vectorPromotionId" -------------
+	var vectorPromotionId VectorPromotionPathId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "vectorPromotionId", chi.URLParam(r, "vectorPromotionId"), &vectorPromotionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "vectorPromotionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RejectVectorPromotionV1(w, r, projectId, vectorPromotionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RevokeApprovalVectorPromotionV1 operation middleware
 func (siw *ServerInterfaceWrapper) RevokeApprovalVectorPromotionV1(w http.ResponseWriter, r *http.Request) {
 
@@ -1907,6 +2050,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval", wrapper.RevokeApprovalVectorPromotionV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject", wrapper.RejectVectorPromotionV1)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates", wrapper.BypassVectorPromotionGatesV1)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}", wrapper.GetVectorPromotionV1)
@@ -3301,6 +3450,210 @@ func (response ApproveVectorPromotionV1500JSONResponse) VisitApproveVectorPromot
 	return err
 }
 
+type BypassVectorPromotionGatesV1RequestObject struct {
+	ProjectId         ProjectPathId         `json:"projectId"`
+	VectorPromotionId VectorPromotionPathId `json:"vectorPromotionId"`
+	Body              *BypassVectorPromotionGatesV1JSONRequestBody
+}
+
+type BypassVectorPromotionGatesV1ResponseObject interface {
+	VisitBypassVectorPromotionGatesV1Response(w http.ResponseWriter) error
+}
+
+type BypassVectorPromotionGatesV1204Response struct {
+}
+
+func (response BypassVectorPromotionGatesV1204Response) VisitBypassVectorPromotionGatesV1Response(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type BypassVectorPromotionGatesV1400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response BypassVectorPromotionGatesV1400JSONResponse) VisitBypassVectorPromotionGatesV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BypassVectorPromotionGatesV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response BypassVectorPromotionGatesV1401JSONResponse) VisitBypassVectorPromotionGatesV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BypassVectorPromotionGatesV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response BypassVectorPromotionGatesV1403JSONResponse) VisitBypassVectorPromotionGatesV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BypassVectorPromotionGatesV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response BypassVectorPromotionGatesV1404JSONResponse) VisitBypassVectorPromotionGatesV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BypassVectorPromotionGatesV1409JSONResponse struct{ ConflictJSONResponse }
+
+func (response BypassVectorPromotionGatesV1409JSONResponse) VisitBypassVectorPromotionGatesV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BypassVectorPromotionGatesV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response BypassVectorPromotionGatesV1500JSONResponse) VisitBypassVectorPromotionGatesV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectVectorPromotionV1RequestObject struct {
+	ProjectId         ProjectPathId         `json:"projectId"`
+	VectorPromotionId VectorPromotionPathId `json:"vectorPromotionId"`
+	Body              *RejectVectorPromotionV1JSONRequestBody
+}
+
+type RejectVectorPromotionV1ResponseObject interface {
+	VisitRejectVectorPromotionV1Response(w http.ResponseWriter) error
+}
+
+type RejectVectorPromotionV1204Response struct {
+}
+
+func (response RejectVectorPromotionV1204Response) VisitRejectVectorPromotionV1Response(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RejectVectorPromotionV1400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RejectVectorPromotionV1400JSONResponse) VisitRejectVectorPromotionV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectVectorPromotionV1401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RejectVectorPromotionV1401JSONResponse) VisitRejectVectorPromotionV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectVectorPromotionV1403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RejectVectorPromotionV1403JSONResponse) VisitRejectVectorPromotionV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectVectorPromotionV1404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RejectVectorPromotionV1404JSONResponse) VisitRejectVectorPromotionV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectVectorPromotionV1409JSONResponse struct{ ConflictJSONResponse }
+
+func (response RejectVectorPromotionV1409JSONResponse) VisitRejectVectorPromotionV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RejectVectorPromotionV1500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response RejectVectorPromotionV1500JSONResponse) VisitRejectVectorPromotionV1Response(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type RevokeApprovalVectorPromotionV1RequestObject struct {
 	ProjectId         ProjectPathId         `json:"projectId"`
 	VectorPromotionId VectorPromotionPathId `json:"vectorPromotionId"`
@@ -3633,6 +3986,12 @@ type StrictServerInterface interface {
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve)
 	ApproveVectorPromotionV1(ctx context.Context, request ApproveVectorPromotionV1RequestObject) (ApproveVectorPromotionV1ResponseObject, error)
+	// BypassVectorPromotionGatesV1 Bypasses the gates of the given vectorPromotion for the specified project
+	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates)
+	BypassVectorPromotionGatesV1(ctx context.Context, request BypassVectorPromotionGatesV1RequestObject) (BypassVectorPromotionGatesV1ResponseObject, error)
+	// RejectVectorPromotionV1 Rejects the given vectorPromotion for the specified project
+	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject)
+	RejectVectorPromotionV1(ctx context.Context, request RejectVectorPromotionV1RequestObject) (RejectVectorPromotionV1ResponseObject, error)
 	// RevokeApprovalVectorPromotionV1 Revoke the approval of the given vectorPromotion for the specified project
 	// (POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval)
 	RevokeApprovalVectorPromotionV1(ctx context.Context, request RevokeApprovalVectorPromotionV1RequestObject) (RevokeApprovalVectorPromotionV1ResponseObject, error)
@@ -4190,6 +4549,74 @@ func (sh *strictHandler) ApproveVectorPromotionV1(w http.ResponseWriter, r *http
 	}
 }
 
+// BypassVectorPromotionGatesV1 operation middleware
+func (sh *strictHandler) BypassVectorPromotionGatesV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) {
+	var request BypassVectorPromotionGatesV1RequestObject
+
+	request.ProjectId = projectId
+	request.VectorPromotionId = vectorPromotionId
+
+	var body BypassVectorPromotionGatesV1JSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.BypassVectorPromotionGatesV1(ctx, request.(BypassVectorPromotionGatesV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "BypassVectorPromotionGatesV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(BypassVectorPromotionGatesV1ResponseObject); ok {
+		if err := validResponse.VisitBypassVectorPromotionGatesV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RejectVectorPromotionV1 operation middleware
+func (sh *strictHandler) RejectVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) {
+	var request RejectVectorPromotionV1RequestObject
+
+	request.ProjectId = projectId
+	request.VectorPromotionId = vectorPromotionId
+
+	var body RejectVectorPromotionV1JSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RejectVectorPromotionV1(ctx, request.(RejectVectorPromotionV1RequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RejectVectorPromotionV1")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RejectVectorPromotionV1ResponseObject); ok {
+		if err := validResponse.VisitRejectVectorPromotionV1Response(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // RevokeApprovalVectorPromotionV1 operation middleware
 func (sh *strictHandler) RevokeApprovalVectorPromotionV1(w http.ResponseWriter, r *http.Request, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) {
 	var request RevokeApprovalVectorPromotionV1RequestObject
@@ -4276,88 +4703,97 @@ func (sh *strictHandler) GetVectorDiffV1(w http.ResponseWriter, r *http.Request,
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"7F3rc9s4kv9XULyrukwVLTmJd+vW98lxHuubzMZnJ5kPmdQMRDYlrCmAA4BydC7971d48gVSlCw72Uu+",
-	"2SYejcavH2h0w3dRwpYFo0CliE7vogJzvAQJXP92xiXJcCJfQpGz9RKovMRycZGqbymIhJNCEkaj00BL",
-	"dJFGcUTUxwLLRRRHFC8hOo1wp6luyeHPknBIo1PJS4gjkSxgidVMcl2ofkJyQufRZhNHbzFNRYIL6CPH",
-	"N+ilInct9p/8f0rg69Dsr0kugaPZGjVn0WT8qXr10TE07yVn/4Skdwfs594FF+b7zsu9lnjey2f9sXdK",
-	"ob7uPOFHSCTj2yHXbtdLxqrV8N4Ujdj44Jyh/Q823E7MJWdLpmY9ZzQj82EetRpvYVSr9Z7c8qOMJG0s",
-	"UTuSs1GNRcGoAK3RXuD0Cv4sQUj1W8KoBKp/xEWRkwSrKab/FIrCu9qw/84hi06jf5tW2nJqvorpK84Z",
-	"v7KTmCmbK72gK5yTFHEzMap07CTaxJFic06SRyTo/QI8MYmdXaBbIhdILgAlJedKnoTEEhDL9B85CFby",
-	"BDTJrxmfkTQF+ng0nyUJCIEokwjnObuFVFNyQSVwinPd/xGpoaik8KWAREKKBPAVcASqF2KJ5p8h7x9M",
-	"vmYlTb/K3kLqdw3dYsO7TFGjSftAcSkXjJP/hUck76yUC6DSjo6cICPGkQAh1N/gS0EM/zZOshvOyHlF",
-	"aMFZAVwSI9saF1dQCqhpghljOWAaaUWQddXQu/NfEIcMGY2BnnCYEyH5elot73QFXFH2UxS39YvWLprD",
-	"mgIiYSm28cit48r2VKPYYTHneK1/x+Jm9xHfY3ETHE3/HtLVlSL9pNlj28Z1Xn72A7KZ8iDUiF13L7Ad",
-	"ts14fmTAgRqGkHRst4bp3MQNh2rLEG9rTRXWjLsynu/X1r/ZxNGS0LdA53IRnT7tboDSpKXogk8Ja9cd",
-	"RrZ5HAEtl2pr3Fpfg0wWoCxgc/XmT0Xxd8C5XCjv4gpwuq5tXQXYrsMxfsEfu87KlrW3MEYUoU2XN0RP",
-	"bS/iCkeej+MQGXI6ehiuyepwqjvkWyICQE+xxDvLak1yNluYpscfWnMlOUYLvsui00/DZJy7P9Wk7nNj",
-	"SKucOqs1btldl13jtIzubhsPrUnrsi6roQCaine0we8eUir5e2CazxeYzuG9HcsJLU5TMM7qkq30T4lu",
-	"p34qqfs5JKKBzelwwu/pP/rW5lt8NOYr2IhDwQSRjK/HGAjfNm7NH5gtyCh9onhFJV+/JFkWWFWDk4MA",
-	"rlpu4ugG1sHl5ZDJjzgvIXD+UH9GjGrvVrVDgqQwQWczoVTC7QIoqshBRKDfzJb+Fmn/iZP5YtTYuuGI",
-	"wS1O9PAtzqvlxXXmhJjb9L06rAXnIbdxlIbhswQh8HyEdOgRqvZd0lrtDSGhFVykyjWU6wDxS0zyIJkZ",
-	"XpJ83SsEc7IC2vu1Vy/YYMkVy60vk6ZE7S3OLxt0jVdBwzyxGqaitrGw2K6/RVeIhd6l6fKQ7OoPOe50",
-	"Taj64g6G3pp3TWjI+OtBBynvs9t+oh5z7Qc4gJWu2Li3cbbxuH324dKH6kbvggXGPfegmjg4oZ2kh/+2",
-	"8wG471h3H96baNEbLAOS4Kx+c4WqLVKfEBboj9/K4+PnyRxLOFLs0r/CxPyV3VLgRylbYkLNhz9iBJP5",
-	"BP0BX9TRmcgjXBScrXA+uVE2L1VGfJLkrEz/2LpHvX5GY1nX/kzRXFxNbzfX9/dyiekRB5ziWQ6o9rES",
-	"ZQnCxX2MtQkfebENCjQn+AUnC0KhmsI0RBnjuwwvQJ7JAADJEvQwak/sILdYoByrMUFBP2N8iWV0qoAB",
-	"R5Is+8Z/se6O/0qbHiQXWPox2/M9SRiVnOU5cCt9HJUCOBKl3qRghEB37c53Hoqyqblq575LoKkaJY6u",
-	"sSQiI9p5fNUyoF139lsGtmPIIMCv9eFjwP29ITR8B2KjyTbspZtV/NQH9siFqN/DssibpNQ8x7oh3TLL",
-	"gAns09+dMepnjF4G2uUM6W8z6nvM5yDvwT+pBwjzb2922UHvxS47xs7sqpMYYp1ZWjeIlUiyAv2xdowa",
-	"d8Zu9Np8DkVqbag9XyMzEar3qR0XSA6IMrkgdI4WWKAZADVdsLSh5u1uRS1ctX+QrN8d0SGbno2JI7Nv",
-	"D8bIehOtSTU1/yGqy4wCEnXOShhdAZ8rRkrW4jCRmrmUScPghINiL1qDnAx4Uk129oKrz6syfAv7VLrj",
-	"ATwqg+69/an2tu3q0Nb712Ktb4ACx5KEnInqm3dxsbOXdb+BUAlz4ENR1pfAyQpSpAw3K1sWVzQEzhrc",
-	"Kjh36kAQ2ytdlFZhQwWUNegBuRJDZPoROjcG5jTQh1DlRs85CDFBv5C5WmPVfmn+oPWcuBGIl5QSOp+g",
-	"MyPrtaZW+jtt0RPJMRUEqPxpgnQc+BRlZZ6vNQMgRayUE/QakxzSU8RB316l2kvLMMlLrnxDCYka+r/0",
-	"GmFJpJOD32jXP6nFMuOoxYMojlqrjOKovRofsI4jQ9dA5LonCcHJ/soNOOIc5Nu20TgYaW6BuV+mHUlh",
-	"0TYr96G+fSJ8q97AXidE0wzWrQZidC26Dhun274mHbGr1tXOGTAc3TNqFzrL6CjeyPn2iOTFO+7Mlhif",
-	"2xyakXnAWdEXuuY6NxyxMukSzUVe4VvkeqJZzmYo42yJ6lOVRi4+Po0CNGWAZcmH4mR9s7qeu8+62cKb",
-	"MGrr/BllNtvx6kBcr776w4w5uDY5rCp2vcqr1E9gaYmH2ZiBdNuHuWUPXlTX1vx5G8cO4EE1d2BvT6p9",
-	"g7qPNxW+hb33vfcOx4eh++z2fW73NrvrIVStnRtQ/WWUQ7CdXbV7zu130lXiYt1F6HMIAvsxjjNDjsFB",
-	"L507qLsvfsNOwb21UJ+S3V0TuZGUi7BVHbnwJ2TyaIFp2utEWn9h7IC68fCILb5rct0sI3Wcj410d2SO",
-	"JYigw2wOQLACvjYBzhSSHOtMLOouFMyosTqymK/2OMZT4BN0VnXRA9wSuVCnK4w4JKpNag9aRCAOBVMn",
-	"JISFO2KZg8TY64BO2DsAkrGKs55KqsPBf5YuRuYDyITKv56ED5k+LWIUye1AZkN5OoX4KybShHmd+rug",
-	"l/aQGMXRi5wlNzrye10mCUBqfy6AC/3L5954y2g62wFDNYLMzzIJ/DWhRCyM1zSggkectyzvPHG++whw",
-	"9/m8PRBXUBEW3x7KPqCjXU25MOGgjMzRstR5uUJM9gLlQeDo0611PgMUb7GQ/mP9krmGxqLxfQeVWymN",
-	"AOn3x/ijoG8cxGosGg2zYQveTqcfMuOttgez5W25uKdBr+vEMSsfXPPB0tG0dk5KTuT6WjU03JoB5sDP",
-	"SrmofnvtFPd///re1U/o7F/9tSJ1IWVhlL7ONT5n7IZoMnXhQWJ+9aUHNynQI9u0GgMX5GdYm+RmQjMW",
-	"uGl9//5SG8VbvEYzkLcAFJ2/vZh+uEBJTtTKkXIKlJ392d+iofOrl8KYRUlkrqaqfTy7vKgFbk6jp2oZ",
-	"rACKCxKdRs8nx5PnCu1YLjSXpqunU3XenSY4z2c40cl0ViZbJ3FIgKxAaHJcTrgx9QlLwSlLQBcvLxFW",
-	"MolEqbPxszJHOZsTOkGvvpjIhRnF9GMcSXYD1CwWhMSzXMmyQNgnexuWm1UrkcAOhDpT/NzSrkMA9dK0",
-	"T3fBYhpzs7hTuUp4IJvTtHM/k9u0b8ff6xszNMjnVlXL8+NnoX1NCYdEIsnM1lZZ/d1txI28fGUFF4BT",
-	"Wwb4liU9UXo/R8nzLXVL1yCPKnlr3YUzKjGhBjwOGhcvJ4NDqkFPjo/79KVn0LRW86O7PN3epVEcsYmj",
-	"v4yZp1mLUtde0emnz3EkyuUS87U6Lly8PEdeMJWxmgudMqqUmtZ7SnzBypQ2GEzIYJ4hSbWnoyXOHDQ4",
-	"yQhw/QsHWXIqPEtJhnQp0qQjbZdMSCfD5ywFLXG2juQFS9c7VYiMzDB0pI5OMfQdAjmGm7bUtyu/npkt",
-	"bJ2EXM2JV05pC/s7w9Zwdxtsvz4Gr0FZIFgWyOGsAtHlz+evKiRJhuYgUc0QBuFKatmbPYbGoNE1RMp6",
-	"KrtNaklCNUUEqZYR4F24vgHpkkUtUrs7fZCCJp+SGqhlevfzo+sTv3tvbHKSu97WWUh+B/q2SBvrgf0x",
-	"ytzgecbZrTC7741/wzkAmhaMUBmjGcyJuXtULTV4VFOU5ex2gt7RfkPjh+Z+bqUS1aRTXJCOExNyFN6q",
-	"RYU8hNbqGJNHHHKs8yyUn6Rm4TUjaYyidWjOKMIzwfJSAlL+3JPrn9CHq7eICISTBAqFTn35Q6RAJmMK",
-	"+fNkqa9S1np1Z5cXtkBwonxAM77aL+UW6aFRzlihl+2WqWayAZKAr2C0+u/G5Pa7Oj6YUXJyxL1fHYdc",
-	"kla2jdrB62d/+StKFkoAlW4ohb0j9muY9JCntMjvvmNDFy7xF18p9Ow/G5VDJ8/j+7s5/SA9vEezp/tx",
-	"YC1+QYkkWALSLoWR7wHpZ6Xs9ybOc8C8acyse46uDMo0ZG2mkm0yCckjK2WvWg4bYAl8SajW+ZWyyNc7",
-	"GOMrfekaJP8h7HFzT+7aJ8pPnzeNfXrv1tessN5iUm3CtdhqUnGeI/cAhK9IRSsiyCwHfwBomFZlMQKb",
-	"R3TQSc/6sJa1ni7+jRlXRZNmqed/tUH+T51Nmt75JzY2026R4bhNDPSrbajSv9hRNUHnmKIZoEy/OmEs",
-	"TlUkwXjnwim83d2KRBGypiF2Vk2mzddJlE3Z0qHzjMqIPn0PcXQsxSGB2lMGeljMnhw/396penZB9zjZ",
-	"3sO/P3BQsQiBtAnN/QVGTGubNiguSqUtMSUZCIlSkJjkArEMYbr2FCK8wiTXxQiEonfnFzEiNMnLVDur",
-	"6wJiVFW6xyaRLtZHIHOjZwUv5Ha+Adl6keAgUjN4r2gc/GztXG2/zMGEign6pRRSaYoCeAJUHgFVTlo6",
-	"QZdYCHMth5F246rHSdAMElwKY7AcHYk78U6n6HZBkgVKMDX5ssZDJFShQDnXAuZa5wy4sdlOobrHkHGf",
-	"39Ev3I8TcPpX0AfqDKqAYXfAqABagXK2VpjZQxd4IzbOZlY2r89SBu2eN0AHMHcPic1mXeN3bHYqWNjt",
-	"FQUkJCNJvfpxX6RN72opQJvtuEOC0HkO+4DvDVTYe1RP61HR+h0iVSnEADAeGqyhw8b0LvTM4g64DryS",
-	"4h+TauBbe0uenMmQn1SN9VVgv71L73uXj3zA+N5lJwC+AcwdUJJ04qeY3tkE0B3kxVRxhUUkKBSmjOTb",
-	"lIP6m58PCn1bl/Z9o91Ap4GYA0K6HQQS07vuk1s7AL2Txby3WWhHc75RYeh5j/ZB5aKbsP19i0gHdAc1",
-	"B0brjzprNtX8ThHZU4Tr70GblyZSBqbgWD8ngevx28bDLu0s6pPjk9hWLdc76THhCxFSoFkp0YLlqRrf",
-	"0C18QgimCJaFXKOcCBm8VCXCWKivFAt+cKPzvR+mLSDuaXU6xmWUEHV67SdQ4bBOW3X+PwRwsELoO8Zy",
-	"F08HgXUrx3oXbLe77haZDKZ4f+NRyv509+8emB0wPAg6nVvfKWUY49uHCxt2OM0Gt/8xNO/Qv0N4fMD/",
-	"8NNDODos3rtI3+P8WlWy7A/yrwDvrwDsH5Bu4uW+iQ5j0Dw1j+wNZP679wBNGsSY1/lMlS7Luto+thW7",
-	"PqsgkIKtzpy2iEQRxifoTP+k+mCKcM4Bp2s7PaS1mkuiE76XBdN3xPWqhGfHJxPk5PPk+G8mn7ZRfKx6",
-	"C1/oGqPMVgPGbkYEXyApJaHzGDFeHadtbbIercMczYpgzZEh/1uW85Pt/0mnnkDpNsy8EfetSuzJ8d+2",
-	"d/D/J+cQIm532oBaP7scFHSdTGou7gyoH86CTTms2A14kA7IPsi9xP7WlJl3Fuoy7m1l/i7qwNDMlRiv",
-	"2E1TGdiPKfJi98TOYP7VkH0d9sx+vTKtX6w/COA/DasN/9iALlxxhKr5/P+VUSuYoHdyoYi1UwgTH1N6",
-	"QekI/6aqHVrroFrWE9dvF7hnF3WxgCJxgs5ywTw534TiMsxzrPwX01+ObBfyHNRnFlQ/1FlDnZn9r1no",
-	"ipuPpNx2y9v0C9QBaC3eSf3NL5fHad9P7GZxcphjnuYgdMrn7QK0oNsHPPXjnan9zzg9uZuN95weInOT",
-	"6hTsJeNV9qRJZRR7Z2teQQFYuscwbZqm2sllmUtS6Be3M5usqnSHLrw0aZU9CZhiMAOz/78bLPGXC/Px",
-	"2bEu47G/Bf/30VrXsmeMLx/j4FJ/8utHGueeaZxWpm0Kp5jsrxVS+1SUVQl9l8Akyx4+fdopPUb99Zoa",
-	"V79h5Fa8p2z2Zjm7F512eZFg3CK0xmvRf3Dy3UtU96D/V+0cqV7I/9ujygCImvJHQCVXZ1rlAJk8fZNS",
-	"rtargNRXcmjbfqDVf1iqCEwhw2UulQrCuag/r6+I0v9pJRehV80f4w5HP1P2Q0uNL3hWMPBvqshb1lJV",
-	"fZpqe7le3HxZxhbw6cLdUDnxdSsR4IkVMkjR2eXFT1EclTyPTqMpLki0+bz5vwAAAP//",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
