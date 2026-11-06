@@ -1,4 +1,7 @@
 <script lang="ts">
+    import { useSearchParams } from "runed/kit";
+    import * as valibot from "valibot";
+    import { urlTextSchema } from "#lib/url-schemas.ts";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import {
@@ -39,6 +42,8 @@
         onRetry,
     }: Props = $props();
 
+    const search = useSearchParams(valibot.object({ promotion: urlTextSchema }));
+
     const desktopPanelViewport = createDesktopPanelViewport();
 
     const overlay = useStageOverlay({
@@ -51,7 +56,7 @@
     const graph = $derived(buildLandscapeGraph(landscapes, stages, promotionConfigs));
     const selectedPromotionId = $derived(
         selectedStage === undefined
-            ? (page.url.searchParams.get(PROMOTION_PARAM) ?? undefined)
+            ? (search.promotion || undefined)
             : undefined,
     );
     const selectedPromotion = $derived(

@@ -23,6 +23,7 @@ interface DeploymentFilterMatchers<Row extends MatchableRow, Status extends stri
 }
 
 interface UseDeploymentFiltersOptions<Row extends MatchableRow, Status extends string> {
+  selectedId: () => string | undefined;
   rows: () => readonly Row[];
   /** Server-side filter dimensions (e.g. landscape, vector deployment). */
   dimensions: readonly ServerFilterDimension[];
@@ -41,11 +42,13 @@ class DeploymentFilters<Row extends MatchableRow, Status extends string> {
   query = $state("");
   status = $state<"" | Status>("");
 
+  readonly #selectedId: () => string | undefined;
   readonly #rows: () => readonly Row[];
   readonly #dimensions: readonly ServerFilterDimension[];
   readonly #matchers: DeploymentFilterMatchers<Row, Status>;
 
   constructor(options: UseDeploymentFiltersOptions<Row, Status>) {
+    this.#selectedId = options.selectedId;
     this.#rows = options.rows;
     this.#dimensions = options.dimensions;
     this.#matchers = options.matchers;
@@ -67,7 +70,7 @@ class DeploymentFilters<Row extends MatchableRow, Status extends string> {
   }
 
   get selectedId(): string | undefined {
-    return page.url.searchParams.get(DEEP_LINK_PARAM) ?? undefined;
+    return this.#selectedId();
   }
 
   get selected(): Row | undefined {
@@ -106,7 +109,7 @@ class DeploymentFilters<Row extends MatchableRow, Status extends string> {
   }
 
   openRow = (row: Row): void => {
-    if (page.url.searchParams.get(DEEP_LINK_PARAM) === row.id) {
+    if (this.selectedId === row.id) {
       return;
     }
     this.#updateUrl((params) => params.set(DEEP_LINK_PARAM, row.id), {
