@@ -36,7 +36,7 @@ func fakeK8s(objs ...client.Object) client.Client {
 	return fake.NewClientBuilder().
 		WithScheme(newTestScheme()).
 		WithObjects(objs...).
-		WithStatusSubresource(&konfidence.Project{}).
+		WithStatusSubresource(&konfidence.Project{}, &konfidence.VectorPromotion{}).
 		WithIndex(&konfidence.VectorPromotion{}, vectorpromotiondomain.PromotionConfigNameField,
 			vectorpromotiondomain.PromotionConfigNameIndexFunc).
 		Build()

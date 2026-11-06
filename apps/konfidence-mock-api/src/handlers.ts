@@ -338,6 +338,10 @@ const operationHandlers = {
   logoutV1: (_request, reply) => reply.clearCookie(SESSION_COOKIE, COOKIE_OPTIONS).send(),
   postExchangeCodeV1: (_request, reply) =>
     reply.setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS).send(),
+  revokeApprovalVectorPromotionV1: (request, reply) => {
+    promotionFor(request);
+    return reply.code(HTTP_NO_CONTENT).send();
+  },
 } satisfies Record<keyof operations, MockHandler>;
 
 const securityHandlers = {

@@ -184,6 +184,136 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
+	Describe("RevokeApproval", func() {
+		approvedPromotion := func(conditions ...metav1.Condition) *konfidence.VectorPromotion {
+			approved := newPromotion(conditions...)
+			approved.Status.Gates = []konfidence.PromotionGateStatus{{
+				Type:  konfidence.GateTypeExplicitApproval,
+				State: konfidence.PromotionGateStateSatisfied,
+				SetBy: "alice@example.com",
+			}}
+			return approved
+		}
+
+		It("sets the explicit-approval gate back to Pending with provenance", func() {
+			approved := approvedPromotion()
+			approved.Spec.Gates = append(approved.Spec.Gates, konfidence.PromotionGate{Type: "e2e-tests.example.com"})
+			approved.Status.Gates = append(approved.Status.Gates, konfidence.PromotionGateStatus{
+				Type: "e2e-tests.example.com", State: konfidence.PromotionGateStatePending,
+			})
+			repo := newRepository(approved)
+
+			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "bob@example.com")).To(Succeed())
+
+			revoked, err := repo.Get(ctx, key.Namespace, key.Name)
+			Expect(err).NotTo(HaveOccurred())
+			gate := promotiongate.Find(revoked, konfidence.GateTypeExplicitApproval)
+			Expect(gate).NotTo(BeNil())
+			Expect(gate.State).To(Equal(konfidence.PromotionGateStatePending))
+			Expect(gate.Reason).To(Equal(konfidence.ReasonGateApprovalRevokedByUser))
+			Expect(gate.Message).To(Equal("approval revoked by bob@example.com"))
+			Expect(gate.SetBy).To(Equal("bob@example.com"))
+			Expect(gate.SetAt).NotTo(BeNil())
+			Expect(promotiongate.StateOf(revoked, "e2e-tests.example.com")).
+				To(Equal(konfidence.PromotionGateStatePending))
+		})
+
+		It("is idempotent after revocation and preserves the original provenance", func() {
+			repo := newRepository(approvedPromotion())
+			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "bob@example.com")).To(Succeed())
+			before, err := repo.Get(ctx, key.Namespace, key.Name)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "carol@example.com")).To(Succeed())
+			after, err := repo.Get(ctx, key.Namespace, key.Name)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(after).To(Equal(before))
+
+			By("allowing a fresh revocation after re-approval")
+			Expect(repo.Approve(ctx, key.Namespace, key.Name, "alice@example.com")).To(Succeed())
+			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "carol@example.com")).To(Succeed())
+			after, err = repo.Get(ctx, key.Namespace, key.Name)
+			Expect(err).NotTo(HaveOccurred())
+			gate := promotiongate.Find(after, konfidence.GateTypeExplicitApproval)
+			Expect(gate.State).To(Equal(konfidence.PromotionGateStatePending))
+			Expect(gate.Reason).To(Equal(konfidence.ReasonGateApprovalRevokedByUser))
+			Expect(gate.SetBy).To(Equal("carol@example.com"))
+		})
+
+		DescribeTable("rejects a gate that is not approved without changing the promotion",
+			func(state konfidence.PromotionGateState) {
+				pending := newPromotion()
+				if state != "" {
+					pending.Status.Gates = []konfidence.PromotionGateStatus{{
+						Type: konfidence.GateTypeExplicitApproval, State: state,
+					}}
+				}
+				repo := newRepository(pending)
+				before, err := repo.Get(ctx, key.Namespace, key.Name)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "bob@example.com")).
+					To(MatchError(ErrNotApproved))
+				after, err := repo.Get(ctx, key.Namespace, key.Name)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(after).To(Equal(before))
+			},
+			Entry("missing status", konfidence.PromotionGateState("")),
+			Entry("pending", konfidence.PromotionGateStatePending),
+			Entry("error", konfidence.PromotionGateStateError),
+		)
+
+		It("rejects a promotion whose gates are already satisfied", func() {
+			repo := newRepository(approvedPromotion(metav1.Condition{
+				Type:   konfidence.ConditionTypeGatesSatisfied,
+				Status: metav1.ConditionTrue,
+				Reason: konfidence.ReasonAllGatesSatisfied,
+			}))
+
+			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "bob@example.com")).
+				To(MatchError(ErrPromotionExecuting))
+		})
+
+		DescribeTable("rejects finished promotions and forwards the outcome",
+			func(reason string, status metav1.ConditionStatus) {
+				repo := newRepository(approvedPromotion(metav1.Condition{
+					Type:    konfidence.ConditionTypeSucceeded,
+					Status:  status,
+					Reason:  reason,
+					Message: "set by test",
+				}))
+
+				err := repo.RevokeApproval(ctx, key.Namespace, key.Name, "bob@example.com")
+				Expect(err).To(MatchError(ErrPromotionFinished))
+				Expect(err).To(MatchError(ContainSubstring(reason + ": set by test")))
+			},
+			Entry("succeeded", konfidence.ReasonPromotionSucceeded, metav1.ConditionTrue),
+			Entry("superseded", konfidence.ReasonPromotionSuperseded, metav1.ConditionFalse),
+		)
+
+		It("rejects a promotion that has no approval gate", func() {
+			gateless := approvedPromotion()
+			gateless.Spec.Gates = []konfidence.PromotionGate{{Type: "e2e-tests.example.com"}}
+			repo := newRepository(gateless)
+
+			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "bob@example.com")).
+				To(MatchError(ErrApprovalNotRequired))
+		})
+
+		It("rejects an empty revoker", func() {
+			repo := newRepository(approvedPromotion())
+
+			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "")).To(MatchError(ErrRevokerMissing))
+		})
+
+		It("reports a missing promotion as not found", func() {
+			repo := newRepository()
+
+			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "bob@example.com")).
+				To(MatchError(ErrVectorPromotionNotFound))
+		})
+	})
+
 	Describe("ListForConfig", func() {
 		newPromotionForConfig := func(name, namespace, configName string, sequence int64) *konfidence.VectorPromotion {
 			return &konfidence.VectorPromotion{

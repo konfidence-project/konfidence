@@ -9,6 +9,8 @@ import (
 	"github.com/konfidence-project/konfidence/internal/api/apierror"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/auth"
+	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
+	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -159,11 +161,8 @@ var _ = Describe("GetVectorPromotionV1", func() {
 
 var _ = Describe("ApproveVectorPromotionV1", func() {
 	// The handler maps both err==nil and ErrAlreadyApproved to 204; the already-approved
-	// fixture exercises that return path without requiring a k8s Status().Patch() call.
-	// A genuine first-time approval (err==nil) is not asserted here: fakeK8s does not
-	// register VectorPromotion as a status subresource, so Status().Patch() would succeed
-	// but bypass the subresource restriction rather than exercise the realistic path. That
-	// path is covered by the repository-layer tests in internal/vectorpromotion/repository_test.go.
+	// fixture exercises the idempotent return path. A genuine first-time approval is
+	// covered by the repository-layer tests in internal/vectorpromotion/repository_test.go.
 	It("returns 204 when the promotion is already approved (idempotent success)", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
@@ -336,6 +335,100 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		})
 
 		expectAPIError(resp, err, http.StatusUnauthorized)
+	})
+})
+
+var _ = Describe("RevokeApprovalVectorPromotionV1", func() {
+	approvedPromotion := func() *konfidence.VectorPromotion {
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
+		promo.Spec.Gates = []konfidence.PromotionGate{
+			{Type: konfidence.GateTypeExplicitApproval},
+			{Type: "e2e-tests.example.com"},
+		}
+		promo.Status.Gates = []konfidence.PromotionGateStatus{
+			{Type: konfidence.GateTypeExplicitApproval, State: konfidence.PromotionGateStateSatisfied},
+			{Type: "e2e-tests.example.com", State: konfidence.PromotionGateStatePending},
+		}
+		return promo
+	}
+
+	It("returns 204 and revokes the approval", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		promo := approvedPromotion()
+		h := newProjectHandlerForTest(project, promo)
+		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+
+		resp, err := h.RevokeApprovalVectorPromotionV1(ctx, openapi.RevokeApprovalVectorPromotionV1RequestObject{
+			ProjectId:         "my-project",
+			VectorPromotionId: "promo-1",
+		})
+		Expect(err).NotTo(HaveOccurred())
+		_, is204 := resp.(openapi.RevokeApprovalVectorPromotionV1204Response)
+		Expect(is204).To(BeTrue())
+
+		updated, err := h.vectorPromotionRepo.Get(ctx, "kden-p-my-project", "promo-1")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(promotiongate.StateOf(updated, konfidence.GateTypeExplicitApproval)).
+			To(Equal(konfidence.PromotionGateStatePending))
+	})
+
+	It("returns 204 when the approval was already revoked", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		promo := approvedPromotion()
+		h := newProjectHandlerForTest(project, promo)
+		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+		request := openapi.RevokeApprovalVectorPromotionV1RequestObject{
+			ProjectId: "my-project", VectorPromotionId: "promo-1",
+		}
+
+		for range 2 {
+			resp, err := h.RevokeApprovalVectorPromotionV1(ctx, request)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp).To(BeAssignableToTypeOf(openapi.RevokeApprovalVectorPromotionV1204Response{}))
+		}
+	})
+
+	It("returns 409 when the approval is pending but was not revoked", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		promo := approvedPromotion()
+		promo.Status.Gates[0].State = konfidence.PromotionGateStatePending
+		h := newProjectHandlerForTest(project, promo)
+		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+
+		resp, err := h.RevokeApprovalVectorPromotionV1(ctx, openapi.RevokeApprovalVectorPromotionV1RequestObject{
+			ProjectId:         "my-project",
+			VectorPromotionId: "promo-1",
+		})
+		expectAPIError(resp, err, http.StatusConflict)
+		Expect(apierror.As(err).Message).To(Equal(vectorpromotiondomain.ErrNotApproved.Error()))
+	})
+
+	It("returns 409 after the promotion gates are satisfied", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		promo := approvedPromotion()
+		promo.Status.Conditions = []metav1.Condition{{
+			Type: konfidence.ConditionTypeGatesSatisfied, Status: metav1.ConditionTrue,
+		}}
+		h := newProjectHandlerForTest(project, promo)
+		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+
+		resp, err := h.RevokeApprovalVectorPromotionV1(ctx, openapi.RevokeApprovalVectorPromotionV1RequestObject{
+			ProjectId:         "my-project",
+			VectorPromotionId: "promo-1",
+		})
+		expectAPIError(resp, err, http.StatusConflict)
+	})
+
+	It("returns 404 when the promotion does not exist", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		h := newProjectHandlerForTest(project)
+		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+
+		resp, err := h.RevokeApprovalVectorPromotionV1(ctx, openapi.RevokeApprovalVectorPromotionV1RequestObject{
+			ProjectId:         "my-project",
+			VectorPromotionId: "missing",
+		})
+		expectAPIError(resp, err, http.StatusNotFound)
 	})
 })
 

@@ -921,6 +921,13 @@ type ClientInterface interface {
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 	ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RevokeApprovalVectorPromotionV1 Revoke the approval of the given vectorPromotion for the specified project
+	//
+	// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval (the `RevokeApprovalVectorPromotionV1` operationId).
+	RevokeApprovalVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetVectorContentV1 Get OCM content for vectors by refs.
 	//
 	// Returns the component list and configuration of any vector available in OCI, regardless of whether it has been deployed.
@@ -1268,6 +1275,23 @@ func (c *Client) GetVectorPromotionV1(ctx context.Context, projectId ProjectPath
 // Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 func (c *Client) ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewApproveVectorPromotionV1Request(c.Server, projectId, vectorPromotionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RevokeApprovalVectorPromotionV1 Revoke the approval of the given vectorPromotion for the specified project
+//
+// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval (the `RevokeApprovalVectorPromotionV1` operationId).
+func (c *Client) RevokeApprovalVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeApprovalVectorPromotionV1Request(c.Server, projectId, vectorPromotionId)
 	if err != nil {
 		return nil, err
 	}
@@ -2207,6 +2231,47 @@ func NewApproveVectorPromotionV1Request(server string, projectId ProjectPathId, 
 	return req, nil
 }
 
+// NewRevokeApprovalVectorPromotionV1Request constructs an http.Request for the RevokeApprovalVectorPromotionV1 method
+func NewRevokeApprovalVectorPromotionV1Request(server string, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "projectId", projectId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "vectorPromotionId", vectorPromotionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/vectorPromotions/%s/revoke-approval", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetVectorContentV1Request constructs an http.Request for the GetVectorContentV1 method
 func NewGetVectorContentV1Request(server string, projectId ProjectPathId, params *GetVectorContentV1Params) (*http.Request, error) {
 	var err error
@@ -2568,6 +2633,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 	ApproveVectorPromotionV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*ApproveVectorPromotionV1Response, error)
+
+	// RevokeApprovalVectorPromotionV1WithResponse Revoke the approval of the given vectorPromotion for the specified project
+	//
+	// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval (the `RevokeApprovalVectorPromotionV1` operationId).
+	RevokeApprovalVectorPromotionV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*RevokeApprovalVectorPromotionV1Response, error)
 
 	// GetVectorContentV1WithResponse Get OCM content for vectors by refs.
 	//
@@ -3821,6 +3895,75 @@ func (r ApproveVectorPromotionV1Response) ContentType() string {
 	return ""
 }
 
+type RevokeApprovalVectorPromotionV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalError
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r RevokeApprovalVectorPromotionV1Response) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r RevokeApprovalVectorPromotionV1Response) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r RevokeApprovalVectorPromotionV1Response) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r RevokeApprovalVectorPromotionV1Response) GetJSON409() *Conflict {
+	return r.JSON409
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r RevokeApprovalVectorPromotionV1Response) GetJSON500() *InternalError {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokeApprovalVectorPromotionV1Response) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeApprovalVectorPromotionV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeApprovalVectorPromotionV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokeApprovalVectorPromotionV1Response) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetVectorContentV1Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4271,6 +4414,21 @@ func (c *ClientWithResponses) ApproveVectorPromotionV1WithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseApproveVectorPromotionV1Response(rsp)
+}
+
+// RevokeApprovalVectorPromotionV1WithResponse Revoke the approval of the given vectorPromotion for the specified project
+//
+// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval (the `RevokeApprovalVectorPromotionV1` operationId).
+func (c *ClientWithResponses) RevokeApprovalVectorPromotionV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*RevokeApprovalVectorPromotionV1Response, error) {
+	rsp, err := c.RevokeApprovalVectorPromotionV1(ctx, projectId, vectorPromotionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeApprovalVectorPromotionV1Response(rsp)
 }
 
 // GetVectorContentV1WithResponse Get OCM content for vectors by refs.
@@ -5248,6 +5406,63 @@ func ParseApproveVectorPromotionV1Response(rsp *http.Response) (*ApproveVectorPr
 	}
 
 	response := &ApproveVectorPromotionV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokeApprovalVectorPromotionV1Response parses an HTTP response from a RevokeApprovalVectorPromotionV1WithResponse call
+func ParseRevokeApprovalVectorPromotionV1Response(rsp *http.Response) (*RevokeApprovalVectorPromotionV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeApprovalVectorPromotionV1Response{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
