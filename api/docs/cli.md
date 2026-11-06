@@ -1024,8 +1024,10 @@ kden vector-promotion [flags]
 
 * [kden](#kden)  - Kden CLI tool for working with Konfidence
 * [kden vector-promotion approve](#kden-vector-promotion-approve)  - Approve a vector promotion for a specific project id
+* [kden vector-promotion bypass-gates](#kden-vector-promotion-bypass-gates)  - Bypass the gates of a vector promotion for a specific project id
 * [kden vector-promotion get](#kden-vector-promotion-get)  - Get a vector promotion config for a given project id
 * [kden vector-promotion list](#kden-vector-promotion-list)  - List vector promotion configs for a given project id
+* [kden vector-promotion reject](#kden-vector-promotion-reject)  - Reject a vector promotion for a specific project id
 * [kden vector-promotion revoke-approval](#kden-vector-promotion-revoke-approval)  - Revoke the approval of a vector promotion for a specific project id
 
 
@@ -1046,6 +1048,43 @@ kden vector-promotion approve <vectorPromotionId> [flags]
 ```
   -h, --help               help for approve
   -p, --projectId string   The ID of the project the vector promotion belongs to (required)
+```
+
+### Options inherited from parent commands
+
+```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
+      --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
+      --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
+      --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
+      --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
+      --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
+```
+
+### SEE ALSO
+
+* [kden vector-promotion](#kden-vector-promotion)  - Manage vector promotions
+
+
+## kden vector-promotion bypass-gates
+
+Bypass the gates of a vector promotion for a specific project id
+
+### Synopsis
+
+Let the waiting vector promotion with the given vector promotion id for a specific project id proceed and execute as if all of its gates were satisfied. Only promotions still waiting on their gates can be bypassed. The gate states are kept as reported, and you and the given reason are recorded on the promotion.
+
+```
+kden vector-promotion bypass-gates <vectorPromotionId> [flags]
+```
+
+### Options
+
+```
+  -h, --help               help for bypass-gates
+  -p, --projectId string   The ID of the project the vector promotion belongs to (required)
+  -r, --reason string      Why the gates are bypassed (required)
 ```
 
 ### Options inherited from parent commands
@@ -1119,6 +1158,43 @@ kden vector-promotion list [flags]
 ```
   -h, --help               help for list
   -p, --projectId string   The ID of the project the vector promotions belong to (required)
+```
+
+### Options inherited from parent commands
+
+```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
+      --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
+      --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
+      --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
+      --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
+      --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
+```
+
+### SEE ALSO
+
+* [kden vector-promotion](#kden-vector-promotion)  - Manage vector promotions
+
+
+## kden vector-promotion reject
+
+Reject a vector promotion for a specific project id
+
+### Synopsis
+
+Terminally reject the waiting vector promotion with the given vector promotion id for a specific project id, so it never executes, regardless of the state of its gates. Only promotions still waiting on their gates can be rejected. The gate states are kept as reported, and you and the given reason are recorded on the promotion.
+
+```
+kden vector-promotion reject <vectorPromotionId> [flags]
+```
+
+### Options
+
+```
+  -h, --help               help for reject
+  -p, --projectId string   The ID of the project the vector promotion belongs to (required)
+  -r, --reason string      Why the promotion is rejected (required)
 ```
 
 ### Options inherited from parent commands
