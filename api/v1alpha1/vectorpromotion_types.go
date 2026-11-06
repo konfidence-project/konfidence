@@ -27,7 +27,7 @@ const (
 	ReasonGateError = "GateError"
 	// ReasonAllGatesSatisfied (GatesSatisfied=True) indicates every declared gate is satisfied.
 	ReasonAllGatesSatisfied = "AllGatesSatisfied"
-	// ReasonGatesBypassed (GatesSatisfied=True) indicates an operator bypassed the gates.
+	// ReasonGatesBypassed (GatesSatisfied=False) indicates an operator bypassed the gates, so the promotion proceeds despite them.
 	ReasonGatesBypassed = "GatesBypassed"
 	// ReasonTargetResolved (TargetResolved=True) indicates the target Stage resolved.
 	ReasonTargetResolved = "TargetResolved"
@@ -53,7 +53,7 @@ type PromotionOverrideType string
 const (
 	// PromotionOverrideTypeReject terminally rejects a waiting promotion.
 	PromotionOverrideTypeReject PromotionOverrideType = "Reject"
-	// PromotionOverrideTypeBypassGates lets a waiting promotion proceed as if all its gates were satisfied.
+	// PromotionOverrideTypeBypassGates lets a waiting promotion proceed to execution regardless of its gates.
 	PromotionOverrideTypeBypassGates PromotionOverrideType = "BypassGates"
 )
 
@@ -157,8 +157,10 @@ type VectorPromotionStatus struct {
 
 	// Override records an operator decision that overrides the gate flow:
 	// `Reject` terminally rejects the promotion, `BypassGates` lets it proceed
-	// regardless of its gates. It is written only by the konfidence API, at
-	// most once while the promotion waits on its gates, and never cleared.
+	// regardless of its gates (GatesSatisfied stays False with reason
+	// GatesBypassed; the gate entries are left untouched). It is written only by
+	// the konfidence API, at most once while the promotion waits on its gates,
+	// and never cleared.
 	// +optional
 	Override *PromotionOverride `json:"override,omitempty"`
 
@@ -177,9 +179,7 @@ type VectorPromotionStatus struct {
 // +kubebuilder:printcolumn:name="Config",type=string,JSONPath=".spec.vectorPromotionConfigName",description="The referenced VectorPromotionConfig"
 // +kubebuilder:printcolumn:name="Source",type=string,JSONPath=".spec.source.name",description="The promotion source"
 // +kubebuilder:printcolumn:name="Target",type=string,JSONPath=".spec.target.name",description="The target Stage"
-// +kubebuilder:printcolumn:name="Gates",type=string,JSONPath=".status.conditions[?(@.type==\"GatesSatisfied\")].status",description="Whether every gate is satisfied"
-// +kubebuilder:printcolumn:name="Override",type=string,JSONPath=".status.override.type",description="Operator override of the gate flow"
-// +kubebuilder:printcolumn:name="Succeeded",type=string,JSONPath=".status.conditions[?(@.type==\"Succeeded\")].status",description="Promotion outcome"
+// +kubebuilder:printcolumn:name="Gates",type=string,JSONPath=".status.conditions[?(@.type==\"GatesSatisfied\")].reason",description="Why the gates are satisfied, pending, errored, or bypassed"
 // +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=".status.conditions[?(@.type==\"Succeeded\")].reason",description="Reason of the outcome"
 // +kubebuilder:printcolumn:name="Started",type=date,JSONPath=".status.startTime",description="Execution start",priority=1
 // +kubebuilder:printcolumn:name="Vector",type=string,JSONPath=".spec.vector",description="The promoted vector version",priority=1

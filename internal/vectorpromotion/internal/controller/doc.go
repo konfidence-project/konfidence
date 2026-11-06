@@ -22,10 +22,10 @@
 //	                             its provenance (konfidence API); set at most
 //	                             once while waiting, never cleared
 //	GatesSatisfied condition     False while any gate is unsatisfied
-//	                             (GatesPending, GateError); becomes True once
-//	                             all gates are satisfied or an operator
-//	                             bypassed them (GatesBypassed), then is never
-//	                             written again
+//	                             (GatesPending, GateError) or an operator
+//	                             bypassed the gates (GatesBypassed); becomes
+//	                             True once every gate is satisfied, then is
+//	                             never written again
 //	TargetResolved condition     whether the target Stage resolves
 //	status.startTime             execution started (set once)
 //	Succeeded condition          Unknown while active; True (succeeded) or
@@ -64,15 +64,15 @@
 //	  ├──▶ outstanding limit exceeded → Succeeded=False
 //	  │        (OutstandingLimitReached, terminal)
 //	  │
-//	  ▼   all gates satisfied (immediately when there are none),
-//	  │   or override BypassGates (GatesBypassed, gate entries untouched)
-//	GatesSatisfied=True → gates freeze
+//	  ▼   all gates satisfied (immediately when there are none) → GatesSatisfied=True;
+//	  │   or override BypassGates → GatesSatisfied=False/GatesBypassed, gate entries untouched.
+//	  │   Either way the gates freeze and the promotion is ready for execution.
 //	  │
 //	  ▼
 //	┌──────────────────────────────────────────────────┐
 //	│ SERIALIZATION                                    │
 //	│   one started promotion per config               │
-//	│   newest with satisfied gates wins               │
+//	│   newest ready for execution wins                │
 //	└──────────────────────────────────────────────────┘
 //	  │
 //	  ├──▶ older siblings → Succeeded=False
@@ -115,7 +115,7 @@
 // The VectorPromotion reconciler spans several files:
 //
 //   - vectorpromotion_gates.go: gate seeding and the GatesSatisfied condition
-//   - vectorpromotion_override.go: finishing rejected promotions
+//   - vectorpromotion_override.go: finishing rejected promotions and recording gate bypasses
 //   - vectorpromotion_serialization.go: serialization and superseding siblings
 //   - vectorpromotion_execution.go: target resolution, Stage write, and config mirroring
 //   - vectorpromotion_status.go: status update helpers

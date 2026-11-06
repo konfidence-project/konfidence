@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 )
 
@@ -19,9 +18,8 @@ import (
 // the active promotion (Succeeded=Unknown) on first sight, and reports the
 // gates on the GatesSatisfied condition: False (GatesPending or GateError)
 // while a gate is not satisfied yet, True once every gate is satisfied
-// (immediately for promotions without gates) or an operator bypassed them
-// (GatesBypassed). Once True, GatesSatisfied is never written again, and
-// pkg/promotiongate refuses gate changes from then on.
+// (immediately for promotions without gates). Once True, GatesSatisfied is
+// never written again, and pkg/promotiongate refuses gate changes from then on.
 func (r *VectorPromotionReconciler) reconcileGates(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
 	log := logf.FromContext(ctx)
 	previous := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeGatesSatisfied).DeepCopy()
@@ -40,8 +38,6 @@ func (r *VectorPromotionReconciler) reconcileGates(ctx context.Context, vectorPr
 	}
 	log.Info("promotion gates evaluated", "vector", vectorPromotion.Spec.Vector, "satisfied", status, "message", message)
 	switch {
-	case reason == konfidence.ReasonGatesBypassed:
-		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionGatesBypassed", EventActionOverride, message)
 	case status == metav1.ConditionTrue:
 		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionGatesSatisfied", EventActionGates, message)
 	case anyGateInError(vectorPromotion):
@@ -52,10 +48,9 @@ func (r *VectorPromotionReconciler) reconcileGates(ctx context.Context, vectorPr
 	return nil
 }
 
-// gatesSummary derives the GatesSatisfied condition from the gates and a
-// BypassGates override. Errored gates take precedence over pending ones, so a
-// gate that can never pass is surfaced instead of looking like an ordinary
-// wait.
+// gatesSummary derives the GatesSatisfied condition from the gates. Errored
+// gates take precedence over pending ones, so a gate that can never pass is
+// surfaced instead of looking like an ordinary wait.
 func gatesSummary(vectorPromotion *konfidence.VectorPromotion) (status metav1.ConditionStatus, reason, message string) {
 	if allGatesSatisfied(vectorPromotion) {
 		if len(vectorPromotion.Spec.Gates) == 0 {
@@ -65,12 +60,6 @@ func gatesSummary(vectorPromotion *konfidence.VectorPromotion) (status metav1.Co
 		return metav1.ConditionTrue, konfidence.ReasonAllGatesSatisfied,
 			fmt.Sprintf("all %d gates of the promotion of vector %q are satisfied",
 				len(vectorPromotion.Spec.Gates), vectorPromotion.Spec.Vector)
-	}
-	if promotion.IsGatesBypassed(vectorPromotion) {
-		override := vectorPromotion.Status.Override
-		return metav1.ConditionTrue, konfidence.ReasonGatesBypassed,
-			fmt.Sprintf("gates of the promotion of vector %q were bypassed by %s: %s",
-				vectorPromotion.Spec.Vector, override.SetBy, override.Reason)
 	}
 	if anyGateInError(vectorPromotion) {
 		return metav1.ConditionFalse, konfidence.ReasonGateError,

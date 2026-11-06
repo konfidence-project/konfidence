@@ -24,7 +24,7 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 
 	// Check if the newest promotion already tracks the drift
 	if newest := promotion.Newest(promotions); newest != nil &&
-		(!promotion.IsTerminal(newest) || promotion.IsRejected(newest)) &&
+		(!promotion.IsTerminal(newest) || promotion.HasOverrideSet(newest, konfidence.PromotionOverrideTypeReject)) &&
 		newest.Spec.Vector == sourceVector &&
 		newest.Spec.Target == config.Spec.Target {
 		return nil

@@ -28,25 +28,22 @@ func AllGatesSatisfied(p *konfidence.VectorPromotion) bool {
 	return meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeGatesSatisfied)
 }
 
-// IsWaiting reports whether the active promotion still waits on its gates.
+// IsWaiting reports whether the promotion is not yet ready to execute and has
+// not finished.
 func IsWaiting(p *konfidence.VectorPromotion) bool {
-	return !AllGatesSatisfied(p) && !IsTerminal(p)
+	return !IsReadyForExecution(p) && !IsTerminal(p)
 }
 
-// IsRejected reports whether an operator rejected the promotion.
-func IsRejected(p *konfidence.VectorPromotion) bool {
-	return p.Status.Override != nil && p.Status.Override.Type == konfidence.PromotionOverrideTypeReject
+// HasOverrideSet reports whether the operator recorded an override of the given
+// type on the promotion.
+func HasOverrideSet(p *konfidence.VectorPromotion, overrideType konfidence.PromotionOverrideType) bool {
+	return p.Status.Override != nil && p.Status.Override.Type == overrideType
 }
 
-// IsGatesBypassed reports whether an operator bypassed the promotion's gates.
-func IsGatesBypassed(p *konfidence.VectorPromotion) bool {
-	return p.Status.Override != nil && p.Status.Override.Type == konfidence.PromotionOverrideTypeBypassGates
-}
-
-// IsCleared reports whether the active promotion passed its gates and
-// competes for execution.
-func IsCleared(p *konfidence.VectorPromotion) bool {
-	return AllGatesSatisfied(p) && !IsTerminal(p)
+// IsReadyForExecution reports whether the active promotion may execute now: its
+// gates are satisfied or an operator bypassed them, and it has not finished.
+func IsReadyForExecution(p *konfidence.VectorPromotion) bool {
+	return (AllGatesSatisfied(p) || HasOverrideSet(p, konfidence.PromotionOverrideTypeBypassGates)) && !IsTerminal(p)
 }
 
 // IsRunning reports whether the promotion is currently executing. At most
@@ -55,13 +52,13 @@ func IsRunning(p *konfidence.VectorPromotion) bool {
 	return p.Status.StartTime != nil && !IsTerminal(p)
 }
 
-// NewestCleared returns the highest-sequence promotion that passed its gates
-// and is not finished. Returns nil if no promotion qualifies.
+// NewestCleared returns the highest-sequence promotion that is ready for
+// execution and is not finished. Returns nil if no promotion qualifies.
 func NewestCleared(promotions []konfidence.VectorPromotion) *konfidence.VectorPromotion {
 	var newest *konfidence.VectorPromotion
 	for i := range promotions {
 		p := &promotions[i]
-		if !IsCleared(p) {
+		if !IsReadyForExecution(p) {
 			continue
 		}
 		if newest == nil || Newer(p, newest) {

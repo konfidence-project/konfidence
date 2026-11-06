@@ -34,17 +34,9 @@ spec:
       jsonPath: .spec.target.name
       name: Target
       type: string
-    - description: Whether every gate is satisfied
-      jsonPath: .status.conditions[?(@.type=="GatesSatisfied")].status
+    - description: Why the gates are satisfied, pending, errored, or bypassed
+      jsonPath: .status.conditions[?(@.type=="GatesSatisfied")].reason
       name: Gates
-      type: string
-    - description: Operator override of the gate flow
-      jsonPath: .status.override.type
-      name: Override
-      type: string
-    - description: Promotion outcome
-      jsonPath: .status.conditions[?(@.type=="Succeeded")].status
-      name: Succeeded
       type: string
     - description: Reason of the outcome
       jsonPath: .status.conditions[?(@.type=="Succeeded")].reason
@@ -357,8 +349,10 @@ spec:
                 description: |-
                   Override records an operator decision that overrides the gate flow:
                   `Reject` terminally rejects the promotion, `BypassGates` lets it proceed
-                  regardless of its gates. It is written only by the konfidence API, at
-                  most once while the promotion waits on its gates, and never cleared.
+                  regardless of its gates (GatesSatisfied stays False with reason
+                  GatesBypassed; the gate entries are left untouched). It is written only by
+                  the konfidence API, at most once while the promotion waits on its gates,
+                  and never cleared.
                 properties:
                   reason:
                     description: Reason is the operator's justification for the decision.

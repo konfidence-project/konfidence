@@ -106,12 +106,12 @@ var _ = Describe("VectorPromotion operator override", Ordered, Serial, func() {
 			refreshPromotion(promotion)
 
 			Expect(observedState(promotion)).To(Equal("Succeeded"))
-			expectCondition(promotion, konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue, konfidence.ReasonGatesBypassed)
+			expectCondition(promotion, konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse, konfidence.ReasonGatesBypassed)
 			expectCondition(promotion, konfidence.ConditionTypeSucceeded, metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded)
 			Expect(promotion.Status.Gates).To(Equal(gates))
 			Expect(promotiongate.StateOf(promotion, konfidence.GateTypeExplicitApproval)).
 				To(Equal(konfidence.PromotionGateStatePending))
-			Expect(recorder.Events).To(Receive(ContainSubstring("Normal PromotionGatesBypassed")))
+			Expect(recorder.Events).To(Receive(ContainSubstring("Normal PromotionExecutionStarted")))
 
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: stage.Name, Namespace: stage.Namespace}, stage)).To(Succeed())
 			Expect(stage.Spec.Vector).To(Equal(testVector))

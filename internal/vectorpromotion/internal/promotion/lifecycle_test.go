@@ -30,15 +30,17 @@ var _ = Describe("Lifecycle", func() {
 
 	type facts struct {
 		conditions []metav1.Condition
+		override   *konfidence.PromotionOverride
 		started    bool
 	}
 	type predicates struct {
-		finished, succeeded, allGatesSatisfied, waiting, cleared, started bool
+		finished, succeeded, allGatesSatisfied, waiting, readyForExecution, started bool
 	}
 
 	DescribeTable("derives every predicate from condition statuses and timestamps",
 		func(f facts, expected predicates) {
 			p := withConditions(f.conditions)
+			p.Status.Override = f.override
 			if f.started {
 				now := metav1.Now()
 				p.Status.StartTime = &now
@@ -48,7 +50,7 @@ var _ = Describe("Lifecycle", func() {
 				succeeded:         IsSucceeded(p),
 				allGatesSatisfied: AllGatesSatisfied(p),
 				waiting:           IsWaiting(p),
-				cleared:           IsCleared(p),
+				readyForExecution: IsReadyForExecution(p),
 				started:           IsRunning(p),
 			}).To(Equal(expected))
 		},
@@ -57,9 +59,14 @@ var _ = Describe("Lifecycle", func() {
 		Entry("a gate not satisfied yet", facts{conditions: []metav1.Condition{gates(metav1.ConditionFalse), succeeded(metav1.ConditionUnknown)}},
 			predicates{waiting: true}),
 		Entry("gates satisfied", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionUnknown)}},
-			predicates{allGatesSatisfied: true, cleared: true}),
+			predicates{allGatesSatisfied: true, readyForExecution: true}),
+		Entry("gates bypassed by an operator override", facts{
+			conditions: []metav1.Condition{gates(metav1.ConditionFalse), succeeded(metav1.ConditionUnknown)},
+			override:   &konfidence.PromotionOverride{Type: konfidence.PromotionOverrideTypeBypassGates},
+		},
+			predicates{readyForExecution: true}),
 		Entry("started", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionUnknown)}, started: true},
-			predicates{allGatesSatisfied: true, cleared: true, started: true}),
+			predicates{allGatesSatisfied: true, readyForExecution: true, started: true}),
 		Entry("succeeded", facts{conditions: []metav1.Condition{gates(metav1.ConditionTrue), succeeded(metav1.ConditionTrue)}, started: true},
 			predicates{finished: true, succeeded: true, allGatesSatisfied: true}),
 		Entry("superseded while waiting", facts{conditions: []metav1.Condition{gates(metav1.ConditionFalse), succeeded(metav1.ConditionFalse)}},
@@ -76,8 +83,8 @@ var _ = Describe("Lifecycle", func() {
 	DescribeTable("reads the operator decision from status.override",
 		func(override *konfidence.PromotionOverride, rejected, bypassed bool) {
 			p := &konfidence.VectorPromotion{Status: konfidence.VectorPromotionStatus{Override: override}}
-			Expect(IsRejected(p)).To(Equal(rejected))
-			Expect(IsGatesBypassed(p)).To(Equal(bypassed))
+			Expect(HasOverrideSet(p, konfidence.PromotionOverrideTypeReject)).To(Equal(rejected))
+			Expect(HasOverrideSet(p, konfidence.PromotionOverrideTypeBypassGates)).To(Equal(bypassed))
 		},
 		Entry("no override", nil, false, false),
 		Entry("rejected", &konfidence.PromotionOverride{Type: konfidence.PromotionOverrideTypeReject}, true, false),
