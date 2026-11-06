@@ -1,12 +1,9 @@
 package vectorpromotion
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
 
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
-	"github.com/konfidence-project/konfidence/internal/kden/output"
 	"github.com/spf13/cobra"
 )
 
@@ -30,27 +27,11 @@ func NewApproveCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 				return fmt.Errorf("approving vector promotion failed: %w", err)
 			}
 
-			switch response.StatusCode() {
-			case http.StatusNoContent:
-				output.PrintMessage(fmt.Sprintf("Vector promotion %s approved successfully", vectorPromotionId))
-				return nil
-
-			case http.StatusForbidden:
-				return errors.New(response.JSON403.Error.Message)
-
-			case http.StatusNotFound:
-				return errors.New(response.JSON404.Error.Message)
-
-			case http.StatusConflict:
-				return errors.New(response.JSON409.Error.Message)
-
-			default:
-				return fmt.Errorf(
-					"approving vector promotion returned HTTP %d: %s",
-					response.StatusCode(),
-					string(response.Body),
-				)
-			}
+			return handleApprovalActionResponse(
+				response,
+				fmt.Sprintf("Vector promotion %s approved successfully", vectorPromotionId),
+				"approving vector promotion",
+			)
 		},
 	}, nil
 }

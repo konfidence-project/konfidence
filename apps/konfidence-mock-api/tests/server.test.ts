@@ -322,6 +322,16 @@ test("filters artifact deployments by vector deployment", async () => {
   });
 });
 
+test("revokes approval for an existing vector promotion", async () => {
+  const response = await post(
+    "/api/v1/projects/payments-platform/vectorPromotions/promo-dev-to-test-2/revoke-approval",
+    { headers: { cookie: SESSION } },
+  );
+
+  expect(response.status).toBe(204);
+  await expect(response.text()).resolves.toBe("");
+});
+
 test("serves the developer scenario with one sparse project", async () => {
   const cookie = scenario("developer");
 
