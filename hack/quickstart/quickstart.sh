@@ -128,9 +128,7 @@ Next steps:
 1. Create a project, its landscapes and an environment, for example with
    the example app:
 
-     kubectl apply -k 'https://github.com/konfidence-project/example-app/hack/quickstart/project?ref=main'
-     kubectl apply -k 'https://github.com/konfidence-project/example-app/hack/quickstart/landscapes?ref=main'
-     kubectl apply -k 'https://github.com/konfidence-project/example-app/hack/quickstart/environment?ref=main'
+     kubectl apply -k 'https://github.com/konfidence-project/example-app/hack/quickstart?ref=main'
 
 2. Install the Vector Data Service into every landscape namespace
    (kden-l-<landscape>). Applications use it to read configuration and
