@@ -2,6 +2,7 @@ export {
   AppShell,
   Avatar,
   AvatarGroup,
+  Badge,
   Brandbar,
   Breadcrumbs,
   Button,
@@ -27,6 +28,7 @@ export {
   TableCell,
   TableHeaderCell,
   TableRow,
+  Tag,
   TopBar,
 } from "../components/index.js";
 export type {
@@ -35,4 +37,6 @@ export type {
   StagePhaseItem,
   StagePhaseSize,
   StagePhaseState,
+  TagColor,
+  TagSize,
 } from "../components/index.js";

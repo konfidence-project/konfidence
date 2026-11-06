@@ -1,6 +1,6 @@
 <script lang="ts">
     import {
-        StatusBadge,
+        Badge,
         Table,
         TableCell,
         TableHeaderCell,
@@ -85,13 +85,13 @@
 <Section
     id="data-blocks"
     title="Data blocks"
-    subtitle="Real <Table> family from @konfidence/design-system — sortable headers, keyboard-selectable rows, sticky header, embedded <StatusBadge>. KPI tiles, phases, timelines, diff rows are still on the roadmap."
+    subtitle="Real <Table> family from @konfidence/design-system — sortable headers, keyboard-selectable rows, sticky header, embedded <Badge>. KPI tiles, phases, timelines, diff rows are still on the roadmap."
     status="partial"
 >
     <div class="stack flex flex-col gap-5">
         <Sample
             title="Sortable, selectable table"
-            description="Click any row to select it; click a header to cycle its sort. Uses <TableHeaderCell onsort>, <TableRow onselect>, and <StatusBadge> for the state column."
+            description="Click any row to select it; click a header to cycle its sort. Uses <TableHeaderCell onsort>, <TableRow onselect>, and <Badge> for the state column."
         >
             <div class="table-wrap w-full">
                 <Table caption="Artifact deployments">
@@ -123,7 +123,7 @@
                                 <TableCell>{row.version}</TableCell>
                                 <TableCell>{row.stage}</TableCell>
                                 <TableCell>
-                                    <StatusBadge status={row.status}>{row.status}</StatusBadge>
+                                    <Badge status={row.status}>{row.status}</Badge>
                                 </TableCell>
                                 <TableCell>{row.touchedBy}</TableCell>
                             </TableRow>
