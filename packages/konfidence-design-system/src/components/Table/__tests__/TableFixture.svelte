@@ -7,8 +7,9 @@
     interface Props {
         caption?: string;
         onselect?: () => void;
+        selected?: boolean;
     }
-    let { caption, onselect }: Props = $props();
+    let { caption, onselect, selected = false }: Props = $props();
 </script>
 
 <div
@@ -24,7 +25,7 @@
             </TableRow>
         {/snippet}
         {#snippet body()}
-            <TableRow data-testid="row-1" {onselect}>
+            <TableRow data-testid="row-1" {onselect} {selected}>
                 <TableCell>artifact-1</TableCell>
                 <TableCell>payments-api</TableCell>
                 <TableCell>3.4.1</TableCell>
