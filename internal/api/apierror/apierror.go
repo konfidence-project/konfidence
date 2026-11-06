@@ -57,20 +57,20 @@ func NewConflict(msg string) *Error {
 	}
 }
 
+func NewBadRequest(msg string) *Error {
+	return &Error{
+		Status:  http.StatusBadRequest,
+		Code:    "bad_request",
+		Message: msg,
+	}
+}
+
 func NewInternal(cause error) *Error {
 	return &Error{
 		Status:  http.StatusInternalServerError,
 		Code:    "internal_server_error",
 		Message: "an unexpected error occurred",
 		Err:     cause,
-	}
-}
-
-func NewBadRequest(msg string) *Error {
-	return &Error{
-		Status:  http.StatusBadRequest,
-		Code:    "bad_request",
-		Message: msg,
 	}
 }
 

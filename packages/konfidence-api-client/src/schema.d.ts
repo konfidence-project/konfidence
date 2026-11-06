@@ -295,7 +295,7 @@ export interface paths {
     put?: never;
     /**
      * Approves the given vectorPromotion for the specified project
-     * @description Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+     * @description Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
      */
     post: operations["approveVectorPromotionV1"];
     delete?: never;
@@ -318,6 +318,46 @@ export interface paths {
      * @description Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
      */
     post: operations["revokeApprovalVectorPromotionV1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Rejects the given vectorPromotion for the specified project
+     * @description Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+     */
+    post: operations["rejectVectorPromotionV1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Bypasses the gates of the given vectorPromotion for the specified project
+     * @description Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+     */
+    post: operations["bypassVectorPromotionGatesV1"];
     delete?: never;
     options?: never;
     head?: never;
@@ -509,12 +549,38 @@ export interface components {
       target: components["schemas"]["PromotionTargetReference"];
       vector: string;
       /** @enum {string} */
-      status?: "Waiting" | "Ready" | "InProgress" | "Blocked" | "Succeeded" | "Superseded";
+      status?:
+        | "Waiting"
+        | "Ready"
+        | "InProgress"
+        | "Blocked"
+        | "Succeeded"
+        | "Superseded"
+        | "Rejected";
       ttlAfterFinished?: string;
       /** Format: int64 */
       sequence?: number;
       /** @description State of every gate declared on the promotion, in declaration order. A declared gate without a recorded state is reported as Pending. */
       gates?: components["schemas"]["PromotionGateStatus"][];
+      override?: components["schemas"]["PromotionOverride"];
+    };
+    /** @description Operator decision that overrides the gate flow, with its provenance. `Reject` terminally rejects the promotion; `BypassGates` lets it proceed regardless of its gates, whose states are left as their writers reported them. */
+    PromotionOverride: {
+      /** @enum {string} */
+      type: "Reject" | "BypassGates";
+      /** @description Authenticated subject that made the decision */
+      setBy: string;
+      /**
+       * Format: date-time
+       * @description Time the decision was made
+       */
+      setAt: string;
+      /** @description Justification given for the decision */
+      reason: string;
+    };
+    PromotionOverrideRequestBody: {
+      /** @description Justification for the decision, recorded with the acting identity */
+      reason: string;
     };
     PromotionGate: {
       /** @description Gate type as `<gate-name>.<owner-domain>`, e.g. `explicit-approval.konfidence.cloud` */
@@ -778,7 +844,13 @@ export interface components {
     /** @description ArtifactDeployment Id */
     ArtifactDeploymentPathId: string;
   };
-  requestBodies: never;
+  requestBodies: {
+    PromotionOverrideRequest: {
+      content: {
+        "application/json": components["schemas"]["PromotionOverrideRequestBody"];
+      };
+    };
+  };
   headers: never;
   pathItems: never;
 }
@@ -1218,6 +1290,64 @@ export interface operations {
         };
         content?: never;
       };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  rejectVectorPromotionV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description VectorPromotion Id */
+        vectorPromotionId: components["parameters"]["VectorPromotionPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody: components["requestBodies"]["PromotionOverrideRequest"];
+    responses: {
+      /** @description VectorPromotion successfully rejected. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  bypassVectorPromotionGatesV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description VectorPromotion Id */
+        vectorPromotionId: components["parameters"]["VectorPromotionPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody: components["requestBodies"]["PromotionOverrideRequest"];
+    responses: {
+      /** @description VectorPromotion gates successfully bypassed. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];

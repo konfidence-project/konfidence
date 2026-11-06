@@ -39,21 +39,61 @@ func (h *projectHandler) ApproveVectorPromotionV1(ctx context.Context,
 		return nil, err
 	}
 
-	err = h.vectorPromotionRepo.Approve(ctx, namespace, request.VectorPromotionId, identity.Subject)
+	if err := h.vectorPromotionRepo.Approve(ctx, namespace, request.VectorPromotionId, identity.Subject); err != nil {
+		return nil, promotionActionError(err, request.VectorPromotionId)
+	}
+	return openapi.ApproveVectorPromotionV1204Response{}, nil
+}
+
+func (h *projectHandler) RejectVectorPromotionV1(ctx context.Context,
+	request openapi.RejectVectorPromotionV1RequestObject) (openapi.RejectVectorPromotionV1ResponseObject, error) {
+	identity, namespace, err := h.resolveProjectRequest(ctx, request.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+	if request.Body == nil {
+		return nil, apierror.NewBadRequest("request body with a reason is required")
+	}
+
+	err = h.vectorPromotionRepo.Reject(ctx, namespace, request.VectorPromotionId, identity.Subject, request.Body.Reason)
+	if err != nil {
+		return nil, promotionActionError(err, request.VectorPromotionId)
+	}
+	return openapi.RejectVectorPromotionV1204Response{}, nil
+}
+
+func (h *projectHandler) BypassVectorPromotionGatesV1(ctx context.Context,
+	request openapi.BypassVectorPromotionGatesV1RequestObject) (openapi.BypassVectorPromotionGatesV1ResponseObject, error) {
+	identity, namespace, err := h.resolveProjectRequest(ctx, request.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+	if request.Body == nil {
+		return nil, apierror.NewBadRequest("request body with a reason is required")
+	}
+
+	err = h.vectorPromotionRepo.BypassGates(ctx, namespace, request.VectorPromotionId, identity.Subject, request.Body.Reason)
+	if err != nil {
+		return nil, promotionActionError(err, request.VectorPromotionId)
+	}
+	return openapi.BypassVectorPromotionGatesV1204Response{}, nil
+}
+
+// promotionActionError maps a failed approve, reject or gate bypass to its API error.
+func promotionActionError(err error, vectorPromotionId string) error {
 	switch {
-	case err == nil, errors.Is(err, vectorpromotiondomain.ErrAlreadyApproved):
-		// Approving twice is idempotent: the promotion is already approved,
-		// so report success rather than a conflict.
-		return openapi.ApproveVectorPromotionV1204Response{}, nil
 	case errors.Is(err, vectorpromotiondomain.ErrVectorPromotionNotFound):
-		return nil, apierror.NewNotFound("vectorPromotion", request.VectorPromotionId)
+		return apierror.NewNotFound("vectorPromotion", vectorPromotionId)
+	case errors.Is(err, vectorpromotiondomain.ErrReasonInvalid):
+		return apierror.NewBadRequest(err.Error())
 	case errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
 		errors.Is(err, vectorpromotiondomain.ErrPromotionExecuting),
-		errors.Is(err, vectorpromotiondomain.ErrConflict),
-		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired):
-		return nil, apierror.NewConflict(err.Error())
+		errors.Is(err, vectorpromotiondomain.ErrPromotionOverridden),
+		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired),
+		errors.Is(err, vectorpromotiondomain.ErrConflict):
+		return apierror.NewConflict(err.Error())
 	default:
-		return nil, apierror.NewInternal(err)
+		return apierror.NewInternal(err)
 	}
 }
 
@@ -106,19 +146,31 @@ func toVectorPromotionResponse(p konfidence.VectorPromotion) openapi.VectorPromo
 		promotion.Gates = &gates
 	}
 
+	if o := p.Status.Override; o != nil {
+		promotion.Override = &openapi.PromotionOverride{
+			Type:   openapi.PromotionOverrideType(o.Type),
+			SetBy:  o.SetBy,
+			SetAt:  o.SetAt.Time,
+			Reason: o.Reason,
+		}
+	}
+
 	return promotion
 }
 
 // displayState summarizes the promotion's observed facts into the single
 // status shown by the API. An unresolved target takes precedence over
 // InProgress: once execution can no longer resolve its target the promotion is
-// stuck, so it reads as Blocked even if it had already started.
+// stuck, so it reads as Blocked even if it had already started. A rejection
+// wins over a concurrent supersede: either way the promotion never ran.
 func displayState(p *konfidence.VectorPromotion) openapi.VectorPromotionStatus {
 	conditions := p.Status.Conditions
 
 	succeeded := meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeSucceeded)
-	superseded := meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded)
-	finished := succeeded || superseded
+	failed := meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded)
+	finished := succeeded || failed
+	rejected := p.Status.Override != nil && p.Status.Override.Type == konfidence.PromotionOverrideTypeReject
+	bypassed := p.Status.Override != nil && p.Status.Override.Type == konfidence.PromotionOverrideTypeBypassGates
 	started := p.Status.StartTime != nil
 	targetUnresolved := meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeTargetResolved)
 	gatesSatisfied := meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeGatesSatisfied)
@@ -126,13 +178,15 @@ func displayState(p *konfidence.VectorPromotion) openapi.VectorPromotionStatus {
 	switch {
 	case succeeded:
 		return openapi.VectorPromotionStatusSucceeded
-	case superseded:
+	case failed && rejected:
+		return openapi.VectorPromotionStatusRejected
+	case failed:
 		return openapi.VectorPromotionStatusSuperseded
 	case !finished && targetUnresolved:
 		return openapi.VectorPromotionStatusBlocked
 	case !finished && started:
 		return openapi.VectorPromotionStatusInProgress
-	case !finished && gatesSatisfied:
+	case !finished && (gatesSatisfied || bypassed):
 		return openapi.VectorPromotionStatusReady
 	default:
 		return openapi.VectorPromotionStatusWaiting
