@@ -118,6 +118,17 @@ var _ = Describe("Set", func() {
 			promotiongate.ErrInvalidState),
 	)
 
+	It("refuses gate writes once an operator override is recorded", func() {
+		for _, overrideType := range []konfidence.PromotionOverrideType{
+			konfidence.PromotionOverrideTypeReject, konfidence.PromotionOverrideTypeBypassGates,
+		} {
+			p := newPromotion()
+			p.Status.Override = &konfidence.PromotionOverride{Type: overrideType, SetBy: "alice", Reason: "test"}
+			c := newClient(interceptor.Funcs{}, p)
+			Expect(promotiongate.Set(ctx, c, key, update)).To(MatchError(promotiongate.ErrPromotionNotMutable))
+		}
+	})
+
 	DescribeTable("writes a gate only while the promotion is mutable",
 		func(conds []metav1.Condition, mutable bool) {
 			p := newPromotion()
