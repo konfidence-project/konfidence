@@ -1,0 +1,332 @@
+# Assemble example-app, promote automatically to dev, then approve promotion to prod.
+# Enable both flags and repeat, leaving prod unchanged until the second approval.
+# Check active vectors, HTTP responses, flag isolation, and artifact reuse.
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: promote-dev
+spec:
+  concurrent: false # Fixed project and landscape names.
+  bindings:
+    - name: registry
+      value: (env('REGISTRY'))
+    - name: registryHost
+      value: (split($registry, '/')[0])
+    - name: registryAuth
+      value: (base64_encode(join(':', [env('REGISTRY_USERNAME'), env('REGISTRY_PASSWORD')])))
+    - name: componentRegistry
+      value: (env('COMPONENT_REGISTRY') || 'ghcr.io/konfidence-project/example-app')
+  steps:
+    - name: registry
+      try:
+        - assert:
+            timeout: 1s
+            resource:
+              (env('REGISTRY') != ''): true
+              (env('REGISTRY_USERNAME') != ''): true
+              (env('REGISTRY_PASSWORD') != ''): true
+        - apply: {file: 00-registry.yaml}
+
+    - name: project
+      try:
+        - apply: {file: 01-project.yaml}
+        - assert:
+            resource: {apiVersion: v1, kind: Namespace, metadata: {name: kden-p-example-app}}
+        - apply:
+            resource:
+              apiVersion: v1
+              kind: Secret
+              metadata: {name: registry-credentials, namespace: kden-p-example-app}
+              type: kubernetes.io/dockerconfigjson
+              stringData: &registry-data
+                .dockerconfigjson: >-
+                  (to_string({auths: object_from_lists([$registryHost], [{auth: $registryAuth}])}))
+
+    - name: landscape
+      try:
+        - apply: {file: 02-landscape.yaml}
+        - assert:
+            resource: {apiVersion: v1, kind: Namespace, metadata: {name: kden-l-dev}}
+        - apply:
+            resource:
+              apiVersion: v1
+              kind: Secret
+              metadata: {name: registry-credentials, namespace: kden-l-dev}
+              type: kubernetes.io/dockerconfigjson
+              stringData: *registry-data
+
+    - name: platform
+      description: Set up the database, deployment targets, and vector-data-service.
+      try:
+        - apply: {file: 03-deploymenttargets.yaml}
+        - apply: {file: 04-database.yaml}
+        - apply: {file: 05-stage.yaml}
+        - apply:
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata: {name: e2e-curl, namespace: kden-l-dev}
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: curl
+                    image: curlimages/curl:8.10.1
+                    command: [sleep, "3600"]
+        # Startup-only credentials: https://github.com/konfidence-project/konfidence/issues/393
+        - command:
+            entrypoint: kubectl
+            args: [rollout, restart, deployment/konfidence, -n, konfidence-system]
+        - command:
+            entrypoint: kubectl
+            args: [rollout, status, deployment/konfidence, -n, konfidence-system, --timeout=120s]
+        - command:
+            entrypoint: helm
+            workDir: ../../../..
+            args: [upgrade, --install, vector-data-service, .tmp/klo/charts/vector-data-service,
+              --set-string, 'image.tag=$KLO_REF', --namespace, kden-l-dev, --wait]
+        - assert:
+            resource:
+              apiVersion: v1
+              kind: Pod
+              metadata: {name: e2e-curl, namespace: kden-l-dev}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+
+    - name: assemble-and-promote
+      description: Assemble the vector, promote to dev, and wait for Ready conditions.
+      try:
+        - apply: {file: 06-vectortemplate.yaml}
+        - apply: {file: 07-vectorpromotionconfig.yaml}
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorTemplate
+              metadata: {name: example-app, namespace: kden-p-example-app}
+              status:
+                (latestVector != ''): true
+                (conditions[?type == 'Ready']): [{status: "True"}]
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorPromotionConfig
+              metadata: {name: example-app, namespace: kden-p-example-app}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+
+    - name: reachability
+      description: Check active dev, HTTP endpoints, flags, and artifact references.
+      bindings:
+        - {name: stage, value: dev}
+        - {name: enabled, value: false}
+        - &latest-vector
+          name: vector
+          value: (x_k8s_get($client, 'konfidence.cloud/v1alpha1', 'VectorTemplate', 'kden-p-example-app', 'example-app').status.latestVector)
+      try: &check-stage
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: StageVersion
+              metadata: {namespace: kden-l-dev, labels: {konfidence.cloud/stage-name: ($stage)}}
+              spec: {vector: ($vector)}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+        - assert:
+            bindings:
+              - &stage-version
+                name: stageVersion
+                value: (x_k8s_list($client, 'konfidence.cloud/v1alpha1', 'StageVersion', 'kden-l-dev').items[?spec.stageRef.name == $stage && spec.vector == $vector] | [0].metadata.name)
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: Stage
+              metadata: {name: ($stage), namespace: kden-l-dev}
+              spec: {vector: ($vector)}
+              status:
+                activeStageVersion: {name: ($stageVersion)}
+                (conditions[?type == 'Ready']): [{status: "True"}]
+        - assert:
+            bindings:
+              - *stage-version
+              - name: devVersion
+                value: (x_k8s_get($client, 'konfidence.cloud/v1alpha1', 'Stage', 'kden-l-dev', 'dev').status.activeStageVersion.name)
+              - name: devDeployment
+                value: (x_k8s_list($client, 'konfidence.cloud/v1alpha1', 'VectorDeployment', 'kden-l-dev').items[?metadata.labels."konfidence.cloud/stage-version-name" == $devVersion] | [0])
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorDeployment
+              metadata: {namespace: kden-l-dev, labels: {konfidence.cloud/stage-version-name: ($stageVersion)}}
+              spec: {vector: ($vector)}
+              status:
+                (conditions[?type == 'Ready']): [{status: "True"}]
+                (length(resultingArtifactDeployments)): 2
+                (resultingArtifactDeployments == $devDeployment.status.resultingArtifactDeployments): true
+              (length(x_k8s_list($client, 'konfidence.cloud/v1alpha1', 'ArtifactDeployment', 'kden-l-dev').items)): 2
+        - command:
+            bindings:
+              - *stage-version
+              - &deployment
+                name: deployment
+                value: (x_k8s_list($client, 'konfidence.cloud/v1alpha1', 'VectorDeployment', 'kden-l-dev').items[?metadata.labels."konfidence.cloud/stage-version-name" == $stageVersion] | [0])
+              - {name: service, value: candidates}
+            entrypoint: kubectl
+            env: &http-env
+              - {name: ROUTING_KEY, value: ($deployment.metadata.name)}
+              - {name: SERVICE_NAME, value: ($service)}
+              - name: SERVICE
+                value: (x_k8s_list($client, 'v1', 'Service', 'kden-l-dev').items[?metadata.labels.app == $service || metadata.labels."app.kubernetes.io/name" == $service] | [0].metadata.name)
+            args: &http-args [exec, e2e-curl, -n, kden-l-dev, --, curl, --fail-early, -fsS, -o, /dev/null,
+              'http://$SERVICE.kden-l-dev.svc.cluster.local/healthz',
+              --next, -fsS, -H, 'X-Konfidence-Routing-Key: $ROUTING_KEY',
+              'http://$SERVICE.kden-l-dev.svc.cluster.local/$SERVICE_NAME/debug']
+            check: &http-check
+              ($error): null
+              (json_parse($stdout)):
+                service: ($service)
+                routingKey: ($deployment.metadata.name)
+                flags:
+                  allow-video-slots: ($enabled)
+                  enable-candidate-notes: ($enabled)
+        - command:
+            bindings: [*stage-version, *deployment, {name: service, value: interviews}]
+            entrypoint: kubectl
+            env: *http-env
+            args: *http-args
+            check: *http-check
+      catch:
+        - podLogs: {namespace: kden-l-dev, selector: app=candidates, tail: 200}
+        - podLogs: {namespace: kden-l-dev, selector: app.kubernetes.io/name, tail: 200}
+        - events: {namespace: kden-l-dev}
+
+    - name: prod-waits-for-approval
+      bindings:
+        - *latest-vector
+      try:
+        - assert: &waiting-promotion
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorPromotion
+              metadata: {namespace: kden-p-example-app}
+              spec: {vectorPromotionConfigName: dev-to-prod, vector: ($vector)}
+              status:
+                (conditions[?type == 'GatesSatisfied']): [{status: "False", reason: GatesPending}]
+                (conditions[?type == 'Succeeded']): [{status: "Unknown"}]
+                (gates[?type == 'explicit-approval.konfidence.cloud']): [{state: Pending}]
+                (startTime == null): true
+              (length(x_k8s_list($client, 'konfidence.cloud/v1alpha1', 'VectorPromotion', 'kden-p-example-app').items[?spec.vectorPromotionConfigName == 'dev-to-prod' && spec.vector == $vector])): 1
+
+    - name: prod-unassigned
+      try:
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: Stage
+              metadata: {name: prod, namespace: kden-l-dev}
+              spec: {(vector || ''): ""}
+              status: {(activeStageVersion == null): true}
+        - error:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: StageVersion
+              metadata: {namespace: kden-l-dev, labels: {konfidence.cloud/stage-name: prod}}
+
+    - name: approve-prod
+      bindings:
+        - *latest-vector
+      try: &approve-promotion
+        - command:
+            entrypoint: kubectl
+            env:
+              - name: PROMOTION
+                value: (x_k8s_list($client, 'konfidence.cloud/v1alpha1', 'VectorPromotion', 'kden-p-example-app').items[?spec.vectorPromotionConfigName == 'dev-to-prod' && spec.vector == $vector] | [0].metadata.name)
+            args: [patch, vectorpromotion, '$PROMOTION', -n, kden-p-example-app, --subresource=status,
+              --type=merge, -p, '{"status":{"gates":[{"type":"explicit-approval.konfidence.cloud","state":"Satisfied","reason":"ApprovedBySuite","setBy":"chainsaw"}]}}']
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorPromotion
+              metadata: {namespace: kden-p-example-app}
+              spec: {vectorPromotionConfigName: dev-to-prod, vector: ($vector)}
+              status:
+                (conditions[?type == 'Succeeded']): [{status: "True"}]
+
+    - name: prod-ready
+      bindings:
+        - {name: stage, value: prod}
+        - {name: enabled, value: false}
+        - *latest-vector
+      try: *check-stage
+
+    - name: change-features
+      description: Pin the deployed artifact versions and enable both flags.
+      bindings:
+        - name: prod
+          value: (x_k8s_get($client, 'konfidence.cloud/v1alpha1', 'Stage', 'kden-l-dev', 'prod'))
+        - name: prodDeployment
+          value: (x_k8s_list($client, 'konfidence.cloud/v1alpha1', 'VectorDeployment', 'kden-l-dev').items[?metadata.labels."konfidence.cloud/stage-version-name" == $prod.status.activeStageVersion.name] | [0])
+      try:
+        - patch:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorTemplate
+              metadata: {name: example-app, namespace: kden-p-example-app}
+              spec:
+                components: (json_parse($prodDeployment.status.resolvedVectorOcm).component.componentReferences[].{name:join('', ['oci::https://', $componentRegistry, '//', componentName, ':', version])})
+                vectorConfig:
+                  features:
+                    allow-video-slots: true
+                    enable-candidate-notes: true
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: VectorTemplate
+              metadata: {name: example-app, namespace: kden-p-example-app}
+              status:
+                (latestVector != $prod.spec.vector): true
+                (latestVector != ''): true
+                (conditions[?type == 'Ready']): [{status: "True"}]
+              (status.conditions[?type == 'Ready'].observedGeneration == [metadata.generation]): true
+
+    - name: dev-updated
+      bindings:
+        - {name: stage, value: dev}
+        - {name: enabled, value: true}
+        - *latest-vector
+      try: *check-stage
+
+    - name: prod-waits-for-feature-approval
+      bindings:
+        - *latest-vector
+      try:
+        - assert: *waiting-promotion
+        - assert:
+            resource:
+              apiVersion: konfidence.cloud/v1alpha1
+              kind: Stage
+              metadata: {name: prod, namespace: kden-l-dev}
+              spec: {(vector == $vector): false}
+
+    - name: prod-still-original
+      bindings:
+        - {name: stage, value: prod}
+        - {name: enabled, value: false}
+        - name: vector
+          value: (x_k8s_get($client, 'konfidence.cloud/v1alpha1', 'Stage', 'kden-l-dev', 'prod').spec.vector)
+      try: *check-stage
+
+    - name: approve-feature-promotion
+      bindings:
+        - *latest-vector
+      try: *approve-promotion
+
+    - name: prod-updated
+      bindings:
+        - {name: stage, value: prod}
+        - {name: enabled, value: true}
+        - *latest-vector
+      try: *check-stage
+  catch:
+    - podLogs: {namespace: konfidence-system, selector: app.kubernetes.io/name, tail: 200}
+    - events: {namespace: konfidence-system}
+    - events: {namespace: kden-p-example-app}
+    - events: {namespace: kden-l-dev}
+    - describe: {apiVersion: konfidence.cloud/v1alpha1, kind: VectorTemplate, namespace: kden-p-example-app}
+    - describe: {apiVersion: konfidence.cloud/v1alpha1, kind: VectorDeployment, namespace: kden-l-dev}

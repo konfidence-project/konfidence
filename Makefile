@@ -282,6 +282,91 @@ test-kden-cli: hermit ginkgo ## Run unit tests for the kden CLI.
 test-api: hermit fmt vet ginkgo ## Run unit tests for the API server and kden API client.
 	$(GINKGO) --coverprofile=cover-api.out -v ./cmd/api/... ./internal/api/... ./internal/kden/apiclient/... ./internal/auth/... ./internal/artifactdeployment/...
 
+# Setup and registry variables: test/e2e/chainsaw/README.md.
+CHAINSAW      ?= chainsaw
+CHAINSAW_ARGS ?=
+E2E_CLUSTER   ?= konfidence-e2e
+E2E_TAG       := e2e-$(shell date +%s)
+KLO_REPO      ?= konfidence-project/kubernetes-landscape-orchestrator
+SUPPORT_BUNDLE ?= support-bundle
+E2E_SNAPSHOT_DIR ?= $(REPO_ROOT)/.tmp/e2e-snapshot
+
+.PHONY: e2e-cluster
+e2e-cluster: hermit
+	$(KIND) get clusters | grep -qx $(E2E_CLUSTER) || $(KIND) create cluster --name $(E2E_CLUSTER)
+	$(KIND) export kubeconfig --name $(E2E_CLUSTER)
+	$(KUBECTL) apply --server-side -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml
+	$(KUBECTL) apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/latest/download/standard-install.yaml
+
+.PHONY: e2e-up
+e2e-up: e2e-cluster ## Create a kind cluster with this checkout's operator and the latest orchestrator main build.
+	$(MAKE) docker-build TAG=$(E2E_TAG)
+	$(KIND) load docker-image $(REGISTRY)/konfidence-operator:$(E2E_TAG) --name $(E2E_CLUSTER)
+	$(MAKE) webhook-certs deploy TAG=$(E2E_TAG)
+	@# Orchestrator main publishes images per commit but no charts; use the chart from that commit.
+	ref=$${KLO_REF:-$$(gh run list --repo github.com/$(KLO_REPO) --workflow main-pipeline.yaml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha')}; \
+	test -n "$$ref" || { echo "Set KLO_REF; no successful $(KLO_REPO) main build found." >&2; exit 1; }; \
+	printf 'KLO/VDS revision: %s\n' "$$ref"; \
+	rm -rf .tmp/klo && mkdir -p .tmp/klo && \
+	curl -fsSL "https://github.com/$(KLO_REPO)/archive/$$ref.tar.gz" | tar -xz -C .tmp/klo --strip-components=1 && \
+	$(HELM) upgrade --install kubernetes-landscape-orchestrator .tmp/klo/charts/kubernetes-landscape-orchestrator \
+		--namespace $(NAMESPACE) --set-string image.tag=$$ref --wait && \
+	printf '%s\n' "$$ref" > .tmp/klo/ref
+	$(KUBECTL) wait deployment --all --all-namespaces --for=condition=Available --timeout=300s
+
+.PHONY: e2e-up-release
+e2e-up-release: hermit ## Create a fresh kind cluster with the latest published Konfidence, orchestrator, and VDS releases.
+	@clusters=$$($(KIND) get clusters); \
+	if printf '%s\n' "$$clusters" | grep -qx "$(E2E_CLUSTER)"; then \
+		echo "Run make e2e-down E2E_CLUSTER=$(E2E_CLUSTER) before selecting a released stack." >&2; exit 1; \
+	fi
+	$(MAKE) e2e-cluster
+	$(MAKE) webhook-certs
+	$(KUBECTL) create namespace $(NAMESPACE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	$(KUBECTL) create secret tls konfidence-webhook-server-cert -n $(NAMESPACE) \
+		--cert=/tmp/k8s-webhook-server/serving-certs/tls.crt \
+		--key=/tmp/k8s-webhook-server/serving-certs/tls.key --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	@konfidence_version=$$(gh release view --repo github.com/konfidence-project/konfidence --json tagName --jq '.tagName'); \
+	klo_version=$$(gh release view --repo github.com/$(KLO_REPO) --json tagName --jq '.tagName'); \
+	test -n "$$konfidence_version" && test -n "$$klo_version"; \
+	printf 'Released Konfidence: %s\nReleased KLO/VDS: %s\n' "$$konfidence_version" "$$klo_version"; \
+	rm -rf .tmp/klo && mkdir -p .tmp/klo/charts; \
+	$(HELM) pull oci://ghcr.io/konfidence-project/charts/vector-data-service \
+		--version "$$klo_version" --untar --untardir .tmp/klo/charts; \
+	ca_bundle=$$(base64 < /tmp/k8s-webhook-server/serving-certs/ca.crt | tr -d '\n'); \
+	$(HELM) upgrade --install konfidence oci://ghcr.io/konfidence-project/charts/konfidence \
+		--version "$$konfidence_version" --namespace $(NAMESPACE) --set api.enabled=false \
+		--set-string webhook.caBundle="$$ca_bundle" --wait; \
+	$(HELM) upgrade --install kubernetes-landscape-orchestrator \
+		oci://ghcr.io/konfidence-project/charts/kubernetes-landscape-orchestrator \
+		--version "$$klo_version" --namespace $(NAMESPACE) --wait; \
+	printf '%s\n' "$$klo_version" > .tmp/klo/ref
+	$(KUBECTL) wait deployment --all --all-namespaces --for=condition=Available --timeout=300s
+
+.PHONY: e2e-down
+e2e-down: hermit ## Delete the e2e kind cluster.
+	$(KIND) delete cluster --name $(E2E_CLUSTER)
+
+.PHONY: e2e-snapshot
+e2e-snapshot: hermit ## Collect cluster state and kind logs into a local support bundle.
+	@command -v "$(firstword $(SUPPORT_BUNDLE))" >/dev/null || { \
+		echo "Install the Troubleshoot CLI or set SUPPORT_BUNDLE." >&2; exit 1; \
+	}
+	@test "$$($(KUBECTL) config current-context)" = "kind-$(E2E_CLUSTER)" || { \
+		echo "Select kind-$(E2E_CLUSTER) before collecting a snapshot." >&2; exit 1; \
+	}
+	@umask 077; mkdir -p "$(E2E_SNAPSHOT_DIR)"; \
+	E2E_CLUSTER="$(E2E_CLUSTER)" $(SUPPORT_BUNDLE) test/e2e/support-bundle.yaml \
+		--interactive=false --auto-update=false --request-timeout=2s \
+		--redactors=test/e2e/snapshot-redactors.yaml \
+		--output="$(E2E_SNAPSHOT_DIR)/snapshot.tar.gz"
+
+.PHONY: test-e2e
+test-e2e: ## Run Chainsaw e2e tests against the current cluster.
+	@ref=$$(cat .tmp/klo/ref); \
+	test -n "$$ref"; \
+	KLO_REF="$$ref" $(CHAINSAW) test test/e2e/chainsaw --config test/e2e/chainsaw/.chainsaw.yaml $(CHAINSAW_ARGS)
+
 .PHONY: setup-envtest
 setup-envtest: hermit ## Download the envtest binaries for the configured Kubernetes version.
 	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
