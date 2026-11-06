@@ -170,6 +170,7 @@ func displayState(p *konfidence.VectorPromotion) openapi.VectorPromotionStatus {
 	failed := meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeSucceeded)
 	finished := succeeded || failed
 	rejected := p.Status.Override != nil && p.Status.Override.Type == konfidence.PromotionOverrideTypeReject
+	bypassed := p.Status.Override != nil && p.Status.Override.Type == konfidence.PromotionOverrideTypeBypassGates
 	started := p.Status.StartTime != nil
 	targetUnresolved := meta.IsStatusConditionFalse(conditions, konfidence.ConditionTypeTargetResolved)
 	gatesSatisfied := meta.IsStatusConditionTrue(conditions, konfidence.ConditionTypeGatesSatisfied)
@@ -185,7 +186,7 @@ func displayState(p *konfidence.VectorPromotion) openapi.VectorPromotionStatus {
 		return openapi.VectorPromotionStatusBlocked
 	case !finished && started:
 		return openapi.VectorPromotionStatusInProgress
-	case !finished && gatesSatisfied:
+	case !finished && (gatesSatisfied || bypassed):
 		return openapi.VectorPromotionStatusReady
 	default:
 		return openapi.VectorPromotionStatusWaiting

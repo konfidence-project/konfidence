@@ -521,7 +521,7 @@ var _ = DescribeTable("displayState reads the operator override",
 	Entry("rejected", konfidence.PromotionOverrideTypeReject,
 		facts(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), openapi.VectorPromotionStatusRejected),
 	Entry("gates bypassed", konfidence.PromotionOverrideTypeBypassGates,
-		facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue), openapi.VectorPromotionStatusReady),
+		facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionFalse), openapi.VectorPromotionStatusReady),
 	Entry("gates bypassed, then superseded", konfidence.PromotionOverrideTypeBypassGates,
 		facts(konfidence.ConditionTypeSucceeded, metav1.ConditionFalse), openapi.VectorPromotionStatusSuperseded),
 )
