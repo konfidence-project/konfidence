@@ -1,13 +1,9 @@
 package vectorpromotion
 
 import (
-	"context"
-	"errors"
 	"fmt"
-	"net/http"
 
 	"github.com/konfidence-project/konfidence/internal/kden/apiclient"
-	kdenauth "github.com/konfidence-project/konfidence/internal/kden/auth"
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/output"
 	"github.com/spf13/cobra"
@@ -15,77 +11,16 @@ import (
 
 const reasonFlag = "reason"
 
+//nolint:dupl // Keep action-specific command setup explicit; response handling is shared.
 func NewRejectCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
-	return newOverrideCmd(appConfig, overrideCmdSpec{
-		use:   "reject <vectorPromotionId>",
-		short: "Reject a vector promotion for a specific project id",
-		long: "Terminally reject the waiting vector promotion with the given vector promotion id for a specific " +
+	cmd := &cobra.Command{
+		Use:   "reject <vectorPromotionId>",
+		Short: "Reject a vector promotion for a specific project id",
+		Long: "Terminally reject the waiting vector promotion with the given vector promotion id for a specific " +
 			"project id, so it never executes, regardless of the state of its gates. Only promotions still waiting " +
 			"on their gates can be rejected. The gate states are kept as reported, and you and the given reason " +
 			"are recorded on the promotion.",
-		reasonUsage: "Why the promotion is rejected (required)",
-		action:      "rejecting vector promotion",
-		success:     "Vector promotion %s rejected successfully",
-		send: func(ctx context.Context, c *kdenauth.Client, projectId, vectorPromotionId, reason string) (overrideResponse, error) {
-			response, err := c.RejectVectorPromotionV1WithResponse(ctx, projectId, vectorPromotionId,
-				apiclient.RejectVectorPromotionV1JSONRequestBody{Reason: reason})
-			if err != nil {
-				return overrideResponse{}, err
-			}
-			return overrideResponse{
-				status: response.StatusCode(), body: response.Body,
-				json400: response.JSON400, json403: response.JSON403, json404: response.JSON404, json409: response.JSON409,
-			}, nil
-		},
-	}), nil
-}
-
-func NewBypassGatesCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
-	return newOverrideCmd(appConfig, overrideCmdSpec{
-		use:   "bypass-gates <vectorPromotionId>",
-		short: "Bypass the gates of a vector promotion for a specific project id",
-		long: "Let the waiting vector promotion with the given vector promotion id for a specific project id " +
-			"proceed and execute as if all of its gates were satisfied. Only promotions still waiting on their " +
-			"gates can be bypassed. The gate states are kept as reported, and you and the given reason are " +
-			"recorded on the promotion.",
-		reasonUsage: "Why the gates are bypassed (required)",
-		action:      "bypassing vector promotion gates",
-		success:     "Gates of vector promotion %s bypassed successfully",
-		send: func(ctx context.Context, c *kdenauth.Client, projectId, vectorPromotionId, reason string) (overrideResponse, error) {
-			response, err := c.BypassVectorPromotionGatesV1WithResponse(ctx, projectId, vectorPromotionId,
-				apiclient.BypassVectorPromotionGatesV1JSONRequestBody{Reason: reason})
-			if err != nil {
-				return overrideResponse{}, err
-			}
-			return overrideResponse{
-				status: response.StatusCode(), body: response.Body,
-				json400: response.JSON400, json403: response.JSON403, json404: response.JSON404, json409: response.JSON409,
-			}, nil
-		},
-	}), nil
-}
-
-type overrideCmdSpec struct {
-	use, short, long string
-	reasonUsage      string
-	action           string
-	// success is a format string taking the promotion id.
-	success string
-	send    func(ctx context.Context, c *kdenauth.Client, projectId, vectorPromotionId, reason string) (overrideResponse, error)
-}
-
-type overrideResponse struct {
-	status                             int
-	body                               []byte
-	json400, json403, json404, json409 *apiclient.ErrorResponse
-}
-
-func newOverrideCmd(appConfig *cfg.AppConfig, spec overrideCmdSpec) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   spec.use,
-		Short: spec.short,
-		Long:  spec.long,
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectId, _ := cmd.Flags().GetString("projectId")
 			reason, _ := cmd.Flags().GetString(reasonFlag)
@@ -95,34 +30,61 @@ func newOverrideCmd(appConfig *cfg.AppConfig, spec overrideCmdSpec) *cobra.Comma
 				return fmt.Errorf("failed initializing API client: %w", err)
 			}
 
-			response, err := spec.send(cmd.Context(), authClient, projectId, vectorPromotionId, reason)
+			response, err := authClient.RejectVectorPromotionV1WithResponse(cmd.Context(), projectId, vectorPromotionId,
+				apiclient.RejectVectorPromotionV1JSONRequestBody{Reason: reason})
 			if err != nil {
-				return fmt.Errorf("%s failed: %w", spec.action, err)
+				return fmt.Errorf("rejecting vector promotion failed: %w", err)
+			}
+			if err := checkActionResponse(response.StatusCode(), response.Body, "rejecting vector promotion"); err != nil {
+				return err
 			}
 
-			var apiErr *apiclient.ErrorResponse
-			switch response.status {
-			case http.StatusNoContent:
-				output.PrintMessage(fmt.Sprintf(spec.success, vectorPromotionId))
-				return nil
-			case http.StatusBadRequest:
-				apiErr = response.json400
-			case http.StatusForbidden:
-				apiErr = response.json403
-			case http.StatusNotFound:
-				apiErr = response.json404
-			case http.StatusConflict:
-				apiErr = response.json409
-			}
-			if apiErr != nil {
-				return errors.New(apiErr.Error.Message)
-			}
-			return fmt.Errorf("%s returned HTTP %d: %s", spec.action, response.status, string(response.body))
+			output.PrintMessage(fmt.Sprintf("Vector promotion %s rejected successfully", vectorPromotionId))
+			return nil
 		},
 	}
-	cmd.Flags().StringP(reasonFlag, "r", "", spec.reasonUsage)
+	cmd.Flags().StringP(reasonFlag, "r", "", "Why the promotion is rejected (required)")
 	if err := cmd.MarkFlagRequired(reasonFlag); err != nil {
 		panic(err)
 	}
-	return cmd
+	return cmd, nil
+}
+
+//nolint:dupl // Keep action-specific command setup explicit; response handling is shared.
+func NewBypassGatesCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
+	cmd := &cobra.Command{
+		Use:   "bypass-gates <vectorPromotionId>",
+		Short: "Bypass the gates of a vector promotion for a specific project id",
+		Long: "Let the waiting vector promotion with the given vector promotion id for a specific project id " +
+			"proceed and execute as if all of its gates were satisfied. Only promotions still waiting on their " +
+			"gates can be bypassed. The gate states are kept as reported, and you and the given reason are " +
+			"recorded on the promotion.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectId, _ := cmd.Flags().GetString("projectId")
+			reason, _ := cmd.Flags().GetString(reasonFlag)
+			vectorPromotionId := args[0]
+			authClient, err := appConfig.APIProvider.AuthClient()
+			if err != nil {
+				return fmt.Errorf("failed initializing API client: %w", err)
+			}
+
+			response, err := authClient.BypassVectorPromotionGatesV1WithResponse(cmd.Context(), projectId, vectorPromotionId,
+				apiclient.BypassVectorPromotionGatesV1JSONRequestBody{Reason: reason})
+			if err != nil {
+				return fmt.Errorf("bypassing vector promotion gates failed: %w", err)
+			}
+			if err := checkActionResponse(response.StatusCode(), response.Body, "bypassing vector promotion gates"); err != nil {
+				return err
+			}
+
+			output.PrintMessage(fmt.Sprintf("Gates of vector promotion %s bypassed successfully", vectorPromotionId))
+			return nil
+		},
+	}
+	cmd.Flags().StringP(reasonFlag, "r", "", "Why the gates are bypassed (required)")
+	if err := cmd.MarkFlagRequired(reasonFlag); err != nil {
+		panic(err)
+	}
+	return cmd, nil
 }
