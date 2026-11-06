@@ -85,7 +85,7 @@ func newOf[T client.Object]() T {
 
 func newListOf[L client.ObjectList]() L {
 	t := reflect.TypeOf((*L)(nil)).Elem() // resolve the concrete type of L
-	if t.Kind() != reflect.Ptr {
+	if t.Kind() != reflect.Pointer {
 		panic("newListOf: L must be a pointer type implementing client.ObjectList")
 	}
 	v := reflect.New(t.Elem()) // allocate the underlying struct and return its pointer
