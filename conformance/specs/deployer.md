@@ -68,7 +68,7 @@ resources:
     type: cloud.konfidence.artifact.manifest
     input:
       type: file/v1
-      path: ./konfidence-manifest.json
+      path: ./manifest.json
 ```
 
 The referenced JSON file contains the artifact's type declaration:
