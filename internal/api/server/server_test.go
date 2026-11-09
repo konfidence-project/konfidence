@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"io"
 	"log/slog"
 	"math/big"
 	"net"
@@ -131,6 +132,10 @@ var _ = Describe("Server", func() {
 
 			srv := server.New(cfg, getLogger(), http.NotFoundHandler())
 			ctx, cancel := context.WithCancel(context.Background())
+			DeferCleanup(cancel)
+
+			client := &http.Client{}
+			DeferCleanup(client.CloseIdleConnections)
 
 			addrCh := make(chan string, 1)
 			errCh := make(chan error, 1)
@@ -143,17 +148,25 @@ var _ = Describe("Server", func() {
 			var addr string
 			Eventually(addrCh, 3*time.Second).Should(Receive(&addr))
 
-			resp, err := http.Get("http://" + addr + "/projects/example/landscape") //nolint:noctx
+			resp, err := client.Get("http://" + addr + "/projects/example/landscape") //nolint:noctx
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
-			Expect(resp.Body.Close()).To(Succeed())
 
-			resp, err = http.Get("http://" + addr + "/api/v1/unknown") //nolint:noctx
+			body, err := io.ReadAll(resp.Body)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resp.Body.Close()).To(Succeed())
+			Expect(body).To(Equal([]byte("Konfidence SPA")))
+
+			resp, err = client.Get("http://" + addr + "/api/v1/unknown") //nolint:noctx
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusNotFound))
 			Expect(resp.Header.Get("Content-Type")).NotTo(ContainSubstring("text/html"))
+
+			_, err = io.Copy(io.Discard, resp.Body)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(resp.Body.Close()).To(Succeed())
 
+			client.CloseIdleConnections()
 			cancel()
 			Eventually(errCh, 3*time.Second).Should(Receive(BeNil()))
 		})
