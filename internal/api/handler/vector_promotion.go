@@ -57,6 +57,31 @@ func (h *projectHandler) ApproveVectorPromotionV1(ctx context.Context,
 	}
 }
 
+func (h *projectHandler) RevokeApprovalVectorPromotionV1(ctx context.Context,
+	request openapi.RevokeApprovalVectorPromotionV1RequestObject,
+) (openapi.RevokeApprovalVectorPromotionV1ResponseObject, error) {
+	identity, namespace, err := h.resolveProjectRequest(ctx, request.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	err = h.vectorPromotionRepo.RevokeApproval(ctx, namespace, request.VectorPromotionId, identity.Subject)
+	switch {
+	case err == nil:
+		return openapi.RevokeApprovalVectorPromotionV1204Response{}, nil
+	case errors.Is(err, vectorpromotiondomain.ErrVectorPromotionNotFound):
+		return nil, apierror.NewNotFound("vectorPromotion", request.VectorPromotionId)
+	case errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
+		errors.Is(err, vectorpromotiondomain.ErrPromotionExecuting),
+		errors.Is(err, vectorpromotiondomain.ErrNotApproved),
+		errors.Is(err, vectorpromotiondomain.ErrConflict),
+		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired):
+		return nil, apierror.NewConflict(err.Error())
+	default:
+		return nil, apierror.NewInternal(err)
+	}
+}
+
 func toVectorPromotionResponse(p konfidence.VectorPromotion) openapi.VectorPromotion {
 	sequence := p.Spec.Sequence
 

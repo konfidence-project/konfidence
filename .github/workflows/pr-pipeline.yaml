@@ -28,8 +28,10 @@ jobs:
 
   codeql-status:
     name: CodeQL Status
-    # CodeQL default setup does not analyze Dependabot-triggered PRs, so the
-    # CodeQL check stays NEUTRAL and this job would time out.
+    # CodeQL default setup skips analysis for some PRs (e.g. Dependabot-triggered
+    # ones, or PRs that touch no analyzable code), leaving the CodeQL check NEUTRAL.
+    # The polling step below treats NEUTRAL/SKIPPED as a pass so the gate does not
+    # time out on those PRs.
     if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
@@ -70,6 +72,10 @@ jobs:
             elif [ "$CONCLUSION" = '"FAILURE"' ] || [ "$CONCLUSION" = 'FAILURE' ]; then
               echo "CodeQL failed"
               exit 1
+            elif [ "$CONCLUSION" = '"NEUTRAL"' ] || [ "$CONCLUSION" = 'NEUTRAL' ] \
+              || [ "$CONCLUSION" = '"SKIPPED"' ] || [ "$CONCLUSION" = 'SKIPPED' ]; then
+              echo "CodeQL did not analyze this PR (no analyzable code changes) — treating as pass"
+              exit 0
             fi
             echo "CodeQL not yet complete, waiting 30s..."
             sleep 30

@@ -1,10 +1,9 @@
 import { addSortBy } from "@humanspeak/svelte-headless-table/plugins";
 import { createTable } from "@humanspeak/svelte-headless-table";
-import type { Readable } from "svelte/store";
 
 import type { VectorDeploymentRow } from "./deployments.js";
 
-const createVectordeploymentTable = (deployments: Readable<VectorDeploymentRow[]>) => {
+const createVectordeploymentTable = (deployments: () => VectorDeploymentRow[]) => {
   const table = createTable(deployments, {
     sort: addSortBy({ disableMultiSort: true }),
   });

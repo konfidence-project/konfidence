@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { scenarios, type ProjectFixture, type ScenarioFixture } from "./fixtures.js";
-import type { operations } from "@konfidence/api-client/schema";
+import type { components, operations } from "@konfidence/api-client/schema";
 
 const SESSION_COOKIE = "kden-session";
 const SCENARIO_COOKIE = "konfidence_mock_scenario";
@@ -97,6 +97,94 @@ const promotionFor = (request: FastifyRequest) => {
   return promotion;
 };
 
+type VectorComponent = components["schemas"]["VectorComponent"];
+type VectorConfig = components["schemas"]["VectorConfig"];
+type VectorComponentDiff = components["schemas"]["VectorComponentDiff"];
+type ConfigEntryDiff = components["schemas"]["ConfigEntryDiff"];
+type VectorConfigDiff = components["schemas"]["VectorConfigDiff"];
+
+const diffComponents = (
+  left: VectorComponent[],
+  right: VectorComponent[],
+  includeUnchanged: boolean,
+): VectorComponentDiff[] => {
+  const rightMap = new Map(right.map((comp) => [comp.componentName, comp.version]));
+  const leftMap = new Map(left.map((comp) => [comp.componentName, comp.version]));
+  const result: VectorComponentDiff[] = [];
+
+  for (const comp of left) {
+    const rightVal = rightMap.get(comp.componentName);
+    if (rightVal === undefined) {
+      result.push({
+        changeType: "removed",
+        componentName: comp.componentName,
+        leftVersion: comp.version,
+      });
+    } else if (comp.version !== rightVal) {
+      result.push({
+        changeType: "changed",
+        componentName: comp.componentName,
+        leftVersion: comp.version,
+        rightVersion: rightVal,
+      });
+    } else if (includeUnchanged) {
+      result.push({
+        changeType: "unchanged",
+        componentName: comp.componentName,
+        leftVersion: comp.version,
+        rightVersion: rightVal,
+      });
+    }
+  }
+
+  for (const comp of right) {
+    if (!leftMap.has(comp.componentName)) {
+      result.push({
+        changeType: "added",
+        componentName: comp.componentName,
+        rightVersion: comp.version,
+      });
+    }
+  }
+  return result;
+};
+
+const diffConfigMap = (
+  left: Record<string, unknown> | undefined,
+  right: Record<string, unknown> | undefined,
+  includeUnchanged: boolean,
+): ConfigEntryDiff[] => {
+  const leftMap = left ?? {};
+  const rightMap = right ?? {};
+  const result: ConfigEntryDiff[] = [];
+
+  for (const [key, leftVal] of Object.entries(leftMap)) {
+    if (!(key in rightMap)) {
+      result.push({ changeType: "removed", key, leftValue: leftVal });
+    } else if (JSON.stringify(leftVal) !== JSON.stringify(rightMap[key])) {
+      result.push({ changeType: "changed", key, leftValue: leftVal, rightValue: rightMap[key] });
+    } else if (includeUnchanged) {
+      result.push({ changeType: "unchanged", key, leftValue: leftVal, rightValue: rightMap[key] });
+    }
+  }
+
+  for (const [key, rightVal] of Object.entries(rightMap)) {
+    if (!(key in leftMap)) {
+      result.push({ changeType: "added", key, rightValue: rightVal });
+    }
+  }
+  return result;
+};
+
+const diffConfig = (
+  left: VectorConfig | undefined,
+  right: VectorConfig | undefined,
+  includeUnchanged: boolean,
+): VectorConfigDiff => ({
+  authored: diffConfigMap(left?.authored, right?.authored, includeUnchanged),
+  features: diffConfigMap(left?.features, right?.features, includeUnchanged),
+});
+
 const operationHandlers = {
   approveVectorPromotionV1: (request, reply) => {
     promotionFor(request);
@@ -115,6 +203,14 @@ const operationHandlers = {
       .setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS)
       .redirect(validatedReturnUrl(state, "Invalid authentication state"));
   },
+  getArtifactContentV1: (request, reply) => {
+    const { ref } = request.query as Query<"getArtifactContentV1">;
+    const found = projectFor(request).artifactContents.find((ac) => ac.ref === ref);
+    if (!found) {
+      throw httpError(404, "ArtifactContent not found");
+    }
+    return reply.send(found);
+  },
   getArtifactDeploymentV1: (request, reply) => {
     const { artifactDeploymentId } = request.params as { artifactDeploymentId: string };
     const deployment = projectFor(request).artifactDeployments.find(
@@ -125,6 +221,13 @@ const operationHandlers = {
     }
     return reply.send(deployment);
   },
+  getIdentityV1: (request, reply) => {
+    const { projects, user } = scenarioFor(request);
+    const projectRoles = Object.fromEntries(
+      projects.map(({ project, roles }) => [project.id, roles]),
+    );
+    return reply.send({ ...user, projectRoles });
+  },
   getLandscapeV1: (request, reply) => {
     const { landscapeId } = request.params as { landscapeId: string };
     const landscape = projectFor(request).landscapes.find(({ id }) => id === landscapeId);
@@ -133,13 +236,6 @@ const operationHandlers = {
     }
     return reply.send(landscape);
   },
-  getIdentityV1: (request, reply) => {
-    const { projects, user } = scenarioFor(request);
-    const projectRoles = Object.fromEntries(
-      projects.map(({ project, roles }) => [project.id, roles]),
-    );
-    return reply.send({ ...user, projectRoles });
-  },
   getStageV1: (request, reply) => {
     const { stageId } = request.params as { stageId: string };
     const stage = projectFor(request).stages.find(({ id }) => id === stageId);
@@ -147,6 +243,18 @@ const operationHandlers = {
       throw httpError(404, "Stage not found");
     }
     return reply.send(stage);
+  },
+  getVectorContentV1: (request, reply) => {
+    const { refs } = request.query as Query<"getVectorContentV1">;
+    const project = projectFor(request);
+    const data = refs.map((ref) => {
+      const found = project.vectorContents.find((vc) => vc.ref === ref);
+      if (!found) {
+        throw httpError(404, `VectorContent not found for ref ${ref}`);
+      }
+      return found;
+    });
+    return reply.send({ data });
   },
   getVectorDeploymentV1: (request, reply) => {
     const { landscapeId, vectorDeploymentId } = request.params as {
@@ -163,6 +271,28 @@ const operationHandlers = {
       throw httpError(404, "VectorDeployment not found");
     }
     return reply.send(deployment);
+  },
+  getVectorDiffV1: (request, reply) => {
+    const { left, right, includeUnchanged } = request.query as Query<"getVectorDiffV1">;
+    const project = projectFor(request);
+    const leftContent = project.vectorContents.find((vc) => vc.ref === left);
+    if (!leftContent) {
+      throw httpError(404, `VectorContent not found for ref ${left}`);
+    }
+    const rightContent = project.vectorContents.find((vc) => vc.ref === right);
+    if (!rightContent) {
+      throw httpError(404, `VectorContent not found for ref ${right}`);
+    }
+    return reply.send({
+      components: diffComponents(
+        leftContent.components,
+        rightContent.components,
+        includeUnchanged === "true",
+      ),
+      config: diffConfig(leftContent.config, rightContent.config, includeUnchanged === "true"),
+      left,
+      right,
+    });
   },
   getVectorPromotionConfigV1: (request, reply) => {
     const { vectorPromotionConfigId } = request.params as { vectorPromotionConfigId: string };
@@ -208,6 +338,10 @@ const operationHandlers = {
   logoutV1: (_request, reply) => reply.clearCookie(SESSION_COOKIE, COOKIE_OPTIONS).send(),
   postExchangeCodeV1: (_request, reply) =>
     reply.setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS).send(),
+  revokeApprovalVectorPromotionV1: (request, reply) => {
+    promotionFor(request);
+    return reply.code(HTTP_NO_CONTENT).send();
+  },
 } satisfies Record<keyof operations, MockHandler>;
 
 const securityHandlers = {

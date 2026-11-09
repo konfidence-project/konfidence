@@ -26,7 +26,7 @@ import (
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
 	"github.com/konfidence-project/konfidence/internal/kden/log"
 	"github.com/spf13/cobra"
-	"ocm.software/open-component-model/cli/cmd/setup"
+	"ocm.software/open-component-model/bindings/go/cli/cmd/setup"
 )
 
 var rootCmdDescription = `Kden is an extensible command-line interface tool with Go & Cobra.

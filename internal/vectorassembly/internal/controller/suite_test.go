@@ -14,6 +14,7 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
+	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/ocm/credentials"
 	cryptopkg "github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	pkgocm "github.com/konfidence-project/konfidence/pkg/ocm/repository"
@@ -23,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -136,6 +138,16 @@ var _ = BeforeSuite(func() {
 	By("creating credential Secrets in envtest")
 	apiReader, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
+
+	By("labeling the default namespace as a project namespace")
+	defaultNS := &corev1.Namespace{}
+	Expect(apiReader.Get(ctx, client.ObjectKey{Name: "default"}, defaultNS)).To(Succeed())
+	if defaultNS.Labels == nil {
+		defaultNS.Labels = map[string]string{}
+	}
+	defaultNS.Labels[pkgctrl.ProjectTypeLabel] = "project"
+	defaultNS.Labels[pkgctrl.ProjectNameLabel] = "test-project"
+	Expect(apiReader.Update(ctx, defaultNS)).To(Succeed())
 
 	Expect(apiReader.Create(ctx, testocm.OCMConfigSecret(signingCredSecretName, "default",
 		testocm.Bind(vectorSigName, vectorSigningKey),

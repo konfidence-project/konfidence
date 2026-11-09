@@ -304,6 +304,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke the approval of the given vectorPromotion for the specified project
+     * @description Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+     */
+    post: operations["revokeApprovalVectorPromotionV1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}": {
     parameters: {
       query?: never;
@@ -316,6 +336,63 @@ export interface paths {
      * @description Returns a single vectorPromotion resource for a project.
      */
     get: operations["getVectorPromotionV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/vectors/diff": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the diff between two vectors by ref. */
+    get: operations["getVectorDiffV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/vectors/content": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get OCM content for vectors by refs.
+     * @description Returns the component list and configuration of any vector available in OCI, regardless of whether it has been deployed.
+     */
+    get: operations["getVectorContentV1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{projectId}/artifacts/content": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get OCM content for an artifact by ref.
+     * @description Returns the manifest details of any artifact available in OCI, including type, allowReuse, tasks, and OCM resources.
+     */
+    get: operations["getArtifactContentV1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -524,6 +601,76 @@ export interface components {
       projectRoles: {
         [key: string]: string[];
       };
+    };
+    VectorDiff: {
+      /** @description OCM ref string of the left-hand vector */
+      left: string;
+      /** @description OCM ref string of the right-hand vector */
+      right: string;
+      components: components["schemas"]["VectorComponentDiff"][];
+      config?: components["schemas"]["VectorConfigDiff"];
+    };
+    VectorComponentDiff: {
+      componentName: string;
+      /** @description Version on the left side. Absent when changeType is "added". */
+      leftVersion?: string;
+      /** @description Version on the right side. Absent when changeType is "removed". */
+      rightVersion?: string;
+      changeType: components["schemas"]["ChangeType"];
+    };
+    VectorConfigDiff: {
+      features?: components["schemas"]["ConfigEntryDiff"][];
+      authored?: components["schemas"]["ConfigEntryDiff"][];
+    };
+    ConfigEntryDiff: {
+      key: string;
+      /** @description Value on the left side. Absent when changeType is "added". */
+      leftValue?: unknown;
+      /** @description Value on the right side. Absent when changeType is "removed". */
+      rightValue?: unknown;
+      changeType: components["schemas"]["ChangeType"];
+    };
+    /** @enum {string} */
+    ChangeType: "added" | "removed" | "changed" | "unchanged";
+    VectorContentList: {
+      data: components["schemas"]["VectorContent"][];
+    };
+    VectorContent: {
+      /** @description OCM ref string (registry//component:version) */
+      ref: string;
+      components: components["schemas"]["VectorComponent"][];
+      config?: components["schemas"]["VectorConfig"];
+    };
+    VectorComponent: {
+      componentName: string;
+      version: string;
+    };
+    VectorConfig: {
+      /** @description Raw features blob from VectorConfigurationV1 */
+      features?: {
+        [key: string]: unknown;
+      };
+      /** @description Raw authored blob from VectorConfigurationV1 */
+      authored?: {
+        [key: string]: unknown;
+      };
+    };
+    ArtifactContent: {
+      /** @description OCM ref string (registry//component:version) */
+      ref: string;
+      type: string;
+      allowReuse: boolean;
+      tasks?: components["schemas"]["ArtifactTask"][];
+      resources?: components["schemas"]["ArtifactResource"][];
+    };
+    ArtifactTask: {
+      name: string;
+      type: string;
+      dependsOn?: string[];
+    };
+    ArtifactResource: {
+      name: string;
+      type: string;
     };
     ArtifactReference: components["schemas"]["ComponentReference"];
     VectorReference: components["schemas"]["ComponentReference"];
@@ -1050,6 +1197,34 @@ export interface operations {
       500: components["responses"]["InternalError"];
     };
   };
+  revokeApprovalVectorPromotionV1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+        /** @description VectorPromotion Id */
+        vectorPromotionId: components["parameters"]["VectorPromotionPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Approval of the VectorPromotion successfully revoked. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+      500: components["responses"]["InternalError"];
+    };
+  };
   getVectorPromotionV1: {
     parameters: {
       query?: never;
@@ -1073,6 +1248,103 @@ export interface operations {
           "application/json": components["schemas"]["VectorPromotion"];
         };
       };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getVectorDiffV1: {
+    parameters: {
+      query: {
+        /** @description OCM ref string for the one of the compared vectors (registry//component:version). Must be percent-encoded. */
+        left: string;
+        /** @description OCM ref string for the other compared vector (registry//component:version). Must be percent-encoded. */
+        right: string;
+        /** @description When true, unchanged components and config entries are included in the diff. */
+        includeUnchanged?: "true" | "false";
+      };
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VectorDiff"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getVectorContentV1: {
+    parameters: {
+      query: {
+        /** @description One or more OCM ref strings (registry//component:version). Must be percent-encoded. Repeat the parameter for multiple refs. */
+        refs: string[];
+      };
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VectorContentList"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      500: components["responses"]["InternalError"];
+    };
+  };
+  getArtifactContentV1: {
+    parameters: {
+      query: {
+        /** @description OCM ref string identifying the artifact (registry//component:version). Must be percent-encoded. Passed as a query parameter because the OCM ref contains // which cannot be used in a path segment. */
+        ref: string;
+      };
+      header?: never;
+      path: {
+        /** @description Project Id */
+        projectId: components["parameters"]["ProjectPathId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactContent"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];

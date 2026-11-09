@@ -401,13 +401,13 @@ describe("<LandscapeOverview> promotion overlay", () => {
 
   const promotionId = "dev-to-prod";
 
-  it("keeps the bottom sheet closed with no promotion param", async () => {
+  it("keeps the side panel closed with no selection", async () => {
     await render(LandscapeOverview, promotionProps);
 
-    await expect.element(page.getByTestId("bottom-sheet")).not.toBeVisible();
+    await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
   });
 
-  it("opens the bottom sheet titled source → target for the selected promotion", async () => {
+  it("opens the side panel titled source → target for the selected promotion", async () => {
     setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
     await render(LandscapeOverview, promotionProps);
 
@@ -434,7 +434,30 @@ describe("<LandscapeOverview> promotion overlay", () => {
     expect(new URL(next).searchParams.get("promotion")).toBe(promotionId);
   });
 
-  it("closes promotion details when blank canvas is clicked but not when it is panned", async () => {
+  it("stacks promotion sections in a narrow drawer on desktop", async () => {
+    await page.viewport(1200, 800);
+    setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
+    await render(LandscapeOverview, promotionProps);
+    const resizer = page.getByTestId("side-panel-resizer");
+    resizer.element().dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "End" }));
+    await expect.element(resizer).toHaveAttribute("aria-valuenow", "360");
+
+    const artifacts = page
+      .getByRole("region", { name: "Artifact Changes" })
+      .element()
+      .getBoundingClientRect();
+    const toggles = page
+      .getByRole("region", { name: "Feature Toggles" })
+      .element()
+      .getBoundingClientRect();
+    const info = page.getByRole("region", { name: "Info" }).element().getBoundingClientRect();
+    expect(toggles.top).toBeGreaterThanOrEqual(artifacts.bottom);
+    expect(info.top).toBeGreaterThanOrEqual(toggles.bottom);
+    expect(toggles.left).toBeCloseTo(artifacts.left, 0);
+    expect(info.left).toBeCloseTo(artifacts.left, 0);
+  });
+
+  it("closes promotion details when blank canvas is clicked", async () => {
     await page.viewport(1200, 800);
     setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
     await render(LandscapeOverview, promotionProps);
@@ -447,23 +470,25 @@ describe("<LandscapeOverview> promotion overlay", () => {
     expect(new URL(next).searchParams.has("promotion")).toBe(false);
   });
 
-  it("uses a non-modal sheet on desktop and converts it to modal on mobile", async () => {
+  it("uses a non-modal drawer on desktop and converts it to full-width modal on mobile", async () => {
     await page.viewport(1200, 800);
     setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
     await render(LandscapeOverview, promotionProps);
-    const dialog = page.getByTestId("bottom-sheet");
+    const dialog = page.getByTestId("side-panel");
     await expect.element(dialog).toHaveAttribute("aria-modal", "false");
 
     await page.viewport(390, 700);
     await expect.element(dialog).toHaveAttribute("aria-modal", "true");
     await expect.element(dialog).toBeVisible();
+    expect(dialog.element().getBoundingClientRect().width).toBeCloseTo(390, 0);
+    await expect.element(page.getByTestId("side-panel-resizer")).not.toBeVisible();
   });
 
-  it("does not open the bottom sheet for an unknown promotion id", async () => {
+  it("does not open the side panel for an unknown promotion id", async () => {
     setUrl("?promotion=missing");
     await render(LandscapeOverview, promotionProps);
 
-    await expect.element(page.getByTestId("bottom-sheet")).not.toBeVisible();
+    await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
   });
 
   it("highlights both stages connected by the selected promotion", async () => {
@@ -482,13 +507,13 @@ describe("<LandscapeOverview> promotion overlay", () => {
     });
   });
 
-  it("clears the promotion param when the sheet is closed", async () => {
+  it("clears the promotion param when the drawer is closed", async () => {
     setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
     await render(LandscapeOverview, promotionProps);
 
     const dialog = page.getByRole("dialog", { name: "dev-api → prod-api" });
     await expect.element(dialog).toBeVisible();
-    (dialog.getByTestId("bottom-sheet-close").element() as HTMLButtonElement).click();
+    (dialog.getByTestId("side-panel-close").element() as HTMLButtonElement).click();
 
     expect(navigation.goto).toHaveBeenCalled();
     const [next, options] = navigation.goto.mock.calls[0]!;
@@ -496,16 +521,21 @@ describe("<LandscapeOverview> promotion overlay", () => {
     expect(options).toEqual({ replace: true, reset: false });
   });
 
-  it("keeps the stage and promotion panels mutually exclusive", async () => {
+  it("shows only promotion details and no full-page action for a promotion selection", async () => {
     setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
     await render(LandscapeOverview, promotionProps);
 
-    await expect.element(page.getByTestId("bottom-sheet")).toBeVisible();
-    // The stage (right) panel must not be open while a promotion is selected.
-    await expect.element(page.getByTestId("side-panel")).not.toBeVisible();
+    await expect.element(page.getByTestId("side-panel")).toBeVisible();
+    await expect.element(page.getByTestId("promotion-details")).toBeVisible();
+    await expect
+      .element(page.getByRole("region", { name: "Target version" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("link", { name: "Open full page" }))
+      .not.toBeInTheDocument();
   });
 
-  it("finishes closing the stage panel before selecting a promotion", async () => {
+  it("selects a promotion immediately without closing the stage panel", async () => {
     await page.viewport(1200, 800);
     setStageOverlay("primary", "dev-api");
     await render(LandscapeOverview, promotionProps);
@@ -516,21 +546,15 @@ describe("<LandscapeOverview> promotion overlay", () => {
     });
 
     edge!.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 }));
-    expect(navigation.goto).not.toHaveBeenCalled();
+    expect(navigation.goto).toHaveBeenCalledOnce();
     const sidePanel = page.getByTestId("side-panel").element();
-    await expect.element(sidePanel).toHaveAttribute("data-state", "closed");
-    expect(navigation.goto).not.toHaveBeenCalled();
-    sidePanel.dispatchEvent(
-      new TransitionEvent("transitionend", { bubbles: true, propertyName: "translate" }),
-    );
-
-    await vi.waitFor(() => expect(navigation.goto).toHaveBeenCalledOnce(), { timeout: 1000 });
+    await expect.element(sidePanel).toHaveAttribute("data-state", "open");
     const [next, options] = navigation.goto.mock.calls[0]!;
     expect(new URL(next).searchParams.get("promotion")).toBe(promotionId);
     expect(options?.replace).toBe(true);
   });
 
-  it("finishes closing promotion details before selecting a stage", async () => {
+  it("selects a stage immediately without closing promotion details", async () => {
     await page.viewport(1200, 800);
     setUrl(`?promotion=${encodeURIComponent(promotionId)}`);
     appState.page.state = { overlayOrigin: "landscape" };
@@ -542,17 +566,8 @@ describe("<LandscapeOverview> promotion overlay", () => {
     stageCard
       .element()
       .dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0, cancelable: true }));
-    expect(navigation.replaceState).not.toHaveBeenCalled();
-    const bottomSheet = page.getByTestId("bottom-sheet").element();
-    await expect.element(bottomSheet).toHaveAttribute("data-state", "closed");
-    expect(navigation.replaceState).not.toHaveBeenCalled();
-    bottomSheet.dispatchEvent(
-      new TransitionEvent("transitionend", { bubbles: true, propertyName: "translate" }),
-    );
-
-    await vi.waitFor(() => expect(navigation.replaceState).toHaveBeenCalledOnce(), {
-      timeout: 1000,
-    });
+    expect(navigation.replaceState).toHaveBeenCalledOnce();
+    await expect.element(page.getByTestId("side-panel")).toHaveAttribute("data-state", "open");
     expect(navigation.replaceState.mock.calls[0]![0]).toBe(
       "/projects/payments/landscape/primary/stages/dev-api",
     );

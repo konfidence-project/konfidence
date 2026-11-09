@@ -2,8 +2,7 @@
     import PanelResizer from "../PanelResizer.svelte";
 
     const DEFAULT_SIZE = 400;
-    let { edge, initialSize = DEFAULT_SIZE, onResize }: {
-        edge: "left" | "top";
+    let { initialSize = DEFAULT_SIZE, onResize }: {
         initialSize?: number;
         onResize?: (size: number) => void;
     } = $props();
@@ -13,6 +12,6 @@
 </script>
 
 <div class="relative h-96 w-96">
-    <PanelResizer {edge} bind:size min={220} max={800} testid="resizer" {onResize} />
+    <PanelResizer bind:size min={220} max={800} testid="resizer" {onResize} />
     <output data-testid="size">{size}</output>
 </div>

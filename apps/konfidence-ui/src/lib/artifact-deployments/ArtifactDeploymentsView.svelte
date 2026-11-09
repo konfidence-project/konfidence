@@ -17,7 +17,9 @@
     import ArtifactDeploymentDetail from "./ArtifactDeploymentDetail.svelte";
     import ArtifactDeploymentsTable from "./ArtifactDeploymentsTable.svelte";
     import { matchesQuery, matchesStatus, toArtifactDeploymentRows } from "./deployments.js";
-    import type { ArtifactDeploymentRow, ArtifactDeploymentStatus } from "./deployments.js";
+    import { useSearchParams } from "runed/kit";
+    import * as valibot from "valibot";
+    import { urlTextSchema } from "#lib/url-schemas.ts";
     import { useDeploymentFilters } from "#lib/deployments/useDeploymentFilters.svelte.ts";
     import { LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "#lib/deployments/params.ts";
     import { panelDimensions } from "#lib/shell/panelDimensions.svelte.ts";
@@ -57,13 +59,20 @@
         toArtifactDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
     );
 
-    const filters = useDeploymentFilters<ArtifactDeploymentRow, ArtifactDeploymentStatus>({
+    const search = useSearchParams(valibot.object({
+        deployment: urlTextSchema,
+        landscapeId: urlTextSchema,
+        vectorDeploymentId: urlTextSchema,
+    }));
+
+    const filters = useDeploymentFilters({
         dimensions: [
             { param: LANDSCAPE_PARAM, value: () => selectedLandscapeId },
             { param: VECTOR_DEPLOYMENT_PARAM, value: () => selectedVectorDeploymentId },
         ],
         matchers: { matchesQuery, matchesStatus },
         rows: () => rows,
+        selectedId: () => search.deployment || undefined,
     });
 
     const vectorOptions = $derived(

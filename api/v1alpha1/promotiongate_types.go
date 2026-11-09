@@ -15,6 +15,9 @@ const (
 	// ReasonGateApprovedByUser is the gate reason recorded when a user
 	// approves a promotion through the konfidence API.
 	ReasonGateApprovedByUser = "ApprovedByUser"
+	// ReasonGateApprovalRevokedByUser is recorded when a user revokes an
+	// explicit approval through the konfidence API.
+	ReasonGateApprovalRevokedByUser = "ApprovalRevokedByUser"
 )
 
 // PromotionGateState is the state of a single promotion gate.

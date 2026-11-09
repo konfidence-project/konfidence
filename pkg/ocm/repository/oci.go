@@ -208,7 +208,7 @@ func (c OciClient) Copy(ctx context.Context, artifactReferences []compref.Ref, t
 		})
 	}
 	cfg := &transferspec.Config{Recursive: transferspec.RecursiveInfinite}
-	transferGraphDefinition, err := transfer.BuildGraphDefinition(ctx, cfg, mappings...)
+	transferGraphDefinition, err := transfer.BuildGraphDefinition(ctx, cfg, nil, mappings...)
 	if err != nil {
 		return fmt.Errorf("building transfer graph definition: %w", err)
 	}

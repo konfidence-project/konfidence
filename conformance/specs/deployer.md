@@ -74,7 +74,7 @@ resources:
 ```
 
 The OCM input type only tells the OCM tooling how to read the content when the component version is built. It is not part of this contract.
-A `file/v1` input that reads the artifact manifest from a JSON file, such as `{"type": "kustomize.konfidence.cloud"}`, is equally valid.
+A `file/v1` input that reads the artifact manifest from a JSON file, such as `./manifest.json` containing `{"type": "kustomize.konfidence.cloud"}`, is equally valid.
 
 The component version MAY contain additional resources that a deployer uses to understand what needs to be deployed.
 

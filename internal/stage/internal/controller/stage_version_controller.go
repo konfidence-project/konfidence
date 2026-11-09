@@ -150,6 +150,11 @@ func (r *StageVersionReconciler) reconcileStageVersion(ctx context.Context, stag
 		ObservedGeneration: stageVersion.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
+	if !meta.IsStatusConditionTrue(vectorActivation.Status.Conditions, konfidence.ActivationSucceeded) {
+		// The owned VectorActivation watch will enqueue the StageVersion again
+		// when activation finishes.
+		return nil
+	}
 
 	// set stageVersionReady status
 	meta.SetStatusCondition(&stageVersion.Status.Conditions, metav1.Condition{

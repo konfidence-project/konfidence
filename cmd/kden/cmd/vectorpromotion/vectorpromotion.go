@@ -56,8 +56,20 @@ func NewVectorPromotionCmd(appConfig *cfg.AppConfig) *cobra.Command {
 		panic(err)
 	}
 
+	revokeApprovalCmd, err := NewRevokeApprovalCmd(appConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	revokeApprovalCmd.Flags().StringP("projectId", "p", "", "The ID of the project the vector promotion belongs to (required)")
+	err = revokeApprovalCmd.MarkFlagRequired("projectId")
+	if err != nil {
+		panic(err)
+	}
+
 	vectorPromotionCmd.AddCommand(listCmd)
 	vectorPromotionCmd.AddCommand(getCmd)
 	vectorPromotionCmd.AddCommand(approveCmd)
+	vectorPromotionCmd.AddCommand(revokeApprovalCmd)
 	return vectorPromotionCmd
 }
