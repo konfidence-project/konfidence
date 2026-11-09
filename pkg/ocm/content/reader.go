@@ -161,7 +161,7 @@ func (r *ocmReader) GetArtifactContent(ctx context.Context, rawOcmRef string) (A
 				Type       string `json:"type"`
 				AllowReuse bool   `json:"allowReuse"`
 			}
-			if err := json.Unmarshal(data, &dto); err != nil {
+			if err := util.UnmarshalManifest(data, &dto); err != nil {
 				return ArtifactContent{}, fmt.Errorf("unmarshal artifact manifest in %s: %w", upstream.String(), err)
 			}
 			if dto.Type == "" {
@@ -181,7 +181,7 @@ func (r *ocmReader) GetArtifactContent(ctx context.Context, rawOcmRef string) (A
 				Type      string   `json:"type"`
 				DependsOn []string `json:"dependsOn"`
 			}
-			if err := json.Unmarshal(data, &dto); err != nil {
+			if err := util.UnmarshalManifest(data, &dto); err != nil {
 				return ArtifactContent{}, fmt.Errorf("unmarshal task manifest for resource %s in %s: %w", res.Name, upstream.String(), err)
 			}
 			tasks = append(tasks, ArtifactTask{

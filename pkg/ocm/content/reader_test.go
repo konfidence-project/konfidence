@@ -256,6 +256,49 @@ var _ = Describe("Reader", func() {
 			})
 		})
 
+		Context("when the manifests are YAML", func() {
+			It("returns ArtifactContent with type, allowReuse and tasks", func() {
+				manifestResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{
+						ObjectMeta: descruntime.ObjectMeta{Name: "manifest", Version: "1.0.0"},
+					},
+					Type: "cloud.konfidence.artifact.manifest",
+				}
+				taskResource := descruntime.Resource{
+					ElementMeta: descruntime.ElementMeta{
+						ObjectMeta: descruntime.ObjectMeta{Name: "task-deploy", Version: "1.0.0"},
+					},
+					Type: "cloud.konfidence.artifact.task.manifest",
+				}
+				manifestYAML := []byte("allowReuse: true\ntype: cloud.konfidence.flux.helm\n")
+				taskYAML := []byte("dependsOn:\n- pre-deploy\nname: deploy\ntype: flux-helm-release\n")
+
+				descriptor := descruntime.Descriptor{
+					Component: descruntime.Component{
+						ComponentMeta: descruntime.ComponentMeta{
+							ObjectMeta: descruntime.ObjectMeta{Name: "github.com/example/my-artifact", Version: "2.0.0"},
+						},
+						Resources: []descruntime.Resource{manifestResource, taskResource},
+					},
+				}
+				mockClient.EXPECT().Get(gomock.Any(), testRef("github.com/example/my-artifact", "2.0.0")).Return(descriptor, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(inmemory.New(bytes.NewReader(manifestYAML)), &manifestResource, nil)
+				mockClient.EXPECT().GetLocalResource(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(inmemory.New(bytes.NewReader(taskYAML)), &taskResource, nil)
+
+				ac, err := reader.GetArtifactContent(ctx, ref)
+
+				gomega.Expect(err).ToNot(gomega.HaveOccurred())
+				gomega.Expect(ac.Type).To(gomega.Equal("cloud.konfidence.flux.helm"))
+				gomega.Expect(ac.AllowReuse).To(gomega.BeTrue())
+				gomega.Expect(ac.Tasks).To(gomega.HaveLen(1))
+				gomega.Expect(ac.Tasks[0].Name).To(gomega.Equal("deploy"))
+				gomega.Expect(ac.Tasks[0].Type).To(gomega.Equal("flux-helm-release"))
+				gomega.Expect(ac.Tasks[0].DependsOn).To(gomega.ConsistOf("pre-deploy"))
+			})
+		})
+
 		Context("when the descriptor has no artifact manifest resource", func() {
 			It("returns an error", func() {
 				descriptor := descruntime.Descriptor{
