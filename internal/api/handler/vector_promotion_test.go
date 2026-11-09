@@ -190,7 +190,7 @@ var _ = Describe("GetVectorPromotionV1", func() {
 })
 
 var _ = Describe("ApproveVectorPromotionV1", func() {
-	// The handler maps both err==nil and ErrAlreadyApproved to 204; the already-approved
+	// The handler maps an already-approved promotion to 204; the already-approved
 	// fixture exercises the idempotent return path. A genuine first-time approval is
 	// covered by the repository-layer tests in internal/vectorpromotion/repository_test.go.
 	It("returns 204 when the promotion is already approved (idempotent success)", func() {

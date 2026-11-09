@@ -441,7 +441,7 @@ var _ = Describe("Repository", func() {
 		It("rejects an empty revoker", func() {
 			repo := newRepository(approvedPromotion())
 
-			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "")).To(MatchError(ErrRevokerMissing))
+			Expect(repo.RevokeApproval(ctx, key.Namespace, key.Name, "")).To(MatchError(ErrActorMissing))
 		})
 
 		It("reports a missing promotion as not found", func() {

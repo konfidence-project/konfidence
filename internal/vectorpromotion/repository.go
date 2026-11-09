@@ -42,20 +42,11 @@ var (
 	// ErrPromotionExecuting is returned when the promotion's gates are
 	// already satisfied, so they can no longer change.
 	ErrPromotionExecuting = errors.New("promotion gates are already satisfied; they can no longer change")
-	// ErrAlreadyApproved is returned when the explicit-approval gate is
-	// already satisfied.
-	ErrAlreadyApproved = errors.New("promotion is already approved")
 	// ErrNotApproved is returned when there is no satisfied approval to revoke.
 	ErrNotApproved = errors.New("promotion is not approved; nothing to revoke")
 	// ErrApprovalNotRequired is returned when the promotion does not declare
 	// the explicit-approval gate: there is nothing to approve.
 	ErrApprovalNotRequired = errors.New("promotion has no explicit-approval gate; nothing to approve")
-	// ErrApproverMissing is returned when no approver identity was supplied:
-	// an approval without provenance is not an audit record.
-	ErrApproverMissing = errors.New("approvedBy must not be empty")
-	// ErrRevokerMissing is returned when no revoker identity was supplied:
-	// a revocation without provenance is not an audit record.
-	ErrRevokerMissing = errors.New("revokedBy must not be empty")
 	// ErrConflict is returned when the write raced a concurrent write to the
 	// promotion. The write did not happen; the caller should retry.
 	ErrConflict = errors.New("promotion was modified concurrently; retry the request")
@@ -157,29 +148,17 @@ func (r *k8sRepository) Approve(ctx context.Context, namespace, vectorPromotionI
 		Message: fmt.Sprintf("approved by %s", approvedBy),
 		SetBy:   approvedBy,
 	})
-	switch {
-	case err == nil:
-		return nil
-	case errors.Is(err, promotiongate.ErrNotFound):
-		return ErrVectorPromotionNotFound
-	case errors.Is(err, promotiongate.ErrGateNotDeclared):
-		return ErrApprovalNotRequired
-	case errors.Is(err, promotiongate.ErrPromotionNotMutable):
-		return ErrPromotionExecuting
-	case errors.Is(err, promotiongate.ErrConflict):
-		return ErrConflict
-	default:
-		return fmt.Errorf("failed to approve VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
-	}
+	return mapGateSetError(err, key, "approve")
 }
 
 // RevokeApproval sets the promotion's explicit-approval gate back to Pending
 // on behalf of revokedBy. Repeating a recorded revocation is an idempotent
 // success that preserves its provenance; other unsatisfied gates cannot be revoked.
-// Revocation is rejected once the promotion has passed its gates or finished.
+// Revocation is rejected once the promotion has passed its gates, finished, or
+// been overridden.
 func (r *k8sRepository) RevokeApproval(ctx context.Context, namespace, vectorPromotionId, revokedBy string) error {
 	if revokedBy == "" {
-		return ErrRevokerMissing
+		return ErrActorMissing
 	}
 
 	vectorPromotion, err := r.Get(ctx, namespace, vectorPromotionId)
@@ -188,8 +167,10 @@ func (r *k8sRepository) RevokeApproval(ctx context.Context, namespace, vectorPro
 	}
 
 	if promotion.IsTerminal(vectorPromotion) {
-		cond := meta.FindStatusCondition(vectorPromotion.Status.Conditions, konfidence.ConditionTypeSucceeded)
-		return fmt.Errorf("%w: %s: %s", ErrPromotionFinished, cond.Reason, cond.Message)
+		return finishedError(vectorPromotion)
+	}
+	if override := vectorPromotion.Status.Override; override != nil {
+		return overriddenError(override)
 	}
 	if !promotiongate.Declared(vectorPromotion, konfidence.GateTypeExplicitApproval) {
 		return ErrApprovalNotRequired
@@ -214,20 +195,7 @@ func (r *k8sRepository) RevokeApproval(ctx context.Context, namespace, vectorPro
 		Message: fmt.Sprintf("approval revoked by %s", revokedBy),
 		SetBy:   revokedBy,
 	})
-	switch {
-	case err == nil:
-		return nil
-	case errors.Is(err, promotiongate.ErrNotFound):
-		return ErrVectorPromotionNotFound
-	case errors.Is(err, promotiongate.ErrGateNotDeclared):
-		return ErrApprovalNotRequired
-	case errors.Is(err, promotiongate.ErrPromotionNotMutable):
-		return ErrPromotionExecuting
-	case errors.Is(err, promotiongate.ErrConflict):
-		return ErrConflict
-	default:
-		return fmt.Errorf("failed to revoke approval of VectorPromotion %q in namespace %q: %w", key.Name, key.Namespace, err)
-	}
+	return mapGateSetError(err, key, "revoke approval of")
 }
 
 // Reject records a `Reject` override on a promotion that still waits on its
@@ -295,6 +263,25 @@ func (r *k8sRepository) setOverride(ctx context.Context, namespace, vectorPromot
 		}
 	}
 	return nil
+}
+
+// mapGateSetError maps a promotiongate.Set failure to the repository's error
+// vocabulary. action names the attempted operation for the fallback message.
+func mapGateSetError(err error, key types.NamespacedName, action string) error {
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, promotiongate.ErrNotFound):
+		return ErrVectorPromotionNotFound
+	case errors.Is(err, promotiongate.ErrGateNotDeclared):
+		return ErrApprovalNotRequired
+	case errors.Is(err, promotiongate.ErrPromotionNotMutable):
+		return ErrPromotionExecuting
+	case errors.Is(err, promotiongate.ErrConflict):
+		return ErrConflict
+	default:
+		return fmt.Errorf("failed to %s VectorPromotion %q in namespace %q: %w", action, key.Name, key.Namespace, err)
+	}
 }
 
 func finishedError(p *konfidence.VectorPromotion) error {

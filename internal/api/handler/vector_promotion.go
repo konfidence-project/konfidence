@@ -45,6 +45,20 @@ func (h *projectHandler) ApproveVectorPromotionV1(ctx context.Context,
 	return openapi.ApproveVectorPromotionV1204Response{}, nil
 }
 
+func (h *projectHandler) RevokeApprovalVectorPromotionV1(ctx context.Context,
+	request openapi.RevokeApprovalVectorPromotionV1RequestObject,
+) (openapi.RevokeApprovalVectorPromotionV1ResponseObject, error) {
+	identity, namespace, err := h.resolveProjectRequest(ctx, request.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := h.vectorPromotionRepo.RevokeApproval(ctx, namespace, request.VectorPromotionId, identity.Subject); err != nil {
+		return nil, promotionActionError(err, request.VectorPromotionId)
+	}
+	return openapi.RevokeApprovalVectorPromotionV1204Response{}, nil
+}
+
 func (h *projectHandler) RejectVectorPromotionV1(ctx context.Context,
 	request openapi.RejectVectorPromotionV1RequestObject) (openapi.RejectVectorPromotionV1ResponseObject, error) {
 	identity, namespace, err := h.resolveProjectRequest(ctx, request.ProjectId)
@@ -79,7 +93,8 @@ func (h *projectHandler) BypassVectorPromotionGatesV1(ctx context.Context,
 	return openapi.BypassVectorPromotionGatesV1204Response{}, nil
 }
 
-// promotionActionError maps a failed approve, reject or gate bypass to its API error.
+// promotionActionError maps a failed approve, revoke, reject or gate bypass to
+// its API error.
 func promotionActionError(err error, vectorPromotionId string) error {
 	switch {
 	case errors.Is(err, vectorpromotiondomain.ErrVectorPromotionNotFound):
@@ -89,36 +104,12 @@ func promotionActionError(err error, vectorPromotionId string) error {
 	case errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
 		errors.Is(err, vectorpromotiondomain.ErrPromotionExecuting),
 		errors.Is(err, vectorpromotiondomain.ErrPromotionOverridden),
+		errors.Is(err, vectorpromotiondomain.ErrNotApproved),
 		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired),
 		errors.Is(err, vectorpromotiondomain.ErrConflict):
 		return apierror.NewConflict(err.Error())
 	default:
 		return apierror.NewInternal(err)
-	}
-}
-
-func (h *projectHandler) RevokeApprovalVectorPromotionV1(ctx context.Context,
-	request openapi.RevokeApprovalVectorPromotionV1RequestObject,
-) (openapi.RevokeApprovalVectorPromotionV1ResponseObject, error) {
-	identity, namespace, err := h.resolveProjectRequest(ctx, request.ProjectId)
-	if err != nil {
-		return nil, err
-	}
-
-	err = h.vectorPromotionRepo.RevokeApproval(ctx, namespace, request.VectorPromotionId, identity.Subject)
-	switch {
-	case err == nil:
-		return openapi.RevokeApprovalVectorPromotionV1204Response{}, nil
-	case errors.Is(err, vectorpromotiondomain.ErrVectorPromotionNotFound):
-		return nil, apierror.NewNotFound("vectorPromotion", request.VectorPromotionId)
-	case errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
-		errors.Is(err, vectorpromotiondomain.ErrPromotionExecuting),
-		errors.Is(err, vectorpromotiondomain.ErrNotApproved),
-		errors.Is(err, vectorpromotiondomain.ErrConflict),
-		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired):
-		return nil, apierror.NewConflict(err.Error())
-	default:
-		return nil, apierror.NewInternal(err)
 	}
 }
 
