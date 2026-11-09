@@ -19,6 +19,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.uber.org/mock/gomock"
+	ocmblob "ocm.software/open-component-model/bindings/go/blob"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	descruntime "ocm.software/open-component-model/bindings/go/descriptor/runtime"
 	ociblob "ocm.software/open-component-model/bindings/go/oci/blob"
@@ -146,7 +147,9 @@ var _ = Describe("OCM adapter cancellation", func() {
 		}
 
 		descriptorBlob := ociblob.NewDescriptorBlob(
-			reader,
+			ocmblob.ReadOnlyBlobFunc(func() (io.ReadCloser, error) {
+				return reader, nil
+			}),
 			ocispec.Descriptor{
 				Digest: digest.FromString(content),
 				Size:   int64(len(content)),
@@ -182,7 +185,9 @@ var _ = Describe("OCM adapter cancellation", func() {
 		}
 
 		descriptorBlob := ociblob.NewDescriptorBlob(
-			reader,
+			ocmblob.ReadOnlyBlobFunc(func() (io.ReadCloser, error) {
+				return reader, nil
+			}),
 			ocispec.Descriptor{
 				Digest: digest.FromBytes(content),
 				Size:   int64(len(content)),
