@@ -474,6 +474,41 @@ var _ = Describe("Artifact manifest jobs", func() {
 		Expect(actual.Reason).To(Equal(permanent.Reason))
 	})
 
+	It("prefers a PermanentError over a sibling cancellation", func() {
+		canceledRef := testArtifactRef("example.com/canceled", "1.0.0")
+		permanentRef := testArtifactRef("example.com/permanent", "1.0.0")
+		permanentStarted := make(chan struct{})
+
+		permanent := &PermanentError{
+			Reason: konfidence.VectorDeploymentStalledReasonManifestMissing,
+			Err:    errors.New("manifest missing"),
+		}
+
+		port := &testVectorOcmPort{
+			getManifest: func(ctx context.Context, ref compref.Ref) (ArtifactManifest, error) {
+				if ref.String() == permanentRef.String() {
+					close(permanentStarted)
+					<-ctx.Done()
+					return ArtifactManifest{}, permanent
+				}
+
+				<-permanentStarted
+				return ArtifactManifest{}, context.Canceled
+			},
+		}
+
+		r := newManifestTestReconciler(port, 2, 2)
+		result := r.downloadArtifactManifests(
+			context.Background(),
+			[]compref.Ref{canceledRef, permanentRef},
+		)
+
+		var actual *PermanentError
+		Expect(errors.As(result.err, &actual)).To(BeTrue())
+		Expect(actual).To(BeIdenticalTo(permanent))
+		Expect(result.err.Error()).To(ContainSubstring(permanentRef.String()))
+	})
+
 	It("converts an artifact manifest download panic into an error", func() {
 		ref := testArtifactRef("example.com/a", "1.0.0")
 		var calls atomic.Int32

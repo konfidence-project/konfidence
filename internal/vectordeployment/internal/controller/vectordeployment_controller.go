@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -698,11 +699,21 @@ func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Conte
 	pool, poolCtx := errgroup.WithContext(ctx)
 	pool.SetLimit(min(r.MaxArtifactManifestDownloadsPerDeployment, len(artifactReferences)))
 
+	var permanentErr error
+	var permanentErrOnce sync.Once
+
 	for i, artifactRef := range artifactReferences {
 		pool.Go(func() (err error) {
 			defer func() {
 				if recovered := recover(); recovered != nil {
 					err = fmt.Errorf("panic while downloading artifact manifest for %q: %v", artifactRef.String(), recovered)
+				}
+
+				var candidate *PermanentError
+				if errors.As(err, &candidate) {
+					permanentErrOnce.Do(func() {
+						permanentErr = err
+					})
 				}
 			}()
 
@@ -728,9 +739,14 @@ func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Conte
 		})
 	}
 
-	if err := pool.Wait(); err != nil {
-		return artifactManifestResult{err: err}
+	waitErr := pool.Wait()
+	if permanentErr != nil {
+		return artifactManifestResult{err: permanentErr}
 	}
+	if waitErr != nil {
+		return artifactManifestResult{err: waitErr}
+	}
+
 	return artifactManifestResult{artifacts: artifacts}
 }
 
