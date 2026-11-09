@@ -288,6 +288,7 @@ CHAINSAW_ARGS ?=
 E2E_CLUSTER   ?= konfidence-e2e
 E2E_TAG       := e2e-$(shell date +%s)
 KLO_REPO      ?= konfidence-project/kubernetes-landscape-orchestrator
+E2E_CORE_DIR  ?= .
 SUPPORT_BUNDLE ?= support-bundle
 E2E_SNAPSHOT_DIR ?= $(REPO_ROOT)/.tmp/e2e-snapshot
 
@@ -300,9 +301,9 @@ e2e-cluster: hermit
 
 .PHONY: e2e-up
 e2e-up: e2e-cluster ## Create a kind cluster with this checkout's operator and the latest orchestrator main build.
-	$(MAKE) docker-build TAG=$(E2E_TAG)
+	$(MAKE) -C "$(E2E_CORE_DIR)" docker-build REGISTRY="$(REGISTRY)" TAG=$(E2E_TAG)
 	$(KIND) load docker-image $(REGISTRY)/konfidence-operator:$(E2E_TAG) --name $(E2E_CLUSTER)
-	$(MAKE) webhook-certs deploy TAG=$(E2E_TAG)
+	$(MAKE) -C "$(E2E_CORE_DIR)" webhook-certs deploy REGISTRY="$(REGISTRY)" NAMESPACE="$(NAMESPACE)" TAG=$(E2E_TAG)
 	@# Orchestrator main publishes images per commit but no charts; use the chart from that commit.
 	ref=$${KLO_REF:-$$(gh run list --repo github.com/$(KLO_REPO) --workflow main-pipeline.yaml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha')}; \
 	test -n "$$ref" || { echo "Set KLO_REF; no successful $(KLO_REPO) main build found." >&2; exit 1; }; \

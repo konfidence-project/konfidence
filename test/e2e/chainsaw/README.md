@@ -24,13 +24,17 @@ Export the registry variables in each new shell; Docker login only stores creden
 latest Flux and Gateway API releases, and deploys this checkout's operator with
 `docker-build`, `webhook-certs`, and `deploy`. The API is not deployed.
 
+Set `E2E_CORE_DIR=<checkout>` during `make e2e-up` to build and deploy the operator,
+chart, and CRDs from another Konfidence checkout while retaining this checkout's suite.
+
 The orchestrator and vector-data-service use the same latest successful `main` build of
 [kubernetes-landscape-orchestrator](https://github.com/konfidence-project/kubernetes-landscape-orchestrator),
 resolved once with `gh`. Both charts come from that commit. Vector-data-service
 is installed per landscape by the suite. Bootstrap saves the SHA in `.tmp/klo/ref`;
 `make test-e2e` passes it as `KLO_REF`, without looking up the deployed image.
 Run `make e2e-up` first to populate the cached charts and revision.
-Set `KLO_REF=<commit>` during `make e2e-up` to select another published build for both.
+Set `KLO_REF=<full-commit-sha>` during `make e2e-up` to select another published build
+for both. The selected commit must have published KLO and VDS images.
 
 `COMPONENT_REGISTRY` defaults to `ghcr.io/konfidence-project/example-app`.
 
@@ -75,6 +79,16 @@ Fork PRs are skipped because their token cannot publish packages.
 Manual runs offer **PR + main** (default) and **Latest releases**. Release mode uses
 `make e2e-up-release`; label-triggered PR runs always use `make e2e-up`.
 There is no automatic trigger on release publication.
+
+**PR + main** accepts two optional inputs:
+
+- `konfidence_ref`: full core commit SHA; empty uses the workflow branch. The operator,
+  chart, and CRDs are built and deployed from a separate checkout of that commit.
+- `klo_ref`: full KLO commit SHA with published KLO/VDS images; empty uses the
+  latest successful `main` build for both.
+
+The workflow and Chainsaw suite remain from the workflow branch. Both inputs are
+ignored by **Latest releases**; incompatible selected commits still fail.
 
 The workflow runs the selected bootstrap and `make test-e2e`, and shows
 the step results in the job summary. Vectors use a run-specific GHCR prefix:
