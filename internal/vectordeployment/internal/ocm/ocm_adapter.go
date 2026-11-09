@@ -153,7 +153,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 				Type       konfidence.ArtifactType `json:"type"`
 				AllowReuse bool                    `json:"allowReuse"`
 			}
-			if err := json.Unmarshal(data, &konfidenceManifestDto); err != nil {
+			if err := util.UnmarshalManifest(data, &konfidenceManifestDto); err != nil {
 				return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,
 					fmt.Errorf("failed to unmarshal manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err))
 			}
@@ -175,7 +175,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 				DependsOn []string        `json:"dependsOn"`
 				Spec      json.RawMessage `json:"spec"`
 			}
-			if err := json.Unmarshal(data, &konfidenceTaskManifestDto); err != nil {
+			if err := util.UnmarshalManifest(data, &konfidenceTaskManifestDto); err != nil {
 				return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,
 					fmt.Errorf("failed to unmarshal task manifest data for resource %s in component %s: %w", resource.Name, ref.String(), err))
 			}

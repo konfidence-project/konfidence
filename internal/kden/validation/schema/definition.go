@@ -5,7 +5,7 @@ import "github.com/invopop/jsonschema"
 const SchemaID = "cloud.konfidence/konfidence-artifact-schema.json"
 
 type ManifestInput struct {
-	Type string `json:"type" jsonschema:"enum=file/v1,enum=File/v1"`
+	Type string `json:"type" jsonschema:"enum=file/v1,enum=File/v1,enum=UTF8/v1,enum=utf8/v1"`
 }
 
 type ManifestResource struct {
