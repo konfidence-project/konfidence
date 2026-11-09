@@ -7,13 +7,13 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"ocm.software/open-component-model/bindings/go/credentials"
 	credentialsruntime "ocm.software/open-component-model/bindings/go/credentials/spec/config/runtime"
+	ocmv1alpha1 "ocm.software/open-component-model/bindings/go/kubernetes/controller/api/v1alpha1"
+	"ocm.software/open-component-model/bindings/go/kubernetes/controller/pkg/configuration"
 	ocicredentials "ocm.software/open-component-model/bindings/go/oci/credentials"
 	ociidentityv1 "ocm.software/open-component-model/bindings/go/oci/spec/identity/v1"
 	"ocm.software/open-component-model/bindings/go/plugin/manager"
 	rsacredentials "ocm.software/open-component-model/bindings/go/rsa/spec/credentials"
 	"ocm.software/open-component-model/bindings/go/runtime"
-	ocmv1alpha1 "ocm.software/open-component-model/kubernetes/controller/api/v1alpha1"
-	"ocm.software/open-component-model/kubernetes/controller/pkg/configuration"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

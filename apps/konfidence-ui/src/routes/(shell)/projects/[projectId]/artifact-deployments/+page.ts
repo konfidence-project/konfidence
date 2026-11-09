@@ -1,14 +1,20 @@
-import { LANDSCAPE_PARAM, VECTOR_DEPLOYMENT_PARAM } from "#lib/deployments/params.ts";
+import * as valibot from "valibot";
+import { urlTextSchema, validateUrlFilters } from "#lib/url-schemas.ts";
 import type { PageLoad } from "./$types";
 
-export const load: PageLoad = ({ params, url }) => {
+export const load = (({ params, url }) => {
   const { projectId } = params;
-  const landscapeId = url.searchParams.get(LANDSCAPE_PARAM) ?? undefined;
-  const vectorDeploymentId = url.searchParams.get(VECTOR_DEPLOYMENT_PARAM) ?? undefined;
+  const filters = validateUrlFilters(
+    url,
+    valibot.object({
+      landscapeId: urlTextSchema,
+      vectorDeploymentId: urlTextSchema,
+    }),
+  );
 
   return {
-    landscapeId,
+    landscapeId: filters.landscapeId || undefined,
     projectId,
-    vectorDeploymentId,
+    vectorDeploymentId: filters.vectorDeploymentId || undefined,
   };
-};
+}) satisfies PageLoad;

@@ -8,7 +8,6 @@ import (
 	ocmconstructor "ocm.software/open-component-model/bindings/go/constructor"
 	ocmconstructorspecv1 "ocm.software/open-component-model/bindings/go/constructor/spec/v1"
 	ocmoci "ocm.software/open-component-model/bindings/go/oci"
-	ocmaddcvcli "ocm.software/open-component-model/cli/cmd/add/component-version"
 )
 
 func GetOcmConstructorProvider(ocmConfiguration *ocmgenericspecv1.Config, ctx context.Context,
@@ -61,8 +60,8 @@ func PushComponentConstructor(ctx context.Context, constructorOptionProvider *Co
 		ResourceDigestProcessorProvider:     constructorOptionProvider,
 		Resolver:                            constructorOptionProvider.Graph,
 		ConcurrencyLimit:                    1,
-		ComponentVersionConflictPolicy:      ocmaddcvcli.ComponentVersionConflictPolicy("abort-and-fail").ToConstructorConflictPolicy(),
-		ExternalComponentVersionCopyPolicy:  ocmaddcvcli.ExternalComponentVersionCopyPolicy("copy-or-fail").ToConstructorPolicy(),
+		ComponentVersionConflictPolicy:      ocmconstructor.ComponentVersionConflictAbortAndFail,
+		ExternalComponentVersionCopyPolicy:  ocmconstructor.ExternalComponentVersionCopyPolicyCopyOrFail,
 	}
 
 	runtimeConstructor := ocmConvertToRuntimeConstructor(constructor)

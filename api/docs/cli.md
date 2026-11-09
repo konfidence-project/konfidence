@@ -1026,6 +1026,7 @@ kden vector-promotion [flags]
 * [kden vector-promotion approve](#kden-vector-promotion-approve)  - Approve a vector promotion for a specific project id
 * [kden vector-promotion get](#kden-vector-promotion-get)  - Get a vector promotion config for a given project id
 * [kden vector-promotion list](#kden-vector-promotion-list)  - List vector promotion configs for a given project id
+* [kden vector-promotion revoke-approval](#kden-vector-promotion-revoke-approval)  - Revoke the approval of a vector promotion for a specific project id
 
 
 ## kden vector-promotion approve
@@ -1118,6 +1119,42 @@ kden vector-promotion list [flags]
 ```
   -h, --help               help for list
   -p, --projectId string   The ID of the project the vector promotions belong to (required)
+```
+
+### Options inherited from parent commands
+
+```
+      --access-token string      Access token used for bearer authentication. Env: KDEN_ACCESS_TOKEN
+      --api-endpoint string      Address of the Konfidence API gateway. Env: KDEN_API_ENDPOINT (default: http://localhost:8090)
+      --log-format string        Defines the output format of the application's logs . Supported values are: 'json', 'text' and 'pretty'
+      --log-level string         Defines the base log level for the application. Supported values are: 'info', 'debug' and 'error'
+      --login-timeout string     Maximum time to wait for browser login. Env: KDEN_LOGIN_TIMEOUT (default: 2m)
+      --output string            Defines the output format for the application. Supported values are: 'json', 'yaml' and 'pretty' (default: pretty)
+      --request-timeout string   Maximum duration for an API request. Env: KDEN_REQUEST_TIMEOUT (default: 30s)
+```
+
+### SEE ALSO
+
+* [kden vector-promotion](#kden-vector-promotion)  - Manage vector promotions
+
+
+## kden vector-promotion revoke-approval
+
+Revoke the approval of a vector promotion for a specific project id
+
+### Synopsis
+
+Set the explicit-approval.konfidence.cloud gate of the waiting vector promotion with the given vector promotion id back to Pending.
+
+```
+kden vector-promotion revoke-approval <vectorPromotionId> [flags]
+```
+
+### Options
+
+```
+  -h, --help               help for revoke-approval
+  -p, --projectId string   The ID of the project the vector promotion belongs to (required)
 ```
 
 ### Options inherited from parent commands

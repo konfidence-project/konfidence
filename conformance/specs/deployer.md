@@ -55,29 +55,26 @@ This also includes changes where the deployer can read the payload but cannot co
 
 An artifact is an OCM component version following the [OCM spec](https://github.com/open-component-model/ocm-spec).
 The OCM component version identifies the packaged artifact; it is separate from the artifact type.
-Its resources MUST contain exactly one resource of type `cloud.konfidence.artifact.manifest`, and that resource MUST be named `konfidence-manifest`.
-This resource MUST contain a JSON object with a `type` property whose value is the complete artifact type:
+Its resources MUST contain exactly one resource with the OCM resource type `cloud.konfidence.artifact.manifest`, and that resource MUST be named `konfidence-manifest`.
+The content of this resource is the *artifact manifest*.
+The artifact manifest MUST be a JSON or YAML object with a `type` property whose value is the complete artifact type as defined in section 1.1.
 
-[//]: # (TODO: can we use type: UTF8/v1 instead and use inline yaml)
+In an OCM component constructor, the artifact manifest can be written inline with the [`UTF8/v1`](https://ocm.software/docs/reference/input-and-access-types/#utf8v1) input:
 
 ```yaml
 # component-constructor.yaml
 resources:
   - name: konfidence-manifest
     relation: local
-    type: cloud.konfidence.artifact.manifest
+    type: cloud.konfidence.artifact.manifest # OCM resource type
     input:
-      type: file/v1
-      path: ./konfidence-manifest.json
+      type: UTF8/v1                          # OCM input type
+      yaml:
+        type: kustomize.konfidence.cloud     # artifact type
 ```
 
-The referenced JSON file contains the artifact's type declaration:
-
-```json
-{
-  "type": "kustomize.konfidence.cloud"
-}
-```
+The OCM input type only tells the OCM tooling how to read the content when the component version is built. It is not part of this contract.
+A `file/v1` input that reads the artifact manifest from a JSON file, such as `./manifest.json` containing `{"type": "kustomize.konfidence.cloud"}`, is equally valid.
 
 The component version MAY contain additional resources that a deployer uses to understand what needs to be deployed.
 
@@ -164,49 +161,137 @@ How core reports the state of affected `ArtifactDeployment` resources after targ
 
 ## 3. ArtifactDeployment
 
-Core creates an immutable `ArtifactDeployment` specification containing an artifact manifest and OCM component resources.
+An `ArtifactDeployment` represents the instantiation of a given artifact in a target runtime by the deployer. 
+A *runtime* is the destination environment in which an artifact is deployed to and where it operates, together with the resources managed there on behalf of that artifact.
+A runtime may be a Kubernetes cluster, an object store or CDN, a managed cloud service, a bare-metal machine, or any other environment supported by a deployer.
+
+```yaml
+apiVersion: konfidence.cloud/v1alpha1
+kind: ArtifactDeployment
+metadata:
+  name: e9cea9b3764b9adda065f85acd63a42f04b69de2d42e9b7e4f9556913bb37abb
+  namespace: default
+spec:
+  artifactType: helm.konfidence.cloud
+  component: # TODO: will be refined with https://github.com/konfidence-project/konfidence/issues/397
+    name: konfidence.cloud/podinfo-example
+    resources:
+      - content:
+          imageReference: https://stefanprodan.github.io/podinfo:6.9.1
+          type: ociArtifact
+        name: sample-service-1-helm-chart
+        type: helmChart
+    version: 1.0.0
+```
 
 ### 3.1 Ownership and selection
 
-The type in `spec.manifest.type` selects the responsible deployer and the corresponding target in the deployment's landscape namespace.
+The type in `spec.artifactType` selects the responsible deployer and the corresponding target in the deployment's landscape namespace.
 A deployer acts platform-wide and declares the artifact types it supports in its own configuration.
 It is the cluster administrator's responsibility to ensure that at most one deployer reconciles a given artifact type in a control plane.
 A vendor-owned identifier prevents accidental naming conflicts, but it cannot prevent two controllers from being configured for the same type.
 
 The deployer MUST reconcile an `ArtifactDeployment` only when its artifact type matches a supported identifier exactly.
-It MUST leave resources belonging to other providers or types to their responsible deployers.
+It MUST do so regardless of whether they were created before the deployer was installed or while it was stopped.
+It MUST NOT reconcile resources whose `spec.artifactType` is not known to the deployer.
 
 ### 3.2 Input validation
 
-The deployer MUST validate the `ArtifactDeployment` specification against the packaging contract for its artifact type.
+The deployer MUST validate the `ArtifactDeployment.spec.component` specification against the packaging contract for its artifact type.
 This includes the required OCM resources and the payloads it consumes.
-It MUST NOT rely on validation performed by an artifact authoring tool or by core.
-Task manifests attached to an artifact are outside the base artifact-deployment contract.
+It MUST NOT solely rely on validation performed by an artifact authoring tool or by core.
 
-### 3.3 Reconciliation and failure handling
+Validation MAY fetch external resources or payloads that are referenced in the specification.
+Validation is a best-effort determination to make sure that the inputs satisfy the packaging contract.
+Successful validation does not guarantee that deployment of the artifact will succeed.
+
+### 3.3 Reconciliation
 
 The deployer MUST reconcile supported artifacts idempotently, including those created before it was installed or while it was stopped.
-It MUST complete input validation before creating runtime resources.
-An invalid payload MUST be reported through `ArtifactDeployment.status` rather than deployed.
-If the target is absent or unready, the artifact MUST NOT be deployed through that target.
+For each `ArtifactDeployment`, the deployer MUST: 
+
+1. Validate its component resources and payloads as described in section 3.2. 
+2. Find the `DeploymentTarget` for the artifact type in the deployment's landscape namespace as described in section 2. 
+The target MUST have a `Ready=True` condition and its `spec.artifactType` MUST match exactly. 
+If no such target exists, the deployer MUST write a `Stalled=True` condition with reason `NoReadyDeploymentTarget`. 
+3. Use the target's parameters to connect to the target runtime.
+The deployer MAY cache the credentials or reuse connections across different reconciliations, including across targets that refer to the same runtime infrastructure.  
+4. Apply the resources described by `ArtifactDeployment.spec.component` to the target runtime. 
+The deployer MAY create intermediate resources (including custom resources on the control plane) to track or identify the runtime resources managed by the `ArtifactDeployment`.
+If runtime resources corresponding to an `ArtifactDeployment` already exist, the deployer MAY adopt and manage them instead of creating duplicate resources.
+Before adoption, it MUST establish that the resources correspond to that exact `ArtifactDeployment` and are safe for it to manage.
+
+[//]: # (TODO: 5. write DeploymentResult to ArtifactDeployment.status)
+
+The deployer MAY record events on an `ArtifactDeployment` to help users understand the deployment process. 
+Events are informational and do not replace the status conditions used to report deployment state.
 
 ### 3.4 Status
 
-The deployer reports artifact fetching, deployment, application health, deployment results, and overall readiness through `ArtifactDeployment.status`.
-The meanings and transition rules for `ArtifactFetched`, `ArtifactDeployed`, `AppHealthy`, `DeploymentResultCreated`, and `Ready` require further definition.
-A deployer MUST NOT leave `Ready=True` when it knows that a prerequisite for readiness has failed.
+The deployer MUST report reconciliation progress using the `Reconciling`, `Stalled`, and `Ready` conditions. 
+These conditions are mutually exclusive.
+
+The deployer MUST maintain the following conditions:
+
+* It MUST ensure that no more than one of `Reconciling`, `Stalled`, and `Ready` is `True` simultaneously.
+* `Ready` MUST be present after the initial status update and MUST have a status of `True` or `False`.
+* `Reconciling` MUST be present with `status=True` while the deployment has not reached the desired state and the deployer expects automatic reconciliation to make further progress. 
+It SHOULD be removed once that is no longer the case (abnormal-true condition).
+* `Stalled` MUST be present with `status=True` when reconciliation is stalled and SHOULD be removed when reconciliation is no longer stalled (abnormal-true condition).
+
+The deployer MAY report additional deployment-related information in separate deployer-owned conditions.
+These conditions MUST NOT change the meaning of `Reconciling`, `Stalled`, or `Ready`.
+
+The deployer SHOULD NOT report `Reconciling=False` or `Stalled=False`. 
+Their absence MUST be interpreted as `False`.
+
+#### Condition semantics
+
+**`Reconciling=True`**
+
+Deployment of the artifact is in progress.
+It MUST be set while the deployer is actively applying changes or waiting for the target runtime to converge to the desired state.
+This condition is independent of whether a controller is currently executing its `Reconcile` method.
+It MAY remain `True` across multiple reconcile calls, including while the deployer is waiting for a runtime resource to become ready.
+It MUST NOT be set when further automatic reconciliation cannot make progress.
+Its `reason` and `message` MAY be used to describe the current activity of the deployer.  
+
+**`Stalled=True`** 
+
+Reconciliation cannot make further progress. 
+The deployer has exhausted its attempts, and reaching the desired state requires an external change or intervention.
+It MUST be set when the deployer determines that it cannot reach the desired state through further automatic reconciliation.
+It MUST NOT be used for transient failures that the deployer continues to retry automatically.
+Its `reason` SHOULD be used to identify the cause of the failure and provide an actionable `message` explaining the problems.
+
+**`Ready=True`** 
+
+The desired state has been reached in the target runtime.
+It MUST be set when the deployer has successfully reconciled the resource and verified that the target runtime satisfies the desired state.
+It MUST NOT be set merely because deployment operations have been submitted successfully.
+
+#### Examples
+
+| Condition | Reason | Message |
+|---|---|---|
+| `Reconciling=True` | `ApplyingResources` | Applying deployment resources to the target cluster. |
+| `Reconciling=True` | `WaitingForReadiness` | Waiting for Deployment `backend` to become available. |
+| `Reconciling=True` | `RetryingOperation` | Failed to connect to the target cluster. Retrying automatically. |
+| `Stalled=True` | `InvalidConfiguration` | Deployment configuration is invalid: required field `image` is missing. |
+| `Stalled=True` | `AuthenticationFailed` | Authentication to the target cluster failed. |
+| `Stalled=True` | `RetryLimitExceeded` | Deployment failed after 5 attempts. |
+| `Ready=True` | `ReconciliationSucceeded` | Artifact successfully deployed in target runtime. |
 
 ### 3.5 Deletion and undeployment
 
-The deployer MUST add a finalizer to an `ArtifactDeployment` before creating runtime resources for it.
-On deletion, it MUST remove the runtime resources it manages, including resources on a remote runtime, before removing its finalizer.
-It MUST NOT remove the finalizer while any of those resources are known to remain deployed.
-If cleanup cannot complete, including because the target connection is unavailable, the deployer MUST retain the finalizer and retry cleanup when access is restored.
-Consequently, deleting the target before deleting its artifact deployments can leave those deployments pending deletion until access to the original destination is restored.
+When an `ArtifactDeployment` is deleted, the deployer MUST remove the runtime resources it manages on its behalf, including resources on a remote runtime.
+The deployer MUST NOT consider deletion complete while any such resources are known or reasonably believed to remain deployed.
+The deployer SHOULD use a Kubernetes finalizer or an equivalent mechanism to keep the `ArtifactDeployment` available until cleanup succeeds.
 
-### 3.6 Optional behavior
+If cleanup fails, including because credentials are unavailable or access to the target runtime is lost, the deployer MUST continue with its cleanup procedure until it succeeds.
+While cleanup is blocked, the deployer SHOULD report cleanup progress with the `Reconciling=True` condition and an appropriate `reason` and `message`.
 
-Whether a health check or deployment result is required for every artifact type, and how an artifact without either advances to readiness, remain open decisions.
+Deleting the `DeploymentTarget` before deleting associated `ArtifactDeployments` can leave those deployments pending deletion until access to the original destination is restored.
 
 ## 4. Deployment results and deployed-instance visibility
 
@@ -228,7 +313,8 @@ Whether a health check or deployment result is required for every artifact type,
 
 ## 6. VectorData: vector-scoped data
 
-* VectorData MUST NOT change for given vector. Deleting/Re-creating ArtifactDeployments may lead to different deploymentresults. Core must detect on that and report VectorDeployment as broken. 
+* VectorData MUST NOT change for given vector. Deleting/Re-creating ArtifactDeployments may lead to different deploymentresults. Core must detect on that and report VectorDeployment as broken.
+* Input validation for vector data: validate across multiple artifacts of a vector? e.g. colliding paths of CDN artifacts
 
 * **Ownership and resource selection:** Core creates immutable `VectorData` per `VectorDeployment` with authored data, features, and aggregated results. Decide which implementor owns its materialization and status when several deployers/classes serve one landscape.
 * **Interpretation of inputs / generic fields:** Define the mapping from vector identity to `VectorData` and how consumers select the right vector, including when an artifact is reused. Specify behavior for missing or unknown identities; storage and distribution are runtime-specific.
@@ -238,6 +324,8 @@ Whether a health check or deployment result is required for every artifact type,
 * **Optional behavior:** Decide whether materialization belongs to every class, one landscape-level implementor, or a separate capability; define how an unsupported capability affects vector readiness.
 
 ## 7. Cross-cutting status, reconciliation, and safety
+
+[//]: # (TODO mention namespaced name of reconciled resource in deployer logs?)
 
 For every condition, specify its owner, meaning of `True`/`False`/`Unknown`, reason codes, `observedGeneration`, and transitions after dependencies recover or disappear. Core and deployer MUST NOT leave a stale `Ready=True` that implies a known-unavailable deployment is healthy. Distinguish retryable failures from failures requiring user action; reconcile when mutable referenced resources change, even if the owning resource's spec is immutable. Define idempotency, event/watch versus periodic resync guarantees, status-update conflicts, permissions, credential handling, and whether sensitive data may appear in status or deployment results. These rules need a condition/ownership table before this draft becomes normative.
 

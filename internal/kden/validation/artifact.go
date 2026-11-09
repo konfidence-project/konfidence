@@ -1,8 +1,10 @@
 package validation
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	output "github.com/konfidence-project/konfidence/internal/kden/validation/output"
 	"github.com/konfidence-project/konfidence/pkg/maps"
@@ -14,6 +16,7 @@ const (
 	requiredResourceTypeValue = "cloud.konfidence.artifact.manifest"
 	requiredResourcePathKey   = "path"
 	requiredFileTypeKey       = "type"
+	utf8InputName             = "utf8"
 
 	typeFieldViolationPath = "components/items/properties/resources/$ref/%s/type"
 )
@@ -32,6 +35,17 @@ func ValidateArtifact(constructorData []byte, filePath string, resourceJsonPaths
 		for _, resource := range component.Resources {
 
 			if resource.Type != requiredResourceTypeValue {
+				continue
+			}
+
+			if strings.EqualFold(resource.Input.Name, utf8InputName) {
+				data, err := inlineManifest(resource.Input.Data)
+				if err != nil {
+					return nil, err
+				}
+				if errs := validateManifestType(data, getFieldViolationPaths(resource.Name), filePath); errs != nil {
+					return errs, nil
+				}
 				continue
 			}
 
@@ -58,24 +72,50 @@ func ValidateArtifact(constructorData []byte, filePath string, resourceJsonPaths
 				return nil, fmt.Errorf("failed to read file %q: %w", pathStr, err)
 			}
 
-			typeVal, err := maps.GetValueFromRawMap(data, requiredFileTypeKey)
-			if err != nil {
-				return output.ExtractSchemaValidationError("missing property 'type'", getFieldViolationPaths(pathStr), filePath), nil
-			}
-
-			if typeVal == nil {
-				return output.ExtractSchemaValidationError("property 'type' is nil", getFieldViolationPaths(pathStr), filePath), nil
-			}
-
-			typeStr, ok := typeVal.(string)
-			if !ok || typeStr == "" {
-				return output.ExtractSchemaValidationError("missing or empty value string property 'type'", getFieldViolationPaths(pathStr), filePath), nil
+			if errs := validateManifestType(data, getFieldViolationPaths(pathStr), filePath); errs != nil {
+				return errs, nil
 			}
 
 			resourceJsonPaths[pathStr] = true
 		}
 	}
 
+	return nil, nil
+}
+
+func validateManifestType(data []byte, violationPath, filePath string) []output.SchemaValidationError {
+	typeVal, err := maps.GetValueFromRawMap(data, requiredFileTypeKey)
+	if err != nil {
+		return output.ExtractSchemaValidationError("missing property 'type'", violationPath, filePath)
+	}
+
+	if typeVal == nil {
+		return output.ExtractSchemaValidationError("property 'type' is nil", violationPath, filePath)
+	}
+
+	typeStr, ok := typeVal.(string)
+	if !ok || typeStr == "" {
+		return output.ExtractSchemaValidationError("missing or empty value string property 'type'", violationPath, filePath)
+	}
+
+	return nil
+}
+
+// The constructor input is already JSON here, inline yaml included.
+func inlineManifest(input []byte) ([]byte, error) {
+	var in struct {
+		YAML          json.RawMessage `json:"yaml"`
+		JSON          json.RawMessage `json:"json"`
+		FormattedJSON json.RawMessage `json:"formattedJson"`
+	}
+	if err := json.Unmarshal(input, &in); err != nil {
+		return nil, fmt.Errorf("failed to read UTF8/v1 input: %w", err)
+	}
+	for _, content := range [][]byte{in.YAML, in.JSON, in.FormattedJSON} {
+		if len(content) > 0 {
+			return content, nil
+		}
+	}
 	return nil, nil
 }
 

@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega" //nolint:staticcheck
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ocmv1alpha1 "ocm.software/open-component-model/kubernetes/controller/api/v1alpha1"
+	ocmv1alpha1 "ocm.software/open-component-model/bindings/go/kubernetes/controller/api/v1alpha1"
 )
 
 // SignatureBinding associates an RSA key pair with an OCM signature name.

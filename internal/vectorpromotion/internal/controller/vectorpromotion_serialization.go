@@ -34,16 +34,17 @@ func (r *VectorPromotionReconciler) reconcileExecution(ctx context.Context, vect
 
 	for i := range siblings {
 		sibling := &siblings[i]
-		if sibling.UID == vectorPromotion.UID || !promotion.IsRunning(sibling) {
+		if !promotion.IsRunning(sibling) {
 			continue
 		}
 		log.V(1).Info("execution blocked by started sibling", "sibling", sibling.Name)
 		return ctrl.Result{RequeueAfter: siblingBlockedRequeueInterval}, nil
 	}
 
-	newest := promotion.NewestCleared(siblings)
-	if newest == nil || newest.UID != vectorPromotion.UID {
-		return ctrl.Result{}, r.supersede(ctx, vectorPromotion, newest)
+	// This promotion has already cleared its gates; compare only against siblings.
+	newestSibling := promotion.NewestCleared(siblings)
+	if newestSibling != nil && promotion.Newer(newestSibling, vectorPromotion) {
+		return ctrl.Result{}, r.supersede(ctx, vectorPromotion, newestSibling)
 	}
 
 	if err := r.supersedeStaleSiblings(ctx, vectorPromotion, siblings); err != nil {
@@ -62,7 +63,7 @@ func (r *VectorPromotionReconciler) supersedeStaleSiblings(
 	var errs []error
 	for i := range siblings {
 		sibling := &siblings[i]
-		if sibling.UID == newest.UID || promotion.IsTerminal(sibling) || promotion.Newer(sibling, newest) {
+		if promotion.IsTerminal(sibling) || promotion.Newer(sibling, newest) {
 			continue
 		}
 		errs = append(errs, r.supersede(ctx, sibling, newest))

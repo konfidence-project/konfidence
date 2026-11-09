@@ -10,6 +10,7 @@ import (
 	constructorruntime "ocm.software/open-component-model/bindings/go/constructor/runtime"
 
 	"github.com/spf13/cobra"
+	"ocm.software/open-component-model/bindings/go/cli/cmd/configuration"
 	ocmgenericspecv1 "ocm.software/open-component-model/bindings/go/configuration/generic/v1/spec"
 	ocmconstructorspecv1 "ocm.software/open-component-model/bindings/go/constructor/spec/v1"
 	"ocm.software/open-component-model/bindings/go/credentials"
@@ -21,7 +22,6 @@ import (
 	ocmrepository "ocm.software/open-component-model/bindings/go/repository"
 	"ocm.software/open-component-model/bindings/go/repository/component/resolvers"
 	"ocm.software/open-component-model/bindings/go/runtime"
-	"ocm.software/open-component-model/cli/cmd/configuration"
 )
 
 type RepositoryResolverOptions struct {
@@ -147,11 +147,8 @@ func ReadConstructorFromFile(filePath string) (*ocmconstructorspecv1.ComponentCo
 }
 
 func GetOcmConfiguration(cmd *cobra.Command) (*ocmgenericspecv1.Config, error) {
-	cfg, err := configuration.GetFlattenedOCMConfigForCommand(cmd)
+	cfg, err := configuration.GetOCMConfigForCommand(cmd)
 	if err != nil {
-		// GetFlattenedOCMConfigForCommand only returns a nil config together
-		// with an error (a missing .ocmconfig is the common case); on success it
-		// is always non-nil. So this is the single place cfg can be nil.
 		// A missing config is legitimate — kden then runs with defaults /
 		// unauthenticated (the credential-specific notice is emitted in
 		// GetCredentialGraph). Materialize an empty config so nil never reaches

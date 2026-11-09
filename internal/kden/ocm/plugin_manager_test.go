@@ -3,9 +3,11 @@ package ocm
 import (
 	"context"
 	"errors"
+	"io"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	constructorruntime "ocm.software/open-component-model/bindings/go/constructor/runtime"
 	"ocm.software/open-component-model/bindings/go/plugin/manager"
 	"ocm.software/open-component-model/bindings/go/plugin/manager/registries/componentversionrepository"
 	"ocm.software/open-component-model/bindings/go/plugin/manager/registries/credentialrepository"
@@ -19,6 +21,7 @@ var (
 	errComponentVersionRepo = errors.New("component version repo error")
 	errFileInput            = errors.New("file input error")
 	errDirInput             = errors.New("dir input error")
+	errUTF8Input            = errors.New("utf8 input error")
 	errSourceFileInput      = errors.New("source file input error")
 	errSourceDirInput       = errors.New("source dir input error")
 	errCredentialRepo       = errors.New("credential repo error")
@@ -30,6 +33,7 @@ type mockRegistrar struct {
 	failComponentVersionRepo bool
 	failFileInput            bool
 	failDirInput             bool
+	failUTF8Input            bool
 	failSourceFileInput      bool
 	failSourceDirInput       bool
 	failCredentialRepo       bool
@@ -53,6 +57,9 @@ func (m *mockRegistrar) registerResourceInputPlugin(_ input.BuiltinResourceInput
 	}
 	if m.failDirInput && m.resourceInputCallCount == 2 {
 		return errDirInput
+	}
+	if m.failUTF8Input && m.resourceInputCallCount == 3 {
+		return errUTF8Input
 	}
 	return nil
 }
@@ -114,6 +121,29 @@ var _ = Describe("GetPluginManager", func() {
 			Expect(pluginManager.InputRegistry).ToNot(BeNil())
 		})
 
+		It("should process an inline UTF8/v1 yaml input", func() {
+			pluginManager, err := GetPluginManager(context.Background(), nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			spec := &ocmruntime.Raw{
+				Type: ocmruntime.NewVersionedType("UTF8", "v1"),
+				Data: []byte(`{"type":"UTF8/v1","yaml":{"type":"kustomize.konfidence.cloud"}}`),
+			}
+			method, err := pluginManager.InputRegistry.GetResourceInputPlugin(context.Background(), spec)
+			Expect(err).ToNot(HaveOccurred())
+
+			result, err := method.ProcessResource(context.Background(),
+				&constructorruntime.Resource{AccessOrInput: constructorruntime.AccessOrInput{Input: spec}}, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			reader, err := result.ProcessedBlobData.ReadCloser()
+			Expect(err).ToNot(HaveOccurred())
+			defer func() { _ = reader.Close() }()
+			data, err := io.ReadAll(reader)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(data)).To(Equal("type: kustomize.konfidence.cloud\n"))
+		})
+
 		It("should register the credential repository plugin", func() {
 			pluginManager, err := GetPluginManager(context.Background(), nil)
 
@@ -169,6 +199,15 @@ var _ = Describe("GetPluginManager", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("failed to register dir input plugin"))
 			Expect(errors.Is(err, errDirInput)).To(BeTrue())
+		})
+
+		It("should return error when utf8 resource input plugin registration fails", func() {
+			pm := manager.NewPluginManager(context.Background())
+			_, err := setupPluginManager(context.Background(), pm, &mockRegistrar{failUTF8Input: true}, nil)
+
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("failed to register utf8 input plugin"))
+			Expect(errors.Is(err, errUTF8Input)).To(BeTrue())
 		})
 
 		It("should return error when file source input plugin registration fails", func() {

@@ -2,6 +2,9 @@
     import "@ui5/webcomponents-icons/dist/product.js";
     import "@ui5/webcomponents-icons/dist/error.js";
     import "@ui5/webcomponents/dist/Icon.js";
+    import { useSearchParams } from "runed/kit";
+    import * as valibot from "valibot";
+    import { urlTextSchema } from "#lib/url-schemas.ts";
     import type {ArtifactDeployment, Landscape, Stage, VectorDeployment} from "#lib/konfidence-api/types.ts";
     import {
         Button,
@@ -17,7 +20,6 @@
     import VectorDeploymentDetail from "./VectorDeploymentDetail.svelte";
     import VectorDeploymentsTable from "./VectorDeploymentsTable.svelte";
     import {matchesQuery, matchesStatus, toVectorDeploymentRows} from "./deployments.js";
-    import type {VectorDeploymentRow, VectorDeploymentStatus} from "./deployments.js";
     import {useDeploymentFilters} from "#lib/deployments/useDeploymentFilters.svelte.ts";
     import {LANDSCAPE_PARAM} from "#lib/deployments/params.ts";
     import {panelDimensions} from "#lib/shell/panelDimensions.svelte.ts";
@@ -57,10 +59,16 @@
         toVectorDeploymentRows({ artifactDeployments, landscapes, stages, vectorDeployments }),
     );
 
-    const filters = useDeploymentFilters<VectorDeploymentRow, VectorDeploymentStatus>({
+    const search = useSearchParams(valibot.object({
+        deployment: urlTextSchema,
+        landscapeId: urlTextSchema,
+    }));
+
+    const filters = useDeploymentFilters({
         dimensions: [{ param: LANDSCAPE_PARAM, value: () => selectedLandscapeId }],
         matchers: { matchesQuery, matchesStatus },
         rows: () => rows,
+        selectedId: () => search.deployment || undefined,
     });
 
     const labelTextClass =

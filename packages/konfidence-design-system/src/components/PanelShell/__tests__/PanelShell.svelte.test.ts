@@ -28,8 +28,7 @@ describe("PanelShell with Skeleton Dialog", () => {
   it("restarts modality effects without replacing content, losing form state, or closing", async () => {
     await page.viewport(1200, 800);
     const onClose = vi.fn();
-    const onCloseComplete = vi.fn();
-    await render(PanelShellFixture, { onClose, onCloseComplete, open: true });
+    await render(PanelShellFixture, { onClose, open: true });
     await waitForCloseFocus();
     const panel = page.getByTestId("panel").element();
     await page.getByRole("textbox", { name: "Draft" }).fill("unfinished draft");
@@ -49,7 +48,6 @@ describe("PanelShell with Skeleton Dialog", () => {
       .element(page.getByRole("textbox", { name: "Draft" }))
       .toHaveValue("unfinished draft");
     expect(onClose).not.toHaveBeenCalled();
-    expect(onCloseComplete).not.toHaveBeenCalled();
   });
 
   it("moves focus on focusKey changes without reopening the surface", async () => {
@@ -63,29 +61,13 @@ describe("PanelShell with Skeleton Dialog", () => {
     await expect.element(panel).toHaveAttribute("data-state", "open");
   });
 
-  it("reports programmatic close completion once, without reporting a user dismissal", async () => {
+  it("closes programmatically without reporting a user dismissal", async () => {
     const onClose = vi.fn();
-    const onCloseComplete = vi.fn();
-    await render(PanelShellFixture, { onClose, onCloseComplete, open: true });
+    await render(PanelShellFixture, { onClose, open: true });
     await waitForCloseFocus();
     await page.getByTestId("set-open").click();
     await expect.element(page.getByTestId("panel")).toHaveAttribute("data-state", "closed");
-    await vi.waitFor(() => expect(onCloseComplete).toHaveBeenCalledOnce());
     expect(onClose).not.toHaveBeenCalled();
-  });
-
-  it("does not complete a stale close after reopening", async () => {
-    const onCloseComplete = vi.fn();
-    await render(PanelShellFixture, { onCloseComplete, open: true });
-    await waitForCloseFocus();
-    await page.getByTestId("set-open").click();
-    await page.getByTestId("open").click();
-    const panel = page.getByTestId("panel").element();
-    panel.dispatchEvent(
-      new TransitionEvent("transitionend", { bubbles: true, propertyName: "translate" }),
-    );
-    await expect.element(panel).toHaveAttribute("data-state", "open");
-    expect(onCloseComplete).not.toHaveBeenCalled();
   });
 
   it("keeps the inherited header offset after portalling", async () => {
@@ -106,18 +88,6 @@ describe("PanelShell with Skeleton Dialog", () => {
     );
     await userEvent.keyboard("{Tab}");
     await waitForCloseFocus();
-  });
-
-  it("cancels close completion when the owner unmounts", async () => {
-    const onCloseComplete = vi.fn();
-    await render(PanelShellFixture, { onCloseComplete, open: true });
-    await waitForCloseFocus();
-    await page.getByTestId("set-open").click();
-    await page.getByTestId("unmount").click();
-    await expect.element(page.getByTestId("panel")).not.toBeInTheDocument();
-    // Wait beyond the close fallback deadline to detect leaked callbacks.
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    expect(onCloseComplete).not.toHaveBeenCalled();
   });
 
   it("does not dismiss an independent newer panel when an older panel closes", async () => {

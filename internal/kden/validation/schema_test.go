@@ -17,6 +17,19 @@ components:
           type: file/v1
 `
 
+const validInlineYAML = `
+components:
+  - name: my-component
+    version: 1.0.0
+    resources:
+      - name: my-artifact
+        type: cloud.konfidence.artifact.manifest
+        input:
+          type: UTF8/v1
+          yaml:
+            type: kustomize.konfidence.cloud
+`
+
 const missingManifestResourceYAML = `
 components:
   - name: my-component
@@ -87,6 +100,7 @@ var _ = Describe("ValidateRaw", func() {
 		},
 		Entry("YAML: valid input", validation.ValidateRawYAML, validYAML),
 		Entry("JSON: valid input", validation.ValidateRawJSON, validJSON),
+		Entry("YAML: valid inline input", validation.ValidateRawYAML, validInlineYAML),
 	)
 
 	DescribeTable("invalid input",

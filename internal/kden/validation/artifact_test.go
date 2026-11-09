@@ -97,6 +97,21 @@ components:
 `
 }
 
+func inlineArtifactYAML(input string) string {
+	return `
+components:
+  - name: github.com/my-org/my-component
+    version: v1.0.0
+    provider:
+      name: my-org
+    resources:
+      - name: my-artifact
+        type: cloud.konfidence.artifact.manifest
+        input:
+          type: UTF8/v1
+` + input
+}
+
 func writeTempFile(t GinkgoTInterface, name, content string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -173,6 +188,46 @@ var _ = Describe("ValidateArtifact", func() {
 			errs, err := validation.ValidateArtifact([]byte(yaml), filePath, resourceJsonPaths)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(errs).To(BeNil())
+		})
+	})
+
+	Context("when the manifest is inline", func() {
+		It("returns no errors for inline yaml with a 'type' field", func() {
+			yaml := inlineArtifactYAML("          yaml:\n            type: kustomize.konfidence.cloud\n")
+			errs, err := validation.ValidateArtifact([]byte(yaml), filePath, resourceJsonPaths)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(errs).To(BeNil())
+		})
+
+		It("returns no errors for inline json with a 'type' field", func() {
+			yaml := inlineArtifactYAML("          json: {\"type\": \"kustomize.konfidence.cloud\"}\n")
+			errs, err := validation.ValidateArtifact([]byte(yaml), filePath, resourceJsonPaths)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(errs).To(BeNil())
+		})
+
+		It("returns a schema validation error when the inline yaml has no 'type' field", func() {
+			yaml := inlineArtifactYAML("          yaml:\n            allowReuse: true\n")
+			errs, err := validation.ValidateArtifact([]byte(yaml), filePath, resourceJsonPaths)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(errs).To(HaveLen(1))
+			Expect(errs[0].Path).To(ContainSubstring("my-artifact/type"))
+		})
+
+		It("returns a schema validation error when the inline 'type' field is empty", func() {
+			yaml := inlineArtifactYAML("          yaml:\n            type: \"\"\n")
+			errs, err := validation.ValidateArtifact([]byte(yaml), filePath, resourceJsonPaths)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(errs).To(HaveLen(1))
+			Expect(errs[0].Path).To(ContainSubstring("my-artifact/type"))
+		})
+
+		It("returns a schema validation error when the input has no inline content", func() {
+			yaml := inlineArtifactYAML("          text: kustomize.konfidence.cloud\n")
+			errs, err := validation.ValidateArtifact([]byte(yaml), filePath, resourceJsonPaths)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(errs).To(HaveLen(1))
+			Expect(errs[0].Message).To(ContainSubstring("type"))
 		})
 	})
 
