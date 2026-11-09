@@ -63,8 +63,11 @@
         if (expanded === open) {
             return;
         }
-        expanded = open;
-        onExpandedChange?.(open);
+        if (onExpandedChange) {
+            onExpandedChange(open);
+        } else {
+            expanded = open;
+        }
     };
 </script>
 
@@ -76,7 +79,7 @@
 {/snippet}
 
 <Collapsible open={expanded && children !== undefined} onOpenChange={({ open }) => changeExpanded(open)}
-    class={["flex flex-col items-stretch gap-0 overflow-hidden rounded-[var(--radius-lg)] border border-outline-subtle bg-surface-card text-compact leading-normal text-content-primary", className]}
+    class={["flex flex-col items-stretch gap-0 overflow-hidden rounded-container border border-outline-subtle bg-surface-card text-compact leading-normal text-content-primary", className]}
     role="group" aria-label={ariaLabel}>
     {#if children}
         <Collapsible.Trigger id={triggerId} aria-label={ariaLabel}

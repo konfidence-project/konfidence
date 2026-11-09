@@ -1,11 +1,41 @@
 import { page, userEvent } from "vitest/browser";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 import GroupFixture from "./GroupFixture.svelte";
 import SelectionFixture from "./SelectionFixture.svelte";
 import "../../../styles/test.css";
 
 describe("grouped rows public interface", () => {
+  beforeEach(() => {
+    document.documentElement.setAttribute("data-theme", "konfidence");
+  });
+
+  for (const initialExpanded of [false, true]) {
+    it(`keeps controlled expansion at ${initialExpanded} until the consumer accepts a change`, async () => {
+      const onExpandedChange = vi.fn();
+      const rendered = await render(GroupFixture, {
+        acceptExpansion: false,
+        initialExpanded,
+        onExpandedChange,
+      });
+      const trigger = page.getByRole("button", { name: "Example group" });
+      await trigger.click();
+      expect(onExpandedChange).toHaveBeenCalledExactlyOnceWith(!initialExpanded);
+      await expect.element(trigger).toHaveAttribute("aria-expanded", String(initialExpanded));
+      await expect
+        .element(trigger.element().querySelector<HTMLElement>("ui5-icon"))
+        .toHaveAttribute("name", initialExpanded ? "slim-arrow-down" : "slim-arrow-right");
+      await (initialExpanded
+        ? expect.element(page.getByText("Historical item")).toBeVisible()
+        : expect.element(page.getByText("Historical item")).not.toBeVisible());
+      await rendered.rerender({ acceptExpansion: true });
+      await trigger.click();
+      expect(onExpandedChange).toHaveBeenCalledTimes(2);
+      expect(onExpandedChange).toHaveBeenLastCalledWith(!initialExpanded);
+      await expect.element(trigger).toHaveAttribute("aria-expanded", String(!initialExpanded));
+    });
+  }
+
   it("places expanded rows directly below the header separator", async () => {
     await render(GroupFixture, { withSummary: false });
     const header = page.getByRole("button", { name: "Example group" });

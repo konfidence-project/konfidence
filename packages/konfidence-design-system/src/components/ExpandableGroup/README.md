@@ -26,7 +26,11 @@ independent actions. They do not implement a hierarchical ARIA tree.
 ```
 
 `expanded` defaults to false and can be bound, left local to the component, or
-controlled with `onExpandedChange(boolean)`. `selectedValue` can also be bound.
+controlled with `onExpandedChange(boolean)`. When that callback is provided, it
+requests an expansion change; the consumer must apply the new `expanded` value.
+Ignoring the request leaves the group unchanged. Without the callback, local or
+bound expansion updates automatically. With both a binding and a callback, the
+consumer still applies the requested value. `selectedValue` can also be bound.
 Rows with a unique `value` share the nearest group's single selection. Selecting
 another row clears the previous selection within that group; other groups are
 unaffected. Selecting the same value again does not fire `onValueChange` or the

@@ -52,7 +52,7 @@
     };
 </script>
 
-<div class={["selectable-row relative flex min-w-0 flex-wrap items-center text-compact leading-normal text-content-primary transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none", !disabled && !isSelected && "hover:bg-surface-subtle", isSelected && "selectable-row--selected", className]}>
+<div class={["selectable-row relative flex min-w-0 flex-wrap items-center text-compact leading-normal text-content-primary transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none", !disabled && !isSelected && "hover:bg-surface-subtle", isSelected && "selectable-row--selected bg-selection-bg", className]}>
     <button {id} {disabled} type="button" aria-label={ariaLabel} aria-pressed={isSelected} onclick={select}
         class={["relative flex min-h-16 min-w-0 grow basis-64 items-center gap-3 p-4 text-left cursor-pointer focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-outline-focus disabled:cursor-not-allowed disabled:opacity-50 [overflow-wrap:anywhere]", inset && "sm:pl-10"]}>
         <span class="min-w-0 grow">
@@ -67,10 +67,6 @@
 </div>
 
 <style>
-    .selectable-row--selected {
-        background: var(--selection-bg);
-    }
-
     .selectable-row--selected::before {
         content: "";
         position: absolute;

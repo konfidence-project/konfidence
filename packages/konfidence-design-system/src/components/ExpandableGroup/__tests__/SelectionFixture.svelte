@@ -14,7 +14,7 @@
 </script>
 
 <div data-testid="selection-fixture" class="bg-surface-default p-3">
-    <ExpandableGroup ariaLabel="Selectable files" label="Changed Files" bind:expanded bind:selectedValue {onValueChange} onExpandedChange={onOpenChange}>
+    <ExpandableGroup ariaLabel="Selectable files" label="Changed Files" bind:expanded bind:selectedValue {onValueChange} onExpandedChange={onOpenChange ? (open) => { expanded = open; onOpenChange(open); } : undefined}>
         {#snippet metadata()}3 files{/snippet}
         <SelectableRow ariaLabel="First file" value="first" label="package.json" {onselect}>
             {#snippet metadata()}Modified{/snippet}
