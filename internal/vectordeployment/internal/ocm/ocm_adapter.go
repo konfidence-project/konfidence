@@ -131,6 +131,10 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 	}
 
 	if err := a.verifier.Verify(ctx, a.resolver, a.artifactSpecs, []*descruntime.Descriptor{&descriptor}); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return controller.ArtifactManifest{}, ctxErr
+		}
+
 		return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed,
 			fmt.Errorf("unable to verify ocm descriptor for reference (%s): %w", ref.String(), err))
 	}
@@ -140,6 +144,10 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 	artifactResources := make([]controller.OCMResource, 0, len(descriptor.Component.Resources))
 
 	for i := range descriptor.Component.Resources {
+		if err := ctx.Err(); err != nil {
+			return controller.ArtifactManifest{}, err
+		}
+
 		resource := &descriptor.Component.Resources[i]
 
 		switch resource.Type {

@@ -1,15 +1,20 @@
 package controller
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -23,12 +28,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 const (
-	VectorDeploymentControllerName = "vector-deployment-controller"
-	MaxLabelSize                   = 63
+	defaultArtifactManifestPollInterval                 = 5 * time.Second
+	defaultArtifactManifestDownloadTimeout              = 2 * time.Minute
+	VectorDeploymentControllerName                      = "vector-deployment-controller"
+	MaxLabelSize                                        = 63
+	DefaultArtifactManifestDownloadsPerVectorDeployment = 8
+	DefaultGlobalArtifactManifestDownloads              = 32
+	MaxParallelArtifactManifestDownloads                = 128
 )
 
 // errArtifactDeploymentCollision signals that a deterministic ArtifactDeployment name collided with a
@@ -40,9 +51,15 @@ var errArtifactDeploymentCollision = errors.New("artifact deployment name collis
 // VectorDeploymentReconciler reconciles a VectorDeployment object
 type VectorDeploymentReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	Recorder   events.EventRecorder
-	OcmAdapter VectorOcmPort
+	Scheme                                    *runtime.Scheme
+	Recorder                                  events.EventRecorder
+	OcmAdapter                                VectorOcmPort
+	jobs                                      *jobRegistry
+	MaxArtifactManifestDownloadsPerDeployment int
+	MaxGlobalArtifactManifestDownloads        int
+	manifestPollInterval                      time.Duration
+	manifestDownloadTimeout                   time.Duration
+	manifestDownloadLimiter                   *artifactManifestDownloadLimiter
 }
 
 type resolvedVector struct {
@@ -50,6 +67,24 @@ type resolvedVector struct {
 	artifactRefs   []compref.Ref
 	config         []byte
 	configResolved bool
+}
+
+type artifactManifestDownloadLimiter struct {
+	semaphore *semaphore.Weighted
+}
+
+func newArtifactManifestDownloadLimiter(limit int) *artifactManifestDownloadLimiter {
+	return &artifactManifestDownloadLimiter{
+		semaphore: semaphore.NewWeighted(int64(limit)),
+	}
+}
+
+func (l *artifactManifestDownloadLimiter) acquire(ctx context.Context) (func(), error) {
+	if err := l.semaphore.Acquire(ctx, 1); err != nil {
+		return nil, fmt.Errorf("acquiring artifact manifest download slot failed: %w", err)
+	}
+
+	return func() { l.semaphore.Release(1) }, nil
 }
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectordeployments,verbs=get;list;watch;create;update;patch;delete
@@ -66,6 +101,10 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	vectorDeployment := &konfidence.VectorDeployment{}
 	if err := r.Get(ctx, req.NamespacedName, vectorDeployment); err != nil {
+		if apierrors.IsNotFound(err) && r.jobs != nil {
+			r.jobs.remove(req.NamespacedName)
+		}
+
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -103,10 +142,44 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		)
 	}
 
-	allDeploymentsReady, err := r.handleArtifactDeployments(ctx, resolvedVector.artifactRefs, vectorDeployment, log)
+	manifestResult, manifestRequeueAfter := r.resolveArtifactManifestsAsync(req.NamespacedName, vectorDeployment.Generation,
+		vectorDeployment.UID, resolvedVector.artifactRefs)
+	if manifestRequeueAfter > 0 {
+		if !isReadyForCurrentGeneration(vectorDeployment) {
+			setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonArtifactDeploymentsNotReady, "Waiting for download of artifactManifests")
+		}
+
+		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
+			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status while downloading artifactManifests: %w", patchError)
+			}
+		}
+
+		log.Info("waiting for artifactManifest download job", "requeueAfter", manifestRequeueAfter)
+
+		// Returning nil intentionally resets controller-runtime's queue backoff.
+		// Manifest download backoff is tracked independently by jobRegistry, and
+		// treating an in-flight job as an error would increase backoff for healthy work.
+		return ctrl.Result{RequeueAfter: manifestRequeueAfter}, nil
+	}
+
+	if manifestResult.err != nil {
+		stallOnPermanentError(vectorDeployment, manifestResult.err)
+		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
+			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; failed to download artifactManifests: %w",
+					patchError, manifestResult.err)
+			}
+		}
+
+		return ctrl.Result{}, fmt.Errorf("failed to download artifactManifests for vectorDeployment %s: %w", vectorDeployment.Name, manifestResult.err)
+	}
+
+	allDeploymentsReady, err := r.handleArtifactDeployments(ctx, manifestResult.artifacts, vectorDeployment, log)
 	if err == nil && !allDeploymentsReady {
 		setReadyConditionFalse(vectorDeployment, konfidence.VectorReadyReasonArtifactDeploymentsNotReady, "Waiting for the ArtifactDeployments to be ready")
 	}
+
 	if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 		if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 			patchErrorMessage := "unable to update vectorDeployment status"
@@ -200,7 +273,7 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	ctx context.Context,
-	artifactReferences []compref.Ref,
+	artifacts []resolvedArtifactManifest,
 	vectorDeployment *konfidence.VectorDeployment,
 	log logr.Logger,
 ) (bool, error) {
@@ -208,7 +281,7 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	// We use nil initially and allocate lazily to avoid spurious status patches when
 	// DeepEqual compares nil (server value after omitempty round-trip) vs. empty map.
 	var (
-		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifactReferences))
+		resultingArtifactDeployments = make(map[string]konfidence.LocalArtifactDeploymentReference, len(artifacts))
 		deploymentResults            = make(map[string]konfidence.ComponentDeploymentResults)
 		artifactDeployments          []*konfidence.ArtifactDeployment
 	)
@@ -220,14 +293,9 @@ func (r *VectorDeploymentReconciler) handleArtifactDeployments(
 	}
 	landscapeName := ns.Labels[pkgctrl.LandscapeNameLabel]
 
-	// TODO parallelize and handle partial failures
-	for _, artifactRef := range artifactReferences {
-		// fetch the artifact component version from OCI
-		artifactManifest, err := r.OcmAdapter.GetArtifactManifestByReference(ctx, artifactRef)
-		if err != nil {
-			stallOnPermanentError(vectorDeployment, err)
-			return false, fmt.Errorf("failed to fetch artifact component version for %q: %w", artifactRef.String(), err)
-		}
+	for _, artifact := range artifacts {
+		artifactRef := artifact.Reference
+		artifactManifest := artifact.Manifest
 
 		var uid *string
 		if !artifactManifest.AllowReuse {
@@ -428,6 +496,44 @@ func mapArtifactResourcesToLandscape(resources []OCMResource) []konfidence.OCMRe
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controllerName string) error {
+	if r.manifestPollInterval < 1 {
+		r.manifestPollInterval = defaultArtifactManifestPollInterval
+	}
+
+	if r.MaxArtifactManifestDownloadsPerDeployment == 0 {
+		r.MaxArtifactManifestDownloadsPerDeployment = DefaultArtifactManifestDownloadsPerVectorDeployment
+	} else if r.MaxArtifactManifestDownloadsPerDeployment < 1 || r.MaxArtifactManifestDownloadsPerDeployment > MaxParallelArtifactManifestDownloads {
+		return fmt.Errorf("maximum artifact manifest downloads per deployment must be between 1 and %d, got %d",
+			MaxParallelArtifactManifestDownloads, r.MaxArtifactManifestDownloadsPerDeployment,
+		)
+	}
+
+	if r.MaxGlobalArtifactManifestDownloads == 0 {
+		r.MaxGlobalArtifactManifestDownloads = DefaultGlobalArtifactManifestDownloads
+	} else if r.MaxGlobalArtifactManifestDownloads < 1 || r.MaxGlobalArtifactManifestDownloads > MaxParallelArtifactManifestDownloads {
+		return fmt.Errorf("maximum global artifact manifest downloads must be between 1 and %d, got %d", MaxParallelArtifactManifestDownloads,
+			r.MaxGlobalArtifactManifestDownloads)
+	}
+
+	if r.manifestDownloadLimiter == nil {
+		r.manifestDownloadLimiter = newArtifactManifestDownloadLimiter(r.MaxGlobalArtifactManifestDownloads)
+	}
+
+	if r.manifestDownloadTimeout <= 0 {
+		r.manifestDownloadTimeout = defaultArtifactManifestDownloadTimeout
+	}
+	if r.jobs == nil {
+		r.jobs = newJobRegistry()
+	}
+
+	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		<-ctx.Done()
+		r.jobs.shutdown()
+		return nil
+	})); err != nil {
+		return fmt.Errorf("register artifact manifest job shutdown hook: %w", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorDeployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&konfidence.ArtifactDeployment{}, builder.MatchEveryOwner).
@@ -534,4 +640,135 @@ func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(
 	resolved.config = descr.Configuration
 	resolved.configResolved = true
 	return resolved, nil
+}
+
+// resolveArtifactManifestsAsync returns a positive requeue duration while a
+// background job is running or while a failed job is in retry backoff.
+func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.NamespacedName, generation int64,
+	uid types.UID, artifactReferences []compref.Ref) (artifactManifestResult, time.Duration) {
+	if len(artifactReferences) == 0 {
+		// Remove any registered job and retry state so an obsolete result cannot
+		// be applied later.
+		r.jobs.remove(nn)
+		return artifactManifestResult{}, 0
+	}
+
+	references := sortedArtifactReferences(artifactReferences)
+	referenceKeys := artifactReferenceKeys(references)
+
+	if job, exists := r.jobs.get(nn); exists {
+		if job.matches(generation, uid, referenceKeys) {
+			result, completed := r.jobs.completedResult(nn, job)
+			if !completed {
+				return artifactManifestResult{}, r.manifestPollInterval
+			}
+
+			return result, 0
+		}
+
+		// Generation, UID, or references changed. Discard any running job,
+		// successful cached result, and retry state belonging to the old identity.
+		logf.Log.WithName(VectorDeploymentControllerName).Info("discarding artifact manifest job with stale identity",
+			"jobKey", nn.String(), "existingGeneration", job.generation, "requestedGeneration", generation,
+			"existingUID", string(job.uid), "requestedUID", string(uid),
+		)
+		r.jobs.remove(nn)
+	}
+
+	// Do not capture storage owned by the current reconciliation after it returns.
+	launched, retryAfter := r.jobs.launch(nn, generation, uid, referenceKeys, func(ctx context.Context) artifactManifestResult {
+		return r.downloadArtifactManifests(ctx, references)
+	})
+
+	if retryAfter > 0 {
+		return artifactManifestResult{}, retryAfter
+	}
+	if !launched {
+		return artifactManifestResult{err: context.Canceled}, 0
+	}
+
+	return artifactManifestResult{}, r.manifestPollInterval
+}
+
+func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Context, artifactReferences []compref.Ref) artifactManifestResult {
+	if len(artifactReferences) == 0 {
+		return artifactManifestResult{}
+	}
+
+	artifacts := make([]resolvedArtifactManifest, len(artifactReferences))
+	pool, poolCtx := errgroup.WithContext(ctx)
+	pool.SetLimit(min(r.MaxArtifactManifestDownloadsPerDeployment, len(artifactReferences)))
+
+	var permanentErr error
+	var permanentErrOnce sync.Once
+
+	for i, artifactRef := range artifactReferences {
+		pool.Go(func() (err error) {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					err = fmt.Errorf("panic while downloading artifact manifest for %q: %v", artifactRef.String(), recovered)
+				}
+
+				var candidate *PermanentError
+				if errors.As(err, &candidate) {
+					permanentErrOnce.Do(func() {
+						permanentErr = err
+					})
+				}
+			}()
+
+			release, err := r.manifestDownloadLimiter.acquire(poolCtx)
+			if err != nil {
+				return fmt.Errorf("waiting to download artifact manifest for %q: %w", artifactRef.String(), err)
+			}
+			defer release()
+
+			downloadCtx, cancel := context.WithTimeout(poolCtx, r.manifestDownloadTimeout)
+			defer cancel()
+
+			manifest, err := r.OcmAdapter.GetArtifactManifestByReference(downloadCtx, artifactRef)
+			if err != nil {
+				return fmt.Errorf("failed to fetch artifact component version for %q: %w", artifactRef.String(), err)
+			}
+
+			artifacts[i] = resolvedArtifactManifest{
+				Reference: artifactRef,
+				Manifest:  manifest,
+			}
+			return nil
+		})
+	}
+
+	waitErr := pool.Wait()
+	if permanentErr != nil {
+		return artifactManifestResult{err: permanentErr}
+	}
+	if waitErr != nil {
+		return artifactManifestResult{err: waitErr}
+	}
+
+	return artifactManifestResult{artifacts: artifacts}
+}
+
+func isReadyForCurrentGeneration(vectorDeployment *konfidence.VectorDeployment) bool {
+	condition := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)
+	return condition != nil &&
+		condition.Status == metav1.ConditionTrue &&
+		condition.ObservedGeneration == vectorDeployment.Generation
+}
+
+func sortedArtifactReferences(references []compref.Ref) []compref.Ref {
+	sorted := append([]compref.Ref(nil), references...)
+	slices.SortFunc(sorted, func(a, b compref.Ref) int {
+		return cmp.Compare(a.String(), b.String())
+	})
+	return sorted
+}
+
+func artifactReferenceKeys(references []compref.Ref) []string {
+	keys := make([]string, len(references))
+	for i := range references {
+		keys[i] = references[i].String()
+	}
+	return keys
 }
