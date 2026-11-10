@@ -41,6 +41,8 @@ func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion
 		if err := r.updateStatus(ctx, vectorPromotion, resolved, start, running); err != nil {
 			return err
 		}
+		startedMsg := fmt.Sprintf("started promoting vector %q to stage %q", vectorPromotion.Spec.Vector, stage.Name)
+		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionExecutionStarted", EventActionExecution, startedMsg)
 	}
 
 	if err := r.promoteStage(ctx, stage, vectorPromotion); err != nil {

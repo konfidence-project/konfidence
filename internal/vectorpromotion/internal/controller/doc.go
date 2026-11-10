@@ -18,25 +18,31 @@
 // its conditions are observations, not a state machine.
 //
 //	status.gates                 per-gate state and provenance (gate writers)
+//	status.override              operator decision (Reject or BypassGates) and
+//	                             its provenance (konfidence API); set at most
+//	                             once while waiting, never cleared
 //	GatesSatisfied condition     False while any gate is unsatisfied
-//	                             (GatesPending, GateError); becomes True once
-//	                             all gates are satisfied, then is never written
-//	                             again
+//	                             (GatesPending, GateError) or an operator
+//	                             bypassed the gates (GatesBypassed); becomes
+//	                             True once every gate is satisfied, then is
+//	                             never written again
 //	TargetResolved condition     whether the target Stage resolves
 //	status.startTime             execution started (set once)
 //	Succeeded condition          Unknown while active; True (succeeded) or
-//	                             False (superseded) once finished, together
-//	                             with status.completionTime; never changes
-//	                             after that
+//	                             False (superseded or rejected) once
+//	                             finished, together with
+//	                             status.completionTime; never changes after
+//	                             that
 //
 // Reasons only explain a status. The API layer derives the konfidence display
-// status (Waiting, Ready, InProgress, Blocked, Succeeded, Superseded) from
-// these facts.
+// status (Waiting, Ready, InProgress, Blocked, Succeeded, Superseded,
+// Rejected) from these facts and the override.
 //
-// Promotion status has several writers: this controller, and the gate writers
+// Promotion status has several writers: this controller, the gate writers
 // (gate controllers and the konfidence API via vectorpromotion.Approve) that
-// set gate entries through pkg/promotiongate. Status writes use optimistic
-// locking to handle conflicts. The controller never interprets gate types.
+// set gate entries through pkg/promotiongate, and the konfidence API that
+// records the operator override. Status writes use optimistic locking to
+// handle conflicts. The controller never interprets gate types.
 //
 // # Lifecycle
 //
@@ -52,17 +58,21 @@
 //	  │
 //	  ├──▶ a gate errors → GateError reason + warning event (keeps waiting)
 //	  │
+//	  ├──▶ override Reject → Succeeded=False
+//	  │        (PromotionRejected, terminal; takes precedence over the gates)
+//	  │
 //	  ├──▶ outstanding limit exceeded → Succeeded=False
 //	  │        (OutstandingLimitReached, terminal)
 //	  │
-//	  ▼   all gates satisfied (immediately when there are none)
-//	GatesSatisfied=True → gates freeze
+//	  ▼   all gates satisfied (immediately when there are none) → GatesSatisfied=True;
+//	  │   or override BypassGates → GatesSatisfied=False/GatesBypassed, gate entries untouched.
+//	  │   Either way the gates freeze and the promotion is ready for execution.
 //	  │
 //	  ▼
 //	┌──────────────────────────────────────────────────┐
 //	│ SERIALIZATION                                    │
 //	│   one started promotion per config               │
-//	│   newest with satisfied gates wins               │
+//	│   newest ready for execution wins                │
 //	└──────────────────────────────────────────────────┘
 //	  │
 //	  ├──▶ older siblings → Succeeded=False
@@ -91,9 +101,10 @@
 // Succeeded=False/OutstandingLimitReached and can no longer be approved or
 // executed. A value of 0 allows unlimited waiting promotions.
 //
-// Gates can change only until GatesSatisfied is set or the promotion finishes.
-// The optimistic lock makes "all satisfied → GatesSatisfied set" atomic with
-// respect to a gate being reopened concurrently.
+// Gates can change only until GatesSatisfied is set, an override is recorded,
+// or the promotion finishes. The optimistic lock makes "all satisfied →
+// GatesSatisfied set" atomic with respect to a gate being reopened or an
+// override being recorded concurrently.
 //
 // The retention controller cleans up finished promotions using ttlAfterFinished
 // (measured from completionTime) and bounds them per config by
@@ -104,6 +115,7 @@
 // The VectorPromotion reconciler spans several files:
 //
 //   - vectorpromotion_gates.go: gate seeding and the GatesSatisfied condition
+//   - vectorpromotion_override.go: finishing rejected promotions and recording gate bypasses
 //   - vectorpromotion_serialization.go: serialization and superseding siblings
 //   - vectorpromotion_execution.go: target resolution, Stage write, and config mirroring
 //   - vectorpromotion_status.go: status update helpers

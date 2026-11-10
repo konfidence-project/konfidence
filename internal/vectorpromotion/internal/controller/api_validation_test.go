@@ -179,5 +179,45 @@ var _ = Describe("Promotion CRD schema validation", Ordered, Serial, func() {
 			}
 			Expect(k8sClient.Create(ctx, promotion)).To(MatchError(ContainSubstring("Duplicate value")))
 		})
+
+		Describe("status.override", func() {
+			patchOverride := func(promotion *konfidence.VectorPromotion, override *konfidence.PromotionOverride) error {
+				refreshPromotion(promotion)
+				patch := client.MergeFrom(promotion.DeepCopy())
+				promotion.Status.Override = override
+				return k8sClient.Status().Patch(ctx, promotion, patch)
+			}
+			override := func(overrideType konfidence.PromotionOverrideType) *konfidence.PromotionOverride {
+				return &konfidence.PromotionOverride{
+					Type: overrideType, SetBy: "alice", SetAt: metav1.Now(), Reason: "known bad vector",
+				}
+			}
+
+			It("can be set once and then neither changed nor cleared", func() {
+				promotion := createGatedPromotion("schema-override-immutable", "some-config", konfidence.PromotionGate{Type: e2eGate})
+				Expect(patchOverride(promotion, override(konfidence.PromotionOverrideTypeReject))).To(Succeed())
+
+				By("flipping the type")
+				Expect(patchOverride(promotion, override(konfidence.PromotionOverrideTypeBypassGates))).To(
+					MatchError(ContainSubstring("override is immutable once set")))
+
+				By("clearing it")
+				Expect(patchOverride(promotion, nil)).To(
+					MatchError(ContainSubstring("override is immutable once set")))
+			})
+
+			DescribeTable("rejects invalid overrides",
+				func(mutate func(*konfidence.PromotionOverride), expectedErr string) {
+					promotion := createGatedPromotion("schema-override-invalid", "some-config", konfidence.PromotionGate{Type: e2eGate})
+					DeferCleanup(func() { Expect(k8sClient.Delete(ctx, promotion)).To(Succeed()) })
+					o := override(konfidence.PromotionOverrideTypeReject)
+					mutate(o)
+					Expect(patchOverride(promotion, o)).To(MatchError(ContainSubstring(expectedErr)))
+				},
+				Entry("unknown type", func(o *konfidence.PromotionOverride) { o.Type = "Approve" }, "Unsupported value"),
+				Entry("empty reason", func(o *konfidence.PromotionOverride) { o.Reason = "" }, "status.override.reason"),
+				Entry("empty setBy", func(o *konfidence.PromotionOverride) { o.SetBy = "" }, "status.override.setBy"),
+			)
+		})
 	})
 })

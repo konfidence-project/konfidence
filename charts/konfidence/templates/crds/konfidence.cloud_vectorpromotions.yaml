@@ -34,13 +34,9 @@ spec:
       jsonPath: .spec.target.name
       name: Target
       type: string
-    - description: Whether every gate is satisfied
-      jsonPath: .status.conditions[?(@.type=="GatesSatisfied")].status
+    - description: Why the gates are satisfied, pending, errored, or bypassed
+      jsonPath: .status.conditions[?(@.type=="GatesSatisfied")].reason
       name: Gates
-      type: string
-    - description: Promotion outcome
-      jsonPath: .status.conditions[?(@.type=="Succeeded")].status
-      name: Succeeded
       type: string
     - description: Reason of the outcome
       jsonPath: .status.conditions[?(@.type=="Succeeded")].reason
@@ -349,6 +345,42 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              override:
+                description: |-
+                  Override records an operator decision that overrides the gate flow:
+                  `Reject` terminally rejects the promotion, `BypassGates` lets it proceed
+                  regardless of its gates (GatesSatisfied stays False with reason
+                  GatesBypassed; the gate entries are left untouched). It is written only by
+                  the konfidence API, at most once while the promotion waits on its gates,
+                  and never cleared.
+                properties:
+                  reason:
+                    description: Reason is the operator's justification for the decision.
+                    maxLength: 1024
+                    minLength: 1
+                    type: string
+                  setAt:
+                    description: SetAt is the time the decision was made.
+                    format: date-time
+                    type: string
+                  setBy:
+                    description: SetBy is the authenticated subject that made the
+                      decision.
+                    maxLength: 1024
+                    minLength: 1
+                    type: string
+                  type:
+                    description: Type is the operator decision.
+                    enum:
+                    - Reject
+                    - BypassGates
+                    type: string
+                required:
+                - reason
+                - setAt
+                - setBy
+                - type
+                type: object
               promotedStageRef:
                 description: |-
                   PromotedStageRef records the Stage this promotion actually wrote its
@@ -384,6 +416,10 @@ spec:
                 format: date-time
                 type: string
             type: object
+            x-kubernetes-validations:
+            - message: override is immutable once set
+              rule: '!has(oldSelf.override) || (has(self.override) && self.override
+                == oldSelf.override)'
         type: object
     selectableFields:
     - jsonPath: .spec.vectorPromotionConfigName

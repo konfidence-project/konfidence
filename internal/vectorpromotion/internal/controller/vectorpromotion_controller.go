@@ -22,6 +22,7 @@ const (
 	EventActionStatusPatch = "StatusPatch"
 	EventActionGates       = "Gates"
 	EventActionExecution   = "Execution"
+	EventActionOverride    = "Override"
 
 	// promotionConfigNameField indexes promotions by their config name,
 	// both in the manager cache (RegisterFieldIndexes) and server-side via the
@@ -31,11 +32,12 @@ const (
 )
 
 // VectorPromotionReconciler executes cleared VectorPromotions: it waits for
-// every declared gate to be satisfied (vectorpromotion_gates.go), serializes execution per
-// VectorPromotionConfig (vectorpromotion_serialization.go), and writes the
-// promoted vector to the target Stage (vectorpromotion_execution.go). See
-// doc.go for the lifecycle narrative and the invariants that tie the phases
-// together.
+// every declared gate to be satisfied (vectorpromotion_gates.go), finishes
+// rejected promotions and records operator gate bypasses
+// (vectorpromotion_override.go), serializes execution per VectorPromotionConfig
+// (vectorpromotion_serialization.go), and writes the promoted vector to the
+// target Stage (vectorpromotion_execution.go). See doc.go for the lifecycle
+// narrative and the invariants that tie the phases together.
 type VectorPromotionReconciler struct {
 	client.Client
 	Recorder events.EventRecorder
@@ -58,11 +60,17 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if promotion.IsTerminal(vectorPromotion) {
 		return ctrl.Result{}, nil
 	}
-	if !promotion.AllGatesSatisfied(vectorPromotion) {
+	if promotion.HasOverrideSet(vectorPromotion, konfidence.PromotionOverrideTypeReject) && vectorPromotion.Status.StartTime == nil {
+		return ctrl.Result{}, r.reject(ctx, vectorPromotion)
+	}
+	if promotion.HasOverrideSet(vectorPromotion, konfidence.PromotionOverrideTypeBypassGates) {
+		if err := r.markGatesBypassed(ctx, vectorPromotion); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else if !promotion.AllGatesSatisfied(vectorPromotion) {
 		if err := r.reconcileGates(ctx, vectorPromotion); err != nil {
 			return ctrl.Result{}, err
 		}
-		// Check if gates are now satisfied after reconciliation
 		if !promotion.AllGatesSatisfied(vectorPromotion) {
 			return ctrl.Result{}, nil
 		}

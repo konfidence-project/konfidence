@@ -12,6 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
 
 // These specs run against the manager-registered config reconciler: the value
@@ -170,6 +172,70 @@ var _ = Describe("VectorPromotionConfig drift detection", Ordered, Serial, func(
 			g.Expect(promotions).NotTo(BeEmpty())
 			g.Expect(promotions[0].Spec.Gates).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
+	})
+
+	It("does not re-propose a vector an operator rejected", func() {
+		createLandscapeWithNamespace("drift-reject-landscape", "kden-l-drift-reject")
+		createStage("kden-l-drift-reject", "drift-stage", "registry.example//konfidence.io/promo/app:0.9.0")
+		template := createTemplate("drift-reject-template")
+		config := createConfig("drift-reject-config", templateSource("drift-reject-template"),
+			stageTargetInLandscape("drift-stage", "drift-reject-landscape"), approvalGate()...)
+		setLatestVector(template, testVector)
+
+		var rejected konfidence.VectorPromotion
+		Eventually(func(g Gomega) {
+			promotions := promotionsOf(g, config.Name)
+			g.Expect(promotions).To(HaveLen(1))
+			rejected = promotions[0]
+		}, timeout, interval).Should(Succeed())
+
+		By("rejecting the promotion finishes it")
+		setOverride(&rejected, konfidence.PromotionOverrideTypeReject)
+		reconcilePromotion(rejected.Name)
+		refreshPromotion(&rejected)
+		Expect(observedState(&rejected)).To(Equal("Rejected"))
+
+		By("the finished rejection does not trigger a new promotion for the same vector")
+		Consistently(func(g Gomega) {
+			g.Expect(promotionsOf(g, config.Name)).To(HaveLen(1))
+		}, 3*time.Second, interval).Should(Succeed())
+
+		By("a different vector is still proposed")
+		setLatestVector(template, otherTestVector)
+		Eventually(func(g Gomega) {
+			g.Expect(promotionsOf(g, config.Name)).To(HaveLen(2))
+		}, timeout, interval).Should(Succeed())
+
+		By("returning to the rejected vector after a newer promotion is a new decision")
+		setLatestVector(template, testVector)
+		Eventually(func(g Gomega) {
+			promotions := promotionsOf(g, config.Name)
+			g.Expect(promotions).To(HaveLen(3))
+			vectors := make([]string, 0, len(promotions))
+			for _, p := range promotions {
+				vectors = append(vectors, p.Spec.Vector)
+			}
+			g.Expect(vectors).To(ConsistOf(testVector, testVector, otherTestVector))
+		}, timeout, interval).Should(Succeed())
+	})
+
+	It("creates a new promotion when the source returns to a vector whose older promotion is still waiting", func() {
+		createLandscapeWithNamespace("drift-return-landscape", "kden-l-drift-return")
+		createStage("kden-l-drift-return", "drift-stage", "registry.example//konfidence.io/promo/app:0.9.0")
+		template := createTemplate("drift-return-template")
+		config := createConfig("drift-return-config", templateSource("drift-return-template"),
+			stageTargetInLandscape("drift-stage", "drift-return-landscape"), approvalGate()...)
+
+		for i, vector := range []string{testVector, otherTestVector, testVector} {
+			setLatestVector(template, vector)
+			Eventually(func(g Gomega) {
+				g.Expect(promotionsOf(g, config.Name)).To(HaveLen(i + 1))
+			}, timeout, interval).Should(Succeed())
+		}
+
+		newest := promotion.Newest(promotionsOf(Default, config.Name))
+		Expect(newest.Spec.Vector).To(Equal(testVector))
+		Expect(newest.Spec.Sequence).To(Equal(int64(3)))
 	})
 
 	It("recovers the Ready condition when the missing target appears", func() {

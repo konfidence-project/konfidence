@@ -35,11 +35,12 @@ func StateOf(p *konfidence.VectorPromotion, gateType string) konfidence.Promotio
 }
 
 // GatesMutable reports whether a gate write can still change the promotion.
-// Gates stay mutable while GatesSatisfied is not yet True and the promotion has
-// not finished (Succeeded is neither True nor False); GatesSatisfied freezes
-// them once every gate is satisfied.
+// Gates stay mutable while GatesSatisfied is not yet True, no override is
+// recorded, and the promotion has not finished (Succeeded is neither True nor
+// False).
 func GatesMutable(p *konfidence.VectorPromotion) bool {
-	return !meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeGatesSatisfied) &&
+	return p.Status.Override == nil &&
+		!meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeGatesSatisfied) &&
 		!meta.IsStatusConditionTrue(p.Status.Conditions, konfidence.ConditionTypeSucceeded) &&
 		!meta.IsStatusConditionFalse(p.Status.Conditions, konfidence.ConditionTypeSucceeded)
 }
