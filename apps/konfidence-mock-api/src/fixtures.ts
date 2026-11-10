@@ -225,13 +225,41 @@ const resolvableVectorDeployments: VectorDeployment[] = [
   ...stageVersionDeployments,
 ].filter((deployment, index, all) => all.findIndex(({ id }) => id === deployment.id) === index);
 
-const vectorContents: VectorContent[] = rows.map((row) => ({
-  components: [
-    { componentName: PAYMENTS_API_COMPONENT, version: row.version },
-    { componentName: PAYMENTS_UI_COMPONENT, version: row.version },
-  ],
-  ref: `${VECTOR_REPOSITORY}//test-vector:${row.version}`,
-}));
+const vectorContents: VectorContent[] = [
+  {
+    components: [
+      { componentName: PAYMENTS_API_COMPONENT, version: rows[0].version },
+      { componentName: PAYMENTS_UI_COMPONENT, version: rows[0].version },
+    ],
+    config: {
+      authored: { replicaCount: 5, db: { host: "mysql-prod.internal", port: 5432 } },
+      features: { "dark-mode": true, "new-checkout-flow": true },
+    },
+    ref: `${VECTOR_REPOSITORY}//test-vector:${rows[0].version}`,
+  },
+  {
+    components: [
+      { componentName: PAYMENTS_API_COMPONENT, version: rows[1].version },
+      { componentName: PAYMENTS_UI_COMPONENT, version: rows[1].version },
+    ],
+    config: {
+      authored: { replicaCount: 3, db: { host: "mysql-test.internal", port: 5432 } },
+      features: { "dark-mode": false, "legacy-payment-provider": true },
+    },
+    ref: `${VECTOR_REPOSITORY}//test-vector:${rows[1].version}`,
+  },
+  {
+    components: [
+      { componentName: PAYMENTS_API_COMPONENT, version: rows[2].version },
+      { componentName: PAYMENTS_UI_COMPONENT, version: rows[2].version },
+    ],
+    config: {
+      authored: { replicaCount: 3, db: { host: "mysql-prod.internal", port: 5432 } },
+      features: { "dark-mode": false, "legacy-payment-provider": true },
+    },
+    ref: `${VECTOR_REPOSITORY}//test-vector:${rows[2].version}`,
+  },
+];
 
 const artifactContents: ArtifactContent[] = [
   {
