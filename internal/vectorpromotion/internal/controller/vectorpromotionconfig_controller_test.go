@@ -69,9 +69,8 @@ var _ = Describe("VectorPromotionConfig drift detection", Ordered, Serial, func(
 		config := &konfidence.VectorPromotionConfig{
 			ObjectMeta: metav1.ObjectMeta{Name: "drift-auto-config", Namespace: testNamespace},
 			Spec: konfidence.VectorPromotionConfigSpec{
-				Source:           templateSource("drift-template"),
-				Target:           stageTargetInLandscape("drift-stage", "drift-auto-landscape"),
-				TTLAfterFinished: &metav1.Duration{Duration: time.Hour},
+				Source: templateSource("drift-template"),
+				Target: stageTargetInLandscape("drift-stage", "drift-auto-landscape"),
 			},
 		}
 		Expect(k8sClient.Create(ctx, config)).To(Succeed())
@@ -87,8 +86,6 @@ var _ = Describe("VectorPromotionConfig drift detection", Ordered, Serial, func(
 			g.Expect(created.Spec.Vector).To(Equal(testVector))
 			g.Expect(created.Spec.Gates).To(BeEmpty())
 			g.Expect(created.Spec.Sequence).To(Equal(int64(1)))
-			g.Expect(created.Spec.TTLAfterFinished).NotTo(BeNil())
-			g.Expect(created.Spec.TTLAfterFinished.Duration).To(Equal(time.Hour))
 			g.Expect(created.Spec.Source).To(Equal(config.Spec.Source))
 			g.Expect(created.Spec.Target).To(Equal(config.Spec.Target))
 			g.Expect(metav1.IsControlledBy(&created, config)).To(BeTrue())

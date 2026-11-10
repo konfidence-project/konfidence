@@ -110,12 +110,6 @@ type VectorPromotionSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="gates are immutable after they have been set"
 	Gates []PromotionGate `json:"gates"`
 
-	// TTLAfterFinished defines how long the VectorPromotion should be kept after completion.
-	// Once the TTL expires after the promotion finished (`status.completionTime`),
-	// the resource is eligible for automatic deletion. If no TTL is set, no deletion happens.
-	// +kubebuilder:validation:Optional
-	TTLAfterFinished *metav1.Duration `json:"ttlAfterFinished,omitempty"`
-
 	// Sequence is a monotonic ordinal assigned by the creator (the config
 	// reconciler, from the config's `status.sequence`). It is the sole
 	// ordering between promotions of the same config; creation timestamps

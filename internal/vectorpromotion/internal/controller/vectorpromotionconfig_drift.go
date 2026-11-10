@@ -56,7 +56,6 @@ func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
 			Target:                    config.Spec.Target,
 			Vector:                    sourceVector,
 			Gates:                     gates,
-			TTLAfterFinished:          config.Spec.TTLAfterFinished,
 			Sequence:                  config.Status.Sequence,
 		},
 	}

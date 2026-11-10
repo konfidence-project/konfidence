@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -19,14 +20,13 @@ import (
 // never read: the promotion is self-contained, and the config reconciler
 // aggregates promotion outcomes on its side.
 //
-// The function runs twice per promotion in the happy path (once to stamp
-// startTime, once more after the resulting status event) and re-runs
-// wholesale after a crash: startTime is only set once and promoteStage is the
-// idempotency check for the stage write itself.
-func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
+// Recording startTime ends this reconciliation. Only a subsequent observation
+// of that timestamp may write the Stage. Stage writes are optimistic-locked and
+// idempotent so a crash before recording success can safely be retried.
+func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) (ctrl.Result, error) {
 	stage, err := resolveTargetStage(ctx, r.Client, vectorPromotion.Namespace, vectorPromotion.Spec.Target)
 	if err != nil {
-		return r.reportUnresolvedTarget(ctx, vectorPromotion, err)
+		return ctrl.Result{}, r.reportUnresolvedTarget(ctx, vectorPromotion, err)
 	}
 
 	resolved := setCondition(konfidence.ConditionTypeTargetResolved, metav1.ConditionTrue, konfidence.ReasonTargetResolved,
@@ -39,14 +39,17 @@ func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion
 		running := setCondition(konfidence.ConditionTypeSucceeded, metav1.ConditionUnknown, konfidence.ReasonPromotionRunning,
 			fmt.Sprintf("promoting vector %q to stage %q", vectorPromotion.Spec.Vector, stage.Name))
 		if err := r.updateStatus(ctx, vectorPromotion, resolved, start, running); err != nil {
-			return err
+			return ctrl.Result{}, err
 		}
 		startedMsg := fmt.Sprintf("started promoting vector %q to stage %q", vectorPromotion.Spec.Vector, stage.Name)
 		r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionExecutionStarted", EventActionExecution, startedMsg)
+		return ctrl.Result{RequeueAfter: promotionResyncInterval}, nil
 	}
 
 	if err := r.promoteStage(ctx, stage, vectorPromotion); err != nil {
-		return err
+		// Do not retry just this patch: a fresh reconciliation must recheck
+		// sibling eligibility before attempting another Stage write.
+		return ctrl.Result{}, err
 	}
 
 	msg := fmt.Sprintf("promoted vector %q to stage %q in namespace %q",
@@ -61,10 +64,10 @@ func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion
 	}
 	if err := r.updateStatus(ctx, vectorPromotion, resolved, recordPromotedStage,
 		finish(metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded, msg)); err != nil {
-		return err
+		return ctrl.Result{}, err
 	}
 	r.Recorder.Eventf(vectorPromotion, nil, corev1.EventTypeNormal, "PromotionSuccessful", EventActionExecution, msg)
-	return nil
+	return ctrl.Result{}, nil
 }
 
 // reportUnresolvedTarget surfaces a definitive resolution failure on the
@@ -88,11 +91,11 @@ func (r *VectorPromotionReconciler) reportUnresolvedTarget(ctx context.Context, 
 }
 
 // promoteStage writes the promoted vector to the stage spec if it differs and
-// records the writing promotion for provenance. The equality check makes
-// crash-resume re-runs no-ops.
+// records provenance in the same optimistic-locked patch. The version check
+// rejects stale Stage snapshots; promotion ordering comes from sibling checks
+// against the shared promotion cache, not the Stage resource version.
 func (r *VectorPromotionReconciler) promoteStage(ctx context.Context, stage *konfidence.Stage, vectorPromotion *konfidence.VectorPromotion) error {
 	log := logf.FromContext(ctx)
-
 	promotedBy := fmt.Sprintf("%s/%s", vectorPromotion.Namespace, vectorPromotion.Name)
 	if stage.Spec.Vector == vectorPromotion.Spec.Vector && stage.Annotations[utils.PromotedByAnnotation] == promotedBy {
 		return nil
@@ -104,7 +107,7 @@ func (r *VectorPromotionReconciler) promoteStage(ctx context.Context, stage *kon
 		stage.Annotations = map[string]string{}
 	}
 	stage.Annotations[utils.PromotedByAnnotation] = promotedBy
-	if err := r.Patch(ctx, stage, client.MergeFrom(original)); err != nil {
+	if err := r.Patch(ctx, stage, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
 		return fmt.Errorf("failed to patch vector onto stage %q in namespace %q: %w", stage.Name, stage.Namespace, err)
 	}
 	log.Info("promoted vector to stage",
