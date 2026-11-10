@@ -245,7 +245,8 @@ const operationHandlers = {
     return reply.send(stage);
   },
   getVectorContentV1: (request, reply) => {
-    const { refs } = request.query as Query<"getVectorContentV1">;
+    const { refs: rawRefs } = request.query as Query<"getVectorContentV1">;
+    const refs = Array.isArray(rawRefs) ? rawRefs : [rawRefs];
     const project = projectFor(request);
     const data = refs.map((ref) => {
       const found = project.vectorContents.find((vc) => vc.ref === ref);
