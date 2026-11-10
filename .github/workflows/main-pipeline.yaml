@@ -26,38 +26,10 @@ jobs:
   publish-dev-chart:
     name: Publish Dev Helm Chart
     needs: [lint-test-build]
-    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    env:
-      IMAGE_TAG: ${{ github.sha }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.sha }}
-
-      - name: Init Hermit
-        uses: cashapp/activate-hermit@v1
-
-      - name: Derive dev chart version
-        run: |
-          RELEASE_VERSION=$(yq -r '.version' charts/konfidence/Chart.yaml)
-          BASE_VERSION="${RELEASE_VERSION%%[-+]*}"
-          # Run numbers order builds within a release base; retries cannot overtake newer runs.
-          echo "CHART_VERSION=${BASE_VERSION}-dev.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
-
-      - name: Package dev chart with matching operator and API images
-        run: |
-          helm lint charts/konfidence
-          helm package charts/konfidence --destination dist \
-            --version "${CHART_VERSION}" --app-version "${IMAGE_TAG}"
-
-      - name: Log in to Helm Registry
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: echo "${GH_TOKEN}" | helm registry login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
-
-      - name: Publish dev chart
-        run: helm push "dist/konfidence-${CHART_VERSION}.tgz" oci://ghcr.io/konfidence-project/charts
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
+    with:
+      mode: dev
+      charts: charts/konfidence
