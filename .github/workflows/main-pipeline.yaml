@@ -31,8 +31,6 @@ jobs:
       contents: read
       packages: write
     env:
-      # Run numbers order main builds; retries cannot overtake a newer run.
-      CHART_VERSION: 0.0.0-dev.${{ github.run_number }}.${{ github.run_attempt }}
       IMAGE_TAG: ${{ github.sha }}
     steps:
       - name: Checkout code
@@ -42,6 +40,13 @@ jobs:
 
       - name: Init Hermit
         uses: cashapp/activate-hermit@v1
+
+      - name: Derive dev chart version
+        run: |
+          RELEASE_VERSION=$(yq -r '.version' charts/konfidence/Chart.yaml)
+          BASE_VERSION="${RELEASE_VERSION%%[-+]*}"
+          # Run numbers order builds within a release base; retries cannot overtake newer runs.
+          echo "CHART_VERSION=${BASE_VERSION}-dev.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
 
       - name: Package dev chart with matching operator and API images
         run: |
