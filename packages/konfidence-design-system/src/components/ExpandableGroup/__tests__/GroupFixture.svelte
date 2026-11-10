@@ -2,22 +2,25 @@
     import { untrack } from "svelte";
     import { Button, ExpandableGroup, SelectableRow } from "../../index.js";
 
-    interface Props { initialExpanded?: boolean; acceptExpansion?: boolean; onExpandedChange?: (expanded: boolean) => void; extra?: boolean; inset?: boolean; withSummary?: boolean; title?: string; onselect?: () => void; onaction?: () => void; }
-    let { initialExpanded = false, acceptExpansion = true, onExpandedChange, extra = true, inset = false, withSummary = true, title = "Example group", onselect = () => {}, onaction = () => {} }: Props = $props();
+    interface Props { initialExpanded?: boolean; extra?: boolean; inset?: boolean; title?: string; withHeaderAction?: boolean; }
+    let { initialExpanded = false, extra = true, inset = false, title = "Example group", withHeaderAction = false }: Props = $props();
     let expanded = $state(untrack(() => initialExpanded));
-    let selected = $state(false);
+    let actionCount = $state(0);
 </script>
 <div class="bg-surface-default p-3" data-testid="fixture">
     {#snippet history()}
-        <SelectableRow ariaLabel="Select history" {inset} onselect={onselect}><span>Historical item</span></SelectableRow>
+        <SelectableRow ariaLabel="Select history" value="history" {inset}>
+            <span class="block font-semibold">Historical item</span>
+            {#snippet actions()}<Button variant="secondary" onclick={() => actionCount += 1}>Action</Button><Button disabled>Disabled</Button>{/snippet}
+        </SelectableRow>
     {/snippet}
-        {#snippet summaryContent()}
-            <SelectableRow ariaLabel="Select summary" {selected} {inset} onselect={() => { selected = true; onselect(); }}>
-                <span>Always visible summary</span>
-                {#snippet actions()}<Button variant="secondary" onclick={onaction}>Action</Button><Button disabled>Disabled</Button>{/snippet}
-            </SelectableRow>
+    <ExpandableGroup ariaLabel="Example group" triggerId={extra ? undefined : "example-header"} bind:expanded children={extra ? history : undefined}>
+        {#snippet header()}
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="min-w-0 font-semibold">{title}</div>
+                {#if withHeaderAction}<Button variant="secondary" onclick={(event: MouseEvent) => { event.stopPropagation(); actionCount += 1; }}>Header action</Button>{/if}
+            </div>
         {/snippet}
-    <ExpandableGroup ariaLabel="Example group" {expanded} onExpandedChange={(value) => { onExpandedChange?.(value); if (acceptExpansion) expanded = value; }} children={extra ? history : undefined} summary={withSummary ? summaryContent : undefined}>
-        {#snippet header()}<span>{title}</span>{/snippet}
     </ExpandableGroup>
 </div>
+<span data-testid="action-count">{actionCount}</span>

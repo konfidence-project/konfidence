@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("list examples keep group selection, disabled rows and actions independent", async ({
-  page,
-}) => {
+test("list examples keep bound and local selection and actions independent", async ({ page }) => {
   await page.goto("/#lists");
   const lists = page.locator("#lists");
   const development = lists.getByRole("group", {
@@ -18,9 +16,6 @@ test("list examples keep group selection, disabled rows and actions independent"
   await development.getByRole("button", { name: "Inspect" }).click();
   await expect(second).toHaveAttribute("aria-pressed", "true");
   await expect(lists.getByText("Actions: 1.", { exact: false })).toBeVisible();
-  await expect(
-    development.getByRole("button", { name: "Unavailable single-line item" }),
-  ).toBeDisabled();
   const trigger = development.getByRole("button", { name: "Single-line items" });
   await trigger.click();
   await expect(second).not.toBeVisible();
@@ -42,14 +37,22 @@ test("list examples keep group selection, disabled rows and actions independent"
   await expect(
     files.getByRole("button", { name: "Select first multiple-line item" }),
   ).toHaveAttribute("aria-pressed", "false");
-  const history = lists.getByRole("group", { exact: true, name: "Items with summary" });
-  await history.getByRole("button", { name: "Inspect" }).click();
-  await expect(history.getByRole("button", { name: "Items with summary" })).toHaveAttribute(
+  const history = lists.getByRole("group", { exact: true, name: "Items with header action" });
+  const shortcut = history.getByRole("button", { name: "Show current" });
+  await shortcut.click();
+  await expect(history.getByRole("button", { name: "Items with header action" })).toHaveAttribute(
     "aria-expanded",
-    "false",
+    "true",
   );
-  await expect(history.getByRole("button", { name: "Select always-visible item" })).toHaveAttribute(
+  await expect(history.getByRole("button", { name: "Select current item" })).toHaveAttribute(
     "aria-pressed",
-    "false",
+    "true",
   );
+  await shortcut.click();
+  await expect(history.getByRole("button", { name: "Select current item" })).toBeVisible();
+  await expect(history.getByRole("button", { name: "Unavailable action" })).toBeDisabled();
+  const local = lists.getByRole("button", { name: "Select local item" });
+  await local.click();
+  await local.click();
+  await expect(local).toHaveAttribute("aria-pressed", "true");
 });

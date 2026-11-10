@@ -9,88 +9,55 @@
     interface Props {
         /** Accessible name of the group and its expansion trigger. */
         ariaLabel: string;
-        /** Bindable expansion, or controlled through onExpandedChange. */
+        /** Bindable expansion; defaults to collapsed. */
         expanded?: boolean;
-        onExpandedChange?: (expanded: boolean) => void;
-        /** Single selection for descendant rows with a value. */
+        /** Bindable single selection for descendant rows. */
         selectedValue?: string;
-        onValueChange?: (value: string) => void;
-        /** Standard title; header can supply custom content instead. */
-        label?: string;
-        /** Noninteractive header content. */
-        header?: Snippet;
-        metadata?: Snippet;
-        /** Optional always-visible content. Omit for a header-only collapsed group. */
-        summary?: Snippet;
+        /** Free header content; independent controls must stop click propagation. */
+        header: Snippet;
         /** Omit when there is no additional content to expand. */
         children?: Snippet;
         /** Optional focus-restoration target for the header. */
         triggerId?: string;
-        class?: string;
     }
 
     let {
         ariaLabel,
         expanded = $bindable(false),
-        onExpandedChange,
         selectedValue = $bindable<string | undefined>(undefined),
-        onValueChange,
-        label,
         header,
-        metadata,
-        summary,
         children,
         triggerId,
-        class: className,
     }: Props = $props();
-    const headerClass = "flex w-full min-w-0 items-start gap-2 bg-transparent px-4 py-3 text-left text-compact leading-[1.3] text-content-primary [overflow-wrap:anywhere]";
+    const headerClass = "flex w-full min-w-0 items-center bg-transparent px-4 py-3 text-left text-compact leading-[1.3] text-content-primary [overflow-wrap:anywhere]";
 
     setGroupSelection({
         select(value) {
-            if (selectedValue === value) {
-                return false;
-            }
             selectedValue = value;
-            onValueChange?.(value);
-            return true;
         },
         get selectedValue() {
             return selectedValue;
         },
     });
 
-    const changeExpanded = (open: boolean) => {
-        if (expanded === open) {
-            return;
-        }
-        if (onExpandedChange) {
-            onExpandedChange(open);
-        } else {
-            expanded = open;
-        }
-    };
 </script>
 
-{#snippet headingContent()}
-    <span class="min-w-0 grow">
-        <span class="block font-semibold">{#if header}{@render header()}{:else}{label ?? ariaLabel}{/if}</span>
-        {#if metadata}<span class="mt-1 flex flex-wrap items-center gap-2 font-normal leading-normal text-content-secondary">{@render metadata()}</span>{/if}
-    </span>
-{/snippet}
-
-<Collapsible open={expanded && children !== undefined} onOpenChange={({ open }) => changeExpanded(open)}
-    class={["flex flex-col items-stretch gap-0 overflow-hidden rounded-container border border-outline-subtle bg-surface-card text-compact leading-normal text-content-primary", className]}
+<Collapsible open={expanded && children !== undefined} onOpenChange={({ open }) => expanded = open}
+    class="flex flex-col items-stretch gap-0 overflow-hidden rounded-container border border-outline-subtle bg-surface-card text-compact leading-normal text-content-primary"
     role="group" aria-label={ariaLabel}>
     {#if children}
-        <Collapsible.Trigger id={triggerId} aria-label={ariaLabel}
-            class={[headerClass, "cursor-pointer hover:bg-surface-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-outline-focus"]}>
-            <ui5-icon aria-hidden="true" class="mt-0.5 size-4 shrink-0 text-content-tertiary" name={expanded ? "slim-arrow-down" : "slim-arrow-right"}></ui5-icon>
-            {@render headingContent()}
-        </Collapsible.Trigger>
+        <!-- The native chevron supplies keyboard disclosure; the layout adds a pointer target. -->
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+        <div class={[headerClass, "cursor-pointer hover:bg-surface-subtle"]} onclick={() => expanded = !expanded}>
+            <Collapsible.Trigger id={triggerId} aria-label={ariaLabel} onclick={(event) => event.stopPropagation()}
+                class="-my-1 -ml-2 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-control focus-visible:outline-2 focus-visible:outline-outline-focus">
+                <ui5-icon aria-hidden="true" class="size-4 text-content-tertiary" name={expanded ? "slim-arrow-down" : "slim-arrow-right"}></ui5-icon>
+            </Collapsible.Trigger>
+            <div class="min-w-0 grow">{@render header()}</div>
+        </div>
     {:else}
-        <div id={triggerId} class={headerClass} tabindex="-1">{@render headingContent()}</div>
+        <div id={triggerId} class={headerClass} tabindex="-1"><div class="min-w-0 grow">{@render header()}</div></div>
     {/if}
-    {#if summary}<div class="border-t border-outline-subtle">{@render summary()}</div>{/if}
     {#if children}
         <Collapsible.Content class="block w-full border-t border-outline-subtle [&>*+*]:border-t [&>*+*]:border-outline-subtle">
             {@render children()}
