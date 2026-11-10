@@ -83,7 +83,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	vectorTemplate := &konfidence.VectorTemplate{}
 	if err := r.Get(ctx, req.NamespacedName, vectorTemplate); err != nil {
-		if apierrors.IsNotFound(err) && r.jobs != nil {
+		if apierrors.IsNotFound(err) {
 			r.jobs.remove(req.NamespacedName)
 		}
 
@@ -93,10 +93,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if res, err := pkgctrl.MustBeInProjectNamespace(
 		ctx, r.Client, vectorTemplate, &vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition,
 	); res != nil {
-		if r.jobs != nil {
-			r.jobs.remove(req.NamespacedName)
-		}
-
+		r.jobs.remove(req.NamespacedName)
 		return *res, err
 	}
 
@@ -166,6 +163,7 @@ func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.
 	}
 
 	var baseVectorRef *compref.Ref
+	baseVectorRefKey := ""
 	if vt.Spec.Base != nil {
 		ref, baseErr := r.resolveBaseRef(ctx, vt)
 		if baseErr != nil {
@@ -175,11 +173,7 @@ func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.
 			return ctrl.Result{}, baseErr
 		}
 		baseVectorRef = ref
-	}
-
-	baseVectorRefKey := ""
-	if baseVectorRef != nil {
-		baseVectorRefKey = baseVectorRef.String()
+		baseVectorRefKey = ref.String()
 	}
 
 	// Check for an inflight job.
@@ -569,10 +563,6 @@ func (r *VectorTemplateReconciler) buildAdapter(ctx context.Context, vt *konfide
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorTemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if r.jobs == nil {
-		r.jobs = newJobRegistry()
-	}
-
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		<-ctx.Done()
 		r.jobs.shutdown()

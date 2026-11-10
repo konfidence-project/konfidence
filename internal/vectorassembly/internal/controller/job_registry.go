@@ -69,6 +69,8 @@ func (r *jobRegistry) get(nn types.NamespacedName) (*inflightJob, bool) {
 
 // launch starts and registers a background job for the object identity.
 // Any existing job for the same key is canceled before it is replaced.
+// It returns true when the job was launched, or false if the registry has
+// already been shut down.
 func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid types.UID, baseVectorRef string,
 	fn func(context.Context) assemblyResult) bool {
 	r.mu.Lock()
@@ -87,7 +89,7 @@ func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid type
 	}
 
 	// Defensive replacement: callers normally remove stale jobs first.
-	if previous, exists := r.inflight[nn]; exists && previous.cancel != nil {
+	if previous, exists := r.inflight[nn]; exists {
 		previous.cancel()
 	}
 
@@ -105,9 +107,10 @@ func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid type
 	return true
 }
 
-// completedResult atomically checks and consumes a completed result.
-// Unlike VectorDeployment results, assembly results are not cached because
-// the next scheduled reconciliation must perform drift detection again.
+// completedResult atomically consumes a completed result.
+// The boolean is true only when job is still the registered job for nn and its
+// result was available and consumed. It is false when the job was replaced,
+// removed, or is still running.
 func (r *jobRegistry) completedResult(nn types.NamespacedName, job *inflightJob) (assemblyResult, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -119,10 +122,6 @@ func (r *jobRegistry) completedResult(nn types.NamespacedName, job *inflightJob)
 
 	select {
 	case result := <-job.result:
-		if job.cancel != nil {
-			job.cancel()
-			job.cancel = nil
-		}
 		delete(r.inflight, nn)
 		return result, true
 	default:
@@ -137,9 +136,7 @@ func (r *jobRegistry) remove(nn types.NamespacedName) {
 	defer r.mu.Unlock()
 
 	if job, exists := r.inflight[nn]; exists {
-		if job.cancel != nil {
-			job.cancel()
-		}
+		job.cancel()
 		delete(r.inflight, nn)
 	}
 }
