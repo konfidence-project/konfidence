@@ -134,7 +134,7 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.NamespacedName, vt *konfidence.VectorTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	if job, exists := r.jobs.get(nn); exists && !job.matchesObject(vt.Generation, vt.UID) {
+	if job, exists := r.jobs.get(nn); exists && !job.matches(vt.Generation, vt.UID) {
 		log.Info("cancelling assembly job for stale VectorTemplate identity",
 			"jobGeneration", job.generation,
 			"currentGeneration", vt.Generation,
@@ -167,9 +167,6 @@ func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.
 	if vt.Spec.Base != nil {
 		ref, baseErr := r.resolveBaseRef(ctx, vt)
 		if baseErr != nil {
-			// The current desired base cannot be established, so a running job
-			// must not continue using a previously resolved base.
-			r.jobs.remove(nn)
 			return ctrl.Result{}, baseErr
 		}
 		baseVectorRef = ref
@@ -178,25 +175,12 @@ func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.
 
 	// Check for an inflight job.
 	if job, exists := r.jobs.get(nn); exists {
-		if job.matches(vt.Generation, vt.UID, baseVectorRefKey) {
-			result, completed := r.jobs.completedResult(nn, job)
-			if !completed {
-				return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
-			}
-
-			return r.applyAssemblyResult(vt, result, log)
+		result, completed := r.jobs.completedResult(nn, job)
+		if !completed {
+			return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
 		}
-		// A changed generation, UID, or resolved base vector means the job
-		// belongs to stale input or to a previous object with the same key.
-		log.Info("cancelling stale inflight assembly job",
-			"jobGeneration", job.generation,
-			"currentGeneration", vt.Generation,
-			"jobUID", string(job.uid),
-			"currentUID", string(vt.UID),
-			"jobBaseVectorRef", job.baseVectorRef,
-			"currentBaseVectorRef", baseVectorRefKey,
-		)
-		r.jobs.remove(nn)
+
+		return r.applyAssemblyResult(vt, result, log)
 	}
 
 	// Parse the current vector ref from status.latestVector.
@@ -218,15 +202,16 @@ func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.
 	}
 
 	// Launch a new assembly job.
-	launched := r.jobs.launch(nn, vt.Generation, vt.UID, baseVectorRefKey, func(jobCtx context.Context) assemblyResult {
+	launched := r.jobs.launch(nn, vt.Generation, vt.UID, func(jobCtx context.Context) assemblyResult {
 		return r.runAssembly(jobCtx, ocmAdapter, ocmComponentRefs, vectorOCMComponent,
 			baseVectorRef, currentVectorRef, desiredVectorConfig)
 	})
 	if !launched {
 		return ctrl.Result{}, context.Canceled
 	}
-	log.Info("launched background assembly job", "generation", vt.Generation,
-		"uid", string(vt.UID), "baseVectorRef", baseVectorRefKey,
+
+	log.Info("launched background assembly job", "generation", vt.Generation, "uid", string(vt.UID),
+		"baseVectorRef", baseVectorRefKey,
 	)
 	return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
 }

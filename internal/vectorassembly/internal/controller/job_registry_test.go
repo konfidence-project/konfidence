@@ -34,7 +34,7 @@ var _ = Describe("jobRegistry", func() {
 		started := make(chan struct{})
 		release := make(chan struct{})
 
-		launched := reg.launch(nn, 1, testUID, "", func(ctx context.Context) assemblyResult {
+		launched := reg.launch(nn, 1, testUID, func(ctx context.Context) assemblyResult {
 			close(started)
 
 			select {
@@ -66,7 +66,7 @@ var _ = Describe("jobRegistry", func() {
 	})
 
 	It("atomically consumes and removes a completed result", func() {
-		launched := reg.launch(nn, 1, testUID, "", func(context.Context) assemblyResult {
+		launched := reg.launch(nn, 1, testUID, func(context.Context) assemblyResult {
 			return assemblyResult{vectorVersion: "1.0.0"}
 		})
 		Expect(launched).To(BeTrue())
@@ -97,7 +97,7 @@ var _ = Describe("jobRegistry", func() {
 		started := make(chan struct{})
 		canceled := make(chan struct{})
 
-		launched := reg.launch(nn, 1, testUID, "", func(ctx context.Context) assemblyResult {
+		launched := reg.launch(nn, 1, testUID, func(ctx context.Context) assemblyResult {
 			close(started)
 			<-ctx.Done()
 			close(canceled)
@@ -123,13 +123,13 @@ var _ = Describe("jobRegistry", func() {
 		firstCanceled := make(chan struct{})
 		secondCanceled := make(chan struct{})
 
-		Expect(reg.launch(nn, 1, testUID, "", func(ctx context.Context) assemblyResult {
+		Expect(reg.launch(nn, 1, testUID, func(ctx context.Context) assemblyResult {
 			<-ctx.Done()
 			close(firstCanceled)
 			return assemblyResult{err: ctx.Err()}
 		})).To(BeTrue())
 
-		Expect(reg.launch(other, 2, types.UID("other-uid"), "", func(ctx context.Context) assemblyResult {
+		Expect(reg.launch(other, 2, types.UID("other-uid"), func(ctx context.Context) assemblyResult {
 			<-ctx.Done()
 			close(secondCanceled)
 			return assemblyResult{err: ctx.Err()}
@@ -157,7 +157,7 @@ var _ = Describe("jobRegistry", func() {
 		firstStarted := make(chan struct{})
 		firstCanceled := make(chan struct{})
 
-		Expect(reg.launch(nn, 1, oldUID, "", func(ctx context.Context) assemblyResult {
+		Expect(reg.launch(nn, 1, oldUID, func(ctx context.Context) assemblyResult {
 			close(firstStarted)
 			<-ctx.Done()
 			close(firstCanceled)
@@ -168,9 +168,9 @@ var _ = Describe("jobRegistry", func() {
 
 		oldJob, exists := reg.get(nn)
 		Expect(exists).To(BeTrue())
-		Expect(oldJob.matches(1, oldUID, "")).To(BeTrue())
+		Expect(oldJob.matches(1, oldUID)).To(BeTrue())
 
-		Expect(reg.launch(nn, 1, newUID, "", func(context.Context) assemblyResult {
+		Expect(reg.launch(nn, 1, newUID, func(context.Context) assemblyResult {
 			return assemblyResult{vectorVersion: "2.0.0"}
 		})).To(BeTrue())
 
@@ -179,8 +179,8 @@ var _ = Describe("jobRegistry", func() {
 		replacement, exists := reg.get(nn)
 		Expect(exists).To(BeTrue())
 		Expect(replacement).NotTo(BeIdenticalTo(oldJob))
-		Expect(replacement.matches(1, newUID, "")).To(BeTrue())
-		Expect(replacement.matches(1, oldUID, "")).To(BeFalse())
+		Expect(replacement.matches(1, newUID)).To(BeTrue())
+		Expect(replacement.matches(1, oldUID)).To(BeFalse())
 
 		By("rejecting the replaced job's result")
 		_, completed := reg.completedResult(nn, oldJob)
@@ -207,7 +207,7 @@ var _ = Describe("jobRegistry", func() {
 				Name:      name,
 			}
 
-			Expect(reg.launch(key, 1, types.UID(name), "", func(ctx context.Context) assemblyResult {
+			Expect(reg.launch(key, 1, types.UID(name), func(ctx context.Context) assemblyResult {
 				started <- struct{}{}
 				<-ctx.Done()
 				exited <- struct{}{}
@@ -234,7 +234,6 @@ var _ = Describe("jobRegistry", func() {
 			types.NamespacedName{Namespace: "default", Name: "late"},
 			1,
 			types.UID("late"),
-			"",
 			func(context.Context) assemblyResult {
 				return assemblyResult{}
 			},
@@ -244,55 +243,6 @@ var _ = Describe("jobRegistry", func() {
 		By("allowing shutdown to be called repeatedly")
 		reg.shutdown()
 	})
-
-	DescribeTable("matches the job identity",
-		func(jobGeneration int64, jobUID types.UID, jobBaseVectorRef string, currentGeneration int64,
-			currentUID types.UID, currentBaseVectorRef string, expected bool) {
-			identity := assemblyJobIdentity{
-				generation:    jobGeneration,
-				uid:           jobUID,
-				baseVectorRef: jobBaseVectorRef,
-			}
-
-			Expect(identity.matches(currentGeneration, currentUID, currentBaseVectorRef)).To(Equal(expected))
-		},
-		Entry(
-			"when all identity values match",
-			int64(1), types.UID("uid-1"), "registry.example/base:1.0.0",
-			int64(1), types.UID("uid-1"), "registry.example/base:1.0.0",
-			true,
-		),
-		Entry(
-			"when generation changes",
-			int64(1), types.UID("uid-1"), "registry.example/base:1.0.0",
-			int64(2), types.UID("uid-1"), "registry.example/base:1.0.0",
-			false,
-		),
-		Entry(
-			"when UID changes",
-			int64(1), types.UID("uid-old"), "registry.example/base:1.0.0",
-			int64(1), types.UID("uid-new"), "registry.example/base:1.0.0",
-			false,
-		),
-		Entry(
-			"when the resolved base vector changes",
-			int64(1), types.UID("uid-1"), "registry.example/base:1.0.0",
-			int64(1), types.UID("uid-1"), "registry.example/base:2.0.0",
-			false,
-		),
-		Entry(
-			"when a base is added",
-			int64(1), types.UID("uid-1"), "",
-			int64(1), types.UID("uid-1"), "registry.example/base:1.0.0",
-			false,
-		),
-		Entry(
-			"when a base is removed",
-			int64(1), types.UID("uid-1"), "registry.example/base:1.0.0",
-			int64(1), types.UID("uid-1"), "",
-			false,
-		),
-	)
 
 	DescribeTable("matches the Kubernetes object identity",
 		func(
@@ -307,7 +257,7 @@ var _ = Describe("jobRegistry", func() {
 				uid:        jobUID,
 			}
 
-			Expect(identity.matchesObject(currentGeneration, currentUID)).To(Equal(expected))
+			Expect(identity.matches(currentGeneration, currentUID)).To(Equal(expected))
 		},
 		Entry(
 			"when generation and UID match",

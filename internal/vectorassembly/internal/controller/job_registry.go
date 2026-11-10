@@ -19,17 +19,12 @@ func (r assemblyResult) failed() bool  { return r.err != nil }
 func (r assemblyResult) created() bool { return r.err == nil && r.latestVector != "" }
 
 type assemblyJobIdentity struct {
-	generation    int64
-	uid           types.UID
-	baseVectorRef string
+	generation int64
+	uid        types.UID
 }
 
-func (i assemblyJobIdentity) matchesObject(generation int64, uid types.UID) bool {
+func (i assemblyJobIdentity) matches(generation int64, uid types.UID) bool {
 	return i.generation == generation && i.uid == uid
-}
-
-func (i assemblyJobIdentity) matches(generation int64, uid types.UID, baseVectorRef string) bool {
-	return i.matchesObject(generation, uid) && i.baseVectorRef == baseVectorRef
 }
 
 // inflightJob tracks a single background assembly goroutine.
@@ -71,7 +66,7 @@ func (r *jobRegistry) get(nn types.NamespacedName) (*inflightJob, bool) {
 // Any existing job for the same key is canceled before it is replaced.
 // It returns true when the job was launched, or false if the registry has
 // already been shut down.
-func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid types.UID, baseVectorRef string,
+func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid types.UID,
 	fn func(context.Context) assemblyResult) bool {
 	r.mu.Lock()
 	if r.closed {
@@ -81,11 +76,10 @@ func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid type
 
 	jobCtx, cancel := context.WithCancel(r.parentCtx)
 	job := &inflightJob{
-		generation:    generation,
-		uid:           uid,
-		baseVectorRef: baseVectorRef,
-		cancel:        cancel,
-		result:        make(chan assemblyResult, 1),
+		generation: generation,
+		uid:        uid,
+		cancel:     cancel,
+		result:     make(chan assemblyResult, 1),
 	}
 
 	// Defensive replacement: callers normally remove stale jobs first.

@@ -686,7 +686,7 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		staleCanceled := make(chan struct{})
 
 		By("registering a stale job with the current generation but an old UID")
-		Expect(vectorTemplateReconciler.jobs.launch(key, vectorTemplate.Generation, staleUID, "",
+		Expect(vectorTemplateReconciler.jobs.launch(key, vectorTemplate.Generation, staleUID,
 			func(jobCtx context.Context) assemblyResult {
 				close(staleStarted)
 				<-jobCtx.Done()
@@ -703,8 +703,8 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 
 		staleJob, exists := vectorTemplateReconciler.jobs.get(key)
 		Expect(exists).To(BeTrue())
-		Expect(staleJob.matches(vectorTemplate.Generation, staleUID, "")).To(BeTrue())
-		Expect(staleJob.matches(vectorTemplate.Generation, vectorTemplate.UID, "")).To(BeFalse())
+		Expect(staleJob.matches(vectorTemplate.Generation, staleUID)).To(BeTrue())
+		Expect(staleJob.matches(vectorTemplate.Generation, vectorTemplate.UID)).To(BeFalse())
 
 		By("reconciling the current object with the same generation and different UID")
 		result, err := vectorTemplateReconciler.Reconcile(
@@ -723,10 +723,10 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		replacement, exists := vectorTemplateReconciler.jobs.get(key)
 		Expect(exists).To(BeTrue())
 		Expect(replacement).NotTo(BeIdenticalTo(staleJob))
-		Expect(replacement.matches(vectorTemplate.Generation, vectorTemplate.UID, "")).To(BeTrue())
+		Expect(replacement.matches(vectorTemplate.Generation, vectorTemplate.UID)).To(BeTrue())
 	})
 
-	It("replaces a stale assembly job when the resolved base vector changes", func() {
+	It("keeps an assembly job when the resolved base vector changes", func() {
 		baseComponentRef := createReference("konfidence.io/sample/base-job-identity/base-service:1.0.0")
 		dependentComponentRef := createReference("konfidence.io/sample/base-job-identity/dependent-service:1.0.0")
 		baseTarget := createBareReference("konfidence.io/sample/vectors/base-job-identity-base")
@@ -737,19 +737,11 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		ocm.PushComponent(ctx, ocmClient, dependentComponentRef, nil)
 
 		By("creating and assembling the base template")
-		baseTemplate := createVectorTemplateCR(
-			ctx,
-			"base-job-identity-base",
-			testNamespace,
-			[]compref.Ref{baseComponentRef},
-			baseTarget,
-			"",
-			nil,
-		)
+		baseTemplate := createVectorTemplateCR(ctx, "base-job-identity-base", testNamespace,
+			[]compref.Ref{baseComponentRef}, baseTarget, "", nil)
 		expectReadyCondition(baseTemplate, metav1.ConditionTrue, konfidence.VectorTemplateVectorCreatedReason)
 
 		currentBaseVectorRef := waitForLatestVector(baseTemplate)
-		currentBaseVectorRefKey := currentBaseVectorRef.String()
 
 		By("creating and assembling a dependent template")
 		dependent := createVectorTemplateCR(
@@ -762,61 +754,54 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 			nil,
 		)
 		expectReadyCondition(dependent, metav1.ConditionTrue, konfidence.VectorTemplateVectorCreatedReason)
-		key := client.ObjectKeyFromObject(dependent)
 
-		By("waiting until the dependent's initial job has been consumed")
+		key := client.ObjectKeyFromObject(dependent)
 		Eventually(func() bool {
 			_, exists := vectorTemplateReconciler.jobs.get(key)
 			return !exists
 		}).Should(BeTrue())
 
-		staleBaseVectorRef := currentBaseVectorRef
-		staleBaseVectorRef.Version = "0.0.0-stale"
-		staleBaseVectorRefKey := staleBaseVectorRef.String()
+		jobStarted := make(chan struct{})
+		jobCanceled := make(chan struct{})
 
-		Expect(staleBaseVectorRefKey).NotTo(Equal(currentBaseVectorRefKey))
-
-		staleStarted := make(chan struct{})
-		staleCanceled := make(chan struct{})
-
-		By("registering a job that captured an older base vector reference")
-		Expect(vectorTemplateReconciler.jobs.launch(
-			key,
-			dependent.Generation,
-			dependent.UID,
-			staleBaseVectorRefKey,
+		By("registering an assembly job for the current object identity")
+		Expect(vectorTemplateReconciler.jobs.launch(key, dependent.Generation, dependent.UID,
 			func(jobCtx context.Context) assemblyResult {
-				close(staleStarted)
+				close(jobStarted)
 				<-jobCtx.Done()
-				close(staleCanceled)
+				close(jobCanceled)
 				return assemblyResult{err: jobCtx.Err()}
 			},
 		)).To(BeTrue())
 
 		DeferCleanup(func() {
 			vectorTemplateReconciler.jobs.remove(key)
+			Eventually(jobCanceled).Should(BeClosed())
 		})
 
-		Eventually(staleStarted).Should(BeClosed())
+		Eventually(jobStarted).Should(BeClosed())
 
-		staleJob, exists := vectorTemplateReconciler.jobs.get(key)
+		runningJob, exists := vectorTemplateReconciler.jobs.get(key)
 		Expect(exists).To(BeTrue())
-		Expect(staleJob.matches(dependent.Generation, dependent.UID, staleBaseVectorRefKey)).To(BeTrue())
-		Expect(staleJob.matches(dependent.Generation, dependent.UID, currentBaseVectorRefKey)).To(BeFalse())
 
-		By("reconciling after resolving the current base vector reference")
+		By("changing the resolved base vector")
+		updatedBaseVectorRef := currentBaseVectorRef
+		updatedBaseVectorRef.Version = "9.9.9"
+
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(baseTemplate), baseTemplate)).To(Succeed())
+		baseTemplate.Status.LatestVector = updatedBaseVectorRef.String()
+		Expect(k8sClient.Status().Update(ctx, baseTemplate)).To(Succeed())
+
+		By("reconciling the dependent")
 		result, err := vectorTemplateReconciler.Reconcile(ctx, ctrl.Request{NamespacedName: key})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.RequeueAfter).To(Equal(vectorTemplateReconciler.assemblyPollInterval))
 
-		By("cancelling the job that captured the stale base")
-		Eventually(staleCanceled).Should(BeClosed())
-
-		By("launching a replacement using the current base vector reference")
-		replacement, exists := vectorTemplateReconciler.jobs.get(key)
+		By("retaining the existing job")
+		currentJob, exists := vectorTemplateReconciler.jobs.get(key)
 		Expect(exists).To(BeTrue())
-		Expect(replacement).NotTo(BeIdenticalTo(staleJob))
-		Expect(replacement.matches(dependent.Generation, dependent.UID, currentBaseVectorRefKey)).To(BeTrue())
+		Expect(currentJob).To(BeIdenticalTo(runningJob))
+		Consistently(jobCanceled).ShouldNot(BeClosed())
 	})
 })
 
