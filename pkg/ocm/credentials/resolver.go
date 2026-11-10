@@ -14,6 +14,7 @@ import (
 	"ocm.software/open-component-model/bindings/go/plugin/manager"
 	rsacredentials "ocm.software/open-component-model/bindings/go/rsa/spec/credentials"
 	"ocm.software/open-component-model/bindings/go/runtime"
+	s3credentials "ocm.software/open-component-model/bindings/go/s3/spec/credentials/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -81,12 +82,12 @@ func ResolverFromCredentials(
 	return ResolverFromRefs(ctx, k8sClient, namespace, refs)
 }
 
-// rsaCredentialTypeScheme is a CredentialTypeSchemeProvider that tells the credential
-// graph to treat RSACredentials/v1 as a first-class typed credential (resolved directly
-// from the graph) rather than routing it through the plugin path.
-type rsaCredentialTypeScheme struct{ scheme *runtime.Scheme }
+// credentialTypeScheme is a CredentialTypeSchemeProvider that tells the credential
+// graph to treat the registered credential types as first-class typed credentials
+// (resolved directly from the graph) rather than routing them through the plugin path.
+type credentialTypeScheme struct{ scheme *runtime.Scheme }
 
-func (r *rsaCredentialTypeScheme) GetCredentialTypeScheme() *runtime.Scheme { return r.scheme }
+func (r *credentialTypeScheme) GetCredentialTypeScheme() *runtime.Scheme { return r.scheme }
 
 func buildGraph(ctx context.Context, cfg *credentialsruntime.Config) (credentials.Resolver, error) {
 	pm := manager.NewPluginManager(ctx)
@@ -101,17 +102,19 @@ func buildGraph(ctx context.Context, cfg *credentialsruntime.Config) (credential
 		return nil, fmt.Errorf("register OCI credential repository plugin: %w", err)
 	}
 
-	// RSACredentials/v1 must be registered in the credential type scheme so that
-	// extractResolvable treats it as a direct typed credential. Without this, the
-	// graph builder routes it to the (nil) credential plugin provider and panics.
+	// RSACredentials/v1 and S3Credentials/v1 must be registered in the credential
+	// type scheme so that extractResolvable treats them as direct typed credentials.
+	// Without this, the graph builder routes them to the (nil) credential plugin
+	// provider and panics.
 	credTypeScheme := runtime.NewScheme()
 	rsacredentials.MustRegisterCredentialType(credTypeScheme)
+	s3credentials.MustRegisterCredentialType(credTypeScheme)
 
 	graph, err := credentials.ToGraph(ctx, cfg, credentials.Options{
 		CredentialRepositoryTypeScheme: pm.CredentialRepositoryRegistry.RepositoryScheme(),
 		RepositoryPluginProvider:       pm.CredentialRepositoryRegistry,
 		CredentialPluginProvider:       pm.CredentialPluginRegistry,
-		CredentialTypeSchemeProvider:   &rsaCredentialTypeScheme{scheme: credTypeScheme},
+		CredentialTypeSchemeProvider:   &credentialTypeScheme{scheme: credTypeScheme},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create credential graph: %w", err)

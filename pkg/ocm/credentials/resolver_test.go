@@ -12,6 +12,7 @@ import (
 	rsav1alpha1 "ocm.software/open-component-model/bindings/go/rsa/signing/v1alpha1"
 	rsaidentityv1 "ocm.software/open-component-model/bindings/go/rsa/spec/identity/v1"
 	ocmruntime "ocm.software/open-component-model/bindings/go/runtime"
+	s3identityv1 "ocm.software/open-component-model/bindings/go/s3/spec/identity/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -117,5 +118,58 @@ var _ = Describe("ResolverFromRefs", func() {
 		raw, err := json.Marshal(resolved)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(raw)).To(ContainSubstring("privateKeyPEM"))
+	})
+
+	It("resolves a typed S3Credentials/v1 binding from an .ocmconfig Secret", func() {
+		ctx := context.Background()
+
+		ocmConfig := map[string]any{
+			"type": "generic.config.ocm.software/v1",
+			"configurations": []any{map[string]any{
+				"type": "credentials.config.ocm.software/v1",
+				"consumers": []map[string]any{
+					{
+						"identities": []map[string]any{
+							{
+								"type":     "S3",
+								"hostname": "storage.googleapis.com",
+								"scheme":   "https",
+								"port":     "443",
+								"path":     "gcs-static-assets/prod-landscape/**",
+							},
+						},
+						"credentials": []map[string]any{
+							{
+								"type":            "S3Credentials/v1",
+								"accessKeyId":     "GOOGEXAMPLEHMACID",
+								"secretAccessKey": "google-hmac-secret",
+							},
+						},
+					},
+				},
+			}},
+		}
+		data, err := json.Marshal(ocmConfig)
+		Expect(err).NotTo(HaveOccurred())
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "s3-creds", Namespace: "default"},
+			Data:       map[string][]byte{".ocmconfig": data},
+		}
+		scheme := runtime.NewScheme()
+		Expect(corev1.AddToScheme(scheme)).To(Succeed())
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(secret).Build()
+
+		resolver, err := credentials.ResolverFromRefs(ctx, fakeClient, "default", []credentials.Ref{{Name: "s3-creds"}})
+		Expect(err).NotTo(HaveOccurred())
+
+		s3ID, err := s3identityv1.IdentityFromObject("gcs-static-assets", "prod-landscape/_k/deployment/index.html", "https://storage.googleapis.com")
+		Expect(err).NotTo(HaveOccurred())
+		resolved, err := resolver.Resolve(ctx, s3ID)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(resolved).NotTo(BeNil())
+
+		raw, err := json.Marshal(resolved)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(raw)).To(ContainSubstring("GOOGEXAMPLEHMACID"))
 	})
 })
