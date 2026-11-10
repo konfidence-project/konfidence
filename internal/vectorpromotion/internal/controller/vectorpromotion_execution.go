@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -14,15 +15,15 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+var errNewerPromotionExecuted = errors.New("a newer promotion has already executed")
+
 // execute resolves the promotion's own target snapshot, writes the pinned
 // vector to that Stage, and marks the promotion succeeded. The config is
 // never read: the promotion is self-contained, and the config reconciler
 // aggregates promotion outcomes on its side.
 //
-// The function runs twice per promotion in the happy path (once to stamp
-// startTime, once more after the resulting status event) and re-runs
-// wholesale after a crash: startTime is only set once and promoteStage is the
-// idempotency check for the stage write itself.
+// startTime is only set once. Re-runs after a crash are idempotent, and the
+// Stage's sequence watermark prevents a stale promotion from rolling it back.
 func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
 	stage, err := resolveTargetStage(ctx, r.Client, vectorPromotion.Namespace, vectorPromotion.Spec.Target)
 	if err != nil {
@@ -46,6 +47,9 @@ func (r *VectorPromotionReconciler) execute(ctx context.Context, vectorPromotion
 	}
 
 	if err := r.promoteStage(ctx, stage, vectorPromotion); err != nil {
+		if errors.Is(err, errNewerPromotionExecuted) {
+			return r.markSuperseded(ctx, vectorPromotion, err.Error())
+		}
 		return err
 	}
 
@@ -88,14 +92,40 @@ func (r *VectorPromotionReconciler) reportUnresolvedTarget(ctx context.Context, 
 }
 
 // promoteStage writes the promoted vector to the stage spec if it differs and
-// records the writing promotion for provenance. The equality check makes
-// crash-resume re-runs no-ops.
+// records provenance and the config's highest executed sequence in the same
+// optimistic-locked patch. A stale Stage snapshot conflicts; a fresh snapshot
+// with a newer sequence rejects execution. Neither can roll the Stage back.
 func (r *VectorPromotionReconciler) promoteStage(ctx context.Context, stage *konfidence.Stage, vectorPromotion *konfidence.VectorPromotion) error {
 	log := logf.FromContext(ctx)
+	sequences := map[string]int64{}
+	if raw := stage.Annotations[utils.PromotionSequencesAnnotation]; raw != "" {
+		if err := json.Unmarshal([]byte(raw), &sequences); err != nil {
+			return fmt.Errorf("invalid promotion sequences on Stage %s/%s: %w", stage.Namespace, stage.Name, err)
+		}
+		if sequences == nil {
+			return fmt.Errorf("invalid promotion sequences on Stage %s/%s: expected an object", stage.Namespace, stage.Name)
+		}
+		for _, sequence := range sequences {
+			if sequence < 1 {
+				return fmt.Errorf("invalid promotion sequences on Stage %s/%s: sequences must be positive", stage.Namespace, stage.Name)
+			}
+		}
+	}
+	configKey := promotionConfigKey(vectorPromotion)
+	if sequence := sequences[configKey]; sequence > vectorPromotion.Spec.Sequence {
+		return fmt.Errorf("%w: Stage %s/%s records sequence %d for config %s; promotion %s has sequence %d",
+			errNewerPromotionExecuted, stage.Namespace, stage.Name, sequence, configKey, vectorPromotion.Name, vectorPromotion.Spec.Sequence)
+	}
 
 	promotedBy := fmt.Sprintf("%s/%s", vectorPromotion.Namespace, vectorPromotion.Name)
-	if stage.Spec.Vector == vectorPromotion.Spec.Vector && stage.Annotations[utils.PromotedByAnnotation] == promotedBy {
+	if stage.Spec.Vector == vectorPromotion.Spec.Vector && stage.Annotations[utils.PromotedByAnnotation] == promotedBy &&
+		sequences[configKey] == vectorPromotion.Spec.Sequence {
 		return nil
+	}
+	sequences[configKey] = vectorPromotion.Spec.Sequence
+	encoded, err := json.Marshal(sequences)
+	if err != nil {
+		return fmt.Errorf("encoding promotion sequences: %w", err)
 	}
 	original := stage.DeepCopy()
 	previousVector := stage.Spec.Vector
@@ -104,7 +134,8 @@ func (r *VectorPromotionReconciler) promoteStage(ctx context.Context, stage *kon
 		stage.Annotations = map[string]string{}
 	}
 	stage.Annotations[utils.PromotedByAnnotation] = promotedBy
-	if err := r.Patch(ctx, stage, client.MergeFrom(original)); err != nil {
+	stage.Annotations[utils.PromotionSequencesAnnotation] = string(encoded)
+	if err := r.Patch(ctx, stage, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
 		return fmt.Errorf("failed to patch vector onto stage %q in namespace %q: %w", stage.Name, stage.Namespace, err)
 	}
 	log.Info("promoted vector to stage",
@@ -112,4 +143,15 @@ func (r *VectorPromotionReconciler) promoteStage(ctx context.Context, stage *kon
 		"vector", vectorPromotion.Spec.Vector,
 		"previousVector", previousVector)
 	return nil
+}
+
+// Config UIDs distinguish recreated configs whose sequence starts over. The
+// name-based fallback also supports manually created, unowned promotions.
+func promotionConfigKey(p *konfidence.VectorPromotion) string {
+	key := p.Namespace + "/" + p.Spec.VectorPromotionConfigName
+	if owner := metav1.GetControllerOf(p); owner != nil && owner.APIVersion == konfidence.GroupVersion.String() &&
+		owner.Kind == konfidence.VectorPromotionConfigKind && owner.Name == p.Spec.VectorPromotionConfigName && owner.UID != "" {
+		key += "/" + string(owner.UID)
+	}
+	return key
 }

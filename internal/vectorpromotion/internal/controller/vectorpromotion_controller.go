@@ -2,16 +2,20 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/konfidence-project/konfidence/internal/vectorpromotion/internal/promotion"
 )
@@ -23,6 +27,10 @@ const (
 	EventActionGates       = "Gates"
 	EventActionExecution   = "Execution"
 	EventActionOverride    = "Override"
+
+	// Watches provide prompt reconciliation; periodic observation also recovers
+	// from a failed watch mapping or a sibling absent from a cached list.
+	promotionResyncInterval = 30 * time.Second
 
 	// promotionConfigNameField indexes promotions by their config name,
 	// both in the manager cache (RegisterFieldIndexes) and server-side via the
@@ -45,6 +53,7 @@ type VectorPromotionReconciler struct {
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=landscapes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=stages,verbs=get;list;watch;update;patch
 
@@ -71,11 +80,12 @@ func (r *VectorPromotionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		if err := r.reconcileGates(ctx, vectorPromotion); err != nil {
 			return ctrl.Result{}, err
 		}
-		if !promotion.AllGatesSatisfied(vectorPromotion) {
-			return ctrl.Result{}, nil
-		}
 	}
-	return r.reconcileExecution(ctx, vectorPromotion)
+	result, err := r.reconcileExecution(ctx, vectorPromotion)
+	if err == nil && !promotion.IsTerminal(vectorPromotion) && result.RequeueAfter == 0 {
+		result.RequeueAfter = promotionResyncInterval
+	}
+	return result, err
 }
 
 // RegisterFieldIndexes registers the cache indexes the promotion controllers
@@ -140,20 +150,68 @@ func NewVectorPromotionReconciler(mgr ctrl.Manager) *VectorPromotionReconciler {
 	}
 }
 
+// Events enqueue observations, never transitions. Promotion changes can affect
+// older siblings' eligibility and unblock newer siblings; config changes can
+// change outstanding limits. Both use the same config-scoped active set.
+func (r *VectorPromotionReconciler) mapToActivePromotions(ctx context.Context, obj client.Object) []reconcile.Request {
+	configName := obj.GetName()
+	var excludeUID types.UID
+	switch source := obj.(type) {
+	case *konfidence.VectorPromotion:
+		configName = source.Spec.VectorPromotionConfigName
+		excludeUID = source.UID
+	case *konfidence.VectorPromotionConfig:
+	default:
+		return nil
+	}
+	promotions, err := listPromotionsForConfig(ctx, r.Client, obj.GetNamespace(), configName)
+	if err != nil {
+		logf.FromContext(ctx).Error(err, "failed to map active promotions", "config", configName)
+		return nil
+	}
+	var requests []reconcile.Request
+	for i := range promotions {
+		p := &promotions[i]
+		if promotion.IsTerminal(p) || (excludeUID != "" && p.UID == excludeUID) {
+			continue
+		}
+		requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(p)})
+	}
+	return requests
+}
+
+// Create/delete events affect the outstanding count. Updates fan out only when
+// scheduling facts change, not for gate provenance or condition messages.
+func promotionSchedulingChanged() predicate.Funcs {
+	return predicate.Funcs{
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			old, okOld := e.ObjectOld.(*konfidence.VectorPromotion)
+			current, okNew := e.ObjectNew.(*konfidence.VectorPromotion)
+			return okOld && okNew && (supersedesOlderPromotions(old) != supersedesOlderPromotions(current) ||
+				promotion.IsTerminal(old) != promotion.IsTerminal(current) ||
+				promotion.IsRunning(old) != promotion.IsRunning(current))
+		},
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager. Update events are
 // admitted because gate changes and sibling terminations arrive as status updates.
 func (r *VectorPromotionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorPromotion{}, builder.WithPredicates(predicate.Funcs{
-			CreateFunc:  func(e event.CreateEvent) bool { return true },
-			UpdateFunc:  func(e event.UpdateEvent) bool { return true },
 			DeleteFunc:  func(e event.DeleteEvent) bool { return false },
 			GenericFunc: func(e event.GenericEvent) bool { return false },
 		})).
-		// The serialization invariants (one InProgress per config, newest
-		// cleared wins) are enforced by read-check-write over the informer
-		// cache and depend on a single writer: exactly one worker here, and
-		// leader election in multi-replica deployments.
+		Watches(&konfidence.VectorPromotion{},
+			handler.EnqueueRequestsFromMapFunc(r.mapToActivePromotions),
+			builder.WithPredicates(promotionSchedulingChanged())).
+		Watches(&konfidence.VectorPromotionConfig{},
+			handler.EnqueueRequestsFromMapFunc(r.mapToActivePromotions),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		// Lifecycle decisions use one worker, with leader election across replicas.
+		// A sequence watermark and optimistic Stage patch protect execution order
+		// even when cached sibling observations lag behind a completed execution.
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: 1}).
 		Named("vectorPromotion").
 		Complete(r)

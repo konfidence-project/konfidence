@@ -34,4 +34,9 @@ const (
 	// PromotedByAnnotation records the VectorPromotion (namespace/name) that last
 	// wrote a Stage's vector.
 	PromotedByAnnotation = "konfidence.cloud/promoted-by"
+
+	// PromotionSequencesAnnotation records the highest executed sequence per
+	// promotion config incarnation as a JSON map. It is written atomically with
+	// the Stage vector to prevent older promotions from rolling it back.
+	PromotionSequencesAnnotation = "konfidence.cloud/promotion-sequences"
 )

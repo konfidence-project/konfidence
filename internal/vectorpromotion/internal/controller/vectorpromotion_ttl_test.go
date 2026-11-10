@@ -122,7 +122,13 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		middle := createPromotionRequiringApproval("outstanding-retention-b", config.Name)
 		newest := createPromotionRequiringApproval("outstanding-retention-c", config.Name)
 
+		By("newer promotions do not update the oldest promotion's lifecycle")
+		reconcilePromotion(newest.Name)
+		refreshPromotion(oldest)
+		Expect(promotion.IsTerminal(oldest)).To(BeFalse())
+
 		Eventually(func(g Gomega) {
+			reconcilePromotion(oldest.Name)
 			refreshPromotion(oldest)
 			condition := meta.FindStatusCondition(oldest.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(observedState(oldest)).To(Equal("Superseded"))
@@ -157,6 +163,7 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 		}, timeout, interval).Should(Succeed())
 
 		Eventually(func(g Gomega) {
+			reconcilePromotion(oldest.Name)
 			refreshPromotion(oldest)
 			condition := meta.FindStatusCondition(oldest.Status.Conditions, konfidence.ConditionTypeSucceeded)
 			g.Expect(observedState(oldest)).To(Equal("Superseded"))
@@ -187,6 +194,7 @@ var _ = Describe("VectorPromotion retention controller tests", Ordered, Serial, 
 
 		Consistently(func(g Gomega) {
 			for _, vectorPromotion := range promotions {
+				reconcilePromotion(vectorPromotion.Name)
 				refreshPromotion(vectorPromotion)
 				g.Expect(promotion.IsTerminal(vectorPromotion)).To(BeFalse())
 			}

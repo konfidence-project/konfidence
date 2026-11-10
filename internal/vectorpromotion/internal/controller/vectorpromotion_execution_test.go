@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Shared drivers for the execution controller specs: direct Reconcile calls
@@ -91,9 +92,7 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		promotion := createPromotionTargeting("exec-nolandscape-promotion", config.Name,
 			stageTargetInLandscape("some-stage", "missing-landscape"), false)
 
-		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{Name: promotion.Name, Namespace: testNamespace},
-		})
+		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(promotion)})
 		Expect(err).To(MatchError(ContainSubstring(`landscape "missing-landscape" does not exist`)))
 
 		refreshPromotion(promotion)
@@ -112,9 +111,7 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 			stageTargetInLandscape("late-stage", "exec-nostage-landscape"), false)
 
 		By("resolution fails while the stage does not exist; the stage is not created")
-		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{Name: promotion.Name, Namespace: testNamespace},
-		})
+		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(promotion)})
 		Expect(err).To(MatchError(ContainSubstring(`stage "late-stage" does not exist`)))
 
 		refreshPromotion(promotion)
@@ -155,9 +152,7 @@ var _ = Describe("VectorPromotion execution", Ordered, Serial, func() {
 		Expect(k8sClient.Delete(ctx, stage)).To(Succeed())
 		second := createPromotionTargeting("exec-preserve-b", config.Name,
 			stageTargetInLandscape("preserve-stage", "exec-preserve-landscape"), false)
-		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{Name: second.Name, Namespace: testNamespace},
-		})
+		_, err := newExecutionReconciler().Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(second)})
 		Expect(err).To(HaveOccurred())
 
 		Eventually(func(g Gomega) {
