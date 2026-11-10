@@ -20,6 +20,7 @@ import (
 	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	"github.com/konfidence-project/konfidence/pkg/ocm/repository"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -81,12 +83,20 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	vectorTemplate := &konfidence.VectorTemplate{}
 	if err := r.Get(ctx, req.NamespacedName, vectorTemplate); err != nil {
+		if apierrors.IsNotFound(err) && r.jobs != nil {
+			r.jobs.remove(req.NamespacedName)
+		}
+
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	if res, err := pkgctrl.MustBeInProjectNamespace(
 		ctx, r.Client, vectorTemplate, &vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition,
 	); res != nil {
+		if r.jobs != nil {
+			r.jobs.remove(req.NamespacedName)
+		}
+
 		return *res, err
 	}
 
@@ -124,12 +134,18 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return result, nil
 }
 
-func (r *VectorTemplateReconciler) reconcileAsync(
-	ctx context.Context,
-	nn types.NamespacedName,
-	vt *konfidence.VectorTemplate,
-) (ctrl.Result, error) {
+func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.NamespacedName, vt *konfidence.VectorTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+
+	if job, exists := r.jobs.get(nn); exists && !job.matchesObject(vt.Generation, vt.UID) {
+		log.Info("cancelling assembly job for stale VectorTemplate identity",
+			"jobGeneration", job.generation,
+			"currentGeneration", vt.Generation,
+			"jobUID", string(job.uid),
+			"currentUID", string(vt.UID),
+		)
+		r.jobs.remove(nn)
+	}
 
 	ocmAdapter, err := r.buildAdapter(ctx, vt)
 	if err != nil {
@@ -153,9 +169,40 @@ func (r *VectorTemplateReconciler) reconcileAsync(
 	if vt.Spec.Base != nil {
 		ref, baseErr := r.resolveBaseRef(ctx, vt)
 		if baseErr != nil {
+			// The current desired base cannot be established, so a running job
+			// must not continue using a previously resolved base.
+			r.jobs.remove(nn)
 			return ctrl.Result{}, baseErr
 		}
 		baseVectorRef = ref
+	}
+
+	baseVectorRefKey := ""
+	if baseVectorRef != nil {
+		baseVectorRefKey = baseVectorRef.String()
+	}
+
+	// Check for an inflight job.
+	if job, exists := r.jobs.get(nn); exists {
+		if job.matches(vt.Generation, vt.UID, baseVectorRefKey) {
+			result, completed := r.jobs.completedResult(nn, job)
+			if !completed {
+				return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
+			}
+
+			return r.applyAssemblyResult(vt, result, log)
+		}
+		// A changed generation, UID, or resolved base vector means the job
+		// belongs to stale input or to a previous object with the same key.
+		log.Info("cancelling stale inflight assembly job",
+			"jobGeneration", job.generation,
+			"currentGeneration", vt.Generation,
+			"jobUID", string(job.uid),
+			"currentUID", string(vt.UID),
+			"jobBaseVectorRef", job.baseVectorRef,
+			"currentBaseVectorRef", baseVectorRefKey,
+		)
+		r.jobs.remove(nn)
 	}
 
 	// Parse the current vector ref from status.latestVector.
@@ -176,28 +223,17 @@ func (r *VectorTemplateReconciler) reconcileAsync(
 			fmt.Errorf("unable to build desired vector configuration: %w", err))
 	}
 
-	// Check for an inflight job.
-	if job, exists := r.jobs.get(nn); exists {
-		if job.generation == vt.Generation {
-			if !job.done() {
-				return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
-			}
-			res := <-job.result
-			r.jobs.remove(nn)
-			return r.applyAssemblyResult(vt, res, log)
-		}
-		// Stale generation — cancel and fall through to launch a new one.
-		log.Info("cancelling stale inflight assembly job",
-			"jobGeneration", job.generation, "currentGeneration", vt.Generation)
-		r.jobs.remove(nn)
-	}
-
 	// Launch a new assembly job.
-	r.jobs.launch(nn, vt.Generation, func(jobCtx context.Context) assemblyResult {
-		return r.runAssembly(jobCtx, ocmAdapter, ocmComponentRefs,
-			vectorOCMComponent, baseVectorRef, currentVectorRef, desiredVectorConfig)
+	launched := r.jobs.launch(nn, vt.Generation, vt.UID, baseVectorRefKey, func(jobCtx context.Context) assemblyResult {
+		return r.runAssembly(jobCtx, ocmAdapter, ocmComponentRefs, vectorOCMComponent,
+			baseVectorRef, currentVectorRef, desiredVectorConfig)
 	})
-	log.Info("launched background assembly job", "generation", vt.Generation)
+	if !launched {
+		return ctrl.Result{}, context.Canceled
+	}
+	log.Info("launched background assembly job", "generation", vt.Generation,
+		"uid", string(vt.UID), "baseVectorRef", baseVectorRefKey,
+	)
 	return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
 }
 
@@ -533,6 +569,18 @@ func (r *VectorTemplateReconciler) buildAdapter(ctx context.Context, vt *konfide
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *VectorTemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if r.jobs == nil {
+		r.jobs = newJobRegistry()
+	}
+
+	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		<-ctx.Done()
+		r.jobs.shutdown()
+		return nil
+	})); err != nil {
+		return fmt.Errorf("register assembly job shutdown hook: %w", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorTemplate{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
@@ -587,7 +635,7 @@ func (r *VectorTemplateReconciler) mapBaseToDependents(ctx context.Context, obj 
 		dependent := &dependents.Items[i]
 		if dependent.Spec.Base != nil && dependent.Spec.Base.Name == base.Name {
 			requests = append(requests, ctrl.Request{
-				NamespacedName: types.NamespacedName{Namespace: dependent.Namespace, Name: dependent.Name},
+				Namespace: dependent.Namespace, Name: dependent.Name,
 			})
 		}
 	}

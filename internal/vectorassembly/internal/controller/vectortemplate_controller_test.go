@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"time"
 
@@ -16,8 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"ocm.software/open-component-model/bindings/go/blob"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -656,19 +659,178 @@ var _ = Describe("VectorTemplate controller tests", Ordered, Serial, func() {
 		// (still Ready=True) rather than re-assembling.
 		expectReadyCondition(dependent, metav1.ConditionTrue, konfidence.VectorTemplateNoDriftDetectedReason)
 	})
+
+	It("replaces a stale assembly job when the object UID changes", func() {
+		componentRef := createReference("konfidence.io/sample/job-identity/service:1.0.0")
+		vectorTarget := createBareReference("konfidence.io/sample/vectors/job-identity")
+
+		By("creating a component and completing the initial assembly")
+		ocm.PushComponent(ctx, ocmClient, componentRef, nil)
+
+		vectorTemplate := createVectorTemplateCR(ctx, "job-identity", testNamespace, []compref.Ref{componentRef},
+			vectorTarget, "", nil,
+		)
+		expectReadyCondition(vectorTemplate, metav1.ConditionTrue, konfidence.VectorTemplateVectorCreatedReason)
+		key := client.ObjectKeyFromObject(vectorTemplate)
+
+		By("waiting until the completed initial job has been consumed")
+		Eventually(func() bool {
+			_, exists := vectorTemplateReconciler.jobs.get(key)
+			return !exists
+		}).Should(BeTrue())
+
+		staleUID := types.UID("stale-object-uid")
+		Expect(staleUID).NotTo(Equal(vectorTemplate.UID))
+
+		staleStarted := make(chan struct{})
+		staleCanceled := make(chan struct{})
+
+		By("registering a stale job with the current generation but an old UID")
+		Expect(vectorTemplateReconciler.jobs.launch(key, vectorTemplate.Generation, staleUID, "",
+			func(jobCtx context.Context) assemblyResult {
+				close(staleStarted)
+				<-jobCtx.Done()
+				close(staleCanceled)
+				return assemblyResult{err: jobCtx.Err()}
+			},
+		)).To(BeTrue())
+
+		DeferCleanup(func() {
+			vectorTemplateReconciler.jobs.remove(key)
+		})
+
+		Eventually(staleStarted).Should(BeClosed())
+
+		staleJob, exists := vectorTemplateReconciler.jobs.get(key)
+		Expect(exists).To(BeTrue())
+		Expect(staleJob.matches(vectorTemplate.Generation, staleUID, "")).To(BeTrue())
+		Expect(staleJob.matches(vectorTemplate.Generation, vectorTemplate.UID, "")).To(BeFalse())
+
+		By("reconciling the current object with the same generation and different UID")
+		result, err := vectorTemplateReconciler.Reconcile(
+			ctx,
+			ctrl.Request{NamespacedName: key},
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(
+			vectorTemplateReconciler.assemblyPollInterval,
+		))
+
+		By("cancelling the stale job")
+		Eventually(staleCanceled).Should(BeClosed())
+
+		By("launching the replacement with the current object UID")
+		replacement, exists := vectorTemplateReconciler.jobs.get(key)
+		Expect(exists).To(BeTrue())
+		Expect(replacement).NotTo(BeIdenticalTo(staleJob))
+		Expect(replacement.matches(vectorTemplate.Generation, vectorTemplate.UID, "")).To(BeTrue())
+	})
+
+	It("replaces a stale assembly job when the resolved base vector changes", func() {
+		baseComponentRef := createReference("konfidence.io/sample/base-job-identity/base-service:1.0.0")
+		dependentComponentRef := createReference("konfidence.io/sample/base-job-identity/dependent-service:1.0.0")
+		baseTarget := createBareReference("konfidence.io/sample/vectors/base-job-identity-base")
+		dependentTarget := createBareReference("konfidence.io/sample/vectors/base-job-identity-dependent")
+
+		By("creating the base and dependent components")
+		ocm.PushComponent(ctx, ocmClient, baseComponentRef, nil)
+		ocm.PushComponent(ctx, ocmClient, dependentComponentRef, nil)
+
+		By("creating and assembling the base template")
+		baseTemplate := createVectorTemplateCR(
+			ctx,
+			"base-job-identity-base",
+			testNamespace,
+			[]compref.Ref{baseComponentRef},
+			baseTarget,
+			"",
+			nil,
+		)
+		expectReadyCondition(baseTemplate, metav1.ConditionTrue, konfidence.VectorTemplateVectorCreatedReason)
+
+		currentBaseVectorRef := waitForLatestVector(baseTemplate)
+		currentBaseVectorRefKey := currentBaseVectorRef.String()
+
+		By("creating and assembling a dependent template")
+		dependent := createVectorTemplateCR(
+			ctx,
+			"base-job-identity-dependent",
+			testNamespace,
+			[]compref.Ref{dependentComponentRef},
+			dependentTarget,
+			baseTemplate.Name,
+			nil,
+		)
+		expectReadyCondition(dependent, metav1.ConditionTrue, konfidence.VectorTemplateVectorCreatedReason)
+		key := client.ObjectKeyFromObject(dependent)
+
+		By("waiting until the dependent's initial job has been consumed")
+		Eventually(func() bool {
+			_, exists := vectorTemplateReconciler.jobs.get(key)
+			return !exists
+		}).Should(BeTrue())
+
+		staleBaseVectorRef := currentBaseVectorRef
+		staleBaseVectorRef.Version = "0.0.0-stale"
+		staleBaseVectorRefKey := staleBaseVectorRef.String()
+
+		Expect(staleBaseVectorRefKey).NotTo(Equal(currentBaseVectorRefKey))
+
+		staleStarted := make(chan struct{})
+		staleCanceled := make(chan struct{})
+
+		By("registering a job that captured an older base vector reference")
+		Expect(vectorTemplateReconciler.jobs.launch(
+			key,
+			dependent.Generation,
+			dependent.UID,
+			staleBaseVectorRefKey,
+			func(jobCtx context.Context) assemblyResult {
+				close(staleStarted)
+				<-jobCtx.Done()
+				close(staleCanceled)
+				return assemblyResult{err: jobCtx.Err()}
+			},
+		)).To(BeTrue())
+
+		DeferCleanup(func() {
+			vectorTemplateReconciler.jobs.remove(key)
+		})
+
+		Eventually(staleStarted).Should(BeClosed())
+
+		staleJob, exists := vectorTemplateReconciler.jobs.get(key)
+		Expect(exists).To(BeTrue())
+		Expect(staleJob.matches(dependent.Generation, dependent.UID, staleBaseVectorRefKey)).To(BeTrue())
+		Expect(staleJob.matches(dependent.Generation, dependent.UID, currentBaseVectorRefKey)).To(BeFalse())
+
+		By("reconciling after resolving the current base vector reference")
+		result, err := vectorTemplateReconciler.Reconcile(ctx, ctrl.Request{NamespacedName: key})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(vectorTemplateReconciler.assemblyPollInterval))
+
+		By("cancelling the job that captured the stale base")
+		Eventually(staleCanceled).Should(BeClosed())
+
+		By("launching a replacement using the current base vector reference")
+		replacement, exists := vectorTemplateReconciler.jobs.get(key)
+		Expect(exists).To(BeTrue())
+		Expect(replacement).NotTo(BeIdenticalTo(staleJob))
+		Expect(replacement.matches(dependent.Generation, dependent.UID, currentBaseVectorRefKey)).To(BeTrue())
+	})
 })
 
 var _ = Describe("VectorTemplate namespace validation", Serial, func() {
 	It("reports NamespaceNotReady until the project namespace is labeled, then progresses", func() {
 		const unlabeledNS = "vt-without-project-labels"
-		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: unlabeledNS}}
+		ns := &corev1.Namespace{Name: unlabeledNS}
 		Expect(client.IgnoreAlreadyExists(k8sClient.Create(ctx, ns))).To(Succeed())
 		DeferCleanup(func() {
 			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, ns))).To(Succeed())
 		})
 
 		vt := &konfidence.VectorTemplate{
-			ObjectMeta: metav1.ObjectMeta{Name: "ns-check-template", Namespace: unlabeledNS},
+			Name: "ns-check-template", Namespace: unlabeledNS,
 			Spec: konfidence.VectorTemplateSpec{
 				UploadTarget: "registry.example/upload",
 				Components:   []konfidence.Component{{Name: "component"}},
