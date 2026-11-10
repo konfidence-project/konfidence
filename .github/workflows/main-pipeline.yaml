@@ -17,8 +17,42 @@ jobs:
       packages: write
       attestations: write
       id-token: write
-    uses: konfidence-project/konfidence/.github/workflows/lint-test-build.yaml@main
+    uses: ./.github/workflows/lint-test-build.yaml
     secrets: inherit
     with:
       mode: main
       snapshot-tag: ${{ github.sha }}
+
+  publish-dev-chart:
+    name: Publish Dev Helm Chart
+    needs: [lint-test-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # Run numbers order main builds; retries cannot overtake a newer run.
+      CHART_VERSION: 0.0.0-dev.${{ github.run_number }}.${{ github.run_attempt }}
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Init Hermit
+        uses: cashapp/activate-hermit@v1
+
+      - name: Package dev chart with matching operator and API images
+        run: |
+          helm lint charts/konfidence
+          helm package charts/konfidence --destination dist \
+            --version "${CHART_VERSION}" --app-version "${IMAGE_TAG}"
+
+      - name: Log in to Helm Registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "${GH_TOKEN}" | helm registry login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+
+      - name: Publish dev chart
+        run: helm push "dist/konfidence-${CHART_VERSION}.tgz" oci://ghcr.io/konfidence-project/charts
