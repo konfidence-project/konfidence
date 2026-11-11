@@ -1,7 +1,45 @@
 import { expect, test } from "@playwright/test";
+import type { Landscape } from "#lib/konfidence-api/types.ts";
 import { signIn } from "../../../../../../e2e/helpers.ts";
 import { configs, promotion } from "./fixtures.ts";
 import { API, PATH, openPromotions } from "./helpers.ts";
+
+test("qualifies the saved endpoints in both the detail flow and information without changing the current config flow", async ({
+  page,
+}) => {
+  const landscapes: Landscape[] = [
+    { id: "development", name: "Development" },
+    { id: "production", name: "Production" },
+    { id: "production-us", name: "Production" },
+    { id: "production-eu", name: "Production" },
+  ];
+  const history = promotion("qualified-snapshot", 1, {
+    source: { kind: "Stage", landscape: "production-us", name: "prod" },
+    status: "Succeeded",
+    target: { kind: "Stage", landscape: "production-eu", name: "prod" },
+  });
+  await page.route("**/v1/projects/payments-platform/landscapes", (route) =>
+    route.fulfill({ json: { data: landscapes } }),
+  );
+  await page.route(API, (route) =>
+    route.fulfill({ json: { data: [{ ...configs[1], promotions: [history] }] } }),
+  );
+  const path = `${PATH}?promotion=qualified-snapshot`;
+  await signIn(page, path, path);
+
+  const group = page.getByRole("group", { name: "Promotion configuration a-flow" });
+  await expect(group).toContainText("Development/dev → Production (production)/prod");
+  const panel = page.getByTestId("side-panel");
+  const flow = panel.getByRole("region", { name: "Promotion flow" });
+  const info = panel.getByRole("region", { name: "Promotion information" });
+  await Promise.all(
+    [flow, info].flatMap((section) => [
+      expect(section.getByText("Production (production-us)/prod", { exact: true })).toBeVisible(),
+      expect(section.getByText("Production (production-eu)/prod", { exact: true })).toBeVisible(),
+      expect(section).not.toContainText("Development/dev"),
+    ]),
+  );
+});
 
 test("the latest overlapping A-to-B-to-A selection wins without losing URL state or history", async ({
   page,

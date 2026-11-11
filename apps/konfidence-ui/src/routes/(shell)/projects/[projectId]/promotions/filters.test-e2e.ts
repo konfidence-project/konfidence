@@ -1,7 +1,55 @@
 import { expect, test } from "@playwright/test";
+import type { Landscape, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
 import { signIn } from "../../../../../../e2e/helpers.ts";
 import { configs, promotion } from "./fixtures.ts";
 import { API, PATH, openPromotions } from "./helpers.ts";
+
+test("qualifies header and filter references with IDs only for duplicate landscape names", async ({
+  page,
+}) => {
+  const landscapes: Landscape[] = [
+    { id: "development", name: "Development" },
+    { id: "production-us", name: "Production" },
+    { id: "production-eu", name: "Production" },
+  ];
+  const flow: VectorPromotionConfig = {
+    ...configs[1],
+    promotions: [],
+    source: { kind: "Stage", landscape: "production-us", name: "prod" },
+    target: { kind: "Stage", landscape: "production-eu", name: "prod" },
+  };
+  await page.route("**/v1/projects/payments-platform/landscapes", (route) =>
+    route.fulfill({ json: { data: landscapes } }),
+  );
+  await page.route(API, (route) => route.fulfill({ json: { data: [flow] } }));
+  await signIn(page, PATH, PATH);
+
+  const group = page.getByRole("group", { name: "Promotion configuration a-flow" });
+  await expect(group).toContainText(
+    "Production (production-us)/prod → Production (production-eu)/prod",
+  );
+  await expect(group.getByText("Production", { exact: true })).toHaveCount(0);
+  const landscape = page.getByRole("combobox", { name: "Filter by landscape" });
+  await expect(landscape.getByRole("option", { exact: true, name: "Development" })).toHaveAttribute(
+    "value",
+    "development",
+  );
+  await expect(
+    landscape.getByRole("option", { exact: true, name: "Production (production-us)" }),
+  ).toHaveAttribute("value", "production-us");
+  await expect(
+    landscape.getByRole("option", { exact: true, name: "Production (production-eu)" }),
+  ).toHaveAttribute("value", "production-eu");
+  const stage = page.getByRole("combobox", { name: "Filter by stage" });
+  await expect(
+    stage.getByRole("option", { exact: true, name: "Production (production-us)/prod" }),
+  ).toHaveAttribute("value", JSON.stringify(["production-us", "prod"]));
+  await expect(
+    stage.getByRole("option", { exact: true, name: "Production (production-eu)/prod" }),
+  ).toHaveAttribute("value", JSON.stringify(["production-eu", "prod"]));
+  await stage.selectOption(JSON.stringify(["production-eu", "prod"]));
+  await expect(group).toBeVisible();
+});
 
 test("Clear filters is visible and keyboard-accessible only with active filters or search", async ({
   page,

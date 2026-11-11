@@ -16,12 +16,12 @@
 <div class="flex flex-col gap-5">
     <section aria-label="Promotion flow" class="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[var(--card-radius)] border border-outline-subtle bg-surface-sunken p-4">
         <div class="flex min-w-0 flex-1 flex-col gap-1 [overflow-wrap:anywhere]">
-            <span class="font-semibold">{promotion.source.name}</span>
+            <span class="font-semibold">{referenceLabel(promotion.source, landscapes)}</span>
             <span class="text-compact text-content-secondary">Source · {promotion.source.kind}</span>
         </div>
         <span aria-hidden="true" class="text-content-secondary">→</span>
         <div class="flex min-w-0 flex-1 flex-col gap-1 text-right [overflow-wrap:anywhere]">
-            <span class="font-semibold">{promotion.target.name}</span>
+            <span class="font-semibold">{referenceLabel(promotion.target, landscapes)}</span>
             <span class="text-compact text-content-secondary">Target · {promotion.target.kind}</span>
         </div>
     </section>
