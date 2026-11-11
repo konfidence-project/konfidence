@@ -32,7 +32,7 @@ history. Newest currently means highest sequence, not creation time. Headers
 describe the current configuration; instance filters use saved
 execution references. Succeeded confirms a stage update, not rollout completion.
 
-Groups start collapsed with only the flow header, landscape and latest-waiting
+Groups start collapsed with only the flow header and latest-waiting
 content visible. “Latest waiting” explicitly opens the group and selects its latest
 matching Waiting promotion. No shortcut or “Latest” fallback is shown when none is
 waiting; all other history remains accessible through expansion. Expansion reveals all matching promotions once in sequence order,
@@ -40,6 +40,11 @@ even for single-promotion groups. Clear filters is hidden until a dropdown or
 nonblank search is active. All groups share one page-level selection; reactivating
 a row keeps it selected, and collapse preserves selection. A details panel is not
 part of the overview.
+
+Stage references are qualified by landscape in headers and filter options. Landscape
+IDs are added only when display names collide, or used as a fallback for unresolved
+references. Separate landscape chips are omitted. Gate provenance identifies the
+last gate update, not necessarily an approval.
 
 Vector previews use the final repository component with its tag/digest instead
 of the registry path, and ellipsize long labels on one line. Hover titles retain

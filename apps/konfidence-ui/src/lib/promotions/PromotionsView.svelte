@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Button, EmptyState, ExpandableGroup, Link, OrbitLoader, PageHeader, SearchInput, Select } from "@konfidence/design-system/components";
     import type { Landscape, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
-    import { isActionable, landscapeLabels } from "./promotions.ts";
+    import { isActionable, referenceLabel } from "./promotions.ts";
     import { compatibleOptions, filterPromotionGroups } from "./filters.ts";
     import { usePromotionFilters } from "./usePromotionFilters.svelte.ts";
     import PromotionRow from "./PromotionRow.svelte";
@@ -102,13 +102,10 @@
                     {#snippet header()}
                         <span class="flex min-w-0 flex-col gap-2">
                             <span class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                                <span class="text-base font-semibold">{group.config.source.kind === "VectorTemplate" ? "VectorTemplate: " : ""}{group.config.source.name} → {group.config.target.name}</span>
+                                <span class="text-base font-semibold">{referenceLabel(group.config.source, landscapes)} → {referenceLabel(group.config.target, landscapes)}</span>
                                 <span class="text-meta text-content-tertiary">{group.config.id}</span>
                             </span>
                             <span class="flex flex-wrap items-center gap-x-3 gap-y-2 text-compact text-content-secondary">
-                                {#each landscapeLabels(group.config, landscapes) as landscape (landscape.id)}
-                                    <span title={landscape.id} class="rounded-[var(--radius-sm)] border border-outline-subtle bg-surface-sunken px-2 py-1 font-mono">{landscape.label}</span>
-                                {/each}
                                 <span>{group.waiting} waiting</span>
                                 {#if group.latestWaiting}
                                     <button type="button" aria-label={`Latest waiting promotion ${group.latestWaiting.id}`}

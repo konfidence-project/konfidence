@@ -20,7 +20,7 @@
             <span title={promotion.vector || undefined} class="block max-w-full truncate font-mono font-semibold">{vectorLabel(promotion.vector) || "Vector not recorded"}</span>
             <span class="text-compact text-content-secondary">{promotion.id}</span>
             {#if approvalGate(promotion)?.setBy}
-                <span class="text-meta text-content-secondary">Approval recorded by {approvalGate(promotion)?.setBy}</span>
+                <span class="text-meta text-content-secondary">Approval gate last updated by {approvalGate(promotion)?.setBy}</span>
             {/if}
         </span>
     </span>

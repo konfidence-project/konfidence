@@ -67,7 +67,7 @@ test.describe("promotions overview", () => {
     ).toHaveCount(0);
     await expect(page.getByRole("button", { name: "View promotion z-newest" })).toBeHidden();
     await expect(groups.nth(0)).toContainText("Latest waiting: vector-a-waiting");
-    await expect(groups.nth(0)).toContainText("dev → prod");
+    await expect(groups.nth(0)).toContainText("Development/dev → Production/prod");
     await expect(groups.nth(2).getByRole("button", { name: /Latest/ })).toHaveCount(0);
     await expect(groups.nth(2)).not.toContainText("Latest:");
     await page.getByTestId("nav-landscape").click();

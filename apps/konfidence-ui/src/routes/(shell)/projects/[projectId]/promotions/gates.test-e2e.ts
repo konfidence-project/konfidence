@@ -3,6 +3,26 @@ import { signIn } from "../../../../../../e2e/helpers.ts";
 import { configs, promotion } from "./fixtures.ts";
 import { API, PATH } from "./helpers.ts";
 
+for (const state of ["Pending", "Satisfied", "Error"] as const) {
+  test(`describes ${state} approval gate provenance as the last update, not a granted approval`, async ({
+    page,
+  }) => {
+    const instance = promotion("approval-updated", 1, {
+      gates: [
+        { setBy: "gate-writer@example.com", state, type: "explicit-approval.konfidence.cloud" },
+      ],
+    });
+    await page.route(API, (route) =>
+      route.fulfill({ json: { data: [{ ...configs[1], promotions: [instance] }] } }),
+    );
+    await signIn(page, PATH, PATH);
+    await page.getByRole("button", { name: "Promotion configuration a-flow" }).click();
+    const row = page.getByRole("button", { name: "View promotion approval-updated" });
+    await expect(row).toContainText("Approval gate last updated by gate-writer@example.com");
+    await expect(row).not.toContainText("Approval recorded by");
+  });
+}
+
 test("renders real gate order, satisfied counts and pending approval without selecting the row", async ({
   page,
 }) => {
