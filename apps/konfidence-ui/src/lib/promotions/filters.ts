@@ -1,5 +1,11 @@
 import type { Landscape, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
-import { approvalGate, referenceLabel, statusLabel, toPromotionGroup } from "./promotions.ts";
+import {
+  approvalGate,
+  landscapeLabel,
+  referenceLabel,
+  statusLabel,
+  toPromotionGroup,
+} from "./promotions.ts";
 import type { Promotion, PromotionGroup, PromotionReference } from "./promotions.ts";
 
 interface PromotionFilter {
@@ -91,7 +97,9 @@ const compatibleOptions = (
   landscapes: readonly Landscape[],
   filter: Pick<PromotionFilter, "landscape" | "stage">,
 ): { landscapes: FilterOption[]; stages: FilterOption[]; configs: FilterOption[] } => {
-  const landscapeOptions = new Map(landscapes.map((landscape) => [landscape.id, landscape.name]));
+  const landscapeOptions = new Map(
+    landscapes.map((landscape) => [landscape.id, landscapeLabel(landscape.id, landscapes)]),
+  );
   const stageOptions = new Map<string, string>();
   const endpoints = configs
     .flatMap((config) => [config, ...config.promotions])
@@ -99,7 +107,7 @@ const compatibleOptions = (
     .filter((endpoint) => endpoint.kind === "Stage");
   for (const endpoint of endpoints) {
     if (endpoint.landscape && !landscapeOptions.has(endpoint.landscape)) {
-      landscapeOptions.set(endpoint.landscape, endpoint.landscape);
+      landscapeOptions.set(endpoint.landscape, landscapeLabel(endpoint.landscape, landscapes));
     }
     if (!filter.landscape || endpoint.landscape === filter.landscape) {
       stageOptions.set(stageValue(endpoint), referenceLabel(endpoint, landscapes));

@@ -1,9 +1,9 @@
 import type { Landscape, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
+import { EXPLICIT_APPROVAL_GATE } from "./gates.ts";
 
 type Promotion = VectorPromotionConfig["promotions"][number];
 type PromotionReference = Promotion["source"] | Promotion["target"];
 
-const EXPLICIT_APPROVAL_GATE = "explicit-approval.konfidence.cloud";
 const approvalGate = (promotion: Promotion) =>
   promotion.gates?.find((gate) => gate.type === EXPLICIT_APPROVAL_GATE);
 
@@ -39,6 +39,20 @@ const statusTone = (promotion: Promotion): string => {
   }
 };
 
+const landscapeLabel = (
+  id: Landscape["id"] | undefined,
+  landscapes: readonly Landscape[],
+): string => {
+  const landscape = landscapes.find((item) => item.id === id);
+  if (!landscape) {
+    return id ?? "Unresolved landscape";
+  }
+  const nameIsShared = landscapes.some(
+    (item) => item.id !== landscape.id && item.name === landscape.name,
+  );
+  return nameIsShared ? `${landscape.name} (${landscape.id})` : landscape.name;
+};
+
 const referenceLabel = (
   reference: PromotionReference,
   landscapes: readonly Landscape[],
@@ -46,8 +60,7 @@ const referenceLabel = (
   if (reference.kind === "VectorTemplate") {
     return `VectorTemplate: ${reference.name}`;
   }
-  const landscape = landscapes.find((item) => item.id === reference.landscape);
-  return `${landscape?.name ?? reference.landscape ?? "Unresolved landscape"}/${reference.name}`;
+  return `${landscapeLabel(reference.landscape, landscapes)}/${reference.name}`;
 };
 
 interface PromotionGroup {
@@ -75,31 +88,13 @@ const toPromotionGroup = (
   };
 };
 
-const landscapeLabels = (
-  config: VectorPromotionConfig,
-  landscapes: readonly Landscape[],
-): { id: string; label: string }[] =>
-  [
-    ...new Set(
-      [config.source, config.target]
-        .filter((reference) => reference.kind === "Stage")
-        .flatMap((reference) => (reference.landscape ? [reference.landscape] : [])),
-    ),
-  ].map((id) => ({ id, label: landscapes.find((landscape) => landscape.id === id)?.name ?? id }));
-
-const toPromotionGroups = (configs: readonly VectorPromotionConfig[]): PromotionGroup[] =>
-  configs
-    .toSorted((left, right) => left.id.localeCompare(right.id))
-    .map((config) => toPromotionGroup(config));
-
 export {
   approvalGate,
   isActionable,
-  landscapeLabels,
+  landscapeLabel,
   referenceLabel,
   statusLabel,
   statusTone,
   toPromotionGroup,
-  toPromotionGroups,
 };
 export type { Promotion, PromotionGroup, PromotionReference };
