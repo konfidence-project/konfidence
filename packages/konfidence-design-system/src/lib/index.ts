@@ -5,6 +5,7 @@ export {
   Brandbar,
   Breadcrumbs,
   Button,
+  ChangeList,
   EmptyState,
   ExpandableGroup,
   IconButton,
@@ -28,9 +29,13 @@ export {
   TableHeaderCell,
   TableRow,
   TopBar,
+  TogglePill,
 } from "../components/index.js";
 export type {
   BreadcrumbItem,
+  ChangeListItem,
+  ChangeState,
+  ChangeValue,
   StageCardStatusRole,
   StagePhaseItem,
   StagePhaseSize,
