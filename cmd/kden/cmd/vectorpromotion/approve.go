@@ -1,9 +1,11 @@
+//nolint:dupl // Keep action-specific command setup explicit; response handling is shared.
 package vectorpromotion
 
 import (
 	"fmt"
 
 	cfg "github.com/konfidence-project/konfidence/internal/kden/config"
+	"github.com/konfidence-project/konfidence/internal/kden/output"
 	"github.com/spf13/cobra"
 )
 
@@ -26,12 +28,12 @@ func NewApproveCmd(appConfig *cfg.AppConfig) (*cobra.Command, error) {
 			if err != nil {
 				return fmt.Errorf("approving vector promotion failed: %w", err)
 			}
+			if err := checkActionResponse(response.StatusCode(), response.Body, "approving vector promotion"); err != nil {
+				return err
+			}
 
-			return handleApprovalActionResponse(
-				response,
-				fmt.Sprintf("Vector promotion %s approved successfully", vectorPromotionId),
-				"approving vector promotion",
-			)
+			output.PrintMessage(fmt.Sprintf("Vector promotion %s approved successfully", vectorPromotionId))
+			return nil
 		},
 	}, nil
 }
