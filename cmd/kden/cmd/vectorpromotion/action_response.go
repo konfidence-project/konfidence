@@ -17,7 +17,8 @@ func checkActionResponse(status int, body []byte, action string) error {
 	case http.StatusBadRequest,
 		http.StatusForbidden,
 		http.StatusNotFound,
-		http.StatusConflict:
+		http.StatusConflict,
+		http.StatusUnprocessableEntity:
 		var response apiclient.ErrorResponse
 		if err := json.Unmarshal(body, &response); err == nil &&
 			strings.TrimSpace(response.Error.Message) != "" {

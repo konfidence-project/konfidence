@@ -295,7 +295,7 @@ export interface paths {
     put?: never;
     /**
      * Approves the given vectorPromotion for the specified project
-     * @description Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
+     * @description Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 422 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
      */
     post: operations["approveVectorPromotionV1"];
     delete?: never;
@@ -315,7 +315,7 @@ export interface paths {
     put?: never;
     /**
      * Revoke the approval of the given vectorPromotion for the specified project
-     * @description Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+     * @description Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 422 because there is nothing to revoke. Also returns 422 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
      */
     post: operations["revokeApprovalVectorPromotionV1"];
     delete?: never;
@@ -335,7 +335,7 @@ export interface paths {
     put?: never;
     /**
      * Rejects the given vectorPromotion for the specified project
-     * @description Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+     * @description Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or its gates were bypassed. Returns 409 for a concurrent modification; the caller can retry the action.
      */
     post: operations["rejectVectorPromotionV1"];
     delete?: never;
@@ -355,7 +355,7 @@ export interface paths {
     put?: never;
     /**
      * Bypasses the gates of the given vectorPromotion for the specified project
-     * @description Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+     * @description Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or it was rejected. Returns 409 for a concurrent modification; the caller can retry the action.
      */
     post: operations["bypassVectorPromotionGatesV1"];
     delete?: never;
@@ -798,6 +798,15 @@ export interface components {
     };
     /** @description The request conflicts with the current state of the resource. */
     Conflict: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description The request cannot be applied to the current state of the resource. */
+    UnprocessableEntity: {
       headers: {
         [name: string]: unknown;
       };
@@ -1266,6 +1275,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];
       409: components["responses"]["Conflict"];
+      422: components["responses"]["UnprocessableEntity"];
       500: components["responses"]["InternalError"];
     };
   };
@@ -1294,6 +1304,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];
       409: components["responses"]["Conflict"];
+      422: components["responses"]["UnprocessableEntity"];
       500: components["responses"]["InternalError"];
     };
   };
@@ -1323,6 +1334,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];
       409: components["responses"]["Conflict"];
+      422: components["responses"]["UnprocessableEntity"];
       500: components["responses"]["InternalError"];
     };
   };
@@ -1352,6 +1364,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];
       409: components["responses"]["Conflict"];
+      422: components["responses"]["UnprocessableEntity"];
       500: components["responses"]["InternalError"];
     };
   };

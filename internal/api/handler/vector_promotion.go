@@ -101,13 +101,14 @@ func promotionActionError(err error, vectorPromotionId string) error {
 		return apierror.NewNotFound("vectorPromotion", vectorPromotionId)
 	case errors.Is(err, vectorpromotiondomain.ErrReasonInvalid):
 		return apierror.NewBadRequest(err.Error())
+	case errors.Is(err, vectorpromotiondomain.ErrConflict):
+		return apierror.NewConflict(err.Error())
 	case errors.Is(err, vectorpromotiondomain.ErrPromotionFinished),
 		errors.Is(err, vectorpromotiondomain.ErrPromotionExecuting),
 		errors.Is(err, vectorpromotiondomain.ErrPromotionOverridden),
 		errors.Is(err, vectorpromotiondomain.ErrNotApproved),
-		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired),
-		errors.Is(err, vectorpromotiondomain.ErrConflict):
-		return apierror.NewConflict(err.Error())
+		errors.Is(err, vectorpromotiondomain.ErrApprovalNotRequired):
+		return apierror.NewUnprocessableEntity(err.Error())
 	default:
 		return apierror.NewInternal(err)
 	}

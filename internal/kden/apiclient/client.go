@@ -675,6 +675,9 @@ type NotFound = ErrorResponse
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = ErrorResponse
 
+// UnprocessableEntity defines model for UnprocessableEntity.
+type UnprocessableEntity = ErrorResponse
+
 // PromotionOverrideRequest defines model for PromotionOverrideRequest.
 type PromotionOverrideRequest = PromotionOverrideRequestBody
 
@@ -971,14 +974,14 @@ type ClientInterface interface {
 
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 	//
-	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
+	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 422 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 	ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// BypassVectorPromotionGatesV1WithBody Bypasses the gates of the given vectorPromotion for the specified project
 	//
-	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or it was rejected. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -987,7 +990,7 @@ type ClientInterface interface {
 
 	// BypassVectorPromotionGatesV1 Bypasses the gates of the given vectorPromotion for the specified project
 	//
-	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or it was rejected. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -996,7 +999,7 @@ type ClientInterface interface {
 
 	// RejectVectorPromotionV1WithBody Rejects the given vectorPromotion for the specified project
 	//
-	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or its gates were bypassed. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -1005,7 +1008,7 @@ type ClientInterface interface {
 
 	// RejectVectorPromotionV1 Rejects the given vectorPromotion for the specified project
 	//
-	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or its gates were bypassed. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -1014,7 +1017,7 @@ type ClientInterface interface {
 
 	// RevokeApprovalVectorPromotionV1 Revoke the approval of the given vectorPromotion for the specified project
 	//
-	// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+	// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 422 because there is nothing to revoke. Also returns 422 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval (the `RevokeApprovalVectorPromotionV1` operationId).
 	RevokeApprovalVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1361,7 +1364,7 @@ func (c *Client) GetVectorPromotionV1(ctx context.Context, projectId ProjectPath
 
 // ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 //
-// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
+// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 422 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 func (c *Client) ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -1378,7 +1381,7 @@ func (c *Client) ApproveVectorPromotionV1(ctx context.Context, projectId Project
 
 // BypassVectorPromotionGatesV1WithBody Bypasses the gates of the given vectorPromotion for the specified project
 //
-// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or it was rejected. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Takes any type of body and a specified content type.
 //
@@ -1397,7 +1400,7 @@ func (c *Client) BypassVectorPromotionGatesV1WithBody(ctx context.Context, proje
 
 // BypassVectorPromotionGatesV1 Bypasses the gates of the given vectorPromotion for the specified project
 //
-// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or it was rejected. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -1416,7 +1419,7 @@ func (c *Client) BypassVectorPromotionGatesV1(ctx context.Context, projectId Pro
 
 // RejectVectorPromotionV1WithBody Rejects the given vectorPromotion for the specified project
 //
-// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or its gates were bypassed. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Takes any type of body and a specified content type.
 //
@@ -1435,7 +1438,7 @@ func (c *Client) RejectVectorPromotionV1WithBody(ctx context.Context, projectId 
 
 // RejectVectorPromotionV1 Rejects the given vectorPromotion for the specified project
 //
-// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or its gates were bypassed. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -1454,7 +1457,7 @@ func (c *Client) RejectVectorPromotionV1(ctx context.Context, projectId ProjectP
 
 // RevokeApprovalVectorPromotionV1 Revoke the approval of the given vectorPromotion for the specified project
 //
-// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 422 because there is nothing to revoke. Also returns 422 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/revoke-approval (the `RevokeApprovalVectorPromotionV1` operationId).
 func (c *Client) RevokeApprovalVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2902,7 +2905,7 @@ type ClientWithResponsesInterface interface {
 
 	// ApproveVectorPromotionV1WithResponse Approves the given vectorPromotion for the specified project
 	//
-	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
+	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 422 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -2911,7 +2914,7 @@ type ClientWithResponsesInterface interface {
 
 	// BypassVectorPromotionGatesV1WithBodyWithResponse Bypasses the gates of the given vectorPromotion for the specified project
 	//
-	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or it was rejected. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -2920,7 +2923,7 @@ type ClientWithResponsesInterface interface {
 
 	// BypassVectorPromotionGatesV1WithResponse Bypasses the gates of the given vectorPromotion for the specified project
 	//
-	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or it was rejected. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -2929,7 +2932,7 @@ type ClientWithResponsesInterface interface {
 
 	// RejectVectorPromotionV1WithBodyWithResponse Rejects the given vectorPromotion for the specified project
 	//
-	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or its gates were bypassed. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -2938,7 +2941,7 @@ type ClientWithResponsesInterface interface {
 
 	// RejectVectorPromotionV1WithResponse Rejects the given vectorPromotion for the specified project
 	//
-	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or its gates were bypassed. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -2947,7 +2950,7 @@ type ClientWithResponsesInterface interface {
 
 	// RevokeApprovalVectorPromotionV1WithResponse Revoke the approval of the given vectorPromotion for the specified project
 	//
-	// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+	// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 422 because there is nothing to revoke. Also returns 422 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -4148,6 +4151,8 @@ type ApproveVectorPromotionV1Response struct {
 	JSON404 *NotFound
 	// JSON409 the response for an HTTP 409 `application/json` response
 	JSON409 *Conflict
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntity
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalError
 }
@@ -4170,6 +4175,11 @@ func (r ApproveVectorPromotionV1Response) GetJSON404() *NotFound {
 // GetJSON409 returns the response for an HTTP 409 `application/json` response
 func (r ApproveVectorPromotionV1Response) GetJSON409() *Conflict {
 	return r.JSON409
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r ApproveVectorPromotionV1Response) GetJSON422() *UnprocessableEntity {
+	return r.JSON422
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4219,6 +4229,8 @@ type BypassVectorPromotionGatesV1Response struct {
 	JSON404 *NotFound
 	// JSON409 the response for an HTTP 409 `application/json` response
 	JSON409 *Conflict
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntity
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalError
 }
@@ -4246,6 +4258,11 @@ func (r BypassVectorPromotionGatesV1Response) GetJSON404() *NotFound {
 // GetJSON409 returns the response for an HTTP 409 `application/json` response
 func (r BypassVectorPromotionGatesV1Response) GetJSON409() *Conflict {
 	return r.JSON409
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r BypassVectorPromotionGatesV1Response) GetJSON422() *UnprocessableEntity {
+	return r.JSON422
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4295,6 +4312,8 @@ type RejectVectorPromotionV1Response struct {
 	JSON404 *NotFound
 	// JSON409 the response for an HTTP 409 `application/json` response
 	JSON409 *Conflict
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntity
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalError
 }
@@ -4322,6 +4341,11 @@ func (r RejectVectorPromotionV1Response) GetJSON404() *NotFound {
 // GetJSON409 returns the response for an HTTP 409 `application/json` response
 func (r RejectVectorPromotionV1Response) GetJSON409() *Conflict {
 	return r.JSON409
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r RejectVectorPromotionV1Response) GetJSON422() *UnprocessableEntity {
+	return r.JSON422
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4369,6 +4393,8 @@ type RevokeApprovalVectorPromotionV1Response struct {
 	JSON404 *NotFound
 	// JSON409 the response for an HTTP 409 `application/json` response
 	JSON409 *Conflict
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntity
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalError
 }
@@ -4391,6 +4417,11 @@ func (r RevokeApprovalVectorPromotionV1Response) GetJSON404() *NotFound {
 // GetJSON409 returns the response for an HTTP 409 `application/json` response
 func (r RevokeApprovalVectorPromotionV1Response) GetJSON409() *Conflict {
 	return r.JSON409
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r RevokeApprovalVectorPromotionV1Response) GetJSON422() *UnprocessableEntity {
+	return r.JSON422
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4866,7 +4897,7 @@ func (c *ClientWithResponses) GetVectorPromotionV1WithResponse(ctx context.Conte
 
 // ApproveVectorPromotionV1WithResponse Approves the given vectorPromotion for the specified project
 //
-// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
+// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 422 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -4881,7 +4912,7 @@ func (c *ClientWithResponses) ApproveVectorPromotionV1WithResponse(ctx context.C
 
 // BypassVectorPromotionGatesV1WithBodyWithResponse Bypasses the gates of the given vectorPromotion for the specified project
 //
-// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or it was rejected. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -4896,7 +4927,7 @@ func (c *ClientWithResponses) BypassVectorPromotionGatesV1WithBodyWithResponse(c
 
 // BypassVectorPromotionGatesV1WithResponse Bypasses the gates of the given vectorPromotion for the specified project
 //
-// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or it was rejected. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -4911,7 +4942,7 @@ func (c *ClientWithResponses) BypassVectorPromotionGatesV1WithResponse(ctx conte
 
 // RejectVectorPromotionV1WithBodyWithResponse Rejects the given vectorPromotion for the specified project
 //
-// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or its gates were bypassed. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -4926,7 +4957,7 @@ func (c *ClientWithResponses) RejectVectorPromotionV1WithBodyWithResponse(ctx co
 
 // RejectVectorPromotionV1WithResponse Rejects the given vectorPromotion for the specified project
 //
-// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 422 when the promotion is finished, its gates are already satisfied, or its gates were bypassed. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -4941,7 +4972,7 @@ func (c *ClientWithResponses) RejectVectorPromotionV1WithResponse(ctx context.Co
 
 // RevokeApprovalVectorPromotionV1WithResponse Revoke the approval of the given vectorPromotion for the specified project
 //
-// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 409 because there is nothing to revoke. Also returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+// Sets the `explicit-approval.konfidence.cloud` gate of a waiting vectorPromotion back to Pending, recording the authenticated caller as the revoker. Revoking an already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent and returns 204 without changing the revocation record. Other approvals that are not Satisfied return 422 because there is nothing to revoke. Also returns 422 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate. Returns 409 for a concurrent modification; the caller can retry the action.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -5965,6 +5996,13 @@ func ParseApproveVectorPromotionV1Response(rsp *http.Response) (*ApproveVectorPr
 		}
 		response.JSON409 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntity
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -6028,6 +6066,13 @@ func ParseBypassVectorPromotionGatesV1Response(rsp *http.Response) (*BypassVecto
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntity
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError
@@ -6093,6 +6138,13 @@ func ParseRejectVectorPromotionV1Response(rsp *http.Response) (*RejectVectorProm
 		}
 		response.JSON409 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntity
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -6149,6 +6201,13 @@ func ParseRevokeApprovalVectorPromotionV1Response(rsp *http.Response) (*RevokeAp
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntity
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalError

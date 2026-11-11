@@ -404,9 +404,10 @@ paths:
       description: >
         Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion,
         recording the authenticated caller as the approver. Approving an
-        already-approved promotion is idempotent and returns 204. Returns 409 when
+        already-approved promotion is idempotent and returns 204. Returns 422 when
         the promotion is superseded, finished, already executing, rejected, has its
-        gates bypassed, or does not declare the explicit-approval gate.
+        gates bypassed, or does not declare the explicit-approval gate. Returns 409 for
+        a concurrent modification; the caller can retry the action.
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
         - $ref: "#/components/parameters/VectorPromotionPathId"
@@ -422,6 +423,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -434,9 +437,10 @@ paths:
         back to Pending, recording the authenticated caller as the revoker. Revoking an
         already revoked approval (Pending with reason ApprovalRevokedByUser) is idempotent
         and returns 204 without changing the revocation record. Other approvals that are
-        not Satisfied return 409 because there is nothing to revoke.
-        Also returns 409 when the promotion is superseded, finished, already executing,
-        or does not declare the explicit-approval gate.
+        not Satisfied return 422 because there is nothing to revoke.
+        Also returns 422 when the promotion is superseded, finished, already executing,
+        or does not declare the explicit-approval gate. Returns 409 for a concurrent
+        modification; the caller can retry the action.
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
         - $ref: "#/components/parameters/VectorPromotionPathId"
@@ -452,6 +456,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -464,8 +470,9 @@ paths:
         regardless of their state. The authenticated caller and the given reason are
         recorded in the promotion's override; its gates are left untouched.
         Rejecting an already-rejected promotion is idempotent and returns 204.
-        Returns 409 when the promotion is finished, its gates are already satisfied,
-        or its gates were bypassed.
+        Returns 422 when the promotion is finished, its gates are already satisfied,
+        or its gates were bypassed. Returns 409 for a concurrent modification; the
+        caller can retry the action.
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
         - $ref: "#/components/parameters/VectorPromotionPathId"
@@ -485,6 +492,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -497,8 +506,9 @@ paths:
         them were satisfied. The authenticated caller and the given reason are
         recorded in the promotion's override; its gates are left exactly as their
         writers reported them. Bypassing the gates of a promotion whose gates were
-        already bypassed is idempotent and returns 204. Returns 409 when the
+        already bypassed is idempotent and returns 204. Returns 422 when the
         promotion is finished, its gates are already satisfied, or it was rejected.
+        Returns 409 for a concurrent modification; the caller can retry the action.
       parameters:
         - $ref: "#/components/parameters/ProjectPathId"
         - $ref: "#/components/parameters/VectorPromotionPathId"
@@ -518,6 +528,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -1373,6 +1385,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     Conflict:
       description: The request conflicts with the current state of the resource.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnprocessableEntity:
+      description: The request cannot be applied to the current state of the resource.
       content:
         application/json:
           schema:

@@ -73,7 +73,9 @@ func NewClient(apiEndpoint string, accessToken string, store CookieStore,
 	// create the kden api client
 	apiOptions := append(
 		[]kdenapi.ClientOption{
-			kdenapi.WithHTTPClient(unauthorizedDoer{doer: httpClient, usesAccessToken: accessToken != ""})},
+			kdenapi.WithHTTPClient(retryDoer{doer: unauthorizedDoer{
+				doer: httpClient, usesAccessToken: accessToken != "",
+			}})},
 		options...,
 	)
 

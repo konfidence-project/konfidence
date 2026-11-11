@@ -57,6 +57,14 @@ func NewConflict(msg string) *Error {
 	}
 }
 
+func NewUnprocessableEntity(msg string) *Error {
+	return &Error{
+		Status:  http.StatusUnprocessableEntity,
+		Code:    "unprocessable_entity",
+		Message: msg,
+	}
+}
+
 func NewBadRequest(msg string) *Error {
 	return &Error{
 		Status:  http.StatusBadRequest,

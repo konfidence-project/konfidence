@@ -47,7 +47,7 @@ var _ = Describe("approve command", func() {
 	var requests chan *http.Request
 
 	BeforeEach(func() {
-		requests = make(chan *http.Request, 1)
+		requests = make(chan *http.Request, 3)
 		server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requests <- r
 			w.WriteHeader(http.StatusNoContent)
@@ -144,7 +144,7 @@ var _ = Describe("approve command", func() {
 	})
 
 	It("returns an error on 409", func() {
-		errorMsg := "promotion was superseded and is locked"
+		errorMsg := "promotion was modified concurrently; retry the action"
 		server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requests <- r
 			w.Header().Set("Content-Type", "application/json")
@@ -156,7 +156,27 @@ var _ = Describe("approve command", func() {
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(errorMsg))
+		Expect(requests).To(HaveLen(3))
 		ExpectRequest(requests, http.MethodPost, testApprovePath)
+	})
+
+	It("returns the server message on 422 without printing success", func() {
+		errorMsg := "promotion has no explicit-approval gate; nothing to approve"
+		server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests <- r
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = w.Write(ErrorResponseBody("unprocessable_entity", errorMsg))
+		})
+
+		var err error
+		printed := CaptureOutput(func() {
+			err = executeApproveCommand(appConfig, testVectorPromotionID, FlagProjectID, TestProjectID)
+		})
+		Expect(err).To(MatchError(errorMsg))
+		Expect(printed).To(BeEmpty())
+		ExpectRequest(requests, http.MethodPost, testApprovePath)
+		Expect(requests).To(BeEmpty())
 	})
 
 	It("returns an error on unexpected status code", func() {
