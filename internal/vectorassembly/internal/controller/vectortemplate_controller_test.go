@@ -8,6 +8,7 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	ocm2 "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm"
+	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
 	"github.com/konfidence-project/konfidence/pkg/testutil/ocm"
@@ -852,5 +853,112 @@ var _ = Describe("VectorTemplate namespace validation", Serial, func() {
 			g.Expect(cond).NotTo(BeNil())
 			g.Expect(cond.Reason).NotTo(Equal(pkgctrl.NamespaceNotReadyReason))
 		}, timeout, interval).Should(Succeed())
+	})
+})
+
+var _ = Describe("combining vector artifacts", func() {
+	It("keeps artifacts with different names", func() {
+		artifacts, err := combineBaseArtifactsAndComponentArtifacts(
+			[]vector.Artifact{
+				{Name: "example.org/base", Version: "1.0.0"},
+			},
+			[]vector.Artifact{
+				{Name: "example.org/service", Version: "2.0.0"},
+			},
+		)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(artifacts).To(Equal([]vector.Artifact{
+			{Name: "example.org/base", Version: "1.0.0"},
+			{Name: "example.org/service", Version: "2.0.0"},
+		}))
+	})
+
+	It("allows a component to override an artifact inherited from the base", func() {
+		artifacts, err := combineBaseArtifactsAndComponentArtifacts(
+			[]vector.Artifact{
+				{Name: "example.org/service", Version: "1.0.0"},
+			},
+			[]vector.Artifact{
+				{Name: "example.org/service", Version: "2.0.0"},
+			},
+		)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(artifacts).To(Equal([]vector.Artifact{
+			{Name: "example.org/service", Version: "2.0.0"},
+		}))
+	})
+
+	It("rejects multiple versions of an artifact in the base vector", func() {
+		artifacts, err := combineBaseArtifactsAndComponentArtifacts(
+			[]vector.Artifact{
+				{Name: "example.org/service", Version: "1.0.0"},
+				{Name: "example.org/service", Version: "2.0.0"},
+			},
+			nil,
+		)
+
+		Expect(artifacts).To(BeNil())
+		Expect(err).To(MatchError(`base vector contains artifact "example.org/service" more than once with versions "1.0.0" and "2.0.0"`))
+	})
+
+	It("rejects multiple resolved versions from the VectorTemplate", func() {
+		artifacts, err := combineBaseArtifactsAndComponentArtifacts(
+			nil,
+			[]vector.Artifact{
+				{Name: "example.org/service", Version: "1.0.0"},
+				{Name: "example.org/service", Version: "2.0.0"},
+			},
+		)
+
+		Expect(artifacts).To(BeNil())
+		Expect(err).To(MatchError(`VectorTemplate resolves artifact "example.org/service" more than once with versions "1.0.0" and "2.0.0"`))
+	})
+
+	It("also rejects the same artifact version more than once", func() {
+		artifacts, err := combineBaseArtifactsAndComponentArtifacts(
+			nil,
+			[]vector.Artifact{
+				{Name: "example.org/service", Version: "1.0.0"},
+				{Name: "example.org/service", Version: "1.0.0"},
+			},
+		)
+
+		Expect(artifacts).To(BeNil())
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(`artifact "example.org/service" more than once`))
+	})
+
+	It("should reject multiple versions of the same artifact", func() {
+		svcV1 := createReference("konfidence.io/sample/duplicate-version/service:v1.0.0")
+		svcV2 := createReference("konfidence.io/sample/duplicate-version/service:v2.0.0")
+		vectorTarget := createBareReference("konfidence.io/sample/vectors/duplicate-version")
+
+		By("creating both versions in the OCM repository")
+		ocm.PushComponent(ctx, ocmClient, svcV1, nil)
+		ocm.PushComponent(ctx, ocmClient, svcV2, nil)
+
+		By("creating a VectorTemplate that selects both versions")
+		vectorTemplate := createVectorTemplateCR(
+			ctx,
+			"duplicate-version",
+			testNamespace,
+			[]compref.Ref{svcV1, svcV2},
+			vectorTarget,
+			"",
+			nil,
+		)
+
+		By("reporting drift detection failure without creating a vector")
+		expectReadyCondition(vectorTemplate, metav1.ConditionUnknown, konfidence.VectorTemplateDriftDetectionFailedReason)
+
+		Expect(vectorTemplate.Status.LatestVector).To(BeEmpty())
+
+		condition := meta.FindStatusCondition(vectorTemplate.Status.Conditions, konfidence.VectorTemplateReadyCondition)
+		Expect(condition).NotTo(BeNil())
+		Expect(condition.Message).To(ContainSubstring(svcV1.Component))
+		Expect(condition.Message).To(ContainSubstring(svcV1.Version))
+		Expect(condition.Message).To(ContainSubstring(svcV2.Version))
 	})
 })

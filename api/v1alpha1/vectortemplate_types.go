@@ -42,7 +42,9 @@ type VectorTemplateSpec struct {
 	// +optional
 	Base *VectorTemplateReference `json:"base,omitempty"`
 
-	// Components lists the components to be included in the vector.
+	// Components lists the components to be included in the vector. After references and aliases are resolved, each
+	// OCM component name may occur at most once in the resulting vector. A component listed here overrides an artifact
+	// with the same OCM component name inherited from Base.
 	// +kubebuilder:validation:MinItems=1
 	Components []Component `json:"components"`
 

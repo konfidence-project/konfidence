@@ -2,6 +2,7 @@
 package controller
 
 import (
+	"errors"
 	"time"
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
@@ -38,6 +39,58 @@ var _ = Describe("Stalled condition", func() {
 
 		return artifactDeployment
 	}
+
+	Context("handling permanent errors", func() {
+		It("should mark a previously ready VectorDeployment as stalled and not ready", func() {
+			vectorDeployment := newVectorDeployment(4)
+			vectorDeployment.Status.Conditions = []metav1.Condition{
+				{
+					Type:               konfidence.VectorReadyCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             konfidence.VectorReadyCondition,
+					Message:            "VectorDeployment is ready",
+					ObservedGeneration: 3,
+				},
+			}
+
+			err := &PermanentError{
+				Reason: konfidence.VectorDeploymentStalledReasonDuplicateArtifact,
+				Err:    errors.New(`vector contains artifact "example.org/service" more than once`),
+			}
+
+			Expect(stallOnPermanentError(vectorDeployment, err)).To(BeTrue())
+
+			stalled := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.StalledCondition)
+			Expect(stalled).NotTo(BeNil())
+			Expect(stalled.Status).To(Equal(metav1.ConditionTrue))
+			Expect(stalled.Reason).To(Equal(konfidence.VectorDeploymentStalledReasonDuplicateArtifact))
+			Expect(stalled.Message).To(Equal(`vector contains artifact "example.org/service" more than once`))
+			Expect(stalled.ObservedGeneration).To(Equal(int64(4)))
+
+			ready := meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)
+			Expect(ready).NotTo(BeNil())
+			Expect(ready.Status).To(Equal(metav1.ConditionFalse))
+			Expect(ready.Reason).To(Equal(konfidence.VectorDeploymentStalledReasonDuplicateArtifact))
+			Expect(ready.Message).To(Equal(`vector contains artifact "example.org/service" more than once`))
+			Expect(ready.ObservedGeneration).To(Equal(int64(4)))
+		})
+
+		It("should not change conditions for a transient error", func() {
+			vectorDeployment := newVectorDeployment(4)
+			vectorDeployment.Status.Conditions = []metav1.Condition{
+				{
+					Type:               konfidence.VectorReadyCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             konfidence.VectorReadyCondition,
+					ObservedGeneration: 4,
+				},
+			}
+
+			Expect(stallOnPermanentError(vectorDeployment, errors.New("registry temporarily unavailable"))).To(BeFalse())
+			Expect(meta.IsStatusConditionTrue(vectorDeployment.Status.Conditions, konfidence.VectorReadyCondition)).To(BeTrue())
+			Expect(meta.FindStatusCondition(vectorDeployment.Status.Conditions, konfidence.StalledCondition)).To(BeNil())
+		})
+	})
 
 	Context("aggregating stalled ArtifactDeployments", func() {
 		It("should pick the lowest stalled name regardless of input order, skipping ones that are not stalled", func() {

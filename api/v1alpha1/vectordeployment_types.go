@@ -45,12 +45,17 @@ const (
 
 	// VectorDeploymentStalledReasonArtifactDeploymentStalled indicates that one of its ArtifactDeployments is stalled.
 	VectorDeploymentStalledReasonArtifactDeploymentStalled = "ArtifactDeploymentStalled"
+
+	// VectorDeploymentStalledReasonDuplicateArtifact indicates that a vector references the same artifact component name more than once.
+	VectorDeploymentStalledReasonDuplicateArtifact = "DuplicateArtifact"
 )
 
 // VectorDeploymentSpec defines the desired state of a VectorDeployment.
 //
 // A VectorDeployment references a deployment vector stored as an OCM ComponentVersion in an OCI registry. The vector
 // describes a complete, immutable set of artifacts and versions that should be deployed as a unit.
+// A vector must contain at most one artifact for each OCM component name. Referencing the same artifact component
+// more than once, including references to different versions, makes the vector invalid.
 //
 // The value must always be a fully qualified OCI URL and must resolve to a valid OCM ComponentVersion. The
 // VectorDeployment spec is intended to be immutable. Any substantive change should result in a new VectorDeployment

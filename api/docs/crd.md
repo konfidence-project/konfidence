@@ -1627,6 +1627,8 @@ VectorDeploymentSpec defines the desired state of a VectorDeployment.
 
 A VectorDeployment references a deployment vector stored as an OCM ComponentVersion in an OCI registry. The vector
 describes a complete, immutable set of artifacts and versions that should be deployed as a unit.
+A vector must contain at most one artifact for each OCM component name. Referencing the same artifact component
+more than once, including references to different versions, makes the vector invalid.
 
 The value must always be a fully qualified OCI URL and must resolve to a valid OCM ComponentVersion. The
 VectorDeployment spec is intended to be immutable. Any substantive change should result in a new VectorDeployment
@@ -2045,7 +2047,7 @@ _Appears in:_
 | `reconcileInterval` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | ReconcileInterval defines how often the assembly controller should check for drift.<br />If not set, the controller's default reconcile interval will be used. |  | Optional: \{\} <br /> |
 | `uploadTarget` _string_ | UploadTarget defines the target OCM component where the assembled vector will be uploaded. |  |  |
 | `base` _[VectorTemplateReference](#vectortemplatereference)_ | Base references another VectorTemplate whose most recently assembled vector<br />(status.latestVector) is used as the base for this vector's assembly. |  | Optional: \{\} <br />Optional: \{\} <br /> |
-| `components` _[Component](#component) array_ | Components lists the components to be included in the vector. |  | MinItems: 1 <br /> |
+| `components` _[Component](#component) array_ | Components lists the components to be included in the vector. After references and aliases are resolved, each<br />OCM component name may occur at most once in the resulting vector. A component listed here overrides an artifact<br />with the same OCM component name inherited from Base. |  | MinItems: 1 <br /> |
 | `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories<br />and signing/verification key material. |  | Optional: \{\} <br /> |
 | `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every<br />artifact pulled into the assembly. Absence disables artifact<br />verification. |  | Optional: \{\} <br /> |
 | `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against any<br />vector the assembly fetches (base or pre-existing upload target).<br />Absence disables vector verification. |  | Optional: \{\} <br /> |

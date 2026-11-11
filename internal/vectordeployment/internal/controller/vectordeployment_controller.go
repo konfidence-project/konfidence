@@ -603,24 +603,54 @@ func (r *VectorDeploymentReconciler) resolveVector(
 	vd *konfidence.VectorDeployment,
 	vectorRef compref.Ref,
 ) (resolvedVector, error) {
+	var resolved resolvedVector
+
 	if vd.Status.ResolvedVectorOcm == "" {
 		descr, err := r.OcmAdapter.GetVectorDescriptor(ctx, vectorRef)
 		if err != nil {
-			return resolvedVector{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s : %w", vd.Name, err)
+			return resolvedVector{}, fmt.Errorf("failed to fetch vector OCM for vector deployment %s: %w", vd.Name, err)
 		}
-		return resolvedVector{
+
+		resolved = resolvedVector{
 			descriptorJSON: descr.DescriptorJSON,
 			artifactRefs:   descr.References,
 			config:         descr.Configuration,
 			configResolved: true,
-		}, nil
+		}
+	} else {
+		artifactRefs, err := artifactRefsFromStatus(vd.Status.ResolvedVectorOcm, vectorRef)
+		if err != nil {
+			return resolvedVector{}, fmt.Errorf("failed to parse artifact refs from status for vector deployment %s: %w", vd.Name, err)
+		}
+
+		resolved = resolvedVector{artifactRefs: artifactRefs}
 	}
 
-	artifactRefs, err := artifactRefsFromStatus(vd.Status.ResolvedVectorOcm, vectorRef)
-	if err != nil {
-		return resolvedVector{}, fmt.Errorf("failed to parse artifact refs from status for vector deployment %s: %w", vd.Name, err)
+	if err := validateArtifactReferences(resolved.artifactRefs); err != nil {
+		return resolvedVector{}, err
 	}
-	return resolvedVector{artifactRefs: artifactRefs}, nil
+
+	return resolved, nil
+}
+
+func validateArtifactReferences(refs []compref.Ref) error {
+	seen := make(map[string]string, len(refs))
+
+	for _, ref := range refs {
+		previousVersion, exists := seen[ref.Component]
+		if !exists {
+			seen[ref.Component] = ref.Version
+			continue
+		}
+
+		return &PermanentError{
+			Reason: konfidence.VectorDeploymentStalledReasonDuplicateArtifact,
+			Err: fmt.Errorf("vector contains artifact %q more than once with versions %q and %q",
+				ref.Component, previousVersion, ref.Version),
+		}
+	}
+
+	return nil
 }
 
 func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(

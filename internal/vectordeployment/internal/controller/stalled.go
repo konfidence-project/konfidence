@@ -9,14 +9,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// stallOnPermanentError sets Stalled when err is a PermanentError and reports whether it did. Other errors may be
-// transient and are left to the retry.
+// stallOnPermanentError sets Stalled=True and Ready=False when err is a
+// PermanentError and reports whether it did. Other errors may be transient
+// and are left to the retry.
 func stallOnPermanentError(vectorDeployment *konfidence.VectorDeployment, err error) bool {
 	var permanentErr *PermanentError
 	if !errors.As(err, &permanentErr) {
 		return false
 	}
 	setStalledConditionTrue(vectorDeployment, permanentErr.Reason, permanentErr.Error())
+	setReadyConditionFalse(vectorDeployment, permanentErr.Reason, permanentErr.Error())
 	return true
 }
 

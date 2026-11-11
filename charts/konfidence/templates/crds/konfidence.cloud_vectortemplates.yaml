@@ -91,8 +91,10 @@ spec:
                 - name
                 type: object
               components:
-                description: Components lists the components to be included in the
-                  vector.
+                description: |-
+                  Components lists the components to be included in the vector. After references and aliases are resolved, each
+                  OCM component name may occur at most once in the resulting vector. A component listed here overrides an artifact
+                  with the same OCM component name inherited from Base.
                 items:
                   description: |-
                     Component defines a component of a VectorTemplate.

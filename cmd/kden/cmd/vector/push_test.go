@@ -127,14 +127,21 @@ var _ = Describe("push", func() {
 			})
 
 			It("when ValidateVector returns an error", func() {
+				providerCalled := false
 				vector.ValidateVector = func(filePaths []string, cfg validation.ValidateConfig) error {
-					return fmt.Errorf("some error")
+					return fmt.Errorf(`artifact "example.org/artifacts/service" must not appear more than once`)
+				}
+				vector.GetOcmConstructorProvider = func(ocmConfiguration *ocmgenericspecv1.Config, ctx context.Context,
+					registry string) (*ocm.ConstructorProvider, error) {
+					providerCalled = true
+					return &ocm.ConstructorProvider{}, nil
 				}
 				rootCmd.SetArgs([]string{"push", "--file", "anyfile.yaml", "--registry", "docker.io/my-org/my-component"})
 				err := rootCmd.Execute()
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("some error"))
 				Expect(err.Error()).To(ContainSubstring("validation failed"))
+				Expect(err.Error()).To(ContainSubstring("must not appear more than once"))
+				Expect(providerCalled).To(BeFalse())
 			})
 
 			It("when PushComponentConstructor returns an error", func() {
