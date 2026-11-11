@@ -716,8 +716,7 @@ func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Conte
 					err = fmt.Errorf("panic while downloading artifact manifest for %q: %v", artifactRef.String(), recovered)
 				}
 
-				var candidate *PermanentError
-				if errors.As(err, &candidate) {
+				if _, ok := errors.AsType[*PermanentError](err); ok {
 					permanentErrOnce.Do(func() {
 						permanentErr = err
 					})

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -202,8 +203,17 @@ func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.
 
 	// Launch a new assembly job.
 	launched := r.jobs.launch(nn, vt.Generation, vt.UID, func(jobCtx context.Context) assemblyResult {
-		return r.runAssembly(jobCtx, ocmAdapter, ocmComponentRefs, vectorOCMComponent,
-			baseVectorRef, currentVectorRef, desiredVectorConfig)
+		return runAssemblyJob(log, func() assemblyResult {
+			return r.runAssembly(
+				jobCtx,
+				ocmAdapter,
+				ocmComponentRefs,
+				vectorOCMComponent,
+				baseVectorRef,
+				currentVectorRef,
+				desiredVectorConfig,
+			)
+		})
 	})
 	if !launched {
 		return ctrl.Result{}, context.Canceled
@@ -213,6 +223,21 @@ func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.
 		"baseVectorRef", baseVectorRefKey,
 	)
 	return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
+}
+
+func runAssemblyJob(log logr.Logger, fn func() assemblyResult) (result assemblyResult) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			result.err = fmt.Errorf("assembly job panicked: %v", recovered)
+			log.Error(
+				result.err,
+				"recovered panic in assembly job",
+				"stack", string(debug.Stack()),
+			)
+		}
+	}()
+
+	return fn()
 }
 
 func (r *VectorTemplateReconciler) runAssembly(

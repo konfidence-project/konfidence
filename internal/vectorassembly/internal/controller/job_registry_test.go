@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
@@ -278,4 +279,31 @@ var _ = Describe("jobRegistry", func() {
 			false,
 		),
 	)
+
+	It("publishes a failed result when an assembly job panics", func() {
+		launched := reg.launch(nn, 1, testUID, func(context.Context) assemblyResult {
+			return runAssemblyJob(logr.Discard(), func() assemblyResult {
+				panic("unexpected failure")
+			})
+		})
+		Expect(launched).To(BeTrue())
+
+		job, exists := reg.get(nn)
+		Expect(exists).To(BeTrue())
+
+		var (
+			result    assemblyResult
+			completed bool
+		)
+		Eventually(func() bool {
+			result, completed = reg.completedResult(nn, job)
+			return completed
+		}).Should(BeTrue())
+
+		Expect(result.err).To(MatchError("assembly job panicked: unexpected failure"))
+
+		By("removing the completed job from the registry")
+		_, exists = reg.get(nn)
+		Expect(exists).To(BeFalse())
+	})
 })
