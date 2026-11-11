@@ -142,6 +142,13 @@ restarts the controller after installing credentials, not during cleanup.
 
 The kind cluster remains until `make e2e-down`. GHCR packages remain in the run prefix.
 
+The separate **E2E package cleanup** workflow runs Sundays at 03:00 UTC. It removes
+up to 200 container packages under this repository's `e2e/run-<id>-<attempt>/`
+prefix per run, only when their package and version updates are older than 24 hours
+and the originating e2e workflow has completed. Active or unverifiable runs are
+kept; cleanup failures warn. Manual runs default to a dry-run preview. The workflow
+token needs package admin access, granted to the repository for workflow-published packages.
+
 ## Failure snapshot
 
 Install the [Troubleshoot support-bundle CLI](https://github.com/replicatedhq/troubleshoot/releases)

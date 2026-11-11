@@ -1,0 +1,44 @@
+name: E2E package cleanup
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview eligible packages without deleting them
+        type: boolean
+        required: true
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+
+concurrency:
+  group: e2e-package-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Test cleanup policy
+        run: node --test hack/cleanup-e2e-packages.test.cjs
+      - name: Clean up aged e2e packages
+        continue-on-error: true
+        uses: actions/github-script@v9
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        with:
+          retries: 2
+          script: |
+            const cleanup = require('./hack/cleanup-e2e-packages.cjs');
+            const dryRun = context.eventName !== 'schedule' &&
+              (context.eventName !== 'workflow_dispatch' || process.env.DRY_RUN !== 'false');
+            await cleanup({github, context, core, dryRun});
