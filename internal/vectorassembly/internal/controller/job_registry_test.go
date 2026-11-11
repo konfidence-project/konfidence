@@ -66,15 +66,17 @@ var _ = Describe("jobRegistry", func() {
 		Expect(result.vectorVersion).To(Equal("1.0.0"))
 	})
 
-	It("atomically consumes and removes a completed result", func() {
+	It("retains a completed result until it is acknowledged", func() {
 		launched := reg.launch(nn, 1, testUID, func(context.Context) assemblyResult {
-			return assemblyResult{vectorVersion: "1.0.0"}
+			return assemblyResult{
+				latestVector:  "registry.example/vector:1.0.0",
+				vectorVersion: "1.0.0",
+			}
 		})
 		Expect(launched).To(BeTrue())
 
 		job, exists := reg.get(nn)
 		Expect(exists).To(BeTrue())
-		Expect(job.generation).To(Equal(int64(1)))
 
 		var (
 			result    assemblyResult
@@ -85,7 +87,19 @@ var _ = Describe("jobRegistry", func() {
 			return completed
 		}).Should(BeTrue())
 
-		Expect(result.vectorVersion).To(Equal("1.0.0"))
+		Expect(result.latestVector).To(Equal("registry.example/vector:1.0.0"))
+
+		By("retaining the result before acknowledgment")
+		cachedJob, exists := reg.get(nn)
+		Expect(exists).To(BeTrue())
+		Expect(cachedJob).To(BeIdenticalTo(job))
+
+		cachedResult, completed := reg.completedResult(nn, cachedJob)
+		Expect(completed).To(BeTrue())
+		Expect(cachedResult.latestVector).To(Equal(result.latestVector))
+
+		By("removing the result after acknowledgment")
+		reg.acknowledgeCompleted(nn)
 
 		_, exists = reg.get(nn)
 		Expect(exists).To(BeFalse())
@@ -302,7 +316,18 @@ var _ = Describe("jobRegistry", func() {
 
 		Expect(result.err).To(MatchError("assembly job panicked: unexpected failure"))
 
-		By("removing the completed job from the registry")
+		By("retaining the failed result until acknowledgment")
+		cachedJob, exists := reg.get(nn)
+		Expect(exists).To(BeTrue())
+		Expect(cachedJob).To(BeIdenticalTo(job))
+
+		cachedResult, completed := reg.completedResult(nn, cachedJob)
+		Expect(completed).To(BeTrue())
+		Expect(cachedResult.err).To(MatchError("assembly job panicked: unexpected failure"))
+
+		By("removing the completed job after acknowledgment")
+		reg.acknowledgeCompleted(nn)
+
 		_, exists = reg.get(nn)
 		Expect(exists).To(BeFalse())
 	})

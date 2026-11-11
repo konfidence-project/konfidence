@@ -30,8 +30,9 @@ func (i assemblyJobIdentity) matches(generation int64, uid types.UID) bool {
 // inflightJob tracks a single background assembly goroutine.
 type inflightJob struct {
 	assemblyJobIdentity
-	cancel context.CancelFunc
-	result chan assemblyResult // buffered cap 1, sent exactly once
+	cancel          context.CancelFunc
+	result          chan assemblyResult // buffered cap 1, sent exactly once
+	completedResult *assemblyResult
 }
 
 // jobRegistry is a mutex-guarded map of inflight assembly jobs keyed by NamespacedName.
@@ -101,7 +102,8 @@ func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid type
 	return true
 }
 
-// completedResult atomically consumes a completed result.
+// completedResult returns a completed result without removing it. The result
+// remains cached until acknowledgeCompleted is called after status persistence.
 // The boolean is true only when job is still the registered job for nn and its
 // result was available and consumed. It is false when the job was replaced,
 // removed, or is still running.
@@ -114,9 +116,13 @@ func (r *jobRegistry) completedResult(nn types.NamespacedName, job *inflightJob)
 		return assemblyResult{}, false
 	}
 
+	if job.completedResult != nil {
+		return *job.completedResult, true
+	}
+
 	select {
 	case result := <-job.result:
-		delete(r.inflight, nn)
+		job.completedResult = &result
 		return result, true
 	default:
 		return assemblyResult{}, false
@@ -154,4 +160,19 @@ func (r *jobRegistry) shutdown() {
 	r.mu.Lock()
 	clear(r.inflight)
 	r.mu.Unlock()
+}
+
+// acknowledgeCompleted removes a completed job after its result has been
+// stored in the VectorTemplate status.
+func (r *jobRegistry) acknowledgeCompleted(nn types.NamespacedName) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	job, exists := r.inflight[nn]
+	if !exists || job.completedResult == nil {
+		return
+	}
+
+	job.cancel()
+	delete(r.inflight, nn)
 }

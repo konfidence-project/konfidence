@@ -121,6 +121,10 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
+	if patchErr == nil {
+		r.jobs.acknowledgeCompleted(req.NamespacedName)
+	}
+
 	if err := errors.Join(reconcileErr, patchErr); err != nil {
 		return ctrl.Result{}, err
 	}
