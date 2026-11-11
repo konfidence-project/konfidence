@@ -123,6 +123,8 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; %w", patchError, err)
 			}
+
+			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
@@ -164,12 +166,17 @@ func (r *VectorDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if manifestResult.err != nil {
-		stallOnPermanentError(vectorDeployment, manifestResult.err)
+		permanent := stallOnPermanentError(vectorDeployment, manifestResult.err)
 		if !reflect.DeepEqual(vectorDeployment.Status, originalVectorDeployment.Status) {
 			if patchError := r.Client.Status().Patch(ctx, vectorDeployment, patch); patchError != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to update vectorDeployment status: %w; failed to download artifactManifests: %w",
 					patchError, manifestResult.err)
 			}
+		}
+
+		if permanent {
+			// The immutable input cannot recover without a new job identity.
+			return ctrl.Result{}, nil
 		}
 
 		return ctrl.Result{}, fmt.Errorf("failed to download artifactManifests for vectorDeployment %s: %w", vectorDeployment.Name, manifestResult.err)

@@ -134,14 +134,23 @@ func (r *VectorTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.NamespacedName, vt *konfidence.VectorTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	if job, exists := r.jobs.get(nn); exists && !job.matches(vt.Generation, vt.UID) {
-		log.Info("cancelling assembly job for stale VectorTemplate identity",
-			"jobGeneration", job.generation,
-			"currentGeneration", vt.Generation,
-			"jobUID", string(job.uid),
-			"currentUID", string(vt.UID),
-		)
-		r.jobs.remove(nn)
+	if job, exists := r.jobs.get(nn); exists {
+		if !job.matches(vt.Generation, vt.UID) {
+			log.Info("cancelling assembly job for stale VectorTemplate identity",
+				"jobGeneration", job.generation,
+				"currentGeneration", vt.Generation,
+				"jobUID", string(job.uid),
+				"currentUID", string(vt.UID),
+			)
+			r.jobs.remove(nn)
+		} else {
+			result, completed := r.jobs.completedResult(nn, job)
+			if !completed {
+				return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
+			}
+
+			return r.applyAssemblyResult(vt, result, log)
+		}
 	}
 
 	ocmAdapter, err := r.buildAdapter(ctx, vt)
@@ -171,16 +180,6 @@ func (r *VectorTemplateReconciler) reconcileAsync(ctx context.Context, nn types.
 		}
 		baseVectorRef = ref
 		baseVectorRefKey = ref.String()
-	}
-
-	// Check for an inflight job.
-	if job, exists := r.jobs.get(nn); exists {
-		result, completed := r.jobs.completedResult(nn, job)
-		if !completed {
-			return ctrl.Result{RequeueAfter: r.assemblyPollInterval}, nil
-		}
-
-		return r.applyAssemblyResult(vt, result, log)
 	}
 
 	// Parse the current vector ref from status.latestVector.

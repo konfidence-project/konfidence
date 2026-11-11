@@ -291,6 +291,53 @@ var _ = Describe("Artifact manifest jobs", func() {
 		Expect(calls.Load()).To(Equal(int32(2)))
 	})
 
+	It("caches permanent failures until the job identity changes", func() {
+		ref := testArtifactRef("example.com/a", "1.0.0")
+		references := []compref.Ref{ref}
+		var calls atomic.Int32
+
+		permanent := &PermanentError{
+			Reason: konfidence.VectorDeploymentStalledReasonManifestMissing,
+			Err:    errors.New("manifest missing"),
+		}
+
+		port := &testVectorOcmPort{
+			getManifest: func(context.Context, compref.Ref) (ArtifactManifest, error) {
+				calls.Add(1)
+				return ArtifactManifest{}, permanent
+			},
+		}
+
+		r := newManifestTestReconciler(port, 1, 1)
+
+		_, retryAfter := r.resolveArtifactManifestsAsync(
+			nn, 1, types.UID("uid"), references,
+		)
+		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
+
+		var result artifactManifestResult
+		Eventually(func() time.Duration {
+			result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+			return retryAfter
+		}).Should(BeZero())
+
+		var actual *PermanentError
+		Expect(errors.As(result.err, &actual)).To(BeTrue())
+		Expect(calls.Load()).To(Equal(int32(1)))
+		Expect(r.jobs.retryLimiter.NumRequeues(nn)).To(BeZero())
+
+		By("returning the cached permanent result without another download")
+		result, retryAfter = r.resolveArtifactManifestsAsync(nn, 1, types.UID("uid"), references)
+		Expect(retryAfter).To(BeZero())
+		Expect(errors.As(result.err, &actual)).To(BeTrue())
+		Expect(calls.Load()).To(Equal(int32(1)))
+
+		By("invalidating the cached failure when identity changes")
+		_, retryAfter = r.resolveArtifactManifestsAsync(nn, 2, types.UID("uid"), references)
+		Expect(retryAfter).To(Equal(defaultArtifactManifestPollInterval))
+		Eventually(calls.Load).Should(Equal(int32(2)))
+	})
+
 	It("resets manifest retry backoff when the job identity changes", func() {
 		ref := testArtifactRef("example.com/a", "1.0.0")
 		references := []compref.Ref{ref}
@@ -597,7 +644,7 @@ var _ = Describe("Ready generation matching", func() {
 			expected bool,
 		) {
 			vd := &konfidence.VectorDeployment{
-				ObjectMeta: metav1.ObjectMeta{Generation: generation},
+				Generation: generation,
 			}
 			if condition != nil {
 				vd.Status.Conditions = []metav1.Condition{*condition}

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync"
 	"time"
@@ -136,12 +137,12 @@ func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid type
 	return true, 0
 }
 
-// completedResult returns a finished job result. Successful results remain
-// cached while the job identity matches. Failed jobs are removed and enter
-// exponential retry backoff.
+// completedResult returns a finished job result. Successful and permanent
+// results remain cached while the job identity matches. Transient failures are
+// removed and enter exponential retry backoff.
 // The boolean is true when the registered job has an available result,
-// including a previously cached successful result. It is false when the job
-// was replaced or removed, or when it is still running.
+// including a previously cached result. It is false when the job was replaced,
+// removed, or is still running.
 func (r *jobRegistry) completedResult(nn types.NamespacedName, job *inflightJob) (artifactManifestResult, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -157,7 +158,10 @@ func (r *jobRegistry) completedResult(nn types.NamespacedName, job *inflightJob)
 
 	select {
 	case result := <-job.result:
-		if result.err == nil {
+		var permanentErr *PermanentError
+		permanent := errors.As(result.err, &permanentErr)
+
+		if result.err == nil || permanent {
 			job.cachedResult = &result
 			r.clearRetryLocked(nn)
 			return result, true

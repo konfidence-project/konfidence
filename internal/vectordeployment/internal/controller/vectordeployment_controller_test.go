@@ -573,7 +573,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			Return(ArtifactManifest{}, &PermanentError{
 				Reason: konfidence.VectorDeploymentStalledReasonManifestMissing,
 				Err:    errors.New("no artifact manifest found in component sample-service-1"),
-			}).MinTimes(1)
+			}).Times(1)
 
 		gomega.Expect(k8sClient.Create(ctx, &konfidence.VectorDeployment{
 			TypeMeta:   metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
@@ -606,7 +606,7 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(VectorDescriptor{}, &PermanentError{
 			Reason: konfidence.VectorDeploymentStalledReasonSignatureVerificationFailed,
 			Err:    errors.New(`unable to verify ocm descriptor: signature "konfidence" not found in descriptor`),
-		}).AnyTimes()
+		}).Times(1)
 
 		gomega.Expect(k8sClient.Create(ctx, &konfidence.VectorDeployment{
 			TypeMeta:   metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
@@ -952,12 +952,10 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 		ocmAdapterMock.EXPECT().GetVectorDescriptor(gomock.Any(), gomock.Any()).Return(descriptor, nil).MinTimes(1)
 
 		vectorDeployment := &konfidence.VectorDeployment{
-			TypeMeta: metav1.TypeMeta{Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1"},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      deploymentName,
-				Namespace: testNamespace,
-			},
-			Spec: konfidence.VectorDeploymentSpec{Vector: vectorReference},
+			Kind: "VectorDeployment", APIVersion: "konfidence.cloud/v1alpha1",
+			Name:      deploymentName,
+			Namespace: testNamespace,
+			Spec:      konfidence.VectorDeploymentSpec{Vector: vectorReference},
 		}
 		gomega.Expect(k8sClient.Create(ctx, vectorDeployment)).To(gomega.Succeed())
 
