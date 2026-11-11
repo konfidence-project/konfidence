@@ -211,6 +211,10 @@ const operationHandlers = {
     }
     return reply.send(found);
   },
+  bypassVectorPromotionGatesV1: (request, reply) => {
+    promotionFor(request);
+    return reply.code(HTTP_NO_CONTENT).send();
+  },
   getArtifactDeploymentV1: (request, reply) => {
     const { artifactDeploymentId } = request.params as { artifactDeploymentId: string };
     const deployment = projectFor(request).artifactDeployments.find(
@@ -340,6 +344,10 @@ const operationHandlers = {
   postExchangeCodeV1: (_request, reply) =>
     reply.setCookie(SESSION_COOKIE, MOCK_SESSION, COOKIE_OPTIONS).send(),
   revokeApprovalVectorPromotionV1: (request, reply) => {
+    promotionFor(request);
+    return reply.code(HTTP_NO_CONTENT).send();
+  },
+  rejectVectorPromotionV1: (request, reply) => {
     promotionFor(request);
     return reply.code(HTTP_NO_CONTENT).send();
   },

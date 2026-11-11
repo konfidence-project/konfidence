@@ -86,6 +86,24 @@ func (e PromotionGateStatusState) Valid() bool {
 	}
 }
 
+// Defines values for PromotionOverrideType.
+const (
+	BypassGates PromotionOverrideType = "BypassGates"
+	Reject      PromotionOverrideType = "Reject"
+)
+
+// Valid indicates whether the value is a known member of the PromotionOverrideType enum.
+func (e PromotionOverrideType) Valid() bool {
+	switch e {
+	case BypassGates:
+		return true
+	case Reject:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PromotionSourceReferenceKind.
 const (
 	PromotionSourceReferenceKindStage          PromotionSourceReferenceKind = "Stage"
@@ -175,6 +193,7 @@ const (
 	VectorPromotionStatusBlocked    VectorPromotionStatus = "Blocked"
 	VectorPromotionStatusInProgress VectorPromotionStatus = "InProgress"
 	VectorPromotionStatusReady      VectorPromotionStatus = "Ready"
+	VectorPromotionStatusRejected   VectorPromotionStatus = "Rejected"
 	VectorPromotionStatusSucceeded  VectorPromotionStatus = "Succeeded"
 	VectorPromotionStatusSuperseded VectorPromotionStatus = "Superseded"
 	VectorPromotionStatusWaiting    VectorPromotionStatus = "Waiting"
@@ -188,6 +207,8 @@ func (e VectorPromotionStatus) Valid() bool {
 	case VectorPromotionStatusInProgress:
 		return true
 	case VectorPromotionStatusReady:
+		return true
+	case VectorPromotionStatusRejected:
 		return true
 	case VectorPromotionStatusSucceeded:
 		return true
@@ -375,6 +396,28 @@ type PromotionGateStatus struct {
 // PromotionGateStatusState Current state of the gate
 type PromotionGateStatusState string
 
+// PromotionOverride Operator decision that overrides the gate flow, with its provenance. `Reject` terminally rejects the promotion; `BypassGates` lets it proceed regardless of its gates, whose states are left as their writers reported them.
+type PromotionOverride struct {
+	// Reason Justification given for the decision
+	Reason string `json:"reason"`
+
+	// SetAt Time the decision was made
+	SetAt time.Time `json:"setAt"`
+
+	// SetBy Authenticated subject that made the decision
+	SetBy string                `json:"setBy"`
+	Type  PromotionOverrideType `json:"type"`
+}
+
+// PromotionOverrideType defines model for PromotionOverride.Type.
+type PromotionOverrideType string
+
+// PromotionOverrideRequestBody defines model for PromotionOverrideRequestBody.
+type PromotionOverrideRequestBody struct {
+	// Reason Justification for the decision, recorded with the acting identity
+	Reason string `json:"reason"`
+}
+
 // PromotionSourceReference defines model for PromotionSourceReference.
 type PromotionSourceReference struct {
 	// Kind Promotion source kind
@@ -544,7 +587,10 @@ type VectorPromotion struct {
 	Gates *[]PromotionGateStatus `json:"gates,omitempty"`
 
 	// Id The vectorPromotion id
-	Id               VectorPromotionId        `json:"id"`
+	Id VectorPromotionId `json:"id"`
+
+	// Override Operator decision that overrides the gate flow, with its provenance. `Reject` terminally rejects the promotion; `BypassGates` lets it proceed regardless of its gates, whose states are left as their writers reported them.
+	Override         *PromotionOverride       `json:"override,omitempty"`
 	Sequence         *int64                   `json:"sequence,omitempty"`
 	Source           PromotionSourceReference `json:"source"`
 	Status           *VectorPromotionStatus   `json:"status,omitempty"`
@@ -629,6 +675,9 @@ type NotFound = ErrorResponse
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = ErrorResponse
 
+// PromotionOverrideRequest defines model for PromotionOverrideRequest.
+type PromotionOverrideRequest = PromotionOverrideRequestBody
+
 // AuthCallbackV1Params defines parameters for AuthCallbackV1.
 type AuthCallbackV1Params struct {
 	State            string  `form:"state" json:"state"`
@@ -702,6 +751,12 @@ type GetVectorDiffV1ParamsIncludeUnchanged string
 
 // PostExchangeCodeV1JSONRequestBody defines body for PostExchangeCodeV1 for application/json ContentType.
 type PostExchangeCodeV1JSONRequestBody PostExchangeCodeV1JSONBody
+
+// BypassVectorPromotionGatesV1JSONRequestBody defines body for BypassVectorPromotionGatesV1 for application/json ContentType.
+type BypassVectorPromotionGatesV1JSONRequestBody = PromotionOverrideRequestBody
+
+// RejectVectorPromotionV1JSONRequestBody defines body for RejectVectorPromotionV1 for application/json ContentType.
+type RejectVectorPromotionV1JSONRequestBody = PromotionOverrideRequestBody
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -916,10 +971,46 @@ type ClientInterface interface {
 
 	// ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 	//
-	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
 	//
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 	ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BypassVectorPromotionGatesV1WithBody Bypasses the gates of the given vectorPromotion for the specified project
+	//
+	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates (the `BypassVectorPromotionGatesV1` operationId).
+	BypassVectorPromotionGatesV1WithBody(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BypassVectorPromotionGatesV1 Bypasses the gates of the given vectorPromotion for the specified project
+	//
+	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates (the `BypassVectorPromotionGatesV1` operationId).
+	BypassVectorPromotionGatesV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body BypassVectorPromotionGatesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RejectVectorPromotionV1WithBody Rejects the given vectorPromotion for the specified project
+	//
+	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject (the `RejectVectorPromotionV1` operationId).
+	RejectVectorPromotionV1WithBody(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RejectVectorPromotionV1 Rejects the given vectorPromotion for the specified project
+	//
+	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject (the `RejectVectorPromotionV1` operationId).
+	RejectVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body RejectVectorPromotionV1JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RevokeApprovalVectorPromotionV1 Revoke the approval of the given vectorPromotion for the specified project
 	//
@@ -1270,11 +1361,87 @@ func (c *Client) GetVectorPromotionV1(ctx context.Context, projectId ProjectPath
 
 // ApproveVectorPromotionV1 Approves the given vectorPromotion for the specified project
 //
-// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
 //
 // Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 func (c *Client) ApproveVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewApproveVectorPromotionV1Request(c.Server, projectId, vectorPromotionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BypassVectorPromotionGatesV1WithBody Bypasses the gates of the given vectorPromotion for the specified project
+//
+// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates (the `BypassVectorPromotionGatesV1` operationId).
+func (c *Client) BypassVectorPromotionGatesV1WithBody(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBypassVectorPromotionGatesV1RequestWithBody(c.Server, projectId, vectorPromotionId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BypassVectorPromotionGatesV1 Bypasses the gates of the given vectorPromotion for the specified project
+//
+// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates (the `BypassVectorPromotionGatesV1` operationId).
+func (c *Client) BypassVectorPromotionGatesV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body BypassVectorPromotionGatesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBypassVectorPromotionGatesV1Request(c.Server, projectId, vectorPromotionId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RejectVectorPromotionV1WithBody Rejects the given vectorPromotion for the specified project
+//
+// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject (the `RejectVectorPromotionV1` operationId).
+func (c *Client) RejectVectorPromotionV1WithBody(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRejectVectorPromotionV1RequestWithBody(c.Server, projectId, vectorPromotionId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RejectVectorPromotionV1 Rejects the given vectorPromotion for the specified project
+//
+// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject (the `RejectVectorPromotionV1` operationId).
+func (c *Client) RejectVectorPromotionV1(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body RejectVectorPromotionV1JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRejectVectorPromotionV1Request(c.Server, projectId, vectorPromotionId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2231,6 +2398,114 @@ func NewApproveVectorPromotionV1Request(server string, projectId ProjectPathId, 
 	return req, nil
 }
 
+// NewBypassVectorPromotionGatesV1Request calls the generic BypassVectorPromotionGatesV1 builder with application/json body
+func NewBypassVectorPromotionGatesV1Request(server string, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body BypassVectorPromotionGatesV1JSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewBypassVectorPromotionGatesV1RequestWithBody(server, projectId, vectorPromotionId, "application/json", bodyReader)
+}
+
+// NewBypassVectorPromotionGatesV1RequestWithBody constructs an http.Request for the BypassVectorPromotionGatesV1 method, with any body, and a specified content type
+func NewBypassVectorPromotionGatesV1RequestWithBody(server string, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "projectId", projectId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "vectorPromotionId", vectorPromotionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/vectorPromotions/%s/bypassGates", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRejectVectorPromotionV1Request calls the generic RejectVectorPromotionV1 builder with application/json body
+func NewRejectVectorPromotionV1Request(server string, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body RejectVectorPromotionV1JSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRejectVectorPromotionV1RequestWithBody(server, projectId, vectorPromotionId, "application/json", bodyReader)
+}
+
+// NewRejectVectorPromotionV1RequestWithBody constructs an http.Request for the RejectVectorPromotionV1 method, with any body, and a specified content type
+func NewRejectVectorPromotionV1RequestWithBody(server string, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "projectId", projectId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "vectorPromotionId", vectorPromotionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/vectorPromotions/%s/reject", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewRevokeApprovalVectorPromotionV1Request constructs an http.Request for the RevokeApprovalVectorPromotionV1 method
 func NewRevokeApprovalVectorPromotionV1Request(server string, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId) (*http.Request, error) {
 	var err error
@@ -2627,12 +2902,48 @@ type ClientWithResponsesInterface interface {
 
 	// ApproveVectorPromotionV1WithResponse Approves the given vectorPromotion for the specified project
 	//
-	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+	// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve (the `ApproveVectorPromotionV1` operationId).
 	ApproveVectorPromotionV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, reqEditors ...RequestEditorFn) (*ApproveVectorPromotionV1Response, error)
+
+	// BypassVectorPromotionGatesV1WithBodyWithResponse Bypasses the gates of the given vectorPromotion for the specified project
+	//
+	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates (the `BypassVectorPromotionGatesV1` operationId).
+	BypassVectorPromotionGatesV1WithBodyWithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BypassVectorPromotionGatesV1Response, error)
+
+	// BypassVectorPromotionGatesV1WithResponse Bypasses the gates of the given vectorPromotion for the specified project
+	//
+	// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates (the `BypassVectorPromotionGatesV1` operationId).
+	BypassVectorPromotionGatesV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body BypassVectorPromotionGatesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*BypassVectorPromotionGatesV1Response, error)
+
+	// RejectVectorPromotionV1WithBodyWithResponse Rejects the given vectorPromotion for the specified project
+	//
+	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject (the `RejectVectorPromotionV1` operationId).
+	RejectVectorPromotionV1WithBodyWithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RejectVectorPromotionV1Response, error)
+
+	// RejectVectorPromotionV1WithResponse Rejects the given vectorPromotion for the specified project
+	//
+	// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject (the `RejectVectorPromotionV1` operationId).
+	RejectVectorPromotionV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body RejectVectorPromotionV1JSONRequestBody, reqEditors ...RequestEditorFn) (*RejectVectorPromotionV1Response, error)
 
 	// RevokeApprovalVectorPromotionV1WithResponse Revoke the approval of the given vectorPromotion for the specified project
 	//
@@ -3895,6 +4206,158 @@ func (r ApproveVectorPromotionV1Response) ContentType() string {
 	return ""
 }
 
+type BypassVectorPromotionGatesV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalError
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r BypassVectorPromotionGatesV1Response) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r BypassVectorPromotionGatesV1Response) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r BypassVectorPromotionGatesV1Response) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r BypassVectorPromotionGatesV1Response) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r BypassVectorPromotionGatesV1Response) GetJSON409() *Conflict {
+	return r.JSON409
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r BypassVectorPromotionGatesV1Response) GetJSON500() *InternalError {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r BypassVectorPromotionGatesV1Response) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r BypassVectorPromotionGatesV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BypassVectorPromotionGatesV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r BypassVectorPromotionGatesV1Response) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RejectVectorPromotionV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalError
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r RejectVectorPromotionV1Response) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r RejectVectorPromotionV1Response) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r RejectVectorPromotionV1Response) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r RejectVectorPromotionV1Response) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r RejectVectorPromotionV1Response) GetJSON409() *Conflict {
+	return r.JSON409
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r RejectVectorPromotionV1Response) GetJSON500() *InternalError {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r RejectVectorPromotionV1Response) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RejectVectorPromotionV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RejectVectorPromotionV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RejectVectorPromotionV1Response) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RevokeApprovalVectorPromotionV1Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4403,7 +4866,7 @@ func (c *ClientWithResponses) GetVectorPromotionV1WithResponse(ctx context.Conte
 
 // ApproveVectorPromotionV1WithResponse Approves the given vectorPromotion for the specified project
 //
-// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, or does not declare the explicit-approval gate.
+// Satisfies the `explicit-approval.konfidence.cloud` gate of a vectorPromotion, recording the authenticated caller as the approver. Approving an already-approved promotion is idempotent and returns 204. Returns 409 when the promotion is superseded, finished, already executing, rejected, has its gates bypassed, or does not declare the explicit-approval gate.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -4414,6 +4877,66 @@ func (c *ClientWithResponses) ApproveVectorPromotionV1WithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseApproveVectorPromotionV1Response(rsp)
+}
+
+// BypassVectorPromotionGatesV1WithBodyWithResponse Bypasses the gates of the given vectorPromotion for the specified project
+//
+// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates (the `BypassVectorPromotionGatesV1` operationId).
+func (c *ClientWithResponses) BypassVectorPromotionGatesV1WithBodyWithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BypassVectorPromotionGatesV1Response, error) {
+	rsp, err := c.BypassVectorPromotionGatesV1WithBody(ctx, projectId, vectorPromotionId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBypassVectorPromotionGatesV1Response(rsp)
+}
+
+// BypassVectorPromotionGatesV1WithResponse Bypasses the gates of the given vectorPromotion for the specified project
+//
+// Lets a vectorPromotion that is still waiting on its gates proceed as if all of them were satisfied. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left exactly as their writers reported them. Bypassing the gates of a promotion whose gates were already bypassed is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or it was rejected.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/bypassGates (the `BypassVectorPromotionGatesV1` operationId).
+func (c *ClientWithResponses) BypassVectorPromotionGatesV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body BypassVectorPromotionGatesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*BypassVectorPromotionGatesV1Response, error) {
+	rsp, err := c.BypassVectorPromotionGatesV1(ctx, projectId, vectorPromotionId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBypassVectorPromotionGatesV1Response(rsp)
+}
+
+// RejectVectorPromotionV1WithBodyWithResponse Rejects the given vectorPromotion for the specified project
+//
+// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject (the `RejectVectorPromotionV1` operationId).
+func (c *ClientWithResponses) RejectVectorPromotionV1WithBodyWithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RejectVectorPromotionV1Response, error) {
+	rsp, err := c.RejectVectorPromotionV1WithBody(ctx, projectId, vectorPromotionId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRejectVectorPromotionV1Response(rsp)
+}
+
+// RejectVectorPromotionV1WithResponse Rejects the given vectorPromotion for the specified project
+//
+// Terminally rejects a vectorPromotion that is still waiting on its gates, regardless of their state. The authenticated caller and the given reason are recorded in the promotion's override; its gates are left untouched. Rejecting an already-rejected promotion is idempotent and returns 204. Returns 409 when the promotion is finished, its gates are already satisfied, or its gates were bypassed.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/reject (the `RejectVectorPromotionV1` operationId).
+func (c *ClientWithResponses) RejectVectorPromotionV1WithResponse(ctx context.Context, projectId ProjectPathId, vectorPromotionId VectorPromotionPathId, body RejectVectorPromotionV1JSONRequestBody, reqEditors ...RequestEditorFn) (*RejectVectorPromotionV1Response, error) {
+	rsp, err := c.RejectVectorPromotionV1(ctx, projectId, vectorPromotionId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRejectVectorPromotionV1Response(rsp)
 }
 
 // RevokeApprovalVectorPromotionV1WithResponse Revoke the approval of the given vectorPromotion for the specified project
@@ -5413,6 +5936,134 @@ func ParseApproveVectorPromotionV1Response(rsp *http.Response) (*ApproveVectorPr
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseBypassVectorPromotionGatesV1Response parses an HTTP response from a BypassVectorPromotionGatesV1WithResponse call
+func ParseBypassVectorPromotionGatesV1Response(rsp *http.Response) (*BypassVectorPromotionGatesV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BypassVectorPromotionGatesV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRejectVectorPromotionV1Response parses an HTTP response from a RejectVectorPromotionV1WithResponse call
+func ParseRejectVectorPromotionV1Response(rsp *http.Response) (*RejectVectorPromotionV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RejectVectorPromotionV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest Unauthorized

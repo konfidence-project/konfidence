@@ -41,8 +41,9 @@
 // Promotion status has several writers: this controller, the gate writers
 // (gate controllers and the konfidence API via vectorpromotion.Approve) that
 // set gate entries through pkg/promotiongate, and the konfidence API that
-// records the operator override. Status writes use optimistic locking to
-// handle conflicts. The controller never interprets gate types.
+// records the operator override (vectorpromotion.Reject and
+// vectorpromotion.BypassGates). Status writes use optimistic locking to handle
+// conflicts. The controller never interprets gate types.
 //
 // # Lifecycle
 //
