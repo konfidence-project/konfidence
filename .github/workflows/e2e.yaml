@@ -118,3 +118,26 @@ jobs:
       - name: Delete kind cluster
         if: always() && steps.cluster.outcome != '' && steps.cluster.outcome != 'skipped'
         run: make e2e-down
+
+      - name: Delete e2e packages
+        if: always()
+        continue-on-error: true
+        uses: actions/github-script@v9
+        with:
+          retries: 2
+          script: |
+            const {owner, repo} = context.repo;
+            const prefix = `${repo.toLowerCase()}/e2e/run-${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}/`;
+            try {
+              const packages = await github.paginate('GET /orgs/{org}/packages', {org: owner, package_type: 'container', per_page: 100});
+              for (const pkg of packages.filter(pkg => pkg.name.startsWith(prefix))) {
+                try {
+                  await github.request('DELETE /orgs/{org}/packages/{package_type}/{package_name}', {org: owner, package_type: 'container', package_name: pkg.name});
+                  core.info(`Deleted ${JSON.stringify(pkg.name)}`);
+                } catch (error) {
+                  if (error.status !== 404) core.warning(`Cannot delete ${JSON.stringify(pkg.name)} (HTTP ${error.status || 'unknown'}).`);
+                }
+              }
+            } catch (error) {
+              core.warning(`Cannot list e2e packages (HTTP ${error.status || 'unknown'}).`);
+            }
