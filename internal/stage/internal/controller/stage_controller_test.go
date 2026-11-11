@@ -254,7 +254,7 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			}, timeout, interval).Should(Succeed())
 
 			controller.EnsureLandscapeNamespace(ctx, k8sClient, unlabeledNS)
-			verifyStageReady(ctx, k8sClient, StageDev, unlabeledNS, timeout, interval)
+			verifyStageReady(ctx, k8sClient, StageDev, unlabeledNS, 2*pkgctrl.NamespaceNotReadyRequeueInterval, interval)
 		})
 	})
 })

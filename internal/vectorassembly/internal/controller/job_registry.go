@@ -18,50 +18,115 @@ type assemblyResult struct {
 func (r assemblyResult) failed() bool  { return r.err != nil }
 func (r assemblyResult) created() bool { return r.err == nil && r.latestVector != "" }
 
-// inflightJob tracks a single background assembly goroutine.
-type inflightJob struct {
+type assemblyJobIdentity struct {
 	generation int64
-	cancel     context.CancelFunc
-	result     chan assemblyResult // buffered cap 1, sent exactly once
+	uid        types.UID
 }
 
-func (j *inflightJob) done() bool { return len(j.result) > 0 }
+func (i assemblyJobIdentity) matches(generation int64, uid types.UID) bool {
+	return i.generation == generation && i.uid == uid
+}
+
+// inflightJob tracks a single background assembly goroutine.
+type inflightJob struct {
+	assemblyJobIdentity
+	cancel          context.CancelFunc
+	result          chan assemblyResult // buffered cap 1, sent exactly once
+	completedResult *assemblyResult
+}
 
 // jobRegistry is a mutex-guarded map of inflight assembly jobs keyed by NamespacedName.
 type jobRegistry struct {
-	mu       sync.Mutex
-	inflight map[types.NamespacedName]*inflightJob
+	mu           sync.Mutex
+	wg           sync.WaitGroup
+	inflight     map[types.NamespacedName]*inflightJob
+	parentCtx    context.Context
+	cancelParent context.CancelFunc
+	closed       bool
 }
 
 func newJobRegistry() *jobRegistry {
-	return &jobRegistry{inflight: make(map[types.NamespacedName]*inflightJob)}
+	parentCtx, cancelParent := context.WithCancel(context.Background())
+
+	return &jobRegistry{
+		inflight:     make(map[types.NamespacedName]*inflightJob),
+		parentCtx:    parentCtx,
+		cancelParent: cancelParent,
+	}
 }
 
 func (r *jobRegistry) get(nn types.NamespacedName) (*inflightJob, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	job, ok := r.inflight[nn]
-	return job, ok
+
+	job, exists := r.inflight[nn]
+	return job, exists
 }
 
-// launch starts a background goroutine for nn/gen and registers it. Any previously
-// registered job for nn must have been cancelled and removed by the caller first.
-func (r *jobRegistry) launch(nn types.NamespacedName, gen int64, fn func(ctx context.Context) assemblyResult) {
-	jobCtx, cancel := context.WithCancel(context.Background())
+// launch starts and registers a background job for the object identity.
+// Any existing job for the same key is canceled before it is replaced.
+// It returns true when the job was launched, or false if the registry has
+// already been shut down.
+func (r *jobRegistry) launch(nn types.NamespacedName, generation int64, uid types.UID,
+	fn func(context.Context) assemblyResult) bool {
+	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		return false
+	}
+
+	jobCtx, cancel := context.WithCancel(r.parentCtx)
 	job := &inflightJob{
-		generation: gen,
+		generation: generation,
+		uid:        uid,
 		cancel:     cancel,
 		result:     make(chan assemblyResult, 1),
 	}
 
-	r.mu.Lock()
+	// Defensive replacement: callers normally remove stale jobs first.
+	if previous, exists := r.inflight[nn]; exists {
+		previous.cancel()
+	}
+
 	r.inflight[nn] = job
+	r.wg.Add(1)
 	r.mu.Unlock()
 
 	go func() {
+		defer r.wg.Done()
 		defer cancel()
+
 		job.result <- fn(jobCtx)
 	}()
+
+	return true
+}
+
+// completedResult returns a completed result without removing it. The result
+// remains cached until acknowledgeCompleted is called after status persistence.
+// The boolean is true only when job is still the registered job for nn and its
+// result was available and consumed. It is false when the job was replaced,
+// removed, or is still running.
+func (r *jobRegistry) completedResult(nn types.NamespacedName, job *inflightJob) (assemblyResult, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	current, exists := r.inflight[nn]
+	if !exists || current != job {
+		return assemblyResult{}, false
+	}
+
+	if job.completedResult != nil {
+		return *job.completedResult, true
+	}
+
+	select {
+	case result := <-job.result:
+		job.completedResult = &result
+		return result, true
+	default:
+		return assemblyResult{}, false
+	}
 }
 
 // remove removes the job from the registry and cancels its context. No-op if no
@@ -69,8 +134,45 @@ func (r *jobRegistry) launch(nn types.NamespacedName, gen int64, fn func(ctx con
 func (r *jobRegistry) remove(nn types.NamespacedName) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if job, ok := r.inflight[nn]; ok {
+
+	if job, exists := r.inflight[nn]; exists {
 		job.cancel()
 		delete(r.inflight, nn)
 	}
+}
+
+func (r *jobRegistry) shutdown() {
+	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		r.wg.Wait()
+		return
+	}
+
+	// Holding the mutex prevents launch from adding to the WaitGroup after
+	// shutdown starts waiting.
+	r.closed = true
+	r.cancelParent()
+	r.mu.Unlock()
+
+	r.wg.Wait()
+
+	r.mu.Lock()
+	clear(r.inflight)
+	r.mu.Unlock()
+}
+
+// acknowledgeCompleted removes a completed job after its result has been
+// stored in the VectorTemplate status.
+func (r *jobRegistry) acknowledgeCompleted(nn types.NamespacedName) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	job, exists := r.inflight[nn]
+	if !exists || job.completedResult == nil {
+		return
+	}
+
+	job.cancel()
+	delete(r.inflight, nn)
 }

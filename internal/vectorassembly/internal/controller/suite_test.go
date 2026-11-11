@@ -45,11 +45,12 @@ const (
 )
 
 var (
-	ctx       context.Context
-	cancel    context.CancelFunc
-	testEnv   *envtest.Environment
-	cfg       *rest.Config
-	k8sClient client.Client
+	ctx                      context.Context
+	cancel                   context.CancelFunc
+	testEnv                  *envtest.Environment
+	cfg                      *rest.Config
+	k8sClient                client.Client
+	vectorTemplateReconciler *VectorTemplateReconciler
 
 	registryEndpoint string
 
@@ -190,9 +191,9 @@ func startManager() {
 	vectorCache, err := lru.New[string, vector.Vector](VectorCacheSize)
 	Expect(err).NotTo(HaveOccurred())
 
-	reconciler := NewVectorTemplateReconciler(mgr, sharedVerifier, limiter, log, vectorCache, testVersionGenerator)
-	reconciler.assemblyPollInterval = 100 * time.Millisecond
-	Expect(reconciler.SetupWithManager(mgr)).To(Succeed())
+	vectorTemplateReconciler = NewVectorTemplateReconciler(mgr, sharedVerifier, limiter, log, vectorCache, testVersionGenerator)
+	vectorTemplateReconciler.assemblyPollInterval = 100 * time.Millisecond
+	Expect(vectorTemplateReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	managerCtx, managerCancel := context.WithCancel(ctx)
 	go func() {

@@ -97,6 +97,68 @@ var _ = Describe("Artifact manifest job registry", func() {
 		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
 	})
 
+	It("caches a permanent result until the job is removed", func() {
+		registry := newJobRegistry()
+		DeferCleanup(registry.shutdown)
+
+		nn := types.NamespacedName{
+			Namespace: "default",
+			Name:      "vector",
+		}
+		permanent := &PermanentError{
+			Reason: "ManifestMissing",
+			Err:    errors.New("manifest missing"),
+		}
+
+		launched, retryAfter := registry.launch(nn, 1, types.UID("uid"), []string{"ref"},
+			func(context.Context) artifactManifestResult {
+				return artifactManifestResult{err: permanent}
+			},
+		)
+		Expect(launched).To(BeTrue())
+		Expect(retryAfter).To(BeZero())
+
+		job, exists := registry.get(nn)
+		Expect(exists).To(BeTrue())
+
+		var (
+			result    artifactManifestResult
+			completed bool
+		)
+		Eventually(func() bool {
+			result, completed = registry.completedResult(nn, job)
+			return completed
+		}).Should(BeTrue())
+
+		var actual *PermanentError
+		Expect(errors.As(result.err, &actual)).To(BeTrue())
+		Expect(actual).To(BeIdenticalTo(permanent))
+		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
+
+		By("retaining the permanent result in the registry")
+		cachedJob, exists := registry.get(nn)
+		Expect(exists).To(BeTrue())
+		Expect(cachedJob).To(BeIdenticalTo(job))
+		Expect(cachedJob.cachedResult).NotTo(BeNil())
+
+		By("returning the cached error without entering retry backoff")
+		cachedResult, completed := registry.completedResult(nn, cachedJob)
+		Expect(completed).To(BeTrue())
+		Expect(errors.As(cachedResult.err, &actual)).To(BeTrue())
+		Expect(actual).To(BeIdenticalTo(permanent))
+		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
+
+		By("removing the cached result")
+		registry.remove(nn)
+
+		_, exists = registry.get(nn)
+		Expect(exists).To(BeFalse())
+
+		_, completed = registry.completedResult(nn, cachedJob)
+		Expect(completed).To(BeFalse())
+		Expect(registry.retryLimiter.NumRequeues(nn)).To(BeZero())
+	})
+
 	It("shuts down all jobs and rejects later launches", func() {
 		registry := newJobRegistry()
 
