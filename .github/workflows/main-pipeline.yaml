@@ -17,8 +17,19 @@ jobs:
       packages: write
       attestations: write
       id-token: write
-    uses: konfidence-project/konfidence/.github/workflows/lint-test-build.yaml@main
+    uses: ./.github/workflows/lint-test-build.yaml
     secrets: inherit
     with:
       mode: main
       snapshot-tag: ${{ github.sha }}
+
+  publish-dev-chart:
+    name: Publish Dev Helm Chart
+    needs: [lint-test-build]
+    permissions:
+      contents: read
+      packages: write
+    uses: konfidence-project/.github/.github/workflows/publish-helm-charts.yaml@v4
+    with:
+      mode: dev
+      charts: charts/konfidence
