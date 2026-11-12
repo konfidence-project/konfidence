@@ -14,6 +14,7 @@ import (
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	vectorocm "github.com/konfidence-project/konfidence/internal/vectorassembly/internal/ocm"
 	"github.com/konfidence-project/konfidence/internal/vectorassembly/internal/vector"
+	"github.com/konfidence-project/konfidence/pkg/collection"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"github.com/konfidence-project/konfidence/pkg/jsonschema"
 	konfcompref "github.com/konfidence-project/konfidence/pkg/ocm/compref"
@@ -446,29 +447,46 @@ func (r *VectorTemplateReconciler) getVectorCached(ctx context.Context, adapter 
 }
 
 func combineBaseArtifactsAndComponentArtifacts(baseArtifacts, componentArtifacts []vector.Artifact) ([]vector.Artifact, error) {
+	baseDuplicates := collection.FindDuplicatesBy(baseArtifacts,
+		func(artifact vector.Artifact) string {
+			return artifact.Name
+		},
+	)
+	if len(baseDuplicates) > 0 {
+		duplicate := baseDuplicates[0]
+		return nil, fmt.Errorf("base VectorTemplate contains artifact %q more than once with versions %q and %q; "+
+			"update the base VectorTemplate to only use a single artifact version",
+			duplicate.Duplicate.Name,
+			duplicate.First.Version,
+			duplicate.Duplicate.Version,
+		)
+	}
+
+	componentDuplicates := collection.FindDuplicatesBy(componentArtifacts,
+		func(artifact vector.Artifact) string {
+			return artifact.Name
+		},
+	)
+	if len(componentDuplicates) > 0 {
+		duplicate := componentDuplicates[0]
+		return nil, fmt.Errorf("vectorTemplate contains artifact %q more than once with versions %q and %q; "+
+			"update the VectorTemplate to only use a single artifact version",
+			duplicate.Duplicate.Name,
+			duplicate.First.Version,
+			duplicate.Duplicate.Version,
+		)
+	}
+
 	result := make([]vector.Artifact, len(baseArtifacts))
 	copy(result, baseArtifacts)
 
 	artifactIndexes := make(map[string]int, len(baseArtifacts)+len(componentArtifacts))
-	for i, artifact := range baseArtifacts {
-		if previousIndex, exists := artifactIndexes[artifact.Name]; exists {
-			previous := baseArtifacts[previousIndex]
-			return nil, fmt.Errorf("base vector contains artifact %q more than once with versions %q and %q",
-				artifact.Name, previous.Version, artifact.Version)
-		}
-		artifactIndexes[artifact.Name] = i
+	for index, artifact := range baseArtifacts {
+		artifactIndexes[artifact.Name] = index
 	}
 
-	componentArtifactsByName := make(map[string]vector.Artifact, len(componentArtifacts))
 	for _, artifact := range componentArtifacts {
-		if previous, exists := componentArtifactsByName[artifact.Name]; exists {
-			return nil, fmt.Errorf("VectorTemplate resolves artifact %q more than once with versions %q and %q",
-				artifact.Name, previous.Version, artifact.Version)
-		}
-		componentArtifactsByName[artifact.Name] = artifact
-
 		if index, inherited := artifactIndexes[artifact.Name]; inherited {
-			// Explicit components override the artifact inherited from the base.
 			result[index] = artifact
 			continue
 		}

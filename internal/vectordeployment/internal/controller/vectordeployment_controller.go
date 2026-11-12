@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
+	"github.com/konfidence-project/konfidence/pkg/collection"
 	pkgctrl "github.com/konfidence-project/konfidence/pkg/controller"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
@@ -634,23 +635,20 @@ func (r *VectorDeploymentReconciler) resolveVector(
 }
 
 func validateArtifactReferences(refs []compref.Ref) error {
-	seen := make(map[string]string, len(refs))
-
-	for _, ref := range refs {
-		previousVersion, exists := seen[ref.Component]
-		if !exists {
-			seen[ref.Component] = ref.Version
-			continue
-		}
-
-		return &PermanentError{
-			Reason: konfidence.VectorDeploymentStalledReasonDuplicateArtifact,
-			Err: fmt.Errorf("vector contains artifact %q more than once with versions %q and %q",
-				ref.Component, previousVersion, ref.Version),
-		}
+	duplicates := collection.FindDuplicatesBy(refs, func(ref compref.Ref) string { return ref.Component })
+	if len(duplicates) == 0 {
+		return nil
 	}
 
-	return nil
+	duplicate := duplicates[0]
+	return &PermanentError{
+		Reason: konfidence.VectorDeploymentStalledReasonDuplicateArtifact,
+		Err: fmt.Errorf("vector contains artifact %q more than once with versions %q and %q",
+			duplicate.Duplicate.Component,
+			duplicate.First.Version,
+			duplicate.Duplicate.Version,
+		),
+	}
 }
 
 func (r *VectorDeploymentReconciler) ensureVectorDataConfigResolved(

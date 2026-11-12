@@ -900,7 +900,9 @@ var _ = Describe("combining vector artifacts", func() {
 		)
 
 		Expect(artifacts).To(BeNil())
-		Expect(err).To(MatchError(`base vector contains artifact "example.org/service" more than once with versions "1.0.0" and "2.0.0"`))
+		Expect(err).To(MatchError(`base VectorTemplate contains artifact "example.org/service" more than once ` +
+			`with versions "1.0.0" and "2.0.0"; update the base VectorTemplate to only use a single artifact version`,
+		))
 	})
 
 	It("rejects multiple resolved versions from the VectorTemplate", func() {
@@ -913,7 +915,8 @@ var _ = Describe("combining vector artifacts", func() {
 		)
 
 		Expect(artifacts).To(BeNil())
-		Expect(err).To(MatchError(`VectorTemplate resolves artifact "example.org/service" more than once with versions "1.0.0" and "2.0.0"`))
+		Expect(err).To(MatchError(`vectorTemplate contains artifact "example.org/service" more than once with versions "1.0.0" and "2.0.0"; ` +
+			"update the VectorTemplate to only use a single artifact version"))
 	})
 
 	It("also rejects the same artifact version more than once", func() {
