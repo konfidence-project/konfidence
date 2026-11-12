@@ -39,8 +39,8 @@
     class={[
         "transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none",
         interactive && !selected && "hover:bg-surface-subtle",
-        interactive && "table-row--interactive cursor-pointer",
-        selected && "table-row--selected",
+        interactive && "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[color:var(--amber-500)]",
+        selected && "bg-selection-bg [&>td:first-child]:relative [&>td:first-child]:before:content-[''] [&>td:first-child]:before:absolute [&>td:first-child]:before:inset-y-0 [&>td:first-child]:before:left-0 [&>td:first-child]:before:w-[3px] [&>td:first-child]:before:bg-[image:var(--gradient-amber)] [&>td:first-child]:before:pointer-events-none",
         className,
     ]}
     tabindex={interactive ? 0 : undefined}
@@ -51,29 +51,3 @@
 >
     {@render children()}
 </tr>
-
-<style>
-    .table-row--interactive:focus-visible {
-        outline: 2px solid var(--amber-500);
-        outline-offset: -2px;
-    }
-
-    .table-row--selected {
-        background: var(--selection-bg);
-    }
-
-    .table-row--selected > :global(td:first-child) {
-        position: relative;
-    }
-
-    .table-row--selected > :global(td:first-child)::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        width: 3px;
-        background: var(--gradient-amber);
-        pointer-events: none;
-    }
-</style>
