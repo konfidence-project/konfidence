@@ -11,7 +11,7 @@ Skeleton v5, provides:
   typography and color; small scoped `<style>` blocks remain for complex
   treatments and nested component overrides.
 - **Svelte components** — Tier-1 wrappers over the CSS layer:
-  `Button`, `Brandbar`, `OrbitLoader`, `StatusBadge`.
+  `Button`, `Brandbar`, `OrbitLoader`, `Badge`, `Tag`.
 - **Icons** — [SAP-icons](https://sap.github.io/ui5-webcomponents/nightly/v2/components/Icon/)
   via `<ui5-icon name="…">`. Components that render icons import
   `@ui5/webcomponents/dist/Icon.js` and
@@ -238,3 +238,38 @@ Accordion, Segmented Control, Switch, Toast, Pagination, Progress,
 Slider, Steps, Avatar, App Bar, Navigation) are consumed directly
 from `@skeletonlabs/skeleton-svelte`; wrap them here only when we
 want to constrain their API.
+
+## Tags and Badges
+
+`Tag` identifies categories and metadata; `Badge` communicates state. Each has
+its own gallery section and shape, matching the Designer DS.
+
+```svelte
+<Tag color="teal" icon="navigation-right-arrow">Promotion</Tag>
+<Tag mono size="sm">US-30</Tag>
+<Tag color="teal" interactive onclick={openLatest}>Latest waiting: v2.14.0</Tag>
+<Tag color="teal" href="/promotions">Promotions</Tag>
+<Badge status="healthy">Healthy</Badge>
+<Badge status="waiting" animated>Waiting</Badge>
+<Badge status="warning" variant="subtle" showDot={false}>Warning</Badge>
+```
+
+Tags: twelve color palettes plus neutral, optional SAP `icon`, `mono` for
+metadata, `size="sm"` (20px) or `"md"` (24px, default), `wrap` for long labels.
+Static tags are spans; `interactive` renders a native button; `href` renders a
+link. Disabled buttons use native `disabled`; disabled links remove `href` and
+expose `aria-disabled`. Keyboard, hover, pressed and focus states are included.
+
+Badges: `status` accepts healthy, warning, degraded, error, promoting, deploying,
+queued, waiting, ready, blocked, active, succeeded, failed, rejected, superseded.
+Unknown values preserve the existing unstyled fallback. `showDot` defaults to
+true; `animated` defaults to false and works with every state. Reduced motion
+stops the pulse. `variant="subtle"` adds a lightly tinted surface and border;
+every status and all twelve color palettes support this variant. Optional
+`color` selects any tag palette for generic labels. The filled default
+retains the Designer DS status colors. The default size is small (size="sm");
+size="md" uses 13px text and more generous spacing. Both sizes support all colors, appearances and dot options.
+Badges are informational, not controls.
+
+`StatusBadge` remains a compatibility wrapper around `Badge` with the same
+existing props and appearance. New code and gallery examples use `Badge`.

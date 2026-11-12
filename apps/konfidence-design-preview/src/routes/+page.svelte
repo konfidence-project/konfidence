@@ -19,19 +19,19 @@
     import Shell from "#lib/gallery/sections/Shell.svelte";
     import ShellPatterns from "#lib/gallery/sections/ShellPatterns.svelte";
     import Signature from "#lib/gallery/sections/Signature.svelte";
-    import StatusBadges from "#lib/gallery/sections/StatusBadges.svelte";
+    import Badges from "#lib/gallery/sections/Badges.svelte";
     import Tags from "#lib/gallery/sections/Tags.svelte";
     import Typography from "#lib/gallery/sections/Typography.svelte";
 
     const TOC: readonly { id: string; label: string; status: "implemented" | "partial" | "placeholder" }[] = [
         { id: "signature", label: "Signature", status: "implemented" },
         { id: "foundation-colors", label: "Colors", status: "implemented" },
-        { id: "foundation-tags", label: "Tags", status: "placeholder" },
+        { id: "badges", label: "Badges", status: "implemented" },
+        { id: "tags", label: "Tags", status: "implemented" },
         { id: "foundation-typography", label: "Typography", status: "implemented" },
         { id: "foundation-atoms", label: "Atoms", status: "placeholder" },
         { id: "icons", label: "Icons", status: "implemented" },
         { id: "buttons", label: "Buttons", status: "implemented" },
-        { id: "status-badges", label: "Status badges", status: "implemented" },
         { id: "forms", label: "Forms", status: "partial" },
         { id: "navigation", label: "Navigation", status: "partial" },
         { id: "shell", label: "App shell", status: "implemented" },
@@ -89,12 +89,12 @@
 
         <Signature />
         <Colors />
+        <Badges />
         <Tags />
         <Typography />
         <Atoms />
         <Icons />
         <Buttons />
-        <StatusBadges />
         <Forms />
         <Navigation />
         <Shell />

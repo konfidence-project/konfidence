@@ -1,5 +1,34 @@
 /* Konfidence design tokens. */
 :root {
+  /* Filled badge palettes extend the existing semantic status colors. */
+  --badge-lime-fg: var(--tag-lime-fg);
+  --badge-lime-bg: #e4f4cc;
+  --badge-lime-solid: #84cc16;
+  --badge-teal-fg: var(--tag-teal-fg);
+  --badge-teal-bg: #ccfbef;
+  --badge-teal-solid: #14b8a6;
+  --badge-cyan-fg: var(--cyan-700);
+  --badge-cyan-bg: var(--cyan-100);
+  --badge-cyan-solid: var(--cyan-500);
+  --badge-indigo-fg: var(--tag-indigo-fg);
+  --badge-indigo-bg: #e0e7ff;
+  --badge-indigo-solid: #6366f1;
+  --badge-pink-fg: var(--pink-700);
+  --badge-pink-bg: var(--pink-100);
+  --badge-pink-solid: var(--pink-500);
+  --status-rejected-fg: #b42318;
+  --status-rejected-bg: #fee4e2;
+  --status-rejected-solid: #f04438;
+  --status-superseded-fg: #334155;
+  --status-superseded-bg: #f1f5f9;
+  --status-superseded-solid: #a8a399;
+  --tag-height-sm: 20px;
+  --tag-height-md: 24px;
+  --tag-py-sm: 0px;
+  --tag-py-md: 2px;
+  --tag-px-sm: 6px;
+  --tag-px-md: 8px;
+  --tag-line-height: 18px;
   --amber-50: #fff8ec;
   --amber-100: #ffefd0;
   --amber-200: #ffdd9e;
@@ -291,6 +320,22 @@
 }
 
 :root[data-theme="konfidence"].dark {
+  --badge-lime-fg: var(--tag-lime-fg);
+  --badge-lime-bg: rgba(132, 204, 22, 0.16);
+  --badge-teal-fg: var(--tag-teal-fg);
+  --badge-teal-bg: rgba(20, 184, 166, 0.16);
+  --badge-cyan-fg: var(--cyan-300-d);
+  --badge-cyan-bg: rgba(6, 174, 212, 0.16);
+  --badge-indigo-fg: var(--tag-indigo-fg);
+  --badge-indigo-bg: rgba(99, 102, 241, 0.16);
+  --badge-pink-fg: var(--pink-300-d);
+  --badge-pink-bg: rgba(238, 70, 188, 0.16);
+  --status-rejected-fg: #ff9b92;
+  --status-rejected-bg: rgba(240, 68, 56, 0.16);
+  --status-rejected-solid: #f04438;
+  --status-superseded-fg: #cbd5e1;
+  --status-superseded-bg: rgba(148, 163, 184, 0.14);
+  --status-superseded-solid: #6b6151;
   --selection-bg: rgba(255, 181, 48, 0.12);
   --selection-fg: var(--amber-300);
   --surface-canvas: #14110b;
