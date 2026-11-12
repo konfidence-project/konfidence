@@ -1183,7 +1183,7 @@ components:
         features:
           type: array
           items:
-            $ref: "#/components/schemas/ConfigEntryDiff"
+            $ref: "#/components/schemas/FeatureFlagEntryDiff"
         authored:
           type: array
           items:
@@ -1202,9 +1202,26 @@ components:
         changeType:
           $ref: "#/components/schemas/ChangeType"
 
+    FeatureFlagEntryDiff:
+      type: object
+      required: [ key, changeType ]
+      properties:
+        key:
+          type: string
+        leftValue:
+          description: Value on the left side. Absent when changeType is "added".
+        rightValue:
+          description: Value on the right side. Absent when changeType is "removed".
+        changeType:
+          $ref: "#/components/schemas/FeatureFlagsChangeType"
+
     ChangeType:
       type: string
       enum: [ added, removed, changed, unchanged ]
+
+    FeatureFlagsChangeType:
+      type: string
+      enum: [ added, removed, enabled, disabled, unchanged ]
 
     VectorContentList:
       type: object

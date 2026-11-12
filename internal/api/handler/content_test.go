@@ -257,7 +257,7 @@ var _ = Describe("GetVectorDiffV1", func() {
 		Expect(ok.Right).To(Equal("registry.example.com//github.com/example/my-vector:1.0.0"))
 		Expect(ok.Components).To(HaveLen(1))
 		Expect(ok.Components[0].ComponentName).To(Equal("github.com/example/svc-a"))
-		Expect(ok.Components[0].ChangeType).To(Equal(openapi.Changed))
+		Expect(ok.Components[0].ChangeType).To(Equal(openapi.ChangeTypeChanged))
 		Expect(*ok.Components[0].LeftVersion).To(Equal("2.0.0"))
 		Expect(*ok.Components[0].RightVersion).To(Equal("1.0.0"))
 	})
@@ -281,8 +281,8 @@ var _ = Describe("GetVectorDiffV1", func() {
 		Expect(err).NotTo(HaveOccurred())
 		ok := resp.(openapi.GetVectorDiffV1200JSONResponse)
 		Expect(ok.Components).To(HaveLen(2))
-		Expect(ok.Components[0].ChangeType).To(Equal(openapi.Changed))
-		Expect(ok.Components[1].ChangeType).To(Equal(openapi.Unchanged))
+		Expect(ok.Components[0].ChangeType).To(Equal(openapi.ChangeTypeChanged))
+		Expect(ok.Components[1].ChangeType).To(Equal(openapi.ChangeTypeUnchanged))
 	})
 
 	It("omits unchanged components when includeUnchanged is false", func() {
@@ -303,7 +303,7 @@ var _ = Describe("GetVectorDiffV1", func() {
 		ok := resp.(openapi.GetVectorDiffV1200JSONResponse)
 		Expect(ok.Components).To(HaveLen(1))
 		Expect(ok.Components[0].ComponentName).To(Equal("github.com/example/svc-a"))
-		Expect(ok.Components[0].ChangeType).To(Equal(openapi.Changed))
+		Expect(ok.Components[0].ChangeType).To(Equal(openapi.ChangeTypeChanged))
 	})
 
 	It("returns empty non-null slices when vectors have no components or config", func() {
@@ -378,25 +378,25 @@ var _ = Describe("GetVectorDiffV1", func() {
 		Expect(ok.Config).NotTo(BeNil())
 
 		features := *ok.Config.Features
-		findFeature := func(key string) openapi.ConfigEntryDiff {
+		findFeature := func(key string) openapi.FeatureFlagEntryDiff {
 			for _, e := range features {
 				if e.Key == key {
 					return e
 				}
 			}
 			Fail("feature key not found: " + key)
-			return openapi.ConfigEntryDiff{}
+			return openapi.FeatureFlagEntryDiff{}
 		}
 
-		Expect(findFeature("darkMode").ChangeType).To(Equal(openapi.Changed))
-		Expect(findFeature("betaLayout").ChangeType).To(Equal(openapi.Unchanged))
-		Expect(findFeature("oldFeature").ChangeType).To(Equal(openapi.Removed))
-		Expect(findFeature("newFeature").ChangeType).To(Equal(openapi.Added))
+		Expect(findFeature("darkMode").ChangeType).To(Equal(openapi.FeatureFlagsChangeTypeEnabled))
+		Expect(findFeature("betaLayout").ChangeType).To(Equal(openapi.FeatureFlagsChangeTypeUnchanged))
+		Expect(findFeature("oldFeature").ChangeType).To(Equal(openapi.FeatureFlagsChangeTypeRemoved))
+		Expect(findFeature("newFeature").ChangeType).To(Equal(openapi.FeatureFlagsChangeTypeAdded))
 
 		authored := *ok.Config.Authored
 		Expect(authored).To(HaveLen(1))
 		Expect(authored[0].Key).To(Equal("replicaCount"))
-		Expect(authored[0].ChangeType).To(Equal(openapi.Unchanged))
+		Expect(authored[0].ChangeType).To(Equal(openapi.ChangeTypeUnchanged))
 	})
 
 	It("returns 400 for a malformed left ref", func() {

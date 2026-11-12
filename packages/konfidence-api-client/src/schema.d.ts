@@ -685,7 +685,7 @@ export interface components {
       changeType: components["schemas"]["ChangeType"];
     };
     VectorConfigDiff: {
-      features?: components["schemas"]["ConfigEntryDiff"][];
+      features?: components["schemas"]["FeatureFlagEntryDiff"][];
       authored?: components["schemas"]["ConfigEntryDiff"][];
     };
     ConfigEntryDiff: {
@@ -696,8 +696,18 @@ export interface components {
       rightValue?: unknown;
       changeType: components["schemas"]["ChangeType"];
     };
+    FeatureFlagEntryDiff: {
+      key: string;
+      /** @description Value on the left side. Absent when changeType is "added". */
+      leftValue?: unknown;
+      /** @description Value on the right side. Absent when changeType is "removed". */
+      rightValue?: unknown;
+      changeType: components["schemas"]["FeatureFlagsChangeType"];
+    };
     /** @enum {string} */
     ChangeType: "added" | "removed" | "changed" | "unchanged";
+    /** @enum {string} */
+    FeatureFlagsChangeType: "added" | "removed" | "enabled" | "disabled" | "unchanged";
     VectorContentList: {
       data: components["schemas"]["VectorContent"][];
     };

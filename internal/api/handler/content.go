@@ -201,7 +201,7 @@ func calculateDiffComponents(left, right []pkgcontent.VectorComponent, includeUn
 			result = append(result, openapi.VectorComponentDiff{
 				ComponentName: c.ComponentName,
 				LeftVersion:   &lv,
-				ChangeType:    openapi.Removed,
+				ChangeType:    openapi.ChangeTypeRemoved,
 			})
 		case c.Version != rv:
 			lv := c.Version
@@ -209,7 +209,7 @@ func calculateDiffComponents(left, right []pkgcontent.VectorComponent, includeUn
 				ComponentName: c.ComponentName,
 				LeftVersion:   &lv,
 				RightVersion:  &rv,
-				ChangeType:    openapi.Changed,
+				ChangeType:    openapi.ChangeTypeChanged,
 			})
 		default:
 			if !includeUnchanged {
@@ -220,7 +220,7 @@ func calculateDiffComponents(left, right []pkgcontent.VectorComponent, includeUn
 				ComponentName: c.ComponentName,
 				LeftVersion:   &lv,
 				RightVersion:  &rv,
-				ChangeType:    openapi.Unchanged,
+				ChangeType:    openapi.ChangeTypeUnchanged,
 			})
 		}
 	}
@@ -236,7 +236,7 @@ func calculateDiffComponents(left, right []pkgcontent.VectorComponent, includeUn
 			result = append(result, openapi.VectorComponentDiff{
 				ComponentName: c.ComponentName,
 				RightVersion:  &rv,
-				ChangeType:    openapi.Added,
+				ChangeType:    openapi.ChangeTypeAdded,
 			})
 		}
 	}
@@ -257,7 +257,7 @@ func calculateDiffConfig(left, right *pkgcontent.VectorConfig, includeUnchanged 
 		rightAuthored = right.Authored
 	}
 
-	features := createDiffConfigMap(leftFeatures, rightFeatures, includeUnchanged)
+	features := createDiffFeatureMap(leftFeatures, rightFeatures, includeUnchanged)
 	authored := createDiffConfigMap(leftAuthored, rightAuthored, includeUnchanged)
 	return &openapi.VectorConfigDiff{
 		Features: &features,
@@ -267,7 +267,6 @@ func calculateDiffConfig(left, right *pkgcontent.VectorConfig, includeUnchanged 
 
 func createDiffConfigMap(left, right map[string]any, includeUnchanged bool) []openapi.ConfigEntryDiff {
 	result := make([]openapi.ConfigEntryDiff, 0)
-
 	for k, lv := range left {
 		rv, inRight := right[k]
 		switch {
@@ -275,37 +274,74 @@ func createDiffConfigMap(left, right map[string]any, includeUnchanged bool) []op
 			result = append(result, openapi.ConfigEntryDiff{
 				Key:        k,
 				LeftValue:  &lv,
-				ChangeType: openapi.Removed,
+				ChangeType: openapi.ChangeTypeRemoved,
 			})
 		case !reflect.DeepEqual(lv, rv):
 			result = append(result, openapi.ConfigEntryDiff{
 				Key:        k,
 				LeftValue:  &lv,
 				RightValue: &rv,
-				ChangeType: openapi.Changed,
+				ChangeType: openapi.ChangeTypeChanged,
 			})
 		default:
-			if !includeUnchanged {
-				continue
+			if includeUnchanged {
+				result = append(result, openapi.ConfigEntryDiff{Key: k,
+					LeftValue:  &lv,
+					RightValue: &rv,
+					ChangeType: openapi.ChangeTypeUnchanged,
+				})
 			}
-			result = append(result, openapi.ConfigEntryDiff{
-				Key:        k,
-				LeftValue:  &lv,
-				RightValue: &rv,
-				ChangeType: openapi.Unchanged,
-			})
 		}
 	}
-
 	for k, rv := range right {
 		if _, exists := left[k]; !exists {
 			result = append(result, openapi.ConfigEntryDiff{
 				Key:        k,
 				RightValue: &rv,
-				ChangeType: openapi.Added,
+				ChangeType: openapi.ChangeTypeAdded,
 			})
 		}
 	}
+	return result
+}
 
+func createDiffFeatureMap(left, right map[string]any, includeUnchanged bool) []openapi.FeatureFlagEntryDiff {
+	result := make([]openapi.FeatureFlagEntryDiff, 0)
+	for k, lv := range left {
+		rv, inRight := right[k]
+		switch {
+		case !inRight:
+			result = append(result, openapi.FeatureFlagEntryDiff{Key: k, LeftValue: &lv, ChangeType: openapi.FeatureFlagsChangeTypeRemoved})
+		case !reflect.DeepEqual(lv, rv):
+			changeType := openapi.FeatureFlagsChangeTypeDisabled
+			if rv == true {
+				changeType = openapi.FeatureFlagsChangeTypeEnabled
+			}
+			result = append(result, openapi.FeatureFlagEntryDiff{
+				Key:        k,
+				LeftValue:  &lv,
+				RightValue: &rv,
+				ChangeType: changeType,
+			})
+		default:
+			if includeUnchanged {
+				result = append(result, openapi.FeatureFlagEntryDiff{
+					Key:        k,
+					LeftValue:  &lv,
+					RightValue: &rv,
+					ChangeType: openapi.FeatureFlagsChangeTypeUnchanged,
+				})
+			}
+		}
+	}
+	for k, rv := range right {
+		if _, exists := left[k]; !exists {
+			result = append(result, openapi.FeatureFlagEntryDiff{
+				Key:        k,
+				RightValue: &rv,
+				ChangeType: openapi.FeatureFlagsChangeTypeAdded,
+			})
+		}
+	}
 	return result
 }

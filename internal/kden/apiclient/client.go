@@ -43,22 +43,49 @@ func (e ArtifactDeploymentStatus) Valid() bool {
 
 // Defines values for ChangeType.
 const (
-	Added     ChangeType = "added"
-	Changed   ChangeType = "changed"
-	Removed   ChangeType = "removed"
-	Unchanged ChangeType = "unchanged"
+	ChangeTypeAdded     ChangeType = "added"
+	ChangeTypeChanged   ChangeType = "changed"
+	ChangeTypeRemoved   ChangeType = "removed"
+	ChangeTypeUnchanged ChangeType = "unchanged"
 )
 
 // Valid indicates whether the value is a known member of the ChangeType enum.
 func (e ChangeType) Valid() bool {
 	switch e {
-	case Added:
+	case ChangeTypeAdded:
 		return true
-	case Changed:
+	case ChangeTypeChanged:
 		return true
-	case Removed:
+	case ChangeTypeRemoved:
 		return true
-	case Unchanged:
+	case ChangeTypeUnchanged:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeatureFlagsChangeType.
+const (
+	FeatureFlagsChangeTypeAdded     FeatureFlagsChangeType = "added"
+	FeatureFlagsChangeTypeDisabled  FeatureFlagsChangeType = "disabled"
+	FeatureFlagsChangeTypeEnabled   FeatureFlagsChangeType = "enabled"
+	FeatureFlagsChangeTypeRemoved   FeatureFlagsChangeType = "removed"
+	FeatureFlagsChangeTypeUnchanged FeatureFlagsChangeType = "unchanged"
+)
+
+// Valid indicates whether the value is a known member of the FeatureFlagsChangeType enum.
+func (e FeatureFlagsChangeType) Valid() bool {
+	switch e {
+	case FeatureFlagsChangeTypeAdded:
+		return true
+	case FeatureFlagsChangeTypeDisabled:
+		return true
+	case FeatureFlagsChangeTypeEnabled:
+		return true
+	case FeatureFlagsChangeTypeRemoved:
+		return true
+	case FeatureFlagsChangeTypeUnchanged:
 		return true
 	default:
 		return false
@@ -323,6 +350,21 @@ type ErrorResponse struct {
 	} `json:"error"`
 }
 
+// FeatureFlagEntryDiff defines model for FeatureFlagEntryDiff.
+type FeatureFlagEntryDiff struct {
+	ChangeType FeatureFlagsChangeType `json:"changeType"`
+	Key        string                 `json:"key"`
+
+	// LeftValue Value on the left side. Absent when changeType is "added".
+	LeftValue interface{} `json:"leftValue,omitempty"`
+
+	// RightValue Value on the right side. Absent when changeType is "removed".
+	RightValue interface{} `json:"rightValue,omitempty"`
+}
+
+// FeatureFlagsChangeType defines model for FeatureFlagsChangeType.
+type FeatureFlagsChangeType string
+
 // Identity defines model for Identity.
 type Identity struct {
 	Email        string              `json:"email"`
@@ -524,8 +566,8 @@ type VectorConfig struct {
 
 // VectorConfigDiff defines model for VectorConfigDiff.
 type VectorConfigDiff struct {
-	Authored *[]ConfigEntryDiff `json:"authored,omitempty"`
-	Features *[]ConfigEntryDiff `json:"features,omitempty"`
+	Authored *[]ConfigEntryDiff      `json:"authored,omitempty"`
+	Features *[]FeatureFlagEntryDiff `json:"features,omitempty"`
 }
 
 // VectorContent defines model for VectorContent.

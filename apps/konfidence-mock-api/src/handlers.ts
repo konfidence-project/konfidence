@@ -101,6 +101,7 @@ type VectorComponent = components["schemas"]["VectorComponent"];
 type VectorConfig = components["schemas"]["VectorConfig"];
 type VectorComponentDiff = components["schemas"]["VectorComponentDiff"];
 type ConfigEntryDiff = components["schemas"]["ConfigEntryDiff"];
+type FeatureFlagEntryDiff = components["schemas"]["FeatureFlagEntryDiff"];
 type VectorConfigDiff = components["schemas"]["VectorConfigDiff"];
 
 const diffComponents = (
@@ -157,20 +158,44 @@ const diffConfigMap = (
   const leftMap = left ?? {};
   const rightMap = right ?? {};
   const result: ConfigEntryDiff[] = [];
-
-  for (const [key, leftVal] of Object.entries(leftMap)) {
+  for (const [key, leftValue] of Object.entries(leftMap)) {
     if (!(key in rightMap)) {
-      result.push({ changeType: "removed", key, leftValue: leftVal });
-    } else if (JSON.stringify(leftVal) !== JSON.stringify(rightMap[key])) {
-      result.push({ changeType: "changed", key, leftValue: leftVal, rightValue: rightMap[key] });
+      result.push({ changeType: "removed", key, leftValue });
+    } else if (JSON.stringify(leftValue) !== JSON.stringify(rightMap[key])) {
+      result.push({ changeType: "changed", key, leftValue, rightValue: rightMap[key] });
     } else if (includeUnchanged) {
-      result.push({ changeType: "unchanged", key, leftValue: leftVal, rightValue: rightMap[key] });
+      result.push({ changeType: "unchanged", key, leftValue, rightValue: rightMap[key] });
     }
   }
-
-  for (const [key, rightVal] of Object.entries(rightMap)) {
+  for (const [key, rightValue] of Object.entries(rightMap)) {
     if (!(key in leftMap)) {
-      result.push({ changeType: "added", key, rightValue: rightVal });
+      result.push({ changeType: "added", key, rightValue });
+    }
+  }
+  return result;
+};
+
+const diffFeatureMap = (
+  left: Record<string, unknown> | undefined,
+  right: Record<string, unknown> | undefined,
+  includeUnchanged: boolean,
+): FeatureFlagEntryDiff[] => {
+  const leftMap = left ?? {};
+  const rightMap = right ?? {};
+  const result: FeatureFlagEntryDiff[] = [];
+  for (const [key, leftValue] of Object.entries(leftMap)) {
+    if (!(key in rightMap)) {
+      result.push({ changeType: "removed", key, leftValue });
+    } else if (JSON.stringify(leftValue) !== JSON.stringify(rightMap[key])) {
+      const changeType = rightMap[key] === true ? "enabled" : "disabled";
+      result.push({ changeType, key, leftValue, rightValue: rightMap[key] });
+    } else if (includeUnchanged) {
+      result.push({ changeType: "unchanged", key, leftValue, rightValue: rightMap[key] });
+    }
+  }
+  for (const [key, rightValue] of Object.entries(rightMap)) {
+    if (!(key in leftMap)) {
+      result.push({ changeType: "added", key, rightValue });
     }
   }
   return result;
@@ -182,7 +207,7 @@ const diffConfig = (
   includeUnchanged: boolean,
 ): VectorConfigDiff => ({
   authored: diffConfigMap(left?.authored, right?.authored, includeUnchanged),
-  features: diffConfigMap(left?.features, right?.features, includeUnchanged),
+  features: diffFeatureMap(left?.features, right?.features, includeUnchanged),
 });
 
 const operationHandlers = {
