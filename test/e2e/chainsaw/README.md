@@ -91,8 +91,10 @@ The workflow and Chainsaw suite remain from the workflow branch. Both inputs are
 ignored by **Latest releases**; incompatible selected commits still fail.
 
 The workflow runs the selected bootstrap and `make test-e2e`, and shows
-the step results in the job summary. Vectors use a run-specific GHCR prefix:
-`ghcr.io/konfidence-project/konfidence/e2e/run-<id>-<attempt>`.
+the step results in the job summary. Vectors go to the shared GHCR prefix
+`ghcr.io/konfidence-project/konfidence/e2e`. After each run, the workflow deletes
+vector versions older than 2 hours and keeps the 5 newest versions of each
+component package.
 This workflow is not part of `ci-gate` or required checks.
 
 ## Checks
