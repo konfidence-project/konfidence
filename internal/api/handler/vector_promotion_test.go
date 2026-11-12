@@ -13,8 +13,11 @@ import (
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
 // expectAPIError asserts that a handler returned no response object and instead
@@ -240,7 +243,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 		expectAPIError(resp, err, http.StatusNotFound)
 	})
 
-	It("returns 409 when the promotion is superseded", func() {
+	It("returns 422 when the promotion is superseded", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
@@ -256,11 +259,11 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 			ProjectId:         "my-project",
 			VectorPromotionId: "promo-1",
 		})
-		expectAPIError(resp, err, http.StatusConflict)
+		expectAPIError(resp, err, http.StatusUnprocessableEntity)
 		Expect(apierror.As(err).Message).To(ContainSubstring(konfidence.ReasonPromotionSuperseded))
 	})
 
-	It("returns 409 when the promotion has already finished", func() {
+	It("returns 422 when the promotion has already finished", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
@@ -276,10 +279,10 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 			ProjectId:         "my-project",
 			VectorPromotionId: "promo-1",
 		})
-		expectAPIError(resp, err, http.StatusConflict)
+		expectAPIError(resp, err, http.StatusUnprocessableEntity)
 	})
 
-	It("returns 409 when the promotion gates are already satisfied", func() {
+	It("returns 422 when the promotion gates are already satisfied", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
@@ -295,10 +298,10 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 			ProjectId:         "my-project",
 			VectorPromotionId: "promo-1",
 		})
-		expectAPIError(resp, err, http.StatusConflict)
+		expectAPIError(resp, err, http.StatusUnprocessableEntity)
 	})
 
-	It("returns 409 when the promotion has no explicit-approval gate", func() {
+	It("returns 422 when the promotion has no explicit-approval gate", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.Gates = []konfidence.PromotionGate{{Type: "e2e-tests.example.com"}}
@@ -309,10 +312,10 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 			ProjectId:         "my-project",
 			VectorPromotionId: "promo-1",
 		})
-		expectAPIError(resp, err, http.StatusConflict)
+		expectAPIError(resp, err, http.StatusUnprocessableEntity)
 	})
 
-	It("returns 409 when an operator already rejected the promotion", func() {
+	It("returns 422 when an operator already rejected the promotion", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
 		promo.Spec.Gates = []konfidence.PromotionGate{{Type: konfidence.GateTypeExplicitApproval}}
@@ -326,7 +329,7 @@ var _ = Describe("ApproveVectorPromotionV1", func() {
 			ProjectId:         "my-project",
 			VectorPromotionId: "promo-1",
 		})
-		expectAPIError(resp, err, http.StatusConflict)
+		expectAPIError(resp, err, http.StatusUnprocessableEntity)
 		Expect(apierror.As(err).Message).To(ContainSubstring("Reject by bob@example.com"))
 	})
 
@@ -436,7 +439,7 @@ var _ = Describe("RevokeApprovalVectorPromotionV1", func() {
 		}
 	})
 
-	It("returns 409 when the approval is pending but was not revoked", func() {
+	It("returns 422 when the approval is pending but was not revoked", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := approvedPromotion()
 		promo.Status.Gates[0].State = konfidence.PromotionGateStatePending
@@ -447,11 +450,11 @@ var _ = Describe("RevokeApprovalVectorPromotionV1", func() {
 			ProjectId:         "my-project",
 			VectorPromotionId: "promo-1",
 		})
-		expectAPIError(resp, err, http.StatusConflict)
+		expectAPIError(resp, err, http.StatusUnprocessableEntity)
 		Expect(apierror.As(err).Message).To(Equal(vectorpromotiondomain.ErrNotApproved.Error()))
 	})
 
-	It("returns 409 after the promotion gates are satisfied", func() {
+	It("returns 422 after the promotion gates are satisfied", func() {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := approvedPromotion()
 		promo.Status.Conditions = []metav1.Condition{{
@@ -464,7 +467,41 @@ var _ = Describe("RevokeApprovalVectorPromotionV1", func() {
 			ProjectId:         "my-project",
 			VectorPromotionId: "promo-1",
 		})
-		expectAPIError(resp, err, http.StatusConflict)
+		expectAPIError(resp, err, http.StatusUnprocessableEntity)
+	})
+
+	DescribeTable("returns 422 when the promotion has finished",
+		func(status metav1.ConditionStatus, reason string) {
+			project := landscapeProjectFixture("my-project", "kden-p-my-project")
+			promo := approvedPromotion()
+			promo.Status.Conditions = []metav1.Condition{{
+				Type: konfidence.ConditionTypeSucceeded, Status: status, Reason: reason,
+			}}
+			h := newProjectHandlerForTest(project, promo)
+			ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+
+			resp, err := h.RevokeApprovalVectorPromotionV1(ctx, openapi.RevokeApprovalVectorPromotionV1RequestObject{
+				ProjectId: "my-project", VectorPromotionId: "promo-1",
+			})
+			expectAPIError(resp, err, http.StatusUnprocessableEntity)
+			Expect(apierror.As(err).Message).To(ContainSubstring(reason))
+		},
+		Entry("succeeded", metav1.ConditionTrue, konfidence.ReasonPromotionSucceeded),
+		Entry("superseded", metav1.ConditionFalse, konfidence.ReasonPromotionSuperseded),
+	)
+
+	It("returns 422 when the promotion has no explicit-approval gate", func() {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		promo := approvedPromotion()
+		promo.Spec.Gates = []konfidence.PromotionGate{{Type: "e2e-tests.example.com"}}
+		h := newProjectHandlerForTest(project, promo)
+		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+
+		resp, err := h.RevokeApprovalVectorPromotionV1(ctx, openapi.RevokeApprovalVectorPromotionV1RequestObject{
+			ProjectId: "my-project", VectorPromotionId: "promo-1",
+		})
+		expectAPIError(resp, err, http.StatusUnprocessableEntity)
+		Expect(apierror.As(err).Message).To(Equal(vectorpromotiondomain.ErrApprovalNotRequired.Error()))
 	})
 
 	It("returns 404 when the promotion does not exist", func() {
@@ -479,6 +516,54 @@ var _ = Describe("RevokeApprovalVectorPromotionV1", func() {
 		expectAPIError(resp, err, http.StatusNotFound)
 	})
 })
+
+var _ = DescribeTable("promotion actions map Kubernetes conflicts to HTTP 409",
+	func(revoke bool) {
+		project := landscapeProjectFixture("my-project", "kden-p-my-project")
+		promo := vectorPromotionFixture("promo-1", "cfg", 1)
+		promo.Spec.Gates = []konfidence.PromotionGate{
+			{Type: konfidence.GateTypeExplicitApproval}, {Type: "e2e-tests.example.com"},
+		}
+		if revoke {
+			promo.Status.Gates = []konfidence.PromotionGateStatus{{
+				Type: konfidence.GateTypeExplicitApproval, State: konfidence.PromotionGateStateSatisfied,
+			}}
+		}
+		h := newProjectHandlerForTest(project, promo)
+		k8s := fake.NewClientBuilder().
+			WithScheme(newTestScheme()).
+			WithObjects(promo).
+			WithStatusSubresource(&konfidence.VectorPromotion{}).
+			WithInterceptorFuncs(interceptor.Funcs{
+				SubResourcePatch: func(_ context.Context, _ client.Client, _ string, obj client.Object,
+					_ client.Patch, _ ...client.SubResourcePatchOption) error {
+					return apierrors.NewConflict(
+						konfidence.GroupVersion.WithResource("vectorpromotions").GroupResource(),
+						obj.GetName(), nil,
+					)
+				},
+			}).Build()
+		h.vectorPromotionRepo = vectorpromotiondomain.NewRepository(k8s)
+		ctx := ctxWithSubjectAndProjectRoles("alice@example.com", auth.ProjectRoles{"my-project": {"admin"}})
+
+		var resp any
+		var err error
+		if revoke {
+			resp, err = h.RevokeApprovalVectorPromotionV1(ctx, openapi.RevokeApprovalVectorPromotionV1RequestObject{
+				ProjectId: "my-project", VectorPromotionId: "promo-1",
+			})
+		} else {
+			resp, err = h.ApproveVectorPromotionV1(ctx, openapi.ApproveVectorPromotionV1RequestObject{
+				ProjectId: "my-project", VectorPromotionId: "promo-1",
+			})
+		}
+		expectAPIError(resp, err, http.StatusConflict)
+		Expect(apierror.As(err).Code).To(Equal("conflict"))
+		Expect(apierror.As(err).Message).To(Equal(vectorpromotiondomain.ErrConflict.Error()))
+	},
+	Entry("approve", false),
+	Entry("revoke approval", true),
+)
 
 var _ = DescribeTable("displayState summarizes the observed facts",
 	func(conditions []metav1.Condition, started bool, expected openapi.VectorPromotionStatus) {
@@ -609,15 +694,15 @@ var _ = Describe("RejectVectorPromotionV1 and BypassVectorPromotionGatesV1", fun
 			expectAPIError(resp, err, status)
 		},
 		Entry("reject after the gates were bypassed", operation(reject),
-			withOverride(waitingPromotion(), konfidence.PromotionOverrideTypeBypassGates), reason, http.StatusConflict),
+			withOverride(waitingPromotion(), konfidence.PromotionOverrideTypeBypassGates), reason, http.StatusUnprocessableEntity),
 		Entry("bypass after a rejection", operation(bypassGates),
-			withOverride(waitingPromotion(), konfidence.PromotionOverrideTypeReject), reason, http.StatusConflict),
+			withOverride(waitingPromotion(), konfidence.PromotionOverrideTypeReject), reason, http.StatusUnprocessableEntity),
 		Entry("reject a finished promotion", operation(reject),
 			withConditions(waitingPromotion(), facts(konfidence.ConditionTypeSucceeded, metav1.ConditionTrue)),
-			reason, http.StatusConflict),
+			reason, http.StatusUnprocessableEntity),
 		Entry("bypass gates that are already satisfied", operation(bypassGates),
 			withConditions(waitingPromotion(), facts(konfidence.ConditionTypeGatesSatisfied, metav1.ConditionTrue)),
-			reason, http.StatusConflict),
+			reason, http.StatusUnprocessableEntity),
 		Entry("reject without a body", operation(reject), waitingPromotion(), nil, http.StatusBadRequest),
 		Entry("bypass with an empty reason", operation(bypassGates), waitingPromotion(),
 			&openapi.PromotionOverrideRequestBody{}, http.StatusBadRequest),

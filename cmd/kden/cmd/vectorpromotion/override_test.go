@@ -70,8 +70,8 @@ var _ = Describe("override commands", func() {
 			)
 
 			BeforeEach(func() {
-				requests = make(chan *http.Request, 1)
-				bodies = make(chan map[string]any, 1)
+				requests = make(chan *http.Request, 3)
+				bodies = make(chan map[string]any, 3)
 				status, response = http.StatusNoContent, nil
 				server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					body := map[string]any{}
@@ -112,17 +112,35 @@ var _ = Describe("override commands", func() {
 
 			DescribeTable("returns the API error message",
 				func(code int, errorCode string) {
-					status, response = code, ErrorResponseBody(errorCode, "promotion is already rejected")
+					message := "promotion is already rejected"
+					if code == http.StatusConflict {
+						message = "promotion was modified concurrently; retry the request"
+					}
+					status, response = code, ErrorResponseBody(errorCode, message)
 
-					err := executeOverrideCommand(command, appConfig, testVectorPromotionID,
-						FlagProjectID, TestProjectID, "-r", "known bad vector")
+					var err error
+					printed := CaptureOutput(func() {
+						err = executeOverrideCommand(command, appConfig, testVectorPromotionID,
+							FlagProjectID, TestProjectID, "-r", "known bad vector")
+					})
 
-					Expect(err).To(MatchError("promotion is already rejected"))
+					Expect(err).To(MatchError(message))
+					Expect(printed).To(BeEmpty())
+					attempts := 1
+					if code == http.StatusConflict {
+						attempts = 3
+					}
+					Expect(requests).To(HaveLen(attempts))
+					for range attempts {
+						ExpectRequest(requests, http.MethodPost, command.path)
+						Expect(<-bodies).To(Equal(map[string]any{"reason": "known bad vector"}))
+					}
 				},
 				Entry("400", http.StatusBadRequest, "bad_request"),
 				Entry("403", http.StatusForbidden, "forbidden"),
 				Entry("404", http.StatusNotFound, "not_found"),
 				Entry("409", http.StatusConflict, "conflict"),
+				Entry("422", http.StatusUnprocessableEntity, "unprocessable_entity"),
 			)
 
 			It("reports unexpected status codes with the body", func() {
