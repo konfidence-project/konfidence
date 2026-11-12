@@ -38,7 +38,7 @@ func TestRetryDoerResponses(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer response.Body.Close()
+			defer func() { _ = response.Body.Close() }()
 			if attempts != len(test.statuses) || response.StatusCode != test.statuses[len(test.statuses)-1] {
 				t.Fatalf("got %d attempts and HTTP %d", attempts, response.StatusCode)
 			}
@@ -121,7 +121,7 @@ func TestRetryDoerClosesOnlyDiscardedResponses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if len(bodies) != 3 || !bodies[0].closed || !bodies[1].closed || bodies[2].closed {
 		t.Fatal("discarded responses must be closed and the final response left open")
 	}
@@ -199,7 +199,7 @@ func TestRetryDoerRequestBodies(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer response.Body.Close()
+			defer func() { _ = response.Body.Close() }()
 			expected := 1
 			if replayable {
 				expected = 3
