@@ -19,10 +19,13 @@ type retryDoer struct {
 
 func (d retryDoer) Do(request *http.Request) (*http.Response, error) {
 	ctx := request.Context()
+	hasBody := request.Body != nil && request.Body != http.NoBody
 	for attempt := 1; ; attempt++ {
 		// Keep headers isolated from changes made by the HTTP client (e.g. cookies).
 		current := request.Clone(ctx)
-		if attempt > 1 && request.Body != nil && request.Body != http.NoBody {
+		if attempt > 1 && hasBody {
+			// The first attempt consumes and closes Body. Clone shares that stream,
+			// so retries need a fresh body from GetBody.
 			body, err := request.GetBody()
 			if err != nil {
 				return nil, err
@@ -32,7 +35,7 @@ func (d retryDoer) Do(request *http.Request) (*http.Response, error) {
 
 		response, err := d.doer.Do(current)
 		if err != nil || response.StatusCode != http.StatusConflict || attempt >= conflictMaxAttempts ||
-			(request.Body != nil && request.Body != http.NoBody && request.GetBody == nil) {
+			(hasBody && request.GetBody == nil) {
 			return response, err
 		}
 

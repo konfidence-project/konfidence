@@ -19,3 +19,23 @@ test("uses same-origin credentials with the default API path", async () => {
 test("includes credentials with an absolute API URL", async () => {
   await expect(requestCredentials("https://api.example.test/api")).resolves.toBe("include");
 });
+
+test("retries a promotion conflict through the shared client", async () => {
+  const fetch = vi
+    .fn<(request: Request) => Promise<Response>>()
+    .mockResolvedValueOnce(
+      globalThis.Response.json({ error: { message: "concurrent change" } }, { status: 409 }),
+    )
+    .mockResolvedValueOnce(new globalThis.Response(null, { status: 204 }));
+  const client = createApiClient({ fetch });
+
+  const { response } = await client.POST(
+    "/v1/projects/{projectId}/vectorPromotions/{vectorPromotionId}/approve",
+    {
+      params: { path: { projectId: "project", vectorPromotionId: "promotion" } },
+    },
+  );
+
+  expect(response.status).toBe(204);
+  expect(fetch).toHaveBeenCalledTimes(2);
+});

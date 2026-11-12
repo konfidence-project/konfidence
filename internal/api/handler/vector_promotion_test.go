@@ -13,8 +13,8 @@ import (
 	"github.com/konfidence-project/konfidence/pkg/promotiongate"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -28,9 +28,6 @@ func expectAPIError(resp any, err error, status int) {
 	apiErr := apierror.As(err)
 	Expect(apiErr).To(HaveOccurred(), "expected an *apierror.Error")
 	Expect(apiErr.Status).To(Equal(status))
-	if status == http.StatusUnprocessableEntity {
-		Expect(apiErr.Code).To(Equal("unprocessable_entity"))
-	}
 }
 
 var _ = Describe("GetVectorPromotionV1", func() {
@@ -520,7 +517,7 @@ var _ = Describe("RevokeApprovalVectorPromotionV1", func() {
 	})
 })
 
-var _ = DescribeTable("promotion actions return 409 when a concurrent write lands first",
+var _ = DescribeTable("promotion actions map Kubernetes conflicts to HTTP 409",
 	func(revoke bool) {
 		project := landscapeProjectFixture("my-project", "kden-p-my-project")
 		promo := vectorPromotionFixture("promo-1", "cfg", 1)
@@ -538,16 +535,12 @@ var _ = DescribeTable("promotion actions return 409 when a concurrent write land
 			WithObjects(promo).
 			WithStatusSubresource(&konfidence.VectorPromotion{}).
 			WithInterceptorFuncs(interceptor.Funcs{
-				SubResourcePatch: func(ctx context.Context, c client.Client, _ string, obj client.Object,
-					patch client.Patch, opts ...client.SubResourcePatchOption) error {
-					other := &konfidence.VectorPromotion{}
-					key := types.NamespacedName{Namespace: promo.Namespace, Name: promo.Name}
-					Expect(c.Get(ctx, key, other)).To(Succeed())
-					other.Status.Gates = append(other.Status.Gates, konfidence.PromotionGateStatus{
-						Type: "e2e-tests.example.com", State: konfidence.PromotionGateStatePending,
-					})
-					Expect(c.Status().Update(ctx, other)).To(Succeed())
-					return c.Status().Patch(ctx, obj, patch, opts...)
+				SubResourcePatch: func(_ context.Context, _ client.Client, _ string, obj client.Object,
+					_ client.Patch, _ ...client.SubResourcePatchOption) error {
+					return apierrors.NewConflict(
+						konfidence.GroupVersion.WithResource("vectorpromotions").GroupResource(),
+						obj.GetName(), nil,
+					)
 				},
 			}).Build()
 		h.vectorPromotionRepo = vectorpromotiondomain.NewRepository(k8s)

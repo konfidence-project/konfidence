@@ -23,27 +23,24 @@ func TestRetryDoerResponses(t *testing.T) {
 		{"exhausted retries", []int{http.StatusConflict, http.StatusConflict, http.StatusConflict}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			var attempts atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				attempt := int(attempts.Add(1))
-				status := test.statuses[min(attempt-1, len(test.statuses)-1)]
-				w.WriteHeader(status)
+			attempts := 0
+			doer := retryTestDoer(func(*http.Request) (*http.Response, error) {
+				status := test.statuses[min(attempts, len(test.statuses)-1)]
+				attempts++
+				var body io.ReadCloser = http.NoBody
 				if status != http.StatusNoContent {
-					_, _ = io.WriteString(w, "server message")
+					body = io.NopCloser(strings.NewReader("server message"))
 				}
-			}))
-			defer server.Close()
-			request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			response, err := (retryDoer{doer: server.Client()}).Do(request)
+				return &http.Response{StatusCode: status, Body: body}, nil
+			})
+			request, _ := http.NewRequest(http.MethodPost, "http://example.test", nil)
+			response, err := (retryDoer{doer: doer}).Do(request)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer response.Body.Close()
-			if int(attempts.Load()) != len(test.statuses) || response.StatusCode != test.statuses[len(test.statuses)-1] {
-				t.Fatalf("got %d attempts and HTTP %d", attempts.Load(), response.StatusCode)
+			if attempts != len(test.statuses) || response.StatusCode != test.statuses[len(test.statuses)-1] {
+				t.Fatalf("got %d attempts and HTTP %d", attempts, response.StatusCode)
 			}
 			body, err := io.ReadAll(response.Body)
 			if err != nil {

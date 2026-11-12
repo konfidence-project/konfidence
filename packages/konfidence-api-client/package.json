@@ -13,7 +13,8 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "lint": "oxlint",
-    "verify": "pnpm check && pnpm lint && pnpm fmt:check"
+    "test": "vitest run",
+    "verify": "pnpm check && pnpm lint && pnpm fmt:check && pnpm test"
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0"
@@ -23,6 +24,7 @@
     "oxfmt": "^0.77.0",
     "oxlint": "^1.92.0",
     "typescript": "^6.0.3",
-    "typescript-native": "npm:typescript@^7.0.2"
+    "typescript-native": "npm:typescript@^7.0.2",
+    "vitest": "5.1.0"
   }
 }
