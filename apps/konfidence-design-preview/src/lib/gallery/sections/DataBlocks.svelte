@@ -6,9 +6,10 @@
         TableHeaderCell,
         TableRow,
     } from "@konfidence/design-system/components";
-    import NotYetImplemented from "../NotYetImplemented.svelte";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "Table" }: { name?: string } = $props();
 
     interface DemoDeployment {
         id: string;
@@ -83,10 +84,9 @@
 </script>
 
 <Section
-    id="data-blocks"
-    title="Data blocks"
-    subtitle="Real <Table> family from @konfidence/design-system — sortable headers, keyboard-selectable rows, sticky header, embedded <StatusBadge>. KPI tiles, phases, timelines, diff rows are still on the roadmap."
-    status="partial"
+    id={name}
+    title={name}
+    subtitle="Table primitives composed with sortable headers, keyboard-selectable rows and a sticky header."
 >
     <div class="stack flex flex-col gap-5">
         <Sample
@@ -136,16 +136,5 @@
             {/if}
         </Sample>
 
-        <NotYetImplemented
-            note="The reference design system ships these as composable atoms. Konfidence has not yet promoted them into the Svelte component surface."
-            planned={[
-                "<KpiTile variant='standard' | 'active' | 'gradient'>",
-                "<StageCard>",
-                "<Phases done active failed pending>",
-                "<DiffRow added|removed|unchanged>",
-                "<Timeline> / <TimelineItem>",
-                "<KeyValue>",
-            ]}
-        />
     </div>
 </Section>

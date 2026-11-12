@@ -1,0 +1,133 @@
+<!doctype html>
+<html data-theme="konfidence">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 0;
+      }
+      body {
+        padding: 16px;
+        box-sizing: border-box;
+      }
+      #example {
+        display: flow-root;
+        min-width: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="example"></div>
+    <script type="module">
+      const report = (data) => parent.postMessage(data, "*");
+      const fail = (error) => report({ type: "error", message: error?.message ?? String(error) });
+      addEventListener(
+        "keydown",
+        (event) => {
+          const mac = /Macintosh|Mac OS|iPhone|iPad|iPod/.test(navigator.userAgent);
+          if (
+            (mac ? event.metaKey : event.ctrlKey) &&
+            event.key.toLowerCase() === "k" &&
+            !event.altKey
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            report({ type: "focus-search" });
+          }
+        },
+        { capture: true },
+      );
+      addEventListener("error", (event) => {
+        event.preventDefault();
+        fail(event.error ?? event.message);
+      });
+      addEventListener("unhandledrejection", (event) => {
+        event.preventDefault();
+        fail(event.reason);
+      });
+      let initialized = false;
+      let mounted;
+      const moduleURLs = [];
+      const root = document.getElementById("example");
+      const setTheme = (dark) => document.documentElement.classList.toggle("dark", dark);
+      addEventListener("message", async (event) => {
+        if (event.source !== parent) return;
+        const message = event.data;
+        if (message.type === "theme") {
+          setTheme(message.dark);
+          return;
+        }
+        if (message.type !== "render" || initialized) return;
+        initialized = true;
+        try {
+          setTheme(message.dark);
+          const style = document.createElement("style");
+          style.textContent = message.styles;
+          document.head.prepend(style);
+          const runtimeURL = URL.createObjectURL(
+            new Blob([message.runtime], { type: "text/javascript" }),
+          );
+          moduleURLs.push(runtimeURL);
+          const runtime = await import(runtimeURL);
+          globalThis.KonfidencePlayground = runtime;
+          const imports = {};
+          for (const [name, namespace] of Object.entries({
+            svelte: "svelte",
+            "svelte/internal/client": "client",
+            "@konfidence/design-system": "components",
+            "@konfidence/design-system/components": "components",
+          })) {
+            const code = Object.keys(runtime[namespace])
+              .map(
+                (key, index) =>
+                  `const value${index}=globalThis.KonfidencePlayground.${namespace}[${JSON.stringify(key)}];export{value${index} as ${key}};`,
+              )
+              .join("\n");
+            const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+            imports[name] = url;
+            moduleURLs.push(url);
+          }
+          const empty = URL.createObjectURL(new Blob(["export {};"], { type: "text/javascript" }));
+          moduleURLs.push(empty);
+          for (const name of [
+            "svelte/internal/disclose-version",
+            "svelte/internal/flags/legacy",
+            "svelte/internal/flags/async",
+            "@ui5/webcomponents/dist/Icon.js",
+            "@ui5/webcomponents-icons/dist/AllIcons.js",
+          ])
+            imports[name] = empty;
+          const map = document.createElement("script");
+          map.type = "importmap";
+          map.textContent = JSON.stringify({ imports });
+          document.head.append(map);
+          const example = URL.createObjectURL(
+            new Blob([message.code], { type: "text/javascript" }),
+          );
+          moduleURLs.push(example);
+          const module = await import(example);
+          mounted = runtime.svelte.mount(module.default, { target: root });
+          await runtime.svelte.tick();
+          report({ type: "rendered" });
+        } catch (error) {
+          fail(error);
+        }
+      });
+      addEventListener("pagehide", () => {
+        if (mounted) globalThis.KonfidencePlayground.svelte.unmount(mounted);
+        for (const url of moduleURLs) URL.revokeObjectURL(url);
+      });
+      // Navigation inside examples must never replace the sandbox or the catalog.
+      document.addEventListener("click", (event) => {
+        if (event.target instanceof Element && event.target.closest("a")) event.preventDefault();
+      });
+      report({ type: "ready" });
+    </script>
+  </body>
+</html>

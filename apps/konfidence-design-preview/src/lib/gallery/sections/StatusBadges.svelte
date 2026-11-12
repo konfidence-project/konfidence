@@ -3,6 +3,8 @@
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
 
+    let { name = "StatusBadge" }: { name?: string } = $props();
+
     const STATUSES = [
         "healthy",
         "warning",
@@ -16,7 +18,7 @@
 
 <Section
     id="status-badges"
-    title="Status badges"
+    title={name}
     subtitle="Double-coded (color + dot + text) via the real <StatusBadge> component."
     status="implemented"
 >

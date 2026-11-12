@@ -11,7 +11,7 @@
 
 <div class="nyi flex items-start gap-3.5 rounded-xl border border-dashed border-outline-default px-5 py-[18px] text-content-secondary">
     <div class="nyi__icon shrink-0 text-2xl leading-none text-content-tertiary" aria-hidden="true">◌</div>
-    <div class="nyi__body flex flex-col gap-1.5 [&_code]:rounded [&_code]:bg-surface-subtle [&_code]:px-[5px] [&_code]:py-px [&_code]:font-mono [&_code]:text-[0.9em] [&_code]:text-content-primary">
+    <div class="nyi__body flex min-w-0 flex-col gap-1.5 [overflow-wrap:anywhere] [&_code]:rounded [&_code]:bg-surface-subtle [&_code]:px-[5px] [&_code]:py-px [&_code]:font-mono [&_code]:text-[0.9em] [&_code]:text-content-primary">
         <p class="nyi__title m-0 text-compact font-semibold text-content-primary">Not yet implemented in <code>@konfidence/design-system</code></p>
         {#if note}
             <p class="nyi__note m-0 max-w-[640px] text-compact">{note}</p>

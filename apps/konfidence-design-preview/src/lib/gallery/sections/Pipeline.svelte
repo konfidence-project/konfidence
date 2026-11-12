@@ -1,9 +1,10 @@
 <script lang="ts">
     import { StageCard, StagePhase } from "@konfidence/design-system/components";
     import type { StagePhaseItem } from "@konfidence/design-system/components";
-    import NotYetImplemented from "../NotYetImplemented.svelte";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "StageCard" }: { name?: string } = $props();
 
     // Realistic phase compositions mirroring the fixtures shipped with the
     // design-system (see StagePhase/__tests__ + StageCard/__tests__).
@@ -35,12 +36,11 @@
 </script>
 
 <Section
-    id="pipeline"
-    title="Pipeline patterns"
-    subtitle="Real <StageCard> and <StagePhase> from @konfidence/design-system, at every state the dashboard renders. Higher-order composition primitives (promotion, timeline) still on the roadmap."
-    status="partial"
+    id={name}
+    title={name}
 >
     <div class="stack flex flex-col gap-5">
+        {#if name === "StagePhase"}
         <Sample
             title="StagePhase — sizes"
             description="Density variants: compact (in-card, no labels), default (7 px bar + labels), lg (10 px bar)."
@@ -89,6 +89,8 @@
             </div>
         </Sample>
 
+        {/if}
+        {#if name === "StageCard"}
         <Sample
             title="StageCard — grid"
             description="Data-block card used by the landscape overview. Colour rail encodes status; the mini phase strip inside repeats the current pipeline state."
@@ -158,12 +160,6 @@
             </div>
         </Sample>
 
-        <NotYetImplemented
-            note="Cross-stage composition (`Promotion from→to`, `PipelineTimeline`) requires an orchestrating layer on top of these primitives; still pending."
-            planned={[
-                "<Promotion from to>",
-                "<PipelineTimeline>",
-            ]}
-        />
+        {/if}
     </div>
 </Section>

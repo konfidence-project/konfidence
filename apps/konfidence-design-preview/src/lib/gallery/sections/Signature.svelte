@@ -2,11 +2,13 @@
     import { Button } from "@konfidence/design-system/components";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "Signature" }: { name?: string } = $props();
 </script>
 
 <Section
     id="signature"
-    title="Signature"
+    title={name}
     subtitle="Konfidence design language — amber-vs-teal semantics, strict colour discipline."
     status="implemented"
 >

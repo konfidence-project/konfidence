@@ -17,12 +17,23 @@ export default defineConfig({
   },
   overrides: [
     {
+      env: { node: true },
+      files: ["src/lib/playground/*.test.ts"],
+      rules: { "import/no-nodejs-modules": "off" },
+    },
+    {
+      files: ["src/lib/playground/compiler.worker.ts", "src/lib/playground/compiler-client.ts"],
+      // Worker.postMessage has no Window-style targetOrigin argument.
+      rules: { "unicorn/require-post-message-target-origin": "off" },
+    },
+    {
       files: ["e2e/**/*.ts"],
       rules: { "eslint/max-statements": "off" },
     },
     {
       files: ["src/**/*.svelte", "src/**/*.svelte.ts"],
       globals: {
+        $bindable: "readonly",
         $derived: "readonly",
         $effect: "readonly",
         $inspect: "readonly",
