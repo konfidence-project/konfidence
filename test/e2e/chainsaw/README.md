@@ -74,7 +74,7 @@ make test-e2e CHAINSAW_ARGS="--skip-delete"
 
 Add the `e2e` label to a same-repository PR, or select a branch under
 Actions → E2E → Run workflow. New commits to a labelled PR cancel its previous run.
-Fork PRs are skipped because their token cannot publish packages.
+Fork PRs are currently skipped.
 
 Manual runs offer **PR + main** (default) and **Latest releases**. Release mode uses
 `make e2e-up-release`; label-triggered PR runs always use `make e2e-up`.
@@ -91,10 +91,9 @@ The workflow and Chainsaw suite remain from the workflow branch. Both inputs are
 ignored by **Latest releases**; incompatible selected commits still fail.
 
 The workflow runs the selected bootstrap and `make test-e2e`, and shows
-the step results in the job summary. Vectors go to the shared GHCR prefix
-`ghcr.io/konfidence-project/konfidence/e2e`. After each run, the workflow deletes
-vector versions older than 2 hours and keeps the 5 newest versions of each
-component package.
+the step results in the job summary. Vectors and copied components go to a temporary
+registry in kind. CI uses native HTTP with dummy credentials; source components
+remain in GHCR. Local runs default to HTTPS (`REGISTRY_SCHEME`).
 This workflow is not part of `ci-gate` or required checks.
 
 ## Checks
@@ -143,7 +142,7 @@ Registry credentials are read at controller startup
 restarts the controller after installing credentials, not during cleanup.
 
 The kind cluster remains until `make e2e-down`. Local runs keep their registry uploads.
-CI always attempts to delete its own GHCR run prefix after snapshots and cluster teardown.
+CI registry data is removed with the kind cluster after failure snapshot upload.
 
 ## Failure snapshot
 

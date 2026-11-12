@@ -5,7 +5,7 @@ metadata:
   name: example-app
   namespace: kden-p-example-app
 spec:
-  uploadTarget: (join('', ['oci::https://', $registry, '//github.com/konfidence-project/e2e-test/vector']))
+  uploadTarget: (join('', ['oci::', env('REGISTRY_SCHEME') || 'https', '://', $registry, '//github.com/konfidence-project/e2e-test/vector']))
   credentials:
     ocm:
       refs:
