@@ -106,6 +106,25 @@ The preview server is intended for checking the root page. To exercise productio
 
 Production releases include the static SPA in the API image. The API serves the dashboard and `/api/v1` from the same origin; set `API_UI_ASSET_PATH` when running an API binary with an external dashboard build directory.
 
+### API explorer
+
+The API server exposes interactive Swagger documentation from the same
+origin as the API:
+
+- `/docs/` serves the Swagger UI API explorer.
+- `/docs/openapi.json` serves the OpenAPI specification embedded in the
+  running API binary.
+
+The embedded specification is generated from `api/openapi.yaml`, so it
+always describes the version of the API binary serving it. Swagger UI
+assets are also embedded in the API binary and do not require an external
+CDN.
+
+Open the explorer from the **API Explorer** button in the authenticated
+dashboard. Requests made through Swagger UI target the relative `/api`
+server and include the browser's existing `kden-session` cookie, so they
+use the same authorization as dashboard requests.
+
 ### Typed API client
 
 `api/openapi.yaml` is the source for the Go server, the kden Go client, and the shared `@konfidence/api-client` TypeScript package. After changing the specification, regenerate every client and server artifact with:

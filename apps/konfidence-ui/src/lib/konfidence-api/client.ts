@@ -26,6 +26,24 @@ const DEFAULT_API_BASE_URL = "/api";
 const resolveApiBaseUrl = (): string =>
   import.meta.env.VITE_KONFIDENCE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 
+const API_PATH_SUFFIX = /\/api\/?$/;
+
+/**
+ * Resolves the Swagger UI URL next to the configured API base URL.
+ *
+ * Examples:
+ * - `/api` becomes `/docs/`
+ * - `https://api.example.test/api` becomes
+ *   `https://api.example.test/docs/`
+ */
+const resolveApiExplorerUrl = (apiBaseUrl = resolveApiBaseUrl()): string => {
+  const explorerUrl = apiBaseUrl.replace(API_PATH_SUFFIX, "/docs/");
+
+  // Preserve useful behavior for an invalid or unconventional API base instead
+  // of rendering a link to an API endpoint as if it were Swagger UI.
+  return explorerUrl === apiBaseUrl ? "/docs/" : explorerUrl;
+};
+
 const isCrossOrigin = (baseUrl: string): boolean => /^https?:\/\//i.test(baseUrl);
 
 const credentialsFor = (baseUrl: string): RequestCredentials => {
@@ -61,5 +79,5 @@ const createApiClient = ({
   return client;
 };
 
-export { createApiClient, resolveApiBaseUrl };
+export { createApiClient, resolveApiBaseUrl, resolveApiExplorerUrl };
 export type { ApiClient };
