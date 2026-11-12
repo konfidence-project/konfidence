@@ -143,6 +143,15 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 	var taskManifests []controller.TaskManifest
 	artifactResources := make([]controller.OCMResource, 0, len(descriptor.Component.Resources))
 
+	var repositoryJSON []byte
+	if ref.Repository != nil {
+		repositoryJSON, err = json.Marshal(ref.Repository)
+		if err != nil {
+			return controller.ArtifactManifest{}, permanent(konfidence.VectorDeploymentStalledReasonManifestInvalid,
+				fmt.Errorf("failed to marshal repository spec for %s: %w", ref.String(), err))
+		}
+	}
+
 	for i := range descriptor.Component.Resources {
 		if err := ctx.Err(); err != nil {
 			return controller.ArtifactManifest{}, err
@@ -206,10 +215,30 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 					fmt.Errorf("failed to marshal access spec for resource %s in component %s: %w", resource.Name, ref.String(), err))
 			}
 
+			labels := make([]controller.OCMLabel, len(resource.Labels))
+			for j, l := range resource.Labels {
+				labels[j] = controller.OCMLabel{
+					Name:    l.Name,
+					Value:   l.Value,
+					Signing: l.Signing,
+					Version: l.Version,
+				}
+			}
+			var digest *controller.OCMDigest
+			if resource.Digest != nil {
+				digest = &controller.OCMDigest{
+					HashAlgorithm:          resource.Digest.HashAlgorithm,
+					NormalisationAlgorithm: resource.Digest.NormalisationAlgorithm,
+					Value:                  resource.Digest.Value,
+				}
+			}
+
 			artifactResources = append(artifactResources, controller.OCMResource{
 				Name:    resource.Name,
 				Type:    resource.Type,
 				Content: data,
+				Labels:  labels,
+				Digest:  digest,
 			})
 		}
 	}
@@ -221,6 +250,7 @@ func (a Adapter) GetArtifactManifestByReference(ctx context.Context, ref compref
 
 	konfidenceArtifactManifest.Tasks = taskManifests
 	konfidenceArtifactManifest.Resources = artifactResources
+	konfidenceArtifactManifest.Repository = repositoryJSON
 
 	return *konfidenceArtifactManifest, nil
 }

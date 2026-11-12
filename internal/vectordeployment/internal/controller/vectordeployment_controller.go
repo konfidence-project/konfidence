@@ -492,10 +492,29 @@ func mapTaskManifestsToLandscape(taskManifests []TaskManifest) []konfidence.Task
 func mapArtifactResourcesToLandscape(resources []OCMResource) []konfidence.OCMResource {
 	landscapeResources := make([]konfidence.OCMResource, 0, len(resources))
 	for _, resource := range resources {
+		labels := make([]konfidence.OCMResourceLabel, len(resource.Labels))
+		for i, l := range resource.Labels {
+			labels[i] = konfidence.OCMResourceLabel{
+				Name:    l.Name,
+				Value:   l.Value,
+				Signing: l.Signing,
+				Version: l.Version,
+			}
+		}
+		var digest *konfidence.OCMResourceDigest
+		if resource.Digest != nil {
+			digest = &konfidence.OCMResourceDigest{
+				HashAlgorithm:          resource.Digest.HashAlgorithm,
+				NormalisationAlgorithm: resource.Digest.NormalisationAlgorithm,
+				Value:                  resource.Digest.Value,
+			}
+		}
 		landscapeResources = append(landscapeResources, konfidence.OCMResource{
 			Name:    resource.Name,
 			Content: runtime.RawExtension{Raw: resource.Content},
 			Type:    resource.Type,
+			Labels:  labels,
+			Digest:  digest,
 		})
 	}
 	return landscapeResources
@@ -588,9 +607,10 @@ func (r *VectorDeploymentReconciler) constructArtifactDeployment(
 			ArtifactType:  artifactManifest.Type,
 			TaskManifests: taskManifests,
 			Component: konfidence.OCMComponent{
-				Name:      ref.Component,
-				Version:   ref.Version,
-				Resources: artifactResources,
+				Name:       ref.Component,
+				Version:    ref.Version,
+				Repository: runtime.RawExtension{Raw: artifactManifest.Repository},
+				Resources:  artifactResources,
 			},
 		},
 	}

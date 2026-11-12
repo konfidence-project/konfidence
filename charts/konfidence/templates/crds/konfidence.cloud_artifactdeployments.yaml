@@ -71,6 +71,13 @@ spec:
                   name:
                     description: Name is the OCM ComponentVersion name.
                     type: string
+                  repository:
+                    description: |-
+                      Repository is the OCM repository specification for the component version, serialized the same
+                      way the OCM runtime serializes repository specs (e.g. {"type":"OCIRepository/v1","baseUrl":...}).
+                      Deployers use it to open the hosting repository for localBlob resources and other repo-anchored reads.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   resources:
                     description: |-
                       Resources contains OCM resources belonging to this component. The structure is intentionally generic to support
@@ -86,6 +93,55 @@ spec:
                             binary payload.
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
+                        digest:
+                          description: |-
+                            Digest is the descriptor-side digest of the resource, if present. Deployers
+                            use it to verify downloaded content against the signed descriptor.
+                          properties:
+                            hashAlgorithm:
+                              description: HashAlgorithm is the algorithm applied
+                                to the normalized representation (OCM digest-algorithms).
+                              type: string
+                            normalisationAlgorithm:
+                              description: |-
+                                NormalisationAlgorithm is how the descriptor or artifact content is normalized before hashing
+                                (OCM normalization algorithms).
+                              type: string
+                            value:
+                              description: Value is the encoded digest.
+                              type: string
+                          type: object
+                        labels:
+                          description: |-
+                            Labels is the resource's OCM Labels. Each entry mirrors an OCM descriptor
+                            label (name, opaque JSON value, optional signing flag, optional version).
+                            Deployers use these to read routing or other per-resource metadata without
+                            re-opening the descriptor.
+                          items:
+                            description: OCMResourceLabel mirrors the OCM descriptor
+                              Label at the deployer surface.
+                            properties:
+                              name:
+                                description: Name is the label name.
+                                type: string
+                              signing:
+                                description: Signing indicates whether the label participates
+                                  in OCM signing.
+                                type: boolean
+                              value:
+                                description: Value is the raw JSON value of the label,
+                                  opaque to the API.
+                                format: byte
+                                type: string
+                              version:
+                                description: Version is an optional specification
+                                  version of the label value.
+                                type: string
+                            required:
+                            - name
+                            - value
+                            type: object
+                          type: array
                         name:
                           description: Name is the resource name.
                           type: string

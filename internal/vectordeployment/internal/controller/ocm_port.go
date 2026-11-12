@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/konfidence-project/konfidence/api/v1alpha1"
 	"ocm.software/open-component-model/bindings/go/oci/compref"
@@ -45,12 +46,28 @@ type ArtifactManifest struct {
 	AllowReuse bool
 	Tasks      []TaskManifest
 	Resources  []OCMResource
+	Repository []byte
 }
 
 type OCMResource struct {
 	Name    string
 	Content []byte
 	Type    string
+	Labels  []OCMLabel
+	Digest  *OCMDigest
+}
+
+type OCMLabel struct {
+	Name    string
+	Value   json.RawMessage
+	Signing bool
+	Version string
+}
+
+type OCMDigest struct {
+	HashAlgorithm          string
+	NormalisationAlgorithm string
+	Value                  string
 }
 
 type TaskManifest struct {

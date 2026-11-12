@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"encoding/json"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -69,6 +71,12 @@ type OCMComponent struct {
 	// +optional
 	Version string `json:"version,omitempty"`
 
+	// Repository is the OCM repository specification for the component version, serialized the same
+	// way the OCM runtime serializes repository specs (e.g. {"type":"OCIRepository/v1","baseUrl":...}).
+	// Deployers use it to open the hosting repository for localBlob resources and other repo-anchored reads.
+	// +optional
+	Repository runtime.RawExtension `json:"repository,omitempty"`
+
 	// Resources contains OCM resources belonging to this component. The structure is intentionally generic to support
 	// the requirements of deployers targeting different runtimes.
 	// +optional
@@ -87,6 +95,49 @@ type OCMResource struct {
 
 	// Type describes the resource type, following OCM conventions.
 	Type string `json:"type"`
+
+	// Labels is the resource's OCM Labels. Each entry mirrors an OCM descriptor
+	// label (name, opaque JSON value, optional signing flag, optional version).
+	// Deployers use these to read routing or other per-resource metadata without
+	// re-opening the descriptor.
+	// +optional
+	Labels []OCMResourceLabel `json:"labels,omitempty"`
+
+	// Digest is the descriptor-side digest of the resource, if present. Deployers
+	// use it to verify downloaded content against the signed descriptor.
+	// +optional
+	Digest *OCMResourceDigest `json:"digest,omitempty"`
+}
+
+// OCMResourceLabel mirrors the OCM descriptor Label at the deployer surface.
+type OCMResourceLabel struct {
+	// Name is the label name.
+	Name string `json:"name"`
+
+	// Value is the raw JSON value of the label, opaque to the API.
+	Value json.RawMessage `json:"value"`
+
+	// Signing indicates whether the label participates in OCM signing.
+	// +optional
+	Signing bool `json:"signing,omitempty"`
+
+	// Version is an optional specification version of the label value.
+	// +optional
+	Version string `json:"version,omitempty"`
+}
+
+// OCMResourceDigest mirrors the OCM descriptor Digest at the deployer surface.
+type OCMResourceDigest struct {
+	// HashAlgorithm is the algorithm applied to the normalized representation (OCM digest-algorithms).
+	HashAlgorithm string `json:"hashAlgorithm,omitempty"`
+
+	// NormalisationAlgorithm is how the descriptor or artifact content is normalized before hashing
+	// (OCM normalization algorithms).
+	// +optional
+	NormalisationAlgorithm string `json:"normalisationAlgorithm,omitempty"`
+
+	// Value is the encoded digest.
+	Value string `json:"value,omitempty"`
 }
 
 // ArtifactDeploymentStatus defines the observed state of ArtifactDeployment.
