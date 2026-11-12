@@ -82,6 +82,8 @@ var _ = Describe("promotion action responses", func() {
 				},
 				Entry("400 API message", http.StatusBadRequest, "application/json",
 					"{\"error\":{\"code\":\"bad_request\",\"message\":\"invalid request\"}}", "invalid request"),
+				Entry("422 API message", http.StatusUnprocessableEntity, "application/json",
+					string(ErrorResponseBody("unprocessable_entity", "promotion cannot be changed")), "promotion cannot be changed"),
 				Entry("JSON envelope with a non-JSON content type", http.StatusForbidden, "text/plain",
 					"{\"error\":{\"message\":\"access denied\"}}", "access denied"),
 				Entry("non-JSON error body", http.StatusForbidden, "text/plain",

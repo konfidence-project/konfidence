@@ -39,7 +39,7 @@ var _ = Describe("revoke-approval command", func() {
 	var requests chan *http.Request
 
 	BeforeEach(func() {
-		requests = make(chan *http.Request, 1)
+		requests = make(chan *http.Request, 3)
 		server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requests <- r
 			w.WriteHeader(http.StatusNoContent)
@@ -72,7 +72,7 @@ var _ = Describe("revoke-approval command", func() {
 	})
 
 	It("returns the API conflict", func() {
-		errorMsg := "promotion gates are already satisfied"
+		errorMsg := "promotion was modified concurrently; retry the action"
 		server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requests <- r
 			w.Header().Set("Content-Type", "application/json")
@@ -82,15 +82,17 @@ var _ = Describe("revoke-approval command", func() {
 
 		err := executeRevokeApprovalCommand(appConfig, testVectorPromotionID, FlagProjectID, TestProjectID)
 		Expect(err).To(MatchError(errorMsg))
+		Expect(requests).To(HaveLen(3))
 		ExpectRequest(requests, http.MethodPost, testRevokeApprovalPath)
 	})
 
 	It("does not print success when there is no approval to revoke", func() {
 		errorMsg := "promotion is not approved; nothing to revoke"
 		server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests <- r
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusConflict)
-			_, _ = w.Write(ErrorResponseBody("conflict", errorMsg))
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = w.Write(ErrorResponseBody("unprocessable_entity", errorMsg))
 		})
 
 		var err error
@@ -99,5 +101,7 @@ var _ = Describe("revoke-approval command", func() {
 		})
 		Expect(err).To(MatchError(errorMsg))
 		Expect(printed).To(BeEmpty())
+		ExpectRequest(requests, http.MethodPost, testRevokeApprovalPath)
+		Expect(requests).To(BeEmpty())
 	})
 })
