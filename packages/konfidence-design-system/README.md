@@ -91,6 +91,10 @@ manage mode or storage itself.
 
 ## Components
 
+[ChangeList and TogglePill](src/components/ChangeList/README.md) render compact
+artifact diffs, boolean On/Off transitions and inline empty sections. Explore
+the live examples in the preview at `/#change-list`.
+
 | Component                                            | CSS classes it wraps                             | Purpose                                                                                                                          |
 | ---------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | `Button`                                             | `.btn`, `.btn--{primary,secondary,ghost,danger}` | Renders `<button>` or `<a>`; forwards `disabled`, `aria-*`, click handler.                                                       |
