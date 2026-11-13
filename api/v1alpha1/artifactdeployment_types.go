@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"encoding/json"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -114,8 +112,13 @@ type OCMResourceLabel struct {
 	// Name is the label name.
 	Name string `json:"name"`
 
-	// Value is the raw JSON value of the label, opaque to the API.
-	Value json.RawMessage `json:"value"`
+	// Value is the raw JSON value of the label, opaque to the API. Schemaless
+	// keeps every JSON shape valid: controller-gen renders RawExtension as an
+	// object-only schema, which would reject scalar values like "/widget".
+	//
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Value runtime.RawExtension `json:"value"`
 
 	// Signing indicates whether the label participates in OCM signing.
 	// +optional

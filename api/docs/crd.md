@@ -725,7 +725,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the label name. |  |  |
-| `value` _[RawMessage](#rawmessage)_ | Value is the raw JSON value of the label, opaque to the API. |  |  |
+| `value` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Value is the raw JSON value of the label, opaque to the API. Schemaless<br />keeps every JSON shape valid: controller-gen renders RawExtension as an<br />object-only schema, which would reject scalar values like "/widget". |  | Schemaless: \{\} <br /> |
 | `signing` _boolean_ | Signing indicates whether the label participates in OCM signing. |  | Optional: \{\} <br /> |
 | `version` _string_ | Version is an optional specification version of the label value. |  | Optional: \{\} <br /> |
 

@@ -129,10 +129,11 @@ spec:
                                   in OCM signing.
                                 type: boolean
                               value:
-                                description: Value is the raw JSON value of the label,
-                                  opaque to the API.
-                                format: byte
-                                type: string
+                                description: |-
+                                  Value is the raw JSON value of the label, opaque to the API. Schemaless
+                                  keeps every JSON shape valid: controller-gen renders RawExtension as an
+                                  object-only schema, which would reject scalar values like "/widget".
+                                x-kubernetes-preserve-unknown-fields: true
                               version:
                                 description: Version is an optional specification
                                   version of the label value.

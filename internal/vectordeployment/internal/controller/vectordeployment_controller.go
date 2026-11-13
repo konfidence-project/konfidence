@@ -496,7 +496,7 @@ func mapArtifactResourcesToLandscape(resources []OCMResource) []konfidence.OCMRe
 		for i, l := range resource.Labels {
 			labels[i] = konfidence.OCMResourceLabel{
 				Name:    l.Name,
-				Value:   l.Value,
+				Value:   runtime.RawExtension{Raw: l.Value},
 				Signing: l.Signing,
 				Version: l.Version,
 			}
