@@ -9,7 +9,6 @@ import (
 
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -30,14 +29,13 @@ const (
 	defaultKeepOutstandingPromotions = 10
 )
 
-// VectorPromotionTTLReconciler enforces outstanding and finished promotion
-// retention and deletes terminal promotions after their TTL expires.
+// VectorPromotionTTLReconciler deletes terminal promotions by count and TTL.
+// All lifecycle status transitions belong to the promotion's own reconciler.
 type VectorPromotionTTLReconciler struct {
 	client.Client
 }
 
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions,verbs=get;list;watch;delete
-// +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotions/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=konfidence.cloud,resources=vectorpromotionconfigs,verbs=get;list;watch
 
 func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -50,11 +48,18 @@ func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	if !promotion.IsTerminal(vectorPromotion) {
-		return ctrl.Result{}, r.enforceOutstandingRetention(ctx, vectorPromotion)
+		return ctrl.Result{}, nil
 	}
 
-	if err := r.enforceTerminalRetention(ctx, vectorPromotion); err != nil {
+	promotions, err := listPromotionsForConfig(ctx, r.Client, vectorPromotion.Namespace, vectorPromotion.Spec.VectorPromotionConfigName)
+	if err != nil {
 		return ctrl.Result{}, err
+	}
+	if err := r.enforceTerminalRetention(ctx, vectorPromotion, promotions); err != nil {
+		return ctrl.Result{}, err
+	}
+	if neededByOlderPromotion(vectorPromotion, promotions) {
+		return ctrl.Result{RequeueAfter: siblingBlockedRequeueInterval}, nil
 	}
 
 	shouldDelete, remaining := promotion.TTLStatus(vectorPromotion)
@@ -74,67 +79,17 @@ func (r *VectorPromotionTTLReconciler) Reconcile(ctx context.Context, req ctrl.R
 	return ctrl.Result{}, nil
 }
 
-// enforceOutstandingRetention supersedes the oldest promotions that are still
-// in their gate phase (Waiting) when the configured bound is exceeded.
-func (r *VectorPromotionTTLReconciler) enforceOutstandingRetention(
-	ctx context.Context,
-	vectorPromotion *konfidence.VectorPromotion,
-) error {
-	keep, err := r.outstandingRetentionBound(ctx, vectorPromotion)
-	if err != nil {
-		return err
-	}
-	if keep == 0 {
-		return nil
-	}
-
-	promotions, err := listPromotionsForConfig(ctx, r.Client, vectorPromotion.Namespace, vectorPromotion.Spec.VectorPromotionConfigName)
-	if err != nil {
-		return err
-	}
-	outstanding := make([]konfidence.VectorPromotion, 0, len(promotions))
-	for i := range promotions {
-		if promotion.IsWaiting(&promotions[i]) {
-			outstanding = append(outstanding, promotions[i])
-		}
-	}
-	if len(outstanding) <= keep {
-		return nil
-	}
-
-	// sorted from oldest to newest
-	sort.SliceStable(outstanding, func(i, j int) bool {
-		return promotion.Newer(&outstanding[j], &outstanding[i])
-	})
-	var errs []error
-	for i := range outstanding[:len(outstanding)-keep] {
-		candidate := &outstanding[i]
-		message := fmt.Sprintf(
-			"promotion of vector %q was superseded because the limit of %d outstanding promotions was exceeded",
-			candidate.Spec.Vector,
-			keep,
-		)
-		if err := updateStatus(ctx, r.Client, candidate,
-			finish(metav1.ConditionFalse, konfidence.ReasonPromotionOutstandingLimitReached, message)); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errors.Join(errs...)
-}
-
 // enforceTerminalRetention deletes the oldest terminal promotions of the config
 // beyond its keepLastPromotions bound, so short TTLs or missing TTLs cannot
 // erase or grow the audit trail without limit.
-func (r *VectorPromotionTTLReconciler) enforceTerminalRetention(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) error {
+func (r *VectorPromotionTTLReconciler) enforceTerminalRetention(
+	ctx context.Context, vectorPromotion *konfidence.VectorPromotion, promotions []konfidence.VectorPromotion,
+) error {
 	keep, err := r.retentionBound(ctx, vectorPromotion)
 	if err != nil {
 		return err
 	}
 
-	promotions, err := listPromotionsForConfig(ctx, r.Client, vectorPromotion.Namespace, vectorPromotion.Spec.VectorPromotionConfigName)
-	if err != nil {
-		return err
-	}
 	terminal := make([]konfidence.VectorPromotion, 0, len(promotions))
 	for _, candidate := range promotions {
 		if promotion.IsTerminal(&candidate) {
@@ -148,9 +103,24 @@ func (r *VectorPromotionTTLReconciler) enforceTerminalRetention(ctx context.Cont
 	sort.Slice(terminal, func(i, j int) bool { return promotion.Newer(&terminal[i], &terminal[j]) })
 	var errs []error
 	for i := keep; i < len(terminal); i++ {
+		if neededByOlderPromotion(&terminal[i], promotions) {
+			continue
+		}
 		errs = append(errs, client.IgnoreNotFound(r.Delete(ctx, &terminal[i])))
 	}
 	return errors.Join(errs...)
+}
+
+// Retain supersession evidence until every older active promotion has observed
+// it. Otherwise TTL/count cleanup could allow an old promotion to execute again
+// after a restart or delayed watch event. Retention bounds are eventual.
+func neededByOlderPromotion(candidate *konfidence.VectorPromotion, promotions []konfidence.VectorPromotion) bool {
+	for i := range promotions {
+		if !promotion.IsTerminal(&promotions[i]) && canSupersede(candidate, &promotions[i]) {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *VectorPromotionTTLReconciler) retentionBound(ctx context.Context, vectorPromotion *konfidence.VectorPromotion) (int, error) {
@@ -167,25 +137,8 @@ func (r *VectorPromotionTTLReconciler) retentionBound(ctx context.Context, vecto
 	return int(*config.Spec.KeepLastPromotions), nil
 }
 
-func (r *VectorPromotionTTLReconciler) outstandingRetentionBound(
-	ctx context.Context,
-	vectorPromotion *konfidence.VectorPromotion,
-) (int, error) {
-	config, err := getPromotionConfig(ctx, r.Client, vectorPromotion)
-	if apierrors.IsNotFound(err) {
-		return defaultKeepOutstandingPromotions, nil
-	}
-	if err != nil {
-		return 0, fmt.Errorf("failed to fetch promotion configuration for outstanding retention: %w", err)
-	}
-	if config.Spec.KeepOutstandingPromotions == nil {
-		return defaultKeepOutstandingPromotions, nil
-	}
-	return int(*config.Spec.KeepOutstandingPromotions), nil
-}
-
-// mapConfigToPromotions enqueues one outstanding and one terminal promotion,
-// when present, so configuration changes reapply both retention bounds.
+// mapConfigToPromotions enqueues one terminal promotion, when present, so
+// configuration changes reapply finished-promotion retention.
 func (r *VectorPromotionTTLReconciler) mapConfigToPromotions(
 	ctx context.Context,
 	obj client.Object,
@@ -199,31 +152,23 @@ func (r *VectorPromotionTTLReconciler) mapConfigToPromotions(
 		logf.FromContext(ctx).Error(err, "failed to list promotions for retention config watch", "config", config.Name)
 		return nil
 	}
-	var outstanding, terminal *konfidence.VectorPromotion
+	var terminal *konfidence.VectorPromotion
 	for i := range promotions {
 		candidate := &promotions[i]
-		switch {
-		case promotion.IsTerminal(candidate):
+		if promotion.IsTerminal(candidate) {
 			if terminal == nil || promotion.Newer(candidate, terminal) {
 				terminal = candidate
-			}
-		case promotion.IsWaiting(candidate):
-			if outstanding == nil || promotion.Newer(candidate, outstanding) {
-				outstanding = candidate
 			}
 		}
 	}
 
-	requests := make([]reconcile.Request, 0, 2)
-	for _, candidate := range []*konfidence.VectorPromotion{outstanding, terminal} {
-		if candidate != nil {
-			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: candidate.Namespace,
-				Name:      candidate.Name,
-			}})
-		}
+	if terminal == nil {
+		return nil
 	}
-	return requests
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{
+		Namespace: terminal.Namespace,
+		Name:      terminal.Name,
+	}}}
 }
 
 // NewVectorPromotionTTLReconciler wires a VectorPromotionTTLReconciler for the given manager.
@@ -239,8 +184,6 @@ func NewVectorPromotionTTLReconciler(mgr ctrl.Manager) *VectorPromotionTTLReconc
 func (r *VectorPromotionTTLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorPromotion{}, builder.WithPredicates(predicate.Funcs{
-			CreateFunc:  func(e event.CreateEvent) bool { return true },
-			UpdateFunc:  func(e event.UpdateEvent) bool { return true },
 			DeleteFunc:  func(e event.DeleteEvent) bool { return false },
 			GenericFunc: func(e event.GenericEvent) bool { return false },
 		})).

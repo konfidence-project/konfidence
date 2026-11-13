@@ -44,6 +44,8 @@
 // records the operator override (vectorpromotion.Reject and
 // vectorpromotion.BypassGates). Status writes use optimistic locking to handle
 // conflicts. The controller never interprets gate types.
+// Every lifecycle reconciliation writes only its own promotion's status;
+// sibling changes enqueue observations, never transitions on other objects.
 //
 // # Lifecycle
 //
@@ -76,8 +78,8 @@
 //	│   newest ready for execution wins                │
 //	└──────────────────────────────────────────────────┘
 //	  │
-//	  ├──▶ older siblings → Succeeded=False
-//	  │        (PromotionSuperseded, terminal)
+//	  ├──▶ a newer ready or terminal, non-rejected sibling exists
+//	  │        → Succeeded=False (PromotionSuperseded, terminal)
 //	  │
 //	  ▼
 //	target Stage resolves?
@@ -101,6 +103,49 @@
 // them, ordered by spec.sequence, finish with
 // Succeeded=False/OutstandingLimitReached and can no longer be approved or
 // executed. A value of 0 allows unlimited waiting promotions.
+// The lifecycle reconciler applies this bound to itself by counting newer
+// waiting siblings; the TTL controller never writes lifecycle status.
+//
+// Waiting and ready promotions both supersede themselves when a newer sibling
+// is ready for execution (satisfied gates or bypass) or terminal (Succeeded=True
+// or False). A newer ready promotion need not have started execution yet; a
+// failed promotion also prevents older execution. Pending gates or gate errors
+// alone do not supersede older promotions. Terminal promotions never change.
+// Rejected promotions never supersede another promotion, even if their gates
+// were cleared before the rejection or the rejection is not yet reconciled.
+// Supersession is irreversible: a later rejection or failure of the newer
+// promotion does not revive older terminal promotions. Recovery needs a new
+// promotion.
+//
+// # Sibling observations and recovery
+//
+// A second VectorPromotion watch maps create/delete events and changes to
+// supersession eligibility, execution start, or terminal state to non-terminal
+// siblings of the same config in the same project namespace. Both older siblings (supersession
+// and outstanding limits) and newer siblings (execution unblocking) are queued.
+// Config generation changes enqueue active promotions to reapply outstanding
+// limits. Gate provenance and condition-message-only updates do not fan out.
+//
+// Every enqueued resource decides from the default informer cache. A stale
+// sibling observation can delay supersession, so execution has a separate guard:
+// a Stage records the highest executed sequence per config incarnation in
+// konfidence.cloud/promotion-sequences. The sequence and vector are written in
+// one optimistic-locked patch. If the cached Stage is stale, the patch conflicts;
+// when the cache catches up, an older promotion sees the watermark and marks
+// itself superseded without writing the Stage. No uncached reads, in-memory
+// expectations, or additional reconciliation phases are needed.
+//
+// The watermark survives promotion retention and controller restarts. Each
+// config has its own entry so flows targeting the same Stage do not erase each
+// other's execution history. Config owner UIDs distinguish recreated configs;
+// unowned, manually created promotions fall back to namespace/config-name.
+// The annotation must be preserved; a deleted/recreated Stage starts fresh.
+// This fences writes to the same target Stage; different target Stages do not
+// share a watermark. Sibling status observations still converge via watches.
+// Status writes also use optimistic locking, and the lifecycle controller keeps
+// a single worker with leader election across multiple replicas.
+// Non-terminal promotions periodically retry as a fallback for failed watch
+// mapping. Initial informer events after a restart also drive convergence.
 //
 // Gates can change only until GatesSatisfied is set, an override is recorded,
 // or the promotion finishes. The optimistic lock makes "all satisfied →
@@ -110,17 +155,20 @@
 // The retention controller cleans up finished promotions using ttlAfterFinished
 // (measured from completionTime) and bounds them per config by
 // keepLastPromotions.
+// Completed promotions that are still needed as supersession evidence by an
+// older active promotion are retained temporarily, even beyond TTL or count
+// limits. Once older promotions reconcile to terminal states, cleanup resumes.
 //
 // # Files
 //
 // The VectorPromotion reconciler spans several files:
 //
 //   - vectorpromotion_gates.go: gate seeding and the GatesSatisfied condition
-//   - vectorpromotion_override.go: finishing rejected promotions and recording gate bypasses
-//   - vectorpromotion_serialization.go: serialization and superseding siblings
-//   - vectorpromotion_execution.go: target resolution, Stage write, and config mirroring
 //   - vectorpromotion_status.go: status update helpers
-//   - vectorpromotion_ttl_controller.go: TTL and retention
+//   - vectorpromotion_controller.go: lifecycle entry point and watch mapping
+//   - vectorpromotion_serialization.go: execution eligibility, self-supersession, outstanding limits
+//   - vectorpromotion_execution.go: target resolution and Stage write
+//   - vectorpromotion_ttl_controller.go: TTL, retention, and supersession evidence protection
 //
 // The VectorPromotionConfig reconciler spans several files too:
 //
