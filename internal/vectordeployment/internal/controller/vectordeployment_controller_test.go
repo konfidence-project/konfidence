@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync/atomic"
 	"time"
@@ -143,6 +144,10 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 					Name:    "sample-service-1-helm-chart",
 					Type:    "helmChart",
 					Content: []byte("{\"type\": \"helm\", \"helmChart\": \"podinfo:6.9.1\", \"helmRepository\": \"https://stefanprodan.github.io/podinfo\"}"),
+					Labels: []OCMLabel{
+						{Name: "route", Value: json.RawMessage(`"/widget"`), Signing: true, Version: "v1"},
+						{Name: "config", Value: json.RawMessage(`{"enabled":true,"nested":{"path":"/widget"}}`)},
+					},
 				},
 				{
 					Name:    "sample-service-1-image",
@@ -211,6 +216,14 @@ var _ = Describe("VectorDeployment Controller", Ordered, Serial, func() {
 			g.Expect(artifactDeploymentList.Items[0].Name).To(gomega.HavePrefix(artifactPrefix))
 			artifactDeployment := &artifactDeploymentList.Items[0]
 			g.Expect(artifactDeployment.Spec.Component.Resources).To(gomega.HaveLen(4))
+			labels := artifactDeployment.Spec.Component.Resources[0].Labels
+			g.Expect(labels).To(gomega.HaveLen(2))
+			g.Expect(labels[0].Name).To(gomega.Equal("route"))
+			g.Expect(string(labels[0].Value.Raw)).To(gomega.MatchJSON(`"/widget"`))
+			g.Expect(labels[0].Signing).To(gomega.BeTrue())
+			g.Expect(labels[0].Version).To(gomega.Equal("v1"))
+			g.Expect(labels[1].Name).To(gomega.Equal("config"))
+			g.Expect(string(labels[1].Value.Raw)).To(gomega.MatchJSON(`{"enabled":true,"nested":{"path":"/widget"}}`))
 		}, timeout, interval).Should(gomega.Succeed())
 
 		By("Updating ArtifactDeployment.status")

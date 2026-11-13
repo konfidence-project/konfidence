@@ -651,6 +651,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the OCM ComponentVersion name. |  |  |
 | `version` _string_ | Version is the OCM ComponentVersion version. |  | Optional: \{\} <br /> |
+| `repository` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Repository is the OCM repository specification for the component version, serialized the same<br />way the OCM runtime serializes repository specs (e.g. \{"type":"OCIRepository/v1","baseUrl":...\}).<br />Deployers use it to open the hosting repository for localBlob resources and other repo-anchored reads. |  | Optional: \{\} <br /> |
 | `resources` _[OCMResource](#ocmresource) array_ | Resources contains OCM resources belonging to this component. The structure is intentionally generic to support<br />the requirements of deployers targeting different runtimes. |  | Optional: \{\} <br /> |
 
 
@@ -688,6 +689,45 @@ _Appears in:_
 | `name` _string_ | Name is the resource name. |  |  |
 | `content` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Content holds raw resource data, typically an embedded manifest, file, or<br />binary payload. |  |  |
 | `type` _string_ | Type describes the resource type, following OCM conventions. |  |  |
+| `labels` _[OCMResourceLabel](#ocmresourcelabel) array_ | Labels is the resource's OCM Labels. Each entry mirrors an OCM descriptor<br />label (name, opaque JSON value, optional signing flag, optional version).<br />Deployers use these to read routing or other per-resource metadata without<br />re-opening the descriptor. |  | Optional: \{\} <br /> |
+| `digest` _[OCMResourceDigest](#ocmresourcedigest)_ | Digest is the descriptor-side digest of the resource, if present. Deployers<br />use it to verify downloaded content against the signed descriptor. |  | Optional: \{\} <br /> |
+
+
+### OCMResourceDigest
+
+
+
+OCMResourceDigest mirrors the OCM descriptor Digest at the deployer surface.
+
+
+
+_Appears in:_
+- [OCMResource](#ocmresource)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `hashAlgorithm` _string_ | HashAlgorithm is the algorithm applied to the normalized representation (OCM digest-algorithms). |  |  |
+| `normalisationAlgorithm` _string_ | NormalisationAlgorithm is how the descriptor or artifact content is normalized before hashing<br />(OCM normalization algorithms). |  | Optional: \{\} <br /> |
+| `value` _string_ | Value is the encoded digest. |  |  |
+
+
+### OCMResourceLabel
+
+
+
+OCMResourceLabel mirrors the OCM descriptor Label at the deployer surface.
+
+
+
+_Appears in:_
+- [OCMResource](#ocmresource)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name is the label name. |  |  |
+| `value` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#rawextension-runtime-pkg)_ | Value is the raw JSON value of the label, opaque to the API. Schemaless<br />keeps every JSON shape valid: controller-gen renders RawExtension as an<br />object-only schema, which would reject scalar values like "/widget". |  | Schemaless: \{\} <br /> |
+| `signing` _boolean_ | Signing indicates whether the label participates in OCM signing. |  | Optional: \{\} <br /> |
+| `version` _string_ | Version is an optional specification version of the label value. |  | Optional: \{\} <br /> |
 
 
 ### Parameters
