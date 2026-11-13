@@ -2,16 +2,16 @@
     import "@ui5/webcomponents-icons/dist/AllIcons.js";
     import "@ui5/webcomponents/dist/Icon.js";
     import { Button, EmptyState } from "@konfidence/design-system/components";
-    import NotYetImplemented from "../NotYetImplemented.svelte";
     import Sample from "../Sample.svelte";
     import Section from "../Section.svelte";
+
+    let { name = "EmptyState" }: { name?: string } = $props();
 </script>
 
 <Section
     id="feedback"
-    title="Feedback states"
-    subtitle="Real <EmptyState> from @konfidence/design-system (all three tones). Toasts and skeleton loaders are still on the roadmap."
-    status="partial"
+    title={name}
+    subtitle="Empty, information and error placeholders with optional icons and actions."
 >
     <div class="stack flex flex-col gap-5">
         <Sample title="EmptyState — empty tone" description="Neutral, `role='status'`, polite live region.">
@@ -61,9 +61,5 @@
             </div>
         </Sample>
 
-        <NotYetImplemented
-            note="Skeleton v5 provides the underlying Toast primitive. Konfidence has not yet wrapped it, nor the skeleton loaders."
-            planned={["<Toast>", "<SkeletonBox> / <SkeletonText>"]}
-        />
     </div>
 </Section>

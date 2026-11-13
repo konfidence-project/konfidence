@@ -9,6 +9,10 @@
         TopBar,
     } from "@konfidence/design-system/components";
     import Section from "../Section.svelte";
+    import Sample from "../Sample.svelte";
+
+    let { name = "AppShell" }: { name?: string } = $props();
+    const mainId = crypto.randomUUID();
 
     interface DemoProject {
         id: string;
@@ -63,13 +67,14 @@
 </script>
 
 <Section
-    id="shell"
-    title="Application shell"
-    subtitle="AppShell + TopBar + Sidebar (from #893). Project switcher, user menu, and sidebar navigation are wired up with dummy data — try clicking around."
+    id={name}
+    title={name}
+    subtitle="Shell primitives composed with a project switcher, user menu and navigation. All state belongs to this example."
     status="implemented"
 >
-    <div class="shell-frame min-h-[480px] max-h-[640px] resize-y overflow-hidden rounded-xl border border-outline-subtle">
-        <AppShell>
+    <Sample title="Application shell composition" previewHeight={480}>
+    <div class="shell-frame w-full min-h-[480px] max-h-[640px] resize-y overflow-hidden rounded-xl border border-outline-subtle">
+        <AppShell {mainId}>
             {#snippet topbar({ toggleDrawer }: { toggleDrawer: () => void })}
                 <TopBar onHamburger={toggleDrawer}>
                     {#snippet logo()}
@@ -195,4 +200,5 @@
             {/snippet}
         </AppShell>
     </div>
+    </Sample>
 </Section>
