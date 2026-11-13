@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { render } from "vitest-browser-svelte";
 import ChangeList from "../ChangeList.svelte";
 import ChangeListFixture from "./ChangeListFixture.svelte";
+import type { ChangeState } from "../types.js";
 import "../../../styles/test.css";
 
 describe("ChangeList", () => {
@@ -70,6 +71,49 @@ describe("ChangeList", () => {
     await expect.element(page.getByRole("list")).not.toBeInTheDocument();
   });
 
+  it("preserves empty strings and partial Changed values", async () => {
+    await render(ChangeList, {
+      items: [
+        { id: "empty", name: "empty value", newValue: "", oldValue: "previous", state: "changed" },
+        { id: "old", name: "previous only", oldValue: false, state: "changed" },
+        { id: "new", name: "new only", newValue: false, state: "changed" },
+      ],
+    });
+    const rows = page.getByRole("listitem");
+    await expect
+      .element(rows.nth(0))
+      .toHaveTextContent("Changed empty value Previous value: previous → New value:");
+    await expect.element(rows.nth(1).getByText("Previous value: Off")).toBeInTheDocument();
+    await expect.element(rows.nth(1).getByText("New value:")).not.toBeInTheDocument();
+    await expect.element(rows.nth(2).getByText("New value: Off")).toBeInTheDocument();
+    await expect.element(rows.nth(2).getByText("Previous value:")).not.toBeInTheDocument();
+  });
+
+  it("uses consumer status tokens for row markers and labels", async () => {
+    const states: ChangeState[] = ["added", "changed", "removed"];
+    const screen = await render(ChangeList, {
+      items: states.map((state) => ({ id: state, name: state, state })),
+    });
+    const tones = ["healthy", "warning", "error"];
+    for (const [index, tone] of tones.entries()) {
+      const foreground = `rgb(${20 + index}, 40, 60)`;
+      const background = `rgb(${220 + index}, 230, 240)`;
+      const solid = `rgb(${80 + index}, 100, 120)`;
+      screen.container.style.setProperty(`--status-${tone}-fg`, foreground);
+      screen.container.style.setProperty(`--status-${tone}-bg`, background);
+      screen.container.style.setProperty(`--status-${tone}-solid`, solid);
+      const row = page
+        .getByRole("listitem")
+        .nth(index)
+        .element()
+        .querySelector<HTMLElement>(".change-row")!;
+      const badge = row.querySelector<HTMLElement>(".change-badge")!;
+      expect(getComputedStyle(row).borderLeftColor).toBe(solid);
+      expect(getComputedStyle(badge).color).toBe(foreground);
+      expect(getComputedStyle(badge).backgroundColor).toBe(background);
+    }
+  });
+
   describe("reference screenshots", () => {
     afterEach(() => {
       document.documentElement.removeAttribute("data-theme");
@@ -87,15 +131,19 @@ describe("ChangeList", () => {
           for (const row of fixture.querySelectorAll<HTMLElement>(".change-row")) {
             expect(row.scrollWidth).toBe(row.clientWidth);
           }
+          const firstRow = fixture.querySelector<HTMLElement>(".change-row")!;
+          const name = firstRow.querySelector<HTMLElement>(".change-name")!.getBoundingClientRect();
+          const value = firstRow.querySelector<HTMLElement>(".change-val")!.getBoundingClientRect();
+          if (width === 320) {
+            expect(value.top).toBeGreaterThanOrEqual(name.bottom);
+          } else {
+            expect(value.left).toBeGreaterThanOrEqual(name.right);
+            expect(value.top).toBeLessThan(name.bottom);
+          }
           await expect
             .element(page.getByText("international-payment-reconciliation-service"))
             .toHaveAttribute("title", "international-payment-reconciliation-service");
-          await expect
-            .element(
-              page.getByRole("list", { name: "Example changes" }).element().parentElement!
-                .parentElement!,
-            )
-            .toMatchScreenshot();
+          await expect.element(fixture).toMatchScreenshot();
         });
       }
     }
