@@ -12,6 +12,8 @@
         children: Snippet;
         footer?: Snippet;
         onClose?: () => void;
+        /** Called after dialog cleanup and default focus restoration, including programmatic closes. */
+        onCloseComplete?: () => void;
         fullPageHref?: string;
         width?: number;
         onWidthChange?: (width: number) => void;
@@ -29,6 +31,7 @@
         children,
         footer,
         onClose,
+        onCloseComplete,
         fullPageHref,
         width = $bindable(DEFAULT_WIDTH),
         onWidthChange,
@@ -47,6 +50,7 @@
     backdropClass="side-panel-backdrop"
     dialogStyle="width: min({effectiveWidth}px, 100vw)"
     {onClose}
+    {onCloseComplete}
     {modal}
     {focusKey}
     {footer}

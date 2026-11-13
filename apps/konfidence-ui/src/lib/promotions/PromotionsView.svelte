@@ -1,11 +1,16 @@
 <script lang="ts">
-    import { Button, EmptyState, ExpandableGroup, Link, OrbitLoader, PageHeader, SearchInput, Select } from "@konfidence/design-system/components";
+    import { Button, EmptyState, ExpandableGroup, Link, OrbitLoader, PageHeader, SearchInput, Select, SidePanel } from "@konfidence/design-system/components";
     import type { Landscape, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
     import { isActionable, referenceLabel } from "./promotions.ts";
     import { compatibleOptions, filterPromotionGroups } from "./filters.ts";
     import { usePromotionFilters } from "./usePromotionFilters.svelte.ts";
     import PromotionRow from "./PromotionRow.svelte";
     import { vectorLabel } from "./vector-label.ts";
+    import PromotionDetail from "./PromotionDetail.svelte";
+    import PromotionActions from "./PromotionActions.svelte";
+    import { panelDimensions } from "#lib/shell/panelDimensions.svelte.ts";
+    import { createDesktopPanelViewport } from "#lib/shell/panelPresentation.svelte.ts";
+    import { outsidePanelDismiss } from "#lib/shell/panel-outside-dismiss.ts";
 
     interface Props {
         configs?: readonly VectorPromotionConfig[];
@@ -17,14 +22,57 @@
     }
     let { configs = [], landscapes = [], loading = false, hasLoaded = false, error, onRetry }: Props = $props();
     let expanded = $state<Record<string, boolean>>({});
-    let selectedId = $state<string>();
     const filters = usePromotionFilters();
     const groups = $derived(filterPromotionGroups(configs, landscapes, filters.values));
     const options = $derived(compatibleOptions(configs, landscapes, filters.values));
     const labelClass = "text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary";
+    const selectedGroup = $derived(groups.find((group) => group.promotions.some((promotion) => promotion.id === filters.selectedId)));
+    const selected = $derived(selectedGroup?.promotions.find((promotion) => promotion.id === filters.selectedId));
+    // Do not close and re-enter the panel between a filter edit and a newer URL commit.
+    const panelOpen = $derived(selected !== undefined || (filters.selectedId !== undefined && filters.selectionPending));
+    const desktop = createDesktopPanelViewport();
+    let revealedId: string | undefined = undefined;
+    let lastSelectedId: string | undefined = undefined;
+    let lastConfigId: string | undefined = undefined;
+    let wasOpen = false;
+    let restoreFocus = false;
+    let panelFocusKey = $state<string>();
+
+    const closePanel = (): void => { restoreFocus = true; filters.close(); };
+    const restoreRowFocus = (): void => {
+        if (!restoreFocus) {return;}
+        restoreFocus = false;
+        queueMicrotask(() => {
+            const row = document.getElementById(`promotion-row-${lastSelectedId}`);
+            const group = document.getElementById(`promotion-group-${lastConfigId}`);
+            const target = row?.getClientRects().length ? row : group ?? document.getElementById("promotions-view-title");
+            if (target) { if (!(target instanceof HTMLButtonElement)) {target.tabIndex = -1;} target.focus({ preventScroll: true }); }
+        });
+    };
+
+    $effect(() => {
+        const id = filters.selectedId;
+        const group = selectedGroup;
+        if (id && hasLoaded && !group) {filters.clearSelection(id);}
+        if (id && group && id !== revealedId) {
+            expanded[group.config.id] = true;
+            revealedId = id;
+        } else if (!id) {revealedId = undefined;}
+    });
+
+    $effect.pre(() => {
+        if (selected) {
+            // Keep panel entry, but do not refocus a pending change after the user resumes work outside.
+            if (!wasOpen || document.activeElement?.closest("[data-panel-surface]")) {panelFocusKey = selected.id;}
+            lastSelectedId = selected.id;
+            lastConfigId = selectedGroup?.config.id;
+        } else if (wasOpen && !panelOpen && document.activeElement?.closest("[data-panel-surface]")) {restoreFocus = true;}
+        wasOpen = panelOpen;
+    });
 </script>
 
-<section class="mx-auto flex w-full max-w-[84rem] flex-col gap-5 px-6 pt-6 pb-10" aria-labelledby="promotions-view-title">
+<section use:outsidePanelDismiss={{ dismiss: filters.close, enabled: () => selected !== undefined && desktop.current, ignoreSelector: "[data-promotion-group], [data-promotion-filters], [data-promotion-refresh]" }}
+    class="mx-auto flex w-full max-w-[84rem] flex-col gap-5 px-6 pt-6 pb-10" aria-labelledby="promotions-view-title">
     <PageHeader id="promotions-view-title" title="Promotions" />
     {#if hasLoaded}
         {#if error}
@@ -33,7 +81,7 @@
                 <Button variant="secondary" onclick={onRetry}>Retry</Button>
             </div>
         {/if}
-        <div class="flex flex-wrap items-end gap-3 rounded-[var(--card-radius)] border border-outline-subtle bg-surface-subtle px-4 py-3">
+        <div data-promotion-filters class="flex flex-wrap items-end gap-3 rounded-[var(--card-radius)] border border-outline-subtle bg-surface-subtle px-4 py-3">
             <label class="flex min-w-0 grow basis-64 flex-col gap-1">
                 <span class={labelClass}>Search</span>
                 <SearchInput bind:value={filters.query} aria-label="Search promotions" placeholder="Search configuration, promotion, vector, approval…" class="w-full max-w-none" />
@@ -95,9 +143,10 @@
                         <PromotionRow {promotion} />
                     {/each}
                 {/snippet}
+                <div data-promotion-group>
                 <ExpandableGroup ariaLabel={`Promotion configuration ${group.config.id}`} triggerId={`promotion-group-${group.config.id}`}
                     bind:expanded={() => expanded[group.config.id] ?? false, (value) => expanded[group.config.id] = value}
-                    bind:selectedValue={selectedId}
+                    bind:selectedValue={() => filters.selectedId, filters.select}
                     children={group.promotions.length ? history : undefined}>
                     {#snippet header()}
                         <span class="flex min-w-0 flex-col gap-2">
@@ -109,7 +158,7 @@
                                 <span>{group.waiting} waiting</span>
                                 {#if group.latestWaiting}
                                     <button type="button" aria-label={`Latest waiting promotion ${group.latestWaiting.id}`}
-                                        onclick={(event) => { event.stopPropagation(); expanded[group.config.id] = true; selectedId = group.latestWaiting?.id; }}
+                                        onclick={(event) => { event.stopPropagation(); expanded[group.config.id] = true; filters.select(group.latestWaiting?.id); }}
                                         class="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--tag-teal-bd)] bg-[var(--tag-teal-bg)] px-2 py-1 text-[var(--tag-teal-fg)] focus-visible:outline-2 focus-visible:outline-outline-focus sm:max-w-96">
                                         <span class="shrink-0">Latest waiting:</span>
                                         <span title={group.latestWaiting.vector || group.latestWaiting.id} class="min-w-0 truncate font-mono">{vectorLabel(group.latestWaiting.vector) || group.latestWaiting.id}</span>
@@ -122,7 +171,15 @@
                         </span>
                     {/snippet}
                 </ExpandableGroup>
+                </div>
             {/each}
         </div>
     {/if}
 </section>
+
+{#snippet footer()}<PromotionActions />{/snippet}
+<SidePanel open={panelOpen} title={selected?.id ?? "Promotion"} onClose={closePanel} onCloseComplete={restoreRowFocus}
+    width={panelDimensions.width} onWidthChange={panelDimensions.setWidth} modal={!desktop.current} focusKey={panelFocusKey}
+    footer={selected && isActionable(selected) ? footer : undefined}>
+    {#if selected}<PromotionDetail promotion={selected} {landscapes} />{/if}
+</SidePanel>
