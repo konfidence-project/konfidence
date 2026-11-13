@@ -1,0 +1,22 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: SupportBundle
+metadata:
+  name: konfidence-e2e
+spec:
+  collectors:
+    - clusterInfo: {}
+    - clusterResources: {}
+    - helm:
+        collectValues: false
+  hostCollectors:
+    - run:
+        collectorName: kind
+        command: sh
+        args:
+          - -c
+          - kind export logs "$TS_OUTPUT_DIR" --name "$E2E_CLUSTER"
+        outputDir: logs
+        timeout: 60s
+        inheritEnvs:
+          - E2E_CLUSTER
+          - PATH
