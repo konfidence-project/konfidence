@@ -257,9 +257,52 @@ var _ = Describe("Stage Controller", Ordered, func() {
 			verifyStageReady(ctx, k8sClient, StageDev, unlabeledNS, 2*pkgctrl.NamespaceNotReadyRequeueInterval, interval)
 		})
 	})
+
+	Context("When a stage carries credentials", func() {
+		const (
+			credVector = "https://registry.example/ocm//example/app:1.0.0"
+		)
+
+		It("copies credentials, verifyVector and verifyArtifacts to the StageVersion", func() {
+			ctx := context.Background()
+
+			stage := &konfidence.Stage{
+				ObjectMeta: metav1.ObjectMeta{Name: "cred-prop-stage", Namespace: Namespace},
+				Spec: konfidence.StageSpec{
+					Vector: credVector,
+					Credentials: &konfidence.Credentials{
+						OCM: &konfidence.OCMCredentials{
+							Refs: []konfidence.CredentialRef{{Name: "stage-ocm-secret"}},
+						},
+					},
+					VerifyVector: &konfidence.Verify{
+						Signatures: []konfidence.Signature{{Name: "stage-vector-sig"}},
+					},
+					VerifyArtifacts: &konfidence.Verify{
+						Signatures: []konfidence.Signature{{Name: "stage-artifact-sig"}},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, stage)).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				svList := &konfidence.StageVersionList{}
+				g.Expect(k8sClient.List(ctx, svList, client.InNamespace(Namespace))).To(Succeed())
+				g.Expect(svList.Items).To(HaveLen(1))
+				sv := svList.Items[0]
+				g.Expect(sv.Spec.Vector).To(Equal(credVector))
+				g.Expect(sv.Spec.Credentials).NotTo(BeNil())
+				g.Expect(sv.Spec.Credentials.OCM).NotTo(BeNil())
+				g.Expect(sv.Spec.Credentials.OCM.Refs).To(ConsistOf(konfidence.CredentialRef{Name: "stage-ocm-secret"}))
+				g.Expect(sv.Spec.VerifyVector).NotTo(BeNil())
+				g.Expect(sv.Spec.VerifyVector.Signatures).To(ConsistOf(konfidence.Signature{Name: "stage-vector-sig"}))
+				g.Expect(sv.Spec.VerifyArtifacts).NotTo(BeNil())
+				g.Expect(sv.Spec.VerifyArtifacts.Signatures).To(ConsistOf(konfidence.Signature{Name: "stage-artifact-sig"}))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
 })
 
-// check that the stage status keeps mirroring no active stageVersion at all
 func verifyActiveStageVersionStaysUnset(ctx context.Context, k8sClient client.Client, stageName string,
 	namespace string, interval time.Duration) {
 	stage := &konfidence.Stage{}

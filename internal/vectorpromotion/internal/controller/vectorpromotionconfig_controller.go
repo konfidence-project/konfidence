@@ -74,7 +74,7 @@ func (r *VectorPromotionConfigReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	// get target = Stage and sourceVector = type dependent based on our current VectorPromotionConfig CR
-	target, sourceVector, err := r.resolveReferences(ctx, config)
+	target, sourceVector, sourceTemplate, err := r.resolveReferences(ctx, config)
 	var resErr *resolutionError
 	if errors.As(err, &resErr) {
 		return ctrl.Result{}, r.patchConfigStatus(ctx, config, func() {
@@ -97,7 +97,7 @@ func (r *VectorPromotionConfigReconciler) Reconcile(ctx context.Context, req ctr
 	if sourceVector == "" || sourceVector == target.Spec.Vector {
 		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{}, r.createPromotionForDrift(ctx, config, sourceVector, promotions)
+	return ctrl.Result{}, r.createPromotionForDrift(ctx, config, sourceVector, sourceTemplate, promotions)
 }
 
 // NewVectorPromotionConfigReconciler wires a VectorPromotionConfigReconciler for the given manager.

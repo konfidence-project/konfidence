@@ -266,7 +266,10 @@ func (r *StageVersionReconciler) constructVectorDeployment(stageVersion *konfide
 			Labels:    getVectorDeploymentLabels(stageVersion),
 		},
 		Spec: konfidence.VectorDeploymentSpec{
-			Vector: stageVersion.Spec.Vector,
+			Vector:          stageVersion.Spec.Vector,
+			Credentials:     stageVersion.Spec.Credentials,
+			VerifyVector:    stageVersion.Spec.VerifyVector,
+			VerifyArtifacts: stageVersion.Spec.VerifyArtifacts,
 		},
 	}
 	// set stageVersion as owner

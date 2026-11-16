@@ -65,6 +65,24 @@ func NewAdapterWithClient(client pkgocm.Client) Adapter {
 	return Adapter{client: client, verifier: verifier}
 }
 
+// NewOCMAdapter creates an Adapter from an already-constructed OCI client,
+// resolver, verifier, and signature spec slices. Used when the OCI client is built
+// externally (e.g. per-reconcile with a project-scoped resolver).
+func NewOCMAdapter(
+	client pkgocm.Client,
+	resolver credentials.Resolver,
+	verifier crypto.Verifier,
+	vectorSpecs, artifactSpecs []crypto.SignatureSpec,
+) Adapter {
+	return Adapter{
+		client:        client,
+		verifier:      verifier,
+		resolver:      resolver,
+		vectorSpecs:   vectorSpecs,
+		artifactSpecs: artifactSpecs,
+	}
+}
+
 const (
 	konfidenceResourceTypeArtifactManifest     = "cloud.konfidence.artifact.manifest"
 	konfidenceResourceTypeArtifactTaskManifest = "cloud.konfidence.artifact.task.manifest"

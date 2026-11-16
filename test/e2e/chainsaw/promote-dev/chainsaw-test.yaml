@@ -72,13 +72,6 @@ spec:
                   - name: curl
                     image: curlimages/curl:8.10.1
                     command: [sleep, "3600"]
-        # Startup-only credentials: https://github.com/konfidence-project/konfidence/issues/393
-        - command:
-            entrypoint: kubectl
-            args: [rollout, restart, deployment/konfidence, -n, konfidence-system]
-        - command:
-            entrypoint: kubectl
-            args: [rollout, status, deployment/konfidence, -n, konfidence-system, --timeout=120s]
         - command:
             entrypoint: helm
             workDir: ../../../..
@@ -154,7 +147,12 @@ spec:
               apiVersion: konfidence.cloud/v1alpha1
               kind: VectorDeployment
               metadata: {namespace: kden-l-dev, labels: {konfidence.cloud/stage-version-name: ($stageVersion)}}
-              spec: {vector: ($vector)}
+              spec:
+                vector: ($vector)
+                credentials:
+                  ocm:
+                    refs:
+                      - name: registry-credentials
               status:
                 (conditions[?type == 'Ready']): [{status: "True"}]
                 (length(resultingArtifactDeployments)): 2

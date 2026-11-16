@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/go-logr/logr"
 	konfidence "github.com/konfidence-project/konfidence/api/v1alpha1"
 	"github.com/konfidence-project/konfidence/internal/api/openapi"
 	"github.com/konfidence-project/konfidence/internal/api/session"
@@ -16,6 +17,7 @@ import (
 	vectordeploymentdomain "github.com/konfidence-project/konfidence/internal/vectordeployment"
 	vectorpromotiondomain "github.com/konfidence-project/konfidence/internal/vectorpromotion"
 	"github.com/konfidence-project/konfidence/pkg/ocm/content"
+	"github.com/konfidence-project/konfidence/pkg/ocm/crypto"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,7 +73,9 @@ func newProjectHandlerForTest(objs ...client.Object) *projectHandler {
 
 func newProjectHandlerWithReader(reader content.Reader, objs ...client.Object) *projectHandler {
 	k8s := fakeK8s(objs...)
-	return newProjectHandler(
+	verifier, err := crypto.NewVerifierBuilder().Build()
+	Expect(err).NotTo(HaveOccurred())
+	h := newProjectHandler(
 		projectdomain.NewRepository(k8s),
 		landscapedomain.NewRepository(k8s),
 		stagedomain.NewRepository(k8s),
@@ -79,8 +83,12 @@ func newProjectHandlerWithReader(reader content.Reader, objs ...client.Object) *
 		vectordeploymentdomain.NewRepository(k8s),
 		vectorpromotiondomain.NewRepository(k8s),
 		vectorpromotiondomain.NewConfigRepository(k8s),
-		reader,
+		k8s,
+		logr.Discard(),
+		verifier,
 	)
+	h.ocmReaderOverride = reader
+	return h
 }
 
 func ctxWithProjectRoles(roles auth.ProjectRoles) context.Context {

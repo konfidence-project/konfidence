@@ -97,8 +97,7 @@ var _ = Describe("GetVectorContentV1", func() {
 	})
 
 	It("returns 404 when project does not exist", func() {
-		h2 := newProjectHandlerForTest()
-		h2.ocmReader = mockReader
+		h2 := newProjectHandlerWithReader(mockReader)
 
 		resp, err := h2.GetVectorContentV1(ctx, openapi.GetVectorContentV1RequestObject{
 			ProjectId: "my-project",

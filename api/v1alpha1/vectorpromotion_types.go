@@ -78,6 +78,9 @@ type PromotionOverride struct {
 }
 
 // VectorPromotionSpec defines the desired state of VectorPromotion.
+// +kubebuilder:validation:XValidation:rule="(!has(self.credentials) && !has(oldSelf.credentials)) || (has(self.credentials) && has(oldSelf.credentials) && self.credentials == oldSelf.credentials)",message="credentials are immutable after they have been set"
+// +kubebuilder:validation:XValidation:rule="(!has(self.verifyVector) && !has(oldSelf.verifyVector)) || (has(self.verifyVector) && has(oldSelf.verifyVector) && self.verifyVector == oldSelf.verifyVector)",message="verifyVector is immutable after it has been set"
+// +kubebuilder:validation:XValidation:rule="(!has(self.verifyArtifacts) && !has(oldSelf.verifyArtifacts)) || (has(self.verifyArtifacts) && has(oldSelf.verifyArtifacts) && self.verifyArtifacts == oldSelf.verifyArtifacts)",message="verifyArtifacts is immutable after it has been set"
 type VectorPromotionSpec struct {
 	// VectorPromotionConfigName is the name of the VectorPromotionConfig that defines the promotion flow to execute.
 	// +kubebuilder:validation:MinLength=1
@@ -123,6 +126,23 @@ type VectorPromotionSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="sequence is immutable after it has been set"
 	Sequence int64 `json:"sequence"`
+
+	// Credentials is a snapshot of the source VectorTemplate's credential
+	// configuration at promotion creation time, carried forward so the
+	// execution controller can write them to the target Stage without
+	// re-reading the VectorTemplate.
+	// +optional
+	Credentials *Credentials `json:"credentials,omitempty"`
+
+	// VerifyVector is a snapshot of the source VectorTemplate's vector
+	// signature verification configuration at promotion creation time.
+	// +optional
+	VerifyVector *Verify `json:"verifyVector,omitempty"`
+
+	// VerifyArtifacts is a snapshot of the source VectorTemplate's artifact
+	// signature verification configuration at promotion creation time.
+	// +optional
+	VerifyArtifacts *Verify `json:"verifyArtifacts,omitempty"`
 }
 
 //nolint:lll // Kubebuilder annotations are intentionally long.

@@ -270,6 +270,9 @@ func (r *StageReconciler) constructStageVersion(stage *konfidence.Stage) (*konfi
 			StageRef: &konfidence.StageReference{
 				Name: stage.Name,
 			},
+			Credentials:     stage.Spec.Credentials,
+			VerifyVector:    stage.Spec.VerifyVector,
+			VerifyArtifacts: stage.Spec.VerifyArtifacts,
 		},
 	}
 

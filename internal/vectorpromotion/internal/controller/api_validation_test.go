@@ -139,6 +139,39 @@ var _ = Describe("Promotion CRD schema validation", Ordered, Serial, func() {
 				MatchError(ContainSubstring("gates are immutable after they have been set")))
 		})
 
+		It("rejects updates to credentials", func() {
+			promotion := createPromotion("schema-immutable-credentials", "some-config")
+
+			patch := client.MergeFrom(promotion.DeepCopy())
+			promotion.Spec.Credentials = &konfidence.Credentials{
+				OCM: &konfidence.OCMCredentials{Refs: []konfidence.CredentialRef{{Name: "some-secret"}}},
+			}
+			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
+				MatchError(ContainSubstring("credentials are immutable after they have been set")))
+		})
+
+		It("rejects updates to verifyVector", func() {
+			promotion := createPromotion("schema-immutable-verify-vector", "some-config")
+
+			patch := client.MergeFrom(promotion.DeepCopy())
+			promotion.Spec.VerifyVector = &konfidence.Verify{
+				Signatures: []konfidence.Signature{{Name: "my-sig"}},
+			}
+			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
+				MatchError(ContainSubstring("verifyVector is immutable after it has been set")))
+		})
+
+		It("rejects updates to verifyArtifacts", func() {
+			promotion := createPromotion("schema-immutable-verify-artifacts", "some-config")
+
+			patch := client.MergeFrom(promotion.DeepCopy())
+			promotion.Spec.VerifyArtifacts = &konfidence.Verify{
+				Signatures: []konfidence.Signature{{Name: "artifact-sig"}},
+			}
+			Expect(k8sClient.Patch(ctx, promotion, patch)).To(
+				MatchError(ContainSubstring("verifyArtifacts is immutable after it has been set")))
+		})
+
 		DescribeTable("validates gate types",
 			func(gateType string, valid bool) {
 				promotion := &konfidence.VectorPromotion{
