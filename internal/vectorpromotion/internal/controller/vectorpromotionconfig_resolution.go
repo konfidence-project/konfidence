@@ -13,7 +13,9 @@ import (
 // VectorTemplate (nil for Stage sources). A definitive miss is returned as a
 // resolutionError for the Ready condition; an empty source vector with a nil error
 // means the source exists but has not assembled a vector yet.
-func (r *VectorPromotionConfigReconciler) resolveReferences(ctx context.Context, config *konfidence.VectorPromotionConfig) (*konfidence.Stage, string, *konfidence.VectorTemplate, error) {
+func (r *VectorPromotionConfigReconciler) resolveReferences(
+	ctx context.Context, config *konfidence.VectorPromotionConfig,
+) (*konfidence.Stage, string, *konfidence.VectorTemplate, error) {
 	target, err := resolveTargetStage(ctx, r.Client, config.Namespace, config.Spec.Target)
 	if err != nil {
 		return nil, "", nil, err
@@ -27,7 +29,9 @@ func (r *VectorPromotionConfigReconciler) resolveReferences(ctx context.Context,
 
 // resolveSource reads the vector currently offered by the source and returns the
 // VectorTemplate when the source kind is VectorTemplate (nil for Stage sources).
-func (r *VectorPromotionConfigReconciler) resolveSource(ctx context.Context, config *konfidence.VectorPromotionConfig) (string, *konfidence.VectorTemplate, error) {
+func (r *VectorPromotionConfigReconciler) resolveSource(
+	ctx context.Context, config *konfidence.VectorPromotionConfig,
+) (string, *konfidence.VectorTemplate, error) {
 	source := config.Spec.Source
 	if source.Kind == konfidence.VectorTemplateKind {
 		template := &konfidence.VectorTemplate{}

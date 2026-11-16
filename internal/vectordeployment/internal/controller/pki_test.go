@@ -270,7 +270,8 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 
 		// Build a test-side OCM client for pushing components to the registry.
 		// The controller reads credentials per-reconcile from VectorDeployment.Spec.Credentials.
-		pushResolver, pushResolverErr := credentials.ResolverFromRefs(noVerifyCtx, noVerifyK8sClient, noVerifyNamespace, []credentials.Ref{{Name: noVerifyOCISecretName}})
+		pushResolver, pushResolverErr := credentials.ResolverFromRefs(
+			noVerifyCtx, noVerifyK8sClient, noVerifyNamespace, []credentials.Ref{{Name: noVerifyOCISecretName}})
 		gomega.Expect(pushResolverErr).NotTo(gomega.HaveOccurred())
 		noVerifyOCMClient, err = pkgocm.NewOciClientBuilder().WithLogger(ctrl.Log.WithName("no-verify-ocm-client")).WithResolver(pushResolver).Build(noVerifyCtx)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -323,7 +324,9 @@ func cleanupVectorDeploymentNamespace(
 	}, timeout, interval).Should(gomega.Succeed())
 }
 
-func createVectorDeployment(ctx context.Context, k8sClient client.Client, name, namespace string, spec konfidence.VectorDeploymentSpec) *konfidence.VectorDeployment {
+func createVectorDeployment(
+	ctx context.Context, k8sClient client.Client, name, namespace string, spec konfidence.VectorDeploymentSpec,
+) *konfidence.VectorDeployment {
 	vd := &konfidence.VectorDeployment{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec:       spec,

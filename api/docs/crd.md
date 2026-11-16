@@ -348,6 +348,10 @@ repository access and signing/verification key material.
 
 
 _Appears in:_
+- [StageSpec](#stagespec)
+- [StageVersionSpec](#stageversionspec)
+- [VectorDeploymentSpec](#vectordeploymentspec)
+- [VectorPromotionSpec](#vectorpromotionspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |
@@ -1105,6 +1109,9 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  | MinLength: 1 <br />Optional: \{\} <br /> |
+| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories accessed when deploying this stage's vector.<br />Written by the promotion execution controller; not user-settable. |  | Optional: \{\} <br /> |
+| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against this stage's deployment vector.<br />Written by the promotion execution controller; not user-settable. |  | Optional: \{\} <br /> |
+| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every artifact in this stage's vector.<br />Written by the promotion execution controller; not user-settable. |  | Optional: \{\} <br /> |
 
 
 ### StageStatus
@@ -1201,6 +1208,9 @@ _Appears in:_
 | `vector` _string_ | Vector points to the OCM component version that contains the deployment vector for this stage. |  | MinLength: 1 <br /> |
 | `stageGeneration` _integer_ | the object generation of the stage that created this stage version |  | Minimum: 1 <br /> |
 | `stageRef` _[StageReference](#stagereference)_ | stageRef references the Stage this StageVersion belongs to |  |  |
+| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories accessed when deploying this stage version's vector.<br />Propagated from the Stage at StageVersion creation time. |  | Optional: \{\} <br /> |
+| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against this stage version's deployment vector.<br />Propagated from the Stage at StageVersion creation time. |  | Optional: \{\} <br /> |
+| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every artifact in this stage version's vector.<br />Propagated from the Stage at StageVersion creation time. |  | Optional: \{\} <br /> |
 
 
 ### StageVersionStatus
@@ -1680,6 +1690,9 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `vector` _string_ | Vector is a fully qualified URL pointing to an OCM ComponentVersion stored in an OCI registry. The referenced<br />component contains the deployment vector, which includes the complete list of artifacts and their versions. |  |  |
+| `credentials` _[Credentials](#credentials)_ | Credentials supplies credentials for OCM repositories accessed during vector deployment.<br />Secrets must be in the same namespace as the VectorDeployment.<br />If omitted, the OCM client runs unauthenticated (suitable for public registries). |  | Optional: \{\} <br /> |
+| `verifyVector` _[Verify](#verify)_ | VerifyVector lists candidate signatures evaluated against the deployment vector<br />fetched from the OCM registry. If omitted, vector signature verification is disabled. |  | Optional: \{\} <br /> |
+| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts lists candidate signatures evaluated against every artifact<br />referenced by the deployment vector. If omitted, artifact signature verification is disabled. |  | Optional: \{\} <br /> |
 
 
 ### VectorDeploymentStatus
@@ -1928,6 +1941,9 @@ _Appears in:_
 | `gates` _[PromotionGate](#promotiongate) array_ | Gates is an immutable snapshot of the config's gates at creation time.<br />The promotion does not execute until every gate has a `Satisfied` entry<br />in `status.gates`. An empty list promotes immediately. The field is<br />required: creators set an empty list rather than omitting it. |  | MaxItems: 32 <br /> |
 | `ttlAfterFinished` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#duration-v1-meta)_ | TTLAfterFinished defines how long the VectorPromotion should be kept after completion.<br />Once the TTL expires after the promotion finished (`status.completionTime`),<br />the resource is eligible for automatic deletion. If no TTL is set, no deletion happens. |  | Optional: \{\} <br /> |
 | `sequence` _integer_ | Sequence is a monotonic ordinal assigned by the creator (the config<br />reconciler, from the config's `status.sequence`). It is the sole<br />ordering between promotions of the same config; creation timestamps<br />only have second resolution and are never consulted. |  | Minimum: 0 <br /> |
+| `credentials` _[Credentials](#credentials)_ | Credentials is a snapshot of the source VectorTemplate's credential<br />configuration at promotion creation time, carried forward so the<br />execution controller can write them to the target Stage without<br />re-reading the VectorTemplate. |  | Optional: \{\} <br /> |
+| `verifyVector` _[Verify](#verify)_ | VerifyVector is a snapshot of the source VectorTemplate's vector<br />signature verification configuration at promotion creation time. |  | Optional: \{\} <br /> |
+| `verifyArtifacts` _[Verify](#verify)_ | VerifyArtifacts is a snapshot of the source VectorTemplate's artifact<br />signature verification configuration at promotion creation time. |  | Optional: \{\} <br /> |
 
 
 ### VectorPromotionStatus
@@ -2120,6 +2136,10 @@ descriptor. Absence on a spec disables verification.
 
 
 _Appears in:_
+- [StageSpec](#stagespec)
+- [StageVersionSpec](#stageversionspec)
+- [VectorDeploymentSpec](#vectordeploymentspec)
+- [VectorPromotionSpec](#vectorpromotionspec)
 - [VectorTemplateSpec](#vectortemplatespec)
 
 | Field | Description | Default | Validation |

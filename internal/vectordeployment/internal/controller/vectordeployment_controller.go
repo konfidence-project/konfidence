@@ -737,7 +737,9 @@ func (r *VectorDeploymentReconciler) resolveArtifactManifestsAsync(nn types.Name
 	return artifactManifestResult{}, r.manifestPollInterval
 }
 
-func (r *VectorDeploymentReconciler) downloadArtifactManifests(ctx context.Context, artifactReferences []compref.Ref, adapter VectorOcmPort) artifactManifestResult {
+func (r *VectorDeploymentReconciler) downloadArtifactManifests(
+	ctx context.Context, artifactReferences []compref.Ref, adapter VectorOcmPort,
+) artifactManifestResult {
 	if len(artifactReferences) == 0 {
 		return artifactManifestResult{}
 	}

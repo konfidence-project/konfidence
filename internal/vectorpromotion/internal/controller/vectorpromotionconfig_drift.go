@@ -18,7 +18,8 @@ import (
 // createPromotionForDrift creates the next sequence-stamped promotion for the
 // drifted source vector, unless the newest promotion already pins it.
 func (r *VectorPromotionConfigReconciler) createPromotionForDrift(
-	ctx context.Context, config *konfidence.VectorPromotionConfig, sourceVector string, sourceTemplate *konfidence.VectorTemplate, promotions []konfidence.VectorPromotion,
+	ctx context.Context, config *konfidence.VectorPromotionConfig,
+	sourceVector string, sourceTemplate *konfidence.VectorTemplate, promotions []konfidence.VectorPromotion,
 ) error {
 	log := logf.FromContext(ctx)
 
