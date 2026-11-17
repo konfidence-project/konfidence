@@ -36,6 +36,10 @@ const (
 	// is Ready.
 	ArtifactDeploymentStalledReasonNoReadyDeploymentTarget = "NoReadyDeploymentTarget"
 
+	// ArtifactDeploymentStalledReasonMultipleReadyDeploymentTargets indicates that more than one DeploymentTarget for
+	// the artifact type is Ready in the namespace.
+	ArtifactDeploymentStalledReasonMultipleReadyDeploymentTargets = "MultipleReadyDeploymentTargets"
+
 	// ArtifactDeploymentStalledReasonDeploymentResultNotUnique indicates that two DeploymentResults share a (name, type).
 	ArtifactDeploymentStalledReasonDeploymentResultNotUnique = "DeploymentResultNotUnique"
 
