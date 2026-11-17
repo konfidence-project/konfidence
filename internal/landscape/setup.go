@@ -27,6 +27,6 @@ func Domain() operator.Domain {
 type Options struct{}
 
 // SetupControllers registers all landscape controllers with the given manager.
-func SetupControllers(mgr ctrl.Manager, _ Options, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
-	return controller.NewLandscapeReconciler(mgr).SetupWithManager(mgr, excludedNamespaces...)
+func SetupControllers(mgr ctrl.Manager, _ Options, excludedNamespaces pkgctrl.NamespaceExclusions) error {
+	return controller.NewLandscapeReconciler(mgr).SetupWithManager(mgr, excludedNamespaces)
 }

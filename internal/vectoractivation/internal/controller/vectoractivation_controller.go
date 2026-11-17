@@ -249,7 +249,7 @@ func (r *VectorActivationReconciler) LoadActivationContextData(
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
+func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	r.ControllerID = os.Getenv("POD_NAME")
 	if r.ControllerID == "" {
 		r.ControllerID = ActivationControllerName
@@ -269,7 +269,7 @@ func (r *VectorActivationReconciler) SetupWithManager(mgr ctrl.Manager, excluded
 				CreateFunc:  func(e event.CreateEvent) bool { return false },
 				GenericFunc: func(e event.GenericEvent) bool { return false },
 			})).
-		Complete(pkgctrl.WrapExcludedNamespaces(r, excludedNamespaces...))
+		Complete(excludedNamespaces.Wrap(r))
 }
 
 func (r *VectorActivationReconciler) cleanupVectorActivation(

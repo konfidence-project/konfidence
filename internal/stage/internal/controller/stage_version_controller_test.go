@@ -28,7 +28,7 @@ var _ = Describe("StageVersion Controller", Ordered, func() {
 				Client:   mgr.GetClient(),
 				Scheme:   mgr.GetScheme(),
 				Recorder: mgr.GetEventRecorder(controller.StageVersionControllerName),
-			}).SetupWithManager(mgr)
+			}).SetupWithManager(mgr, pkgctrl.NamespaceExclusions{})
 		},
 		)
 	})

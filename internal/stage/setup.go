@@ -36,12 +36,12 @@ func Domain() operator.Domain {
 	}
 }
 
-func SetupControllers(mgr manager.Manager, logger logr.Logger, excludedNamespaces ...pkgctrl.NamespaceExclusions) (err error) {
+func SetupControllers(mgr manager.Manager, logger logr.Logger, excludedNamespaces pkgctrl.NamespaceExclusions) (err error) {
 	if err := (&controller.StageReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorder(controller.StageControllerName),
-	}).SetupWithManager(mgr, excludedNamespaces...); err != nil {
+	}).SetupWithManager(mgr, excludedNamespaces); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "Stage")
 		return err
 	}
@@ -50,7 +50,7 @@ func SetupControllers(mgr manager.Manager, logger logr.Logger, excludedNamespace
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorder(controller.StageVersionControllerName),
-	}).SetupWithManager(mgr, excludedNamespaces...); err != nil {
+	}).SetupWithManager(mgr, excludedNamespaces); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "StageVersion")
 		return err
 	}
@@ -58,14 +58,14 @@ func SetupControllers(mgr manager.Manager, logger logr.Logger, excludedNamespace
 	if err := (&controller.StageVersionUsageReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr, excludedNamespaces...); err != nil {
+	}).SetupWithManager(mgr, excludedNamespaces); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "StageVersionUsage")
 		return err
 	}
 	return nil
 }
 
-func NewGarbageCollector(mgr manager.Manager, excludedNamespaces ...pkgctrl.NamespaceExclusions) *gc.StageVersionGarbageCollector {
+func NewGarbageCollector(mgr manager.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) *gc.StageVersionGarbageCollector {
 	garbageCollector := &gc.StageVersionGarbageCollector{
 		Client:             mgr.GetClient(),
 		Interval:           15 * time.Second,

@@ -243,7 +243,7 @@ func stageVersionBecameReady() predicate.Funcs {
 	}
 }
 
-func (r *ActivatedOnSourceStageReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
+func (r *ActivatedOnSourceStageReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.VectorPromotion{}, builder.WithPredicates(hasActivatedOnSourceStageGate())).
 		Watches(
@@ -252,5 +252,5 @@ func (r *ActivatedOnSourceStageReconciler) SetupWithManager(mgr ctrl.Manager, ex
 			builder.WithPredicates(stageVersionBecameReady()),
 		).
 		Named(ActivatedOnSourceStageControllerName).
-		Complete(pkgctrl.WrapExcludedNamespaces(r, excludedNamespaces...))
+		Complete(excludedNamespaces.Wrap(r))
 }

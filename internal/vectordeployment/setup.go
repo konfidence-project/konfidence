@@ -86,7 +86,7 @@ type Options struct {
 }
 
 // SetupControllers registers all vector deployment controllers with the given manager.
-func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logger, opts Options, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
+func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logger, opts Options, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	if opts.Verifier == nil {
 		return fmt.Errorf("setup: Verifier is required; usually from operator.Deps.Verifier")
 	}
@@ -131,7 +131,7 @@ func SetupControllers(ctx context.Context, mgr manager.Manager, logger logr.Logg
 		OcmAdapter: ocmAdapter,
 		MaxArtifactManifestDownloadsPerDeployment: manifestDownloadsPerDeployment,
 		MaxGlobalArtifactManifestDownloads:        globalManifestDownloads,
-	}).SetupWithManager(mgr, "vectordeployment", excludedNamespaces...); err != nil {
+	}).SetupWithManager(mgr, "vectordeployment", excludedNamespaces); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "VectorDeployment")
 		return err
 	}

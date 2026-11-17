@@ -322,7 +322,7 @@ func (r *StageVersionReconciler) constructVectorActivation(
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StageVersionReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
+func (r *StageVersionReconciler) SetupWithManager(mgr ctrl.Manager, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&konfidence.StageVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&konfidence.VectorMigration{}).
@@ -332,7 +332,7 @@ func (r *StageVersionReconciler) SetupWithManager(mgr ctrl.Manager, excludedName
 			handler.EnqueueRequestsFromMapFunc(reconcileStageVersionOwner),
 		).
 		Named("stageVersion").
-		Complete(pkgctrl.WrapExcludedNamespaces(r, excludedNamespaces...))
+		Complete(excludedNamespaces.Wrap(r))
 }
 
 func reconcileStageVersionOwner(ctx context.Context, obj client.Object) []reconcile.Request {

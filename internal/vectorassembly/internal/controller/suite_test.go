@@ -193,7 +193,7 @@ func startManager() {
 
 	vectorTemplateReconciler = NewVectorTemplateReconciler(mgr, sharedVerifier, limiter, log, vectorCache, testVersionGenerator)
 	vectorTemplateReconciler.assemblyPollInterval = 100 * time.Millisecond
-	Expect(vectorTemplateReconciler.SetupWithManager(mgr)).To(Succeed())
+	Expect(vectorTemplateReconciler.SetupWithManager(mgr, pkgctrl.NamespaceExclusions{})).To(Succeed())
 
 	managerCtx, managerCancel := context.WithCancel(ctx)
 	go func() {

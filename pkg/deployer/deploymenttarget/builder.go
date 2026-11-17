@@ -79,7 +79,7 @@ type watch struct {
 
 type builder struct {
 	manager                ctrl.Manager
-	excludedNamespaces     []pkgctrl.NamespaceExclusions
+	excludedNamespaces     pkgctrl.NamespaceExclusions
 	controllerName         string
 	supportedArtifactTypes konfidencev1alpha1.ArtifactTypeSet
 	validation             ValidationFunc
@@ -92,8 +92,8 @@ func NewControllerManagedBy(mgr ctrl.Manager) *builder {
 }
 
 // WithNamespaceExclusions skips requests in excluded namespaces before reconciliation.
-func (b *builder) WithNamespaceExclusions(exclusions ...pkgctrl.NamespaceExclusions) *builder {
-	b.excludedNamespaces = append([]pkgctrl.NamespaceExclusions(nil), exclusions...)
+func (b *builder) WithNamespaceExclusions(exclusions pkgctrl.NamespaceExclusions) *builder {
+	b.excludedNamespaces = exclusions
 	return b
 }
 
@@ -168,7 +168,7 @@ func (b *builder) complete(r *reconciler) error {
 		cb = cb.Watches(watched.object, eventHandler, watched.opts...)
 	}
 
-	return cb.Named(r.controllerName).Complete(pkgctrl.WrapExcludedNamespaces(r, b.excludedNamespaces...))
+	return cb.Named(r.controllerName).Complete(b.excludedNamespaces.Wrap(r))
 }
 
 func (b *builder) validateConfiguration() error {

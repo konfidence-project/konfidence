@@ -23,12 +23,12 @@ func Domain() operator.Domain {
 	}
 }
 
-func SetupControllers(mgr manager.Manager, logger logr.Logger, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
+func SetupControllers(mgr manager.Manager, logger logr.Logger, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	if err := (&controller.VectorActivationReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorder(controller.ActivationControllerName),
-	}).SetupWithManager(mgr, excludedNamespaces...); err != nil {
+	}).SetupWithManager(mgr, excludedNamespaces); err != nil {
 		logger.Error(err, "unable to create controller", "controller", "VectorActivation")
 		return err
 	}

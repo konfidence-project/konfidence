@@ -29,22 +29,22 @@ func Domain() operator.Domain {
 type Options struct{}
 
 // SetupControllers registers all vector promotion controllers with the given manager.
-func SetupControllers(ctx context.Context, mgr ctrl.Manager, _ Options, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
+func SetupControllers(ctx context.Context, mgr ctrl.Manager, _ Options, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	if err := controller.RegisterFieldIndexes(ctx, mgr); err != nil {
 		return err
 	}
 	if err := gates.RegisterFieldIndexes(ctx, mgr); err != nil {
 		return err
 	}
-	if err := gates.NewActivatedOnSourceStageReconciler(mgr).SetupWithManager(mgr, excludedNamespaces...); err != nil {
+	if err := gates.NewActivatedOnSourceStageReconciler(mgr).SetupWithManager(mgr, excludedNamespaces); err != nil {
 		return err
 	}
 
 	if err := controller.NewVectorPromotionReconciler(mgr).
-		SetupWithManager(mgr, excludedNamespaces...); err != nil {
+		SetupWithManager(mgr, excludedNamespaces); err != nil {
 		return err
 	}
 
 	return controller.NewVectorPromotionConfigReconciler(mgr).
-		SetupWithManager(mgr, excludedNamespaces...)
+		SetupWithManager(mgr, excludedNamespaces)
 }

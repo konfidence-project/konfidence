@@ -42,7 +42,7 @@ func TestGarbageCollectorSkipsExcludedNamespaces(t *testing.T) {
 	).Build()
 	collector := &StageVersionGarbageCollector{
 		Client: c, Interval: time.Millisecond,
-		ExcludedNamespaces: []pkgctrl.NamespaceExclusions{policy}, Recorder: events.NewFakeRecorder(10),
+		ExcludedNamespaces: policy, Recorder: events.NewFakeRecorder(10),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

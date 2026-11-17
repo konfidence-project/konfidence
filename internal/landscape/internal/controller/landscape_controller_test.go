@@ -24,7 +24,7 @@ var _ = Describe("Landscape Controller", Ordered, func() {
 
 	BeforeAll(func() {
 		k8sClient, cancel = StartTestManagerWithReconciler(func(mgr ctrl.Manager) error {
-			return controller.NewLandscapeReconciler(mgr).SetupWithManager(mgr)
+			return controller.NewLandscapeReconciler(mgr).SetupWithManager(mgr, pkgctrl.NamespaceExclusions{})
 		})
 	})
 

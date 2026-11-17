@@ -19,7 +19,7 @@ const StageVersionGarbageCollectorName = "stage-version-garbage-collector"
 type StageVersionGarbageCollector struct {
 	client.Client
 	Interval           time.Duration
-	ExcludedNamespaces []pkgctrl.NamespaceExclusions
+	ExcludedNamespaces pkgctrl.NamespaceExclusions
 	Recorder           events.EventRecorder
 }
 
@@ -53,7 +53,7 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 			// check if stageVersions are still referenced by any stageVersionUsages
 			referencedStageVersions := map[string]bool{}
 			for _, stageVersionUsage := range stageVersionUsages.Items {
-				if pkgctrl.IsNamespaceExcluded(stageVersionUsage.Namespace, gc.ExcludedNamespaces...) {
+				if gc.ExcludedNamespaces.Contains(stageVersionUsage.Namespace) {
 					continue
 				}
 				for _, stageVersionName := range stageVersionUsage.Status.ResolvedStageVersions {
@@ -63,7 +63,7 @@ func (gc *StageVersionGarbageCollector) Start(ctx context.Context) error {
 
 			// delete unreferenced stageVersions
 			for _, stageVersion := range stageVersions.Items {
-				if pkgctrl.IsNamespaceExcluded(stageVersion.Namespace, gc.ExcludedNamespaces...) {
+				if gc.ExcludedNamespaces.Contains(stageVersion.Namespace) {
 					continue
 				}
 				if !referencedStageVersions[stageVersion.Name] {

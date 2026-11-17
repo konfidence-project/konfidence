@@ -41,7 +41,7 @@ type Options struct {
 }
 
 // SetupControllers registers all vector assembly controllers with the given manager.
-func SetupControllers(mgr ctrl.Manager, opts Options, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
+func SetupControllers(mgr ctrl.Manager, opts Options, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	if opts.Limiter == nil {
 		return fmt.Errorf("setup: Limiter is required; use crypto.NewLimiter(0) for GOMAXPROCS")
 	}
@@ -63,7 +63,7 @@ func SetupControllers(mgr ctrl.Manager, opts Options, excludedNamespaces ...pkgc
 		log,
 		vectorCache,
 		vector.TimestampVectorVersionGenerator,
-	).SetupWithManager(mgr, excludedNamespaces...); err != nil {
+	).SetupWithManager(mgr, excludedNamespaces); err != nil {
 		return err
 	}
 

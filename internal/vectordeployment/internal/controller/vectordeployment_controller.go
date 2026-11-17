@@ -521,7 +521,7 @@ func mapArtifactResourcesToLandscape(resources []OCMResource) []konfidence.OCMRe
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controllerName string, excludedNamespaces ...pkgctrl.NamespaceExclusions) error {
+func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controllerName string, excludedNamespaces pkgctrl.NamespaceExclusions) error {
 	if r.manifestPollInterval < 1 {
 		r.manifestPollInterval = defaultArtifactManifestPollInterval
 	}
@@ -567,7 +567,7 @@ func (r *VectorDeploymentReconciler) SetupWithManager(mgr ctrl.Manager, controll
 		// VectorData.Status.Ready, so the lifecycle can progress to VectorReady without polling.
 		Owns(&konfidence.VectorData{}).
 		Named(controllerName).
-		Complete(pkgctrl.WrapExcludedNamespaces(r, excludedNamespaces...))
+		Complete(excludedNamespaces.Wrap(r))
 }
 
 func (r *VectorDeploymentReconciler) constructArtifactDeployment(

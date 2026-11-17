@@ -49,22 +49,3 @@ func (e NamespaceExclusions) Wrap(next reconcile.Reconciler) reconcile.Reconcile
 		return next.Reconcile(ctx, req)
 	})
 }
-
-// WrapExcludedNamespaces supports optional policies in controller setup methods.
-// Omitting a policy preserves the existing setup behavior.
-func WrapExcludedNamespaces(next reconcile.Reconciler, exclusions ...NamespaceExclusions) reconcile.Reconciler {
-	for _, policy := range exclusions {
-		next = policy.Wrap(next)
-	}
-	return next
-}
-
-// IsNamespaceExcluded applies the same policy in loops outside reconciliation.
-func IsNamespaceExcluded(namespace string, exclusions ...NamespaceExclusions) bool {
-	for _, policy := range exclusions {
-		if policy.Contains(namespace) {
-			return true
-		}
-	}
-	return false
-}

@@ -50,7 +50,7 @@ func TestNamespaceWrapper(t *testing.T) {
 				}
 				return expected, sentinel
 			})
-			result, gotErr := WrapExcludedNamespaces(delegate, policy).Reconcile(ctx, request)
+			result, gotErr := policy.Wrap(delegate).Reconcile(ctx, request)
 			if namespace == "fixtures" {
 				if calls != 0 || result != (reconcile.Result{}) || gotErr != nil {
 					t.Fatal("excluded request invoked delegate or requeued")
@@ -70,12 +70,11 @@ func TestEmptyNamespacePolicyPreservesDelegate(t *testing.T) {
 		calls++
 		return reconcile.Result{}, nil
 	})
-	for _, wrapper := range []reconcile.Reconciler{WrapExcludedNamespaces(delegate), (NamespaceExclusions{}).Wrap(delegate)} {
-		if _, err := wrapper.Reconcile(context.Background(), reconcile.Request{}); err != nil {
-			t.Fatal(err)
-		}
+	wrapper := (NamespaceExclusions{}).Wrap(delegate)
+	if _, err := wrapper.Reconcile(context.Background(), reconcile.Request{}); err != nil {
+		t.Fatal(err)
 	}
-	if calls != 2 {
+	if calls != 1 {
 		t.Fatal("an empty exclusion policy skipped the delegate")
 	}
 }
