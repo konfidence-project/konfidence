@@ -78,8 +78,6 @@ type PromotionOverride struct {
 }
 
 // VectorPromotionSpec defines the desired state of VectorPromotion.
-//
-//nolint:lll // Kubebuilder annotations are intentionally long.
 type VectorPromotionSpec struct {
 	// VectorPromotionConfigName is the name of the VectorPromotionConfig that defines the promotion flow to execute.
 	// +kubebuilder:validation:MinLength=1

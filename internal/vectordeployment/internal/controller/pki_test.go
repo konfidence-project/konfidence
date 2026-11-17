@@ -142,7 +142,7 @@ var _ = Describe("VectorDeployment pki enabled", Ordered, Serial, func() {
 		))).To(gomega.Succeed())
 
 		// Build a test-side OCM client for pushing components to the registry.
-		// The controller reads credentials per-reconcile from VectorDeployment.Spec.Credentials.
+		// The controller reads credentials per-reconcile from Project.Spec.Credentials.
 		pushResolver, pushResolverErr := credentials.ResolverFromRefs(pkiCtx, pkiK8sClient, pkiTestNamespace, []credentials.Ref{{Name: pkiOCISecretName}})
 		gomega.Expect(pushResolverErr).NotTo(gomega.HaveOccurred())
 		pkiOCMClient, err = pkgocm.NewOciClientBuilder().WithLogger(ctrl.Log.WithName("pki-ocm-client")).WithResolver(pushResolver).Build(pkiCtx)
@@ -296,14 +296,14 @@ var _ = Describe("VectorDeployment pki disabled", Ordered, Serial, func() {
 		))).To(gomega.Succeed())
 
 		// Build a test-side OCM client for pushing components to the registry.
-		// The controller reads credentials per-reconcile from VectorDeployment.Spec.Credentials.
+		// The controller reads credentials per-reconcile from Project.Spec.Credentials.
 		pushResolver, pushResolverErr := credentials.ResolverFromRefs(
 			noVerifyCtx, noVerifyK8sClient, noVerifyNamespace, []credentials.Ref{{Name: noVerifyOCISecretName}})
 		gomega.Expect(pushResolverErr).NotTo(gomega.HaveOccurred())
 		noVerifyOCMClient, err = pkgocm.NewOciClientBuilder().WithLogger(ctrl.Log.WithName("no-verify-ocm-client")).WithResolver(pushResolver).Build(noVerifyCtx)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		// No VerifyVector/VerifyArtifacts on VectorDeployment spec — verification is disabled.
+		// No VerifyVector/VerifyArtifacts on the Project spec - verification is disabled.
 		noVerifyVerifier, noVerifyVerifierErr := cryptopkg.NewVerifierBuilder().
 			WithParallelism(cryptopkg.NewLimiter(0)).
 			WithCache(1024, 30*time.Minute).

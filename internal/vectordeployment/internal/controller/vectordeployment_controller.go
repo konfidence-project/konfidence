@@ -56,7 +56,7 @@ type VectorDeploymentReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Recorder events.EventRecorder
-	// AdapterFactory builds the OCM adapter per reconcile from VectorDeployment.Spec.Credentials
+	// AdapterFactory builds the OCM adapter per reconcile from the owning Project.Spec.Credentials
 	// and signature specs. Wired by setup.go.
 	AdapterFactory                            AdapterFactory
 	jobs                                      *jobRegistry
