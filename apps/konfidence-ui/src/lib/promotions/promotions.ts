@@ -77,12 +77,12 @@ const toPromotionGroup = (
       (right.sequence ?? -Infinity) - (left.sequence ?? -Infinity) ||
       left.id.localeCompare(right.id),
   );
-  const latestWaiting = ordered.find((promotion) => promotion.status === "Waiting");
+  const waiting = ordered.filter((promotion) => promotion.status === "Waiting");
   return {
     config,
-    latestWaiting,
+    latestWaiting: waiting[0],
     promotions: ordered,
-    waiting: ordered.filter((promotion) => promotion.status === "Waiting").length,
+    waiting: waiting.length,
   };
 };
 

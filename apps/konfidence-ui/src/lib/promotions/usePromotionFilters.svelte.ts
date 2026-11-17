@@ -1,19 +1,23 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
-import type { PromotionFilter } from "./filters.ts";
+import type { PromotionFilter, PromotionUrlFilters } from "./filters.ts";
 
-const FILTER_PARAMS = ["promotionLandscape", "promotionStage", "promotionConfig"] as const;
+const FILTER_PARAMS = ["landscapeId", "promotionStage", "promotionConfig"] as const;
 type FilterParam = (typeof FILTER_PARAMS)[number];
 
 class PromotionFilters {
   query = $state("");
 
+  readonly #urlFilters: () => PromotionUrlFilters;
+
+  constructor(urlFilters: () => PromotionUrlFilters) {
+    this.#urlFilters = urlFilters;
+  }
+
   get values(): PromotionFilter {
     return {
-      config: page.url.searchParams.get("promotionConfig") ?? "",
-      landscape: page.url.searchParams.get("promotionLandscape") ?? "",
+      ...this.#urlFilters(),
       query: this.query,
-      stage: page.url.searchParams.get("promotionStage") ?? "",
     };
   }
 
@@ -55,5 +59,6 @@ class PromotionFilters {
   };
 }
 
-const usePromotionFilters = (): PromotionFilters => new PromotionFilters();
+const usePromotionFilters = (urlFilters: () => PromotionUrlFilters): PromotionFilters =>
+  new PromotionFilters(urlFilters);
 export { usePromotionFilters };

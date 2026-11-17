@@ -14,6 +14,7 @@ interface PromotionFilter {
   config: string;
   query: string;
 }
+type PromotionUrlFilters = Omit<PromotionFilter, "query">;
 interface FilterOption {
   value: string;
   label: string;
@@ -126,4 +127,4 @@ const compatibleOptions = (
 };
 
 export { compatibleOptions, filterPromotionGroups, stageValue };
-export type { PromotionFilter };
+export type { PromotionFilter, PromotionUrlFilters };

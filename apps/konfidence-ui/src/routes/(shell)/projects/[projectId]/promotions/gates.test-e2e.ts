@@ -3,6 +3,58 @@ import { signIn } from "../../../../../../e2e/helpers.ts";
 import { configs, promotion } from "./fixtures.ts";
 import { API, PATH } from "./helpers.ts";
 
+test("Latest waiting keeps the newest promotion even when only an older one needs approval", async ({
+  page,
+}) => {
+  const approved = promotion("approved-waiting", 2, {
+    gates: [
+      { state: "Satisfied", type: "explicit-approval.konfidence.cloud" },
+      { state: "Pending", type: "activated-on-source-stage.konfidence.cloud" },
+    ],
+  });
+  const pending = promotion("approval-pending", 1);
+  await page.route(API, (route) =>
+    route.fulfill({ json: { data: [{ ...configs[1], promotions: [pending, approved] }] } }),
+  );
+  await signIn(page, PATH, PATH);
+
+  const shortcut = page.getByRole("button", { name: "Latest waiting promotion approved-waiting" });
+  await expect(shortcut).toBeVisible();
+  await expect(shortcut).not.toContainText("Approval pending");
+  await expect(page.getByRole("group", { name: "Promotion configuration a-flow" })).toContainText(
+    "2 waiting",
+  );
+  await shortcut.click();
+  await expect(
+    page.getByRole("button", { name: "View promotion approved-waiting" }),
+  ).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("searchbox", { name: "Search promotions" }).fill("approval-pending");
+  const filteredShortcut = page.getByRole("button", {
+    exact: true,
+    name: "Latest waiting promotion approval-pending, approval pending",
+  });
+  await expect(filteredShortcut).toContainText("Approval pending");
+  await expect(shortcut).toHaveCount(0);
+});
+
+test("Latest waiting does not imply approval when no approval gate is declared", async ({
+  page,
+}) => {
+  const instance = promotion("activation-only", 1, {
+    gates: [{ state: "Pending", type: "activated-on-source-stage.konfidence.cloud" }],
+  });
+  await page.route(API, (route) =>
+    route.fulfill({ json: { data: [{ ...configs[1], promotions: [instance] }] } }),
+  );
+  await signIn(page, PATH, PATH);
+  const shortcut = page.getByRole("button", { name: "Latest waiting promotion activation-only" });
+  await expect(shortcut).toBeVisible();
+  await expect(shortcut).not.toContainText("Approval pending");
+  await shortcut.click();
+  await expect(page.getByRole("button", { exact: true, name: "Approve" })).toHaveCount(0);
+});
+
 for (const state of ["Pending", "Satisfied", "Error"] as const) {
   test(`describes ${state} approval gate provenance as the last update, not a granted approval`, async ({
     page,

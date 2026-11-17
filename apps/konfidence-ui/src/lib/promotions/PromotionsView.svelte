@@ -3,11 +3,13 @@
     import type { Landscape, VectorPromotionConfig } from "#lib/konfidence-api/types.ts";
     import { isActionable, referenceLabel } from "./promotions.ts";
     import { compatibleOptions, filterPromotionGroups } from "./filters.ts";
+    import type { PromotionUrlFilters } from "./filters.ts";
     import { usePromotionFilters } from "./usePromotionFilters.svelte.ts";
     import PromotionRow from "./PromotionRow.svelte";
     import { vectorLabel } from "./vector-label.ts";
 
     interface Props {
+        urlFilters: PromotionUrlFilters;
         configs?: readonly VectorPromotionConfig[];
         landscapes?: readonly Landscape[];
         loading?: boolean;
@@ -15,10 +17,10 @@
         error?: string;
         onRetry: () => void;
     }
-    let { configs = [], landscapes = [], loading = false, hasLoaded = false, error, onRetry }: Props = $props();
+    let { urlFilters, configs = [], landscapes = [], loading = false, hasLoaded = false, error, onRetry }: Props = $props();
     let expanded = $state<Record<string, boolean>>({});
     let selectedId = $state<string>();
-    const filters = usePromotionFilters();
+    const filters = usePromotionFilters(() => urlFilters);
     const groups = $derived(filterPromotionGroups(configs, landscapes, filters.values));
     const options = $derived(compatibleOptions(configs, landscapes, filters.values));
     const labelClass = "text-meta font-semibold uppercase tracking-[0.03em] text-content-tertiary";
@@ -40,7 +42,7 @@
             </label>
             <label class="flex min-w-0 grow basis-48 flex-col gap-1">
                 <span class={labelClass}>Landscape</span>
-                <Select aria-label="Filter by landscape" value={filters.values.landscape} onchange={(event) => filters.change("promotionLandscape", event.currentTarget.value)}>
+                <Select aria-label="Filter by landscape" value={filters.values.landscape} onchange={(event) => filters.change("landscapeId", event.currentTarget.value)}>
                     <option value="">All landscapes</option>
                     {#each options.landscapes as option (option.value)}<option value={option.value}>{option.label}</option>{/each}
                 </Select>
@@ -108,11 +110,14 @@
                             <span class="flex flex-wrap items-center gap-x-3 gap-y-2 text-compact text-content-secondary">
                                 <span>{group.waiting} waiting</span>
                                 {#if group.latestWaiting}
-                                    <button type="button" aria-label={`Latest waiting promotion ${group.latestWaiting.id}`}
+                                    <button type="button" aria-label={`Latest waiting promotion ${group.latestWaiting.id}${isActionable(group.latestWaiting) ? ", approval pending" : ""}`}
                                         onclick={(event) => { event.stopPropagation(); expanded[group.config.id] = true; selectedId = group.latestWaiting?.id; }}
                                         class="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--tag-teal-bd)] bg-[var(--tag-teal-bg)] px-2 py-1 text-[var(--tag-teal-fg)] focus-visible:outline-2 focus-visible:outline-outline-focus sm:max-w-96">
                                         <span class="shrink-0">Latest waiting:</span>
                                         <span title={group.latestWaiting.vector || group.latestWaiting.id} class="min-w-0 truncate font-mono">{vectorLabel(group.latestWaiting.vector) || group.latestWaiting.id}</span>
+                                        {#if isActionable(group.latestWaiting)}
+                                            <span class="shrink-0 border-l border-current pl-2 text-meta font-semibold">Approval pending</span>
+                                        {/if}
                                     </button>
                                 {:else if group.promotions.length === 0}
                                     <span>{group.config.promotions.length ? "No matching promotions" : "No promotions yet"}</span>

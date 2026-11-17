@@ -4,6 +4,113 @@ import { signIn } from "../../../../../../e2e/helpers.ts";
 import { configs, promotion } from "./fixtures.ts";
 import { API, PATH, openPromotions } from "./helpers.ts";
 
+test("deployment-style landscape links prefilter promotions and survive reload and history navigation", async ({
+  page,
+}) => {
+  await openPromotions(page, `${PATH}?landscapeId=development&embedded=1&other=keep`);
+  const landscape = page.getByRole("combobox", { name: "Filter by landscape" });
+  const search = page.getByRole("searchbox", { name: "Search promotions" });
+  const flow = page.getByRole("button", { name: "Promotion configuration a-flow" });
+  const group = page.getByRole("group", { name: "Promotion configuration a-flow" });
+  await expect(landscape).toHaveValue("development");
+  await expect(page.getByRole("group", { name: /^Promotion configuration/ })).toHaveCount(2);
+  await expect(page.getByRole("group", { name: "Promotion configuration empty-flow" })).toHaveCount(
+    0,
+  );
+  await page.reload();
+  await expect(landscape).toHaveValue("development");
+  await flow.click();
+  await search.fill("a-flow");
+
+  await landscape.selectOption("production");
+  await expect(landscape).toHaveValue("production");
+  await expect(page).toHaveURL(/landscapeId=production/);
+  await page.goBack();
+  await expect(landscape).toHaveValue("development");
+  await expect(flow).toHaveAttribute("aria-expanded", "true");
+  await expect(search).toHaveValue("a-flow");
+  await page.goForward();
+  await expect(landscape).toHaveValue("production");
+
+  await page.getByTestId("promotion-view-clear-filters").click();
+  await expect(landscape).toHaveValue("");
+  await expect(search).toHaveValue("");
+  await expect(group).toBeVisible();
+  await expect(flow).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("group", { name: /^Promotion configuration/ })).toHaveCount(3);
+  const params = new URL(page.url()).searchParams;
+  expect(params.has("landscapeId")).toBe(false);
+  expect(params.has("promotionLandscape")).toBe(false);
+  expect(params.get("embedded")).toBe("1");
+  expect(params.get("other")).toBe("keep");
+});
+
+test("page-load filters use the last repeated values and normalize stage JSON without consuming unrelated params", async ({
+  page,
+}) => {
+  const params = new URLSearchParams({ _data: "unrelated", embedded: "1", other: "keep" });
+  params.append("landscapeId", "production");
+  params.append("landscapeId", "development");
+  params.append("promotionStage", JSON.stringify(["production", "prod"]));
+  params.append("promotionStage", '["development", "dev"]');
+  params.append("promotionConfig", "z-template");
+  params.append("promotionConfig", "a-flow");
+  await openPromotions(page, `${PATH}?${params}`);
+  const landscape = page.getByRole("combobox", { name: "Filter by landscape" });
+  const stage = page.getByRole("combobox", { name: "Filter by stage" });
+  const config = page.getByRole("combobox", { name: "Filter by promotion configuration" });
+  await expect(landscape).toHaveValue("development");
+  await expect(stage).toHaveValue(JSON.stringify(["development", "dev"]));
+  await expect(config).toHaveValue("a-flow");
+  await expect(page.getByRole("group", { name: /^Promotion configuration/ })).toHaveCount(1);
+
+  await landscape.selectOption("production");
+  await expect(stage).toHaveValue("");
+  await expect(config).toHaveValue("");
+  const updated = new URL(page.url()).searchParams;
+  expect(updated.getAll("landscapeId")).toEqual(["production"]);
+  expect(updated.has("promotionStage")).toBe(false);
+  expect(updated.has("promotionConfig")).toBe(false);
+  expect(updated.get("_data")).toBe("unrelated");
+  expect(updated.get("other")).toBe("keep");
+  expect(updated.get("embedded")).toBe("1");
+});
+
+test("stage URL filters preserve special characters and malformed JSON stays unmatched", async ({
+  page,
+}) => {
+  const landscapeId = "eu &+ ü";
+  const stageName = 'pre"prod +& ü';
+  const reference = { kind: "Stage", landscape: landscapeId, name: stageName } as const;
+  const fixture: VectorPromotionConfig = {
+    ...configs[1],
+    promotions: [promotion("special-reference", 1, { source: reference })],
+    source: reference,
+  };
+  await page.route(API, (route) => route.fulfill({ json: { data: [fixture] } }));
+  const stageValue = JSON.stringify([landscapeId, stageName]);
+  const params = new URLSearchParams({ embedded: "1", landscapeId, promotionStage: stageValue });
+  const path = `${PATH}?${params}`;
+  await signIn(page, path, path);
+  const landscape = page.getByRole("combobox", { name: "Filter by landscape" });
+  const stage = page.getByRole("combobox", { name: "Filter by stage" });
+  await expect(landscape).toHaveValue(landscapeId);
+  await expect(stage).toHaveValue(stageValue);
+  await expect(page.getByRole("group", { name: "Promotion configuration a-flow" })).toBeVisible();
+  await page.reload();
+  await expect(stage).toHaveValue(stageValue);
+
+  params.set("promotionStage", "[unbalanced");
+  await page.goto(`${PATH}?${params}`);
+  await expect(
+    page.getByText("No promotions match the current filters", { exact: true }),
+  ).toBeVisible();
+  await page.getByTestId("promotion-view-clear-filters").click();
+  await expect(landscape).toHaveValue("");
+  await expect(stage).toHaveValue("");
+  await expect(page.getByRole("group", { name: "Promotion configuration a-flow" })).toBeVisible();
+});
+
 test("qualifies header and filter references with IDs only for duplicate landscape names", async ({
   page,
 }) => {
@@ -121,6 +228,7 @@ test("filters snapshots separately, preserves empty current-reference groups, an
   const stage = page.getByRole("combobox", { name: "Filter by stage" });
   const config = page.getByRole("combobox", { name: "Filter by promotion configuration" });
   await landscape.selectOption("development");
+  await expect(page).toHaveURL(/landscapeId=development/);
   await expect(page.getByText("No matching promotions", { exact: true })).toBeVisible();
   await stage.selectOption(JSON.stringify(["development", "dev"]));
   await config.selectOption("a-flow");

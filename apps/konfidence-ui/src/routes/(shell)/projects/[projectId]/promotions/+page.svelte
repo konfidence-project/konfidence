@@ -8,5 +8,5 @@
 <svelte:head><title>Promotions · Konfidence</title></svelte:head>
 
 {#key data.projectId}
-    <PromotionsPage projectId={data.projectId} />
+    <PromotionsPage projectId={data.projectId} urlFilters={data.filters} />
 {/key}
