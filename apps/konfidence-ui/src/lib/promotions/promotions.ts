@@ -7,8 +7,6 @@ type PromotionReference = Promotion["source"] | Promotion["target"];
 const approvalGate = (promotion: Promotion) =>
   promotion.gates?.find((gate) => gate.type === EXPLICIT_APPROVAL_GATE);
 
-// The current gate API replaces the plan's legacy requireApproval/approval fields.
-// Be conservative: only a recorded Pending explicit-approval gate is actionable.
 const isActionable = (promotion: Promotion): boolean =>
   promotion.status === "Waiting" && approvalGate(promotion)?.state === "Pending";
 
