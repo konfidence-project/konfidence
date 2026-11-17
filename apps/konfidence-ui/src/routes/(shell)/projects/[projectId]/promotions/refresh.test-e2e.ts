@@ -129,7 +129,7 @@ test("keeps expansion, filters and selected details stable as promotions arrive 
     "2 waiting",
   );
   await expect(panel.getByRole("button", { exact: true, name: "Approve" })).toHaveCount(0);
-  await expect(page).toHaveURL(/promotion=a-waiting/);
+  await expect(page).toHaveURL(/promotionId=a-waiting/);
   await expect(page.getByRole("searchbox", { name: "Search promotions" })).toHaveValue("a-flow");
 });
 
@@ -142,7 +142,7 @@ test("retains data on failed refreshes, retries and closes removed selection onl
   await page.route(API, (route) =>
     route.fulfill(fail ? { json: {}, status: 503 } : { json: { data: current } }),
   );
-  const path = `${PATH}?promotion=a-history`;
+  const path = `${PATH}?promotionId=a-history`;
   await signIn(page, path, path);
   const panel = page.getByTestId("side-panel");
   await expect(panel).toBeVisible();
@@ -165,7 +165,7 @@ test("retains data on failed refreshes, retries and closes removed selection onl
   }
   await page.clock.runFor(10_000);
   await expect(panel).toBeHidden();
-  await expect(page).not.toHaveURL(/promotion=/);
+  await expect(page).not.toHaveURL(/promotionId=/);
   await expect(
     page.getByRole("button", { exact: true, name: "View promotion a-history" }),
   ).toHaveCount(0);
@@ -216,7 +216,7 @@ test("deduplicates slow refreshes without unmounting loaded content or details",
     }
     await route.fulfill({ json: { data: configs } });
   });
-  const path = `${PATH}?promotion=a-waiting`;
+  const path = `${PATH}?promotionId=a-waiting`;
   await signIn(page, path, path);
   const panel = page.getByTestId("side-panel");
   await expect(panel).toBeVisible();
@@ -239,7 +239,7 @@ for (const fallback of ["static header", "page title"]) {
     await page.clock.install();
     let current = configs;
     await page.route(API, (route) => route.fulfill({ json: { data: current } }));
-    await signIn(page, `${PATH}?promotion=a-waiting`, `${PATH}?promotion=a-waiting`);
+    await signIn(page, `${PATH}?promotionId=a-waiting`, `${PATH}?promotionId=a-waiting`);
     await expect(page.getByTestId("side-panel-close")).toBeFocused();
     current = fallback === "static header" ? structuredClone(configs) : [];
     for (const config of current) {
@@ -249,7 +249,7 @@ for (const fallback of ["static header", "page title"]) {
     }
     await page.clock.runFor(10_000);
     await expect(page.getByTestId("side-panel")).toBeHidden();
-    await expect(page).not.toHaveURL(/promotion=/);
+    await expect(page).not.toHaveURL(/promotionId=/);
     await page.clock.runFor(1000);
     const target = page.locator(
       fallback === "static header" ? "#promotion-group-a-flow" : "#promotions-view-title",

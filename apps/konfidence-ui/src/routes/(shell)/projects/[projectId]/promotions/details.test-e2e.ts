@@ -24,7 +24,7 @@ test("qualifies the saved endpoints in both the detail flow and information with
   await page.route(API, (route) =>
     route.fulfill({ json: { data: [{ ...configs[1], promotions: [history] }] } }),
   );
-  const path = `${PATH}?promotion=qualified-snapshot`;
+  const path = `${PATH}?promotionId=qualified-snapshot`;
   await signIn(page, path, path);
 
   const group = page.getByRole("group", { name: "Promotion configuration a-flow" });
@@ -44,7 +44,7 @@ test("qualifies the saved endpoints in both the detail flow and information with
 test("the latest overlapping A-to-B-to-A selection wins without losing URL state or history", async ({
   page,
 }) => {
-  const path = `${PATH}?promotion=a-waiting&promotionConfig=a-flow&embedded=1&custom=retained`;
+  const path = `${PATH}?promotionId=a-waiting&promotionConfig=a-flow&embedded=1&custom=retained`;
   await openPromotions(page, path);
   const panel = page.getByTestId("side-panel");
   await expect(panel).toBeVisible();
@@ -87,7 +87,7 @@ test("overlapping first selections and filter changes preserve URL state and cre
     );
   });
   await expect(page).toHaveURL(
-    `${PATH}?embedded=1&custom=retained&promotion=a-waiting&promotionConfig=a-flow`,
+    `${PATH}?embedded=1&custom=retained&promotionId=a-waiting&promotionConfig=a-flow`,
   );
   await expect(page.getByTestId("side-panel")).toContainText("vector-a-waiting");
   expect(await page.evaluate(() => history.length)).toBe(length + 1);
@@ -130,7 +130,7 @@ test("closing after a compatible filter change does not revert the filter or emb
 test("filter cleanup preserves a compatible newer pending selection and search focus", async ({
   page,
 }) => {
-  await openPromotions(page, `${PATH}?promotion=a-waiting&embedded=1`);
+  await openPromotions(page, `${PATH}?promotionId=a-waiting&embedded=1`);
   await expect(page.getByTestId("side-panel")).toBeVisible();
   await page.evaluate(async () => {
     document.getElementById("promotion-row-a-history")!.click();
@@ -142,7 +142,7 @@ test("filter cleanup preserves a compatible newer pending selection and search f
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     );
   });
-  await expect(page).toHaveURL(`${PATH}?promotion=a-history&embedded=1`);
+  await expect(page).toHaveURL(`${PATH}?promotionId=a-history&embedded=1`);
   await expect(page.getByTestId("side-panel")).toContainText("vector-a-history");
   await expect(page.getByRole("searchbox", { name: "Search promotions" })).toBeFocused();
 });
@@ -150,7 +150,7 @@ test("filter cleanup preserves a compatible newer pending selection and search f
 test("a pending selection commit does not steal focus from an independently focused search field", async ({
   page,
 }) => {
-  await openPromotions(page, `${PATH}?promotion=a-waiting`);
+  await openPromotions(page, `${PATH}?promotionId=a-waiting`);
   await expect(page.getByTestId("side-panel")).toBeVisible();
   await page.evaluate(async () => {
     document.getElementById("promotion-row-a-history")!.click();
@@ -159,7 +159,7 @@ test("a pending selection commit does not steal focus from an independently focu
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     );
   });
-  await expect(page).toHaveURL(`${PATH}?promotion=a-history`);
+  await expect(page).toHaveURL(`${PATH}?promotionId=a-history`);
   await expect(page.getByRole("searchbox", { name: "Search promotions" })).toBeFocused();
 });
 
@@ -172,7 +172,7 @@ test("details retain the complete vector reference while the overview uses its c
       json: { data: [{ ...configs[1], promotions: [promotion("full-reference", 1, { vector })] }] },
     }),
   );
-  const path = `${PATH}?promotion=full-reference`;
+  const path = `${PATH}?promotionId=full-reference`;
   await signIn(page, path, path);
   const row = page.getByRole("button", { name: "View promotion full-reference" });
   await expect(
@@ -192,7 +192,7 @@ test("opens one detail context, retains repeated selection and supports close, B
   await page.keyboard.press("Enter");
   const panel = page.getByTestId("side-panel");
   await expect(panel).toBeVisible();
-  await expect(page).toHaveURL(`${PATH}?promotion=a-waiting`);
+  await expect(page).toHaveURL(`${PATH}?promotionId=a-waiting`);
   await expect(panel).toContainText("vector-a-waiting");
   await expect(panel).toContainText("Awaiting approval");
   await expect(panel.getByRole("button", { exact: true, name: "Approve" })).toBeDisabled();
@@ -218,13 +218,13 @@ test("opens one detail context, retains repeated selection and supports close, B
   await expect(page).toHaveURL(PATH);
   await page.goForward();
   await expect(panel).toBeVisible();
-  await expect(page).toHaveURL(`${PATH}?promotion=a-waiting`);
+  await expect(page).toHaveURL(`${PATH}?promotionId=a-waiting`);
 });
 
 test("explicit close removes deep-link selection locally and preserves filters and embedded mode", async ({
   page,
 }) => {
-  const path = `${PATH}?promotion=a-history&promotionConfig=a-flow&embedded=1`;
+  const path = `${PATH}?promotionId=a-history&promotionConfig=a-flow&embedded=1`;
   await openPromotions(page, path);
   const row = page.getByRole("button", { name: "View promotion a-history" });
   const panel = page.getByTestId("side-panel");
@@ -234,7 +234,7 @@ test("explicit close removes deep-link selection locally and preserves filters a
   await expect(panel).toBeVisible();
   await page.getByTestId("side-panel-close").click();
   await expect(panel).toBeHidden();
-  await expect(page).not.toHaveURL(/promotion=/);
+  await expect(page).not.toHaveURL(/promotionId=/);
   await expect(page).toHaveURL(/promotionConfig=a-flow/);
   await expect(page).toHaveURL(/embedded=1/);
   expect(await page.evaluate(() => history.length)).toBe(length);
@@ -269,7 +269,7 @@ test("reveals historical deep links, shows saved references and approval identit
       json: { data: [{ ...configs[1], promotions: [configs[1].promotions[1], history] }] },
     }),
   );
-  const path = `${PATH}?promotion=snapshot&embedded=1`;
+  const path = `${PATH}?promotionId=snapshot&embedded=1`;
   await signIn(page, path, path);
   const group = page.getByRole("button", { name: "Promotion configuration a-flow" });
   const panel = page.getByTestId("side-panel");
@@ -287,7 +287,7 @@ test("reveals historical deep links, shows saved references and approval identit
   await expect(panel).toBeVisible();
   await page.getByTestId("side-panel-close").click();
   await expect(panel).toBeHidden();
-  await expect(page).not.toHaveURL(/promotion=/);
+  await expect(page).not.toHaveURL(/promotionId=/);
   await expect(page).toHaveURL(/embedded=1/);
   await expect(group).toBeFocused();
 });
@@ -305,7 +305,7 @@ test("keeps compatible filtering attached but closes excluded selection without 
   await expect(page.getByTestId("side-panel")).toBeVisible();
   await page.getByRole("searchbox", { name: "Search promotions" }).fill("a-history");
   await expect(page.getByTestId("side-panel")).toBeHidden();
-  await expect(page).not.toHaveURL(/promotion=/);
+  await expect(page).not.toHaveURL(/promotionId=/);
   await expect(page).toHaveURL(/promotionConfig=a-flow/);
   await expect(page.getByRole("searchbox", { name: "Search promotions" })).toHaveValue("a-history");
   await expect(page.getByRole("searchbox", { name: "Search promotions" })).toBeFocused();
@@ -345,7 +345,7 @@ test("uses the mobile panel with truthful missing optional approval data and res
 test("even a latest-promotion deep link reveals its row without auto-reopening after collapse", async ({
   page,
 }) => {
-  await openPromotions(page, `${PATH}?promotion=a-waiting`);
+  await openPromotions(page, `${PATH}?promotionId=a-waiting`);
   const group = page.getByRole("button", { name: "Promotion configuration a-flow" });
   await expect(group).toHaveAttribute("aria-expanded", "true");
   await expect(
@@ -384,7 +384,7 @@ test("shows actual gate states and metadata in details without fabricated gate n
       json: { data: [{ ...configs[1], promotions: [{ ...promotion("gated", 1), gates }] }] },
     }),
   );
-  const path = `${PATH}?promotion=gated`;
+  const path = `${PATH}?promotionId=gated`;
   await signIn(page, path, path);
   const panel = page.getByTestId("side-panel");
   const section = panel.getByRole("region", { name: "Gates" });
@@ -403,12 +403,12 @@ test("shows actual gate states and metadata in details without fabricated gate n
 test("switches selected rows without stacking panel history and closes direct links locally", async ({
   page,
 }) => {
-  await openPromotions(page, `${PATH}?promotion=a-history`);
+  await openPromotions(page, `${PATH}?promotionId=a-history`);
   const panel = page.getByTestId("side-panel");
   await expect(panel).toBeVisible();
   const length = await page.evaluate(() => history.length);
   await page.getByRole("button", { exact: true, name: "View promotion a-waiting" }).click();
-  await expect(page).toHaveURL(`${PATH}?promotion=a-waiting`);
+  await expect(page).toHaveURL(`${PATH}?promotionId=a-waiting`);
   await expect(panel).toContainText("vector-a-waiting");
   expect(await page.evaluate(() => history.length)).toBe(length);
   await page.getByTestId("side-panel-close").click();

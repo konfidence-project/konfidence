@@ -13,7 +13,7 @@ test("Latest waiting opens its group, selects details and never toggles the sele
   await shortcut.click();
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
   await expect(row).toHaveAttribute("aria-pressed", "true");
-  await expect(page).toHaveURL(`${PATH}?promotion=a-waiting`);
+  await expect(page).toHaveURL(`${PATH}?promotionId=a-waiting`);
   await expect(page.getByTestId("side-panel")).toContainText("vector-a-waiting");
   await shortcut.click();
   await expect(trigger).toHaveAttribute("aria-expanded", "true");

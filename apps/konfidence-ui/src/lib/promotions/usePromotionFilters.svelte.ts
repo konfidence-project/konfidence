@@ -10,11 +10,11 @@ class PromotionFilters {
   private navigation = new UrlNavigation();
 
   get selectedId(): string | undefined {
-    return page.url.searchParams.get("promotion") ?? undefined;
+    return page.url.searchParams.get("promotionId") ?? undefined;
   }
 
   get selectionPending(): boolean {
-    return this.navigation.pending && this.navigation.url.searchParams.has("promotion");
+    return this.navigation.pending && this.navigation.url.searchParams.has("promotionId");
   }
 
   select = (id: string | undefined): void => {
@@ -22,12 +22,12 @@ class PromotionFilters {
       this.clearSelection();
       return;
     }
-    const currentId = this.navigation.url.searchParams.get("promotion") ?? undefined;
+    const currentId = this.navigation.url.searchParams.get("promotionId") ?? undefined;
     if (currentId === id) {
       return;
     }
     this.navigation.update(
-      (params) => params.set("promotion", id),
+      (params) => params.set("promotionId", id),
       this.navigation.replace ?? this.selectedId !== undefined,
       {
         ...this.navigation.state,
@@ -40,12 +40,12 @@ class PromotionFilters {
     const requestedParams = this.navigation.url.searchParams;
     // Cleanup validated the committed selection. Do not erase a newer request.
     if (
-      !requestedParams.has("promotion") ||
-      (excludedId !== undefined && requestedParams.get("promotion") !== excludedId)
+      !requestedParams.has("promotionId") ||
+      (excludedId !== undefined && requestedParams.get("promotionId") !== excludedId)
     ) {
       return;
     }
-    this.navigation.update((params) => params.delete("promotion"), true, {
+    this.navigation.update((params) => params.delete("promotionId"), true, {
       ...this.navigation.state,
       overlayOrigin: undefined,
     });
